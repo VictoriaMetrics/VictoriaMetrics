@@ -22,3 +22,4 @@
 * [Docs](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki)
 * [FAQ](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/FAQ)
 * [Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
+* [Google group](https://groups.google.com/forum/#!forum/victoriametrics)
