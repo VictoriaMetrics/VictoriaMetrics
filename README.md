@@ -10,7 +10,6 @@
 - Storage scales to millions of metrics with trillions of metric values.
 - Wide range of retention periods - from 1 month to 5 years. Users may create different projects (aka `storage namespaces`) with different retention periods.
 - Fast query engine. It excels on heavy queries over thousands of metrics with millions of metric values.
-- The lowest price on the market. We can afford this thanks to cost-effective VictoriaMetrics core.
 - The same remote storage URL may be used by multiple Prometheus instances collecting distinct metric sets, so all these metrics may be used in a single query (aka `global querying view`). This works ideally for multiple Prometheus instances located in different subnetworks / datacenters.
 
 
