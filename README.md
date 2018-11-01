@@ -22,3 +22,4 @@
 * [FAQ](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/FAQ)
 * [Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 * [Google group](https://groups.google.com/forum/#!forum/victoriametrics)
+* [Creating the best remote storage for Prometheus](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac) - an article with technical details about VictoriaMetrics.
