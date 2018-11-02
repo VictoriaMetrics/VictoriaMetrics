@@ -1,4 +1,4 @@
-## VictoriaMetrics - the best remote storage for Prometheus
+## VictoriaMetrics - the best long-term remote storage for Prometheus
 
 
 ### VictoriaMetrics features
