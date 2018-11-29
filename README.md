@@ -1,4 +1,4 @@
-<img  text-align="center" alt="Victoria Metrics" src="https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/PNG/logo.png">
+<img  text-align="center" alt="Victoria Metrics" src="logo.png">
 
 ## VictoriaMetrics - the best long-term remote storage for Prometheus
 
