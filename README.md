@@ -26,3 +26,37 @@
 * [Google group](https://groups.google.com/forum/#!forum/victoriametrics)
 * [Creating the best remote storage for Prometheus](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac) - an article with technical details about VictoriaMetrics.
 * [Docker images](https://hub.docker.com/r/valyala/victoria-metrics/) and the corresponding [binaries](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) for single-server VictoriaMetrics
+
+
+### Victoria Metrics Logo
+
+[Zip](VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
+
+Files included in each folder:
+
+* 2 JPEG Preview files
+* 2 PNG Preview files with transparent background
+* 2 EPS Adobe Illustrator EPS10 files
+
+
+#### Logo Usage Guidelines
+
+##### Font used: 
+
+* Lato Black 
+* Lato Regular
+
+##### Color Palette:
+
+* HEX [#110f0f](https://www.color-hex.com/color/110f0f) 
+* HEX [#ffffff](https://www.color-hex.com/color/ffffff)
+
+#### We kindly ask:
+
+- Please don't use any other font instead of suggested.
+- There should be sufficient clear space around the logo.
+- Do not change spacing, alignment, or relative locations of the design elements.
+- Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.
+
+
+
