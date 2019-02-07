@@ -32,7 +32,7 @@
 * [Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 * [Google group](https://groups.google.com/forum/#!forum/victoriametrics)
 * [Creating the best remote storage for Prometheus](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac) - an article with technical details about VictoriaMetrics.
-* [Docker images](https://hub.docker.com/r/valyala/victoria-metrics/) and the corresponding [binaries](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) for single-server VictoriaMetrics
+* [Free single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics)
 
 
 ### Victoria Metrics Logo
