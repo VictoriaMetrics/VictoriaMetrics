@@ -24,6 +24,7 @@
 
 ### Useful links
 
+* [Free single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics)
 * [Site](https://victoriametrics.com/)
 * [`WITH` templates playground](https://play.victoriametrics.com/promql/expand-with-exprs)
 * [Grafana playground](http://play-grafana.victoriametrics.com:3000/d/4ome8yJmz/node-exporter-on-victoriametrics-demo)
@@ -32,7 +33,6 @@
 * [Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 * [Google group](https://groups.google.com/forum/#!forum/victoriametrics)
 * [Creating the best remote storage for Prometheus](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac) - an article with technical details about VictoriaMetrics.
-* [Free single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics)
 
 
 ### Victoria Metrics Logo
