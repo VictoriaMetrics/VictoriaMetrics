@@ -8,7 +8,7 @@
 
 - Native [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) support. Additionally, VictoriaMetrics extends PromQL with useful features. See [Extended PromQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL) for more details.
 - Simple configuration. Just copy-n-paste remote storage URL to Prometheus config and that's it! See [Quick Start](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Quick-Start) for more info.
-- Reduced operational overhead. Prometheus local storage retention may be set to the minimum possible value when using VictoriaMetrics remote storage. This effectively makes Prometheus stateless, so it may be run as a stateless service in Kubernetes.
+- Reduced operational overhead. Offload operational burden - configuration, capacity planning, scalability, backups, retention, durability - from Prometheus local storage to VictoriaMetrics.
 - Insertion rate scales to [millions of metric values per second](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893).
 - Storage scales to [millions of metrics](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b) with trillions of metric values.
 - Wide range of retention periods - from 1 month to 5 years. Users may create different projects (aka `storage namespaces`) with different retention periods.
