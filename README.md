@@ -33,6 +33,7 @@
 * [Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 * [Google group](https://groups.google.com/forum/#!forum/victoriametrics)
 * [Creating the best remote storage for Prometheus](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac) - an article with technical details about VictoriaMetrics.
+* [Official Grafana Dashboard](https://grafana.com/dashboards/10229)
 
 
 ### Victoria Metrics Logo
