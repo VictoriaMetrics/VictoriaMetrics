@@ -94,7 +94,7 @@ to your needs.
 
 Run `make package-victoria-metrics`. It will build `valyala/victoria-metrics:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
-The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
 
 
