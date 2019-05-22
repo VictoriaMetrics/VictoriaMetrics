@@ -4,7 +4,7 @@
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 
-VictoriaMetrics is a long-term remote storage for Prometheus.
+VictoriaMetrics is high-performance cost-effective time series database. It can be used as a long-term remote storage for Prometheus.
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/valyala/victoria-metrics/) and
 in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
