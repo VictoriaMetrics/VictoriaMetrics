@@ -11,7 +11,7 @@ func TestMarshaledBlockHeaderSize(t *testing.T) {
 	// This test makes sure marshaled format isn't changed.
 	// If this test breaks then the storage format has been changed,
 	// so it may become incompatible with the previously written data.
-	expectedSize := 81
+	expectedSize := 89
 	if marshaledBlockHeaderSize != expectedSize {
 		t.Fatalf("unexpected marshaledBlockHeaderSize; got %d; want %d", marshaledBlockHeaderSize, expectedSize)
 	}

@@ -1,0 +1,68 @@
+version: '3.5'
+services:
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.3.2
+    depends_on:
+    - "vminsert"
+    - "vmselect"
+    ports:
+      - 9090:9090
+    volumes:
+      - promdata:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - docker_net
+    restart: always
+  vmstorage:
+    container_name: vmstorage
+    image: valyala/vmstorage:heads-cluster-0-gca0d4847
+    ports:
+      - 8482:8482
+      - 8400:8400
+      - 8401:8401
+    volumes:
+      - strgdata:/storage
+    command:
+      - '--storageDataPath=/storage'
+      - '--vminsertAddr=:8401'
+      - '--vmselectAddr=:8400'
+      - '--httpListenAddr=:8482'
+    networks:
+    - docker_net
+    restart: always
+  vmselect:
+    container_name: vmselect
+    image: valyala/vmselect:heads-cluster-0-gca0d4847
+    depends_on:
+      - "vmstorage"
+    ports:
+      - 8480:8480
+    command:
+      - '--storageNode=vmstorage:8400'
+    networks:
+      - docker_net
+    restart: always
+  vminsert:
+    container_name: vminsert
+    image: valyala/vminsert:heads-cluster-0-gca0d4847
+    depends_on:
+    - "vmstorage"
+    command:
+      - '--storageNode=vmstorage:8401'
+    ports:
+      - 8481:8481
+    networks:
+      - docker_net
+    restart: always
+volumes:
+  promdata: {}
+  strgdata: {}
+networks:
+  docker_net:
+    driver: bridge

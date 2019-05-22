@@ -1,0 +1,213 @@
+# Default values for victoria-metrics.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+## Tour k8s cluster domain suffix, uses for pods' FQDN
+## Ref: https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/
+##
+clusterDomainSuffix: cluster.local
+
+vmselect:
+  enabled: true
+  name: vmselect
+  image:
+    repository: valyala/vmselect
+    tag: heads-cluster-0-gca0d4847
+    pullPolicy: IfNotPresent
+  priorityClassName: ""
+  extraArgs: {}
+
+  ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+  ##
+  tolerations: []
+    # - key: "key"
+    #   operator: "Equal|Exists"
+    #   value: "value"
+    #   effect: "NoSchedule|PreferNoSchedule"
+
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+  podAnnotations:
+    prometheus.io/scrape: "true"
+  replicaCount: 2
+  resources: {}
+    # limits:
+    #   cpu: 50m
+    #   memory: 64Mi
+    # requests:
+    #   cpu: 50m
+    #   memory: 64Mi
+  securityContext: {}
+  ## Root folder for cache
+  ##
+  cacheMountPath: /cache
+  service:
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    ## Ref: https://kubernetes.io/docs/user-guide/services/#external-ips
+    ##
+    externalIPs: []
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    servicePort: 8481
+    type: ClusterIP
+
+vminsert:
+  enabled: true
+  name: vminsert
+  image:
+    repository: valyala/vminsert
+    tag: heads-cluster-0-gca0d4847
+    pullPolicy: IfNotPresent
+  priorityClassName: ""
+  extraArgs: {}
+
+  ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+  ##
+  tolerations: []
+    # - key: "key"
+    #   operator: "Equal|Exists"
+    #   value: "value"
+    #   effect: "NoSchedule|PreferNoSchedule"
+
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+  podAnnotations:
+    prometheus.io/scrape: "true"
+  replicaCount: 2
+  resources: {}
+    # limits:
+    #   cpu: 50m
+    #   memory: 64Mi
+    # requests:
+    #   cpu: 50m
+    #   memory: 64Mi
+  securityContext: {}
+  service:
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    ## Ref: https://kubernetes.io/docs/user-guide/services/#external-ips
+    ##
+    externalIPs: []
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    servicePort: 8480
+    type: ClusterIP
+
+vmstorage:
+  enabled: true
+  name: vmstorage
+  image:
+    repository: valyala/vmstorage
+    tag: heads-cluster-0-gca0d4847
+    pullPolicy: IfNotPresent
+  priorityClassName: ""
+  fullnameOverride:
+  ## Data retention period in month
+  ##
+  retentionPeriod: 1
+  ## Additional vmstorage container arguments
+  ##
+  extraArgs: {}
+
+  ## Additional vmstorage hostPath mounts
+  ##
+  extraHostPathMounts: []
+    # - name: certs-dir
+    #   mountPath: /etc/kubernetes/certs
+    #   subPath: ""
+    #   hostPath: /etc/kubernetes/certs
+    #   readOnly: true
+
+  extraConfigmapMounts: []
+    # - name: certs-configmap
+    #   mountPath: /certs
+    #   subPath: ""
+    #   configMap: certs-configmap
+    #   readOnly: true
+
+  ## Additional Vmstorage Secret mounts
+  # Defines additional mounts with secrets. Secrets must be manually created in the namespace.
+  extraSecretMounts: []
+    # - name: secret-files
+    #   mountPath: /etc/secrets
+    #   subPath: ""
+    #   secretName: secret-files
+    #   readOnly: true
+
+  ## Node tolerations for server scheduling to nodes with taints
+  ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+  ##
+  tolerations: []
+    # - key: "key"
+    #   operator: "Equal|Exists"
+    #   value: "value"
+    #   effect: "NoSchedule|PreferNoSchedule"
+
+  ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+  ##
+  nodeSelector: {}
+
+  ## Pod affinity
+  ##
+  affinity: {}
+
+  ## Use an alternate scheduler, e.g. "stork".
+  ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+  ##
+  # schedulerName:
+
+  persistentVolume:
+    ## If true,  vmstorage will create/use a Persistent Volume Claim
+    ## If false, use emptyDir
+    ##
+    enabled: true
+
+    ## Must match those of existing PV or dynamic provisioner
+    ## Ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+
+    ## Requires vmstorage.persistentVolume.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    existingClaim: ""
+
+    ## Vmstorage data Persistent Volume mount root path
+    ##
+    mountPath: /storage
+    size: 8Gi
+    subPath: ""
+
+
+  podAnnotations: {
+    prometheus.io/scrape: "true"
+  }
+  replicaCount: 2
+  podManagementPolicy: OrderedReady
+
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  ##
+  resources: {}
+    # limits:
+    #   cpu: 500m
+    #   memory: 512Mi
+    # requests:
+    #   cpu: 500m
+    #   memory: 512Mi
+
+  ## Security context to be added to server pods
+  ##
+  securityContext: {}
+  service:
+    annotations: {}
+    labels: {}
+    servicePort: 8482
+    vmselectPort: 8400
+    vminsertPort: 8401
+  terminationGracePeriodSeconds: 60

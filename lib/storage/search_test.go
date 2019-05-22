@@ -38,6 +38,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 		if len(tail) > 0 {
 			t.Fatalf("unexpected tail left after SearchQuery unmarshaling; tail (len=%d): %q", len(tail), tail)
 		}
+		if sq1.AccountID != sq1.AccountID {
+			t.Fatalf("unexpected AccountID; got %d; want %d", sq2.AccountID, sq1.AccountID)
+		}
+		if sq2.ProjectID != sq1.ProjectID {
+			t.Fatalf("unexpected ProjectID; got %d; want %d", sq2.ProjectID, sq1.ProjectID)
+		}
 		if sq1.MinTimestamp != sq2.MinTimestamp {
 			t.Fatalf("unexpected MinTimestamp; got %d; want %d", sq2.MinTimestamp, sq1.MinTimestamp)
 		}
@@ -99,6 +105,7 @@ func TestSearch(t *testing.T) {
 	startTimestamp -= startTimestamp % (1e3 * 3600 * 24)
 	blockRowsCount := 0
 	for i := 0; i < rowsCount; i++ {
+		mn.AccountID = uint32(i % accountsCount)
 		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i%metricGroupsCount))
 
 		mr := &mrs[i]
@@ -162,7 +169,7 @@ func testSearch(st *Storage, tr TimeRange, mrs []MetricRow, accountsCount int) e
 	var s Search
 	for i := 0; i < 10; i++ {
 		// Prepare TagFilters for search.
-		tfs := NewTagFilters()
+		tfs := NewTagFilters(uint32(i%accountsCount), 0)
 		metricGroupRe := fmt.Sprintf(`metric_\d*%d%d`, i, i)
 		if err := tfs.Add(nil, []byte(metricGroupRe), false, true); err != nil {
 			return fmt.Errorf("cannot add metricGroupRe=%q: %s", metricGroupRe, err)

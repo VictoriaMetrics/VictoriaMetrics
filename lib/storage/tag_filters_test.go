@@ -403,7 +403,7 @@ func testGetRegexpPrefix(t *testing.T, s, expectedPrefix, expectedSuffix string)
 }
 
 func TestTagFiltersAddEmpty(t *testing.T) {
-	tfs := NewTagFilters()
+	tfs := NewTagFilters(0, 0)
 
 	mustAdd := func(key, value []byte, isNegative, isRegexp bool) {
 		t.Helper()
@@ -437,7 +437,7 @@ func TestTagFiltersAddEmpty(t *testing.T) {
 	expectTagFilter(2, ".+", false, true)
 
 	// Empty regexp filters
-	tfs.Reset()
+	tfs.Reset(0, 0)
 	mustAdd([]byte("foo"), []byte(".*"), false, true)
 	if len(tfs.tfs) != 0 {
 		t.Fatalf("unexpectedly added empty regexp filter %s", &tfs.tfs[0])
@@ -450,7 +450,7 @@ func TestTagFiltersAddEmpty(t *testing.T) {
 	expectTagFilter(2, "foo||bar", true, true)
 
 	// Verify that otner filters are added normally.
-	tfs.Reset()
+	tfs.Reset(0, 0)
 	mustAdd(nil, []byte("foobar"), false, false)
 	if len(tfs.tfs) != 1 {
 		t.Fatalf("missing added filter")

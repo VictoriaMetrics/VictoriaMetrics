@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
@@ -70,7 +71,8 @@ func serveTCP(ln net.Listener) {
 		}
 		go func() {
 			writeRequestsTCP.Inc()
-			if err := insertHandler(c); err != nil {
+			var at auth.Token // TODO: properly initialize auth token
+			if err := insertHandler(&at, c); err != nil {
 				writeErrorsTCP.Inc()
 				logger.Errorf("error in TCP Graphite conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
 			}
@@ -88,6 +90,7 @@ func serveUDP(ln net.PacketConn) {
 			defer wg.Done()
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.Resize(bb.B, 64*1024)
+			var at auth.Token // TODO: properly initialize auth token
 			for {
 				bb.Reset()
 				bb.B = bb.B[:cap(bb.B)]
@@ -108,7 +111,7 @@ func serveUDP(ln net.PacketConn) {
 				}
 				bb.B = bb.B[:n]
 				writeRequestsUDP.Inc()
-				if err := insertHandler(bb.NewReader()); err != nil {
+				if err := insertHandler(&at, bb.NewReader()); err != nil {
 					writeErrorsUDP.Inc()
 					logger.Errorf("error in UDP Graphite conn %q<->%q: %s", ln.LocalAddr(), addr, err)
 					continue

@@ -59,6 +59,18 @@ func (rrs *rawRowsSort) Less(i, j int) bool {
 
 	// Slow path - compare TSIDs.
 	// Manually inline TSID.Less here, since the compiler doesn't inline it yet :(
+	if ta.AccountID < tb.AccountID {
+		return true
+	}
+	if ta.AccountID > tb.AccountID {
+		return false
+	}
+	if ta.ProjectID < tb.ProjectID {
+		return true
+	}
+	if ta.ProjectID > tb.ProjectID {
+		return false
+	}
 	if ta.MetricGroupID < tb.MetricGroupID {
 		return true
 	}

@@ -11,16 +11,26 @@ endif
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date -u +'%Y%m%d-%H%M%S')-$(BUILDINFO_TAG)'
 
 all: \
-	victoria-metrics-prod
+	vminsert \
+	vmselect \
+	vmstorage
 
 include app/*/Makefile
 include deployment/*/Makefile
+include deployment/*/helm/Makefile
 
 clean:
 	rm -rf bin/*
 
-release: victoria-metrics-prod
-	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz victoria-metrics-prod
+publish: \
+	publish-vmstorage \
+	publish-vmselect \
+	publish-vminsert
+
+package: \
+	package-vmstorage \
+	package-vmselect \
+	package-vminsert
 
 fmt:
 	go fmt $(PKG_PREFIX)/lib/...
@@ -56,6 +66,9 @@ vendor-update:
 	go get -u
 	go mod tidy
 	go mod vendor
+
+app-local:
+	GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 quicktemplate-gen: install-qtc
 	qtc

@@ -6,6 +6,8 @@ github.com/VictoriaMetrics/metrics
 github.com/cespare/xxhash/v2
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
+# github.com/lithammer/go-jump-consistent-hash v1.0.0
+github.com/lithammer/go-jump-consistent-hash
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
 # github.com/valyala/fastjson v1.4.1

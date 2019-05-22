@@ -1,0 +1,40 @@
+{{- if .Values.vminsert.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+{{- if .Values.vminsert.service.annotations }}
+  annotations:
+{{ toYaml .Values.vminsert.service.annotations | indent 4}}
+{{- end }}
+  labels:
+    {{- include "victoria-metrics.vminsert.labels" . | nindent 4 }}
+{{- if .Values.vminsert.service.labels }}
+{{ toYaml .Values.vminsert.service.labels | indent 4}}
+{{- end }}
+  name: {{ template "victoria-metrics.vminsert.fullname" . }}
+spec:
+{{- if .Values.vminsert.service.clusterIP }}
+  clusterIP: {{ .Values.vminsert.service.clusterIP }}
+{{- end }}
+{{- if .Values.vminsert.service.externalIPs }}
+  externalIPs:
+{{ toYaml .Values.vminsert.service.externalIPs | indent 4 }}
+{{- end }}
+{{- if .Values.vminsert.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.vminsert.service.loadBalancerIP }}
+{{- end }}
+{{- if .Values.vminsert.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- range $cidr := .Values.vminsert.service.loadBalancerSourceRanges }}
+    - {{ $cidr }}
+  {{- end }}
+{{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.vminsert.service.servicePort }}
+      protocol: TCP
+      targetPort: http
+  selector:
+    {{- include "victoria-metrics.vminsert.matchLabels" . | nindent 4 }}
+  type: "{{ .Values.vminsert.service.type }}"
+{{- end }}

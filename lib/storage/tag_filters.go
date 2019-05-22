@@ -16,17 +16,22 @@ import (
 
 // TagFilters represents filters used for filtering tags.
 type TagFilters struct {
+	accountID uint32
+	projectID uint32
+
 	tfs []tagFilter
 
 	// Common prefix for all the tag filters.
-	// Contains encoded nsPrefixTagToMetricID.
+	// Contains encoded nsPrefixTagToMetricID + accountID + projectID
 	commonPrefix []byte
 }
 
-// NewTagFilters returns new TagFilters.
-func NewTagFilters() *TagFilters {
+// NewTagFilters returns new TagFilters for the given accountID and projectID.
+func NewTagFilters(accountID, projectID uint32) *TagFilters {
 	return &TagFilters{
-		commonPrefix: marshalCommonPrefix(nil, nsPrefixTagToMetricID),
+		accountID:    accountID,
+		projectID:    projectID,
+		commonPrefix: marshalCommonPrefix(nil, nsPrefixTagToMetricID, accountID, projectID),
 	}
 }
 
@@ -69,16 +74,19 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 // String returns human-readable value for tfs.
 func (tfs *TagFilters) String() string {
 	var bb bytes.Buffer
+	fmt.Fprintf(&bb, "AccountID=%d, ProjectID=%d", tfs.accountID, tfs.projectID)
 	for i := range tfs.tfs {
 		fmt.Fprintf(&bb, ", %s", tfs.tfs[i].String())
 	}
 	return bb.String()
 }
 
-// Reset resets the tf
-func (tfs *TagFilters) Reset() {
+// Reset resets the tf for the given accountID and projectID
+func (tfs *TagFilters) Reset(accountID, projectID uint32) {
+	tfs.accountID = accountID
+	tfs.projectID = projectID
 	tfs.tfs = tfs.tfs[:0]
-	tfs.commonPrefix = marshalCommonPrefix(tfs.commonPrefix[:0], nsPrefixTagToMetricID)
+	tfs.commonPrefix = marshalCommonPrefix(tfs.commonPrefix[:0], nsPrefixTagToMetricID, accountID, projectID)
 }
 
 // tagFilter represents a filter used for filtering tags.
@@ -88,7 +96,7 @@ type tagFilter struct {
 	isNegative bool
 	isRegexp   bool
 
-	// Prefix always contains {nsPrefixTagToMetricID, key}.
+	// Prefix always contains {nsPrefixTagToMetricID, AccountID, ProjectID, key}.
 	// Additionally it contains:
 	//  - value ending with tagSeparatorChar if !isRegexp.
 	//  - non-regexp prefix if isRegexp.
@@ -110,9 +118,9 @@ func (tf *tagFilter) String() string {
 	return bb.String()
 }
 
-// Marshal appends marshaled tf to dst
+// MarshalNoAccountIDProjectID appends marshaled tf to dst
 // and returns the result.
-func (tf *tagFilter) Marshal(dst []byte) []byte {
+func (tf *tagFilter) MarshalNoAccountIDProjectID(dst []byte) []byte {
 	dst = marshalTagValue(dst, tf.key)
 	dst = marshalTagValue(dst, tf.value)
 

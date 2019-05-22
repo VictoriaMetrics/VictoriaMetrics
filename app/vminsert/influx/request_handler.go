@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -22,13 +23,13 @@ var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="influx"}`)
 // InsertHandler processes remote write for influx line protocol.
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
-func InsertHandler(req *http.Request) error {
+func InsertHandler(at *auth.Token, req *http.Request) error {
 	return concurrencylimiter.Do(func() error {
-		return insertHandlerInternal(req)
+		return insertHandlerInternal(at, req)
 	})
 }
 
-func insertHandlerInternal(req *http.Request) error {
+func insertHandlerInternal(at *auth.Token, req *http.Request) error {
 	influxReadCalls.Inc()
 
 	r := req.Body
@@ -64,21 +65,17 @@ func insertHandlerInternal(req *http.Request) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 	for ctx.Read(r, tsMultiplier) {
-		if err := ctx.InsertRows(db); err != nil {
+		if err := ctx.InsertRows(at, db); err != nil {
 			return err
 		}
 	}
 	return ctx.Error()
 }
 
-func (ctx *pushCtx) InsertRows(db string) error {
+func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 	rows := ctx.Rows.Rows
-	rowsLen := 0
-	for i := range rows {
-		rowsLen += len(rows[i].Tags)
-	}
 	ic := &ctx.Common
-	ic.Reset(rowsLen)
+	ic.Reset()
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -87,17 +84,25 @@ func (ctx *pushCtx) InsertRows(db string) error {
 			tag := &r.Tags[j]
 			ic.AddLabel(tag.Key, tag.Value)
 		}
-		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
+		ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], at.AccountID, at.ProjectID, ic.Labels)
+		metricNameBufLen := len(ic.MetricNameBuf)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf, '.')
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
+		ic.Labels = ic.Labels[:0]
+		ic.AddLabel("", "placeholder")
+		placeholderLabel := &ic.Labels[len(ic.Labels)-1]
 		for j := range r.Fields {
 			f := &r.Fields[j]
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf[:metricGroupPrefixLen], f.Key...)
 			metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
-			ic.Labels = ic.Labels[:0]
+			ic.Labels = ic.Labels[:len(ic.Labels)-1]
 			ic.AddLabel("", metricGroup)
-			ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[:1], r.Timestamp, f.Value)
+			ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf[:metricNameBufLen], placeholderLabel)
+			storageNodeIdx := ic.GetStorageNodeIdx(at, ic.Labels)
+			if err := ic.WriteDataPointExt(at, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				return err
+			}
 		}
 		rowsInserted.Add(len(r.Fields))
 	}
@@ -189,12 +194,11 @@ var (
 
 type pushCtx struct {
 	Rows   Rows
-	Common common.InsertCtx
+	Common netstorage.InsertCtx
 
 	reqBuf         bytesutil.ByteBuffer
 	tailBuf        []byte
 	copyBuf        [16 * 1024]byte
-	metricNameBuf  []byte
 	metricGroupBuf []byte
 
 	err error
@@ -209,11 +213,9 @@ func (ctx *pushCtx) Error() error {
 
 func (ctx *pushCtx) reset() {
 	ctx.Rows.Reset()
-	ctx.Common.Reset(0)
-
+	ctx.Common.Reset()
 	ctx.reqBuf.Reset()
 	ctx.tailBuf = ctx.tailBuf[:0]
-	ctx.metricNameBuf = ctx.metricNameBuf[:0]
 	ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 
 	ctx.err = nil

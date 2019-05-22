@@ -1,4 +1,4 @@
-package vmstorage
+package main
 
 import (
 	"flag"
@@ -8,122 +8,84 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/transport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
+	httpListenAddr  = flag.String("httpListenAddr", ":8482", "Address to listen for http connections")
 	retentionPeriod = flag.Int("retentionPeriod", 1, "Retention period in months")
+	storageDataPath = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
+	vminsertAddr    = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
+	vmselectAddr    = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
 	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
-
-	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
-
-	// DataPath is a path to storage data.
-	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
 )
 
-// Init initializes vmstorage.
-func Init() {
-	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
-		logger.Fatalf("invalid `-precisionBits`: %s", err)
-	}
-	logger.Infof("opening storage at %q with retention period %d months", *DataPath, *retentionPeriod)
+func main() {
+	flag.Parse()
+	buildinfo.Init()
+	logger.Init()
+
+	logger.Infof("opening storage at %q with retention period %d months", *storageDataPath, *retentionPeriod)
 	startTime := time.Now()
-	strg, err := storage.OpenStorage(*DataPath, *retentionPeriod)
+	strg, err := storage.OpenStorage(*storageDataPath, *retentionPeriod)
 	if err != nil {
-		logger.Fatalf("cannot open a storage at %s with retention period %d months: %s", *DataPath, *retentionPeriod, err)
+		logger.Fatalf("cannot open a storage at %s with retention period %d months: %s", *storageDataPath, *retentionPeriod, err)
 	}
-	Storage = strg
 
 	var m storage.Metrics
-	Storage.UpdateMetrics(&m)
+	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
 	partsCount := tm.SmallPartsCount + tm.BigPartsCount
 	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
 	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
 	logger.Infof("successfully opened storage %q in %s; partsCount: %d; blocksCount: %d; rowsCount: %d",
-		*DataPath, time.Since(startTime), partsCount, blocksCount, rowsCount)
+		*storageDataPath, time.Since(startTime), partsCount, blocksCount, rowsCount)
 
-	registerStorageMetrics(Storage)
-}
+	registerStorageMetrics(strg)
 
-// Storage is a storage.
-//
-// Every storage call must be wrapped into WG.Add(1) ... WG.Done()
-// for proper graceful shutdown when Stop is called.
-var Storage *storage.Storage
+	srv, err := transport.NewServer(*vminsertAddr, *vmselectAddr, strg)
+	if err != nil {
+		logger.Fatalf("cannot create a server with vminsertAddr=%s, vmselectAddr=%s: %s", *vminsertAddr, *vmselectAddr, err)
+	}
 
-// WG must be incremented before Storage call.
-//
-// Use syncwg instead of sync, since Add is called from concurrent goroutines.
-var WG syncwg.WaitGroup
+	go srv.RunVMInsert()
+	go srv.RunVMSelect()
 
-// AddRows adds mrs to the storage.
-func AddRows(mrs []storage.MetricRow) error {
-	WG.Add(1)
-	err := Storage.AddRows(mrs, uint8(*precisionBits))
-	WG.Done()
-	return err
-}
+	requestHandler := newRequestHandler(strg)
+	go func() {
+		httpserver.Serve(*httpListenAddr, requestHandler)
+	}()
 
-// DeleteMetrics deletes metrics matching tfss.
-//
-// Returns the number of deleted metrics.
-func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
-	WG.Add(1)
-	n, err := Storage.DeleteMetrics(tfss)
-	WG.Done()
-	return n, err
-}
+	sig := procutil.WaitForSigterm()
+	logger.Infof("service received signal %s", sig)
 
-// SearchTagKeys searches for tag keys
-func SearchTagKeys(maxTagKeys int) ([]string, error) {
-	WG.Add(1)
-	keys, err := Storage.SearchTagKeys(maxTagKeys)
-	WG.Done()
-	return keys, err
-}
+	logger.Infof("gracefully shutting down the service")
+	startTime = time.Now()
+	srv.MustClose()
+	logger.Infof("successfully shut down the service in %s", time.Since(startTime))
 
-// SearchTagValues searches for tag values for the given tagKey
-func SearchTagValues(tagKey []byte, maxTagValues int) ([]string, error) {
-	WG.Add(1)
-	values, err := Storage.SearchTagValues(tagKey, maxTagValues)
-	WG.Done()
-	return values, err
-}
-
-// GetSeriesCount returns the number of time series in the storage.
-func GetSeriesCount() (uint64, error) {
-	WG.Add(1)
-	n, err := Storage.GetSeriesCount()
-	WG.Done()
-	return n, err
-}
-
-// Stop stops the vmstorage
-func Stop() {
-	logger.Infof("gracefully closing the storage at %s", *DataPath)
-	startTime := time.Now()
-	WG.WaitAndBlock()
-	Storage.MustClose()
+	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
+	startTime = time.Now()
+	strg.MustClose()
 	logger.Infof("successfully closed the storage in %s", time.Since(startTime))
 
-	logger.Infof("the storage has been stopped")
+	logger.Infof("the vmstorage has been stopped")
 }
 
-// RequestHandler is a storage request handler.
-func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
-	prometheusCompatibleResponse := false
-	if path == "/api/v1/admin/tsdb/snapshot" {
-		// Handle Prometheus API - https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot .
-		prometheusCompatibleResponse = true
-		path = "/snapshot/create"
+func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
+	return func(w http.ResponseWriter, r *http.Request) bool {
+		return requestHandler(w, r, strg)
 	}
+}
+
+func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
+	path := r.URL.Path
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
@@ -137,22 +99,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	case "/create":
 		w.Header().Set("Content-Type", "application/json")
-		snapshotPath, err := Storage.CreateSnapshot()
+		snapshotPath, err := strg.CreateSnapshot()
 		if err != nil {
 			msg := fmt.Sprintf("cannot create snapshot: %s", err)
 			logger.Errorf("%s", msg)
 			fmt.Fprintf(w, `{"status":"error","msg":%q}`, msg)
 			return true
 		}
-		if prometheusCompatibleResponse {
-			fmt.Fprintf(w, `{"status":"success","data":{"name":%q}}`, snapshotPath)
-		} else {
-			fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
-		}
+		fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
 		return true
 	case "/list":
 		w.Header().Set("Content-Type", "application/json")
-		snapshots, err := Storage.ListSnapshots()
+		snapshots, err := strg.ListSnapshots()
 		if err != nil {
 			msg := fmt.Sprintf("cannot list snapshots: %s", err)
 			logger.Errorf("%s", msg)
@@ -171,7 +129,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/delete":
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := Storage.DeleteSnapshot(snapshotName); err != nil {
+		if err := strg.DeleteSnapshot(snapshotName); err != nil {
 			msg := fmt.Sprintf("cannot delete snapshot %q: %s", snapshotName, err)
 			logger.Errorf("%s", msg)
 			fmt.Fprintf(w, `{"status":"error","msg":%q}`, msg)
@@ -181,7 +139,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/delete_all":
 		w.Header().Set("Content-Type", "application/json")
-		snapshots, err := Storage.ListSnapshots()
+		snapshots, err := strg.ListSnapshots()
 		if err != nil {
 			msg := fmt.Sprintf("cannot list snapshots: %s", err)
 			logger.Errorf("%s", msg)
@@ -189,7 +147,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		for _, snapshotName := range snapshots {
-			if err := Storage.DeleteSnapshot(snapshotName); err != nil {
+			if err := strg.DeleteSnapshot(snapshotName); err != nil {
 				msg := fmt.Sprintf("cannot delete snapshot %q: %s", snapshotName, err)
 				logger.Errorf("%s", msg)
 				fmt.Fprintf(w, `{"status":"error","msg":%q}`, msg)

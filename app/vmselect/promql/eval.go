@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -62,9 +63,10 @@ func AdjustStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	Start int64
-	End   int64
-	Step  int64
+	AuthToken *auth.Token
+	Start     int64
+	End       int64
+	Step      int64
 
 	Deadline netstorage.Deadline
 
@@ -77,6 +79,7 @@ type EvalConfig struct {
 // newEvalConfig returns new EvalConfig copy from src.
 func newEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
+	ec.AuthToken = src.AuthToken
 	ec.Start = src.Start
 	ec.End = src.End
 	ec.Step = src.Step
@@ -510,11 +513,14 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 
 	// Fetch the remaining part of the result.
 	sq := &storage.SearchQuery{
+		AccountID:    ec.AuthToken.AccountID,
+		ProjectID:    ec.AuthToken.ProjectID,
 		MinTimestamp: start - window - maxSilenceInterval,
 		MaxTimestamp: ec.End + ec.Step,
 		TagFilterss:  [][]storage.TagFilter{me.TagFilters},
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, ec.Deadline)
+
+	rss, denyCache, err := netstorage.ProcessSearchQuery(ec.AuthToken, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -570,8 +576,9 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 		}
 	}
 	tss = mergeTimeseries(tssCached, tss, start, ec)
-	rollupResultCacheV.Put(name, ec, me, window, tss)
-
+	if !denyCache {
+		rollupResultCacheV.Put(name, ec, me, window, tss)
+	}
 	return tss, nil
 }
 
@@ -628,6 +635,8 @@ var bbPool bytesutil.ByteBufferPool
 func evalNumber(ec *EvalConfig, n float64) []*timeseries {
 	var ts timeseries
 	ts.denyReuse = true
+	ts.MetricName.AccountID = ec.AuthToken.AccountID
+	ts.MetricName.ProjectID = ec.AuthToken.ProjectID
 	timestamps := ec.getSharedTimestamps()
 	values := make([]float64, len(timestamps))
 	for i := range timestamps {

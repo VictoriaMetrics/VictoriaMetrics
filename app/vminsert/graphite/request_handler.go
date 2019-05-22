@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -20,27 +21,27 @@ var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="graphite"}`)
 // insertHandler processes remote write for graphite plaintext protocol.
 //
 // See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
-func insertHandler(r io.Reader) error {
+func insertHandler(at *auth.Token, r io.Reader) error {
 	return concurrencylimiter.Do(func() error {
-		return insertHandlerInternal(r)
+		return insertHandlerInternal(at, r)
 	})
 }
 
-func insertHandlerInternal(r io.Reader) error {
+func insertHandlerInternal(at *auth.Token, r io.Reader) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 	for ctx.Read(r) {
-		if err := ctx.InsertRows(); err != nil {
+		if err := ctx.InsertRows(at); err != nil {
 			return err
 		}
 	}
 	return ctx.Error()
 }
 
-func (ctx *pushCtx) InsertRows() error {
+func (ctx *pushCtx) InsertRows(at *auth.Token) error {
 	rows := ctx.Rows.Rows
 	ic := &ctx.Common
-	ic.Reset(len(rows))
+	ic.Reset()
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -49,7 +50,9 @@ func (ctx *pushCtx) InsertRows() error {
 			tag := &r.Tags[j]
 			ic.AddLabel(tag.Key, tag.Value)
 		}
-		ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, r.Value)
+		if err := ic.WriteDataPoint(at, ic.Labels, r.Timestamp, r.Value); err != nil {
+			return err
+		}
 	}
 	rowsInserted.Add(len(rows))
 	return ic.FlushBufs()
@@ -110,7 +113,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 
 type pushCtx struct {
 	Rows   Rows
-	Common common.InsertCtx
+	Common netstorage.InsertCtx
 
 	reqBuf  bytesutil.ByteBuffer
 	tailBuf []byte
@@ -128,7 +131,7 @@ func (ctx *pushCtx) Error() error {
 
 func (ctx *pushCtx) reset() {
 	ctx.Rows.Reset()
-	ctx.Common.Reset(0)
+	ctx.Common.Reset()
 	ctx.reqBuf.Reset()
 	ctx.tailBuf = ctx.tailBuf[:0]
 

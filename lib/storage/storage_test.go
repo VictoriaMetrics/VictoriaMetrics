@@ -194,7 +194,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	}
 
 	// Verify no tag keys exist
-	tks, err := s.SearchTagKeys(1e5)
+	tks, err := s.SearchTagKeys(0, 0, 1e5)
 	if err != nil {
 		t.Fatalf("error in SearchTagKeys at the start: %s", err)
 	}
@@ -245,7 +245,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	})
 
 	// Verify no more tag keys exist
-	tks, err = s.SearchTagKeys(1e5)
+	tks, err = s.SearchTagKeys(0, 0, 1e5)
 	if err != nil {
 		t.Fatalf("error in SearchTagKeys after the test: %s", err)
 	}
@@ -264,12 +264,16 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	const metricsCount = 30
 
 	workerTag := []byte(fmt.Sprintf("workerTag_%d", workerNum))
+	accountID := uint32(workerNum)
+	projectID := uint32(123)
 
 	tksAll := make(map[string]bool)
 	tksAll[""] = true // __name__
 	for i := 0; i < metricsCount; i++ {
 		var mrs []MetricRow
 		var mn MetricName
+		mn.AccountID = accountID
+		mn.ProjectID = projectID
 		job := fmt.Sprintf("job_%d_%d", i, workerNum)
 		instance := fmt.Sprintf("instance_%d_%d", i, workerNum)
 		mn.Tags = []Tag{
@@ -301,7 +305,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	s.debugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchTagValues(workerTag, 1e5)
+	tvs, err := s.SearchTagValues(accountID, projectID, workerTag, 1e5)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagValues before metrics removal: %s", err)
 	}
@@ -310,7 +314,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	}
 
 	// Verify tag keys exist
-	tks, err := s.SearchTagKeys(1e5)
+	tks, err := s.SearchTagKeys(accountID, projectID, 1e5)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeys before metrics removal: %s", err)
 	}
@@ -333,7 +337,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		return n
 	}
 	for i := 0; i < metricsCount; i++ {
-		tfs := NewTagFilters()
+		tfs := NewTagFilters(accountID, projectID)
 		if err := tfs.Add(nil, []byte("metric_.+"), false, true); err != nil {
 			return fmt.Errorf("cannot add regexp tag filter: %s", err)
 		}
@@ -366,14 +370,14 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	}
 
 	// Make sure no more metrics left for the given workerNum
-	tfs := NewTagFilters()
+	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add(nil, []byte(fmt.Sprintf("metric_.+_%d", workerNum)), false, true); err != nil {
 		return fmt.Errorf("cannot add regexp tag filter for worker metrics: %s", err)
 	}
 	if n := metricBlocksCount(tfs); n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchTagValues(workerTag, 1e5)
+	tvs, err = s.SearchTagValues(accountID, projectID, workerTag, 1e5)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagValues after all the metrics are removed: %s", err)
 	}
@@ -451,6 +455,8 @@ func testStorageAddRows(s *Storage) error {
 			{[]byte("instance"), []byte("1.2.3.4")},
 		}
 		for j := 0; j < rowsPerAdd; j++ {
+			mn.AccountID = uint32(rand.Intn(2))
+			mn.ProjectID = uint32(rand.Intn(3))
 			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rand.Intn(100)))
 			metricNameRaw := mn.marshalRaw(nil)
 			timestamp := rand.Int63n(1e10)
@@ -581,6 +587,8 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 		{[]byte("instance"), []byte("1.2.3.4")},
 	}
 	for i := 0; i < rowsCount; i++ {
+		mn.AccountID = 123
+		mn.ProjectID = uint32(i % 3)
 		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", workerNum, rand.Intn(10)))
 		metricNameRaw := mn.marshalRaw(nil)
 		timestamp := rand.Int63n(1e10)

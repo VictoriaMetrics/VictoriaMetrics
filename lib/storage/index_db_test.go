@@ -263,6 +263,8 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 
 	for i := 0; i < 4e2+1; i++ {
 		var mn MetricName
+		mn.AccountID = uint32((i + 2) % accountsCount)
+		mn.ProjectID = uint32((i + 1) % projectsCount)
 
 		// Init MetricGroup.
 		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup_%d\x00\x01\x02", i%metricGroups))
@@ -281,6 +283,12 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		var tsid TSID
 		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
 			return nil, nil, fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err)
+		}
+		if tsid.AccountID != mn.AccountID {
+			return nil, nil, fmt.Errorf("unexpected TSID.AccountID; got %d; want %d; mn:\n%s\ntsid:\n%+v", tsid.AccountID, mn.AccountID, &mn, &tsid)
+		}
+		if tsid.ProjectID != mn.ProjectID {
+			return nil, nil, fmt.Errorf("unexpected TSID.ProjectID; got %d; want %d; mn:\n%s\ntsid:\n%+v", tsid.ProjectID, mn.ProjectID, &mn, &tsid)
 		}
 
 		mns = append(mns, mn)
@@ -302,15 +310,23 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		return false
 	}
 
-	timeseriesCounters := make(map[uint64]bool)
+	allKeys := make(map[accountProjectKey]map[string]bool)
+	timeseriesCounters := make(map[accountProjectKey]map[uint64]bool)
 	var tsidCopy TSID
 	var metricNameCopy []byte
-	allKeys := make(map[string]bool)
 	for i := range mns {
 		mn := &mns[i]
 		tsid := &tsids[i]
 
-		tc := timeseriesCounters
+		apKey := accountProjectKey{
+			AccountID: tsid.AccountID,
+			ProjectID: tsid.ProjectID,
+		}
+		tc := timeseriesCounters[apKey]
+		if tc == nil {
+			tc = make(map[uint64]bool)
+			timeseriesCounters[apKey] = tc
+		}
 		tc[tsid.MetricID] = true
 
 		mn.sortTags()
@@ -330,7 +346,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 
 		// Search for metric name for the given metricID.
 		var err error
-		metricNameCopy, err = db.searchMetricName(metricNameCopy[:0], tsidCopy.MetricID)
+		metricNameCopy, err = db.searchMetricName(metricNameCopy[:0], tsidCopy.MetricID, tsidCopy.AccountID, tsidCopy.ProjectID)
 		if err != nil {
 			return fmt.Errorf("error in searchMetricName: %s", err)
 		}
@@ -339,7 +355,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Try searching metric name for non-existent MetricID.
-		buf, err := db.searchMetricName(nil, 1)
+		buf, err := db.searchMetricName(nil, 1, mn.AccountID, mn.ProjectID)
 		if err != io.EOF {
 			return fmt.Errorf("expecting io.EOF error when searching for non-existing metricID; got %v", err)
 		}
@@ -348,37 +364,44 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Test SearchTagValues
-		tvs, err := db.SearchTagValues(nil, 1e5)
+		tvs, err := db.SearchTagValues(mn.AccountID, mn.ProjectID, nil, 1e5)
 		if err != nil {
 			return fmt.Errorf("error in SearchTagValues for __name__: %s", err)
 		}
 		if !hasValue(tvs, mn.MetricGroup) {
 			return fmt.Errorf("SearchTagValues couldn't find %q; found %q", mn.MetricGroup, tvs)
 		}
+		apKeys := allKeys[apKey]
+		if apKeys == nil {
+			apKeys = make(map[string]bool)
+			allKeys[apKey] = apKeys
+		}
 		for i := range mn.Tags {
 			tag := &mn.Tags[i]
-			tvs, err := db.SearchTagValues(tag.Key, 1e5)
+			tvs, err := db.SearchTagValues(mn.AccountID, mn.ProjectID, tag.Key, 1e5)
 			if err != nil {
 				return fmt.Errorf("error in SearchTagValues for __name__: %s", err)
 			}
 			if !hasValue(tvs, tag.Value) {
 				return fmt.Errorf("SearchTagValues couldn't find %q=%q; found %q", tag.Key, tag.Value, tvs)
 			}
-			allKeys[string(tag.Key)] = true
+			apKeys[string(tag.Key)] = true
 		}
 	}
 
 	// Test SearchTagKeys
-	tks, err := db.SearchTagKeys(1e5)
-	if err != nil {
-		return fmt.Errorf("error in SearchTagKeys: %s", err)
-	}
-	if !hasValue(tks, nil) {
-		return fmt.Errorf("cannot find __name__ in %q", tks)
-	}
-	for key := range allKeys {
-		if !hasValue(tks, []byte(key)) {
-			return fmt.Errorf("cannot find %q in %q", key, tks)
+	for k, apKeys := range allKeys {
+		tks, err := db.SearchTagKeys(k.AccountID, k.ProjectID, 1e5)
+		if err != nil {
+			return fmt.Errorf("error in SearchTagKeys: %s", err)
+		}
+		if !hasValue(tks, nil) {
+			return fmt.Errorf("cannot find __name__ in %q", tks)
+		}
+		for key := range apKeys {
+			if !hasValue(tks, []byte(key)) {
+				return fmt.Errorf("cannot find %q in %q", key, tks)
+			}
 		}
 	}
 
@@ -388,7 +411,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		tsid := &tsids[i]
 
 		// Search without regexps.
-		tfs := NewTagFilters()
+		tfs := NewTagFilters(mn.AccountID, mn.ProjectID)
 		if err := tfs.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %s", err)
 		}
@@ -434,7 +457,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Search with regexps.
-		tfs.Reset()
+		tfs.Reset(mn.AccountID, mn.ProjectID)
 		if err := tfs.Add(nil, mn.MetricGroup, false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for MetricGroup: %s", err)
 		}
@@ -472,7 +495,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Search with filter matching zero results.
-		tfs.Reset()
+		tfs.Reset(mn.AccountID, mn.ProjectID)
 		if err := tfs.Add([]byte("non-existing-key"), []byte("foobar"), false, false); err != nil {
 			return fmt.Errorf("cannot add non-existing key: %s", err)
 		}
@@ -493,8 +516,8 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 			continue
 		}
 
-		// Search with empty filter. It should match all the results.
-		tfs.Reset()
+		// Search with empty filter. It should match all the results for (accountID, projectID).
+		tfs.Reset(mn.AccountID, mn.ProjectID)
 		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5)
 		if err != nil {
 			return fmt.Errorf("cannot search for common prefix: %s", err)
@@ -504,7 +527,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Search with empty metricGroup. It should match zero results.
-		tfs.Reset()
+		tfs.Reset(mn.AccountID, mn.ProjectID)
 		if err := tfs.Add(nil, nil, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for empty metricGroup: %s", err)
 		}
@@ -517,11 +540,11 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Search with multiple tfss
-		tfs1 := NewTagFilters()
+		tfs1 := NewTagFilters(mn.AccountID, mn.ProjectID)
 		if err := tfs1.Add(nil, nil, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for empty metricGroup: %s", err)
 		}
-		tfs2 := NewTagFilters()
+		tfs2 := NewTagFilters(mn.AccountID, mn.ProjectID)
 		if err := tfs2.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %s", err)
 		}
@@ -539,7 +562,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 			return fmt.Errorf("cannot search for nil tfss: %s", err)
 		}
 		if len(tsidsFound) != 0 {
-			return fmt.Errorf("unexpected non-empty tsids fround for nil tfss; found %d tsids", len(tsidsFound))
+			return fmt.Errorf("unexpected non-empty tsids fround for nil tfss")
 		}
 	}
 
@@ -557,6 +580,8 @@ func testHasTSID(tsids []TSID, tsid *TSID) bool {
 
 func TestMatchTagFilters(t *testing.T) {
 	var mn MetricName
+	mn.AccountID = 123
+	mn.ProjectID = 456
 	mn.MetricGroup = append(mn.MetricGroup, "foobar_metric"...)
 	for i := 0; i < 5; i++ {
 		key := fmt.Sprintf("key %d", i)
@@ -565,12 +590,36 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 	var bb bytesutil.ByteBuffer
 
-	var tfs TagFilters
-	tfs.Reset()
+	// Verify tag filters for different account / project
+	tfs := NewTagFilters(mn.AccountID, mn.ProjectID+1)
 	if err := tfs.Add(nil, []byte("foobar_metric"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
 	ok, err := matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Tag filters shouldn't match for invalid projectID")
+	}
+	tfs.Reset(mn.AccountID+1, mn.ProjectID)
+	if err := tfs.Add(nil, []byte("foobar_metric"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Tag filters shouldn't match for invalid accountID")
+	}
+
+	// Correct AccountID , ProjectID
+	tfs.Reset(mn.AccountID, mn.ProjectID)
+	if err := tfs.Add(nil, []byte("foobar_metric"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -579,7 +628,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Empty tag filters should match.
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -589,7 +638,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Negative match by MetricGroup
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("foobar"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)
 	}
@@ -600,7 +649,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("obar.+"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, no negative filter: %s", err)
 	}
@@ -611,7 +660,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("foobar_metric"), true, false); err != nil {
 		t.Fatalf("cannot add no regexp, negative filter: %s", err)
 	}
@@ -622,7 +671,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("foob.+metric"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
@@ -635,7 +684,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Positive match by MetricGroup
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("foobar_metric"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)
 	}
@@ -646,7 +695,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("foobar.+etric"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, no negative filter: %s", err)
 	}
@@ -657,7 +706,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("obar_metric"), true, false); err != nil {
 		t.Fatalf("cannot add no regexp, negative filter: %s", err)
 	}
@@ -668,7 +717,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add(nil, []byte("ob.+metric"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
@@ -681,7 +730,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Negative match by non-existing tag
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)
 	}
@@ -692,7 +741,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("non-existing-tag"), []byte("obar.+"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, no negative filter: %s", err)
 	}
@@ -703,7 +752,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("non-existing-tag"), []byte("foobar_metric"), true, false); err != nil {
 		t.Fatalf("cannot add no regexp, negative filter: %s", err)
 	}
@@ -714,7 +763,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("non-existing-tag"), []byte("foob.+metric"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
@@ -727,7 +776,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Negative match by existing tag
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 0"), []byte("foobar"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)
 	}
@@ -738,7 +787,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 1"), []byte("obar.+"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, no negative filter: %s", err)
 	}
@@ -749,7 +798,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 2"), []byte("value 2"), true, false); err != nil {
 		t.Fatalf("cannot add no regexp, negative filter: %s", err)
 	}
@@ -760,7 +809,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 3"), []byte("v.+lue 3"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
@@ -773,7 +822,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Positive match by existing tag
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 0"), []byte("value 0"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)
 	}
@@ -784,7 +833,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 1"), []byte(".+lue 1"), false, true); err != nil {
 		t.Fatalf("cannot add regexp, no negative filter: %s", err)
 	}
@@ -795,7 +844,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 2"), []byte("value 3"), true, false); err != nil {
 		t.Fatalf("cannot add no regexp, negative filter: %s", err)
 	}
@@ -806,7 +855,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 3"), []byte("v.+lue 2"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
@@ -819,7 +868,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Positive match by multiple tags and MetricGroup
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	if err := tfs.Add([]byte("key 0"), []byte("value 0"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)
 	}
@@ -853,7 +902,7 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 
 	// Negative match by multiple tags and MetricGroup
-	tfs.Reset()
+	tfs.Reset(mn.AccountID, mn.ProjectID)
 	// Positive matches
 	if err := tfs.Add([]byte("key 0"), []byte("value 0"), false, false); err != nil {
 		t.Fatalf("cannot add no regexp, no negative filter: %s", err)

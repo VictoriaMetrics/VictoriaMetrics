@@ -11,6 +11,7 @@ func TestMetaindexRowReset(t *testing.T) {
 	var mr metaindexRow
 
 	mr.TSID.MetricID = 234
+	mr.TSID.AccountID = 342
 	mr.BlockHeadersCount = 1323
 	mr.MinTimestamp = -234
 	mr.MaxTimestamp = 8989

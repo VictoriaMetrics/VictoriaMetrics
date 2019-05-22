@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -47,15 +48,24 @@ func TestExpandWithExprsError(t *testing.T) {
 }
 
 func TestExecSuccess(t *testing.T) {
+	accountID := uint32(123)
+	projectID := uint32(567)
 	start := int64(1000e3)
 	end := int64(2000e3)
 	step := int64(200e3)
 	timestampsExpected := []int64{1000e3, 1200e3, 1400e3, 1600e3, 1800e3, 2000e3}
-	metricNameExpected := storage.MetricName{}
+	metricNameExpected := storage.MetricName{
+		AccountID: accountID,
+		ProjectID: projectID,
+	}
 
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
 		ec := &EvalConfig{
+			AuthToken: &auth.Token{
+				AccountID: accountID,
+				ProjectID: projectID,
+			},
 			Start:    start,
 			End:      end,
 			Step:     step,
@@ -3423,6 +3433,10 @@ func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		ec := &EvalConfig{
+			AuthToken: &auth.Token{
+				AccountID: 123,
+				ProjectID: 567,
+			},
 			Start:    1000,
 			End:      2000,
 			Step:     100,
@@ -3574,6 +3588,12 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 
 func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName) {
 	t.Helper()
+	if mn.AccountID != mnExpected.AccountID {
+		t.Fatalf(`unexpected accountID; got %d; want %d`, mn.AccountID, mnExpected.AccountID)
+	}
+	if mn.ProjectID != mnExpected.ProjectID {
+		t.Fatalf(`unexpected projectID; got %d; want %d`, mn.ProjectID, mnExpected.ProjectID)
+	}
 	if string(mn.MetricGroup) != string(mnExpected.MetricGroup) {
 		t.Fatalf(`unexpected MetricGroup; got %q; want %q`, mn.MetricGroup, mnExpected.MetricGroup)
 	}

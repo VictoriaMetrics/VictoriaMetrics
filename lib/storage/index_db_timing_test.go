@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/VictoriaMetrics/fastcache"
@@ -28,12 +29,15 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 		}
 	}()
 
+	var goroutineID uint32
+
 	b.ReportAllocs()
 	b.SetBytes(recordsPerLoop)
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var mn MetricName
 		var tsid TSID
+		mn.AccountID = atomic.AddUint32(&goroutineID, 1)
 
 		// The most common tags.
 		mn.Tags = []Tag{
@@ -105,6 +109,8 @@ func BenchmarkIndexDBSearchTSIDs(b *testing.B) {
 	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 	for i := 0; i < recordsCount; i++ {
+		mn.AccountID = uint32(i % accountsCount)
+		mn.ProjectID = uint32(i % projectsCount)
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
@@ -124,7 +130,9 @@ func BenchmarkIndexDBSearchTSIDs(b *testing.B) {
 		tfss := []*TagFilters{&tfs}
 		i := 0
 		for pb.Next() {
-			tfs.Reset()
+			accountID := uint32(i % accountsCount)
+			projectID := uint32(i % projectsCount)
+			tfs.Reset(accountID, projectID)
 			for j := range tags {
 				if err := tfs.Add(tags[j].Key, tags[j].Value, false, false); err != nil {
 					panic(fmt.Errorf("BUG: unexpected error: %s", err))
@@ -178,6 +186,8 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 	for i := 0; i < recordsCount; i++ {
+		mn.AccountID = uint32(i % accountsCount)
+		mn.ProjectID = uint32(i % projectsCount)
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
@@ -196,6 +206,8 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		defer db.putIndexSearch(is)
 		for pb.Next() {
 			for i := 0; i < recordsPerLoop; i++ {
+				mnLocal.AccountID = uint32(i % accountsCount)
+				mnLocal.ProjectID = uint32(i % projectsCount)
 				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
 				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal); err != nil {

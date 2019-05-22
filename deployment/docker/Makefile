@@ -1,3 +1,5 @@
+# All these commands must run from repository root.
+
 DOCKER_NAMESPACE := valyala
 BUILDER_IMAGE := local/builder:go1.12.5
 CERTS_IMAGE := local/certs:1.0.2

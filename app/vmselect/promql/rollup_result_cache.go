@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -37,6 +38,8 @@ var (
 )
 
 // InitRollupResultCache initializes the rollupResult cache
+//
+// if cachePath is empty, then the cache isn't stored to persistent disk.
 func InitRollupResultCache(cachePath string) {
 	rollupResultCachePath = cachePath
 	startTime := time.Now()
@@ -106,6 +109,8 @@ func StopRollupResultCache() {
 	}
 }
 
+// TODO: convert this cache to distributed cache shared among vmselect
+// instances in the cluster.
 type rollupResultCache struct {
 	c *fastcache.Cache
 }
@@ -127,7 +132,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, window, ec.Step)
+	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, ec.AuthToken, me, window, ec.Step)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		return nil, ec.Start
@@ -145,7 +150,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 	if len(resultBuf) == 0 {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, window, ec.Step)
+		bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, ec.AuthToken, me, window, ec.Step)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -235,7 +240,7 @@ func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExp
 	bb.B = key.Marshal(bb.B[:0])
 	rrc.c.SetBig(bb.B, tssMarshaled)
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, window, ec.Step)
+	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, ec.AuthToken, me, window, ec.Step)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf) > 0 {
@@ -265,8 +270,10 @@ var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 // Increment this value every time the format of the cache changes.
 const rollupResultCacheVersion = 4
 
-func marshalRollupResultCacheKey(dst []byte, funcName string, me *metricExpr, window, step int64) []byte {
+func marshalRollupResultCacheKey(dst []byte, funcName string, at *auth.Token, me *metricExpr, window, step int64) []byte {
 	dst = append(dst, rollupResultCacheVersion)
+	dst = encoding.MarshalUint32(dst, at.AccountID)
+	dst = encoding.MarshalUint32(dst, at.ProjectID)
 	dst = encoding.MarshalUint64(dst, uint64(len(funcName)))
 	dst = append(dst, funcName...)
 	dst = encoding.MarshalInt64(dst, window)

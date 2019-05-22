@@ -1,0 +1,23 @@
+global:
+  scrape_interval:     10s
+  evaluation_interval: 10s
+
+remote_write:
+  - url: "http://vminsert:8480/insert/0/prometheus/"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  - job_name: 'vminsert'
+    static_configs:
+      - targets: ['vminsert:8480']
+
+  - job_name: 'vmselect'
+    static_configs:
+      - targets: ['vmselect:8481']
+
+  - job_name: 'vmstorage'
+    static_configs:
+      - targets: ['vmstorage:8482']

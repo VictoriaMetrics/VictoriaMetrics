@@ -9,3 +9,10 @@
 /victoria-metrics-data
 /vmstorage-data
 /vmselect-cache
+.DS_Store
+
+
+### terraform
+terraform.tfstate
+terraform.tfstate.*
+.terraform/

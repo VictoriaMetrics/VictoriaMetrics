@@ -461,26 +461,26 @@ func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 
 // searchMetricName appends metric name for the given metricID to dst
 // and returns the result.
-func (s *Storage) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
-	return s.idb().searchMetricName(dst, metricID)
+func (s *Storage) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32) ([]byte, error) {
+	return s.idb().searchMetricName(dst, metricID, accountID, projectID)
 }
 
-// SearchTagKeys searches for tag keys
-func (s *Storage) SearchTagKeys(maxTagKeys int) ([]string, error) {
-	return s.idb().SearchTagKeys(maxTagKeys)
+// SearchTagKeys searches for tag keys for the given (accountID, projectID).
+func (s *Storage) SearchTagKeys(accountID, projectID uint32, maxTagKeys int) ([]string, error) {
+	return s.idb().SearchTagKeys(accountID, projectID, maxTagKeys)
 }
 
-// SearchTagValues searches for tag values for the given tagKey
-func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int) ([]string, error) {
-	return s.idb().SearchTagValues(tagKey, maxTagValues)
+// SearchTagValues searches for tag values for the given tagKey in (accountID, projectID).
+func (s *Storage) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int) ([]string, error) {
+	return s.idb().SearchTagValues(accountID, projectID, tagKey, maxTagValues)
 }
 
-// GetSeriesCount returns the approximate number of unique time series.
+// GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
 //
 // It includes the deleted series too and may count the same series
 // up to two times - in db and extDB.
-func (s *Storage) GetSeriesCount() (uint64, error) {
-	return s.idb().GetSeriesCount()
+func (s *Storage) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
+	return s.idb().GetSeriesCount(accountID, projectID)
 }
 
 // MetricRow is a metric to insert into storage.
@@ -507,15 +507,19 @@ func (mr *MetricRow) String() string {
 	if err := mn.unmarshalRaw(mr.MetricNameRaw); err == nil {
 		metricName = mn.String()
 	}
-	return fmt.Sprintf("MetricName=%s, Timestamp=%d, Value=%f\n",
-		metricName, mr.Timestamp, mr.Value)
+	return fmt.Sprintf("MetricName=%s, Timestamp=%d, Value=%f\n", metricName, mr.Timestamp, mr.Value)
 }
 
 // Marshal appends marshaled mr to dst and returns the result.
 func (mr *MetricRow) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalBytes(dst, mr.MetricNameRaw)
-	dst = encoding.MarshalUint64(dst, uint64(mr.Timestamp))
-	dst = encoding.MarshalUint64(dst, math.Float64bits(mr.Value))
+	return MarshalMetricRow(dst, mr.MetricNameRaw, mr.Timestamp, mr.Value)
+}
+
+// MarshalMetricRow marshals MetricRow data to dst and returns the result.
+func MarshalMetricRow(dst []byte, metricNameRaw []byte, timestamp int64, value float64) []byte {
+	dst = encoding.MarshalBytes(dst, metricNameRaw)
+	dst = encoding.MarshalUint64(dst, uint64(timestamp))
+	dst = encoding.MarshalUint64(dst, math.Float64bits(value))
 	return dst
 }
 
@@ -688,7 +692,7 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, errors []error) []error
 		// It is OK if the (date, metricID) entry is added multiple times to db
 		// by concurrent goroutines.
 		s.dateMetricIDCache.Set(keyBuf, nil)
-		if err := idb.storeDateMetricID(date, metricID); err != nil {
+		if err := idb.storeDateMetricID(date, metricID, r.TSID.AccountID, r.TSID.ProjectID); err != nil {
 			errors = append(errors, err)
 			continue
 		}

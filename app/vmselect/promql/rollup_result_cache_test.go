@@ -3,6 +3,7 @@ package promql
 import (
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -14,6 +15,11 @@ func TestRollupResultCache(t *testing.T) {
 		Start: 1000,
 		End:   2000,
 		Step:  200,
+
+		AuthToken: &auth.Token{
+			AccountID: 333,
+			ProjectID: 843,
+		},
 
 		MayCache: true,
 	}

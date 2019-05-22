@@ -6,40 +6,45 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="prometheus"}`)
 
 // InsertHandler processes remote write for prometheus.
-func InsertHandler(r *http.Request, maxSize int64) error {
+func InsertHandler(at *auth.Token, r *http.Request, maxSize int64) error {
 	return concurrencylimiter.Do(func() error {
-		return insertHandlerInternal(r, maxSize)
+		return insertHandlerInternal(at, r, maxSize)
 	})
 }
 
-func insertHandlerInternal(r *http.Request, maxSize int64) error {
+func insertHandlerInternal(at *auth.Token, r *http.Request, maxSize int64) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 	if err := ctx.Read(r, maxSize); err != nil {
 		return err
 	}
-	timeseries := ctx.req.Timeseries
-	rowsLen := 0
-	for i := range timeseries {
-		rowsLen += len(timeseries[i].Samples)
-	}
+
 	ic := &ctx.Common
-	ic.Reset(rowsLen)
+	ic.Reset()
+	timeseries := ctx.req.Timeseries
 	for i := range timeseries {
 		ts := &timeseries[i]
-		var metricNameRaw []byte
+		storageNodeIdx := ic.GetStorageNodeIdx(at, ts.Labels)
+		ic.MetricNameBuf = ic.MetricNameBuf[:0]
 		for i := range ts.Samples {
 			r := &ts.Samples[i]
-			metricNameRaw = ic.WriteDataPointExt(metricNameRaw, ts.Labels, r.Timestamp, r.Value)
+			if len(ic.MetricNameBuf) == 0 {
+				ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], at.AccountID, at.ProjectID, ts.Labels)
+			}
+			if err := ic.WriteDataPointExt(at, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+				return err
+			}
 		}
 		rowsInserted.Add(len(ts.Samples))
 	}
@@ -47,14 +52,14 @@ func insertHandlerInternal(r *http.Request, maxSize int64) error {
 }
 
 type pushCtx struct {
-	Common common.InsertCtx
+	Common netstorage.InsertCtx
 
 	req    prompb.WriteRequest
 	reqBuf []byte
 }
 
 func (ctx *pushCtx) reset() {
-	ctx.Common.Reset(0)
+	ctx.Common.Reset()
 	ctx.req.Reset()
 	ctx.reqBuf = ctx.reqBuf[:0]
 }

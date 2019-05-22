@@ -1,4 +1,4 @@
-package vmselect
+package main
 
 import (
 	"flag"
@@ -10,37 +10,78 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series")
+	httpListenAddr        = flag.String("httpListenAddr", ":8481", "Address to listen for http connections")
+	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. Cache isn't saved if empty")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", runtime.GOMAXPROCS(-1)*2, "The maximum number of concurrent search requests. It shouldn't exceed 2*vCPUs for better performance. See also -search.maxQueueDuration")
 	maxQueueDuration      = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
+
+	storageNodes flagutil.Array
 )
 
-// Init initializes vmselect
-func Init() {
-	tmpDirPath := *vmstorage.DataPath + "/tmp"
-	fs.RemoveDirContents(tmpDirPath)
-	netstorage.InitTmpBlocksDir(tmpDirPath)
-	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+func main() {
+	flag.Var(&storageNodes, "storageNode", "Vmstorage address, usage -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
+	flag.Parse()
+	buildinfo.Init()
+	logger.Init()
+
+	logger.Infof("starting netstorage at storageNodes=%v", storageNodes)
+	startTime := time.Now()
+	if len(storageNodes) == 0 {
+		logger.Fatalf("storageNodes cannot be empty")
+	}
+	netstorage.InitStorageNodes(storageNodes)
+	logger.Infof("started netstorage in %s", time.Since(startTime))
+
+	if len(*cacheDataPath) > 0 {
+		tmpDataPath := *cacheDataPath + "/tmp"
+		fs.RemoveDirContents(tmpDataPath)
+		netstorage.InitTmpBlocksDir(tmpDataPath)
+		promql.InitRollupResultCache(*cacheDataPath + "/rollupResult")
+	} else {
+		netstorage.InitTmpBlocksDir("")
+		promql.InitRollupResultCache("")
+	}
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
+
+	go func() {
+		httpserver.Serve(*httpListenAddr, requestHandler)
+	}()
+
+	sig := procutil.WaitForSigterm()
+	logger.Infof("service received signal %s", sig)
+
+	logger.Infof("gracefully shutting down the service at %q", *httpListenAddr)
+	startTime = time.Now()
+	if err := httpserver.Stop(*httpListenAddr); err != nil {
+		logger.Fatalf("cannot stop the service: %s", err)
+	}
+	logger.Infof("successfully shut down the service in %s", time.Since(startTime))
+
+	logger.Infof("shutting down neststorage...")
+	startTime = time.Now()
+	netstorage.Stop()
+	if len(*cacheDataPath) > 0 {
+		promql.StopRollupResultCache()
+	}
+	logger.Infof("successfully stopped netstorage in %s", time.Since(startTime))
+
+	logger.Infof("the vmselect has been stopped")
 }
 
 var concurrencyCh chan struct{}
 
-// Stop stops vmselect
-func Stop() {
-	promql.StopRollupResultCache()
-}
-
-// RequestHandler handles remote read API requests for Prometheus
-func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Limit the number of concurrent queries.
 	// Sleep for a second until giving up. This should resolve short bursts in requests.
 	t := time.NewTimer(*maxQueueDuration)
@@ -53,14 +94,41 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	path := strings.Replace(r.URL.Path, "//", "/", -1)
-	if strings.HasPrefix(path, "/api/v1/label/") {
-		s := r.URL.Path[len("/api/v1/label/"):]
+	path := r.URL.Path
+	if path == "/internal/resetRollupResultCache" {
+		promql.ResetRollupResultCache()
+		return true
+	}
+
+	p, err := httpserver.ParsePath(path)
+	if err != nil {
+		httpserver.Errorf(w, "cannot parse path %q: %s", path, err)
+		return true
+	}
+	at, err := auth.NewToken(p.AuthToken)
+	if err != nil {
+		httpserver.Errorf(w, "auth error: %s", err)
+		return true
+	}
+	switch p.Prefix {
+	case "select":
+		return selectHandler(w, r, p, at)
+	case "delete":
+		return deleteHandler(w, r, p, at)
+	default:
+		// This is not our link
+		return false
+	}
+}
+
+func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/label/") {
+		s := p.Suffix[len("prometheus/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
 			httpserver.EnableCORS(w, r)
-			if err := prometheus.LabelValuesHandler(labelName, w, r); err != nil {
+			if err := prometheus.LabelValuesHandler(at, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
 				sendPrometheusError(w, r, err)
 				return true
@@ -69,76 +137,78 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	switch path {
-	case "/api/v1/query":
+	switch p.Suffix {
+	case "prometheus/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryHandler(w, r); err != nil {
+		if err := prometheus.QueryHandler(at, w, r); err != nil {
 			queryErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
 		return true
-	case "/api/v1/query_range":
+	case "prometheus/api/v1/query_range":
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryRangeHandler(w, r); err != nil {
+		if err := prometheus.QueryRangeHandler(at, w, r); err != nil {
 			queryRangeErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
 		return true
-	case "/api/v1/series":
+	case "prometheus/api/v1/series":
 		seriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesHandler(w, r); err != nil {
+		if err := prometheus.SeriesHandler(at, w, r); err != nil {
 			seriesErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
 		return true
-	case "/api/v1/series/count":
+	case "prometheus/api/v1/series/count":
 		seriesCountRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesCountHandler(w, r); err != nil {
+		if err := prometheus.SeriesCountHandler(at, w, r); err != nil {
 			seriesCountErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
 		return true
-	case "/api/v1/labels":
+	case "prometheus/api/v1/labels":
 		labelsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsHandler(w, r); err != nil {
+		if err := prometheus.LabelsHandler(at, w, r); err != nil {
 			labelsErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
 		return true
-	case "/api/v1/export":
+	case "prometheus/api/v1/export":
 		exportRequests.Inc()
-		if err := prometheus.ExportHandler(w, r); err != nil {
+		if err := prometheus.ExportHandler(at, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
-	case "/federate":
+	case "prometheus/federate":
 		federateRequests.Inc()
-		if err := prometheus.FederateHandler(w, r); err != nil {
+		if err := prometheus.FederateHandler(at, w, r); err != nil {
 			federateErrors.Inc()
-			httpserver.Errorf(w, "error int %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
-	case "/api/v1/admin/tsdb/delete_series":
+	default:
+		return false
+	}
+}
+
+func deleteHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+	switch p.Suffix {
+	case "prometheus/api/v1/admin/tsdb/delete_series":
 		deleteRequests.Inc()
-		authKey := r.FormValue("authKey")
-		if authKey != *deleteAuthKey {
-			httpserver.Errorf(w, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
-			return true
-		}
-		if err := prometheus.DeleteHandler(r); err != nil {
+		if err := prometheus.DeleteHandler(at, r); err != nil {
 			deleteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
@@ -160,30 +230,30 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 var (
-	labelValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/label/{}/values"}`)
-	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/label/{}/values"}`)
+	labelValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
+	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="select/{}/prometheus/api/v1/label/{}/values"}`)
 
-	queryRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query"}`)
-	queryErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/query"}`)
+	queryRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/query"}`)
+	queryErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/query"}`)
 
-	queryRangeRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_range"}`)
-	queryRangeErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/query_range"}`)
+	queryRangeRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/prometheus/api/v1/query_range"}`)
+	queryRangeErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/query_range"}`)
 
-	seriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/series"}`)
-	seriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/series"}`)
+	seriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/series"}`)
+	seriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/series"}`)
 
-	seriesCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/series/count"}`)
-	seriesCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/series/count"}`)
+	seriesCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/series/count"}`)
+	seriesCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/series/count"}`)
 
-	labelsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/labels"}`)
-	labelsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/labels"}`)
+	labelsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels"}`)
+	labelsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels"}`)
 
-	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/admin/tsdb/delete_series"}`)
-	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/tsdb/delete_series"}`)
+	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)
+	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)
 
-	exportRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/export"}`)
-	exportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/export"}`)
+	exportRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/export"}`)
+	exportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/export"}`)
 
-	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/federate"}`)
-	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/federate"}`)
+	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/federate"}`)
+	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/federate"}`)
 )

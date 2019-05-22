@@ -113,6 +113,9 @@ func unmarshalTagValue(dst, src []byte) ([]byte, []byte, error) {
 
 // MetricName reperesents a metric name.
 type MetricName struct {
+	AccountID uint32
+	ProjectID uint32
+
 	MetricGroup []byte
 
 	// Tags are optional. They must be sorted by tag Key for canonical view.
@@ -139,12 +142,16 @@ var mnPool sync.Pool
 
 // Reset resets the mn.
 func (mn *MetricName) Reset() {
+	mn.AccountID = 0
+	mn.ProjectID = 0
 	mn.MetricGroup = mn.MetricGroup[:0]
 	mn.Tags = mn.Tags[:0]
 }
 
 // CopyFrom copies src to mn.
 func (mn *MetricName) CopyFrom(src *MetricName) {
+	mn.AccountID = src.AccountID
+	mn.ProjectID = src.ProjectID
 	if cap(mn.MetricGroup) > 0 {
 		mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
 		mn.Tags = copyTags(mn.Tags[:0], src.Tags)
@@ -316,7 +323,7 @@ func (mn *MetricName) String() string {
 		tags = append(tags, fmt.Sprintf("%q=%q", t.Key, t.Value))
 	}
 	tagsStr := strings.Join(tags, ", ")
-	return fmt.Sprintf("MetricGroup=%q, tags=[%s]", mn.MetricGroup, tagsStr)
+	return fmt.Sprintf("AccountID=%d, ProjectID=%d, MetricGroup=%q, tags=[%s]", mn.AccountID, mn.ProjectID, mn.MetricGroup, tagsStr)
 }
 
 // Marshal appends marshaled mn to dst and returns the result.
@@ -325,7 +332,7 @@ func (mn *MetricName) String() string {
 func (mn *MetricName) Marshal(dst []byte) []byte {
 	// Calculate the required size and pre-allocate space in dst
 	dstLen := len(dst)
-	requiredSize := len(mn.MetricGroup) + 1
+	requiredSize := 8 + len(mn.MetricGroup) + 1
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		requiredSize += len(tag.Key) + len(tag.Value) + 2
@@ -333,16 +340,22 @@ func (mn *MetricName) Marshal(dst []byte) []byte {
 	dst = bytesutil.Resize(dst, requiredSize)
 	dst = dst[:dstLen]
 
-	// Marshal MetricGroup
+	dst = encoding.MarshalUint32(dst, mn.AccountID)
+	dst = encoding.MarshalUint32(dst, mn.ProjectID)
 	dst = marshalTagValue(dst, mn.MetricGroup)
-
-	// Marshal tags.
 	dst = marshalTags(dst, mn.Tags)
 	return dst
 }
 
 // Unmarshal unmarshals mn from src.
 func (mn *MetricName) Unmarshal(src []byte) error {
+	if len(src) < 8 {
+		return fmt.Errorf("too short src: %d bytes; must be at least % bytes", len(src), 8)
+	}
+	mn.AccountID = encoding.UnmarshalUint32(src)
+	mn.ProjectID = encoding.UnmarshalUint32(src[4:])
+	src = src[8:]
+
 	// Unmarshal MetricGroup.
 	var err error
 	src, mn.MetricGroup, err = unmarshalTagValue(mn.MetricGroup[:0], src)
@@ -393,10 +406,10 @@ const maxLabelsPerTimeseries = 30
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
 // The result must be unmarshaled with MetricName.unmarshalRaw
-func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
+func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prompb.Label) []byte {
 	// Calculate the required space for dst.
 	dstLen := len(dst)
-	dstSize := dstLen
+	dstSize := dstLen + 8
 	for i := range labels {
 		if i >= maxLabelsPerTimeseries {
 			break
@@ -422,6 +435,8 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	dst = bytesutil.Resize(dst, dstSize)[:dstLen]
 
 	// Marshal labels to dst.
+	dst = encoding.MarshalUint32(dst, accountID)
+	dst = encoding.MarshalUint32(dst, projectID)
 	for i := range labels {
 		if i >= maxLabelsPerTimeseries {
 			break
@@ -437,6 +452,13 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	return dst
 }
 
+// MarshalMetricLabelRaw marshals label to dst.
+func MarshalMetricLabelRaw(dst []byte, label *prompb.Label) []byte {
+	dst = marshalBytesFast(dst, label.Name)
+	dst = marshalBytesFast(dst, label.Value)
+	return dst
+}
+
 // marshalRaw marshals mn to dst and returns the result.
 //
 // The results may be unmarshaled with MetricName.unmarshalRaw.
@@ -444,6 +466,8 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 // This function is for testing purposes. MarshalMetricNameRaw must be used
 // in prod instead.
 func (mn *MetricName) marshalRaw(dst []byte) []byte {
+	dst = encoding.MarshalUint32(dst, mn.AccountID)
+	dst = encoding.MarshalUint32(dst, mn.ProjectID)
 	dst = marshalBytesFast(dst, nil)
 	dst = marshalBytesFast(dst, mn.MetricGroup)
 
@@ -459,6 +483,16 @@ func (mn *MetricName) marshalRaw(dst []byte) []byte {
 // unmarshalRaw unmarshals mn encoded with MarshalMetricNameRaw.
 func (mn *MetricName) unmarshalRaw(src []byte) error {
 	mn.Reset()
+	if len(src) < 4 {
+		return fmt.Errorf("not enough data for decoding accountID; got %d bytes; %X; want at least 4 bytes", len(src), src)
+	}
+	mn.AccountID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+	if len(src) < 4 {
+		return fmt.Errorf("not enough data for decoding projectID; got %d bytes; %X; want at least 4 bytes", len(src), src)
+	}
+	mn.ProjectID = encoding.UnmarshalUint32(src)
+	src = src[4:]
 	for len(src) > 0 {
 		tail, key, err := unmarshalBytesFast(src)
 		if err != nil {

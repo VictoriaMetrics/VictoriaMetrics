@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -20,17 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
-)
-
-var (
-	tlsEnable   = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. tlsCertFile and tlsKeyFile must be set if tls=true")
-	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if tls=true. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow")
-	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if tls=true")
-
-	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
-	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled -httpAuth.username is empty")
-	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It overrides httpAuth settings")
-	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof. It overrides httpAuth settings")
 )
 
 var (
@@ -52,29 +40,13 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 // charges a lot for the egress traffic. The compression may be disabled
 // by calling DisableResponseCompression before writing the first byte to w.
 func Serve(addr string, rh RequestHandler) {
-	scheme := "http"
-	if *tlsEnable {
-		scheme = "https"
-	}
-	logger.Infof("starting http server at %s://%s/", scheme, addr)
-	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, addr)
-	lnTmp, err := netutil.NewTCPListener(scheme, addr)
+	logger.Infof("starting http server at http://%s/", addr)
+	logger.Infof("pprof handlers are exposed at http://%s/debug/pprof/", addr)
+	ln, err := netutil.NewTCPListener("http", addr)
 	if err != nil {
-		logger.Fatalf("cannot start http server at %s: %s", addr, err)
+		logger.Panicf("FATAL: cannot start http server at %s: %s", addr, err)
 	}
-	setNetworkTimeouts(lnTmp)
-	ln := net.Listener(lnTmp)
-
-	if *tlsEnable {
-		cert, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
-		if err != nil {
-			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
-		}
-		cfg := &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		}
-		ln = tls.NewListener(ln, cfg)
-	}
+	setNetworkTimeouts(ln)
 	serveWithListener(addr, ln, rh)
 }
 
@@ -151,9 +123,6 @@ var metricsHandlerDuration = metrics.NewSummary(`vm_http_request_duration_second
 
 func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
-	if !checkAuth(w, r) {
-		return
-	}
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain")
@@ -177,7 +146,6 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
 			return
 		}
-
 		if rh(w, r) {
 			return
 		}
@@ -186,41 +154,6 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		unsupportedRequestErrors.Inc()
 		return
 	}
-}
-
-func checkAuth(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
-	if path == "/metrics" && len(*metricsAuthKey) > 0 {
-		authKey := r.FormValue("authKey")
-		if *metricsAuthKey == authKey {
-			return true
-		}
-		http.Error(w, "The provided authKey doesn't match -metricsAuthKey", http.StatusUnauthorized)
-		return false
-	}
-	if strings.HasPrefix(path, "/debug/pprof/") && len(*pprofAuthKey) > 0 {
-		authKey := r.FormValue("authKey")
-		if *pprofAuthKey == authKey {
-			return true
-		}
-		http.Error(w, "The provided authKey doesn't match -pprofAuthKey", http.StatusUnauthorized)
-		return false
-	}
-	return checkBasicAuth(w, r)
-}
-
-func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
-	if len(*httpAuthUsername) == 0 {
-		// HTTP Basic Auth is disabled.
-		return true
-	}
-	username, password, ok := r.BasicAuth()
-	if ok && username == *httpAuthUsername && password == *httpAuthPassword {
-		return true
-	}
-	w.Header().Set("WWW-Authenticate", `Basic realm="VictoriaMetrics"`)
-	http.Error(w, "", http.StatusUnauthorized)
-	return false
 }
 
 func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {

@@ -13,7 +13,7 @@ func TestMarshaledTSIDSize(t *testing.T) {
 	// This test makes sure marshaled format isn't changed.
 	// If this test breaks then the storage format has been changed,
 	// so it may become incompatible with the previously written data.
-	expectedSize := 24
+	expectedSize := 32
 	if marshaledTSIDSize != expectedSize {
 		t.Fatalf("unexpected marshaledTSIDSize; got %d; want %d", marshaledTSIDSize, expectedSize)
 	}
@@ -28,8 +28,27 @@ func TestTSIDLess(t *testing.T) {
 		t.Fatalf("t2=%v cannot be less than t1=%v", &t2, &t1)
 	}
 
-	t1.MetricID = 124
-	t2.MetricID = 126
+	t2.MetricID = 345
+	t1.AccountID = 123
+	if t1.Less(&t2) {
+		t.Fatalf("t1=%v cannot be less than t2=%v", &t1, &t2)
+	}
+	if !t2.Less(&t1) {
+		t.Fatalf("t2=%v must be less than t1=%v", &t2, &t1)
+	}
+
+	t2 = t1
+	t2.MetricID = 123
+	t1.ProjectID = 8473
+	if t1.Less(&t2) {
+		t.Fatalf("t1=%v cannot be less than t2=%v", &t1, &t2)
+	}
+	if !t2.Less(&t1) {
+		t.Fatalf("t2=%v must be less than t1=%v", &t2, &t1)
+	}
+
+	t2 = t1
+	t2.MetricID = 123
 	t1.MetricGroupID = 847
 	if t1.Less(&t2) {
 		t.Fatalf("t1=%v cannot be less than t2=%v", &t1, &t2)

@@ -1,0 +1,72 @@
+{{- if .Values.vmselect.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "victoria-metrics.vmselect.labels" . | nindent 4 }}
+  name: {{ template "victoria-metrics.vmselect.fullname" . }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "victoria-metrics.vmselect.matchLabels" . | nindent 6 }}
+  replicas: {{ .Values.vmselect.replicaCount }}
+  template:
+    metadata:
+    {{- if .Values.vmselect.podAnnotations }}
+      annotations:
+{{ toYaml .Values.vmselect.podAnnotations | indent 8 }}
+    {{- end }}
+      labels:
+        {{- include "victoria-metrics.vmselect.labels" . | nindent 8 }}
+    spec:
+{{- if .Values.vmselect.priorityClassName }}
+      priorityClassName: "{{ .Values.vmselect.priorityClassName }}"
+{{- end }}
+      containers:
+        - name: {{ template "victoria-metrics.name" . }}-{{ .Values.vmselect.name }}
+          image: "{{ .Values.vmselect.image.repository }}:{{ .Values.vmselect.image.tag }}"
+          imagePullPolicy: "{{ .Values.vmselect.image.pullPolicy }}"
+          args:
+            - {{ printf "%s=%s" "--cacheDataPath" .Values.vmselect.cacheMountPath | quote}}
+          {{- include "victoria-metrics.vmselect.vmstorage-pod-fqdn" . | nindent 12 }}
+          {{- range $key, $value := .Values.vmselect.extraArgs }}
+            - --{{ $key }}={{ $value }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 8481
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          volumeMounts:
+            - mountPath: {{ .Values.vmselect.cacheMountPath }}
+              name: cache-volume
+          resources:
+{{ toYaml .Values.vmselect.resources | indent 12 }}
+    {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{ toYaml .Values.imagePullSecrets | indent 2 }}
+    {{- end }}
+    {{- if .Values.vmselect.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.vmselect.nodeSelector | indent 8 }}
+    {{- end }}
+    {{- if .Values.vmselect.securityContext }}
+      securityContext:
+{{ toYaml .Values.vmselect.securityContext | indent 8 }}
+    {{- end }}
+    {{- if .Values.vmselect.tolerations }}
+      tolerations:
+{{ toYaml .Values.vmselect.tolerations | indent 8 }}
+    {{- end }}
+    {{- if .Values.vmselect.affinity }}
+      affinity:
+{{ toYaml .Values.vmselect.affinity | indent 8 }}
+    {{- end }}
+      volumes:
+        - name: cache-volume
+          emptyDir: {}
+{{- end }}

@@ -12,6 +12,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/quicktemplate"
@@ -20,7 +23,13 @@ import (
 var (
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
 	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+
+	selectNodes flagutil.Array
 )
+
+func init() {
+	flag.Var(&selectNodes, "selectNode", "vmselect address, usage -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
+}
 
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
@@ -30,7 +39,7 @@ const defaultStep = 5 * 60 * 1000
 const latencyOffset = 60 * 1000
 
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
-func FederateHandler(w http.ResponseWriter, r *http.Request) error {
+func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	ct := currentTime()
 	if err := r.ParseForm(); err != nil {
@@ -49,11 +58,13 @@ func FederateHandler(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	sq := &storage.SearchQuery{
+		AccountID:    at.AccountID,
+		ProjectID:    at.ProjectID,
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, deadline)
+	rss, _, err := netstorage.ProcessSearchQuery(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
 	}
@@ -87,7 +98,7 @@ func FederateHandler(w http.ResponseWriter, r *http.Request) error {
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
 
 // ExportHandler exports data in raw format from /api/v1/export.
-func ExportHandler(w http.ResponseWriter, r *http.Request) error {
+func ExportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	ct := currentTime()
 	if err := r.ParseForm(); err != nil {
@@ -106,7 +117,7 @@ func ExportHandler(w http.ResponseWriter, r *http.Request) error {
 	if start >= end {
 		start = end - defaultStep
 	}
-	if err := exportHandler(w, matches, start, end, format, deadline); err != nil {
+	if err := exportHandler(at, w, matches, start, end, format, deadline); err != nil {
 		return err
 	}
 	exportDuration.UpdateDuration(startTime)
@@ -115,7 +126,7 @@ func ExportHandler(w http.ResponseWriter, r *http.Request) error {
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(w http.ResponseWriter, matches []string, start, end int64, format string, deadline netstorage.Deadline) error {
+func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, start, end int64, format string, deadline netstorage.Deadline) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := WriteExportJSONLine
 	contentType := "application/json"
@@ -132,13 +143,19 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 		return err
 	}
 	sq := &storage.SearchQuery{
+		AccountID:    at.AccountID,
+		ProjectID:    at.ProjectID,
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+	}
+	if isPartial {
+		rss.Cancel()
+		return fmt.Errorf("some of the storage nodes are unavailable at the moment")
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
@@ -166,7 +183,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 // DeleteHandler processes /api/v1/admin/tsdb/delete_series prometheus API request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#delete-series
-func DeleteHandler(r *http.Request) error {
+func DeleteHandler(at *auth.Token, r *http.Request) error {
 	startTime := time.Now()
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %s", err)
@@ -175,19 +192,25 @@ func DeleteHandler(r *http.Request) error {
 		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
 	}
 	matches := r.Form["match[]"]
+	deadline := getDeadline(r)
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return err
 	}
 	sq := &storage.SearchQuery{
+		AccountID:   at.AccountID,
+		ProjectID:   at.ProjectID,
 		TagFilterss: tagFilterss,
 	}
-	deletedCount, err := netstorage.DeleteSeries(sq)
+	deletedCount, err := netstorage.DeleteSeries(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series matching %q: %s", matches, err)
 	}
 	if deletedCount > 0 {
-		promql.ResetRollupResultCache()
+		// Reset rollup result cache on all the vmselect nodes,
+		// since the cache may contain deleted data.
+		// TODO: reset only cache for (account, project)
+		resetRollupResultCaches()
 	}
 	deleteDuration.UpdateDuration(startTime)
 	return nil
@@ -195,13 +218,45 @@ func DeleteHandler(r *http.Request) error {
 
 var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/admin/tsdb/delete_series"}`)
 
+func resetRollupResultCaches() {
+	if len(selectNodes) == 0 {
+		logger.Panicf("BUG: missing -selectNode flag")
+	}
+	for _, selectNode := range selectNodes {
+		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
+		resp, err := httpClient.Get(callURL)
+		if err != nil {
+			logger.Errorf("error when accessing %q: %s", callURL, err)
+			resetRollupResultCacheErrors.Inc()
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			_ = resp.Body.Close()
+			logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
+			resetRollupResultCacheErrors.Inc()
+			continue
+		}
+		_ = resp.Body.Close()
+	}
+	resetRollupResultCacheCalls.Inc()
+}
+
+var (
+	resetRollupResultCacheErrors = metrics.NewCounter("vm_reset_rollup_result_cache_errors_total")
+	resetRollupResultCacheCalls  = metrics.NewCounter("vm_reset_rollup_result_cache_calls_total")
+)
+
+var httpClient = &http.Client{
+	Timeout: time.Second * 5,
+}
+
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
-func LabelValuesHandler(labelName string, w http.ResponseWriter, r *http.Request) error {
+func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	labelValues, err := netstorage.GetLabelValues(labelName, deadline)
+	labelValues, _, err := netstorage.GetLabelValues(at, labelName, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label values for %q: %s`, labelName, err)
 	}
@@ -217,10 +272,10 @@ var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
-func LabelsHandler(w http.ResponseWriter, r *http.Request) error {
+func LabelsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	labels, err := netstorage.GetLabels(deadline)
+	labels, _, err := netstorage.GetLabels(at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %s", err)
 	}
@@ -234,13 +289,14 @@ func LabelsHandler(w http.ResponseWriter, r *http.Request) error {
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)
 
 // SeriesCountHandler processes /api/v1/series/count request.
-func SeriesCountHandler(w http.ResponseWriter, r *http.Request) error {
+func SeriesCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	n, err := netstorage.GetSeriesCount(deadline)
+	n, _, err := netstorage.GetSeriesCount(at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %s", err)
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	WriteSeriesCountResponse(w, n)
 	seriesCountDuration.UpdateDuration(startTime)
@@ -252,7 +308,7 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // SeriesHandler processes /api/v1/series request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
+func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	ct := currentTime()
 
@@ -272,11 +328,13 @@ func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
 		start = end - defaultStep
 	}
 	sq := &storage.SearchQuery{
+		AccountID:    at.AccountID,
+		ProjectID:    at.ProjectID,
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, deadline)
+	rss, _, err := netstorage.ProcessSearchQuery(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
 	}
@@ -315,7 +373,7 @@ var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // QueryHandler processes /api/v1/query request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-func QueryHandler(w http.ResponseWriter, r *http.Request) error {
+func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	ct := currentTime()
 
@@ -350,7 +408,7 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 		start -= offset
 		end := start
 		start = end - window
-		if err := exportHandler(w, []string{childQuery}, start, end, "promapi", deadline); err != nil {
+		if err := exportHandler(at, w, []string{childQuery}, start, end, "promapi", deadline); err != nil {
 			return err
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -358,10 +416,11 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	ec := promql.EvalConfig{
-		Start:    start,
-		End:      start,
-		Step:     step,
-		Deadline: deadline,
+		AuthToken: at,
+		Start:     start,
+		End:       start,
+		Step:      step,
+		Deadline:  deadline,
 	}
 	result, err := promql.Exec(&ec, query)
 	if err != nil {
@@ -379,7 +438,7 @@ var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
+func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	ct := currentTime()
 
@@ -403,11 +462,12 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 	start, end = promql.AdjustStartEnd(start, end, step)
 
 	ec := promql.EvalConfig{
-		Start:    start,
-		End:      end,
-		Step:     step,
-		Deadline: deadline,
-		MayCache: mayCache,
+		AuthToken: at,
+		Start:     start,
+		End:       end,
+		Step:      step,
+		Deadline:  deadline,
+		MayCache:  mayCache,
 	}
 	result, err := promql.Exec(&ec, query)
 	if err != nil {
