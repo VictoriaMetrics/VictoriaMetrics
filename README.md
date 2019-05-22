@@ -148,7 +148,7 @@ Send `SIGINT` signal to the corresponding process, wait until it finishes and th
 with new configs.
 
 Cluster should remain in working state if at least a single node of each type remains available during
-the update process. See [cluster availability](cluster-availability) section for details.
+the update process. See [cluster availability](#cluster-availability) section for details.
 
 
 ### Helm
