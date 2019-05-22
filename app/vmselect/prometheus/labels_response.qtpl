@@ -1,0 +1,15 @@
+{% stripspace %}
+LabelsResponse generates response for /api/v1/labels .
+See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
+{% func LabelsResponse(labels []string) %}
+{
+	"status":"success",
+	"data":[
+		{% for i, label := range labels %}
+			{%q= label %}
+			{% if i+1 < len(labels) %},{% endif %}
+		{% endfor %}
+	]
+}
+{% endfunc %}
+{% endstripspace %}

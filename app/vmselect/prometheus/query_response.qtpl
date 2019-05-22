@@ -1,0 +1,32 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+) %}
+
+{% stripspace %}
+QueryResponse generates response for /api/v1/query.
+See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+{% func QueryResponse(rs []netstorage.Result) %}
+{
+	"status":"success",
+	"data":{
+		"resultType":"vector",
+		"result":[
+			{% if len(rs) > 0 %}
+				{
+					"metric": {%= metricNameObject(&rs[0].MetricName) %},
+					"value": {%= metricRow(rs[0].Timestamps[0], rs[0].Values[0]) %}
+				}
+				{% code rs = rs[1:] %}
+				{% for i := range rs %}
+					{% code r := &rs[i] %}
+					,{
+						"metric": {%= metricNameObject(&r.MetricName) %},
+						"value": {%= metricRow(r.Timestamps[0], r.Values[0]) %}
+					}
+				{% endfor %}
+			{% endif %}
+		]
+	}
+}
+{% endfunc %}
+{% endstripspace %}

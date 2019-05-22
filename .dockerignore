@@ -1,0 +1,6 @@
+.git
+vendor
+gocache-for-docker
+victoria-metrics-data
+vmstorage-data
+vmselect-cache

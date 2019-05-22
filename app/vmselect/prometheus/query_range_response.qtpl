@@ -1,0 +1,33 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+) %}
+
+{% stripspace %}
+QueryRangeResponse generates response for /api/v1/query_range.
+See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
+{% func QueryRangeResponse(rs []netstorage.Result) %}
+{
+	"status":"success",
+	"data":{
+		"resultType":"matrix",
+		"result":[
+			{% if len(rs) > 0 %}
+				{%= queryRangeLine(&rs[0]) %}
+				{% code rs = rs[1:] %}
+				{% for i := range rs %}
+					,{%= queryRangeLine(&rs[i]) %}
+				{% endfor %}
+			{% endif %}
+		]
+	}
+}
+{% endfunc %}
+
+{% func queryRangeLine(r *netstorage.Result) %}
+{
+	"metric": {%= metricNameObject(&r.MetricName) %},
+	"values": {%= valuesWithTimestamps(r.Values, r.Timestamps) %}
+}
+{% endfunc %}
+
+{% endstripspace %}

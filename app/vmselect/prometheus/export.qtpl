@@ -1,0 +1,96 @@
+{% import (
+	"github.com/valyala/quicktemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+) %}
+
+{% stripspace %}
+
+{% func ExportPrometheusLine(rs *netstorage.Result) %}
+	{% if len(rs.Timestamps) == 0 %}{% return %}{% endif %}
+	{% code bb := quicktemplate.AcquireByteBuffer() %}
+	{% code writeprometheusMetricName(bb, &rs.MetricName) %}
+	{% for i, ts := range rs.Timestamps %}
+		{%z= bb.B %}{% space %}
+		{%f= rs.Values[i] %}{% space %}
+		{%d= int(ts) %}{% newline %}
+	{% endfor %}
+	{% code quicktemplate.ReleaseByteBuffer(bb) %}
+{% endfunc %}
+
+{% func ExportJSONLine(rs *netstorage.Result) %}
+	{% if len(rs.Timestamps) == 0 %}{% return %}{% endif %}
+	{
+		"metric":{%= metricNameObject(&rs.MetricName) %},
+		"values":[
+			{% if len(rs.Values) > 0 %}
+				{% code values := rs.Values %}
+				{%f= values[0] %}
+				{% code values = values[1:] %}
+				{% for _, v := range values %}
+					,{%f= v %}
+				{% endfor %}
+			{% endif %}
+		],
+		"timestamps":[
+			{% if len(rs.Timestamps) > 0 %}
+				{% code timestamps := rs.Timestamps %}
+				{%d= int(timestamps[0]) %}
+				{% code timestamps = timestamps[1:] %}
+				{% for _, ts := range timestamps %}
+					,{%d= int(ts) %}
+				{% endfor %}
+			{% endif %}
+		]
+	}{% newline %}
+{% endfunc %}
+
+{% func ExportPromAPILine(rs *netstorage.Result) %}
+{
+	"metric": {%= metricNameObject(&rs.MetricName) %},
+	"values": {%= valuesWithTimestamps(rs.Values, rs.Timestamps) %}
+}
+{% endfunc %}
+
+{% func ExportPromAPIResponse(resultsCh <-chan *quicktemplate.ByteBuffer) %}
+{
+	"status":"success",
+	"data":{
+		"resultType":"matrix",
+		"result":[
+			{% code bb, ok := <-resultsCh %}
+			{% if ok %}
+				{%z= bb.B %}
+				{% code quicktemplate.ReleaseByteBuffer(bb) %}
+				{% for bb := range resultsCh %}
+					,{%z= bb.B %}
+					{% code quicktemplate.ReleaseByteBuffer(bb) %}
+				{% endfor %}
+			{% endif %}
+		]
+	}
+}
+{% endfunc %}
+
+{% func ExportStdResponse(resultsCh <-chan *quicktemplate.ByteBuffer) %}
+	{% for bb := range resultsCh %}
+		{%z= bb.B %}
+		{% code quicktemplate.ReleaseByteBuffer(bb) %}
+	{% endfor %}
+{% endfunc %}
+
+{% func prometheusMetricName(mn *storage.MetricName) %}
+	{%z= mn.MetricGroup %}
+	{% if len(mn.Tags) > 0 %}
+	{
+		{% code tags := mn.Tags %}
+		{%z= tags[0].Key %}={%qz= tags[0].Value %}
+		{% code tags = tags[1:] %}
+		{% for i := range tags %}
+			{% code tag := &tags[i] %}
+			,{%z= tag.Key %}={%qz= tag.Value %}
+		{% endfor %}
+	}
+	{% endif %}
+{% endfunc %}
+{% endstripspace %}

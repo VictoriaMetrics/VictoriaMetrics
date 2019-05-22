@@ -1,0 +1,11 @@
+{% stripspace %}
+ErrorResponse generates error response for /api/v1/query.
+See https://prometheus.io/docs/prometheus/latest/querying/api/#format-overview
+{% func ErrorResponse(statusCode int, err error) %}
+{
+	"status":"error",
+	"errorType":"{%d statusCode %}",
+	"error": {%q= err.Error() %}
+}
+{% endfunc %}
+{% endstripspace %}

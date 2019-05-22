@@ -1,0 +1,11 @@
+/tags
+/pkg
+*.pprof
+/bin
+.idea
+*.test
+*.swp
+/gocache-for-docker
+/victoria-metrics-data
+/vmstorage-data
+/vmselect-cache

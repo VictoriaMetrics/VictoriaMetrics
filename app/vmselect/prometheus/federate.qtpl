@@ -1,0 +1,16 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+) %}
+
+{% stripspace %}
+
+// Federate writes rs in /federate format.
+// See https://prometheus.io/docs/prometheus/latest/federation/
+{% func Federate(rs *netstorage.Result) %}
+	{% if len(rs.Timestamps) == 0 || len(rs.Values) == 0 %}{% return %}{% endif %}
+	{%= prometheusMetricName(&rs.MetricName) %}{% space %}
+	{%f= rs.Values[len(rs.Values)-1] %}{% space %}
+	{%d= int(rs.Timestamps[len(rs.Timestamps)-1]) %}{% newline %}
+{% endfunc %}
+
+{% endstripspace %}

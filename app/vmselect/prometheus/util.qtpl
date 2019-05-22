@@ -1,0 +1,47 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+) %}
+
+{% stripspace %}
+
+{% func metricNameObject(mn *storage.MetricName) %}
+{
+	{% if len(mn.MetricGroup) > 0 %}
+		"__name__":{%qz= mn.MetricGroup %}{% if len(mn.Tags) > 0 %},{% endif %}
+	{% endif %}
+	{% for j := range mn.Tags %}
+		{% code tag := &mn.Tags[j] %}
+		{%qz= tag.Key %}:{%qz= tag.Value %}{% if j+1 < len(mn.Tags) %},{% endif %}
+	{% endfor %}
+}
+{% endfunc %}
+
+{% func metricRow(timestamp int64, value float64) %}
+	[{%f= float64(timestamp)/1e3 %},"{%f= value %}"]
+{% endfunc %}
+
+{% func valuesWithTimestamps(values []float64, timestamps []int64) %}
+[
+	{% if len(values) == 0 %}
+		{% return %}
+	{% endif %}
+	{% code /* inline metricRow call here for the sake of performance optimization */ %}
+	[{%f= float64(timestamps[0])/1e3 %},"{%f= values[0] %}"]
+	{% code
+		timestamps = timestamps[1:]
+		values = values[1:]
+	%}
+	{% if len(values) > 0 %}
+		{%code
+			// Remove bounds check inside the loop below
+			_ = timestamps[len(values)-1]
+		%}
+		{% for i, v := range values %}
+			{% code /* inline metricRow call here for the sake of performance optimization */ %}
+			,[{%f= float64(timestamps[i])/1e3 %},"{%f= v %}"]
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% endstripspace %}
