@@ -2,7 +2,7 @@
 
 # Cluster version of VictoriaMetrics
 
-VictoriaMetrics is fast and cost-effective long-term remote storage for Prometheus.
+VictoriaMetrics is high-performance and cost-effective time series database. It can be used as a long-term remote storage for Prometheus.
 
 Single-node version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics).
 
