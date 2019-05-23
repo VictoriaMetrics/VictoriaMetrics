@@ -186,6 +186,7 @@ func maxUpExponent(v int64) int16 {
 		v = -v
 	}
 	if v < 0 {
+		// Handle corner case for v=-1<<63
 		return 0
 	}
 
