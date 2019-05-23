@@ -799,6 +799,18 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`alias()`, func(t *testing.T) {
+		t.Parallel()
+		q := `alias(time(), "foobar")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`label_set(tag)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_set(time(), "tagname", "tagvalue")`
@@ -3549,6 +3561,9 @@ func TestExecError(t *testing.T) {
 	f(`keep_last_value()`)
 	f(`distinct_over_time()`)
 	f(`distinct()`)
+	f(`alias()`)
+	f(`alias(1)`)
+	f(`alias(1, "foo", "bar")`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -3582,6 +3597,7 @@ func TestExecError(t *testing.T) {
 	f(`label_transform(1, "foo", 3, 4)`)
 	f(`label_transform(1, "foo", "bar", 4)`)
 	f(`label_transform(1, "foo", "invalid(regexp", "baz`)
+	f(`alias(1, 2)`)
 
 	// Duplicate timeseries
 	f(`(label_set(1, "foo", "bar") or label_set(2, "foo", "baz"))
