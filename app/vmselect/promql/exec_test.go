@@ -1266,6 +1266,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_transform(mismatch)`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_transform(time(), "__name__", "foobar", "xx")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`label_transform(match)`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_transform(
+			label_set(time(), "foo", "a.bar.baz"),
+			"foo", "\\.", "-")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("a-bar-baz"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`label_replace(mismatch)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_replace(time(), "__name__", "x${1}y", "foo", ".+")`
@@ -3461,6 +3489,7 @@ func TestExecError(t *testing.T) {
 	f(`hour(1,2)`)
 	f(`label_join()`)
 	f(`label_replace(1)`)
+	f(`label_transform(1)`)
 	f(`label_set()`)
 	f(`label_set(1, "foo")`)
 	f(`label_del()`)
@@ -3535,6 +3564,10 @@ func TestExecError(t *testing.T) {
 	f(`label_replace(1, "foo", "bar", 4, 5)`)
 	f(`label_replace(1, "foo", "bar", "baz", 5)`)
 	f(`label_replace(1, "foo", "bar", "baz", "invalid(regexp")`)
+	f(`label_transform(1, 2, 3, 4)`)
+	f(`label_transform(1, "foo", 3, 4)`)
+	f(`label_transform(1, "foo", "bar", 4)`)
+	f(`label_transform(1, "foo", "invalid(regexp", "baz`)
 
 	// Duplicate timeseries
 	f(`(label_set(1, "foo", "bar") or label_set(2, "foo", "baz"))

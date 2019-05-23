@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,6 +62,7 @@ var transformFuncs = map[string]transformFunc{
 	"label_keep":         transformLabelKeep,
 	"label_copy":         transformLabelCopy,
 	"label_move":         transformLabelMove,
+	"label_transform":    transformLabelTransform,
 	"union":              transformUnion,
 	"":                   transformUnion, // empty func is a synonim to union
 	"keep_last_value":    transformKeepLastValue,
@@ -816,6 +818,31 @@ func transformLabelJoin(tfa *transformFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
+func transformLabelTransform(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 4); err != nil {
+		return nil, err
+	}
+	label, err := getString(args[1], 1)
+	if err != nil {
+		return nil, err
+	}
+	regex, err := getString(args[2], 2)
+	if err != nil {
+		return nil, err
+	}
+	replacement, err := getString(args[3], 3)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := compileRegexp(regex)
+	if err != nil {
+		return nil, fmt.Errorf(`cannot compile regex %q: %s`, regex, err)
+	}
+	return labelReplace(args[0], label, r, label, replacement)
+}
+
 func transformLabelReplace(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 5); err != nil {
@@ -842,11 +869,12 @@ func transformLabelReplace(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, fmt.Errorf(`cannot compile regex %q: %s`, regex, err)
 	}
+	return labelReplace(args[0], srcLabel, r, dstLabel, replacement)
+}
 
+func labelReplace(tss []*timeseries, srcLabel string, r *regexp.Regexp, dstLabel, replacement string) ([]*timeseries, error) {
 	replacementBytes := []byte(replacement)
-
-	rvs := args[0]
-	for _, ts := range rvs {
+	for _, ts := range tss {
 		mn := &ts.MetricName
 		dstValue := getDstValue(mn, dstLabel)
 		srcValue := mn.GetTagValue(srcLabel)
@@ -856,7 +884,7 @@ func transformLabelReplace(tfa *transformFuncArg) ([]*timeseries, error) {
 			mn.RemoveTag(dstLabel)
 		}
 	}
-	return rvs, nil
+	return tss, nil
 }
 
 func transformLn(v float64) float64 {
