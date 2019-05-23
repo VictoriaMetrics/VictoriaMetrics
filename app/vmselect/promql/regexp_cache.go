@@ -1,7 +1,6 @@
 package promql
 
 import (
-	"fmt"
 	"regexp"
 	"sync"
 	"sync/atomic"
@@ -10,12 +9,16 @@ import (
 )
 
 func compileRegexpAnchored(re string) (*regexp.Regexp, error) {
+	reAnchored := "^(?:" + re + ")$"
+	return compileRegexp(reAnchored)
+}
+
+func compileRegexp(re string) (*regexp.Regexp, error) {
 	rcv := regexpCacheV.Get(re)
 	if rcv != nil {
 		return rcv.r, rcv.err
 	}
-	regexAnchored := fmt.Sprintf("^(?:%s)$", re)
-	r, err := regexp.Compile(regexAnchored)
+	r, err := regexp.Compile(re)
 	rcv = &regexpCacheValue{
 		r:   r,
 		err: err,
