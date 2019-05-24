@@ -1,15 +1,20 @@
 package promql
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 
 // ExpandWithExprs expands WITH expressions inside q and returns the resulting
 // PromQL without WITH expressions.
@@ -24,6 +29,16 @@ func ExpandWithExprs(q string) (string, error) {
 
 // Exec executes q for the given ec until the deadline.
 func Exec(ec *EvalConfig, q string) ([]netstorage.Result, error) {
+	if *logSlowQueryDuration > 0 {
+		startTime := time.Now()
+		defer func() {
+			d := time.Since(startTime)
+			if d >= *logSlowQueryDuration {
+				logger.Infof("slow query: duration=%s, start=%d, end=%d, step=%d, query=%q", d, ec.Start/1000, ec.End/1000, ec.Step/1000, q)
+			}
+		}()
+	}
+
 	ec.validate()
 
 	e, err := parsePromQLWithCache(q)
