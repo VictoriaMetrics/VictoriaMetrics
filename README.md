@@ -66,6 +66,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Tuning](#tuning)
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
+* [Contacts](#contacts)
 * [Community and contributions](#community-and-contributions)
 * [Reporting bugs](#reporting-bugs)
 
@@ -218,6 +219,8 @@ VictoriaMetrics must be restarted in order to upgrade or apply new config:
 
 ### How to work with snapshots?
 
+VictoriaMetrics is able to create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+for all the data stored under `-storageDataPath` directory.
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/create` in order to create an instant snapshot.
 The page will return the following JSON response:
 
@@ -375,6 +378,11 @@ There is [an official Grafana dashboard for single-node VictoriaMetrics](https:/
   ingestion performance.
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
+
+
+## Contacts
+
+Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics.com](mailto:info@victoriametrics.com).
 
 
 ## Community and contributions
