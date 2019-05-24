@@ -31,6 +31,8 @@ var (
 	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled -httpAuth.username is empty")
 	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It overrides httpAuth settings")
 	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof. It overrides httpAuth settings")
+
+	disableResponseCompression = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
 )
 
 var (
@@ -51,6 +53,8 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 // By default all the responses are transparently compressed, since Google
 // charges a lot for the egress traffic. The compression may be disabled
 // by calling DisableResponseCompression before writing the first byte to w.
+//
+// The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
 	scheme := "http"
 	if *tlsEnable {
@@ -224,6 +228,9 @@ func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
+	if *disableResponseCompression {
+		return w
+	}
 	ae := r.Header.Get("Accept-Encoding")
 	if ae == "" {
 		return w
