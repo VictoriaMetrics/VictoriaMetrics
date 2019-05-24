@@ -2,7 +2,7 @@
 
 run-vmstorage:
 	mkdir -p vmstorage-data
-	DOCKER_OPTS='-v $(shell pwd)/vmstorage-data:/vmstorage-data -p 8482:8482 -p 8400:8400 -p 8401:8401' \
+	DOCKER_OPTS='-v $(shell pwd)/vmstorage-data:/vmstorage-data' \
 	APP_NAME=vmstorage \
 	ARGS='-retentionPeriod=12' \
 	$(MAKE) run-via-docker

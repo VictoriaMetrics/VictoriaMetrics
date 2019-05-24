@@ -1,7 +1,6 @@
 # All these commands must run from repository root.
 
 run-vminsert:
-	DOCKER_OPTS='-p 8480:8480' \
 	APP_NAME=vminsert \
 	ARGS='-storageNode=localhost:8400' \
 	$(MAKE) run-via-docker
