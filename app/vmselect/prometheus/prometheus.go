@@ -173,6 +173,11 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, star
 	w.Header().Set("Content-Type", contentType)
 	writeResponseFunc(w, resultsCh)
 
+	// Consume all the data from resultsCh in the event writeResponseFunc
+	// fails to consume all the data.
+	for bb := range resultsCh {
+		quicktemplate.ReleaseByteBuffer(bb)
+	}
 	err = <-doneCh
 	if err != nil {
 		return fmt.Errorf("error during data fetching: %s", err)
@@ -355,11 +360,10 @@ func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 	WriteSeriesResponse(w, resultsCh)
 
 	// Consume all the data from resultsCh in the event WriteSeriesResponse
-	// fail to consume all the data.
+	// fails to consume all the data.
 	for bb := range resultsCh {
 		quicktemplate.ReleaseByteBuffer(bb)
 	}
-
 	err = <-doneCh
 	if err != nil {
 		return fmt.Errorf("error during data fetching: %s", err)
