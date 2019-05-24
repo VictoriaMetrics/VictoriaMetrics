@@ -19,6 +19,10 @@ include deployment/*/Makefile
 clean:
 	rm -rf bin/*
 
+publish: publish-victoria-metrics
+
+package: package-victoria-metrics
+
 release: victoria-metrics-prod
 	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz victoria-metrics-prod
 
