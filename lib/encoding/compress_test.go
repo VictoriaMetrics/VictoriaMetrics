@@ -17,7 +17,7 @@ func TestCompressDecompressZSTD(t *testing.T) {
 }
 
 func testCompressDecompressZSTD(t *testing.T, b []byte) {
-	bc := CompressZSTD(nil, b)
+	bc := CompressZSTDLevel(nil, b, 5)
 	bNew, err := DecompressZSTD(nil, bc)
 	if err != nil {
 		t.Fatalf("unexpected error when decompressing b=%x from bc=%x: %s", b, bc, err)
@@ -27,7 +27,7 @@ func testCompressDecompressZSTD(t *testing.T, b []byte) {
 	}
 
 	prefix := []byte{1, 2, 33}
-	bcNew := CompressZSTD(prefix, b)
+	bcNew := CompressZSTDLevel(prefix, b, 5)
 	if string(bcNew[:len(prefix)]) != string(prefix) {
 		t.Fatalf("invalid prefix for b=%x; got\n%x; expecting\n%x", b, bcNew[:len(prefix)], prefix)
 	}
