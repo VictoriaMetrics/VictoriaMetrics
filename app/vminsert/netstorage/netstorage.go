@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"flag"
 	"fmt"
 	"sync"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
 
 // sendWithFallback sends buf to storage node sn.
 //
@@ -101,6 +104,9 @@ func (sn *storageNode) dial() error {
 	}
 
 	compressionLevel := 1
+	if *disableRPCCompression {
+		compressionLevel = 0
+	}
 	bc, err := handshake.VMInsertClient(c, compressionLevel)
 	if err != nil {
 		_ = c.Close()
