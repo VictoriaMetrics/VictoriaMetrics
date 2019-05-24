@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -22,6 +23,8 @@ import (
 )
 
 var (
+	disableResponseCompression = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
+
 	servers     = make(map[string]*http.Server)
 	serversLock sync.Mutex
 )
@@ -39,6 +42,8 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 // By default all the responses are transparently compressed, since Google
 // charges a lot for the egress traffic. The compression may be disabled
 // by calling DisableResponseCompression before writing the first byte to w.
+//
+// The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
 	logger.Infof("starting http server at http://%s/", addr)
 	logger.Infof("pprof handlers are exposed at http://%s/debug/pprof/", addr)
@@ -157,6 +162,9 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 }
 
 func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
+	if *disableResponseCompression {
+		return w
+	}
 	ae := r.Header.Get("Accept-Encoding")
 	if ae == "" {
 		return w
