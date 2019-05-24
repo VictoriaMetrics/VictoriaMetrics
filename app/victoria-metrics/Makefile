@@ -12,7 +12,7 @@ publish-victoria-metrics:
 
 run-victoria-metrics:
 	mkdir -p victoria-metrics-data
-	DOCKER_OPTS='-v $(shell pwd)/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 -p 2003:2003 -p 2003:2003/udp' \
+	DOCKER_OPTS='-v $(shell pwd)/victoria-metrics-data:/victoria-metrics-data' \
 	APP_NAME=victoria-metrics \
 	ARGS='-graphiteListenAddr=:2003 -opentsdbListenAddr=:4242 -retentionPeriod=12 -search.maxUniqueTimeseries=1000000 -search.maxQueryDuration=10m' \
 	$(MAKE) run-via-docker
