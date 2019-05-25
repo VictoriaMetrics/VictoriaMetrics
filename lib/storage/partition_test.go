@@ -112,15 +112,15 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 
 	// Verify appending to prefix
 	prefix := []*partWrapper{
-		&partWrapper{
+		{
 			p: &part{
 				ph: partHeader{
 					RowsCount: 1234,
 				},
 			},
 		},
-		&partWrapper{},
-		&partWrapper{},
+		{},
+		{},
 	}
 	pms = appendPartsToMerge(prefix, pws, maxPartsToMerge, 1e9)
 	if !reflect.DeepEqual(pms[:len(prefix)], prefix) {
