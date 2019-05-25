@@ -599,7 +599,7 @@ func (pt *partition) MustClose() {
 	logger.Infof("%d inmemory parts have been flushed to files in %s on %q", len(pws), time.Since(startTime), pt.smallPartsPath)
 
 	// Remove references to smallParts from the pt, so they may be eventually closed
-	// after all the seraches are done.
+	// after all the searches are done.
 	pt.partsLock.Lock()
 	smallParts := pt.smallParts
 	pt.smallParts = nil

@@ -44,7 +44,7 @@ func (bb *ByteBuffer) ReadAt(p []byte, offset int64) {
 		logger.Panicf("BUG: too big offset=%d; cannot exceed len(bb.B)=%d", offset, len(bb.B))
 	}
 	if n := copy(p, bb.B[offset:]); n < len(p) {
-		logger.Panicf("BUG: EOF occured after reading %d bytes out of %d bytes at offset %d", n, len(p), offset)
+		logger.Panicf("BUG: EOF occurred after reading %d bytes out of %d bytes at offset %d", n, len(p), offset)
 	}
 }
 

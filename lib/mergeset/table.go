@@ -208,7 +208,7 @@ func (tb *Table) MustClose() {
 	logger.Infof("%d inmemory parts have been flushed to files in %s on %q", len(pws), time.Since(startTime), tb.path)
 
 	// Remove references to parts from the tb, so they may be eventually closed
-	// after all the seraches are done.
+	// after all the searches are done.
 	tb.partsLock.Lock()
 	parts := tb.parts
 	tb.parts = nil

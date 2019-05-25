@@ -19,7 +19,7 @@ type rawRow struct {
 	// Value is time series value for the given timestamp.
 	Value float64
 
-	// PrecisionBits is the number of the siginificant bits in the Value
+	// PrecisionBits is the number of the significant bits in the Value
 	// to store. Possible values are [1..64].
 	// 1 means max. 50% error, 2 - 25%, 3 - 12.5%, 64 means no error, i.e.
 	// Value stored without information loss.

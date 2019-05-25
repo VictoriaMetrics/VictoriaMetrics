@@ -20,7 +20,7 @@ var (
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 10e3, "The maximum points per a single timeseries returned from the search")
 )
 
-// The minumum number of points per timeseries for enabling time rounding.
+// The minimum number of points per timeseries for enabling time rounding.
 // This improves cache hit ratio for frequently requested queries over
 // big time ranges.
 const minTimeseriesPointsForTimeRounding = 50

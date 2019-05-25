@@ -992,7 +992,7 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte) error {
 		if len(dmis) > 0 {
 			// Verify whether the dst is marked as deleted.
 			if _, deleted := dmis[dst.MetricID]; deleted {
-				// The dst is deleted. Continue seraching.
+				// The dst is deleted. Continue searching.
 				continue
 			}
 		}
