@@ -1,8 +1,9 @@
-<img  text-align="center" alt="Victoria Metrics" src="logo.png">
+[![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
+[![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
+
+<img text-align="center" alt="Victoria Metrics" src="logo.png">
 
 ## Single-node VictoriaMetrics
-
-[![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
