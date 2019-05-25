@@ -4,7 +4,11 @@
 
 VictoriaMetrics is high-performance and cost-effective time series database. It can be used as a long-term remote storage for Prometheus.
 
-Single-node version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics).
+We'd recommend using [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of cluster version
+for ingestion rates lower than 10 million of data points per second.
+Single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
+with the number of CPU cores, RAM and available storage space.
+Single-node version is easier to configure and operate comparing to cluster version, so think twice before sticking to cluster version.
 
 
 ## Prominent features
