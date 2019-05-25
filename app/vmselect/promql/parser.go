@@ -1508,7 +1508,7 @@ func (wa *withArgExpr) AppendString(dst []byte) []byte {
 }
 
 type rollupExpr struct {
-	// The expression for the rollup. Usually it is metricExpr, but may be arbitary expr
+	// The expression for the rollup. Usually it is metricExpr, but may be arbitrary expr
 	// if subquery is used. https://prometheus.io/blog/2019/01/28/subquery-support/
 	Expr expr
 
