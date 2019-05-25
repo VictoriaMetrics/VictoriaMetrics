@@ -117,7 +117,7 @@ func marshalInt64Array(dst []byte, a []int64, precisionBits uint8) (result []byt
 
 	bb := bbPool.Get()
 	if isGauge(a) {
-		// Guage values are better compressed with delta encoding.
+		// Gauge values are better compressed with delta encoding.
 		mt = MarshalTypeZSTDNearestDelta
 		pb := precisionBits
 		if pb < 6 {

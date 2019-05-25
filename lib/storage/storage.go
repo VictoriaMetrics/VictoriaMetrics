@@ -30,7 +30,7 @@ type Storage struct {
 	cachePath       string
 	retentionMonths int
 
-	// lock file for excluse access to the storage on the given path.
+	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
 	idbCurr atomic.Value
@@ -656,7 +656,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	errors = s.updateDateMetricIDCache(rows, errors)
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		return rows, fmt.Errorf("errors occured during rows addition: %s", errors[0])
+		return rows, fmt.Errorf("errors occurred during rows addition: %s", errors[0])
 	}
 	return rows, nil
 }
