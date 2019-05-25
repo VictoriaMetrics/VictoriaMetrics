@@ -45,7 +45,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("start-overlap", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{800, 1000, 1200},
 				Values:     []float64{0, 1, 2},
 			},
@@ -56,7 +56,7 @@ func TestRollupResultCache(t *testing.T) {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200},
 				Values:     []float64{1, 2},
 			},
@@ -68,7 +68,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("end-overlap", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1800, 2000, 2200, 2400},
 				Values:     []float64{333, 0, 1, 2},
 			},
@@ -87,7 +87,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("full-cover", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1200, 1400, 1600},
 				Values:     []float64{0, 1, 2},
 			},
@@ -106,7 +106,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("before-start", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{200, 400, 600},
 				Values:     []float64{0, 1, 2},
 			},
@@ -125,7 +125,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("after-end", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{2200, 2400, 2600},
 				Values:     []float64{0, 1, 2},
 			},
@@ -144,7 +144,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("bigger-than-start-end", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{800, 1000, 1200, 1400, 1600, 1800, 2000, 2200},
 				Values:     []float64{0, 1, 2, 3, 4, 5, 6, 7},
 			},
@@ -155,7 +155,7 @@ func TestRollupResultCache(t *testing.T) {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
@@ -167,7 +167,7 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("start-end-match", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
@@ -178,7 +178,7 @@ func TestRollupResultCache(t *testing.T) {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
@@ -209,19 +209,19 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("multi-timeseries", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss1 := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{800, 1000, 1200},
 				Values:     []float64{0, 1, 2},
 			},
 		}
 		tss2 := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1800, 2000, 2200, 2400},
 				Values:     []float64{333, 0, 1, 2},
 			},
 		}
 		tss3 := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1200, 1400, 1600},
 				Values:     []float64{0, 1, 2},
 			},
@@ -234,7 +234,7 @@ func TestRollupResultCache(t *testing.T) {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200},
 				Values:     []float64{1, 2},
 			},
@@ -255,14 +255,14 @@ func TestMergeTimeseries(t *testing.T) {
 	t.Run("bStart=ec.Start", func(t *testing.T) {
 		a := []*timeseries{}
 		b := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
 		}
 		tss := mergeTimeseries(a, b, 1000, ec)
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
@@ -272,14 +272,14 @@ func TestMergeTimeseries(t *testing.T) {
 	t.Run("a-empty", func(t *testing.T) {
 		a := []*timeseries{}
 		b := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1400, 1600, 1800, 2000},
 				Values:     []float64{3, 4, 5, 6},
 			},
 		}
 		tss := mergeTimeseries(a, b, bStart, ec)
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{nan, nan, 3, 4, 5, 6},
 			},
@@ -288,7 +288,7 @@ func TestMergeTimeseries(t *testing.T) {
 	})
 	t.Run("b-empty", func(t *testing.T) {
 		a := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200},
 				Values:     []float64{2, 1},
 			},
@@ -296,7 +296,7 @@ func TestMergeTimeseries(t *testing.T) {
 		b := []*timeseries{}
 		tss := mergeTimeseries(a, b, bStart, ec)
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{2, 1, nan, nan, nan, nan},
 			},
@@ -305,20 +305,20 @@ func TestMergeTimeseries(t *testing.T) {
 	})
 	t.Run("non-empty", func(t *testing.T) {
 		a := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200},
 				Values:     []float64{2, 1},
 			},
 		}
 		b := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1400, 1600, 1800, 2000},
 				Values:     []float64{3, 4, 5, 6},
 			},
 		}
 		tss := mergeTimeseries(a, b, bStart, ec)
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{2, 1, 3, 4, 5, 6},
 			},
@@ -327,14 +327,14 @@ func TestMergeTimeseries(t *testing.T) {
 	})
 	t.Run("non-empty-distinct-metric-names", func(t *testing.T) {
 		a := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1000, 1200},
 				Values:     []float64{2, 1},
 			},
 		}
 		a[0].MetricName.MetricGroup = []byte("bar")
 		b := []*timeseries{
-			&timeseries{
+			{
 				Timestamps: []int64{1400, 1600, 1800, 2000},
 				Values:     []float64{3, 4, 5, 6},
 			},
@@ -342,14 +342,14 @@ func TestMergeTimeseries(t *testing.T) {
 		b[0].MetricName.MetricGroup = []byte("foo")
 		tss := mergeTimeseries(a, b, bStart, ec)
 		tssExpected := []*timeseries{
-			&timeseries{
+			{
 				MetricName: storage.MetricName{
 					MetricGroup: []byte("foo"),
 				},
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{nan, nan, 3, 4, 5, 6},
 			},
-			&timeseries{
+			{
 				MetricName: storage.MetricName{
 					MetricGroup: []byte("bar"),
 				},

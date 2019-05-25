@@ -33,8 +33,8 @@ package: \
 	package-vminsert
 
 fmt:
-	go fmt $(PKG_PREFIX)/lib/...
-	go fmt $(PKG_PREFIX)/app/...
+	gofmt -l -w -s ./lib
+	gofmt -l -w -s ./app
 
 vet:
 	go vet $(PKG_PREFIX)/lib/...
