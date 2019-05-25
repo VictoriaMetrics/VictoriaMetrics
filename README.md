@@ -131,7 +131,7 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 
 Steps to add `vmstorage` node:
 
-1. Start new `vmstorage` node.
+1. Start new `vmstorage` node with the same `-retentionPeriod` as existing nodes in the cluster.
 2. Gradually restart all the `vmselect` nodes with new `-storageNode` arg containing `<new_vmstorage_host>:8401`.
 3. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>:8400`.
 
