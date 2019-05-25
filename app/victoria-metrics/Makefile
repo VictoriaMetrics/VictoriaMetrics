@@ -1,5 +1,8 @@
 # All these commands must run from repository root.
 
+victoria-metrics:
+	GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics ./app/victoria-metrics
+
 victoria-metrics-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker
 
