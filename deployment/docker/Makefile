@@ -20,6 +20,7 @@ app-via-docker: package-certs package-builder
 		-w /VictoriaMetrics \
 		--mount type=bind,src="$(shell pwd)/gocache-for-docker",dst=/gocache \
 		--env GOCACHE=/gocache \
+		--env GO111MODULE=on \
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -mod=vendor -ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" -tags 'netgo osusergo' -o bin/$(APP_NAME)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
