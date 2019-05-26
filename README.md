@@ -84,7 +84,7 @@ to your needs.
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics` from the root folder of the repository.
-   It will build `victoria-metrics` binary and put int into the `bin` folder.
+   It will build `victoria-metrics` binary and put it into the `bin` folder.
 
 #### Production build
 
