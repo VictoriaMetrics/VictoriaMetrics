@@ -42,7 +42,7 @@ func Stop() {
 // RequestHandler handles remote read API requests for Prometheus
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Limit the number of concurrent queries.
-	// Sleep for a second until giving up. This should resolve short bursts in requests.
+	// Sleep for a while until giving up. This should resolve short bursts in requests.
 	t := time.NewTimer(*maxQueueDuration)
 	select {
 	case concurrencyCh <- struct{}{}:
