@@ -241,17 +241,27 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Line with multiple tags, multiple fields and timestamp
-	f(`system,host=ip-172-16-10-144 uptime_format="3 days, 21:01" 1557761040000000000`, &Rows{
+	f(`system,host=ip-172-16-10-144 uptime_format="3 days, 21:01",quoted_float="-1.23",quoted_int="123" 1557761040000000000`, &Rows{
 		Rows: []Row{{
 			Measurement: "system",
 			Tags: []Tag{{
 				Key:   "host",
 				Value: "ip-172-16-10-144",
 			}},
-			Fields: []Field{{
-				Key:   "uptime_format",
-				Value: 0,
-			}},
+			Fields: []Field{
+				{
+					Key:   "uptime_format",
+					Value: 0,
+				},
+				{
+					Key:   "quoted_float",
+					Value: -1.23,
+				},
+				{
+					Key:   "quoted_int",
+					Value: 123,
+				},
+			},
 			Timestamp: 1557761040000000000,
 		}},
 	})

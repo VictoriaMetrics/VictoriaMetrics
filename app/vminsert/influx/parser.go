@@ -293,8 +293,10 @@ func parseFieldValue(s string, hasQuotedFields bool) (float64, error) {
 		if len(s) < 2 || s[len(s)-1] != '"' {
 			return 0, fmt.Errorf("missing closing quote for quoted field value %s", s)
 		}
-		// Quoted string is translated to empty value.
-		return 0, nil
+		// Try converting quoted string to number, since sometimes Influx agents
+		// send numbers as strings.
+		s = s[1 : len(s)-1]
+		return fastfloat.ParseBestEffort(s), nil
 	}
 	ch := s[len(s)-1]
 	if ch == 'i' {
