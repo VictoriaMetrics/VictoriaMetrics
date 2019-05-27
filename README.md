@@ -235,7 +235,7 @@ The page will return the following JSON response:
 ```
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
-is the command-line flag value. Snapshots can be archived to backup storage via `rsync -L`, `scp -r`
+is the command-line flag value. Snapshots can be archived to backup storage via `cp -L` `rsync -L`, `scp -r`
 or any similar tool that follows symlinks during copying.
 
 The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
@@ -244,6 +244,12 @@ Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapsh
 to delete `<snapshot-name>` snapshot.
 
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to delete all the snapshots.
+
+Steps for restoring from a snapshot:
+1. Stop VictoriaMetrics with `kill -INT`.
+2. Remove the entire contents of the directory pointed by `-storageDataPath` command-line flag.
+3. Copy snapshot contents to the directory pointed by `-storageDataPath`.
+4. Start VictoriaMetrics.
 
 
 ### How to delete time series?
