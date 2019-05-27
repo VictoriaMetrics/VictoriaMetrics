@@ -235,7 +235,7 @@ The page will return the following JSON response:
 ```
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
-is the command-line flag value. Snapshots can be archived to backup storage via `cp -L` `rsync -L`, `scp -r`
+is the command-line flag value. Snapshots can be archived to backup storage via `cp -L`, `rsync -L`, `scp -r`
 or any similar tool that follows symlinks during copying.
 
 The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
