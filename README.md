@@ -49,6 +49,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 * [How to build from sources](#how-to-build-from-sources)
 * [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+* [Third-party contributions](#third-party-contributions)
 * [Prometheus setup](#prometheus-setup)
 * [Grafana setup](#grafana-setup)
 * [How to send data from InfluxDB-compatible agents such as Telegraf](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
@@ -114,7 +115,10 @@ The following command line flags are used the most:
 
 Pass `-help` to see all the available flags with description and default values.
 
-[Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/VictoriaMetrics))
+### Third-party contributions
+
+* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/VictoriaMetrics))
+
 
 ### Prometheus setup
 
