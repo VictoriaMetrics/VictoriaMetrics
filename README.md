@@ -114,6 +114,7 @@ The following command line flags are used the most:
 
 Pass `-help` to see all the available flags with description and default values.
 
+[Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/VictoriaMetrics))
 
 ### Prometheus setup
 
