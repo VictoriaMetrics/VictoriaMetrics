@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
 var (
@@ -21,14 +23,15 @@ var (
 func Do(f func() error) error {
 	// Limit the number of conurrent inserts in order to prevent from excess
 	// memory usage and CPU trashing.
-	t := time.NewTimer(waitDuration)
+	t := timerpool.Get(waitDuration)
 	select {
 	case ch <- struct{}{}:
-		t.Stop()
+		timerpool.Put(t)
 		err := f()
 		<-ch
 		return err
 	case <-t.C:
+		timerpool.Put(t)
 		return fmt.Errorf("the server is overloaded with %d concurrent inserts; either increase the number of CPUs or reduce the load", cap(ch))
 	}
 }

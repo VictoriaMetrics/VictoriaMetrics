@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/fastcache"
 	"golang.org/x/sys/unix"
 )
@@ -557,12 +558,13 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	// Limit the number of concurrent goroutines that may add rows to the storage.
 	// This should prevent from out of memory errors and CPU trashing when too many
 	// goroutines call AddRows.
-	t := time.NewTimer(addRowsTimeout)
+	t := timerpool.Get(addRowsTimeout)
 	select {
 	case addRowsConcurrencyCh <- struct{}{}:
-		t.Stop()
+		timerpool.Put(t)
 		defer func() { <-addRowsConcurrencyCh }()
 	case <-t.C:
+		timerpool.Put(t)
 		return fmt.Errorf("Cannot add %d rows to storage in %s, since it is overloaded with %d concurrent writers. Add more CPUs or reduce load",
 			len(mrs), addRowsTimeout, cap(addRowsConcurrencyCh))
 	}
