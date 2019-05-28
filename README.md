@@ -399,7 +399,11 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 
 ## Community and contributions
 
-Feel free asking any questions regarding VictoriaMetrics [here](https://groups.google.com/forum/#!forum/victorametrics-users).
+Feel free asking any questions regarding VictoriaMetrics:
+
+- [telergam-en](https://t.me/VictoriaMetrics_en)
+- [telergam-ru](https://t.me/VictoriaMetrics_ru1)
+- [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 We are open to third-party pull requests provided they follow [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
 
