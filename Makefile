@@ -50,9 +50,14 @@ errcheck: install-errcheck
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck
 
+check_all: fmt vet lint errcheck
+
 test:
 	GO111MODULE=on go test -mod=vendor ./lib/...
 	GO111MODULE=on go test -mod=vendor ./app/...
+
+test_full:
+	GO111MODULE=on go test -mod=vendor -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 benchmark:
 	GO111MODULE=on go test -mod=vendor -bench=. ./lib/...
