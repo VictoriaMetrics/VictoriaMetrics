@@ -1,7 +1,6 @@
 package opentsdb
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -9,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -74,33 +74,22 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 			return false
 		}
 	}
-	lr := io.LimitReader(r, maxReadPacketSize)
-	ctx.reqBuf.Reset()
-	ctx.reqBuf.B = append(ctx.reqBuf.B[:0], ctx.tailBuf...)
-	n, err := io.CopyBuffer(&ctx.reqBuf, lr, ctx.copyBuf[:])
-	if err != nil {
-		if ne, ok := err.(net.Error); ok && ne.Timeout() {
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
+	if ctx.err != nil {
+		if ne, ok := ctx.err.(net.Error); ok && ne.Timeout() {
 			// Flush the read data on timeout and try reading again.
+			ctx.err = nil
 		} else {
-			opentsdbReadErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read OpenTSDB put protocol data: %s", err)
+			if ctx.err != io.EOF {
+				opentsdbReadErrors.Inc()
+				ctx.err = fmt.Errorf("cannot read OpenTSDB put protocol data: %s", ctx.err)
+			}
 			return false
 		}
-	} else if n < maxReadPacketSize {
-		// Mark the end of stream.
-		ctx.err = io.EOF
 	}
-
-	// Parse all the rows until the last newline in ctx.reqBuf.B
-	nn := bytes.LastIndexByte(ctx.reqBuf.B, '\n')
-	ctx.tailBuf = ctx.tailBuf[:0]
-	if nn >= 0 {
-		ctx.tailBuf = append(ctx.tailBuf[:0], ctx.reqBuf.B[nn+1:]...)
-		ctx.reqBuf.B = ctx.reqBuf.B[:nn]
-	}
-	if err = ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf.B)); err != nil {
+	if err := ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf)); err != nil {
 		opentsdbUnmarshalErrors.Inc()
-		ctx.err = fmt.Errorf("cannot unmarshal OpenTSDB put protocol data with size %d: %s", len(ctx.reqBuf.B), err)
+		ctx.err = fmt.Errorf("cannot unmarshal OpenTSDB put protocol data with size %d: %s", len(ctx.reqBuf), err)
 		return false
 	}
 
@@ -115,9 +104,8 @@ type pushCtx struct {
 	Rows   Rows
 	Common netstorage.InsertCtx
 
-	reqBuf  bytesutil.ByteBuffer
+	reqBuf  []byte
 	tailBuf []byte
-	copyBuf [16 * 1024]byte
 
 	err error
 }
@@ -132,7 +120,7 @@ func (ctx *pushCtx) Error() error {
 func (ctx *pushCtx) reset() {
 	ctx.Rows.Reset()
 	ctx.Common.Reset()
-	ctx.reqBuf.Reset()
+	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
 
 	ctx.err = nil
