@@ -1,5 +1,8 @@
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
+[![Build Status](https://travis-ci.org/VictoriaMetrics/VictoriaMetrics.svg?branch=master)](https://travis-ci.org/VictoriaMetrics/VictoriaMetrics)
+[![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
+
 
 <img text-align="center" alt="Victoria Metrics" src="logo.png">
 
