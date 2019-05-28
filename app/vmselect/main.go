@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -43,12 +44,13 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Limit the number of concurrent queries.
 	// Sleep for a while until giving up. This should resolve short bursts in requests.
-	t := time.NewTimer(*maxQueueDuration)
+	t := timerpool.Get(*maxQueueDuration)
 	select {
 	case concurrencyCh <- struct{}{}:
-		t.Stop()
+		timerpool.Put(t)
 		defer func() { <-concurrencyCh }()
 	case <-t.C:
+		timerpool.Put(t)
 		httpserver.Errorf(w, "cannot handle more than %d concurrent requests", cap(concurrencyCh))
 		return true
 	}
