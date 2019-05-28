@@ -30,11 +30,10 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 		mr.MetricNameRaw = nil
 	}
 	ctx.mrs = ctx.mrs[:0]
-
 	if n := rowsLen - cap(ctx.mrs); n > 0 {
 		ctx.mrs = append(ctx.mrs[:cap(ctx.mrs)], make([]storage.MetricRow, n)...)
 	}
-	ctx.mrs = ctx.mrs[:rowsLen]
+	ctx.mrs = ctx.mrs[:0]
 	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
 }
 
