@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
@@ -42,6 +43,7 @@ func main() {
 	netstorage.InitStorageNodes(storageNodes)
 	logger.Infof("successfully initialized netstorage in %s", time.Since(startTime))
 
+	concurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
 		go graphite.Serve(*graphiteListenAddr)
 	}
