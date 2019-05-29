@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
@@ -22,6 +23,7 @@ var (
 
 // Init initializes vminsert.
 func Init() {
+	concurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
 		go graphite.Serve(*graphiteListenAddr)
 	}
