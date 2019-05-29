@@ -166,6 +166,36 @@ the update process. See [cluster availability](#cluster-availability) section fo
 * Upgrade follows `Cluster resizing procedure` under the hood.
 
 
+### Replication and data safety
+
+VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
+We recommend storing data on [Google Compute Engine persistent disks](https://cloud.google.com/compute/docs/disks/#pdspecs),
+since they are protected from data loss and data corruption. They also provide consistently high performance
+and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
+HDD-based persistent disks should be enough for the majority of use cases.
+
+
+### Backups
+
+We'd recommend performing periodical backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+for protecting from user errors such as accidental data deletion.
+
+The following steps must be performed for each `vmstorage` node for creating a backup:
+
+1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
+2. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using any suitable tool that follows symlinks. For instance,
+   `cp -L`, `rsync -L` or `scp -r`. The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
+   Incremental backups are possible with `rsync --delete`, which should [remove extraneous files from backup dir](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
+
+There is no need in synchronizing backups among all the `vmstorage` nodes.
+
+Restoring from backup:
+
+1. Stop `vmstorage` node with `kill -INT`.
+2. Delete all the contents of the directory pointed by `-storageDataPath` command-line flag.
+3. Copy all the contents of the backup directory to `-storageDataPath` directory.
+4. Start `vmstorage` node.
+
 
 ## Community and contributions
 
