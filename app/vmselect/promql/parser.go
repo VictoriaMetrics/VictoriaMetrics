@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -745,7 +744,7 @@ func expandWithExpr(was []*withArgExpr, e expr) (expr, error) {
 		if !t.HasNonEmptyMetricGroup() {
 			return t, nil
 		}
-		k := bytesutil.ToUnsafeString(t.TagFilters[0].Value)
+		k := string(appendEscapedIdent(nil, t.TagFilters[0].Value))
 		wa := getWithArgExpr(was, k)
 		if wa == nil {
 			return t, nil
@@ -1075,9 +1074,6 @@ func (p *parser) parseTagFilterExpr() (*tagFilterExpr, error) {
 	}
 	var tfe tagFilterExpr
 	tfe.Key = p.lex.Token
-	if tfe.Key == "__name__" {
-		tfe.Key = ""
-	}
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
@@ -1126,8 +1122,12 @@ func (tfe *tagFilterExpr) toTagFilter() (*storage.TagFilter, error) {
 	}
 
 	var tf storage.TagFilter
-	tf.Key = []byte(tfe.Key)
-	tf.Value = []byte(tfe.Value.S)
+	tf.Key = []byte(unescapeIdent(tfe.Key))
+	if len(tfe.Key) == 0 {
+		tf.Value = []byte(unescapeIdent(tfe.Value.S))
+	} else {
+		tf.Value = []byte(tfe.Value.S)
+	}
 	tf.IsRegexp = tfe.IsRegexp
 	tf.IsNegative = tfe.IsNegative
 	if !tf.IsRegexp {
@@ -1586,7 +1586,7 @@ func (me *metricExpr) AppendString(dst []byte) []byte {
 	if len(tfs) > 0 {
 		tf := &tfs[0]
 		if len(tf.Key) == 0 && !tf.IsNegative && !tf.IsRegexp {
-			dst = append(dst, tf.Value...)
+			dst = appendEscapedIdent(dst, tf.Value)
 			tfs = tfs[1:]
 		}
 	}
@@ -1628,7 +1628,7 @@ func appendStringTagFilter(dst []byte, tf *storage.TagFilter) []byte {
 	if len(tf.Key) == 0 {
 		dst = append(dst, "__name__"...)
 	} else {
-		dst = append(dst, tf.Key...)
+		dst = appendEscapedIdent(dst, tf.Key)
 	}
 	var op string
 	if tf.IsNegative {

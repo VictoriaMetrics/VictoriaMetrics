@@ -5,6 +5,57 @@ import (
 	"testing"
 )
 
+func TestUnescapeIdent(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := unescapeIdent(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for unescapeIdent(%q); got %q; want %q", s, result, resultExpected)
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("\\", "")
+	f(`\\`, `\`)
+	f(`\foo\-bar`, `foo-bar`)
+	f(`a\\\\b\"c\d`, `a\\b"cd`)
+	f(`foo.bar:baz_123`, `foo.bar:baz_123`)
+	f(`foo\ bar`, `foo bar`)
+	f(`\x21`, `!`)
+	f(`\xeDfoo\x2Fbar\-\xqw\x`, "\xedfoo\x2fbar-xqwx")
+}
+
+func TestAppendEscapedIdent(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := appendEscapedIdent(nil, []byte(s))
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result for appendEscapedIdent(%q); got %q; want %q", s, result, resultExpected)
+		}
+	}
+	f(`a`, `a`)
+	f(`a.b:c_23`, `a.b:c_23`)
+	f(`a b-cd+dd\`, `a\ b\-cd\+dd\\`)
+	f("a\x1E\x20\xee", `a\x1e\ \xee`)
+	f("\x2e\x2e", `\x2e.`)
+}
+
+func TestScanIdent(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := scanIdent(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for scanIdent(%q): got %q; want %q", s, result, resultExpected)
+		}
+	}
+	f("a", "a")
+	f("foo.bar:baz_123", "foo.bar:baz_123")
+	f("a+b", "a")
+	f("foo()", "foo")
+	f(`a\-b+c`, `a\-b`)
+	f(`a\ b\\\ c\`, `a\ b\\\ c\`)
+}
+
 func TestLexerNextPrev(t *testing.T) {
 	var lex lexer
 	lex.Init("foo bar baz")
