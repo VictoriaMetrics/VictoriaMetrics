@@ -52,6 +52,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 * [How to build from sources](#how-to-build-from-sources)
 * [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+* [Setting up service](#setting-up-service)
 * [Third-party contributions](#third-party-contributions)
 * [Prometheus setup](#prometheus-setup)
 * [Grafana setup](#grafana-setup)
@@ -103,7 +104,6 @@ Run `make package-victoria-metrics`. It will build `valyala/victoria-metrics:<PK
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
 
-
 ### How to start VictoriaMetrics
 
 Just start VictoriaMetrics executable or docker image with the desired command-line flags.
@@ -117,6 +117,12 @@ The following command line flags are used the most:
 * `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data. By default it is disabled.
 
 Pass `-help` to see all the available flags with description and default values.
+
+
+### Setting up service
+
+Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics as a service in your OS.
+
 
 ### Third-party contributions
 
