@@ -118,6 +118,13 @@ func TestParsePromQLSuccess(t *testing.T) {
 	same("with")
 	same("WITH")
 	same("With")
+	// identifiers with with escape chars
+	same(`{__name__="foo bar"}`)
+	same(`foo\-bar\{{baz\+bar="aa"}`)
+	another(`\x2E\x2ef\oo{b\xEF\ar="aa"}`, `\x2e.foo{b\xefar="aa"}`)
+	// Duplicate filters
+	same(`foo{__name__="bar"}`)
+	same(`foo{a="b", a="c", __name__="aaa", b="d"}`)
 	// Metric filters ending with comma
 	another(`m{foo="bar",}`, `m{foo="bar"}`)
 	// String concat in tag value
@@ -251,6 +258,8 @@ func TestParsePromQLSuccess(t *testing.T) {
 	same(`rate(rate(m[5m]))`)
 	same(`rate(rate(m[5m])[1h:])`)
 	same(`rate(rate(m[5m])[1h:3s])`)
+	// funcName with escape chars
+	same(`foo\(ba\-r()`)
 
 	// aggrFuncExpr
 	same(`sum(http_server_request) by ()`)
@@ -295,10 +304,14 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`with (ct={job="test", i="bar"}) ct + {ct, x="d"} + foo{ct, ct} + ctx(1)`,
 		`(({job="test", i="bar"} + {job="test", i="bar", x="d"}) + foo{job="test", i="bar"}) + ctx(1)`)
 	another(`with (foo = bar) {__name__=~"foo"}`, `{__name__=~"foo"}`)
-	another(`with (foo = bar) {__name__="foo"}`, `bar`)
-	another(`with (foo = bar) {__name__="foo", x="y"}`, `bar{x="y"}`)
+	another(`with (foo = bar) foo{__name__="foo"}`, `bar`)
+	another(`with (foo = bar) {__name__="foo", x="y"}`, `{__name__="foo", x="y"}`)
 	another(`with (foo(bar) = {__name__!="bar"}) foo(x)`, `{__name__!="bar"}`)
-	another(`with (foo(bar) = {__name__="bar"}) foo(x)`, `x`)
+	another(`with (foo(bar) = bar{__name__="bar"}) foo(x)`, `x`)
+	another(`with (foo\-bar(baz) = baz + baz) foo\-bar((x,y))`, `(x, y) + (x, y)`)
+	another(`with (foo\-bar(baz) = baz + baz) foo\-bar(x*y)`, `(x * y) + (x * y)`)
+	another(`with (foo\-bar(baz) = baz + baz) foo\-bar(x\*y)`, `x\*y + x\*y`)
+	another(`with (foo\-bar(b\ az) = b\ az + b\ az) foo\-bar(x\*y)`, `x\*y + x\*y`)
 	// override ttf to something new.
 	another(`with (ttf = a) ttf + b`, `a + b`)
 	// override ttf to ru

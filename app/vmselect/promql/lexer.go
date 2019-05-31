@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type lexer struct {
@@ -85,10 +87,7 @@ again:
 		goto tokenFoundLabel
 	}
 	if isIdentPrefix(s) {
-		token, err = scanIdent(s)
-		if err != nil {
-			return "", err
-		}
+		token = scanIdent(s)
 		goto tokenFoundLabel
 	}
 	if isStringPrefix(s) {
@@ -210,15 +209,103 @@ func scanPositiveNumber(s string) (string, error) {
 	return s[:j], nil
 }
 
-func scanIdent(s string) (string, error) {
-	if len(s) == 0 {
-		return "", fmt.Errorf("ident cannot be empty")
-	}
+func scanIdent(s string) string {
 	i := 0
-	for i < len(s) && isIdentChar(s[i]) {
-		i++
+	for i < len(s) {
+		if isIdentChar(s[i]) {
+			i++
+			continue
+		}
+		if s[i] != '\\' {
+			break
+		}
+
+		// Do not verify the next char, since it is escaped.
+		i += 2
+		if i > len(s) {
+			i--
+			break
+		}
 	}
-	return s[:i], nil
+	if i == 0 {
+		logger.Panicf("BUG: scanIdent couldn't find a single ident char; make sure isIdentPrefix called before scanIdent")
+	}
+	return s[:i]
+}
+
+func unescapeIdent(s string) string {
+	n := strings.IndexByte(s, '\\')
+	if n < 0 {
+		return s
+	}
+	dst := make([]byte, 0, len(s))
+	for {
+		dst = append(dst, s[:n]...)
+		s = s[n+1:]
+		if len(s) == 0 {
+			return string(dst)
+		}
+		if s[0] == 'x' && len(s) >= 3 {
+			h1 := fromHex(s[1])
+			h2 := fromHex(s[2])
+			if h1 >= 0 && h2 >= 0 {
+				dst = append(dst, byte((h1<<4)|h2))
+				s = s[3:]
+			} else {
+				dst = append(dst, s[0])
+				s = s[1:]
+			}
+		} else {
+			dst = append(dst, s[0])
+			s = s[1:]
+		}
+		n = strings.IndexByte(s, '\\')
+		if n < 0 {
+			dst = append(dst, s...)
+			return string(dst)
+		}
+	}
+}
+
+func fromHex(ch byte) int {
+	if ch >= '0' && ch <= '9' {
+		return int(ch - '0')
+	}
+	if ch >= 'a' && ch <= 'f' {
+		return int((ch - 'a') + 10)
+	}
+	if ch >= 'A' && ch <= 'F' {
+		return int((ch - 'A') + 10)
+	}
+	return -1
+}
+
+func toHex(n byte) byte {
+	if n < 10 {
+		return '0' + n
+	}
+	return 'a' + (n - 10)
+}
+
+func appendEscapedIdent(dst, s []byte) []byte {
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if isIdentChar(ch) {
+			if i == 0 && !isFirstIdentChar(ch) {
+				// hex-encode the first char
+				dst = append(dst, '\\', 'x', toHex(ch>>4), toHex(ch&0xf))
+			} else {
+				dst = append(dst, ch)
+			}
+		} else if ch >= 0x20 && ch < 0x7f {
+			// Leave ASCII printable chars as is
+			dst = append(dst, '\\', ch)
+		} else {
+			// hex-encode non-printable chars
+			dst = append(dst, '\\', 'x', toHex(ch>>4), toHex(ch&0xf))
+		}
+	}
+	return dst
 }
 
 func (lex *lexer) Prev() {
@@ -353,6 +440,10 @@ func isIdentPrefix(s string) bool {
 	if len(s) == 0 {
 		return false
 	}
+	if s[0] == '\\' {
+		// Assume this is an escape char for the next char.
+		return true
+	}
 	return isFirstIdentChar(s[0])
 }
 
@@ -367,7 +458,7 @@ func isIdentChar(ch byte) bool {
 	if isFirstIdentChar(ch) {
 		return true
 	}
-	return isDecimalChar(ch) || ch == ':' || ch == '.'
+	return isDecimalChar(ch) || ch == '.'
 }
 
 func isSpaceChar(ch byte) bool {
