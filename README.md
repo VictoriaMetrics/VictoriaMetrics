@@ -41,7 +41,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * [Graphite plaintext protocol](https://graphite.readthedocs.io/en/latest/feeding-carbon.html) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
     if `-graphiteListenAddr` is set.
   * [OpenTSDB put message](http://opentsdb.net/docs/build/html/api_telnet/put.html) if `-opentsdbListenAddr` is set.
-* Ideally works with big amounts of time series data from IoT sensors, connected car sensors and industrial sensors.
+* Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars and industrial telemetry.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 
