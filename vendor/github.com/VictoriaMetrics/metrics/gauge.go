@@ -19,14 +19,7 @@ import (
 //
 // The returned gauge is safe to use from concurrent goroutines.
 func NewGauge(name string, f func() float64) *Gauge {
-	if f == nil {
-		panic(fmt.Errorf("BUG: f cannot be nil"))
-	}
-	g := &Gauge{
-		f: f,
-	}
-	registerMetric(name, g)
-	return g
+	return defaultSet.NewGauge(name, f)
 }
 
 // Gauge is a float64 gauge.
@@ -66,35 +59,5 @@ func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 //
 // Performance tip: prefer NewGauge instead of GetOrCreateGauge.
 func GetOrCreateGauge(name string, f func() float64) *Gauge {
-	metricsMapLock.Lock()
-	nm := metricsMap[name]
-	metricsMapLock.Unlock()
-	if nm == nil {
-		// Slow path - create and register missing gauge.
-		if f == nil {
-			panic(fmt.Errorf("BUG: f cannot be nil"))
-		}
-		if err := validateMetric(name); err != nil {
-			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
-		}
-		nmNew := &namedMetric{
-			name: name,
-			metric: &Gauge{
-				f: f,
-			},
-		}
-		metricsMapLock.Lock()
-		nm = metricsMap[name]
-		if nm == nil {
-			nm = nmNew
-			metricsMap[name] = nm
-			metricsList = append(metricsList, nm)
-		}
-		metricsMapLock.Unlock()
-	}
-	g, ok := nm.metric.(*Gauge)
-	if !ok {
-		panic(fmt.Errorf("BUG: metric %q isn't a Gauge. It is %T", name, nm.metric))
-	}
-	return g
+	return defaultSet.GetOrCreateGauge(name, f)
 }

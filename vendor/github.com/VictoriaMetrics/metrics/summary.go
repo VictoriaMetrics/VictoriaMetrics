@@ -38,7 +38,7 @@ type Summary struct {
 //
 // The returned summary is safe to use from concurrent goroutines.
 func NewSummary(name string) *Summary {
-	return NewSummaryExt(name, defaultSummaryWindow, defaultSummaryQuantiles)
+	return defaultSet.NewSummary(name)
 }
 
 // NewSummaryExt creates and returns new summary with the given name,
@@ -53,36 +53,21 @@ func NewSummary(name string) *Summary {
 //
 // The returned summary is safe to use from concurrent goroutines.
 func NewSummaryExt(name string, window time.Duration, quantiles []float64) *Summary {
-	s := newSummary(window, quantiles)
-	registerMetric(name, s)
-	registerSummary(s)
-	registerSummaryQuantiles(name, s)
-	return s
+	return defaultSet.NewSummaryExt(name, window, quantiles)
 }
 
 func newSummary(window time.Duration, quantiles []float64) *Summary {
 	// Make a copy of quantiles in order to prevent from their modification by the caller.
 	quantiles = append([]float64{}, quantiles...)
 	validateQuantiles(quantiles)
-	s := &Summary{
+	sm := &Summary{
 		curr:           histogram.NewFast(),
 		next:           histogram.NewFast(),
 		quantiles:      quantiles,
 		quantileValues: make([]float64, len(quantiles)),
 		window:         window,
 	}
-	return s
-}
-
-func registerSummaryQuantiles(name string, s *Summary) {
-	for i, q := range s.quantiles {
-		quantileValueName := addTag(name, fmt.Sprintf(`quantile="%g"`, q))
-		qv := &quantileValue{
-			s:   s,
-			idx: i,
-		}
-		registerMetric(quantileValueName, qv)
-	}
+	return sm
 }
 
 func validateQuantiles(quantiles []float64) {
@@ -94,29 +79,29 @@ func validateQuantiles(quantiles []float64) {
 }
 
 // Update updates the summary.
-func (s *Summary) Update(v float64) {
-	s.mu.Lock()
-	s.curr.Update(v)
-	s.next.Update(v)
-	s.mu.Unlock()
+func (sm *Summary) Update(v float64) {
+	sm.mu.Lock()
+	sm.curr.Update(v)
+	sm.next.Update(v)
+	sm.mu.Unlock()
 }
 
 // UpdateDuration updates request duration based on the given startTime.
-func (s *Summary) UpdateDuration(startTime time.Time) {
+func (sm *Summary) UpdateDuration(startTime time.Time) {
 	d := time.Since(startTime).Seconds()
-	s.Update(d)
+	sm.Update(d)
 }
 
-func (s *Summary) marshalTo(prefix string, w io.Writer) {
-	// Just update s.quantileValues and don't write anything to w.
-	// s.quantileValues will be marshaled later via quantileValue.marshalTo.
-	s.updateQuantiles()
+func (sm *Summary) marshalTo(prefix string, w io.Writer) {
+	// Just update sm.quantileValues and don't write anything to w.
+	// sm.quantileValues will be marshaled later via quantileValue.marshalTo.
+	sm.updateQuantiles()
 }
 
-func (s *Summary) updateQuantiles() {
-	s.mu.Lock()
-	s.quantileValues = s.curr.Quantiles(s.quantileValues[:0], s.quantiles)
-	s.mu.Unlock()
+func (sm *Summary) updateQuantiles() {
+	sm.mu.Lock()
+	sm.quantileValues = sm.curr.Quantiles(sm.quantileValues[:0], sm.quantiles)
+	sm.mu.Unlock()
 }
 
 // GetOrCreateSummary returns registered summary with the given name
@@ -134,7 +119,7 @@ func (s *Summary) updateQuantiles() {
 //
 // Performance tip: prefer NewSummary instead of GetOrCreateSummary.
 func GetOrCreateSummary(name string) *Summary {
-	return GetOrCreateSummaryExt(name, defaultSummaryWindow, defaultSummaryQuantiles)
+	return defaultSet.GetOrCreateSummary(name)
 }
 
 // GetOrCreateSummaryExt returns registered summary with the given name,
@@ -152,45 +137,7 @@ func GetOrCreateSummary(name string) *Summary {
 //
 // Performance tip: prefer NewSummaryExt instead of GetOrCreateSummaryExt.
 func GetOrCreateSummaryExt(name string, window time.Duration, quantiles []float64) *Summary {
-	metricsMapLock.Lock()
-	nm := metricsMap[name]
-	metricsMapLock.Unlock()
-	if nm == nil {
-		// Slow path - create and register missing summary.
-		if err := validateMetric(name); err != nil {
-			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
-		}
-		s := newSummary(window, quantiles)
-		nmNew := &namedMetric{
-			name:   name,
-			metric: s,
-		}
-		mustRegisterQuantiles := false
-		metricsMapLock.Lock()
-		nm = metricsMap[name]
-		if nm == nil {
-			nm = nmNew
-			metricsMap[name] = nm
-			metricsList = append(metricsList, nm)
-			registerSummary(s)
-			mustRegisterQuantiles = true
-		}
-		metricsMapLock.Unlock()
-		if mustRegisterQuantiles {
-			registerSummaryQuantiles(name, s)
-		}
-	}
-	s, ok := nm.metric.(*Summary)
-	if !ok {
-		panic(fmt.Errorf("BUG: metric %q isn't a Summary. It is %T", name, nm.metric))
-	}
-	if s.window != window {
-		panic(fmt.Errorf("BUG: invalid window requested for the summary %q; requested %s; need %s", name, window, s.window))
-	}
-	if !isEqualQuantiles(s.quantiles, quantiles) {
-		panic(fmt.Errorf("BUG: invalid quantiles requested from the summary %q; requested %v; need %v", name, quantiles, s.quantiles))
-	}
-	return s
+	return defaultSet.GetOrCreateSummaryExt(name, window, quantiles)
 }
 
 func isEqualQuantiles(a, b []float64) bool {
@@ -207,14 +154,14 @@ func isEqualQuantiles(a, b []float64) bool {
 }
 
 type quantileValue struct {
-	s   *Summary
+	sm  *Summary
 	idx int
 }
 
 func (qv *quantileValue) marshalTo(prefix string, w io.Writer) {
-	qv.s.mu.Lock()
-	v := qv.s.quantileValues[qv.idx]
-	qv.s.mu.Unlock()
+	qv.sm.mu.Lock()
+	v := qv.sm.quantileValues[qv.idx]
+	qv.sm.mu.Unlock()
 	if !math.IsNaN(v) {
 		fmt.Fprintf(w, "%s %g\n", prefix, v)
 	}
@@ -227,10 +174,10 @@ func addTag(name, tag string) string {
 	return fmt.Sprintf("%s,%s}", name[:len(name)-1], tag)
 }
 
-func registerSummary(s *Summary) {
-	window := s.window
+func registerSummary(sm *Summary) {
+	window := sm.window
 	summariesLock.Lock()
-	summaries[window] = append(summaries[window], s)
+	summaries[window] = append(summaries[window], sm)
 	if len(summaries[window]) == 1 {
 		go summariesSwapCron(window)
 	}
@@ -241,13 +188,13 @@ func summariesSwapCron(window time.Duration) {
 	for {
 		time.Sleep(window / 2)
 		summariesLock.Lock()
-		for _, s := range summaries[window] {
-			s.mu.Lock()
-			tmp := s.curr
-			s.curr = s.next
-			s.next = tmp
-			s.next.Reset()
-			s.mu.Unlock()
+		for _, sm := range summaries[window] {
+			sm.mu.Lock()
+			tmp := sm.curr
+			sm.curr = sm.next
+			sm.next = tmp
+			sm.next.Reset()
+			sm.mu.Unlock()
 		}
 		summariesLock.Unlock()
 	}

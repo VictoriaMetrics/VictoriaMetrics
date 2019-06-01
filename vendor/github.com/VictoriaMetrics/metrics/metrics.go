@@ -8,23 +8,16 @@
 //     1. Register the required metrics via New* functions.
 //     2. Expose them to `/metrics` page via WritePrometheus.
 //     3. Update the registered metrics during application lifetime.
+//
+// The package has been extracted from https://victoriametrics.com/
 package metrics
 
 import (
 	"fmt"
 	"io"
 	"runtime"
-	"sort"
-	"sync"
-	"time"
 
 	"github.com/valyala/histogram"
-)
-
-var (
-	metricsMapLock sync.Mutex
-	metricsList    []*namedMetric
-	metricsMap     = make(map[string]*namedMetric)
 )
 
 type namedMetric struct {
@@ -35,6 +28,8 @@ type namedMetric struct {
 type metric interface {
 	marshalTo(prefix string, w io.Writer)
 }
+
+var defaultSet = NewSet()
 
 // WritePrometheus writes all the registered metrics in Prometheus format to w.
 //
@@ -48,17 +43,7 @@ type metric interface {
 //     })
 //
 func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
-	lessFunc := func(i, j int) bool {
-		return metricsList[i].name < metricsList[j].name
-	}
-	metricsMapLock.Lock()
-	if !sort.SliceIsSorted(metricsList, lessFunc) {
-		sort.Slice(metricsList, lessFunc)
-	}
-	for _, nm := range metricsList {
-		nm.metric.marshalTo(nm.name, w)
-	}
-	metricsMapLock.Unlock()
+	defaultSet.WritePrometheus(w)
 	if exposeProcessMetrics {
 		writeProcessMetrics(w)
 	}
@@ -117,26 +102,4 @@ func writeProcessMetrics(w io.Writer) {
 	fmt.Fprintf(w, "go_info{version=%q} 1\n", runtime.Version())
 	fmt.Fprintf(w, "go_info_ext{compiler=%q, GOARCH=%q, GOOS=%q, GOROOT=%q} 1\n",
 		runtime.Compiler, runtime.GOARCH, runtime.GOOS, runtime.GOROOT())
-}
-
-var startTime = time.Now()
-
-func registerMetric(name string, m metric) {
-	if err := validateMetric(name); err != nil {
-		panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
-	}
-	metricsMapLock.Lock()
-	nm, ok := metricsMap[name]
-	if !ok {
-		nm = &namedMetric{
-			name:   name,
-			metric: m,
-		}
-		metricsMap[name] = nm
-		metricsList = append(metricsList, nm)
-	}
-	metricsMapLock.Unlock()
-	if ok {
-		panic(fmt.Errorf("BUG: metric %q is already registered", name))
-	}
 }
