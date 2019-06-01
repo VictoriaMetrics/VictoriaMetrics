@@ -126,7 +126,7 @@ Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/iss
 
 ### Third-party contributions
 
-* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/VictoriaMetrics))
+* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
 
 
 ### Prometheus setup
