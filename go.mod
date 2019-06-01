@@ -2,7 +2,7 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.0
-	github.com/VictoriaMetrics/metrics v1.4.0
+	github.com/VictoriaMetrics/metrics v1.5.0
 	github.com/cespare/xxhash/v2 v2.0.1-0.20190104013014-3767db7a7e18
 	github.com/golang/snappy v0.0.1
 	github.com/lithammer/go-jump-consistent-hash v1.0.1
@@ -11,7 +11,7 @@ require (
 	github.com/valyala/gozstd v1.5.0
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.1.1
-	golang.org/x/sys v0.0.0-20190526052359-791d8a0f4d09
+	golang.org/x/sys v0.0.0-20190531175056-4c3a928424d2
 )
 
 go 1.12

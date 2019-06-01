@@ -17,9 +17,7 @@ import (
 //
 // The returned counter is safe to use from concurrent goroutines.
 func NewCounter(name string) *Counter {
-	c := &Counter{}
-	registerMetric(name, c)
-	return c
+	return defaultSet.NewCounter(name)
 }
 
 // Counter is a counter.
@@ -75,30 +73,5 @@ func (c *Counter) marshalTo(prefix string, w io.Writer) {
 //
 // Performance tip: prefer NewCounter instead of GetOrCreateCounter.
 func GetOrCreateCounter(name string) *Counter {
-	metricsMapLock.Lock()
-	nm := metricsMap[name]
-	metricsMapLock.Unlock()
-	if nm == nil {
-		// Slow path - create and register missing counter.
-		if err := validateMetric(name); err != nil {
-			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
-		}
-		nmNew := &namedMetric{
-			name:   name,
-			metric: &Counter{},
-		}
-		metricsMapLock.Lock()
-		nm = metricsMap[name]
-		if nm == nil {
-			nm = nmNew
-			metricsMap[name] = nm
-			metricsList = append(metricsList, nm)
-		}
-		metricsMapLock.Unlock()
-	}
-	c, ok := nm.metric.(*Counter)
-	if !ok {
-		panic(fmt.Errorf("BUG: metric %q isn't a Counter. It is %T", name, nm.metric))
-	}
-	return c
+	return defaultSet.GetOrCreateCounter(name)
 }
