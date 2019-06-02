@@ -6,6 +6,47 @@
 
 <img text-align="center" alt="Victoria Metrics" src="logo.png">
 
+Table of contents:
+
+- [Single-node VictoriaMetrics](#single-node-victoriametrics)
+- [Prominent features](#prominent-features)
+- [Operation](#operation)
+	- [Table of contents](#table-of-contents)
+	- [How to build from sources](#how-to-build-from-sources)
+		- [Development build](#development-build)
+		- [Production build](#production-build)
+		- [Building docker images](#building-docker-images)
+	- [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+	- [Setting up service](#setting-up-service)
+	- [Third-party contributions](#third-party-contributions)
+	- [Prometheus setup](#prometheus-setup)
+	- [Grafana setup](#grafana-setup)
+	- [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+	- [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+	- [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
+	- [How to apply new config / upgrade VictoriaMetrics?](#how-to-apply-new-config--upgrade-victoriametrics)
+	- [How to work with snapshots?](#how-to-work-with-snapshots)
+	- [How to delete time series?](#how-to-delete-time-series)
+	- [How to export time series?](#how-to-export-time-series)
+	- [Federation](#federation)
+	- [Capacity planning](#capacity-planning)
+	- [High availability](#high-availability)
+	- [Multiple retentions](#multiple-retentions)
+	- [Scalability and cluster version](#scalability-and-cluster-version)
+	- [Security](#security)
+	- [Tuning](#tuning)
+	- [Monitoring](#monitoring)
+	- [Troubleshooting](#troubleshooting)
+- [Contacts](#contacts)
+- [Community and contributions](#community-and-contributions)
+- [Reporting bugs](#reporting-bugs)
+- [Victoria Metrics Logo](#victoria-metrics-logo)
+	- [Logo Usage Guidelines](#logo-usage-guidelines)
+		- [Font used:](#font-used)
+		- [Color Palette:](#color-palette)
+	- [We kindly ask:](#we-kindly-ask)
+
+
 ## Single-node VictoriaMetrics
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
