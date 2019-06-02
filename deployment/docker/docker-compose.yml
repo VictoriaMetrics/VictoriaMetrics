@@ -1,0 +1,53 @@
+version: '3.5'
+services:
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.10.0
+    depends_on:
+      - "victoriametrics"
+    ports:
+      - 9090:9090
+    volumes:
+      - promdata:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - vm_net
+    restart: always
+  victoriametrics:
+    container_name: victoriametrics
+    image: valyala/victoria-metrics
+    ports:
+      - 8428:8428
+      - 2003:2003
+      - 4242:4242
+    volumes:
+      - vmdata:/storage
+    command:
+      - '--storageDataPath=/storage'
+      - '--graphiteListenAddr=:2003'
+      - '--opentsdbListenAddr=:4242'
+      - '--httpListenAddr=:8428'
+    networks:
+      - vm_net
+    restart: always
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:6.2.1
+    depends_on:
+      - "victoriametrics"
+    ports:
+      - 3000:3000
+    volumes:
+      - grafanadata:/var/lib/grafana
+    networks:
+      - vm_net
+    restart: always
+volumes:
+  promdata: {}
+  vmdata: {}
+  grafanadata: {}
+networks:
+  vm_net:
