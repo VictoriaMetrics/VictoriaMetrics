@@ -360,15 +360,17 @@ func (s *Storage) startTodayMetricIDsUpdater() {
 	}()
 }
 
+var todayMetricIDsUpdateInterval = time.Second * 10
+
 func (s *Storage) todayMetricIDsUpdater() {
-	t := time.NewTimer(time.Second)
+	t := time.NewTimer(todayMetricIDsUpdateInterval)
 	for {
 		select {
 		case <-s.stop:
 			return
 		case <-t.C:
 			s.updateTodayMetricIDs()
-			t.Reset(time.Second)
+			t.Reset(todayMetricIDsUpdateInterval)
 		}
 	}
 }
@@ -762,20 +764,20 @@ func (s *Storage) updateTodayMetricIDs() {
 		return
 	}
 
-	// Slow path tm.m must be updated with non-empty s.pendingTodayMetricIDs.
+	// Slow path: tm.m must be updated with non-empty s.pendingTodayMetricIDs.
 	m := make(map[uint64]struct{}, len(tm.m)+newMetricIDsLen)
 	if tm.date == today {
 		for metricID := range tm.m {
 			m[metricID] = struct{}{}
 		}
 	}
-
 	s.pendingTodayMetricIDsLock.Lock()
-	for metricID := range s.pendingTodayMetricIDs {
+	newMetricIDs := s.pendingTodayMetricIDs
+	s.pendingTodayMetricIDs = make(map[uint64]struct{}, len(newMetricIDs))
+	s.pendingTodayMetricIDsLock.Unlock()
+	for metricID := range newMetricIDs {
 		m[metricID] = struct{}{}
 	}
-	s.pendingTodayMetricIDs = make(map[uint64]struct{}, len(s.pendingTodayMetricIDs))
-	s.pendingTodayMetricIDsLock.Unlock()
 
 	tmNew := &todayMetricIDs{
 		m:    m,
