@@ -6,7 +6,7 @@ import (
 	"syscall"
 )
 
-// WaitForSigterm waits fro either SIGTERM or SIGINT
+// WaitForSigterm waits for either SIGTERM or SIGINT
 //
 // Returns the caught signal.
 func WaitForSigterm() os.Signal {
