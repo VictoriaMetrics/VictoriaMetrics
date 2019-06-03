@@ -653,12 +653,12 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadli
 			return nil, true, fmt.Errorf("error occured during search: %s", errors[0])
 		}
 
-		// Just log errors and return partial results.
+		// Just return partial results.
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
+		// Do not log the error, since it may spam logs on busy vmselect
+		// serving high amount of requests.
 		partialSearchResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy during search: %s", errors[0])
 		isPartialResult = true
 	}
 	if err := tbf.Finalize(); err != nil {
