@@ -89,7 +89,6 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf, '.')
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
-		ic.Labels = ic.Labels[:0]
 		ic.AddLabel("", "placeholder")
 		placeholderLabel := &ic.Labels[len(ic.Labels)-1]
 		for j := range r.Fields {
