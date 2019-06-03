@@ -1,8 +1,8 @@
 ### Folder contains basic images and tools for building and running Victoria Metrics in docker
- 
+
 #### Docker compose
 
-Images prometheus, grafana and victoria metrics  
+Images prometheus, grafana and victoria metrics
 
 Run: `docker-compose up`
 
