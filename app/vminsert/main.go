@@ -65,7 +65,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/query":
-		// Emulate fake response for influx query
+		// Emulate fake response for influx query.
+		// This is required for TSBS benchmark.
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
