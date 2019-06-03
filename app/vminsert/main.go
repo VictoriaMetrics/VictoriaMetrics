@@ -97,7 +97,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	switch p.Suffix {
-	case "prometheus/", "prometheus":
+	case "prometheus/", "prometheus", "prometheus/api/v1/write":
 		prometheusWriteRequests.Inc()
 		if err := prometheus.InsertHandler(at, r, int64(*maxInsertRequestSize)); err != nil {
 			prometheusWriteErrors.Inc()
