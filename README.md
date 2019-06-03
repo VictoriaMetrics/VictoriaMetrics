@@ -186,6 +186,7 @@ The following steps must be performed for each `vmstorage` node for creating a b
 2. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using any suitable tool that follows symlinks. For instance,
    `cp -L`, `rsync -L` or `scp -r`. The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
    Incremental backups are possible with `rsync --delete`, which should [remove extraneous files from backup dir](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
+3. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
 
 There is no need in synchronizing backups among all the `vmstorage` nodes.
 
