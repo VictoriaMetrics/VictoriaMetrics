@@ -1,7 +1,7 @@
 {{ if .Values.vminsert.enabled }}
 Write API:
 
-The Victoria Metrics write api can be accessed via port {{ .Values.vmselect.service.servicePort }} on the following DNS name from within your cluster:
+The Victoria Metrics write api can be accessed via port {{ .Values.vminsert.service.servicePort }} on the following DNS name from within your cluster:
 {{ template "victoria-metrics.vminsert.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomainSuffix }}
 
 Get the Victoria Metrics insert service URL by running these commands in the same shell:
@@ -17,7 +17,7 @@ Get the Victoria Metrics insert service URL by running these commands in the sam
   echo http://$SERVICE_IP:{{ .Values.vminsert.service.servicePort }}
 {{- else if contains "ClusterIP"  .Values.vminsert.service.type }}
   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ .Values.vminsert.name }}" -o jsonpath="{.items[0].metadata.name}")
-  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8480
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.vminsert.service.servicePort }}
 {{- end }}
 
 You need to update your prometheus configuration file and add next lines into it:
@@ -25,14 +25,14 @@ You need to update your prometheus configuration file and add next lines into it
 prometheus.yml
 ```yaml
 remote_write:
-  - url: "http://<insert-service>/insert/{{ .Values.vmstorage.retentionPeriod }}m/1/{{.Release.Name}}/prometheus/"
+  - url: "http://<insert-service>/insert/0/prometheus/"
 
 ```
 
 for e.g. inside the kubernetes cluster:
 ```yaml
 remote_write:
-  - url: "http://{{ template "victoria-metrics.vminsert.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomainSuffix }}:{{ .Values.vminsert.service.servicePort }}/insert/{{ .Values.vmstorage.retentionPeriod }}m/1/{{.Release.Name}}/prometheus/"
+  - url: "http://{{ template "victoria-metrics.vminsert.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomainSuffix }}:{{ .Values.vminsert.service.servicePort }}/insert/0/prometheus/"
 
 ```
 {{- end }}
@@ -56,7 +56,7 @@ Get the Victoria Metrics select service URL by running these commands in the sam
   echo http://$SERVICE_IP:{{ .Values.vmselect.service.servicePort }}
 {{- else if contains "ClusterIP"  .Values.vmselect.service.type }}
   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ .Values.vmselect.name }}" -o jsonpath="{.items[0].metadata.name}")
-  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8481
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.vmselect.service.servicePort }}
 {{- end }}
 
 You need to update specify select service URL in your Grafana:
@@ -65,12 +65,12 @@ You need to update specify select service URL in your Grafana:
 Input for URL field in Grafana
 
 ```
-http://<select-service>/select/{{ .Values.vmstorage.retentionPeriod }}m/1/{{.Release.Name}}/prometheus/
+http://<select-service>/select/0/prometheus/
 ```
 
 for e.g. inside the kubernetes cluster:
 ```
-http://{{ template "victoria-metrics.vmselect.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomainSuffix }}:{{ .Values.vmselect.service.servicePort }}/select/{{ .Values.vmstorage.retentionPeriod }}m/1/{{.Release.Name}}/prometheus/"
+http://{{ template "victoria-metrics.vmselect.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomainSuffix }}:{{ .Values.vmselect.service.servicePort }}/select/0/prometheus/"
 ```
 {{- end }}
 
