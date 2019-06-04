@@ -2,6 +2,7 @@ package promql
 
 import (
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"runtime"
 	"sync"
@@ -15,6 +16,8 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var disableCache = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 
 var rollupResultCacheV = &rollupResultCache{
 	fastcache.New(1024 * 1024), // This is a cache for testing.
@@ -50,6 +53,10 @@ func InitRollupResultCache(cachePath string) {
 	} else {
 		c = fastcache.New(getRollupResultCacheSize())
 	}
+	if *disableCache {
+		c.Reset()
+	}
+
 	stats := &fastcache.Stats{}
 	var statsLock sync.Mutex
 	var statsLastUpdate time.Time
@@ -124,7 +131,7 @@ func ResetRollupResultCache() {
 }
 
 func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExpr, window int64) (tss []*timeseries, newStart int64) {
-	if !ec.mayCache() {
+	if *disableCache || !ec.mayCache() {
 		return nil, ec.Start
 	}
 
@@ -195,7 +202,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 }
 
 func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExpr, window int64, tss []*timeseries) {
-	if len(tss) == 0 || !ec.mayCache() {
+	if *disableCache || len(tss) == 0 || !ec.mayCache() {
 		return
 	}
 
