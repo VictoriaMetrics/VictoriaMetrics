@@ -42,6 +42,7 @@ services:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
+      - ./provisioning/:/etc/grafana/provisioning/
     networks:
       - vm_net
     restart: always
