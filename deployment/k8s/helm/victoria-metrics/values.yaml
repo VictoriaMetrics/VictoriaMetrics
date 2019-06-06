@@ -12,7 +12,7 @@ vmselect:
   name: vmselect
   image:
     repository: valyala/vmselect
-    tag: heads-public-cluster-0-gba58af9d
+    tag: heads-public-cluster-0-g8f479062
     pullPolicy: IfNotPresent
   priorityClassName: ""
   extraArgs: {}
@@ -59,7 +59,7 @@ vminsert:
   name: vminsert
   image:
     repository: valyala/vminsert
-    tag: heads-public-cluster-0-gba58af9d
+    tag: heads-public-cluster-0-g8f479062
     pullPolicy: IfNotPresent
   priorityClassName: ""
   extraArgs: {}
@@ -103,7 +103,7 @@ vmstorage:
   name: vmstorage
   image:
     repository: valyala/vmstorage
-    tag: heads-public-cluster-0-gba58af9d
+    tag: heads-public-cluster-0-g8f479062
     pullPolicy: IfNotPresent
   priorityClassName: ""
   fullnameOverride:

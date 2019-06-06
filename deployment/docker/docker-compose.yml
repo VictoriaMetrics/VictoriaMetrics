@@ -21,7 +21,7 @@ services:
     restart: always
   vmstorage:
     container_name: vmstorage
-    image: valyala/vmstorage:heads-public-cluster-0-gba58af9d
+    image: valyala/vmstorage:heads-public-cluster-0-g8f479062
     ports:
       - 8482:8482
       - 8400:8400
@@ -38,7 +38,7 @@ services:
     restart: always
   vmselect:
     container_name: vmselect
-    image: valyala/vmselect:heads-public-cluster-0-gba58af9d
+    image: valyala/vmselect:heads-public-cluster-0-g8f479062
     depends_on:
       - "vmstorage"
     ports:
@@ -50,7 +50,7 @@ services:
     restart: always
   vminsert:
     container_name: vminsert
-    image: valyala/vminsert:heads-public-cluster-0-gba58af9d
+    image: valyala/vminsert:heads-public-cluster-0-g8f479062
     depends_on:
     - "vmstorage"
     command:
