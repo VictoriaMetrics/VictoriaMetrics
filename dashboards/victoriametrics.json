@@ -14,37 +14,37 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "5.0.0"
+      "version": "6.2.1"
     },
     {
       "type": "panel",
       "id": "graph",
       "name": "Graph",
-      "version": "5.0.0"
+      "version": ""
     },
     {
       "type": "datasource",
       "id": "prometheus",
       "name": "Prometheus",
-      "version": "5.0.0"
+      "version": "1.0.0"
     },
     {
       "type": "panel",
       "id": "singlestat",
       "name": "Singlestat",
-      "version": "5.0.0"
+      "version": ""
     },
     {
       "type": "panel",
       "id": "table",
       "name": "Table",
-      "version": "5.0.0"
+      "version": ""
     },
     {
       "type": "panel",
       "id": "text",
       "name": "Text",
-      "version": "5.0.0"
+      "version": ""
     }
   ],
   "annotations": {
@@ -65,7 +65,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1558335960106,
+  "iteration": 1559857416920,
   "links": [
     {
       "icon": "doc",
@@ -111,7 +111,7 @@
       "content": "<div style=\"text-align: center; font-size: 2em\">$version</div>",
       "description": "",
       "gridPos": {
-        "h": 2,
+        "h": 3,
         "w": 8,
         "x": 0,
         "y": 1
@@ -126,6 +126,7 @@
         }
       ],
       "mode": "html",
+      "options": {},
       "timeFrom": null,
       "timeShift": null,
       "title": "Version",
@@ -137,13 +138,14 @@
       "description": "Run VM with `-help` flag to see all the available flags with description and default values",
       "fontSize": "100%",
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 16,
         "x": 8,
         "y": 1
       },
       "id": 4,
       "links": [],
+      "options": {},
       "pageSize": null,
       "scroll": true,
       "showHeader": true,
@@ -237,7 +239,7 @@
         "h": 2,
         "w": 8,
         "x": 0,
-        "y": 3
+        "y": 4
       },
       "id": 26,
       "interval": null,
@@ -256,6 +258,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -321,7 +324,7 @@
         "h": 2,
         "w": 8,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "id": 38,
       "interval": null,
@@ -340,6 +343,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -404,7 +408,7 @@
         "h": 2,
         "w": 8,
         "x": 0,
-        "y": 7
+        "y": 8
       },
       "id": 8,
       "interval": null,
@@ -423,6 +427,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -470,7 +475,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 10
       },
       "id": 24,
       "panels": [],
@@ -489,7 +494,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 11
       },
       "id": 12,
       "legend": {
@@ -508,6 +513,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -578,7 +584,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 11
       },
       "id": 22,
       "legend": {
@@ -597,6 +603,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -667,7 +674,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 19
       },
       "id": 35,
       "legend": {
@@ -686,6 +693,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -756,7 +764,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 19
       },
       "id": 33,
       "legend": {
@@ -772,6 +780,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -856,7 +865,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 27
       },
       "id": 37,
       "legend": {
@@ -872,6 +881,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -944,7 +954,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 27
       },
       "id": 49,
       "legend": {
@@ -960,6 +970,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1026,7 +1037,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 35
       },
       "id": 14,
       "panels": [],
@@ -1045,7 +1056,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 36
       },
       "id": 10,
       "legend": {
@@ -1063,6 +1074,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1140,7 +1152,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 36
       },
       "id": 34,
       "legend": {
@@ -1156,13 +1168,14 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [
         {
-          "alias": "merges",
+          "alias": "pending index entries",
           "yaxis": 2
         }
       ],
@@ -1171,12 +1184,20 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_pending_rows{job=\"$job\"})",
+          "expr": "vm_pending_rows{job=\"$job\", type=\"storage\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "rows",
+          "legendFormat": "pending datapoints",
           "refId": "A"
+        },
+        {
+          "expr": "vm_pending_rows{job=\"$job\", type=\"indexdb\"}",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "pending index entries",
+          "refId": "B"
         }
       ],
       "thresholds": [],
@@ -1233,7 +1254,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 43
+        "y": 44
       },
       "id": 30,
       "legend": {
@@ -1249,6 +1270,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1319,7 +1341,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 43
+        "y": 44
       },
       "id": 36,
       "legend": {
@@ -1335,6 +1357,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1399,7 +1422,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 52
       },
       "id": 46,
       "panels": [],
@@ -1418,7 +1441,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 53
       },
       "id": 44,
       "legend": {
@@ -1434,6 +1457,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1520,7 +1544,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 53
       },
       "id": 42,
       "legend": {
@@ -1536,6 +1560,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1605,7 +1630,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 61
       },
       "id": 47,
       "legend": {
@@ -1621,6 +1646,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1691,7 +1717,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 61
       },
       "id": 48,
       "legend": {
@@ -1707,6 +1733,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "percentage": false,
       "pointradius": 2,
       "points": false,
@@ -1768,7 +1795,7 @@
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 16,
+  "schemaVersion": 18,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -1851,5 +1878,5 @@
   "timezone": "",
   "title": "VictoriaMetrics",
   "uid": "wNf0q_kZk",
-  "version": 15
+  "version": 1
 }

@@ -16,8 +16,8 @@
   "editable": true,
   "gnetId": 10229,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1559629886268,
+  "id": 2,
+  "iteration": 1559859052453,
   "links": [
     {
       "icon": "doc",
@@ -63,7 +63,7 @@
       "content": "<div style=\"text-align: center; font-size: 2em\">$version</div>",
       "description": "",
       "gridPos": {
-        "h": 2,
+        "h": 3,
         "w": 8,
         "x": 0,
         "y": 1
@@ -90,7 +90,7 @@
       "description": "Run VM with `-help` flag to see all the available flags with description and default values",
       "fontSize": "100%",
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 16,
         "x": 8,
         "y": 1
@@ -191,7 +191,7 @@
         "h": 2,
         "w": 8,
         "x": 0,
-        "y": 3
+        "y": 4
       },
       "id": 26,
       "interval": null,
@@ -276,7 +276,7 @@
         "h": 2,
         "w": 8,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "id": 38,
       "interval": null,
@@ -360,7 +360,7 @@
         "h": 2,
         "w": 8,
         "x": 0,
-        "y": 7
+        "y": 8
       },
       "id": 8,
       "interval": null,
@@ -427,7 +427,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 10
       },
       "id": 24,
       "panels": [],
@@ -446,7 +446,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 11
       },
       "id": 12,
       "legend": {
@@ -536,7 +536,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 11
       },
       "id": 22,
       "legend": {
@@ -626,7 +626,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 19
       },
       "id": 35,
       "legend": {
@@ -716,7 +716,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 19
       },
       "id": 33,
       "legend": {
@@ -817,7 +817,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 27
       },
       "id": 37,
       "legend": {
@@ -906,7 +906,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 27
       },
       "id": 49,
       "legend": {
@@ -989,7 +989,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 35
       },
       "id": 14,
       "panels": [],
@@ -1008,7 +1008,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 36
       },
       "id": 10,
       "legend": {
@@ -1104,7 +1104,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 36
       },
       "id": 34,
       "legend": {
@@ -1127,7 +1127,7 @@
       "renderer": "flot",
       "seriesOverrides": [
         {
-          "alias": "merges",
+          "alias": "pending index entries",
           "yaxis": 2
         }
       ],
@@ -1136,12 +1136,20 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_pending_rows{job=\"$job\"})",
+          "expr": "vm_pending_rows{job=\"$job\", type=\"storage\"}",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "rows",
+          "legendFormat": "pending datapoints",
           "refId": "A"
+        },
+        {
+          "expr": "vm_pending_rows{job=\"$job\", type=\"indexdb\"}",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "pending index entries",
+          "refId": "B"
         }
       ],
       "thresholds": [],
@@ -1198,7 +1206,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 43
+        "y": 44
       },
       "id": 30,
       "legend": {
@@ -1285,7 +1293,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 43
+        "y": 44
       },
       "id": 36,
       "legend": {
@@ -1366,7 +1374,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 52
       },
       "id": 46,
       "panels": [],
@@ -1385,7 +1393,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 53
       },
       "id": 44,
       "legend": {
@@ -1488,7 +1496,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 53
       },
       "id": 42,
       "legend": {
@@ -1574,7 +1582,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 61
       },
       "id": 47,
       "legend": {
@@ -1661,7 +1669,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 61
       },
       "id": 48,
       "legend": {
@@ -1772,8 +1780,8 @@
       {
         "allValue": null,
         "current": {
-          "text": "v1.18.0",
-          "value": "v1.18.0"
+          "text": "v1.18.9",
+          "value": "v1.18.9"
         },
         "datasource": "Prometheus",
         "definition": "label_values(vm_app_version{job=\"$job\"},  version)",
