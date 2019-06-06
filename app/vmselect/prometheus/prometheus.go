@@ -37,9 +37,18 @@ func FederateHandler(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("cannot parse request form values: %s", err)
 	}
 	matches := r.Form["match[]"]
-	maxLookback := getDuration(r, "max_lookback", defaultStep)
-	start := getTime(r, "start", ct-maxLookback)
-	end := getTime(r, "end", ct)
+	maxLookback, err := getDuration(r, "max_lookback", defaultStep)
+	if err != nil {
+		return err
+	}
+	start, err := getTime(r, "start", ct-maxLookback)
+	if err != nil {
+		return err
+	}
+	end, err := getTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
 	deadline := getDeadline(r)
 	if start >= end {
 		start = end - defaultStep
@@ -99,8 +108,14 @@ func ExportHandler(w http.ResponseWriter, r *http.Request) error {
 		match := r.FormValue("match")
 		matches = []string{match}
 	}
-	start := getTime(r, "start", 0)
-	end := getTime(r, "end", ct)
+	start, err := getTime(r, "start", 0)
+	if err != nil {
+		return err
+	}
+	end, err := getTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
 	format := r.FormValue("format")
 	deadline := getDeadline(r)
 	if start >= end {
@@ -265,8 +280,14 @@ func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("cannot parse form values: %s", err)
 	}
 	matches := r.Form["match[]"]
-	start := getTime(r, "start", ct-defaultStep)
-	end := getTime(r, "end", ct)
+	start, err := getTime(r, "start", ct-defaultStep)
+	if err != nil {
+		return err
+	}
+	end, err := getTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
 	deadline := getDeadline(r)
 
 	tagFilterss, err := getTagFilterssFromMatches(matches)
@@ -324,8 +345,14 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	query := r.FormValue("query")
-	start := getTime(r, "time", ct)
-	step := getDuration(r, "step", latencyOffset)
+	start, err := getTime(r, "time", ct)
+	if err != nil {
+		return err
+	}
+	step, err := getDuration(r, "step", latencyOffset)
+	if err != nil {
+		return err
+	}
 	deadline := getDeadline(r)
 
 	if len(query) > *maxQueryLen {
@@ -388,9 +415,18 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	query := r.FormValue("query")
-	start := getTime(r, "start", ct-defaultStep)
-	end := getTime(r, "end", ct)
-	step := getDuration(r, "step", defaultStep)
+	start, err := getTime(r, "start", ct-defaultStep)
+	if err != nil {
+		return err
+	}
+	end, err := getTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
+	step, err := getDuration(r, "step", defaultStep)
+	if err != nil {
+		return err
+	}
 	deadline := getDeadline(r)
 	mayCache := !getBool(r, "nocache")
 
@@ -467,25 +503,25 @@ func adjustLastPoints(tss []netstorage.Result) {
 	}
 }
 
-func getTime(r *http.Request, argKey string, defaultValue int64) int64 {
+func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) {
 	argValue := r.FormValue(argKey)
 	if len(argValue) == 0 {
-		return defaultValue
+		return defaultValue, nil
 	}
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
 		// Try parsing string format
 		t, err := time.Parse(time.RFC3339, argValue)
 		if err != nil {
-			return defaultValue
+			return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
 		}
 		secs = float64(t.UnixNano()) / 1e9
 	}
 	msecs := int64(secs * 1e3)
 	if msecs < minTimeMsecs || msecs > maxTimeMsecs {
-		return defaultValue
+		return 0, fmt.Errorf("%q=%dms is out of allowed range [%d ... %d]", argKey, msecs, minTimeMsecs, maxTimeMsecs)
 	}
-	return msecs
+	return msecs, nil
 }
 
 const (
@@ -494,31 +530,34 @@ const (
 	maxTimeMsecs = int64(1<<63-1) / 1e6
 )
 
-func getDuration(r *http.Request, argKey string, defaultValue int64) int64 {
+func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, error) {
 	argValue := r.FormValue(argKey)
 	if len(argValue) == 0 {
-		return defaultValue
+		return defaultValue, nil
 	}
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
 		// Try parsing string format
 		d, err := time.ParseDuration(argValue)
 		if err != nil {
-			return defaultValue
+			return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
 		}
 		secs = d.Seconds()
 	}
 	msecs := int64(secs * 1e3)
 	if msecs <= 0 || msecs > maxDurationMsecs {
-		return defaultValue
+		return 0, fmt.Errorf("%q=%dms is out of allowed range [%d ... %d]", argKey, msecs, 0, maxDurationMsecs)
 	}
-	return msecs
+	return msecs, nil
 }
 
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
 
 func getDeadline(r *http.Request) netstorage.Deadline {
-	d := getDuration(r, "timeout", 0)
+	d, err := getDuration(r, "timeout", 0)
+	if err != nil {
+		d = 0
+	}
 	dMax := int64(maxQueryDuration.Seconds() * 1e3)
 	if d <= 0 || d > dMax {
 		d = dMax
