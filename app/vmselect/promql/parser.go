@@ -1128,6 +1128,10 @@ func (tfe *tagFilterExpr) toTagFilter() (*storage.TagFilter, error) {
 	} else {
 		tf.Value = []byte(tfe.Value.S)
 	}
+	if string(tf.Key) == "__name__" {
+		// This is required for storage.Search
+		tf.Key = nil
+	}
 	tf.IsRegexp = tfe.IsRegexp
 	tf.IsNegative = tfe.IsNegative
 	if !tf.IsRegexp {
