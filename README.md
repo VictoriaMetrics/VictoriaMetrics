@@ -209,6 +209,19 @@ VictoriaMetrics maps Influx data using the following rules:
 * Field values are mapped to time series values
 * Tags are mapped to Prometheus labels as-is
 
+For example, the following Influx line:
+
+```
+foo,tag1=value1,tag2=value2 field1=12,field2=40
+```
+
+is converted into the following Prometheus data points:
+
+```
+foo.field1{tag1="value1", tag2="value2"} 12
+foo.field2{tag1="value1", tag2="value2"} 40
+```
+
 
 ### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)?
 
