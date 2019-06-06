@@ -119,7 +119,7 @@ func TestParsePromQLSuccess(t *testing.T) {
 	same("WITH")
 	same("With")
 	// identifiers with with escape chars
-	same(`{__name__="foo bar"}`)
+	same(`foo\ bar`)
 	same(`foo\-bar\{{baz\+bar="aa"}`)
 	another(`\x2E\x2ef\oo{b\xEF\ar="aa"}`, `\x2e.foo{b\xefar="aa"}`)
 	// Duplicate filters
@@ -305,7 +305,7 @@ func TestParsePromQLSuccess(t *testing.T) {
 		`(({job="test", i="bar"} + {job="test", i="bar", x="d"}) + foo{job="test", i="bar"}) + ctx(1)`)
 	another(`with (foo = bar) {__name__=~"foo"}`, `{__name__=~"foo"}`)
 	another(`with (foo = bar) foo{__name__="foo"}`, `bar`)
-	another(`with (foo = bar) {__name__="foo", x="y"}`, `{__name__="foo", x="y"}`)
+	another(`with (foo = bar) {__name__="foo", x="y"}`, `bar{x="y"}`)
 	another(`with (foo(bar) = {__name__!="bar"}) foo(x)`, `{__name__!="bar"}`)
 	another(`with (foo(bar) = bar{__name__="bar"}) foo(x)`, `x`)
 	another(`with (foo\-bar(baz) = baz + baz) foo\-bar((x,y))`, `(x, y) + (x, y)`)
