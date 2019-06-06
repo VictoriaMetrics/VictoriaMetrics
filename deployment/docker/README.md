@@ -2,8 +2,32 @@
 
 #### Docker compose
 
-Images prometheus, grafana and victoria metrics
+To spin-up setup of VictoriaMetrics, Prometheus and Grafana run following command:
 
-Run: `docker-compose up`
+`docker-compose up`
 
-*Note* make ensure that you specify correct VM url in Grafana Data Source `http://victroriametrics:8428`
+##### VictoriaMetrics
+
+VictoriaMetrics opens following ports:
+* `--graphiteListenAddr=:2003`
+* `--opentsdbListenAddr=:4242`
+* `--httpListenAddr=:8428`
+
+##### Prometheus
+
+To access service open following [link](http://localhost:9090).
+
+Prometheus is already configured to use VictoriaMetrics as remote storage.
+
+##### Grafana
+
+To access service open following [link](http://localhost:3000).
+
+Default creds:
+* login - `admin`
+* password - `admin`
+
+Grafana is provisioned by default with following entities:
+* VictoriaMetrics datasource
+* Prometheus datasource
+* VictoriaMetrics overview dashboard
