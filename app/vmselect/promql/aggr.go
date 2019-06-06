@@ -457,6 +457,7 @@ func newAggrQuantileFunc(phis []float64) func(tss []*timeseries) []*timeseries {
 			idx := int(math.Round(float64(len(tss)-1) * phi))
 			dst.Values[n] = tss[idx].Values[n]
 		}
+		tss[0] = dst
 		return tss[:1]
 	}
 }
