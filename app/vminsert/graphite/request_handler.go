@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastjson/fastfloat"
 )
 
 var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="graphite"}`)
@@ -42,15 +43,26 @@ func (ctx *pushCtx) InsertRows(at *auth.Token) error {
 	rows := ctx.Rows.Rows
 	ic := &ctx.Common
 	ic.Reset()
+	atCopy := *at
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
 		ic.AddLabel("", r.Metric)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
+			if atCopy.AccountID == 0 {
+				// Multi-tenancy support via custom tags.
+				// Do not allow overriding AccountID and ProjectID from atCopy for security reasons.
+				if tag.Key == "VictoriaMetrics_AccountID" {
+					atCopy.AccountID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
+				}
+				if atCopy.ProjectID == 0 && tag.Key == "VictoriaMetrics_ProjectID" {
+					atCopy.ProjectID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
+				}
+			}
 			ic.AddLabel(tag.Key, tag.Value)
 		}
-		if err := ic.WriteDataPoint(at, ic.Labels, r.Timestamp, r.Value); err != nil {
+		if err := ic.WriteDataPoint(&atCopy, ic.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
 	}
