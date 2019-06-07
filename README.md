@@ -63,9 +63,9 @@ vmstorage-prod
 
 Run `make package`. It will build the following docker images locally:
 
-* `valyala/vminsert:<PKG_TAG>`
-* `valyala/vmselect:<PKG_TAG>`
-* `valyala/vmstorage:<PKG_TAG>`
+* `victoriametrics/vminsert:<PKG_TAG>`
+* `victoriametrics/vmselect:<PKG_TAG>`
+* `victoriametrics/vmstorage:<PKG_TAG>`
 
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.

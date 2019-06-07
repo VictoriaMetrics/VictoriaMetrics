@@ -11,7 +11,7 @@ vmselect:
   enabled: true
   name: vmselect
   image:
-    repository: valyala/vmselect
+    repository: victoriametrics/vmselect
     tag: heads-public-cluster-0-g913f888d
     pullPolicy: IfNotPresent
   priorityClassName: ""
@@ -58,7 +58,7 @@ vminsert:
   enabled: true
   name: vminsert
   image:
-    repository: valyala/vminsert
+    repository: victoriametrics/vminsert
     tag: heads-public-cluster-0-g913f888d
     pullPolicy: IfNotPresent
   priorityClassName: ""
@@ -102,7 +102,7 @@ vmstorage:
   enabled: true
   name: vmstorage
   image:
-    repository: valyala/vmstorage
+    repository: victoriametrics/vmstorage
     tag: heads-public-cluster-0-g913f888d
     pullPolicy: IfNotPresent
   priorityClassName: ""
