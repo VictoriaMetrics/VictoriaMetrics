@@ -13,11 +13,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
-var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdb"}`)
+var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdb"}`)
 
 // insertHandler processes remote write for OpenTSDB put protocol.
 //
@@ -66,7 +67,8 @@ func (ctx *pushCtx) InsertRows(at *auth.Token) error {
 			return err
 		}
 	}
-	rowsInserted.Add(len(rows))
+	// Assume that all the rows for a single connection belong to the same (AccountID, ProjectID).
+	rowsInserted.Get(&atCopy).Add(len(rows))
 	return ic.FlushBufs()
 }
 

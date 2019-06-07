@@ -11,10 +11,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="prometheus"}`)
+var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="prometheus"}`)
 
 // InsertHandler processes remote write for prometheus.
 func InsertHandler(at *auth.Token, r *http.Request, maxSize int64) error {
@@ -46,7 +47,7 @@ func insertHandlerInternal(at *auth.Token, r *http.Request, maxSize int64) error
 				return err
 			}
 		}
-		rowsInserted.Add(len(ts.Samples))
+		rowsInserted.Get(at).Add(len(ts.Samples))
 	}
 	return ic.FlushBufs()
 }

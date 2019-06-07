@@ -15,10 +15,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="influx"}`)
+var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="influx"}`)
 
 // InsertHandler processes remote write for influx line protocol.
 //
@@ -76,6 +77,7 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 	rows := ctx.Rows.Rows
 	ic := &ctx.Common
 	ic.Reset()
+	rowsAdded := 0
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -103,8 +105,9 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 				return err
 			}
 		}
-		rowsInserted.Add(len(r.Fields))
+		rowsAdded += len(r.Fields)
 	}
+	rowsInserted.Get(at).Add(rowsAdded)
 	return ic.FlushBufs()
 }
 
