@@ -29,9 +29,6 @@ func TestReadLinesBlockFailure(t *testing.T) {
 	// empty string
 	f("")
 
-	// no newline in nonempty string
-	f("foobar")
-
 	// too long string
 	b := make([]byte, maxLineSize+1)
 	f(string(b))
