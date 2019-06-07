@@ -20,7 +20,6 @@ const defaultBlockSize = 64 * 1024
 //
 // Returns (dstBuf, tailBuf).
 func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error) {
-	origDstBufLen := len(dstBuf)
 	if cap(dstBuf) < defaultBlockSize {
 		dstBuf = bytesutil.Resize(dstBuf, defaultBlockSize)
 	}
@@ -33,7 +32,7 @@ again:
 		if err == nil {
 			return dstBuf, tailBuf, fmt.Errorf("no forward progress made")
 		}
-		if err == io.EOF && len(dstBuf) > origDstBufLen {
+		if err == io.EOF && len(dstBuf) > 0 {
 			// Missing newline in the end of stream. This is OK,
 			/// so suppress io.EOF for now. It will be returned during the next
 			// call to ReadLinesBlock.
