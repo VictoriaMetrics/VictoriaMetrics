@@ -18,7 +18,7 @@ services:
     restart: always
   victoriametrics:
     container_name: victoriametrics
-    image: valyala/victoria-metrics
+    image: victoriametrics/victoria-metrics
     ports:
       - 8428:8428
       - 2003:2003

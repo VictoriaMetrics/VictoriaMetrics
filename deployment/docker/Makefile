@@ -1,4 +1,4 @@
-DOCKER_NAMESPACE := valyala
+DOCKER_NAMESPACE := victoriametrics
 BUILDER_IMAGE := local/builder:go1.12.5
 CERTS_IMAGE := local/certs:1.0.2
 

@@ -10,7 +10,7 @@
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-[docker images](https://hub.docker.com/r/valyala/victoria-metrics/) and
+[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
 in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
@@ -92,7 +92,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ### How to build from sources
 
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
-[docker images](https://hub.docker.com/r/valyala/victoria-metrics/) instead of building VictoriaMetrics
+[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing an additional features specific
 to your needs.
 
@@ -111,7 +111,7 @@ to your needs.
 
 #### Building docker images
 
-Run `make package-victoria-metrics`. It will build `valyala/victoria-metrics:<PKG_TAG>` docker image locally.
+Run `make package-victoria-metrics`. It will build `victoriametrics/victoria-metrics:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
