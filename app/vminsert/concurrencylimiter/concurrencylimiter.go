@@ -42,7 +42,7 @@ func Do(f func() error) error {
 	case <-t.C:
 		timerpool.Put(t)
 		concurrencyLimitErrors.Inc()
-		return fmt.Errorf("the server is overloaded with %d concurrent inserts; either -maxConcurrentInserts or reduce the load", cap(ch))
+		return fmt.Errorf("the server is overloaded with %d concurrent inserts; either increase -maxConcurrentInserts or reduce the load", cap(ch))
 	}
 }
 
