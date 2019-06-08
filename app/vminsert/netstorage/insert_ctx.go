@@ -18,9 +18,24 @@ type InsertCtx struct {
 	Labels        []prompb.Label
 	MetricNameBuf []byte
 
-	bufs      [][]byte
+	bufRowss  []bufRows
 	labelsBuf []byte
-	sizeBuf   [8]byte
+}
+
+type bufRows struct {
+	buf  []byte
+	rows int
+}
+
+func (br *bufRows) pushTo(sn *storageNode) error {
+	bufLen := len(br.buf)
+	err := sn.push(br.buf, br.rows)
+	br.buf = br.buf[:0]
+	br.rows = 0
+	if err != nil {
+		return fmt.Errorf("cannot send %d bytes to storageNode %q: %s", bufLen, sn.dialer.Addr(), err)
+	}
+	return nil
 }
 
 // Reset resets ctx.
@@ -32,11 +47,13 @@ func (ctx *InsertCtx) Reset() {
 	ctx.Labels = ctx.Labels[:0]
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 
-	if ctx.bufs == nil {
-		ctx.bufs = make([][]byte, len(storageNodes))
+	if ctx.bufRowss == nil {
+		ctx.bufRowss = make([]bufRows, len(storageNodes))
 	}
-	for i := range ctx.bufs {
-		ctx.bufs[i] = ctx.bufs[i][:0]
+	for i := range ctx.bufRowss {
+		br := &ctx.bufRowss[i]
+		br.buf = br.buf[:0]
+		br.rows = 0
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
 }
@@ -70,34 +87,41 @@ func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, time
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
 func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
-	buf := ctx.bufs[storageNodeIdx]
+	br := &ctx.bufRowss[storageNodeIdx]
 	sn := storageNodes[storageNodeIdx]
-	bufNew := storage.MarshalMetricRow(buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= consts.MaxInsertPacketSize {
+	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
+	if len(bufNew) >= maxStorageNodeBufSize {
 		// Send buf to storageNode, since it is too big.
-		if err := sn.sendWithFallback(buf, ctx.sizeBuf[:]); err != nil {
-			return fmt.Errorf("cannot send %d bytes to storageNodes: %s", len(buf), err)
+		if err := br.pushTo(sn); err != nil {
+			return err
 		}
-		buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
+		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
 	} else {
-		buf = bufNew
+		br.buf = bufNew
 	}
-	ctx.bufs[storageNodeIdx] = buf
-	sn.RowsPushed.Inc()
+	br.rows++
 	return nil
 }
+
+var maxStorageNodeBufSize = func() int {
+	n := 1024 * 1024
+	if n > consts.MaxInsertPacketSize {
+		n = consts.MaxInsertPacketSize
+	}
+	return n
+}()
 
 // FlushBufs flushes ctx bufs to remote storage nodes.
 func (ctx *InsertCtx) FlushBufs() error {
 	// Send per-storageNode bufs.
-	sizeBuf := ctx.sizeBuf[:]
-	for i, buf := range ctx.bufs {
-		if len(buf) == 0 {
+	for i := range ctx.bufRowss {
+		br := &ctx.bufRowss[i]
+		if len(br.buf) == 0 {
 			continue
 		}
 		sn := storageNodes[i]
-		if err := sn.sendWithFallback(buf, sizeBuf); err != nil {
-			return fmt.Errorf("cannot send data to storageNodes: %s", err)
+		if err := br.pushTo(sn); err != nil {
+			return err
 		}
 	}
 	return nil
