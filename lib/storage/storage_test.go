@@ -11,6 +11,184 @@ import (
 	"time"
 )
 
+func TestUpdateCurrHourMetricIDs(t *testing.T) {
+	newStorage := func() *Storage {
+		var s Storage
+		s.currHourMetricIDs.Store(&hourMetricIDs{})
+		s.prevHourMetricIDs.Store(&hourMetricIDs{})
+		s.pendingHourMetricIDs = make(map[uint64]struct{})
+		return &s
+	}
+	t.Run("empty_pedning_metric_ids_stale_curr_hour", func(t *testing.T) {
+		s := newStorage()
+		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hmOrig := &hourMetricIDs{
+			m: map[uint64]struct{}{
+				12: {},
+				34: {},
+			},
+			hour: 123,
+		}
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs()
+		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		if hmCurr.hour != hour {
+			// It is possible new hour occured. Update the hour and verify it again.
+			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
+			if hmCurr.hour != hour {
+				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+			}
+		}
+		if len(hmCurr.m) != 0 {
+			t.Fatalf("unexpected length of hm.m; got %d; want %d", len(hmCurr.m), 0)
+		}
+		if !hmCurr.isFull {
+			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
+		}
+
+		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		if !reflect.DeepEqual(hmPrev, hmOrig) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
+		}
+
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		}
+	})
+	t.Run("empty_pedning_metric_ids_valid_curr_hour", func(t *testing.T) {
+		s := newStorage()
+		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hmOrig := &hourMetricIDs{
+			m: map[uint64]struct{}{
+				12: {},
+				34: {},
+			},
+			hour: hour,
+		}
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs()
+		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		if hmCurr.hour != hour {
+			// It is possible new hour occured. Update the hour and verify it again.
+			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
+			if hmCurr.hour != hour {
+				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+			}
+			// Do not run other checks, since they may fail.
+			return
+		}
+		if !reflect.DeepEqual(hmCurr, hmOrig) {
+			t.Fatalf("unexpected hmCurr; got %v; want %v", hmCurr, hmOrig)
+		}
+		if hmCurr.isFull {
+			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
+		}
+
+		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmEmpty := &hourMetricIDs{}
+		if !reflect.DeepEqual(hmPrev, hmEmpty) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		}
+
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		}
+	})
+	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
+		s := newStorage()
+		pendingHourMetricIDs := map[uint64]struct{}{
+			343:     {},
+			32424:   {},
+			8293432: {},
+		}
+		s.pendingHourMetricIDs = pendingHourMetricIDs
+
+		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hmOrig := &hourMetricIDs{
+			m: map[uint64]struct{}{
+				12: {},
+				34: {},
+			},
+			hour: 123,
+		}
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs()
+		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		if hmCurr.hour != hour {
+			// It is possible new hour occured. Update the hour and verify it again.
+			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
+			if hmCurr.hour != hour {
+				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+			}
+		}
+		if !reflect.DeepEqual(hmCurr.m, pendingHourMetricIDs) {
+			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, pendingHourMetricIDs)
+		}
+		if !hmCurr.isFull {
+			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
+		}
+
+		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		if !reflect.DeepEqual(hmPrev, hmOrig) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
+		}
+
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		}
+	})
+	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
+		s := newStorage()
+		pendingHourMetricIDs := map[uint64]struct{}{
+			343:     {},
+			32424:   {},
+			8293432: {},
+		}
+		s.pendingHourMetricIDs = pendingHourMetricIDs
+
+		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hmOrig := &hourMetricIDs{
+			m: map[uint64]struct{}{
+				12: {},
+				34: {},
+			},
+			hour: hour,
+		}
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs()
+		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		if hmCurr.hour != hour {
+			// It is possible new hour occured. Update the hour and verify it again.
+			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
+			if hmCurr.hour != hour {
+				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+			}
+			// Do not run other checks, since they may fail.
+			return
+		}
+		m := getMetricIDsCopy(pendingHourMetricIDs)
+		for metricID := range hmOrig.m {
+			m[metricID] = struct{}{}
+		}
+		if !reflect.DeepEqual(hmCurr.m, m) {
+			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
+		}
+		if hmCurr.isFull {
+			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
+		}
+
+		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmEmpty := &hourMetricIDs{}
+		if !reflect.DeepEqual(hmPrev, hmEmpty) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		}
+
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		}
+	})
+}
+
 func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	var buf []byte
 	typ := reflect.TypeOf(&MetricRow{})

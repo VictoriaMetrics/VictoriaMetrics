@@ -50,15 +50,20 @@ type Storage struct {
 	// dateMetricIDCache is (Date, MetricID) cache.
 	dateMetricIDCache *fastcache.Cache
 
-	// Fast cache for today MetricID values.
-	todayMetricIDs            atomic.Value
-	pendingTodayMetricIDsLock sync.Mutex
-	pendingTodayMetricIDs     map[uint64]struct{}
+	// Fast cache for MetricID values occured during the current hour.
+	currHourMetricIDs atomic.Value
+
+	// Fast cache for MetricID values occured during the previous hour.
+	prevHourMetricIDs atomic.Value
+
+	// Pending MetricID values to be added to currHourMetricIDs.
+	pendingHourMetricIDsLock sync.Mutex
+	pendingHourMetricIDs     map[uint64]struct{}
 
 	stop chan struct{}
 
-	todayMetricIDsUpdaterWG sync.WaitGroup
-	retentionWatcherWG      sync.WaitGroup
+	currHourMetricIDsUpdaterWG sync.WaitGroup
+	retentionWatcherWG         sync.WaitGroup
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.
@@ -113,7 +118,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %s", idbSnapshotsPath, err)
 	}
-	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache)
+	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, &s.currHourMetricIDs, &s.prevHourMetricIDs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexdb tables at %q: %s", idbPath, err)
 	}
@@ -129,9 +134,9 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	}
 	s.tb = tb
 
-	s.todayMetricIDs.Store(&todayMetricIDs{})
-	s.pendingTodayMetricIDs = make(map[uint64]struct{})
-	s.startTodayMetricIDsUpdater()
+	s.currHourMetricIDs.Store(&hourMetricIDs{})
+	s.pendingHourMetricIDs = make(map[uint64]struct{})
+	s.startCurrHourMetricIDsUpdater()
 
 	s.startRetentionWatcher()
 
@@ -352,25 +357,25 @@ func (s *Storage) retentionWatcher() {
 	}
 }
 
-func (s *Storage) startTodayMetricIDsUpdater() {
-	s.todayMetricIDsUpdaterWG.Add(1)
+func (s *Storage) startCurrHourMetricIDsUpdater() {
+	s.currHourMetricIDsUpdaterWG.Add(1)
 	go func() {
-		s.todayMetricIDsUpdater()
-		s.todayMetricIDsUpdaterWG.Done()
+		s.currHourMetricIDsUpdater()
+		s.currHourMetricIDsUpdaterWG.Done()
 	}()
 }
 
-var todayMetricIDsUpdateInterval = time.Second * 10
+var currHourMetricIDsUpdateInterval = time.Second * 10
 
-func (s *Storage) todayMetricIDsUpdater() {
-	t := time.NewTimer(todayMetricIDsUpdateInterval)
+func (s *Storage) currHourMetricIDsUpdater() {
+	t := time.NewTimer(currHourMetricIDsUpdateInterval)
 	for {
 		select {
 		case <-s.stop:
 			return
 		case <-t.C:
-			s.updateTodayMetricIDs()
-			t.Reset(todayMetricIDsUpdateInterval)
+			s.updateCurrHourMetricIDs()
+			t.Reset(currHourMetricIDsUpdateInterval)
 		}
 	}
 }
@@ -379,7 +384,7 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache)
+	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, &s.currHourMetricIDs, &s.prevHourMetricIDs)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -413,7 +418,7 @@ func (s *Storage) MustClose() {
 	close(s.stop)
 
 	s.retentionWatcherWG.Wait()
-	s.todayMetricIDsUpdaterWG.Wait()
+	s.currHourMetricIDsUpdaterWG.Wait()
 
 	s.tb.MustClose()
 	s.idb().MustClose()
@@ -700,6 +705,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 
 func (s *Storage) updateDateMetricIDCache(rows []rawRow, errors []error) []error {
 	var date uint64
+	var hour uint64
 	var prevTimestamp int64
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
@@ -711,18 +717,20 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, errors []error) []error
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
 			date = uint64(r.Timestamp) / msecPerDay
+			hour = uint64(r.Timestamp) / msecPerHour
 			prevTimestamp = r.Timestamp
 		}
 		metricID := r.TSID.MetricID
-		tm := s.todayMetricIDs.Load().(*todayMetricIDs)
-		if date == tm.date {
-			if _, ok := tm.m[metricID]; ok {
-				// Fast path: the (date, metricID) entry is in the fast cache with today's metric ids.
+		hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		if hour == hm.hour {
+			// The r belongs to the current hour. Check for the current hour cache.
+			if _, ok := hm.m[metricID]; ok {
+				// Fast path: the metricID is in the current hour cache.
 				continue
 			}
-			s.pendingTodayMetricIDsLock.Lock()
-			s.pendingTodayMetricIDs[metricID] = struct{}{}
-			s.pendingTodayMetricIDsLock.Unlock()
+			s.pendingHourMetricIDsLock.Lock()
+			s.pendingHourMetricIDs[metricID] = struct{}{}
+			s.pendingHourMetricIDsLock.Unlock()
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
@@ -744,51 +752,52 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, errors []error) []error
 	return errors
 }
 
-func (s *Storage) updateTodayMetricIDs() {
-	tm := s.todayMetricIDs.Load().(*todayMetricIDs)
-	s.pendingTodayMetricIDsLock.Lock()
-	newMetricIDsLen := len(s.pendingTodayMetricIDs)
-	s.pendingTodayMetricIDsLock.Unlock()
-	today := uint64(timestampFromTime(time.Now())) / msecPerDay
-	if newMetricIDsLen == 0 {
-		if tm.date == today {
-			// Fast path: nothing to update.
-			return
-		}
-		// Reset tm because of new day.
-		tmNew := &todayMetricIDs{
-			m:    make(map[uint64]struct{}, len(tm.m)),
-			date: today,
-		}
-		s.todayMetricIDs.Store(tmNew)
+func (s *Storage) updateCurrHourMetricIDs() {
+	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	s.pendingHourMetricIDsLock.Lock()
+	newMetricIDsLen := len(s.pendingHourMetricIDs)
+	s.pendingHourMetricIDsLock.Unlock()
+	hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+	if newMetricIDsLen == 0 && hm.hour == hour {
+		// Fast path: nothing to update.
 		return
 	}
 
-	// Slow path: tm.m must be updated with non-empty s.pendingTodayMetricIDs.
-	m := make(map[uint64]struct{}, len(tm.m)+newMetricIDsLen)
-	if tm.date == today {
-		for metricID := range tm.m {
+	// Slow path: hm.m must be updated with non-empty s.pendingHourMetricIDs.
+	var m map[uint64]struct{}
+	isFull := hm.isFull
+	if hm.hour == hour {
+		m = make(map[uint64]struct{}, len(hm.m)+newMetricIDsLen)
+		for metricID := range hm.m {
 			m[metricID] = struct{}{}
 		}
+	} else {
+		m = make(map[uint64]struct{}, newMetricIDsLen)
+		isFull = true
 	}
-	s.pendingTodayMetricIDsLock.Lock()
-	newMetricIDs := s.pendingTodayMetricIDs
-	s.pendingTodayMetricIDs = make(map[uint64]struct{}, len(newMetricIDs))
-	s.pendingTodayMetricIDsLock.Unlock()
+	s.pendingHourMetricIDsLock.Lock()
+	newMetricIDs := s.pendingHourMetricIDs
+	s.pendingHourMetricIDs = make(map[uint64]struct{}, len(newMetricIDs))
+	s.pendingHourMetricIDsLock.Unlock()
 	for metricID := range newMetricIDs {
 		m[metricID] = struct{}{}
 	}
 
-	tmNew := &todayMetricIDs{
-		m:    m,
-		date: today,
+	hmNew := &hourMetricIDs{
+		m:      m,
+		hour:   hour,
+		isFull: isFull,
 	}
-	s.todayMetricIDs.Store(tmNew)
+	s.currHourMetricIDs.Store(hmNew)
+	if hm.hour != hour {
+		s.prevHourMetricIDs.Store(hm)
+	}
 }
 
-type todayMetricIDs struct {
-	m    map[uint64]struct{}
-	date uint64
+type hourMetricIDs struct {
+	m      map[uint64]struct{}
+	hour   uint64
+	isFull bool
 }
 
 func (s *Storage) getTSIDFromCache(dst *TSID, metricName []byte) bool {
@@ -802,7 +811,7 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Cache) (curr, prev *indexDB, err error) {
+func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %s", path, err)
 	}
@@ -863,12 +872,12 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Ca
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache)
+	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, currHourMetricIDs, prevHourMetricIDs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %s", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache)
+	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, currHourMetricIDs, prevHourMetricIDs)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %s", prevPath, err)
