@@ -74,9 +74,27 @@ type indexDB struct {
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
 
+	// Global lists of metric ids for the current and the previous hours.
+	// They are used for fast lookups on small time ranges covering
+	// up to two last hours.
+	currHourMetricIDs *atomic.Value
+	prevHourMetricIDs *atomic.Value
+
 	// The number of missing MetricID -> TSID entries.
 	// High rate for this value means corrupted indexDB.
 	missingTSIDsForMetricID uint64
+
+	// The number of calls to search for metric ids for recent hours.
+	recentHourMetricIDsSearchCalls uint64
+
+	// The number of cache hits during search for metric ids in recent hours.
+	recentHourMetricIDsSearchHits uint64
+
+	// The number of searches for metric ids by days.
+	dateMetricIDsSearchCalls uint64
+
+	// The number of successful searches for metric ids by days.
+	dateMetricIDsSearchHits uint64
 
 	mustDrop uint64
 }
@@ -88,7 +106,7 @@ type accountProjectKey struct {
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache) (*indexDB, error) {
+func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
 	tb, err := mergeset.OpenTable(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %s", path, err)
@@ -110,6 +128,9 @@ func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache) (
 		metricNameCache: metricNameCache,
 
 		tagCachePrefixes: make(map[accountProjectKey]uint64),
+
+		currHourMetricIDs: currHourMetricIDs,
+		prevHourMetricIDs: prevHourMetricIDs,
 	}
 
 	is := db.getIndexSearch()
@@ -136,6 +157,11 @@ type IndexDBMetrics struct {
 
 	MissingTSIDsForMetricID uint64
 
+	RecentHourMetricIDsSearchCalls uint64
+	RecentHourMetricIDsSearchHits  uint64
+	DateMetricIDsSearchCalls       uint64
+	DateMetricIDsSearchHits        uint64
+
 	mergeset.TableMetrics
 }
 
@@ -156,6 +182,10 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.IndexDBRefCount += atomic.LoadUint64(&db.refCount)
 	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
+	m.RecentHourMetricIDsSearchCalls += atomic.LoadUint64(&db.recentHourMetricIDsSearchCalls)
+	m.RecentHourMetricIDsSearchHits += atomic.LoadUint64(&db.recentHourMetricIDsSearchHits)
+	m.DateMetricIDsSearchCalls += atomic.LoadUint64(&db.dateMetricIDsSearchCalls)
+	m.DateMetricIDsSearchHits += atomic.LoadUint64(&db.dateMetricIDsSearchHits)
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
@@ -1589,6 +1619,16 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 	if tr.isZero() {
 		return nil, errMissingMetricIDsForDate
 	}
+	atomic.AddUint64(&is.db.recentHourMetricIDsSearchCalls, 1)
+	if metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics); ok {
+		// Fast path: tr covers the current and / or the previous hour.
+		// Return the full list of metric ids for this time range.
+		atomic.AddUint64(&is.db.recentHourMetricIDsSearchHits, 1)
+		return metricIDs, nil
+	}
+
+	// Slow path: collect the metric ids for all the days covering the given tr.
+	atomic.AddUint64(&is.db.dateMetricIDsSearchCalls, 1)
 	minDate := tr.MinTimestamp / msecPerDay
 	maxDate := tr.MaxTimestamp / msecPerDay
 	if maxDate-minDate > 40 {
@@ -1602,7 +1642,64 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 		}
 		minDate++
 	}
+	atomic.AddUint64(&is.db.dateMetricIDsSearchHits, 1)
 	return metricIDs, nil
+}
+
+func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) (map[uint64]struct{}, bool) {
+	// Return all the metricIDs for all the (AccountID, ProjectID) entries.
+	// The caller is responsible for proper filtering later.
+	minHour := uint64(tr.MinTimestamp) / msecPerHour
+	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
+	if is.db.currHourMetricIDs == nil {
+		return nil, false
+	}
+	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
+	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
+		// The tr fits the current hour.
+		// Return a copy of hmCurr.m, because the caller may modify
+		// the returned map.
+		if len(hmCurr.m) > maxMetrics {
+			return nil, false
+		}
+		return getMetricIDsCopy(hmCurr.m), true
+	}
+	if is.db.prevHourMetricIDs == nil {
+		return nil, false
+	}
+	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
+	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
+		// The tr fits the previous hour.
+		// Return a copy of hmPrev.m, because the caller may modify
+		// the returned map.
+		if len(hmPrev.m) > maxMetrics {
+			return nil, false
+		}
+		return getMetricIDsCopy(hmPrev.m), true
+	}
+	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
+		// The tr spans the previous and the current hours.
+		if len(hmCurr.m)+len(hmPrev.m) > maxMetrics {
+			return nil, false
+		}
+		metricIDs := make(map[uint64]struct{}, len(hmCurr.m)+len(hmPrev.m))
+		for metricID := range hmCurr.m {
+			metricIDs[metricID] = struct{}{}
+		}
+		for metricID := range hmPrev.m {
+			metricIDs[metricID] = struct{}{}
+		}
+		return metricIDs, true
+	}
+	return nil, false
+}
+
+func getMetricIDsCopy(src map[uint64]struct{}) map[uint64]struct{} {
+	dst := make(map[uint64]struct{}, len(src))
+	for metricID := range src {
+		dst[metricID] = struct{}{}
+	}
+	return dst
 }
 
 func (db *indexDB) storeDateMetricID(date, metricID uint64, accountID, projectID uint32) error {

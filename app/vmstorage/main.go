@@ -243,6 +243,18 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_missing_tsids_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingTSIDsForMetricID)
 	})
+	metrics.NewGauge(`vm_recent_hour_metric_ids_search_calls`, func() float64 {
+		return float64(idbm().RecentHourMetricIDsSearchCalls)
+	})
+	metrics.NewGauge(`vm_recent_hour_metric_ids_search_hits`, func() float64 {
+		return float64(idbm().RecentHourMetricIDsSearchHits)
+	})
+	metrics.NewGauge(`vm_date_metric_ids_search_calls`, func() float64 {
+		return float64(idbm().DateMetricIDsSearchCalls)
+	})
+	metrics.NewGauge(`vm_date_metric_ids_search_hits`, func() float64 {
+		return float64(idbm().DateMetricIDsSearchHits)
+	})
 
 	metrics.NewGauge(`vm_assisted_merges_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallAssistedMerges)

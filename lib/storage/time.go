@@ -67,3 +67,5 @@ func (tr *TimeRange) fromPartitionTime(t time.Time) {
 }
 
 const msecPerDay = 24 * 3600 * 1000
+
+const msecPerHour = 3600 * 1000
