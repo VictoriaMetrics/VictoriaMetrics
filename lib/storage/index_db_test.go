@@ -405,6 +405,21 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 	}
 
+	// Check timerseriesCounters only for serial test.
+	// Concurrent test may create duplicate timeseries, so GetSeriesCount
+	// would return more timeseries than needed.
+	if !isConcurrent {
+		for k, tc := range timeseriesCounters {
+			n, err := db.GetSeriesCount(k.AccountID, k.ProjectID)
+			if err != nil {
+				return fmt.Errorf("unexpected error in GetSeriesCount(%v): %s", k, err)
+			}
+			if n != uint64(len(tc)) {
+				return fmt.Errorf("unexpected GetSeriesCount(%v); got %d; want %d", k, n, uint64(len(tc)))
+			}
+		}
+	}
+
 	// Try tag filters.
 	for i := range mns {
 		mn := &mns[i]
