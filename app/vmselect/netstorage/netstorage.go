@@ -506,7 +506,7 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 	if len(errors) > 0 {
 		if len(labelValues) == 0 {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching labels: %s", errors[0])
+			return nil, true, fmt.Errorf("error occured during fetching label values: %s", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -514,17 +514,113 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelValuesResults.Inc()
 		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching labels: %s", errors[0])
+		logger.Errorf("certain storageNodes are unhealthy when fetching label values: %s", errors[0])
 		isPartialResult = true
 	}
 
-	// Deduplicate labels
+	// Deduplicate label values
 	labelValues = deduplicateStrings(labelValues)
 
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
 
 	return labelValues, isPartialResult, nil
+}
+
+// GetLabelEntries returns all the label entries for at until the given deadline.
+func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, bool, error) {
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		labelEntries []storage.TagEntry
+		err          error
+	}
+	resultsCh := make(chan nodeResult, len(storageNodes))
+	for _, sn := range storageNodes {
+		go func(sn *storageNode) {
+			sn.labelEntriesRequests.Inc()
+			labelEntries, err := sn.getLabelEntries(at.AccountID, at.ProjectID, deadline)
+			if err != nil {
+				sn.labelEntriesRequestErrors.Inc()
+				err = fmt.Errorf("cannot get label entries from vmstorage %s: %s", sn.connPool.Addr(), err)
+			}
+			resultsCh <- nodeResult{
+				labelEntries: labelEntries,
+				err:          err,
+			}
+		}(sn)
+	}
+
+	// Collect results
+	var labelEntries []storage.TagEntry
+	var errors []error
+	for i := 0; i < len(storageNodes); i++ {
+		// There is no need in timer here, since all the goroutines executing
+		// sn.getLabelEntries must be finished until the deadline.
+		nr := <-resultsCh
+		if nr.err != nil {
+			errors = append(errors, nr.err)
+			continue
+		}
+		labelEntries = append(labelEntries, nr.labelEntries...)
+	}
+	isPartialResult := false
+	if len(errors) > 0 {
+		if len(labelEntries) == 0 {
+			// Return only the first error, since it has no sense in returning all errors.
+			return nil, true, fmt.Errorf("error occured during fetching label entries: %s", errors[0])
+		}
+
+		// Just log errors and return partial results.
+		// This allows gracefully degrade vmselect in the case
+		// if certain storageNodes are temporarily unavailable.
+		partialLabelEntriesResults.Inc()
+		// Log only the first error, since it has no sense in returning all errors.
+		logger.Errorf("certain storageNodes are unhealthy when fetching label entries: %s", errors[0])
+		isPartialResult = true
+	}
+
+	// Deduplicate label entries
+	labelEntries = deduplicateLabelEntries(labelEntries)
+
+	// Substitute "" with "__name__"
+	for i := range labelEntries {
+		e := &labelEntries[i]
+		if e.Key == "" {
+			e.Key = "__name__"
+		}
+	}
+
+	// Sort labelEntries by the number of label values in each entry.
+	sort.Slice(labelEntries, func(i, j int) bool {
+		a, b := labelEntries[i].Values, labelEntries[j].Values
+		if len(a) < len(b) {
+			return true
+		}
+		if len(a) > len(b) {
+			return false
+		}
+		return labelEntries[i].Key < labelEntries[j].Key
+	})
+
+	return labelEntries, isPartialResult, nil
+}
+
+func deduplicateLabelEntries(src []storage.TagEntry) []storage.TagEntry {
+	m := make(map[string][]string, len(src))
+	for i := range src {
+		e := &src[i]
+		m[e.Key] = append(m[e.Key], e.Values...)
+	}
+	dst := make([]storage.TagEntry, 0, len(m))
+	for key, values := range m {
+		values := deduplicateStrings(values)
+		sort.Strings(values)
+		dst = append(dst, storage.TagEntry{
+			Key:    key,
+			Values: values,
+		})
+	}
+	return dst
 }
 
 func deduplicateStrings(a []string) []string {
@@ -707,6 +803,12 @@ type storageNode struct {
 	// The number of errors during requests to labelValues.
 	labelValuesRequestErrors *metrics.Counter
 
+	// The number of requests to labelEntries.
+	labelEntriesRequests *metrics.Counter
+
+	// The number of errors during requests to labelEntries.
+	labelEntriesRequestErrors *metrics.Counter
+
 	// The number of requests to seriesCount.
 	seriesCountRequests *metrics.Counter
 
@@ -784,6 +886,26 @@ func (sn *storageNode) getLabelValues(accountID, projectID uint32, labelName str
 		}
 	}
 	return labelValues, nil
+}
+
+func (sn *storageNode) getLabelEntries(accountID, projectID uint32, deadline Deadline) ([]storage.TagEntry, error) {
+	var tagEntries []storage.TagEntry
+	f := func(bc *handshake.BufferedConn) error {
+		tes, err := sn.getLabelEntriesOnConn(bc, accountID, projectID)
+		if err != nil {
+			return err
+		}
+		tagEntries = tes
+		return nil
+	}
+	if err := sn.execOnConn("labelEntries", f, deadline); err != nil {
+		// Try again before giving up.
+		tagEntries = nil
+		if err = sn.execOnConn("labelEntries", f, deadline); err != nil {
+			return nil, err
+		}
+	}
+	return tagEntries, nil
 }
 
 func (sn *storageNode) getSeriesCount(accountID, projectID uint32, deadline Deadline) (uint64, error) {
@@ -903,7 +1025,7 @@ func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestDa
 	return int(deletedCount), nil
 }
 
-const maxLabelsSize = 16 * 1024 * 1024
+const maxLabelSize = 16 * 1024 * 1024
 
 func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]string, error) {
 	// Send the request to sn.
@@ -929,7 +1051,7 @@ func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, pr
 	// Read response
 	var labels []string
 	for {
-		buf, err = readBytes(buf[:0], bc, maxLabelsSize)
+		buf, err = readBytes(buf[:0], bc, maxLabelSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read labels: %s", err)
 		}
@@ -968,17 +1090,71 @@ func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountI
 	}
 
 	// Read response
+	labelValues, _, err := readLabelValues(buf, bc)
+	if err != nil {
+		return nil, err
+	}
+	return labelValues, nil
+}
+
+func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, error) {
 	var labelValues []string
 	for {
+		var err error
 		buf, err = readBytes(buf[:0], bc, maxLabelValueSize)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read labelValue: %s", err)
+			return nil, buf, fmt.Errorf("cannot read labelValue: %s", err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
-			return labelValues, nil
+			return labelValues, buf, nil
 		}
 		labelValues = append(labelValues, string(buf))
+	}
+}
+
+func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]storage.TagEntry, error) {
+	// Send the request to sn.
+	if err := writeUint32(bc, accountID); err != nil {
+		return nil, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+	}
+	if err := writeUint32(bc, projectID); err != nil {
+		return nil, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush request to conn: %s", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %s", err)
+	}
+	if len(buf) > 0 {
+		return nil, &errRemote{msg: string(buf)}
+	}
+
+	// Read response
+	var labelEntries []storage.TagEntry
+	for {
+		buf, err = readBytes(buf[:0], bc, maxLabelSize)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read label: %s", err)
+		}
+		if len(buf) == 0 {
+			// Reached the end of the response
+			return labelEntries, nil
+		}
+		label := string(buf)
+		var values []string
+		values, buf, err = readLabelValues(buf, bc)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read values for label %q: %s", label, err)
+		}
+		labelEntries = append(labelEntries, storage.TagEntry{
+			Key:    label,
+			Values: values,
+		})
 	}
 }
 
@@ -1135,6 +1311,8 @@ func InitStorageNodes(addrs []string) {
 			labelsRequestErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			labelValuesRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			labelValuesRequestErrors:  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelEntriesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelEntriesRequestErrors: metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequestErrors:  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
@@ -1155,10 +1333,11 @@ func Stop() {
 }
 
 var (
-	partialLabelsResults      = metrics.NewCounter(`vm_partial_labels_results_total{name="vmselect"}`)
-	partialLabelValuesResults = metrics.NewCounter(`vm_partial_label_values_results_total{name="vmselect"}`)
-	partialSeriesCountResults = metrics.NewCounter(`vm_partial_series_count_results_total{name="vmselect"}`)
-	partialSearchResults      = metrics.NewCounter(`vm_partial_search_results_total{name="vmselect"}`)
+	partialLabelsResults       = metrics.NewCounter(`vm_partial_labels_results_total{name="vmselect"}`)
+	partialLabelValuesResults  = metrics.NewCounter(`vm_partial_label_values_results_total{name="vmselect"}`)
+	partialLabelEntriesResults = metrics.NewCounter(`vm_partial_label_entries_results_total{name="vmselect"}`)
+	partialSeriesCountResults  = metrics.NewCounter(`vm_partial_series_count_results_total{name="vmselect"}`)
+	partialSearchResults       = metrics.NewCounter(`vm_partial_search_results_total{name="vmselect"}`)
 )
 
 // The maximum number of concurrent queries per storageNode.

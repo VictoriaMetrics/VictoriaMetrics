@@ -185,6 +185,15 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 			return true
 		}
 		return true
+	case "prometheus/api/v1/labels/count":
+		labelsCountRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.LabelsCountHandler(at, w, r); err != nil {
+			labelsCountErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(at, w, r); err != nil {
@@ -249,6 +258,9 @@ var (
 
 	labelsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels"}`)
 	labelsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels"}`)
+
+	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
+	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
 
 	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)
 	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)

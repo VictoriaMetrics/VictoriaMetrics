@@ -289,6 +289,23 @@ func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter,
 
 var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/label/{}/values"}`)
 
+// LabelsCountHandler processes /api/v1/labels/count request.
+func LabelsCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+	startTime := time.Now()
+	deadline := getDeadline(r)
+	labelEntries, _, err := netstorage.GetLabelEntries(at, deadline)
+	if err != nil {
+		return fmt.Errorf(`cannot obtain label entries: %s`, err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	WriteLabelsCountResponse(w, labelEntries)
+	labelsCountDuration.UpdateDuration(startTime)
+	return nil
+}
+
+var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels/count"}`)
+
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names

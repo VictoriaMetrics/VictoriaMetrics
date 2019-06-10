@@ -516,6 +516,39 @@ func (s *Storage) SearchTagValues(accountID, projectID uint32, tagKey []byte, ma
 	return s.idb().SearchTagValues(accountID, projectID, tagKey, maxTagValues)
 }
 
+// SearchTagEntries returns a list of (tagName -> tagValues) for (accountID, projectID).
+func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxTagValues int) ([]TagEntry, error) {
+	idb := s.idb()
+	keys, err := idb.SearchTagKeys(accountID, projectID, maxTagKeys)
+	if err != nil {
+		return nil, fmt.Errorf("cannot search tag keys: %s", err)
+	}
+
+	// Sort keys for faster seeks below
+	sort.Strings(keys)
+
+	tes := make([]TagEntry, len(keys))
+	for i, key := range keys {
+		values, err := idb.SearchTagValues(accountID, projectID, []byte(key), maxTagValues)
+		if err != nil {
+			return nil, fmt.Errorf("cannot search values for tag %q: %s", key, err)
+		}
+		te := &tes[i]
+		te.Key = key
+		te.Values = values
+	}
+	return tes, nil
+}
+
+// TagEntry contains (tagName -> tagValues) mapping
+type TagEntry struct {
+	// Key is tagName
+	Key string
+
+	// Values contains all the values for Key.
+	Values []string
+}
+
 // GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
 //
 // It includes the deleted series too and may count the same series
