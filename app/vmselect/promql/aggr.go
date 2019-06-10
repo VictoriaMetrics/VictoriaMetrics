@@ -301,6 +301,9 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		m := make(map[float64]bool)
 		for _, ts := range tss {
 			for _, v := range ts.Values {
+				if math.IsNaN(v) {
+					continue
+				}
 				m[v] = true
 			}
 		}
