@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -159,7 +161,7 @@ func RemoveDirContents(dir string) {
 			continue
 		}
 		fullPath := dir + "/" + name
-		if err := os.RemoveAll(fullPath); err != nil {
+		if err := RemoveAllHard(fullPath); err != nil {
 			logger.Panicf("FATAL: cannot remove %q: %s", fullPath, err)
 		}
 	}
@@ -188,10 +190,66 @@ func IsPathExist(path string) bool {
 // MustRemoveAllSynced removes path with all the contents
 // and syncs the parent directory, so it no longer contains the path.
 func MustRemoveAllSynced(path string) {
-	if err := os.RemoveAll(path); err != nil {
+	MustRemoveAll(path)
+	SyncPath(filepath.Dir(path))
+}
+
+// MustRemoveAll removes path with all the contents.
+func MustRemoveAll(path string) {
+	if err := RemoveAllHard(path); err != nil {
 		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
 	}
-	SyncPath(filepath.Dir(path))
+}
+
+// RemoveAllHard removes path with all the contents.
+//
+// It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
+func RemoveAllHard(path string) error {
+	err := os.RemoveAll(path)
+	if err == nil {
+		return nil
+	}
+	if !strings.Contains(err.Error(), "directory not empty") {
+		return err
+	}
+	// This may be NFS-related issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
+	// Schedule for later directory removal.
+	select {
+	case removeDirCh <- path:
+	default:
+		return fmt.Errorf("cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirCh))
+	}
+	return nil
+}
+
+var removeDirCh = make(chan string, 1024)
+
+func dirRemover() {
+	for path := range removeDirCh {
+		attempts := 0
+		for {
+			err := os.RemoveAll(path)
+			if err == nil {
+				break
+			}
+			if !strings.Contains(err.Error(), "directory not empty") {
+				logger.Errorf("cannot remove %q: %s", path, err)
+				break
+			}
+			// NFS-related issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
+			// Sleep for a while and try again.
+			attempts++
+			if attempts > 50 {
+				logger.Errorf("cannot remove %q in %d attempts: %s", path, attempts, err)
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
+
+func init() {
+	go dirRemover()
 }
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.

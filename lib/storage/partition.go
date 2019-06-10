@@ -213,10 +213,10 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 func (pt *partition) Drop() {
 	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath)
 
-	if err := os.RemoveAll(pt.smallPartsPath); err != nil {
+	if err := fs.RemoveAllHard(pt.smallPartsPath); err != nil {
 		logger.Panicf("FATAL: cannot remove small parts directory %q: %s", pt.smallPartsPath, err)
 	}
-	if err := os.RemoveAll(pt.bigPartsPath); err != nil {
+	if err := fs.RemoveAllHard(pt.bigPartsPath); err != nil {
 		logger.Panicf("FATAL: cannot remove big parts directory %q: %s", pt.bigPartsPath, err)
 	}
 
@@ -1223,11 +1223,11 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	}
 
 	txnDir := path + "/txn"
-	if err := os.RemoveAll(txnDir); err != nil {
+	if err := fs.RemoveAllHard(txnDir); err != nil {
 		return nil, fmt.Errorf("cannot delete transaction directory %q: %s", txnDir, err)
 	}
 	tmpDir := path + "/tmp"
-	if err := os.RemoveAll(tmpDir); err != nil {
+	if err := fs.RemoveAllHard(tmpDir); err != nil {
 		return nil, fmt.Errorf("cannot remove temporary directory %q: %s", tmpDir, err)
 	}
 	if err := createPartitionDirs(path); err != nil {
@@ -1408,7 +1408,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		if err != nil {
 			return fmt.Errorf("invalid path to remove: %s", err)
 		}
-		if err := os.RemoveAll(path); err != nil {
+		if err := fs.RemoveAllHard(path); err != nil {
 			return fmt.Errorf("cannot remove %q: %s", path, err)
 		}
 	}
@@ -1438,7 +1438,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		}
 	} else {
 		// Just remove srcPath.
-		if err := os.RemoveAll(srcPath); err != nil {
+		if err := fs.RemoveAllHard(srcPath); err != nil {
 			return fmt.Errorf("cannot remove %q: %s", srcPath, err)
 		}
 	}

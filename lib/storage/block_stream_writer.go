@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -85,7 +84,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	timestampsPath := path + "/timestamps.bin"
 	timestampsFile, err := filestream.Create(timestampsPath, nocache)
 	if err != nil {
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create timestamps file: %s", err)
 	}
 
@@ -93,7 +92,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	valuesFile, err := filestream.Create(valuesPath, nocache)
 	if err != nil {
 		timestampsFile.MustClose()
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create values file: %s", err)
 	}
 
@@ -102,7 +101,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	if err != nil {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create index file: %s", err)
 	}
 
@@ -114,7 +113,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
 		indexFile.MustClose()
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create metaindex file: %s", err)
 	}
 

@@ -22,7 +22,7 @@ func InitTmpBlocksDir(tmpDirPath string) {
 		tmpDirPath = os.TempDir()
 	}
 	tmpBlocksDir = tmpDirPath + "/searchResults"
-	if err := os.RemoveAll(tmpBlocksDir); err != nil {
+	if err := fs.RemoveAllHard(tmpBlocksDir); err != nil {
 		logger.Panicf("FATAL: cannot remove %q: %s", tmpBlocksDir, err)
 	}
 	if err := fs.MkdirAllIfNotExist(tmpBlocksDir); err != nil {
