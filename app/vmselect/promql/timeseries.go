@@ -38,11 +38,13 @@ func (ts *timeseries) String() string {
 	return fmt.Sprintf("MetricName=%s, Values=%g, Timestamps=%d", &ts.MetricName, ts.Values, ts.Timestamps)
 }
 
-func (ts *timeseries) CopyFrom(src *timeseries) {
+func (ts *timeseries) CopyFromShallowTimestamps(src *timeseries) {
 	ts.Reset()
 	ts.MetricName.CopyFrom(&src.MetricName)
 	ts.Values = append(ts.Values[:0], src.Values...)
-	ts.Timestamps = append(ts.Timestamps[:0], src.Timestamps...)
+	ts.Timestamps = src.Timestamps
+
+	ts.denyReuse = true
 }
 
 func (ts *timeseries) CopyFromMetricNames(src *timeseries) {

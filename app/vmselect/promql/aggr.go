@@ -316,7 +316,7 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		var rvs []*timeseries
 		for _, v := range values {
 			var dst timeseries
-			dst.CopyFrom(tss[0])
+			dst.CopyFromShallowTimestamps(tss[0])
 			dst.MetricName.RemoveTag(dstLabel)
 			dst.MetricName.AddTag(dstLabel, strconv.FormatFloat(v, 'g', -1, 64))
 			for i := range dst.Values {
