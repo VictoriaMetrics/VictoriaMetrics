@@ -643,9 +643,7 @@ func transformUnion(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			m[string(bb.B)] = true
-			var dst timeseries
-			dst.CopyFrom(ts)
-			rvs = append(rvs, &dst)
+			rvs = append(rvs, ts)
 		}
 	}
 	bbPool.Put(bb)
