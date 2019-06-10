@@ -296,14 +296,12 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		if err != nil {
 			continue
 		}
-		var dst timeseries
-		dst.CopyFrom(ts)
-		dst.MetricName.ResetMetricGroup()
-		dst.MetricName.RemoveTag("le")
-		bb.B = marshalMetricTagsSorted(bb.B[:0], &dst.MetricName)
+		ts.MetricName.ResetMetricGroup()
+		ts.MetricName.RemoveTag("le")
+		bb.B = marshalMetricTagsSorted(bb.B[:0], &ts.MetricName)
 		m[string(bb.B)] = append(m[string(bb.B)], x{
 			le: le,
-			ts: &dst,
+			ts: ts,
 		})
 	}
 	bbPool.Put(bb)
