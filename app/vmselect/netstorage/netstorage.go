@@ -400,6 +400,36 @@ func GetLabelValues(labelName string, deadline Deadline) ([]string, error) {
 	return labelValues, nil
 }
 
+// GetLabelEntries returns all the label entries until the given deadline.
+func GetLabelEntries(deadline Deadline) ([]storage.TagEntry, error) {
+	labelEntries, err := vmstorage.SearchTagEntries(*maxTagKeysPerSearch, *maxTagValuesPerSearch)
+	if err != nil {
+		return nil, fmt.Errorf("error during label entries request: %s", err)
+	}
+
+	// Substitute "" with "__name__"
+	for i := range labelEntries {
+		e := &labelEntries[i]
+		if e.Key == "" {
+			e.Key = "__name__"
+		}
+	}
+
+	// Sort labelEntries by the number of label values in each entry.
+	sort.Slice(labelEntries, func(i, j int) bool {
+		a, b := labelEntries[i].Values, labelEntries[j].Values
+		if len(a) < len(b) {
+			return true
+		}
+		if len(a) > len(b) {
+			return false
+		}
+		return labelEntries[i].Key < labelEntries[j].Key
+	})
+
+	return labelEntries, nil
+}
+
 // GetSeriesCount returns the number of unique series.
 func GetSeriesCount(deadline Deadline) (uint64, error) {
 	n, err := vmstorage.GetSeriesCount()

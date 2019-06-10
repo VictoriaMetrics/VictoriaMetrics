@@ -96,6 +96,14 @@ func SearchTagValues(tagKey []byte, maxTagValues int) ([]string, error) {
 	return values, err
 }
 
+// SearchTagEntries searches for tag entries.
+func SearchTagEntries(maxTagKeys, maxTagValues int) ([]storage.TagEntry, error) {
+	WG.Add(1)
+	tagEntries, err := Storage.SearchTagEntries(maxTagKeys, maxTagValues)
+	WG.Done()
+	return tagEntries, err
+}
+
 // GetSeriesCount returns the number of time series in the storage.
 func GetSeriesCount() (uint64, error) {
 	WG.Add(1)
