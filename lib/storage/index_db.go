@@ -1714,7 +1714,7 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 		}
 	}
 	if err := ts.Error(); err != nil {
-		return nil, false, fmt.Errorf("cannot filter out metricIDs by (accountID, projectID): %s", err)
+		return nil, false, fmt.Errorf("cannot filter out metricIDs by (accountID=%d, projectID=%d): %s", accountID, projectID, err)
 	}
 	return metricIDs, true, nil
 }
