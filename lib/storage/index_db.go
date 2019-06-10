@@ -793,7 +793,7 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, prefix []byte, m
 // up to two times - in db and extDB.
 func (db *indexDB) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
 	is := db.getIndexSearch()
-	n, err := getSeriesCount(accountID, projectID, &is.ts, &is.kb)
+	n, err := is.getSeriesCount(accountID, projectID)
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
@@ -802,7 +802,7 @@ func (db *indexDB) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
 	var nExt uint64
 	ok := db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch()
-		nExt, err = getSeriesCount(accountID, projectID, &is.ts, &is.kb)
+		nExt, err = is.getSeriesCount(accountID, projectID)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -1157,7 +1157,9 @@ func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64, accountID, 
 	return nil
 }
 
-func getSeriesCount(accountID, projectID uint32, ts *mergeset.TableSearch, kb *bytesutil.ByteBuffer) (uint64, error) {
+func (is *indexSearch) getSeriesCount(accountID, projectID uint32) (uint64, error) {
+	ts := &is.ts
+	kb := &is.kb
 	var n uint64
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID, accountID, projectID)
 	ts.Seek(kb.B)
