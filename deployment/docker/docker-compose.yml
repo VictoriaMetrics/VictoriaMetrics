@@ -36,6 +36,12 @@ services:
   grafana:
     container_name: grafana
     image: grafana/grafana:6.2.1
+    entrypoint: >
+      /bin/sh -c "
+      cd /var/lib/grafana &&
+      mkdir -p dashboards &&
+      sed 's/$${DS_PROMETHEUS}/Prometheus/g' vm.json > dashboards/vm.json &&
+      /run.sh"
     depends_on:
       - "victoriametrics"
     ports:
@@ -43,6 +49,7 @@ services:
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
+      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/vm.json
     networks:
       - vm_net
     restart: always
