@@ -846,7 +846,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	}
 
 	txnDir := path + "/txn"
-	if err := os.RemoveAll(txnDir); err != nil {
+	if err := fs.RemoveAllHard(txnDir); err != nil {
 		return nil, fmt.Errorf("cannot remove %q: %s", txnDir, err)
 	}
 	if err := fs.MkdirAllFailIfExist(txnDir); err != nil {
@@ -854,7 +854,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	}
 
 	tmpDir := path + "/tmp"
-	if err := os.RemoveAll(tmpDir); err != nil {
+	if err := fs.RemoveAllHard(tmpDir); err != nil {
 		return nil, fmt.Errorf("cannot remove %q: %s", tmpDir, err)
 	}
 	if err := fs.MkdirAllFailIfExist(tmpDir); err != nil {
@@ -1033,7 +1033,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 		if err != nil {
 			return fmt.Errorf("invalid path to remove: %s", err)
 		}
-		if err := os.RemoveAll(path); err != nil {
+		if err := fs.RemoveAllHard(path); err != nil {
 			return fmt.Errorf("cannot remove %q: %s", path, err)
 		}
 	}

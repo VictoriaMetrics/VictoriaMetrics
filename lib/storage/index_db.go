@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
@@ -266,7 +266,7 @@ func (db *indexDB) decRef() {
 	}
 
 	logger.Infof("dropping indexDB %q", tbPath)
-	if err := os.RemoveAll(tbPath); err != nil {
+	if err := fs.RemoveAllHard(tbPath); err != nil {
 		logger.Panicf("FATAL: cannot remove %q: %s", tbPath, err)
 	}
 	logger.Infof("indexDB %q has been dropped", tbPath)

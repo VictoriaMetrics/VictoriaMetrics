@@ -893,7 +893,7 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Ca
 	for _, tn := range tableNames[:len(tableNames)-2] {
 		pathToRemove := path + "/" + tn
 		logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-		if err := os.RemoveAll(pathToRemove); err != nil {
+		if err := fs.RemoveAllHard(pathToRemove); err != nil {
 			return nil, nil, fmt.Errorf("cannot remove obsolete indexdb dir %q: %s", pathToRemove, err)
 		}
 		logger.Infof("removed obsolete indexdb dir %q", pathToRemove)

@@ -2,7 +2,6 @@ package mergeset
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -92,7 +91,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	metaindexPath := path + "/metaindex.bin"
 	metaindexFile, err := filestream.Create(metaindexPath, false)
 	if err != nil {
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create metaindex file: %s", err)
 	}
 
@@ -100,7 +99,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	indexFile, err := filestream.Create(indexPath, nocache)
 	if err != nil {
 		metaindexFile.MustClose()
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create index file: %s", err)
 	}
 
@@ -109,7 +108,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	if err != nil {
 		metaindexFile.MustClose()
 		indexFile.MustClose()
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create items file: %s", err)
 	}
 
@@ -119,7 +118,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		metaindexFile.MustClose()
 		indexFile.MustClose()
 		itemsFile.MustClose()
-		_ = os.RemoveAll(path)
+		fs.MustRemoveAll(path)
 		return fmt.Errorf("cannot create lens file: %s", err)
 	}
 
