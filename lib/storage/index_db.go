@@ -1213,6 +1213,39 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	return nil
 }
 
+func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+	// Iteratively increase maxAllowedMetrics up to maxMetrics in order to limit
+	// the time required for founding the tag filter with minimum matching metrics.
+	maxAllowedMetrics := 16
+	if maxAllowedMetrics > maxMetrics {
+		maxAllowedMetrics = maxMetrics
+	}
+	for {
+		minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCount(tfs, maxAllowedMetrics)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(minMetricIDs) < maxAllowedMetrics {
+			// Found the tag filter with the minimum number of metrics.
+			return minTf, minMetricIDs, nil
+		}
+
+		// Too many metrics matched.
+		if maxAllowedMetrics >= maxMetrics {
+			// The tag filter with minimum matching metrics matches at least maxMetrics.
+			return nil, nil, errTooManyMetrics
+		}
+
+		// Increase maxAllowedMetrics and try again.
+		maxAllowedMetrics *= 4
+		if maxAllowedMetrics > maxMetrics {
+			maxAllowedMetrics = maxMetrics
+		}
+	}
+}
+
+var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
+
 func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	var minMetricIDs map[uint64]struct{}
 	var minTf *tagFilter
@@ -1362,38 +1395,14 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 	// Sort tag filters for faster ts.Seek below.
 	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
 
-	// Find the filter with minimum matching metrics.
-	// Iteratively increase maxAllowedMetrics up to maxMetrics in order to limit
-	// the time required for founding the tag filter with minimum matching metrics.
-	var minTf *tagFilter
-	var minMetricIDs map[uint64]struct{}
-	maxAllowedMetrics := 16
-	if maxAllowedMetrics > maxMetrics {
-		maxAllowedMetrics = maxMetrics
-	}
-	for {
-		var err error
-		minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCount(tfs, maxAllowedMetrics)
-		if err != nil {
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
+	if err != nil {
+		if err != errTooManyMetrics {
 			return err
 		}
-		if len(minMetricIDs) < maxAllowedMetrics {
-			// Found the tag filter with the minimum number of metrics.
-			break
-		}
 
-		// Too many metrics matched.
-		if maxAllowedMetrics < maxMetrics {
-			// Increase maxAllowedMetrics and try again.
-			maxAllowedMetrics *= 4
-			if maxAllowedMetrics > maxMetrics {
-				maxAllowedMetrics = maxMetrics
-			}
-			continue
-		}
+		// All the tag filters match too many metrics.
 
-		// The tag filter with minimum matching metrics matches at least maxMetrics.
-		//
 		// Slow path: try filtering the matching metrics by time range.
 		// This should work well for cases when old metrics are constantly substituted
 		// by big number of new metrics. For example, prometheus-operator creates many new
@@ -1404,11 +1413,8 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 		maxTimeRangeMetrics := 20 * maxMetrics
 		metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1, tfs.accountID, tfs.projectID)
 		if err == errMissingMetricIDsForDate {
-			// Give up.
-			for metricID := range minMetricIDs {
-				metricIDs[metricID] = struct{}{}
-			}
-			return nil
+			return fmt.Errorf("cannot find tag filter matching less up to %d time series; either increase -search.maxUniqueTimeseries or use more specific tag filters",
+				maxMetrics)
 		}
 		if err != nil {
 			return err
@@ -1419,7 +1425,6 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 		}
 		minMetricIDs = metricIDsForTimeRange
 		minTf = nil
-		break
 	}
 
 	// Find intersection of minTf with other tfs.
