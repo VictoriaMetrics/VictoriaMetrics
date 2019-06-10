@@ -63,6 +63,10 @@ type indexDB struct {
 	tagCachePrefixes     map[accountProjectKey]uint64
 	tagCachePrefixesLock sync.RWMutex
 
+	// Cache holding useless TagFilters entries, which have no tag filters
+	// matching low number of metrics.
+	uselessTagFiltersCache *fastcache.Cache
+
 	indexSearchPool sync.Pool
 
 	// An inmemory map[uint64]struct{} of deleted metricIDs.
@@ -129,6 +133,8 @@ func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, c
 
 		tagCachePrefixes: make(map[accountProjectKey]uint64),
 
+		uselessTagFiltersCache: fastcache.New(mem / 128),
+
 		currHourMetricIDs: currHourMetricIDs,
 		prevHourMetricIDs: prevHourMetricIDs,
 	}
@@ -151,6 +157,11 @@ type IndexDBMetrics struct {
 	TagCacheRequests  uint64
 	TagCacheMisses    uint64
 
+	UselessTagFiltersCacheSize      uint64
+	UselessTagFiltersCacheBytesSize uint64
+	UselessTagFiltersCacheRequests  uint64
+	UselessTagFiltersCacheMisses    uint64
+
 	DeletedMetricsCount uint64
 
 	IndexDBRefCount uint64
@@ -172,11 +183,20 @@ func (db *indexDB) scheduleToDrop() {
 // UpdateMetrics updates m with metrics from the db.
 func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	var cs fastcache.Stats
+
+	cs.Reset()
 	db.tagCache.UpdateStats(&cs)
 	m.TagCacheSize += cs.EntriesCount
 	m.TagCacheBytesSize += cs.BytesSize
 	m.TagCacheRequests += cs.GetBigCalls
 	m.TagCacheMisses += cs.Misses
+
+	cs.Reset()
+	db.uselessTagFiltersCache.UpdateStats(&cs)
+	m.UselessTagFiltersCacheSize += cs.EntriesCount
+	m.UselessTagFiltersCacheBytesSize += cs.BytesSize
+	m.UselessTagFiltersCacheRequests += cs.GetBigCalls
+	m.UselessTagFiltersCacheMisses += cs.Misses
 
 	m.DeletedMetricsCount += uint64(len(db.getDeletedMetricIDs()))
 
@@ -322,7 +342,7 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	db.metricNameCache.Set(key[:], metricName)
 }
 
-func (db *indexDB) marshalTagFiltersKey(dst []byte, tfss []*TagFilters) []byte {
+func (db *indexDB) marshalTagFiltersKeyVersioned(dst []byte, tfss []*TagFilters) []byte {
 	if len(tfss) == 0 {
 		return nil
 	}
@@ -335,7 +355,7 @@ func (db *indexDB) marshalTagFiltersKey(dst []byte, tfss []*TagFilters) []byte {
 	db.tagCachePrefixesLock.RUnlock()
 	if prefix == 0 {
 		// Create missing prefix.
-		// It is if multiple concurrent goroutines call invalidateTagCache
+		// It is OK if multiple concurrent goroutines call invalidateTagCache
 		// for the same (accountID, projectID).
 		prefix = db.invalidateTagCache(k.AccountID, k.ProjectID)
 	}
@@ -949,7 +969,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 
-	tfKeyBuf.B = db.marshalTagFiltersKey(tfKeyBuf.B[:0], tfss)
+	tfKeyBuf.B = db.marshalTagFiltersKeyVersioned(tfKeyBuf.B[:0], tfss)
 	tsids, ok := db.getFromTagCache(tfKeyBuf.B)
 	if ok {
 		// Fast path - tsids found in the cache.
@@ -1214,6 +1234,14 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 }
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+	kb := &is.kb
+	kb.B = tfs.marshal(kb.B[:0])
+	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
+		// Skip useless work below, since the tfs doesn't contain tag filters matching less than maxMetrics metrics.
+		return nil, nil, errTooManyMetrics
+	}
+
 	// Iteratively increase maxAllowedMetrics up to maxMetrics in order to limit
 	// the time required for founding the tag filter with minimum matching metrics.
 	maxAllowedMetrics := 16
@@ -1232,7 +1260,10 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 
 		// Too many metrics matched.
 		if maxAllowedMetrics >= maxMetrics {
-			// The tag filter with minimum matching metrics matches at least maxMetrics.
+			// The tag filter with minimum matching metrics matches at least maxMetrics metrics.
+			kb.B = tfs.marshal(kb.B[:0])
+			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+			is.db.uselessTagFiltersCache.Set(kb.B, []byte("1"))
 			return nil, nil, errTooManyMetrics
 		}
 

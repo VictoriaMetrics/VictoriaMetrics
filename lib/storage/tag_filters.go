@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
@@ -87,6 +88,15 @@ func (tfs *TagFilters) Reset(accountID, projectID uint32) {
 	tfs.projectID = projectID
 	tfs.tfs = tfs.tfs[:0]
 	tfs.commonPrefix = marshalCommonPrefix(tfs.commonPrefix[:0], nsPrefixTagToMetricID, accountID, projectID)
+}
+
+func (tfs *TagFilters) marshal(dst []byte) []byte {
+	dst = encoding.MarshalUint32(dst, tfs.accountID)
+	dst = encoding.MarshalUint32(dst, tfs.projectID)
+	for i := range tfs.tfs {
+		dst = tfs.tfs[i].MarshalNoAccountIDProjectID(dst)
+	}
+	return dst
 }
 
 // tagFilter represents a filter used for filtering tags.
