@@ -100,10 +100,18 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 	}
 	bbPool.Put(bb)
 
+	srcTssCount := 0
+	dstTssCount := 0
 	rvs := make([]*timeseries, 0, len(m))
 	for _, tss := range m {
 		rv := afe(tss)
 		rvs = append(rvs, rv...)
+		srcTssCount += len(tss)
+		dstTssCount += len(rv)
+		if dstTssCount > 2000 && dstTssCount > 16*srcTssCount {
+			// This looks like count_values explosion.
+			return nil, fmt.Errorf(`too many timeseries after aggragation; got %d; want less than %d`, dstTssCount, 16*srcTssCount)
+		}
 	}
 	return rvs, nil
 }
