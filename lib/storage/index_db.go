@@ -1622,7 +1622,11 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 		return nil, errMissingMetricIDsForDate
 	}
 	atomic.AddUint64(&is.db.recentHourMetricIDsSearchCalls, 1)
-	if metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics); ok {
+	metricIDs, ok, err := is.getMetricIDsForRecentHours(tr, maxMetrics, accountID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		// Fast path: tr covers the current and / or the previous hour.
 		// Return the full list of metric ids for this time range.
 		atomic.AddUint64(&is.db.recentHourMetricIDsSearchHits, 1)
@@ -1637,7 +1641,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 		// Too much dates must be covered. Give up.
 		return nil, errMissingMetricIDsForDate
 	}
-	metricIDs := make(map[uint64]struct{}, maxMetrics)
+	metricIDs = make(map[uint64]struct{}, maxMetrics)
 	for minDate <= maxDate {
 		if err := is.getMetricIDsForDate(uint64(minDate), metricIDs, maxMetrics, accountID, projectID); err != nil {
 			return nil, err
@@ -1648,7 +1652,38 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 	return metricIDs, nil
 }
 
-func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) (map[uint64]struct{}, bool) {
+func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, accountID, projectID uint32) (map[uint64]struct{}, bool, error) {
+	metricIDs, ok := is.getMetricIDsForRecentHoursAll(tr, maxMetrics)
+	if !ok {
+		return nil, false, nil
+	}
+
+	// Filter out metricIDs for non-matching (accountID, projectID).
+	// Sort metricIDs for faster lookups below.
+	sortedMetricIDs := getSortedMetricIDs(metricIDs)
+	ts := &is.ts
+	kb := &is.kb
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID, accountID, projectID)
+	prefixLen := len(kb.B)
+	kb.B = encoding.MarshalUint64(kb.B, 0)
+	prefix := kb.B[:prefixLen]
+	for _, metricID := range sortedMetricIDs {
+		kb.B = encoding.MarshalUint64(prefix, metricID)
+		ts.Seek(kb.B)
+		if !ts.NextItem() {
+			break
+		}
+		if !bytes.HasPrefix(ts.Item, kb.B) {
+			delete(metricIDs, metricID)
+		}
+	}
+	if err := ts.Error(); err != nil {
+		return nil, false, fmt.Errorf("cannot filter out metricIDs by (accountID, projectID): %s", err)
+	}
+	return metricIDs, true, nil
+}
+
+func (is *indexSearch) getMetricIDsForRecentHoursAll(tr TimeRange, maxMetrics int) (map[uint64]struct{}, bool) {
 	// Return all the metricIDs for all the (AccountID, ProjectID) entries.
 	// The caller is responsible for proper filtering later.
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
