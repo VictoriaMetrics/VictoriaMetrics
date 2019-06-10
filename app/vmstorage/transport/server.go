@@ -641,11 +641,16 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 	// Send labelEntries to vmselect
 	for i := range labelEntries {
 		e := &labelEntries[i]
-		if err := ctx.writeString(e.Key); err != nil {
-			return fmt.Errorf("cannot write label %q: %s", e.Key, err)
+		label := e.Key
+		if label == "" {
+			// Do this substitution in order to prevent clashing with 'end of response' marker.
+			label = "__name__"
+		}
+		if err := ctx.writeString(label); err != nil {
+			return fmt.Errorf("cannot write label %q: %s", label, err)
 		}
 		if err := writeLabelValues(ctx, e.Values); err != nil {
-			return fmt.Errorf("cannot write label values for %q: %s", e.Key, err)
+			return fmt.Errorf("cannot write label values for %q: %s", label, err)
 		}
 	}
 

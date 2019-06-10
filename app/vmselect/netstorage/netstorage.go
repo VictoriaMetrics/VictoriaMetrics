@@ -579,9 +579,6 @@ func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, boo
 		isPartialResult = true
 	}
 
-	// Deduplicate label entries
-	labelEntries = deduplicateLabelEntries(labelEntries)
-
 	// Substitute "" with "__name__"
 	for i := range labelEntries {
 		e := &labelEntries[i]
@@ -589,6 +586,9 @@ func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, boo
 			e.Key = "__name__"
 		}
 	}
+
+	// Deduplicate label entries
+	labelEntries = deduplicateLabelEntries(labelEntries)
 
 	// Sort labelEntries by the number of label values in each entry.
 	sort.Slice(labelEntries, func(i, j int) bool {
