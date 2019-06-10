@@ -24,7 +24,8 @@ var (
 	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 10e3, "The maximum number of tag values returned per search")
 	maxMetricsPerSearch   = flag.Int("search.maxUniqueTimeseries", 100e3, "The maximum number of unique time series each search can scan")
 
-	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
+	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
+	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
 )
 
 // Server processes connections from vminsert and vmselect.
@@ -193,9 +194,15 @@ func (s *Server) RunVMSelect() {
 				s.vmselectWG.Done()
 			}()
 
-			// Do not compress responses to vmselect, since these responses
-			// already contain compressed data.
-			compressionLevel := 0
+			// Compress responses to vmselect even if they already contain compressed blocks.
+			// Responses contain uncompressed metric names, which should compress well
+			// when the response contains high number of time series.
+			// Additionally, recently added metric blocks are usually uncompressed, so the compression
+			// should save network bandwidth.
+			compressionLevel := 1
+			if *disableRPCCompression {
+				compressionLevel = 0
+			}
 			bc, err := handshake.VMSelectServer(c, compressionLevel)
 			if err != nil {
 				if s.isStopping() {
