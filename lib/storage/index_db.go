@@ -1199,7 +1199,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsMap(tfs *TagFilters, maxMetri
 	// There is no positive filter with small number of matching metrics.
 	// Create it, so it matches all the MetricIDs for tfs.commonPrefix.
 	metricIDs := make(map[uint64]struct{})
-	if err := is.getMetricIDsMapForCommonPrefix(metricIDs, tfs.commonPrefix, maxMetrics); err != nil {
+	if err := is.updateMetricIDsForCommonPrefix(metricIDs, tfs.commonPrefix, maxMetrics); err != nil {
 		return nil, nil, err
 	}
 	return nil, metricIDs, nil
@@ -1268,49 +1268,49 @@ func matchTagFilter(b []byte, tf *tagFilter) (bool, error) {
 }
 
 func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
-	metricIDsMap := make(map[uint64]struct{})
+	metricIDs := make(map[uint64]struct{})
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
 			// Return all the metric ids
-			if err := is.getMetricIDsMapForCommonPrefix(metricIDsMap, tfs.commonPrefix, maxMetrics+1); err != nil {
+			if err := is.updateMetricIDsForCommonPrefix(metricIDs, tfs.commonPrefix, maxMetrics+1); err != nil {
 				return nil, err
 			}
-			if len(metricIDsMap) > maxMetrics {
+			if len(metricIDs) > maxMetrics {
 				return nil, fmt.Errorf("the number or unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 			}
 			// Stop the iteration, since we cannot find more metric ids with the remaining tfss.
 			break
 		}
-		if err := is.searchMetricIDsMap(metricIDsMap, tfs, tr, maxMetrics+1); err != nil {
+		if err := is.updateMetricIDsForTagFilters(metricIDs, tfs, tr, maxMetrics+1); err != nil {
 			return nil, err
 		}
-		if len(metricIDsMap) > maxMetrics {
+		if len(metricIDs) > maxMetrics {
 			return nil, fmt.Errorf("the number or matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 		}
 	}
-	if len(metricIDsMap) == 0 {
+	if len(metricIDs) == 0 {
 		// Nothing found
 		return nil, nil
 	}
 
-	metricIDs := getSortedMetricIDs(metricIDsMap)
+	sortedMetricIDs := getSortedMetricIDs(metricIDs)
 
 	// Filter out deleted metricIDs.
 	dmis := is.db.getDeletedMetricIDs()
 	if len(dmis) > 0 {
-		metricIDsFiltered := metricIDs[:0]
-		for _, metricID := range metricIDs {
+		metricIDsFiltered := sortedMetricIDs[:0]
+		for _, metricID := range sortedMetricIDs {
 			if _, deleted := dmis[metricID]; !deleted {
 				metricIDsFiltered = append(metricIDsFiltered, metricID)
 			}
 		}
-		metricIDs = metricIDsFiltered
+		sortedMetricIDs = metricIDsFiltered
 	}
 
-	return metricIDs, nil
+	return sortedMetricIDs, nil
 }
 
-func (is *indexSearch) searchMetricIDsMap(metricIDs map[uint64]struct{}, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
+func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{}, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	// Sort tag filters for faster ts.Seek below.
 	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
 
@@ -1726,7 +1726,7 @@ func (is *indexSearch) getMetricIDsForDate(date uint64, metricIDs map[uint64]str
 	return nil
 }
 
-func (is *indexSearch) getMetricIDsMapForCommonPrefix(metricIDs map[uint64]struct{}, commonPrefix []byte, maxMetrics int) error {
+func (is *indexSearch) updateMetricIDsForCommonPrefix(metricIDs map[uint64]struct{}, commonPrefix []byte, maxMetrics int) error {
 	ts := &is.ts
 	ts.Seek(commonPrefix)
 	for len(metricIDs) < maxMetrics && ts.NextItem() {
