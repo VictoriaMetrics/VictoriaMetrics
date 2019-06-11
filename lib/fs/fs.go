@@ -72,8 +72,8 @@ var (
 	readersCount = metrics.NewCounter(`vm_fs_readers`)
 )
 
-// SyncPath syncs contents of the given path.
-func SyncPath(path string) {
+// MustSyncPath syncs contents of the given path.
+func MustSyncPath(path string) {
 	d, err := os.Open(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot open %q: %s", path, err)
@@ -114,7 +114,7 @@ func WriteFile(path string, data []byte) error {
 		return fmt.Errorf("cannot obtain absolute path to %q: %s", path, err)
 	}
 	parentDirPath := filepath.Dir(absPath)
-	SyncPath(parentDirPath)
+	MustSyncPath(parentDirPath)
 
 	return nil
 }
@@ -144,7 +144,7 @@ func mkdirSync(path string) error {
 	// Sync the parent directory, so the created directory becomes visible
 	// in the fs after power loss.
 	parentDirPath := filepath.Dir(path)
-	SyncPath(parentDirPath)
+	MustSyncPath(parentDirPath)
 	return nil
 }
 
@@ -176,7 +176,7 @@ func RemoveDirContents(dir string) {
 			logger.Panicf("FATAL: cannot remove %q: %s", fullPath, err)
 		}
 	}
-	SyncPath(dir)
+	MustSyncPath(dir)
 }
 
 // MustClose must close the given file f.
@@ -203,7 +203,7 @@ func IsPathExist(path string) bool {
 func MustRemoveAllSynced(path string) {
 	MustRemoveAll(path)
 	parentDirPath := filepath.Dir(path)
-	SyncPath(parentDirPath)
+	MustSyncPath(parentDirPath)
 }
 
 // MustRemoveAll removes path with all the contents.
@@ -297,7 +297,7 @@ func HardLinkFiles(srcDir, dstDir string) error {
 		}
 	}
 
-	SyncPath(dstDir)
+	MustSyncPath(dstDir)
 	return nil
 }
 

@@ -1342,8 +1342,8 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 		}
 	}
 
-	fs.SyncPath(dstDir)
-	fs.SyncPath(filepath.Dir(dstDir))
+	fs.MustSyncPath(dstDir)
+	fs.MustSyncPath(filepath.Dir(dstDir))
 
 	return nil
 }
@@ -1444,8 +1444,8 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	}
 
 	// Flush pathPrefix* directory metadata to the underying storage.
-	fs.SyncPath(pathPrefix1)
-	fs.SyncPath(pathPrefix2)
+	fs.MustSyncPath(pathPrefix1)
+	fs.MustSyncPath(pathPrefix2)
 
 	// Remove the transaction file.
 	if err := os.Remove(txnPath); err != nil {
@@ -1487,6 +1487,6 @@ func createPartitionDirs(path string) error {
 	if err := fs.MkdirAllFailIfExist(tmpPath); err != nil {
 		return fmt.Errorf("cannot create tmp directory %q: %s", tmpPath, err)
 	}
-	fs.SyncPath(path)
+	fs.MustSyncPath(path)
 	return nil
 }
