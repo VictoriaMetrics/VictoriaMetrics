@@ -221,10 +221,11 @@ func RemoveAllHard(path string) error {
 	if err == nil {
 		return nil
 	}
-	if !strings.Contains(err.Error(), "directory not empty") {
+	if !isTemporaryNFSError(err) {
 		return err
 	}
-	// This may be NFS-related issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
+	// NFS prevents from removing directories with open files.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 	// Schedule for later directory removal.
 	select {
 	case removeDirCh <- path:
@@ -244,20 +245,27 @@ func dirRemover() {
 			if err == nil {
 				break
 			}
-			if !strings.Contains(err.Error(), "directory not empty") {
+			if !isTemporaryNFSError(err) {
 				logger.Errorf("cannot remove %q: %s", path, err)
 				break
 			}
-			// NFS-related issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-			// Sleep for a while and try again.
+			// NFS prevents from removing directories with open files.
+			// Sleep for a while and try again in the hope open files will be closed.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 			attempts++
-			if attempts > 50 {
+			if attempts > 10 {
 				logger.Errorf("cannot remove %q in %d attempts: %s", path, attempts, err)
 				break
 			}
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
+}
+
+func isTemporaryNFSError(err error) bool {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 for details.
+	errStr := err.Error()
+	return strings.Contains(errStr, "directory not empty") || strings.Contains(errStr, "device or resource busy")
 }
 
 func init() {
