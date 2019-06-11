@@ -246,16 +246,14 @@ func dirRemover() {
 				break
 			}
 			if !isTemporaryNFSError(err) {
-				logger.Errorf("cannot remove %q: %s", path, err)
-				break
+				logger.Panicf("FATAL: cannot remove %q: %s", path, err)
 			}
 			// NFS prevents from removing directories with open files.
 			// Sleep for a while and try again in the hope open files will be closed.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 			attempts++
 			if attempts > 10 {
-				logger.Errorf("cannot remove %q in %d attempts: %s", path, attempts, err)
-				break
+				logger.Panicf("FATAL: cannot remove %q in %d attempts: %s", path, attempts, err)
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
