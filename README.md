@@ -222,6 +222,25 @@ foo.field1{tag1="value1", tag2="value2"} 12
 foo.field2{tag1="value1", tag2="value2"} 40
 ```
 
+Example on how to write data with Influx line protocol to VictoriaMetrics using `curl`:
+
+```
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://127.0.0.1/insert/0/influx/write'
+```
+
+After that this data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+
+```
+curl -G 'http://127.0.0.1/select/0/prometheus/api/v1/export' --data-urlencode 'match={__name__!=""}'
+```
+
+The `/api/v1/export` endpoint should return the following response:
+
+```
+{"metric":{"__name__":"measurement.field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
+{"metric":{"__name__":"measurement.field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
+```
+
 
 ### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)?
 
