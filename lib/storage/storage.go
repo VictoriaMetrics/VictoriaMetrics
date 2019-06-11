@@ -181,7 +181,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	if err := fs.SymlinkRelative(bigDir, dstBigDir); err != nil {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %s", bigDir, dstBigDir, err)
 	}
-	fs.SyncPath(dstDataDir)
+	fs.MustSyncPath(dstDataDir)
 
 	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
 	idb := s.idb()
@@ -201,8 +201,8 @@ func (s *Storage) CreateSnapshot() (string, error) {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %s", idbSnapshot, dstIdbDir, err)
 	}
 
-	fs.SyncPath(dstDir)
-	fs.SyncPath(srcDir + "/snapshots")
+	fs.MustSyncPath(dstDir)
+	fs.MustSyncPath(srcDir + "/snapshots")
 
 	logger.Infof("created Storage snapshot for %q at %q in %s", srcDir, dstDir, time.Since(startTime))
 	return snapshotName, nil
@@ -401,7 +401,7 @@ func (s *Storage) mustRotateIndexDB() {
 	s.idbCurr.Store(idbNew)
 
 	// Persist changes on the file system.
-	fs.SyncPath(s.path)
+	fs.MustSyncPath(s.path)
 
 	// Flush tsidCache, so idbNew can be populated with fresh data.
 	s.tsidCache.Reset()
@@ -904,7 +904,7 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Ca
 	}
 
 	// Persist changes on the file system.
-	fs.SyncPath(path)
+	fs.MustSyncPath(path)
 
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]

@@ -861,7 +861,7 @@ func openParts(path string) ([]*partWrapper, error) {
 		return nil, fmt.Errorf("cannot create %q: %s", tmpDir, err)
 	}
 
-	fs.SyncPath(path)
+	fs.MustSyncPath(path)
 
 	// Open parts.
 	fis, err := d.Readdir(-1)
@@ -965,9 +965,9 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 		}
 	}
 
-	fs.SyncPath(dstDir)
+	fs.MustSyncPath(dstDir)
 	parentDir := filepath.Dir(dstDir)
-	fs.SyncPath(parentDir)
+	fs.MustSyncPath(parentDir)
 
 	logger.Infof("created Table snapshot of %q at %q in %s", srcDir, dstDir, time.Since(startTime))
 	return nil
@@ -1061,7 +1061,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	}
 
 	// Flush pathPrefix directory metadata to the underying storage.
-	fs.SyncPath(pathPrefix)
+	fs.MustSyncPath(pathPrefix)
 
 	// Remove the transaction file.
 	if err := os.Remove(txnPath); err != nil {

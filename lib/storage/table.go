@@ -164,10 +164,10 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 		}
 	}
 
-	fs.SyncPath(dstSmallDir)
-	fs.SyncPath(dstBigDir)
-	fs.SyncPath(filepath.Dir(dstSmallDir))
-	fs.SyncPath(filepath.Dir(dstBigDir))
+	fs.MustSyncPath(dstSmallDir)
+	fs.MustSyncPath(dstBigDir)
+	fs.MustSyncPath(filepath.Dir(dstSmallDir))
+	fs.MustSyncPath(filepath.Dir(dstBigDir))
 
 	logger.Infof("created table snapshot for %q at (%q, %q) in %s", tb.path, dstSmallDir, dstBigDir, time.Since(startTime))
 	return dstSmallDir, dstBigDir, nil
