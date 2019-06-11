@@ -222,13 +222,13 @@ foo.field1{tag1="value1", tag2="value2"} 12
 foo.field2{tag1="value1", tag2="value2"} 40
 ```
 
-Example on how to write data with Influx line protocol to local VictoriaMetrics using `curl`:
+Example for writing data with Influx line protocol to local VictoriaMetrics using `curl`:
 
 ```
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-After that this data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
 curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
@@ -248,11 +248,30 @@ The `/api/v1/export` endpoint should return the following response:
 the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
 
 ```
-/path/to/victoria-metrics-prod ... -graphiteListenAddr=:2003
+/path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
 
 2) Use the configured address in Graphite-compatible agents. For instance, set `graphiteHost`
 to the VictoriaMetrics host in `StatsD` configs.
+
+
+Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
+
+```
+echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
+```
+
+After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+
+```
+curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
+```
+
+The `/api/v1/export` endpoint should return the following response:
+
+```
+{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
+```
 
 
 ### How to send data from OpenTSDB-compatible agents?
@@ -261,10 +280,29 @@ to the VictoriaMetrics host in `StatsD` configs.
 the following command will enable OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
 
 ```
-/path/to/victoria-metrics-prod ... -opentsdbListenAddr=:4242
+/path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
 ```
 
 2) Send data to the given address from OpenTSDB-compatible agents.
+
+
+Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
+
+```
+echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
+```
+
+After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+
+```
+curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
+```
+
+The `/api/v1/export` endpoint should return the following response:
+
+```
+{"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
+```
 
 
 ### How to apply new config / upgrade VictoriaMetrics?
