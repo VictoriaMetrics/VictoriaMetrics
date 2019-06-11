@@ -1,4 +1,4 @@
-# github.com/VictoriaMetrics/fastcache v1.5.0
+# github.com/VictoriaMetrics/fastcache v1.5.1
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/metrics v1.5.0
 github.com/VictoriaMetrics/metrics
