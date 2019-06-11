@@ -113,7 +113,7 @@ func WriteFile(path string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("cannot obtain absolute path to %q: %s", path, err)
 	}
-	parentDirPath, _ := filepath.Split(absPath)
+	parentDirPath := filepath.Dir(absPath)
 	SyncPath(parentDirPath)
 
 	return nil
@@ -191,7 +191,8 @@ func IsPathExist(path string) bool {
 // and syncs the parent directory, so it no longer contains the path.
 func MustRemoveAllSynced(path string) {
 	MustRemoveAll(path)
-	SyncPath(filepath.Dir(path))
+	parentDirPath := filepath.Dir(path)
+	SyncPath(parentDirPath)
 }
 
 // MustRemoveAll removes path with all the contents.
