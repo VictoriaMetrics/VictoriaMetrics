@@ -196,6 +196,14 @@ func IsPathExist(path string) bool {
 	return true
 }
 
+func mustSyncParentDirIfExists(path string) {
+	parentDirPath := filepath.Dir(path)
+	if !IsPathExist(parentDirPath) {
+		return
+	}
+	MustSyncPath(parentDirPath)
+}
+
 // MustRemoveAll removes path with all the contents.
 //
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
@@ -204,8 +212,7 @@ func MustRemoveAll(path string) {
 	if err == nil {
 		// Make sure the parent directory doesn't contain references
 		// to the current directory.
-		parentDirPath := filepath.Dir(path)
-		MustSyncPath(parentDirPath)
+		mustSyncParentDirIfExists(path)
 		return
 	}
 	if !isTemporaryNFSError(err) {
@@ -245,8 +252,7 @@ func dirRemover() {
 		}
 		// Make sure the parent directory doesn't contain references
 		// to the current directory.
-		parentDirPath := filepath.Dir(path)
-		MustSyncPath(parentDirPath)
+		mustSyncParentDirIfExists(path)
 	}
 }
 
