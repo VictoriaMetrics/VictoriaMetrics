@@ -225,13 +225,13 @@ foo.field2{tag1="value1", tag2="value2"} 40
 Example on how to write data with Influx line protocol to local VictoriaMetrics using `curl`:
 
 ```
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost/write'
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
 After that this data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost/api/v1/export' --data-urlencode 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
