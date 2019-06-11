@@ -124,7 +124,7 @@ func MkdirAllIfNotExist(path string) error {
 	if IsPathExist(path) {
 		return nil
 	}
-	return os.MkdirAll(path, 0755)
+	return mkdirSync(path)
 }
 
 // MkdirAllFailIfExist creates the given path dir if it isn't exist.
@@ -134,7 +134,18 @@ func MkdirAllFailIfExist(path string) error {
 	if IsPathExist(path) {
 		return fmt.Errorf("the %q already exists", path)
 	}
-	return os.MkdirAll(path, 0755)
+	return mkdirSync(path)
+}
+
+func mkdirSync(path string) error {
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+	// Sync the parent directory, so the created directory becomes visible
+	// in the fs after power loss.
+	parentDirPath := filepath.Dir(path)
+	SyncPath(parentDirPath)
+	return nil
 }
 
 // RemoveDirContents removes all the contents of the given dir it it exists.
@@ -255,7 +266,7 @@ func init() {
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.
 func HardLinkFiles(srcDir, dstDir string) error {
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := mkdirSync(dstDir); err != nil {
 		return fmt.Errorf("cannot create dstDir=%q: %s", dstDir, err)
 	}
 
