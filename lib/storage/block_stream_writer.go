@@ -146,6 +146,12 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.indexWriter.MustClose()
 	bsw.metaindexWriter.MustClose()
 
+	// Sync bsw.path contents to make sure it doesn't disappear
+	// after system crash or power loss.
+	if bsw.path != "" {
+		fs.SyncPath(bsw.path)
+	}
+
 	bsw.reset()
 }
 
