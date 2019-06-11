@@ -74,6 +74,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Capacity planning](#capacity-planning)
   - [High availability](#high-availability)
   - [Multiple retentions](#multiple-retentions)
+  - [Downsampling](#downsampling)
   - [Scalability and cluster version](#scalability-and-cluster-version)
   - [Security](#security)
   - [Tuning](#tuning)
@@ -429,6 +430,18 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
 * `-httpListenAddr`, so clients may reach VictoriaMetrics instance with proper retention
+
+
+### Downsampling
+
+There is no downsampling support at the moment, but:
+- VictoriaMetrics is optimized for querying big amounts of raw data. See benchmark results for heavy queries
+  in [this article](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+- VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
+  for details.
+
+These properties reduce the need in downsampling. We plan implementing downsampling in the future.
+See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
 
 ### Scalability and cluster version
