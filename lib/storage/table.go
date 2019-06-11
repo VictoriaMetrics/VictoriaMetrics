@@ -176,9 +176,9 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
 func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	smallDir := fmt.Sprintf("%s/small/snapshots/%s", tb.path, snapshotName)
-	fs.MustRemoveAllSynced(smallDir)
+	fs.MustRemoveAll(smallDir)
 	bigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
-	fs.MustRemoveAllSynced(bigDir)
+	fs.MustRemoveAll(bigDir)
 }
 
 func (tb *table) addPartitionNolock(pt *partition) {

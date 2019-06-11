@@ -172,9 +172,7 @@ func RemoveDirContents(dir string) {
 			continue
 		}
 		fullPath := dir + "/" + name
-		if err := RemoveAllHard(fullPath); err != nil {
-			logger.Panicf("FATAL: cannot remove %q: %s", fullPath, err)
-		}
+		MustRemoveAll(fullPath)
 	}
 	MustSyncPath(dir)
 }
@@ -198,31 +196,20 @@ func IsPathExist(path string) bool {
 	return true
 }
 
-// MustRemoveAllSynced removes path with all the contents
-// and syncs the parent directory, so it no longer contains the path.
-func MustRemoveAllSynced(path string) {
-	MustRemoveAll(path)
-	parentDirPath := filepath.Dir(path)
-	MustSyncPath(parentDirPath)
-}
-
 // MustRemoveAll removes path with all the contents.
-func MustRemoveAll(path string) {
-	if err := RemoveAllHard(path); err != nil {
-		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
-	}
-}
-
-// RemoveAllHard removes path with all the contents.
 //
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-func RemoveAllHard(path string) error {
+func MustRemoveAll(path string) {
 	err := os.RemoveAll(path)
 	if err == nil {
-		return nil
+		// Make sure the parent directory doesn't contain references
+		// to the current directory.
+		parentDirPath := filepath.Dir(path)
+		MustSyncPath(parentDirPath)
+		return
 	}
 	if !isTemporaryNFSError(err) {
-		return err
+		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
 	}
 	// NFS prevents from removing directories with open files.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
@@ -230,9 +217,8 @@ func RemoveAllHard(path string) error {
 	select {
 	case removeDirCh <- path:
 	default:
-		return fmt.Errorf("cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirCh))
+		logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirCh))
 	}
-	return nil
 }
 
 var removeDirCh = make(chan string, 1024)
@@ -257,6 +243,10 @@ func dirRemover() {
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
+		// Make sure the parent directory doesn't contain references
+		// to the current directory.
+		parentDirPath := filepath.Dir(path)
+		MustSyncPath(parentDirPath)
 	}
 }
 

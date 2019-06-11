@@ -246,8 +246,8 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 
 	s.tb.MustDeleteSnapshot(snapshotName)
 	idbPath := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
-	fs.MustRemoveAllSynced(idbPath)
-	fs.MustRemoveAllSynced(snapshotPath)
+	fs.MustRemoveAll(idbPath)
+	fs.MustRemoveAll(snapshotPath)
 
 	logger.Infof("deleted snapshot %q in %s", snapshotPath, time.Since(startTime))
 
@@ -893,9 +893,7 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Ca
 	for _, tn := range tableNames[:len(tableNames)-2] {
 		pathToRemove := path + "/" + tn
 		logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-		if err := fs.RemoveAllHard(pathToRemove); err != nil {
-			return nil, nil, fmt.Errorf("cannot remove obsolete indexdb dir %q: %s", pathToRemove, err)
-		}
+		fs.MustRemoveAll(pathToRemove)
 		logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 	}
 
