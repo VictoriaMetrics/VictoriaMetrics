@@ -212,14 +212,8 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 // The pt must be detached from table before calling pt.Drop.
 func (pt *partition) Drop() {
 	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath)
-
-	if err := fs.RemoveAllHard(pt.smallPartsPath); err != nil {
-		logger.Panicf("FATAL: cannot remove small parts directory %q: %s", pt.smallPartsPath, err)
-	}
-	if err := fs.RemoveAllHard(pt.bigPartsPath); err != nil {
-		logger.Panicf("FATAL: cannot remove big parts directory %q: %s", pt.bigPartsPath, err)
-	}
-
+	fs.MustRemoveAll(pt.smallPartsPath)
+	fs.MustRemoveAll(pt.bigPartsPath)
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
@@ -1223,13 +1217,9 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	}
 
 	txnDir := path + "/txn"
-	if err := fs.RemoveAllHard(txnDir); err != nil {
-		return nil, fmt.Errorf("cannot delete transaction directory %q: %s", txnDir, err)
-	}
+	fs.MustRemoveAll(txnDir)
 	tmpDir := path + "/tmp"
-	if err := fs.RemoveAllHard(tmpDir); err != nil {
-		return nil, fmt.Errorf("cannot remove temporary directory %q: %s", tmpDir, err)
-	}
+	fs.MustRemoveAll(tmpDir)
 	if err := createPartitionDirs(path); err != nil {
 		return nil, fmt.Errorf("cannot create directories for partition %q: %s", path, err)
 	}
@@ -1408,9 +1398,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		if err != nil {
 			return fmt.Errorf("invalid path to remove: %s", err)
 		}
-		if err := fs.RemoveAllHard(path); err != nil {
-			return fmt.Errorf("cannot remove %q: %s", path, err)
-		}
+		fs.MustRemoveAll(path)
 	}
 
 	// Move the new part to new directory.
@@ -1438,9 +1426,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		}
 	} else {
 		// Just remove srcPath.
-		if err := fs.RemoveAllHard(srcPath); err != nil {
-			return fmt.Errorf("cannot remove %q: %s", srcPath, err)
-		}
+		fs.MustRemoveAll(srcPath)
 	}
 
 	// Flush pathPrefix* directory metadata to the underying storage.

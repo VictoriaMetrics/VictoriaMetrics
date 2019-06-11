@@ -277,9 +277,7 @@ func (db *indexDB) decRef() {
 	}
 
 	logger.Infof("dropping indexDB %q", tbPath)
-	if err := fs.RemoveAllHard(tbPath); err != nil {
-		logger.Panicf("FATAL: cannot remove %q: %s", tbPath, err)
-	}
+	fs.MustRemoveAll(tbPath)
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
