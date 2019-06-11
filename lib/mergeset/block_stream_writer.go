@@ -151,6 +151,12 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.itemsWriter.MustClose()
 	bsw.lensWriter.MustClose()
 
+	// Sync bsw.path contents to make sure it doesn't disappear
+	// after system crash or power loss.
+	if bsw.path != "" {
+		fs.SyncPath(bsw.path)
+	}
+
 	bsw.reset()
 }
 
