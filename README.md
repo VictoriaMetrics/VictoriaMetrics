@@ -95,13 +95,13 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 ### URL format
 
 * URLs for data ingestion: `/insert/<accountID>/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying namespace for data ingestion
+  - `<accountID>` is an arbitrary number identifying namespace for data ingestion (aka tenant)
   - `<suffix>` may have the following values:
      - `prometheus` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
      - `influx/write` or `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 
 * URLs for querying: `/select/<accountID>/prometheus/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying data namespace for the query
+  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
   - `<suffix>` may have the following values:
     - `api/v1/query` - performs [PromQL instant query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
     - `api/v1/query_range` - performs [PromQL range query](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
