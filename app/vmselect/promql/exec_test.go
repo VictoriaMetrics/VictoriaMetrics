@@ -1749,6 +1749,24 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`vector * on(foo) group_left() duplicate_timeseries`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time()/10, "foo", "bar") + on(foo) group_left() (
+			label_set(time() < 1400, "foo", "bar", "op", "le"),
+			label_set(time() >= 1400, "foo", "bar", "op", "ge"),
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1320, 1540, 1760, 1980, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 	t.Run(`vector * on() group_left scalar`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc((label_set(time(), "foo", "bar") or label_set(10, "foo", "qwert")) * on() group_left 2)`
@@ -3608,10 +3626,12 @@ func TestExecError(t *testing.T) {
 	f(`1 + group_left() (label_set(1, "foo", bar"), label_set(2, "foo", "baz"))`)
 	f(`1 + on() group_left() (label_set(1, "foo", bar"), label_set(2, "foo", "baz"))`)
 	f(`1 + on(a) group_left(b) (label_set(1, "foo", bar"), label_set(2, "foo", "baz"))`)
+	f(`label_set(1, "foo", "bar") + on(foo) group_left() (label_set(1, "foo", "bar", "a", "b"), label_set(1, "foo", "bar", "a", "c"))`)
 	f(`(label_set(1, "foo", bar"), label_set(2, "foo", "baz")) + group_right 1`)
 	f(`(label_set(1, "foo", bar"), label_set(2, "foo", "baz")) + on() group_right 1`)
 	f(`(label_set(1, "foo", bar"), label_set(2, "foo", "baz")) + on(a) group_right(b,c) 1`)
 	f(`(label_set(1, "foo", bar"), label_set(2, "foo", "baz")) + on() 1`)
+	f(`(label_set(1, "foo", "bar", "a", "b"), label_set(1, "foo", "bar", "a", "c")) + on(foo) group_right() label_set(1, "foo", "bar")`)
 	f(`1 + on() (label_set(1, "foo", bar"), label_set(2, "foo", "baz"))`)
 
 	// With expressions
