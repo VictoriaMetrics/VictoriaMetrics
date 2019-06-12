@@ -75,6 +75,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [High availability](#high-availability)
   - [Multiple retentions](#multiple-retentions)
   - [Downsampling](#downsampling)
+  - [Multi-tenancy](#multi-tenancy)
   - [Scalability and cluster version](#scalability-and-cluster-version)
   - [Security](#security)
   - [Tuning](#tuning)
@@ -442,6 +443,11 @@ There is no downsampling support at the moment, but:
 
 These properties reduce the need in downsampling. We plan implementing downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
+
+
+### Multi-tenancy
+
+Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) instead.
 
 
 ### Scalability and cluster version
