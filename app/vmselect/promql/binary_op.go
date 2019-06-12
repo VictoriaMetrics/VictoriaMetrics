@@ -296,7 +296,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 		if len(tss) == 1 {
 			return nil
 		}
-		return fmt.Errorf(`duplicate timeseries on the %s side of %s %s: %s and %s`, side, be.GroupModifier.AppendString(nil), be.Op,
+		return fmt.Errorf(`duplicate timeseries on the %s side of %s %s: %s and %s`, side, be.Op, be.GroupModifier.AppendString(nil),
 			stringMetricTags(&tss[0].MetricName), stringMetricTags(&tss[1].MetricName))
 	}
 	var rvsLeft, rvsRight []*timeseries
