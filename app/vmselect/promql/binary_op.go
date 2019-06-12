@@ -296,9 +296,13 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 		if len(tss) == 1 {
 			return nil
 		}
+		if mergeNonOverlappingTimeseries(tss) {
+			return nil
+		}
 		return fmt.Errorf(`duplicate timeseries on the %s side of %s %s: %s and %s`, side, be.Op, be.GroupModifier.AppendString(nil),
 			stringMetricTags(&tss[0].MetricName), stringMetricTags(&tss[1].MetricName))
 	}
+
 	var rvsLeft, rvsRight []*timeseries
 	mLeft, mRight := createTimeseriesMapByTagSet(be, left, right)
 	joinOp := strings.ToLower(be.JoinModifier.Op)
@@ -497,4 +501,27 @@ func isScalar(arg []*timeseries) bool {
 		return false
 	}
 	return len(mn.Tags) == 0
+}
+
+func mergeNonOverlappingTimeseries(tss []*timeseries) bool {
+	if len(tss) < 2 {
+		logger.Panicf("BUG: expecting at least two timeseries. Got %d", len(tss))
+	}
+
+	// Check whether time series in tss overlap.
+	var dst timeseries
+	dst.CopyFromShallowTimestamps(tss[0])
+	dstValues := dst.Values
+	for _, ts := range tss[1:] {
+		for i, value := range ts.Values {
+			if math.IsNaN(dstValues[i]) {
+				dstValues[i] = value
+			} else if !math.IsNaN(value) {
+				// Time series overlap.
+				return false
+			}
+		}
+	}
+	tss[0].CopyFromShallowTimestamps(&dst)
+	return true
 }
