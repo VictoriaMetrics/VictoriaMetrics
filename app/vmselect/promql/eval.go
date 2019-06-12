@@ -475,22 +475,6 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 	return dstValues, dstTimestamps
 }
 
-func getMaxPointsPerRollup() int {
-	maxPointsPerRollupOnce.Do(func() {
-		n := memory.Allowed() / 16 / 8
-		if n <= 16 {
-			n = 16
-		}
-		maxPointsPerRollup = n
-	})
-	return maxPointsPerRollup
-}
-
-var (
-	maxPointsPerRollup     int
-	maxPointsPerRollupOnce sync.Once
-)
-
 var (
 	rollupResultCacheFullHits    = metrics.NewCounter(`vm_rollup_result_cache_full_hits_total`)
 	rollupResultCachePartialHits = metrics.NewCounter(`vm_rollup_result_cache_partial_hits_total`)
@@ -539,12 +523,17 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	// Verify timeseries fit available memory after the rollup.
 	// Take into account points from tssCached.
 	pointsPerTimeseries := 1 + (ec.End-ec.Start)/ec.Step
-	if uint64(pointsPerTimeseries) > uint64(getMaxPointsPerRollup()/rssLen/len(rcs)) {
+	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(rssLen*len(rcs)))
+	rollupMemorySize := mulNoOverflow(rollupPoints, 16)
+	rml := getRollupMemoryLimiter()
+	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
-		return nil, fmt.Errorf("cannot process more than %d data points for %d time series with %d points in each time series; "+
-			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; increasing `step` query arg (%gs)",
-			getMaxPointsPerRollup(), rssLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
+		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
+			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
+			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
+			rollupPoints, rssLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
 	}
+	defer rml.Put(uint64(rollupMemorySize))
 
 	// Evaluate rollup
 	tss := make([]*timeseries, 0, rssLen*len(rcs))
@@ -580,6 +569,18 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 		rollupResultCacheV.Put(name, ec, me, window, tss)
 	}
 	return tss, nil
+}
+
+var (
+	rollupMemoryLimiter     memoryLimiter
+	rollupMemoryLimiterOnce sync.Once
+)
+
+func getRollupMemoryLimiter() *memoryLimiter {
+	rollupMemoryLimiterOnce.Do(func() {
+		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
+	})
+	return &rollupMemoryLimiter
 }
 
 func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64, sharedTimestamps []int64) (func(values []float64, timestamps []int64), []*rollupConfig) {
@@ -661,4 +662,12 @@ func evalTime(ec *EvalConfig) []*timeseries {
 		values[i] = float64(ts) * 1e-3
 	}
 	return rv
+}
+
+func mulNoOverflow(a, b int64) int64 {
+	if math.MaxInt64/b < a {
+		// Overflow
+		return math.MaxInt64
+	}
+	return a * b
 }
