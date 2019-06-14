@@ -206,10 +206,10 @@ For instance, put the following lines into `Telegraf` config, so it sends data t
 Do not forget substituting `<victoriametrics-addr>` with the real address where VictoriaMetrics runs.
 
 VictoriaMetrics maps Influx data using the following rules:
-* [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-* Field names are mapped to time series names prefixed by `{measurement}.` value
-* Field values are mapped to time series values
-* Tags are mapped to Prometheus labels as-is
+* [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value.
+* Field names are mapped to time series names prefixed with `{measurement}{separator}` value. `{separator}` equals to `.` by default, but can be changed with `-influxMeasurementFieldSeparator` command-line flag.
+* Field values are mapped to time series values.
+* Tags are mapped to Prometheus labels as-is.
 
 For example, the following Influx line:
 

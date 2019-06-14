@@ -2,6 +2,7 @@ package influx
 
 import (
 	"compress/gzip"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	measurementFieldSeparator = flag.String("influxMeasurementFieldSeparator", ".", "Separator for `{measurement}{separator}{field_name}` metric name when inserted via Influx line protocol")
 )
 
 var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="influx"}`)
@@ -88,7 +93,7 @@ func (ctx *pushCtx) InsertRows(db string) error {
 		}
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
-		ctx.metricGroupBuf = append(ctx.metricGroupBuf, '.')
+		ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
 		for j := range r.Fields {
 			f := &r.Fields[j]
