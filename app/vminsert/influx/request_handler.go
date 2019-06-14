@@ -22,6 +22,7 @@ import (
 
 var (
 	measurementFieldSeparator = flag.String("influxMeasurementFieldSeparator", ".", "Separator for `{measurement}{separator}{field_name}` metric name when inserted via Influx line protocol")
+	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses `{measurement}` instead of `{measurement}{separator}{field_name}` for metic name if Influx line contains only a single field")
 )
 
 var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="influx"}`)
@@ -94,13 +95,18 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 		ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], at.AccountID, at.ProjectID, ic.Labels)
 		metricNameBufLen := len(ic.MetricNameBuf)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
-		ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
+		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
+		if !skipFieldKey {
+			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
+		}
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
 		ic.AddLabel("", "placeholder")
 		placeholderLabel := &ic.Labels[len(ic.Labels)-1]
 		for j := range r.Fields {
 			f := &r.Fields[j]
-			ctx.metricGroupBuf = append(ctx.metricGroupBuf[:metricGroupPrefixLen], f.Key...)
+			if !skipFieldKey {
+				ctx.metricGroupBuf = append(ctx.metricGroupBuf[:metricGroupPrefixLen], f.Key...)
+			}
 			metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 			ic.Labels = ic.Labels[:len(ic.Labels)-1]
 			ic.AddLabel("", metricGroup)
