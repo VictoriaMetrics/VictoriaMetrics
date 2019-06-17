@@ -213,7 +213,7 @@ Adhering `KISS` principle simplifies the resulting code and architecture, so it 
 
 Due to `KISS` cluster version of VictoriaMetrics has no the following "features" popular in distributed computing world:
 
-- Fragile [gossip protocols](https://github.com/improbable-eng/thanos/blob/master/docs/proposals/approved/201809_gossip-removal.md).
+- Fragile [gossip protocols](https://en.wikipedia.org/wiki/Gossip_protocol).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
 - Complex replication schemes, which may go nuts in unforesseen edge cases. The replication is offloaded to the underlying durable replicated storage
   such as [persistent disks in Google Compute Engine](https://cloud.google.com/compute/docs/disks/#pdspecs).
