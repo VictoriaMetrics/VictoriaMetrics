@@ -264,6 +264,7 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
+VictoriaMetrics sets the current time if timestamp is omitted.
 Arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 

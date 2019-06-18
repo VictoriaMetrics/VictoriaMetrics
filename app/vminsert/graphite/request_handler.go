@@ -87,10 +87,21 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 		return false
 	}
 
-	// Convert timestamps from seconds to milliseconds
-	for i := range ctx.Rows.Rows {
-		ctx.Rows.Rows[i].Timestamp *= 1e3
+	// Fill missing timestamps with the current timestamp rounded to seconds.
+	currentTimestamp := time.Now().Unix()
+	rows := ctx.Rows.Rows
+	for i := range rows {
+		r := &rows[i]
+		if r.Timestamp == 0 {
+			r.Timestamp = currentTimestamp
+		}
 	}
+
+	// Convert timestamps from seconds to milliseconds.
+	for i := range rows {
+		rows[i].Timestamp *= 1e3
+	}
+
 	return true
 }
 

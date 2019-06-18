@@ -22,9 +22,6 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	// Missing value
 	f("aaa")
 
-	// Missing timestamp
-	f("aaa 1123")
-
 	// Invalid multiline
 	f("aaa\nbbb 123 34")
 
@@ -81,6 +78,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
+	// Missing timestamp
+	f("aaa 1123", &Rows{
+		Rows: []Row{{
+			Metric: "aaa",
+			Value:  1123,
+		}},
+	})
+
 	// Tags
 	f("foo;bar=baz 1 2", &Rows{
 		Rows: []Row{{
@@ -116,12 +121,16 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Multi lines
-	f("foo 0.3 2\nbar.baz 0.34 43\n", &Rows{
+	f("foo 0.3 2\naaa 3\nbar.baz 0.34 43\n", &Rows{
 		Rows: []Row{
 			{
 				Metric:    "foo",
 				Value:     0.3,
 				Timestamp: 2,
+			},
+			{
+				Metric: "aaa",
+				Value:  3,
 			},
 			{
 				Metric:    "bar.baz",
