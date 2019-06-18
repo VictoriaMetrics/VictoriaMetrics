@@ -23,13 +23,8 @@ import (
 var (
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
 	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
-
-	selectNodes flagutil.Array
+	selectNodes      = flagutil.NewArray("selectNode", "Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
 )
-
-func init() {
-	flag.Var(&selectNodes, "selectNode", "vmselect address, usage -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
-}
 
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
@@ -239,10 +234,10 @@ func DeleteHandler(at *auth.Token, r *http.Request) error {
 var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/admin/tsdb/delete_series"}`)
 
 func resetRollupResultCaches() {
-	if len(selectNodes) == 0 {
+	if len(*selectNodes) == 0 {
 		logger.Panicf("BUG: missing -selectNode flag")
 	}
-	for _, selectNode := range selectNodes {
+	for _, selectNode := range *selectNodes {
 		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
 		resp, err := httpClient.Get(callURL)
 		if err != nil {

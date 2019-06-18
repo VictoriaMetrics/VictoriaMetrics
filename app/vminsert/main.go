@@ -26,21 +26,20 @@ var (
 	opentsdbListenAddr   = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB put messages. Usually :4242 must be set. Doesn't work if empty")
 	httpListenAddr       = flag.String("httpListenAddr", ":8480", "Address to listen for http connections")
 	maxInsertRequestSize = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
-	storageNodes         flagutil.Array
+	storageNodes         = flagutil.NewArray("storageNode", "Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400")
 )
 
 func main() {
-	flag.Var(&storageNodes, "storageNode", "Vmstorage address, usage -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400")
 	flag.Parse()
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("initializing netstorage for storageNodes=%v...", storageNodes)
+	logger.Infof("initializing netstorage for storageNodes=%s...", *storageNodes)
 	startTime := time.Now()
-	if len(storageNodes) == 0 {
+	if len(*storageNodes) == 0 {
 		logger.Fatalf("storageNodes cannot be empty")
 	}
-	netstorage.InitStorageNodes(storageNodes)
+	netstorage.InitStorageNodes(*storageNodes)
 	logger.Infof("successfully initialized netstorage in %s", time.Since(startTime))
 
 	concurrencylimiter.Init()

@@ -1,6 +1,16 @@
 package flagutil
 
-import "strings"
+import (
+	"flag"
+	"strings"
+)
+
+// NewArray returns new Array with the given name and descprition.
+func NewArray(name, description string) *Array {
+	var a Array
+	flag.Var(&a, name, description)
+	return &a
+}
 
 // Array holds an array of flag values
 type Array []string

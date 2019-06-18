@@ -26,22 +26,20 @@ var (
 	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. Cache isn't saved if empty")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", runtime.GOMAXPROCS(-1)*2, "The maximum number of concurrent search requests. It shouldn't exceed 2*vCPUs for better performance. See also -search.maxQueueDuration")
 	maxQueueDuration      = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
-
-	storageNodes flagutil.Array
+	storageNodes          = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
 )
 
 func main() {
-	flag.Var(&storageNodes, "storageNode", "Vmstorage address, usage -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
 	flag.Parse()
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("starting netstorage at storageNodes=%v", storageNodes)
+	logger.Infof("starting netstorage at storageNodes=%s", *storageNodes)
 	startTime := time.Now()
-	if len(storageNodes) == 0 {
+	if len(*storageNodes) == 0 {
 		logger.Fatalf("storageNodes cannot be empty")
 	}
-	netstorage.InitStorageNodes(storageNodes)
+	netstorage.InitStorageNodes(*storageNodes)
 	logger.Infof("started netstorage in %s", time.Since(startTime))
 
 	if len(*cacheDataPath) > 0 {
