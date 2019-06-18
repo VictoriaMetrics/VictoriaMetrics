@@ -86,7 +86,9 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
-		return tagsPool, fmt.Errorf("cannot find whitespace between value and timestamp in %q", s)
+		// There is no timestamp. Use default timestamp instead.
+		r.Value = fastfloat.ParseBestEffort(tail)
+		return tagsPool, nil
 	}
 	r.Value = fastfloat.ParseBestEffort(tail[:n])
 	r.Timestamp = fastfloat.ParseInt64BestEffort(tail[n+1:])
