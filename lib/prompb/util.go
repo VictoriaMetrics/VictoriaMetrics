@@ -11,13 +11,9 @@ import (
 // ReadSnappy reads r, unpacks it using snappy, appends it to dst
 // and returns the result.
 func ReadSnappy(dst []byte, r io.Reader, maxSize int64) ([]byte, error) {
-	bb := bodyBufferPool.Get()
-	bb.B = bb.B[:0]
-	cb := copyBufferPool.Get()
-	cb.B = bytesutil.Resize(cb.B, 16*1024)
 	lr := io.LimitReader(r, maxSize+1)
-	reqLen, err := io.CopyBuffer(bb, lr, cb.B)
-	copyBufferPool.Put(cb)
+	bb := bodyBufferPool.Get()
+	reqLen, err := bb.ReadFrom(lr)
 	if err != nil {
 		bodyBufferPool.Put(bb)
 		return dst, fmt.Errorf("cannot read compressed request: %s", err)
@@ -45,7 +41,6 @@ func ReadSnappy(dst []byte, r io.Reader, maxSize int64) ([]byte, error) {
 }
 
 var bodyBufferPool bytesutil.ByteBufferPool
-var copyBufferPool bytesutil.ByteBufferPool
 
 // Reset resets wr.
 func (wr *WriteRequest) Reset() {

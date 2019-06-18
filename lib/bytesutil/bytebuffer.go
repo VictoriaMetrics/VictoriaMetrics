@@ -13,6 +13,7 @@ var (
 	// Verify ByteBuffer implements the given interfaces.
 	_ io.Writer       = &ByteBuffer{}
 	_ fs.ReadAtCloser = &ByteBuffer{}
+	_ io.ReaderFrom   = &ByteBuffer{}
 
 	// Verify reader implement filestream.ReadCloser interface.
 	_ filestream.ReadCloser = &reader{}
@@ -45,6 +46,30 @@ func (bb *ByteBuffer) ReadAt(p []byte, offset int64) {
 	}
 	if n := copy(p, bb.B[offset:]); n < len(p) {
 		logger.Panicf("BUG: EOF occurred after reading %d bytes out of %d bytes at offset %d", n, len(p), offset)
+	}
+}
+
+// ReadFrom reads all the data from r to bb until EOF.
+func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
+	b := bb.B
+	bLen := len(b)
+	b = Resize(b, 4*1024)
+	b = b[:cap(b)]
+	offset := bLen
+	for {
+		if free := len(b) - offset; free < offset {
+			n := len(b)
+			b = append(b, make([]byte, n)...)
+		}
+		n, err := r.Read(b[offset:])
+		offset += n
+		if err != nil {
+			bb.B = b[:offset]
+			if err == io.EOF {
+				err = nil
+			}
+			return int64(offset - bLen), err
+		}
 	}
 }
 
