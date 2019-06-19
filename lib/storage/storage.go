@@ -295,6 +295,8 @@ type Metrics struct {
 	DateMetricIDCacheMisses     uint64
 	DateMetricIDCacheCollisions uint64
 
+	HourMetricIDCacheSize uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -337,6 +339,14 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.DateMetricIDCacheRequests += cs.GetCalls
 	m.DateMetricIDCacheMisses += cs.Misses
 	m.DateMetricIDCacheCollisions += cs.Collisions
+
+	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hourMetricIDsLen := len(hmPrev.m)
+	if len(hmCurr.m) > hourMetricIDsLen {
+		hourMetricIDsLen = len(hmCurr.m)
+	}
+	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
