@@ -152,6 +152,7 @@ remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
     queue_config:
       max_samples_per_send: 10000
+      max_shards: 100
 ```
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
