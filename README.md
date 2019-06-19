@@ -31,6 +31,9 @@ Each service may scale independently and may run on the most suitable hardware.
 
 ## Building from sources
 
+Source code for cluster version is available at [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+
 ### Development Builds
 
 1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
