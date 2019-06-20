@@ -54,8 +54,6 @@ func (ctx *pushCtx) InsertRows() error {
 	return ic.FlushBufs()
 }
 
-const maxReadPacketSize = 4 * 1024 * 1024
-
 const flushTimeout = 3 * time.Second
 
 func (ctx *pushCtx) Read(r io.Reader) bool {
