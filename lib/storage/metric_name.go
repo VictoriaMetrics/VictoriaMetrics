@@ -586,13 +586,6 @@ func copyTags(dst, src []Tag) []Tag {
 	return dst
 }
 
-func (mn *MetricName) tagsLess(i, j int) bool {
-	a, b := mn.Tags[i].Key, mn.Tags[j].Key
-	a = normalizeTagKey(a)
-	b = normalizeTagKey(b)
-	return bytes.Compare(a, b) < 0
-}
-
 var commonTagKeys = func() map[string][]byte {
 	lcm := map[string][]byte{
 		// job-like tags must go first in MetricName.Tags.

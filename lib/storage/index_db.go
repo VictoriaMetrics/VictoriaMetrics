@@ -250,7 +250,7 @@ func (db *indexDB) incRef() {
 
 func (db *indexDB) decRef() {
 	n := atomic.AddUint64(&db.refCount, ^uint64(0))
-	if n < 0 {
+	if int64(n) < 0 {
 		logger.Panicf("BUG: negative refCount: %d", n)
 	}
 	if n > 0 {

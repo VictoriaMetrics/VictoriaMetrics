@@ -88,8 +88,6 @@ func BenchmarkIndexDBSearchTSIDs(b *testing.B) {
 		}
 	}()
 
-	const accountsCount = 111
-	const projectsCount = 33333
 	const recordsCount = 1e5
 
 	// Fill the db with recordsCount records.
@@ -160,8 +158,6 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	}()
 
 	const recordsPerLoop = 1000
-	const accountsCount = 111
-	const projectsCount = 33333
 	const recordsCount = 1e5
 
 	// Fill the db with recordsCount records.
