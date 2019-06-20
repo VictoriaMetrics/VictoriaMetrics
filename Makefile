@@ -56,9 +56,14 @@ errcheck: install-errcheck
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck
 
+check_all: fmt vet lint errcheck golangci-lint
+
 test:
 	GO111MODULE=on go test -mod=vendor ./lib/...
 	GO111MODULE=on go test -mod=vendor ./app/...
+
+test_full:
+	GO111MODULE=on go test -mod=vendor -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 benchmark:
 	GO111MODULE=on go test -mod=vendor -bench=. ./lib/...
@@ -81,7 +86,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run
+	golangci-lint run --exclude '(SA4003|SA1019):' -D errcheck
 
 install-golangci-lint:
 	which golangci-lint || GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint

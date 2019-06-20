@@ -38,7 +38,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 		if len(tail) > 0 {
 			t.Fatalf("unexpected tail left after SearchQuery unmarshaling; tail (len=%d): %q", len(tail), tail)
 		}
-		if sq1.AccountID != sq1.AccountID {
+		if sq2.AccountID != sq1.AccountID {
 			t.Fatalf("unexpected AccountID; got %d; want %d", sq2.AccountID, sq1.AccountID)
 		}
 		if sq2.ProjectID != sq1.ProjectID {
