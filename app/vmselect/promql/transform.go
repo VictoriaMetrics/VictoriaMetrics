@@ -394,13 +394,6 @@ func runningAvg(a, b float64, idx int) float64 {
 	return a + (b-a)/float64(idx+1)
 }
 
-func keepLastValue(a, b float64, idx int) float64 {
-	if math.IsNaN(b) {
-		return a
-	}
-	return b
-}
-
 func skipLeadingNaNs(values []float64) []float64 {
 	i := 0
 	for i < len(values) && math.IsNaN(values[i]) {
