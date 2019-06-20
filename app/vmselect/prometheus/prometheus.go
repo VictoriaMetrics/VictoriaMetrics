@@ -37,6 +37,9 @@ func FederateHandler(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("cannot parse request form values: %s", err)
 	}
 	matches := r.Form["match[]"]
+	if len(matches) == 0 {
+		return fmt.Errorf("missing `match[]` arg")
+	}
 	maxLookback, err := getDuration(r, "max_lookback", defaultStep)
 	if err != nil {
 		return err
@@ -106,6 +109,9 @@ func ExportHandler(w http.ResponseWriter, r *http.Request) error {
 	if len(matches) == 0 {
 		// Maintain backwards compatibility
 		match := r.FormValue("match")
+		if len(match) == 0 {
+			return fmt.Errorf("missing `match[]` arg")
+		}
 		matches = []string{match}
 	}
 	start, err := getTime(r, "start", 0)
@@ -195,6 +201,9 @@ func DeleteHandler(r *http.Request) error {
 		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
 	}
 	matches := r.Form["match[]"]
+	if len(matches) == 0 {
+		return fmt.Errorf("missing `match[]` arg")
+	}
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return err
@@ -297,6 +306,9 @@ func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("cannot parse form values: %s", err)
 	}
 	matches := r.Form["match[]"]
+	if len(matches) == 0 {
+		return fmt.Errorf("missing `match[]` arg")
+	}
 	start, err := getTime(r, "start", ct-defaultStep)
 	if err != nil {
 		return err
@@ -362,6 +374,9 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	query := r.FormValue("query")
+	if len(query) == 0 {
+		return fmt.Errorf("missing `query` arg")
+	}
 	start, err := getTime(r, "time", ct)
 	if err != nil {
 		return err
@@ -432,6 +447,9 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	query := r.FormValue("query")
+	if len(query) == 0 {
+		return fmt.Errorf("missing `query` arg")
+	}
 	start, err := getTime(r, "start", ct-defaultStep)
 	if err != nil {
 		return err
