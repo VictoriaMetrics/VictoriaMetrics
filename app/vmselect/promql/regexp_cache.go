@@ -80,7 +80,7 @@ func (rc *regexpCache) Get(regexp string) *regexpCacheValue {
 	rcv := rc.m[regexp]
 	rc.mu.RUnlock()
 
-	if rc == nil {
+	if rcv == nil {
 		atomic.AddUint64(&rc.misses, 1)
 	}
 	return rcv
