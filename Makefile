@@ -74,3 +74,10 @@ quicktemplate-gen: install-qtc
 
 install-qtc:
 	which qtc || GO111MODULE=off go get -u github.com/valyala/quicktemplate/qtc
+
+
+golangci-lint: install-golangci-lint
+	golangci-lint run
+
+install-golangci-lint:
+	which golangci-lint || GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
