@@ -47,8 +47,6 @@ type TCPListener struct {
 
 	net.Listener
 
-	name string
-
 	accepts      *metrics.Counter
 	acceptErrors *metrics.Counter
 
