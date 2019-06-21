@@ -20,6 +20,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"changes":            newRollupFuncOneArg(rollupChanges),
 	"delta":              newRollupFuncOneArg(rollupDelta),
 	"deriv":              newRollupFuncOneArg(rollupDerivSlow),
+	"deriv_fast":         newRollupFuncOneArg(rollupDerivFast),
 	"holt_winters":       newRollupHoltWinters,
 	"idelta":             newRollupFuncOneArg(rollupIdelta),
 	"increase":           newRollupFuncOneArg(rollupDelta),  // + rollupFuncsRemoveCounterResets

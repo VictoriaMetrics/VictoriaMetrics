@@ -193,6 +193,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("changes", 10)
 	f("delta", -89)
 	f("deriv", -266.85860231406065)
+	f("deriv_fast", -712)
 	f("idelta", 0)
 	f("increase", 275)
 	f("irate", 0)
