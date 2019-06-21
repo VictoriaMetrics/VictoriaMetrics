@@ -379,8 +379,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	}
 
 	ecSQ := newEvalConfig(ec)
-	ecSQ.Start -= window + maxSilenceInterval
-	ecSQ.End += step
+	ecSQ.Start -= window + maxSilenceInterval + step
 	ecSQ.Step = step
 	if err := ValidateMaxPointsPerTimeseries(ecSQ.Start, ecSQ.End, ecSQ.Step); err != nil {
 		return nil, err

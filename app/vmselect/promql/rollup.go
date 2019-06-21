@@ -171,8 +171,7 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 	i := 0
 	j := 0
-	for _, ts := range rc.Timestamps {
-		tEnd := ts + rc.Step
+	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		n := sort.Search(len(timestamps)-i, func(n int) bool {
 			return timestamps[i+n] > tStart
@@ -655,7 +654,7 @@ func rollupFirst(rfa *rollupFuncArg) float64 {
 	return values[0]
 }
 
-var rollupDefault = rollupFirst
+var rollupDefault = rollupLast
 
 func rollupLast(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleanup up

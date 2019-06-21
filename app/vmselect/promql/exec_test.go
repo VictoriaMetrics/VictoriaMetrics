@@ -286,7 +286,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `time()[300s:100s] offset 100s`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{800, 1000, 1200, 1400, 1600, 1800},
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -297,7 +297,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `time()[1.5i:0.5i] offset 0.5i`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{800, 1000, 1200, 1400, 1600, 1800},
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -308,7 +308,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `time()[300s] offset 100s`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{700, 900, 1100, 1300, 1500, 1700},
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -319,7 +319,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `time()[300s]`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{800, 1000, 1200, 1400, 1600, 1800},
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2494,7 +2494,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `distinct_over_time((time() < 1700)[500s])`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{3, 3, 3, 2, 1, nan},
+			Values:     []float64{3, 3, 3, 3, 2, 1},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1}
@@ -2505,7 +2505,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `distinct_over_time((time() < 1700)[2.5i])`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{3, 3, 3, 2, 1, nan},
+			Values:     []float64{3, 3, 3, 3, 2, 1},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1}
@@ -2761,7 +2761,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `integrate(time()*1e-3)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{200, 240.00000000000003, 280, 320, 360, 400},
+			Values:     []float64{160, 200, 240.00000000000003, 280, 320, 360},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2783,7 +2783,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate(2000-time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4.5, 3.5, 2.5, 1.5, 0.5, -0.5},
+			Values:     []float64{5.5, 4.5, 3.5, 2.5, 1.5, 0.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2794,7 +2794,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4.5, 3.5, 2.5, 1.5, 0.5, -0.5},
+			Values:     []float64{5.5, 4.5, 3.5, 2.5, 1.5, 0.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2805,7 +2805,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4.5, 3.5, 2.5, 1.5, 0.5, -0.5},
+			Values:     []float64{5.5, 4.5, 3.5, 2.5, 1.5, 0.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2816,7 +2816,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4, 6.5, 4.5, 2.5, 0.5, -1.5},
+			Values:     []float64{5.5, 4.5, 6.5, 4.5, 2.5, 0.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2827,7 +2827,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s] offset 100s)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{4.5, 3.5, 5.5, 3.5, 1.5, -0.5},
+			Values:     []float64{6, 5, 7.5, 5.5, 3.5, 1.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2838,7 +2838,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s] offset 100s)[:] offset 100s`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{6, 5, 7.5, 5.5, 3.5, 1.5},
+			Values:     []float64{7, 6, 5, 7.5, 5.5, 3.5},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -2860,7 +2860,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `increase(2000-time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{900, 700, 500, 300, 100, -100},
+			Values:     []float64{1100, 900, 700, 500, 300, 100},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -3163,7 +3163,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `sort(rollup(time()[:50s]))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1050, 1250, 1450, 1650, 1850, 2050},
+			Values:     []float64{850, 1050, 1250, 1450, 1650, 1850},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.Tags = []storage.Tag{{
@@ -3172,21 +3172,21 @@ func TestExecSuccess(t *testing.T) {
 		}}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1200, 1400, 1600, 1800, 2000, 2200},
+			Values:     []float64{925, 1125, 1325, 1525, 1725, 1925},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
-			Value: []byte("max"),
+			Value: []byte("avg"),
 		}}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1125, 1325, 1525, 1725, 1925, 2125},
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("rollup"),
-			Value: []byte("avg"),
+			Value: []byte("max"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)

@@ -189,7 +189,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 		testRollupFunc(t, funcName, args, &me, vExpected)
 	}
 
-	f("default_rollup", 123)
+	f("default_rollup", 34)
 	f("changes", 10)
 	f("delta", -89)
 	f("deriv", -712)
@@ -259,7 +259,7 @@ func TestRollupNoWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, nan, nan, nan, 123}
+		valuesExpected := []float64{nan, nan, nan, nan, nan}
 		timestampsExpected := []int64{0, 1, 2, 3, 4}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -273,7 +273,7 @@ func TestRollupNoWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{2, 2, 0, 0, 0, nan, nan}
+		valuesExpected := []float64{2, 2, 2, 0, 0, 0, nan}
 		timestampsExpected := []int64{120, 124, 128, 132, 136, 140, 144}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -290,7 +290,7 @@ func TestRollupWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, nan, nan, nan, 123}
+		valuesExpected := []float64{nan, nan, nan, nan, nan}
 		timestampsExpected := []int64{0, 1, 2, 3, 4}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -304,7 +304,7 @@ func TestRollupWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{34, nan, nan, nan}
+		valuesExpected := []float64{34, 34, nan, nan}
 		timestampsExpected := []int64{141, 151, 161, 171}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -321,7 +321,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{123, 123, 123, 123, 123}
+		valuesExpected := []float64{nan, 123, 123, 123, 123}
 		timestampsExpected := []int64{0, 5, 10, 15, 20}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -335,7 +335,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{44, 34, 34, nan}
+		valuesExpected := []float64{12, 44, 34, 34}
 		timestampsExpected := []int64{100, 120, 140, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -349,7 +349,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, 123, 54, 44, nan}
+		valuesExpected := []float64{nan, nan, 123, 54, 44}
 		timestampsExpected := []int64{-50, 0, 50, 100, 150}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -366,7 +366,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{123, 123, 34, 34, 44}
+		valuesExpected := []float64{nan, 123, 123, 34, 34}
 		timestampsExpected := []int64{0, 5, 10, 15, 20}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -380,7 +380,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{34, 34, nan, nan}
+		valuesExpected := []float64{44, 34, 34, nan}
 		timestampsExpected := []int64{100, 120, 140, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -394,7 +394,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{54, 44, nan, nan}
+		valuesExpected := []float64{nan, 54, 44, nan}
 		timestampsExpected := []int64{0, 50, 100, 150}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -411,7 +411,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{123, 21, 12, 34, nan}
+		valuesExpected := []float64{nan, 123, 21, 12, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -425,7 +425,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{4, 4, 3, 1, nan}
+		valuesExpected := []float64{nan, 4, 4, 3, 1}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -439,7 +439,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{21, 12, 32, 34, nan}
+		valuesExpected := []float64{nan, 21, 12, 32, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -453,7 +453,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{123, 99, 44, 34, nan}
+		valuesExpected := []float64{nan, 123, 99, 44, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -467,7 +467,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{222, 199, 110, 34, nan}
+		valuesExpected := []float64{nan, 222, 199, 110, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -481,7 +481,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{-102, -9, 22, 0, nan}
+		valuesExpected := []float64{nan, -102, -9, 22, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -495,7 +495,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{33, -87, 0, nan}
+		valuesExpected := []float64{nan, 33, -87, 0}
 		timestampsExpected := []int64{10, 50, 90, 130}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -509,7 +509,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{3, 4, 3, 0, nan}
+		valuesExpected := []float64{nan, 3, 4, 3, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -523,7 +523,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{2, 2, 1, 0, nan}
+		valuesExpected := []float64{nan, 2, 2, 1, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -537,7 +537,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{55.5, 49.75, 36.666666666666664, 34, nan}
+		valuesExpected := []float64{nan, 55.5, 49.75, 36.666666666666664, 34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -551,7 +551,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{-3290.3225806451615, -204.54545454545456, 550, 0, nan}
+		valuesExpected := []float64{nan, -3290.3225806451615, -204.54545454545456, 550, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -565,7 +565,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{-1916.6666666666665, -43500, 400, 0, nan}
+		valuesExpected := []float64{nan, -1916.6666666666665, -43500, 400, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -579,7 +579,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{39.81519810323691, 32.080952292598795, 5.2493385826745405, 0, nan}
+		valuesExpected := []float64{nan, 39.81519810323691, 32.080952292598795, 5.2493385826745405, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -593,7 +593,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{4.6035, 4.3934999999999995, 2.166, 0.34, nan}
+		valuesExpected := []float64{nan, 4.6035, 4.3934999999999995, 2.166, 0.34}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -607,7 +607,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{4, 4, 3, 1, nan}
+		valuesExpected := []float64{nan, 4, 4, 3, 1}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
