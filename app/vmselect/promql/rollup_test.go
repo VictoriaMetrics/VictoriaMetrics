@@ -192,7 +192,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("default_rollup", 34)
 	f("changes", 10)
 	f("delta", -89)
-	f("deriv", -712)
+	f("deriv", -266.85860231406065)
 	f("idelta", 0)
 	f("increase", 275)
 	f("irate", 0)
@@ -543,7 +543,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 	})
 	t.Run("deriv", func(t *testing.T) {
 		rc := rollupConfig{
-			Func:   rollupDeriv,
+			Func:   rollupDerivSlow,
 			Start:  0,
 			End:    160,
 			Step:   40,
@@ -551,7 +551,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, -3290.3225806451615, -204.54545454545456, 550, 0}
+		valuesExpected := []float64{nan, -2879.310344827587, 558.0608793686592, 422.84569138276544, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})

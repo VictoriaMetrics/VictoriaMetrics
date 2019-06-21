@@ -19,13 +19,13 @@ var rollupFuncs = map[string]newRollupFunc{
 	// See funcs accepting range-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
 	"changes":            newRollupFuncOneArg(rollupChanges),
 	"delta":              newRollupFuncOneArg(rollupDelta),
-	"deriv":              newRollupFuncOneArg(rollupDeriv),
+	"deriv":              newRollupFuncOneArg(rollupDerivSlow),
 	"holt_winters":       newRollupHoltWinters,
 	"idelta":             newRollupFuncOneArg(rollupIdelta),
 	"increase":           newRollupFuncOneArg(rollupDelta),  // + rollupFuncsRemoveCounterResets
 	"irate":              newRollupFuncOneArg(rollupIderiv), // + rollupFuncsRemoveCounterResets
 	"predict_linear":     newRollupPredictLinear,
-	"rate":               newRollupFuncOneArg(rollupDeriv), // + rollupFuncsRemoveCounterResets
+	"rate":               newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
 	"resets":             newRollupFuncOneArg(rollupResets),
 	"avg_over_time":      newRollupFuncOneArg(rollupAvg),
 	"min_over_time":      newRollupFuncOneArg(rollupMin),
@@ -341,39 +341,51 @@ func newRollupPredictLinear(args []interface{}) (rollupFunc, error) {
 		return nil, err
 	}
 	rf := func(rfa *rollupFuncArg) float64 {
-		// There is no need in handling NaNs here, since they must be cleanup up
-		// before calling rollup funcs.
-		values := rfa.values
-		timestamps := rfa.timestamps
-		if len(values) == 0 {
+		v, k := linearRegression(rfa)
+		if math.IsNaN(v) {
 			return nan
 		}
-
-		// See https://en.wikipedia.org/wiki/Simple_linear_regression#Numerical_example
-		// TODO: determine whether this shit really works.
-		tFirst := rfa.prevTimestamp
-		vSum := rfa.prevValue
-		if math.IsNaN(rfa.prevValue) {
-			tFirst = timestamps[0]
-			vSum = 0
-		}
-		tSum := float64(0)
-		tvSum := float64(0)
-		ttSum := float64(0)
-		for i, v := range values {
-			dt := float64(timestamps[i]-tFirst) * 1e-3
-			vSum += v
-			tSum += dt
-			tvSum += dt * v
-			ttSum += dt * dt
-		}
-		n := float64(len(values))
-		k := (n*tvSum - tSum*vSum) / (n*ttSum - tSum*tSum)
-		v := (vSum - k*tSum) / n
 		sec := secs[rfa.idx]
 		return v + k*sec
 	}
 	return rf, nil
+}
+
+func linearRegression(rfa *rollupFuncArg) (float64, float64) {
+	// There is no need in handling NaNs here, since they must be cleanup up
+	// before calling rollup funcs.
+	values := rfa.values
+	timestamps := rfa.timestamps
+	if len(values) == 0 {
+		return nan, nan
+	}
+
+	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Numerical_example
+	tFirst := rfa.prevTimestamp
+	vSum := rfa.prevValue
+	n := 1.0
+	if math.IsNaN(rfa.prevValue) {
+		tFirst = timestamps[0]
+		vSum = 0
+		n = 0
+	}
+	tSum := float64(0)
+	tvSum := float64(0)
+	ttSum := float64(0)
+	for i, v := range values {
+		dt := float64(timestamps[i]-tFirst) * 1e-3
+		vSum += v
+		tSum += dt
+		tvSum += dt * v
+		ttSum += dt * dt
+	}
+	n += float64(len(values))
+	if n == 1 {
+		return vSum, 0
+	}
+	k := (n*tvSum - tSum*vSum) / (n*ttSum - tSum*tSum)
+	v := (vSum - k*tSum) / n
+	return v, k
 }
 
 func newRollupQuantile(args []interface{}) (rollupFunc, error) {
@@ -539,7 +551,14 @@ func rollupIdelta(rfa *rollupFuncArg) float64 {
 	return lastValue - values[len(values)-1]
 }
 
-func rollupDeriv(rfa *rollupFuncArg) float64 {
+func rollupDerivSlow(rfa *rollupFuncArg) float64 {
+	// Use linear regression like Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/73
+	_, k := linearRegression(rfa)
+	return k
+}
+
+func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleanup up
 	// before calling rollup funcs.
 	values := rfa.values
