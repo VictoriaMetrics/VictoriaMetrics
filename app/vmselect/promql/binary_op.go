@@ -271,7 +271,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 			rvsLeft := make([]*timeseries, len(right))
 			tsLeft := left[0]
 			for i, tsRight := range right {
-				tsRight.MetricName.ResetMetricGroup()
+				resetMetricGroupIfRequired(be, tsRight)
 				rvsLeft[i] = tsLeft
 			}
 			return rvsLeft, right, right, nil
@@ -281,7 +281,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 			rvsRight := make([]*timeseries, len(left))
 			tsRight := right[0]
 			for i, tsLeft := range left {
-				tsLeft.MetricName.ResetMetricGroup()
+				resetMetricGroupIfRequired(be, tsLeft)
 				rvsRight[i] = tsRight
 			}
 			return left, rvsRight, left, nil
@@ -340,7 +340,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 			if err := ensureOneX("right", tssRight); err != nil {
 				return nil, nil, nil, err
 			}
-			tssLeft[0].MetricName.ResetMetricGroup()
+			resetMetricGroupIfRequired(be, tssLeft[0])
 			rvsLeft = append(rvsLeft, tssLeft[0])
 			rvsRight = append(rvsRight, tssRight[0])
 		default:
@@ -352,6 +352,19 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 		dst = rvsRight
 	}
 	return rvsLeft, rvsRight, dst, nil
+}
+
+func resetMetricGroupIfRequired(be *binaryOpExpr, ts *timeseries) {
+	if isBinaryOpCmp(be.Op) && !be.Bool {
+		// Do not reset MetricGroup for non-boolean `compare` binary ops like Prometheus does.
+		return
+	}
+	switch be.Op {
+	case "default", "if", "ifnot":
+		// Do not reset MetricGroup for these ops.
+		return
+	}
+	ts.MetricName.ResetMetricGroup()
 }
 
 func binaryOpPlus(left, right float64) float64 {

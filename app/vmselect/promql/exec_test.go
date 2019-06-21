@@ -1460,6 +1460,62 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`a cmp scalar (leave MetricGroup)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc((
+			label_set(time(), "__name__", "foo", "a", "x"),
+			label_set(time()+200, "__name__", "bar", "a", "x"),
+		) > 1300)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1400, 1600, 1800, 2000, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("bar")
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("x"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("foo")
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("x"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`a cmp bool scalar (drop MetricGroup)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc((
+			label_set(time(), "__name__", "foo", "a", "x"),
+			label_set(time()+200, "__name__", "bar", "a", "y"),
+		) >= bool 1200)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("y"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("x"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`1 > 2`, func(t *testing.T) {
 		t.Parallel()
 		q := `1 > 2`
@@ -1562,13 +1618,14 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`vector default scalar`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(union(
-			label_set(time() > 1400, "foo", "bar"),
-			label_set(time() < 1700, "foo", "baz")) default 123)`
+			label_set(time() > 1400, "__name__", "x", "foo", "bar"),
+			label_set(time() < 1700, "__name__", "y", "foo", "baz")) default 123)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{123, 123, 123, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
+		r1.MetricName.MetricGroup = []byte("x")
 		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("bar"),
@@ -1578,6 +1635,7 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1000, 1200, 1400, 1600, 123, 123},
 			Timestamps: timestampsExpected,
 		}
+		r2.MetricName.MetricGroup = []byte("y")
 		r2.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("baz"),
@@ -3633,6 +3691,16 @@ func TestExecError(t *testing.T) {
 	f(`(label_set(1, "foo", bar"), label_set(2, "foo", "baz")) + on() 1`)
 	f(`(label_set(1, "foo", "bar", "a", "b"), label_set(1, "foo", "bar", "a", "c")) + on(foo) group_right() label_set(1, "foo", "bar")`)
 	f(`1 + on() (label_set(1, "foo", bar"), label_set(2, "foo", "baz"))`)
+
+	// duplicate metrics after binary op
+	f(`(
+		label_set(time(), "__name__", "foo", "a", "x"),
+		label_set(time()+200, "__name__", "bar", "a", "x"),
+	) > bool 1300`)
+	f(`(
+		label_set(time(), "__name__", "foo", "a", "x"),
+		label_set(time()+200, "__name__", "bar", "a", "x"),
+	) + 10`)
 
 	// With expressions
 	f(`ttf()`)
