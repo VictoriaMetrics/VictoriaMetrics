@@ -56,14 +56,18 @@ There is also [StreamDecompress](https://godoc.org/github.com/valyala/gozstd#Str
 and [Reader](https://godoc.org/github.com/valyala/gozstd#Reader) for stream decompression.
 
 
+### Who uses gozstd?
+
+* [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+
+
 ## FAQ
 
   * Q: _Which go version is supported?_  
-    A: `go1.10` and newer. Pull requests for older go versions support
-       are accepted.
+    A: `go1.10` and newer. Pull requests for older go versions are accepted.
 
   * Q: _Which platforms/architectures are supported?_  
-    A: `linux/amd64`, `linux/arm`, `linux/arm64`, `darwin/amd64`, `windows/amd64`. Pull requests for other platforms/architectures support
+    A: `linux/amd64`, `linux/arm`, `linux/arm64`, `darwin/amd64`, `windows/amd64`. Pull requests for other platforms/architectures
        are accepted.
        
   * Q: _I don't trust `libzstd*.a` binary files from the repo or these files dont't work on my OS/ARCH. How to rebuild them?_
