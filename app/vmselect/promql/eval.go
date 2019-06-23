@@ -591,13 +591,14 @@ func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:   tagValue,
-			Func:       rf,
-			Start:      start,
-			End:        end,
-			Step:       step,
-			Window:     window,
-			Timestamps: sharedTimestamps,
+			TagValue:        tagValue,
+			Func:            rf,
+			Start:           start,
+			End:             end,
+			Step:            step,
+			Window:          window,
+			MayAdjustWindow: rollupFuncsMayAdjustWindow[name],
+			Timestamps:      sharedTimestamps,
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
