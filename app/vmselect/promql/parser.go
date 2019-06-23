@@ -18,7 +18,7 @@ func getDefaultWithArgExprs() []*withArgExpr {
 
 			// ttf - time to fuckup
 			`ttf(freev) = smooth_exponential(
-				clamp_max(clamp_max(-freev, 0) / clamp_max(deriv(freev), 0), 365*24*3600),
+				clamp_max(clamp_max(-freev, 0) / clamp_max(deriv_fast(freev), 0), 365*24*3600),
 				clamp_max(step()/300, 1)
 			)`,
 
