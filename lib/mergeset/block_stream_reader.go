@@ -91,6 +91,13 @@ func (bsr *blockStreamReader) reset() {
 	bsr.err = nil
 }
 
+func (bsr *blockStreamReader) String() string {
+	if len(bsr.path) > 0 {
+		return bsr.path
+	}
+	return bsr.ph.String()
+}
+
 // InitFromInmemoryPart initializes bsr from the given ip.
 func (bsr *blockStreamReader) InitFromInmemoryPart(ip *inmemoryPart) {
 	bsr.reset()

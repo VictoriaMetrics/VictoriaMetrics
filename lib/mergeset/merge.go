@@ -29,7 +29,7 @@ func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStre
 	if err == errForciblyStopped {
 		return err
 	}
-	return fmt.Errorf("cannot merge block streams: %s", err)
+	return fmt.Errorf("cannot merge %d block streams: %s: %s", len(bsrs), bsrs, err)
 }
 
 var bsmPool = &sync.Pool{
