@@ -403,6 +403,8 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	}
 	k := (n*tvSum - tSum*vSum) / (n*ttSum - tSum*tSum)
 	v := (vSum - k*tSum) / n
+	// Adjust v to the last timestamp on the given time range.
+	v += k * (float64(timestamps[len(timestamps)-1]-tFirst) * 1e-3)
 	return v, k
 }
 
