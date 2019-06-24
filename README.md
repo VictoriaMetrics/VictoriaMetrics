@@ -50,10 +50,6 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 ### Table of contents
 
-- [Single-node VictoriaMetrics](#single-node-victoriametrics)
-- [Prominent features](#prominent-features)
-- [Operation](#operation)
-  - [Table of contents](#table-of-contents)
   - [How to build from sources](#how-to-build-from-sources)
     - [Development build](#development-build)
     - [Production build](#production-build)
