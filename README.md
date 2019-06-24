@@ -502,6 +502,11 @@ There is [an official Grafana dashboard for single-node VictoriaMetrics](https:/
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
+* If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
+  then just remove directoreis with broken parts. This will recover VictoriaMetrics at the cost
+  of data loss stored in the broken parts. In the future `vmrecover` tool will be created
+  for automatic recovering from such errors.
+
 
 ## Contacts
 
