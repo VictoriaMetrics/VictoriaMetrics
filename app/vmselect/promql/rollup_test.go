@@ -143,10 +143,10 @@ func TestRollupPredictLinear(t *testing.T) {
 		testRollupFunc(t, "predict_linear", args, &me, vExpected)
 	}
 
-	f(0e-3, 63.739757761102624)
-	f(50e-3, 50.39682764539959)
-	f(100e-3, 37.053897529696556)
-	f(200e-3, 10.368037298290488)
+	f(0e-3, 30.382432471845043)
+	f(50e-3, 17.03950235614201)
+	f(100e-3, 3.696572240438975)
+	f(200e-3, -22.989287990967092)
 }
 
 func TestRollupHoltWinters(t *testing.T) {
