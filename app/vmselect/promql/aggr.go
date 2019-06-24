@@ -26,6 +26,8 @@ var aggrFuncs = map[string]aggrFunc{
 	"median":   aggrFuncMedian,
 	"limitk":   aggrFuncLimitK,
 	"distinct": newAggrFunc(aggrFuncDistinct),
+	"sum2":     newAggrFunc(aggrFuncSum2),
+	"geomean":  newAggrFunc(aggrFuncGeomean),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -136,6 +138,52 @@ func aggrFuncSum(tss []*timeseries) []*timeseries {
 			sum = nan
 		}
 		dst.Values[i] = sum
+	}
+	return tss[:1]
+}
+
+func aggrFuncSum2(tss []*timeseries) []*timeseries {
+	dst := tss[0]
+	for i := range dst.Values {
+		sum2 := float64(0)
+		count := 0
+		for _, ts := range tss {
+			v := ts.Values[i]
+			if math.IsNaN(v) {
+				continue
+			}
+			sum2 += v * v
+			count++
+		}
+		if count == 0 {
+			sum2 = nan
+		}
+		dst.Values[i] = sum2
+	}
+	return tss[:1]
+}
+
+func aggrFuncGeomean(tss []*timeseries) []*timeseries {
+	if len(tss) == 1 {
+		// Fast path - nothing to geomean.
+		return tss
+	}
+	dst := tss[0]
+	for i := range dst.Values {
+		p := 1.0
+		count := 0
+		for _, ts := range tss {
+			v := ts.Values[i]
+			if math.IsNaN(v) {
+				continue
+			}
+			p *= v
+			count++
+		}
+		if count == 0 {
+			p = nan
+		}
+		dst.Values[i] = math.Pow(p, 1/float64(count))
 	}
 	return tss[:1]
 }
