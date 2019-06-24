@@ -2205,12 +2205,90 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`geomean(time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `geomean(time()/100)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 12, 14, 16, 18, 20},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`geomean_over_time(time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(geomean_over_time(alias(time()/100, "foobar")[3i]), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6.8, 8.8, 10.9, 12.9, 14.9, 16.9},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum2(time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum2(time()/100)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 144, 196, 256, 324, 400},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum2_over_time(time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum2_over_time(alias(time()/100, "foobar")[3i])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{155, 251, 371, 515, 683, 875},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(multi-vector)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum(label_set(10, "foo", "bar") or label_set(time()/100, "baz", "sss"))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{20, 22, 24, 26, 28, 30},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`geomean(multi-vector)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(geomean(label_set(10, "foo", "bar") or label_set(time()/100, "baz", "sss")), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 11, 11.8, 12.6, 13.4, 14.1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum2(multi-vector)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum2(label_set(10, "foo", "bar") or label_set(time()/100, "baz", "sss"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 244, 296, 356, 424, 500},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sqrt(sum2(multi-vector))`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(sqrt(sum2(label_set(10, "foo", "bar") or label_set(time()/100, "baz", "sss"))))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{14, 16, 17, 19, 21, 22},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}

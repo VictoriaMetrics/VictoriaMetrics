@@ -38,6 +38,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
 
 	// Additional rollup funcs.
+	"sum2_over_time":     newRollupFuncOneArg(rollupSum2),
+	"geomean_over_time":  newRollupFuncOneArg(rollupGeomean),
 	"first_over_time":    newRollupFuncOneArg(rollupFirst),
 	"last_over_time":     newRollupFuncOneArg(rollupLast),
 	"distinct_over_time": newRollupFuncOneArg(rollupDistinct),
@@ -72,6 +74,7 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"max_over_time":      true,
 	"quantile_over_time": true,
 	"rollup":             true,
+	"geomean_over_time":  true,
 }
 
 func getRollupArgIdx(funcName string) int {
@@ -495,6 +498,34 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 		sum += v
 	}
 	return sum
+}
+
+func rollupSum2(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	if len(values) == 0 {
+		return rfa.prevValue * rfa.prevValue
+	}
+	var sum2 float64
+	for _, v := range values {
+		sum2 += v * v
+	}
+	return sum2
+}
+
+func rollupGeomean(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	if len(values) == 0 {
+		return rfa.prevValue
+	}
+	p := 1.0
+	for _, v := range values {
+		p *= v
+	}
+	return math.Pow(p, 1/float64(len(values)))
 }
 
 func rollupCount(rfa *rollupFuncArg) float64 {
