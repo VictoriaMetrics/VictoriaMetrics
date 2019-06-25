@@ -111,6 +111,19 @@ type accountProjectKey struct {
 
 // openIndexDB opens index db from the given path with the given caches.
 func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
+	if metricIDCache == nil {
+		logger.Panicf("BUG: metricIDCache must be non-nil")
+	}
+	if metricNameCache == nil {
+		logger.Panicf("BUG: metricNameCache must be non-nil")
+	}
+	if currHourMetricIDs == nil {
+		logger.Panicf("BUG: currHourMetricIDs must be non-nil")
+	}
+	if prevHourMetricIDs == nil {
+		logger.Panicf("BUG: prevHourMetricIDs must be non-nil")
+	}
+
 	tb, err := mergeset.OpenTable(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %s", path, err)
@@ -1301,11 +1314,8 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
 
 func (is *indexSearch) adjustMaxMetricsAdaptive(maxMetrics int) int {
-	if is.db.prevHourMetricIDs == nil {
-		return maxMetrics
-	}
 	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
-	if hmPrev == nil || !hmPrev.isFull {
+	if !hmPrev.isFull {
 		return maxMetrics
 	}
 	hourMetrics := len(hmPrev.m)
@@ -1764,9 +1774,6 @@ func (is *indexSearch) getMetricIDsForRecentHoursAll(tr TimeRange, maxMetrics in
 	// The caller is responsible for proper filtering later.
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
 	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
-	if is.db.currHourMetricIDs == nil {
-		return nil, false
-	}
 	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
 		// The tr fits the current hour.
@@ -1776,9 +1783,6 @@ func (is *indexSearch) getMetricIDsForRecentHoursAll(tr TimeRange, maxMetrics in
 			return nil, false
 		}
 		return getMetricIDsCopy(hmCurr.m), true
-	}
-	if is.db.prevHourMetricIDs == nil {
-		return nil, false
 	}
 	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -60,8 +61,14 @@ func TestIndexDBOpenClose(t *testing.T) {
 	metricNameCache := fastcache.New(1234)
 	defer metricIDCache.Reset()
 	defer metricNameCache.Reset()
+
+	var hmCurr atomic.Value
+	hmCurr.Store(&hourMetricIDs{})
+	var hmPrev atomic.Value
+	hmPrev.Store(&hourMetricIDs{})
+
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, nil, nil)
+		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -82,8 +89,14 @@ func TestIndexDB(t *testing.T) {
 		metricNameCache := fastcache.New(1234)
 		defer metricIDCache.Reset()
 		defer metricNameCache.Reset()
+
+		var hmCurr atomic.Value
+		hmCurr.Store(&hourMetricIDs{})
+		var hmPrev atomic.Value
+		hmPrev.Store(&hourMetricIDs{})
+
 		dbName := "test-index-db-serial"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, nil, nil)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -113,7 +126,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, nil, nil)
+		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -133,8 +146,14 @@ func TestIndexDB(t *testing.T) {
 		metricNameCache := fastcache.New(1234)
 		defer metricIDCache.Reset()
 		defer metricNameCache.Reset()
+
+		var hmCurr atomic.Value
+		hmCurr.Store(&hourMetricIDs{})
+		var hmPrev atomic.Value
+		hmPrev.Store(&hourMetricIDs{})
+
 		dbName := "test-index-db-concurrent"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, nil, nil)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
