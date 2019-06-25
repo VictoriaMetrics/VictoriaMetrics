@@ -393,14 +393,19 @@ Rough estimation of the required resources:
 
 * RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
-  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with `-memory.allowedPercent` flag.
+  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited by `-memory.allowedPercent` flag.
+
 * CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
-  the insert stream of 1M data points per second.
+  the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data.
+  See [this article](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) for details.
   If you see lower numbers per CPU core, then it is likely active time series info doesn't fit caches,
   so you need more RAM for lowering CPU usage.
+
 * Storage size: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
   of 100K data points per second.
   The actual storage size heavily depends on data randomness (entropy). Higher randomness means higher storage size requirements.
+  Read [this article](https://medium.com/faun/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
+  for details.
 
 
 ### High availability
