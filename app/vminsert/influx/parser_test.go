@@ -348,4 +348,30 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		},
 	})
+	// No newline after the second line.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/82
+	f("foo,tag=xyz field=1.23 48934\n"+
+		"bar x=-1i", &Rows{
+		Rows: []Row{
+			{
+				Measurement: "foo",
+				Tags: []Tag{{
+					Key:   "tag",
+					Value: "xyz",
+				}},
+				Fields: []Field{{
+					Key:   "field",
+					Value: 1.23,
+				}},
+				Timestamp: 48934,
+			},
+			{
+				Measurement: "bar",
+				Fields: []Field{{
+					Key:   "x",
+					Value: -1,
+				}},
+			},
+		},
+	})
 }
