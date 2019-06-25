@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"testing"
 )
 
@@ -40,7 +41,73 @@ func (fr *failureReader) Read(p []byte) (int, error) {
 	return 0, fmt.Errorf("some error")
 }
 
-func TestReadLineBlockSuccessSingleByteReader(t *testing.T) {
+func TestReadLinesBlockMultiLinesSingleByteReader(t *testing.T) {
+	f := func(s string, linesExpected []string) {
+		t.Helper()
+
+		r := &singleByteReader{
+			b: []byte(s),
+		}
+		var err error
+		var dstBuf, tailBuf []byte
+		var lines []string
+		for {
+			dstBuf, tailBuf, err = ReadLinesBlock(r, dstBuf, tailBuf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Fatalf("unexpected error in ReadLinesBlock(%q): %s", s, err)
+			}
+			lines = append(lines, string(dstBuf))
+		}
+		if !reflect.DeepEqual(lines, linesExpected) {
+			t.Fatalf("unexpected lines after reading %q: got %q; want %q", s, lines, linesExpected)
+		}
+	}
+
+	f("", nil)
+	f("foo", []string{"foo"})
+	f("foo\n", []string{"foo"})
+	f("foo\nbar", []string{"foo", "bar"})
+	f("\nfoo\nbar", []string{"", "foo", "bar"})
+	f("\nfoo\nbar\n", []string{"", "foo", "bar"})
+	f("\nfoo\nbar\n\n", []string{"", "foo", "bar", ""})
+}
+
+func TestReadLinesBlockMultiLinesBytesBuffer(t *testing.T) {
+	f := func(s string, linesExpected []string) {
+		t.Helper()
+
+		r := bytes.NewBufferString(s)
+		var err error
+		var dstBuf, tailBuf []byte
+		var lines []string
+		for {
+			dstBuf, tailBuf, err = ReadLinesBlock(r, dstBuf, tailBuf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				t.Fatalf("unexpected error in ReadLinesBlock(%q): %s", s, err)
+			}
+			lines = append(lines, string(dstBuf))
+		}
+		if !reflect.DeepEqual(lines, linesExpected) {
+			t.Fatalf("unexpected lines after reading %q: got %q; want %q", s, lines, linesExpected)
+		}
+	}
+
+	f("", nil)
+	f("foo", []string{"foo"})
+	f("foo\n", []string{"foo"})
+	f("foo\nbar", []string{"foo", "bar"})
+	f("\nfoo\nbar", []string{"\nfoo", "bar"})
+	f("\nfoo\nbar\n", []string{"\nfoo\nbar"})
+	f("\nfoo\nbar\n\n", []string{"\nfoo\nbar\n"})
+}
+
+func TestReadLinesBlockSuccessSingleByteReader(t *testing.T) {
 	f := func(s, dstBufExpected, tailBufExpected string) {
 		t.Helper()
 
@@ -87,7 +154,7 @@ func TestReadLineBlockSuccessSingleByteReader(t *testing.T) {
 	f(string(b), string(b[:maxLineSize]), "")
 }
 
-func TestReadLineBlockSuccessBytesBuffer(t *testing.T) {
+func TestReadLinesBlockSuccessBytesBuffer(t *testing.T) {
 	f := func(s, dstBufExpected, tailBufExpected string) {
 		t.Helper()
 

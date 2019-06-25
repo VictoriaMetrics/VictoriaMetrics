@@ -24,6 +24,7 @@ func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error)
 		dstBuf = bytesutil.Resize(dstBuf, defaultBlockSize)
 	}
 	dstBuf = append(dstBuf[:0], tailBuf...)
+	tailBuf = tailBuf[:0]
 again:
 	n, err := r.Read(dstBuf[len(dstBuf):cap(dstBuf)])
 	// Check for error only if zero bytes read from r, i.e. no forward progress made.
@@ -34,7 +35,7 @@ again:
 		}
 		if err == io.EOF && len(dstBuf) > 0 {
 			// Missing newline in the end of stream. This is OK,
-			/// so suppress io.EOF for now. It will be returned during the next
+			// so suppress io.EOF for now. It will be returned during the next
 			// call to ReadLinesBlock.
 			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/60 .
 			return dstBuf, tailBuf, nil
