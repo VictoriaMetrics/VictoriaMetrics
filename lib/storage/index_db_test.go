@@ -293,6 +293,16 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 }
 
 func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isConcurrent bool) error {
+	// fill Date -> MetricID cache
+	date := uint64(timestampFromTime(time.Now())) / msecPerDay
+	for i := range tsids {
+		tsid := &tsids[i]
+		if err := db.storeDateMetricID(date, tsid.MetricID); err != nil {
+			return fmt.Errorf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
+		}
+	}
+	db.tb.DebugFlush()
+
 	hasValue := func(tvs []string, v []byte) bool {
 		for _, tv := range tvs {
 			if string(v) == tv {

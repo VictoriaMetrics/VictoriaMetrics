@@ -1057,6 +1057,15 @@ func mergeTSIDs(a, b []TSID) []TSID {
 }
 
 func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+	// Verify whether `is` contains data for the given tr.
+	ok, err := is.containsTimeRange(tr)
+	if err != nil {
+		return nil, fmt.Errorf("error in containsTimeRange(%s): %s", &tr, err)
+	}
+	if !ok {
+		// Fast path: nothing to search.
+		return nil, nil
+	}
 	metricIDs, err := is.searchMetricIDs(tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
@@ -1617,15 +1626,15 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (m
 
 	// Slow path: collect the metric ids for all the days covering the given tr.
 	atomic.AddUint64(&is.db.dateMetricIDsSearchCalls, 1)
-	minDate := tr.MinTimestamp / msecPerDay
-	maxDate := tr.MaxTimestamp / msecPerDay
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
 	if maxDate-minDate > 40 {
 		// Too much dates must be covered. Give up.
 		return nil, errMissingMetricIDsForDate
 	}
 	metricIDs := make(map[uint64]struct{}, maxMetrics)
 	for minDate <= maxDate {
-		if err := is.getMetricIDsForDate(uint64(minDate), metricIDs, maxMetrics); err != nil {
+		if err := is.getMetricIDsForDate(minDate, metricIDs, maxMetrics); err != nil {
 			return nil, err
 		}
 		minDate++
@@ -1758,6 +1767,28 @@ func (is *indexSearch) getMetricIDsForDate(date uint64, metricIDs map[uint64]str
 		return errMissingMetricIDsForDate
 	}
 	return nil
+}
+
+func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
+	ts := &is.ts
+	kb := &is.kb
+
+	// Verify whether the maximum date in `ts` covers tr.MinTimestamp.
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	kb.B = encoding.MarshalUint64(kb.B, minDate)
+	ts.Seek(kb.B)
+	if !ts.NextItem() {
+		if err := ts.Error(); err != nil {
+			return false, fmt.Errorf("error when searching for minDate=%d, prefix %q: %s", minDate, kb.B, err)
+		}
+		return false, nil
+	}
+	if !bytes.HasPrefix(ts.Item, kb.B[:1]) {
+		// minDate exceeds max date from ts.
+		return false, nil
+	}
+	return true, nil
 }
 
 func (is *indexSearch) updateMetricIDsForCommonPrefix(metricIDs map[uint64]struct{}, commonPrefix []byte, maxMetrics int) error {
