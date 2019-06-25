@@ -1256,6 +1256,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 }
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+	maxMetrics = is.adjustMaxMetricsAdaptive(maxMetrics)
 	kb := &is.kb
 	kb.B = tfs.marshal(kb.B[:0])
 	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
@@ -1298,6 +1299,23 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 }
 
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
+
+func (is *indexSearch) adjustMaxMetricsAdaptive(maxMetrics int) int {
+	if is.db.prevHourMetricIDs == nil {
+		return maxMetrics
+	}
+	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
+	if hmPrev == nil || !hmPrev.isFull {
+		return maxMetrics
+	}
+	hourMetrics := len(hmPrev.m)
+	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
+		// It is cheaper to filter on the hour or day metrics if the minimum
+		// number of matching metrics across tfs exceeds hourMetrics / 4.
+		return hourMetrics / 4
+	}
+	return maxMetrics
+}
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	var minMetricIDs map[uint64]struct{}
@@ -1466,7 +1484,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 		maxTimeRangeMetrics := 20 * maxMetrics
 		metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1, tfs.accountID, tfs.projectID)
 		if err == errMissingMetricIDsForDate {
-			return fmt.Errorf("cannot find tag filter matching less up to %d time series; either increase -search.maxUniqueTimeseries or use more specific tag filters",
+			return fmt.Errorf("cannot find tag filter matching less than %d time series; either increase -search.maxUniqueTimeseries or use more specific tag filters",
 				maxMetrics)
 		}
 		if err != nil {
