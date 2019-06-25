@@ -811,7 +811,9 @@ func expandModifierArgs(was []*withArgExpr, args []string) ([]string, error) {
 			continue
 		}
 		if len(wa.Args) > 0 {
-			return nil, fmt.Errorf("cannot use func %q instead of %q in %s", wa.Name, arg, args)
+			// Template funcs cannot be used inside modifier list. Leave the arg as is.
+			dstArgs = append(dstArgs, arg)
+			continue
 		}
 		me, ok := wa.Expr.(*metricExpr)
 		if ok {
@@ -851,6 +853,10 @@ func expandModifierArgs(was []*withArgExpr, args []string) ([]string, error) {
 
 func expandWithExprExt(was []*withArgExpr, wa *withArgExpr, args []expr) (expr, error) {
 	if len(wa.Args) != len(args) {
+		if args == nil {
+			// Just return metricExpr with the wa.Name name.
+			return newMetricExpr(wa.Name), nil
+		}
 		return nil, fmt.Errorf("invalid number of args for %q; got %d; want %d", wa.Name, len(args), len(wa.Args))
 	}
 	wasNew := make([]*withArgExpr, 0, len(was)+len(args))
@@ -867,6 +873,14 @@ func expandWithExprExt(was []*withArgExpr, wa *withArgExpr, args []expr) (expr, 
 		})
 	}
 	return expandWithExpr(wasNew, wa.Expr)
+}
+
+func newMetricExpr(name string) *metricExpr {
+	return &metricExpr{
+		TagFilters: []storage.TagFilter{{
+			Value: []byte(name),
+		}},
+	}
 }
 
 func extractStringValue(token string) (string, error) {
