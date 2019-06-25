@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"net/http"
+	"os"
+	"regexp"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -18,6 +20,15 @@ var httpListenAddr = flag.String("httpListenAddr", ":8428", "TCP address to list
 
 func main() {
 	flag.Parse()
+	reSep := regexp.MustCompile(`[a-zA-Z0-9_:]*`)
+	flag.VisitAll(func(f *flag.Flag) {
+		// Validate influxMeasurementFieldSeparator flag
+		if f.Name == "influxMeasurementFieldSeparator" && !reSep.MatchString(f.Value.String()) {
+			logger.Errorf("The influxMeasurementFieldSeparator flag has invalid value of '%s'. It can only be ASCII letter, digit, underscore or colon.", f.Value.String())
+			flag.PrintDefaults()
+			os.Exit(1)
+		}
+	})
 	buildinfo.Init()
 	logger.Init()
 	logger.Infof("starting VictoraMetrics at %q...", *httpListenAddr)

@@ -204,7 +204,7 @@ Do not forget substituting `<victoriametrics-addr>` with the real address where 
 
 VictoriaMetrics maps Influx data using the following rules:
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value.
-* Field names are mapped to time series names prefixed with `{measurement}{separator}` value. `{separator}` equals to `.` by default, but can be changed with `-influxMeasurementFieldSeparator` command-line flag.
+* Field names are mapped to time series names prefixed with `{measurement}{separator}` value. `{separator}` equals to `_` by default, but can be changed with `-influxMeasurementFieldSeparator` command-line flag.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
 
