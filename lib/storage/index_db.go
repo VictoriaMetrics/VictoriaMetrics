@@ -340,22 +340,25 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	db.metricNameCache.Set(key[:], metricName)
 }
 
-func (db *indexDB) marshalTagFiltersKeyVersioned(dst []byte, tfss []*TagFilters) []byte {
+func (db *indexDB) marshalTagFiltersKey(dst []byte, tfss []*TagFilters, versioned bool) []byte {
 	if len(tfss) == 0 {
 		return nil
 	}
-	k := accountProjectKey{
-		AccountID: tfss[0].accountID,
-		ProjectID: tfss[0].projectID,
-	}
-	db.tagCachePrefixesLock.RLock()
-	prefix := db.tagCachePrefixes[k]
-	db.tagCachePrefixesLock.RUnlock()
-	if prefix == 0 {
-		// Create missing prefix.
-		// It is OK if multiple concurrent goroutines call invalidateTagCache
-		// for the same (accountID, projectID).
-		prefix = db.invalidateTagCache(k.AccountID, k.ProjectID)
+	prefix := ^uint64(0)
+	if versioned {
+		k := accountProjectKey{
+			AccountID: tfss[0].accountID,
+			ProjectID: tfss[0].projectID,
+		}
+		db.tagCachePrefixesLock.RLock()
+		prefix = db.tagCachePrefixes[k]
+		db.tagCachePrefixesLock.RUnlock()
+		if prefix == 0 {
+			// Create missing prefix.
+			// It is OK if multiple concurrent goroutines call invalidateTagCache
+			// for the same (accountID, projectID).
+			prefix = db.invalidateTagCache(k.AccountID, k.ProjectID)
+		}
 	}
 	dst = encoding.MarshalUint64(dst, prefix)
 	for _, tfs := range tfss {
@@ -967,7 +970,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 
-	tfKeyBuf.B = db.marshalTagFiltersKeyVersioned(tfKeyBuf.B[:0], tfss)
+	tfKeyBuf.B = db.marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, true)
 	tsids, ok := db.getFromTagCache(tfKeyBuf.B)
 	if ok {
 		// Fast path - tsids found in the cache.
@@ -984,7 +987,12 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 
 	var extTSIDs []TSID
 	if db.doExtDB(func(extDB *indexDB) {
-		tsids, ok := extDB.getFromTagCache(tfKeyBuf.B)
+		tfKeyExtBuf := tagFiltersKeyBufPool.Get()
+		defer tagFiltersKeyBufPool.Put(tfKeyExtBuf)
+
+		// Data in extDB cannot be changed, so use unversioned keys for tag cache.
+		tfKeyExtBuf.B = extDB.marshalTagFiltersKey(tfKeyExtBuf.B[:0], tfss, false)
+		tsids, ok := extDB.getFromTagCache(tfKeyExtBuf.B)
 		if ok {
 			extTSIDs = tsids
 			return
@@ -993,8 +1001,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 		extTSIDs, err = is.searchTSIDs(tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 
-		// Do not store found tsids into extDB.tagCache,
-		// since they will be stored into outer cache instead.
+		db.putToTagCache(tsids, tfKeyExtBuf.B)
 	}) {
 		if err != nil {
 			return nil, err
