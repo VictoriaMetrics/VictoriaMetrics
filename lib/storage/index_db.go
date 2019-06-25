@@ -111,17 +111,15 @@ func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, c
 
 	// Do not persist tagCache in files, since it is very volatile.
 	mem := memory.Allowed()
-	tagCache := fastcache.New(mem / 32)
 
 	db := &indexDB{
 		refCount: 1,
 		tb:       tb,
 		name:     name,
 
-		tagCache:        tagCache,
-		metricIDCache:   metricIDCache,
-		metricNameCache: metricNameCache,
-
+		tagCache:               fastcache.New(mem / 32),
+		metricIDCache:          metricIDCache,
+		metricNameCache:        metricNameCache,
 		uselessTagFiltersCache: fastcache.New(mem / 128),
 
 		currHourMetricIDs: currHourMetricIDs,
@@ -260,6 +258,15 @@ func (db *indexDB) decRef() {
 	tbPath := db.tb.Path()
 	db.tb.MustClose()
 	db.SetExtDB(nil)
+
+	// Free space occupied by caches owned by db.
+	db.tagCache.Reset()
+	db.uselessTagFiltersCache.Reset()
+
+	db.tagCache = nil
+	db.metricIDCache = nil
+	db.metricNameCache = nil
+	db.uselessTagFiltersCache = nil
 
 	if atomic.LoadUint64(&db.mustDrop) == 0 {
 		return
