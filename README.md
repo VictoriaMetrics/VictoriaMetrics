@@ -204,7 +204,11 @@ Do not forget substituting `<victoriametrics-addr>` with the real address where 
 
 VictoriaMetrics maps Influx data using the following rules:
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value.
-* Field names are mapped to time series names prefixed with `{measurement}{separator}` value. `{separator}` equals to `.` by default, but can be changed with `-influxMeasurementFieldSeparator` command-line flag.
+* Field names are mapped to time series names prefixed with `{measurement}{separator}` value.
+  `{separator}` equals to `.` by default, but can be changed with `-influxMeasurementFieldSeparator` command-line flag.
+  It is recommended setting it to `_` in order to be compatible with Prometheus, Promxy and `prometheus_client` plugin for Telegraf.
+  See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/79) for details.
+  See also `-influxSkipSingleField` command-line flag.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
 
@@ -221,7 +225,8 @@ foo.field1{tag1="value1", tag2="value2"} 12
 foo.field2{tag1="value1", tag2="value2"} 40
 ```
 
-Example for writing data with Influx line protocol to local VictoriaMetrics using `curl`:
+Example for writing data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
+to local VictoriaMetrics using `curl`:
 
 ```
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
