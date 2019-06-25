@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/VictoriaMetrics/fastcache"
@@ -16,8 +17,14 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	metricNameCache := fastcache.New(1234)
 	defer metricIDCache.Reset()
 	defer metricNameCache.Reset()
+
+	var hmCurr atomic.Value
+	hmCurr.Store(&hourMetricIDs{})
+	var hmPrev atomic.Value
+	hmPrev.Store(&hourMetricIDs{})
+
 	const dbName = "bench-index-db-add-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, nil, nil)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -76,8 +83,14 @@ func BenchmarkIndexDBSearchTSIDs(b *testing.B) {
 	metricNameCache := fastcache.New(1234)
 	defer metricIDCache.Reset()
 	defer metricNameCache.Reset()
+
+	var hmCurr atomic.Value
+	hmCurr.Store(&hourMetricIDs{})
+	var hmPrev atomic.Value
+	hmPrev.Store(&hourMetricIDs{})
+
 	const dbName = "bench-index-db-search-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, nil, nil)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -145,8 +158,14 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	metricNameCache := fastcache.New(1234)
 	defer metricIDCache.Reset()
 	defer metricNameCache.Reset()
+
+	var hmCurr atomic.Value
+	hmCurr.Store(&hourMetricIDs{})
+	var hmPrev atomic.Value
+	hmPrev.Store(&hourMetricIDs{})
+
 	const dbName = "bench-index-db-get-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, nil, nil)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
