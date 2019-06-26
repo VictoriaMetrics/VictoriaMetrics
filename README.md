@@ -176,6 +176,10 @@ The label name may be arbitrary - `datacenter` is just an example. The label val
 across Prometheus instances, so time series may be filtered and grouped by this label.
 
 
+It is recommended upgrading Prometheus to [v2.10.0](https://github.com/prometheus/prometheus/releases) or newer,
+since the previous versions may have issues with `remote_write`.
+
+
 ### Grafana setup
 
 Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following Url:
