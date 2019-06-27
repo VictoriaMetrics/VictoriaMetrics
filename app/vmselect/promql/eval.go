@@ -409,6 +409,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 			ts.Values = rc.Do(ts.Values[:0], values, timestamps)
 			ts.Timestamps = sharedTimestamps
 			ts.denyReuse = true
+
 			tssLock.Lock()
 			tss = append(tss, &ts)
 			tssLock.Unlock()
@@ -625,6 +626,11 @@ func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64
 			deltaValues(values)
 		}
 		rcs = appendRollupConfigs(rcs)
+	case "candlestick":
+		rcs = append(rcs, newRollupConfig(rollupFirst, "open"))
+		rcs = append(rcs, newRollupConfig(rollupLast, "close"))
+		rcs = append(rcs, newRollupConfig(rollupMin, "low"))
+		rcs = append(rcs, newRollupConfig(rollupMax, "high"))
 	default:
 		rcs = append(rcs, newRollupConfig(rf, ""))
 	}
