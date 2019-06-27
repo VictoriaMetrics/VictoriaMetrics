@@ -636,7 +636,7 @@ func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 	}
 	msecs := int64(secs * 1e3)
 	if msecs <= 0 || msecs > maxDurationMsecs {
-		return 0, fmt.Errorf("%q=%dms is out of allowed range [%d ... %d]", argKey, msecs, 0, maxDurationMsecs)
+		return 0, fmt.Errorf("%q=%dms is out of allowed range [%d ... %d]", argKey, msecs, 0, int64(maxDurationMsecs))
 	}
 	return msecs, nil
 }
