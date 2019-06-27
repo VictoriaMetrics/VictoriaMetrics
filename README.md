@@ -1,4 +1,4 @@
-<img  text-align="center" alt="Victoria Metrics" src="logo.png">
+<img alt="Victoria Metrics" src="logo.png">
 
 # Cluster version of VictoriaMetrics
 
@@ -27,6 +27,8 @@ VictoriaMetrics cluster consists of the following services:
 - `vmselect` - performs incoming queries using the data from `vmstorage`
 
 Each service may scale independently and may run on the most suitable hardware.
+
+<img alt="VictoriaMetrics cluster scheme" src="cluster_scheme.png">
 
 
 ## Building from sources
