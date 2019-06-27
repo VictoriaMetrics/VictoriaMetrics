@@ -3203,6 +3203,48 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`candlestick()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(candlestick(round(rand(0),0.01)[:10s]))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.02, 0.02, 0.03, 0, 0.03, 0.02},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("low"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.32, 0.82, 0.13, 0.28, 0.86, 0.57},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("close"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.9, 0.32, 0.82, 0.13, 0.28, 0.86},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("open"),
+		}}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.85, 0.94, 0.97, 0.93, 0.98, 0.92},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("high"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
 	t.Run(`rollup_increase()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(rollup_increase(time()))`
