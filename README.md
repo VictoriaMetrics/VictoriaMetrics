@@ -28,7 +28,7 @@ VictoriaMetrics cluster consists of the following services:
 
 Each service may scale independently and may run on the most suitable hardware.
 
-<img alt="VictoriaMetrics cluster scheme" src="cluster_scheme.png">
+<img src="https://docs.google.com/drawings/d/e/2PACX-1vTvk2raU9kFgZ84oF-OKolrGwHaePhHRsZEcfQ1I_EC5AB_XPWwB392XshxPramLJ8E4bqptTnFn5LL/pub?w=1104&amp;h=746">
 
 
 ## Building from sources
