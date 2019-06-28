@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/VictoriaMetrics/VictoriaMetrics.svg?branch=master)](https://travis-ci.org/VictoriaMetrics/VictoriaMetrics)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<img text-align="center" alt="Victoria Metrics" src="logo.png">
+<img alt="Victoria Metrics" src="logo.png">
 
 ## Single-node VictoriaMetrics
 
