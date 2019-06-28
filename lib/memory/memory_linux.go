@@ -31,6 +31,15 @@ func sysTotalMemory() int {
 	if err != nil {
 		return totalMem
 	}
+	if mem != totalMem {
+		return mem
+	}
+
+	// Try reading LXC memory limit, since it looks like the cgroup limit doesn't work
+	mem, err = readLXCMemoryLimit(totalMem)
+	if err != nil {
+		return totalMem
+	}
 	return mem
 }
 
