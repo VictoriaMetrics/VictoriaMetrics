@@ -24,6 +24,9 @@ type Summary struct {
 	quantiles      []float64
 	quantileValues []float64
 
+	sum   float64
+	count uint64
+
 	window time.Duration
 }
 
@@ -83,6 +86,8 @@ func (sm *Summary) Update(v float64) {
 	sm.mu.Lock()
 	sm.curr.Update(v)
 	sm.next.Update(v)
+	sm.sum += v
+	sm.count++
 	sm.mu.Unlock()
 }
 
@@ -93,9 +98,18 @@ func (sm *Summary) UpdateDuration(startTime time.Time) {
 }
 
 func (sm *Summary) marshalTo(prefix string, w io.Writer) {
-	// Just update sm.quantileValues and don't write anything to w.
+	// Marshal only *_sum and *_count values.
+	// Quantile values should be already updated by the caller via sm.updateQuantiles() call.
 	// sm.quantileValues will be marshaled later via quantileValue.marshalTo.
-	sm.updateQuantiles()
+	sm.mu.Lock()
+	sum := sm.sum
+	count := sm.count
+	sm.mu.Unlock()
+
+	if count > 0 {
+		fmt.Fprintf(w, "%s_sum %g\n", prefix, sum)
+		fmt.Fprintf(w, "%s_count %d\n", prefix, count)
+	}
 }
 
 func (sm *Summary) updateQuantiles() {

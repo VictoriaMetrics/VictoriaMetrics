@@ -13,6 +13,7 @@
   See [this article](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d) for details.
 * Easy to use. See the [API docs](http://godoc.org/github.com/VictoriaMetrics/metrics).
 * Fast.
+* Allows exporting distinct metric sets via distinct endpoints. See [Set](http://godoc.org/github.com/VictoriaMetrics/metrics#Set).
 
 
 ### Limitations

@@ -14,9 +14,10 @@ import (
 //
 // Set.WritePrometheus must be called for exporting metrics from the set.
 type Set struct {
-	mu sync.Mutex
-	a  []*namedMetric
-	m  map[string]*namedMetric
+	mu        sync.Mutex
+	a         []*namedMetric
+	m         map[string]*namedMetric
+	summaries []*Summary
 }
 
 // NewSet creates new set of metrics.
@@ -32,6 +33,9 @@ func (s *Set) WritePrometheus(w io.Writer) {
 		return s.a[i].name < s.a[j].name
 	}
 	s.mu.Lock()
+	for _, sm := range s.summaries {
+		sm.updateQuantiles()
+	}
 	if !sort.SliceIsSorted(s.a, lessFunc) {
 		sort.Slice(s.a, lessFunc)
 	}
@@ -200,6 +204,9 @@ func (s *Set) NewSummaryExt(name string, window time.Duration, quantiles []float
 	s.registerMetric(name, sm)
 	registerSummary(sm)
 	s.registerSummaryQuantiles(name, sm)
+	s.mu.Lock()
+	s.summaries = append(s.summaries, sm)
+	s.mu.Unlock()
 	return sm
 }
 
@@ -258,6 +265,7 @@ func (s *Set) GetOrCreateSummaryExt(name string, window time.Duration, quantiles
 			registerSummary(sm)
 			mustRegisterQuantiles = true
 		}
+		s.summaries = append(s.summaries, sm)
 		s.mu.Unlock()
 		if mustRegisterQuantiles {
 			s.registerSummaryQuantiles(name, sm)
