@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,9 +108,18 @@ func (sm *Summary) marshalTo(prefix string, w io.Writer) {
 	sm.mu.Unlock()
 
 	if count > 0 {
-		fmt.Fprintf(w, "%s_sum %g\n", prefix, sum)
-		fmt.Fprintf(w, "%s_count %d\n", prefix, count)
+		name, filters := splitMetricName(prefix)
+		fmt.Fprintf(w, "%s_sum%s %g\n", name, filters, sum)
+		fmt.Fprintf(w, "%s_count%s %d\n", name, filters, count)
 	}
+}
+
+func splitMetricName(name string) (string, string) {
+	n := strings.IndexByte(name, '{')
+	if n < 0 {
+		return name, ""
+	}
+	return name[:n], name[n:]
 }
 
 func (sm *Summary) updateQuantiles() {
