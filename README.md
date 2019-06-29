@@ -413,7 +413,7 @@ Rough estimation of the required resources:
 
 ### High availability
 
-1) Install multiple VictoriaMetrics instances in distinct datacenters.
+1) Install multiple VictoriaMetrics instances in distinct datacenters (availability zones).
 2) Add addresses of these instances to `remote_write` section in Prometheus config:
 
 ```yml
@@ -436,6 +436,10 @@ kill -HUP `pidof prometheus`
 4) Now Prometheus should write data into all the configured `remote_write` urls in parallel.
 5) Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
 6) Set up Prometheus datasource in Grafana that points to Promxy.
+
+
+If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
+to write data to `<victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
 
 
 ### Multiple retentions
