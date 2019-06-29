@@ -50,7 +50,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"rollup_deriv":       newRollupFuncOneArg(rollupFake),
 	"rollup_delta":       newRollupFuncOneArg(rollupFake),
 	"rollup_increase":    newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"candlestick":        newRollupFuncOneArg(rollupFake),
+	"rollup_candlestick": newRollupFuncOneArg(rollupFake),
 }
 
 var rollupFuncsMayAdjustWindow = map[string]bool{

@@ -619,7 +619,7 @@ func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64
 			deltaValues(values)
 		}
 		rcs = appendRollupConfigs(rcs)
-	case "candlestick":
+	case "rollup_candlestick":
 		rcs = append(rcs, newRollupConfig(rollupFirst, "open"))
 		rcs = append(rcs, newRollupConfig(rollupLast, "close"))
 		rcs = append(rcs, newRollupConfig(rollupMin, "low"))
