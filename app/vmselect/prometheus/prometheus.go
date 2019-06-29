@@ -21,9 +21,10 @@ import (
 )
 
 var (
-	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
-	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
-	selectNodes      = flagutil.NewArray("selectNode", "Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
+	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
+	maxQueryLen         = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses when some of vmstorage nodes are unavailable. This trades consistency over availability")
+	selectNodes         = flagutil.NewArray("selectNode", "Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
 )
 
 // Default step used if not set.
@@ -71,9 +72,12 @@ func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) err
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, _, err := netstorage.ProcessSearchQuery(at, sq, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+	}
+	if isPartial && getDenyPartialResponse(r) {
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -171,7 +175,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, star
 	}
 	if isPartial {
 		rss.Cancel()
-		return fmt.Errorf("some of the storage nodes are unavailable at the moment")
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
@@ -280,9 +284,12 @@ var httpClient = &http.Client{
 func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	labelValues, _, err := netstorage.GetLabelValues(at, labelName, deadline)
+	labelValues, isPartial, err := netstorage.GetLabelValues(at, labelName, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label values for %q: %s`, labelName, err)
+	}
+	if isPartial && getDenyPartialResponse(r) {
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -297,9 +304,12 @@ var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func LabelsCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	labelEntries, _, err := netstorage.GetLabelEntries(at, deadline)
+	labelEntries, isPartial, err := netstorage.GetLabelEntries(at, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %s`, err)
+	}
+	if isPartial && getDenyPartialResponse(r) {
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -316,9 +326,12 @@ var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func LabelsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	labels, _, err := netstorage.GetLabels(at, deadline)
+	labels, isPartial, err := netstorage.GetLabels(at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %s", err)
+	}
+	if isPartial && getDenyPartialResponse(r) {
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -333,9 +346,12 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func SeriesCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	n, _, err := netstorage.GetSeriesCount(at, deadline)
+	n, isPartial, err := netstorage.GetSeriesCount(at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %s", err)
+	}
+	if isPartial && getDenyPartialResponse(r) {
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -384,9 +400,12 @@ func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, _, err := netstorage.ProcessSearchQuery(at, sq, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+	}
+	if isPartial && getDenyPartialResponse(r) {
+		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -479,6 +498,8 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		End:       start,
 		Step:      step,
 		Deadline:  deadline,
+
+		DenyPartialResponse: getDenyPartialResponse(r),
 	}
 	result, err := promql.Exec(&ec, query)
 	if err != nil {
@@ -538,6 +559,8 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 		Step:      step,
 		Deadline:  deadline,
 		MayCache:  mayCache,
+
+		DenyPartialResponse: getDenyPartialResponse(r),
 	}
 	result, err := promql.Exec(&ec, query)
 	if err != nil {
@@ -680,4 +703,11 @@ func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) 
 		tagFilterss = append(tagFilterss, tagFilters)
 	}
 	return tagFilterss, nil
+}
+
+func getDenyPartialResponse(r *http.Request) bool {
+	if *denyPartialResponse {
+		return true
+	}
+	return getBool(r, "deny_partial_response")
 }
