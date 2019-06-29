@@ -377,5 +377,5 @@ func binarySearchKey(items [][]byte, key []byte) int {
 			j = h
 		}
 	}
-	return int(i+offset)
+	return int(i + offset)
 }
