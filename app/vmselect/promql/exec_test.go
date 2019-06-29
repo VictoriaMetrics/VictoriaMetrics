@@ -3213,9 +3213,9 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`candlestick()`, func(t *testing.T) {
+	t.Run(`rollup_candlestick()`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(candlestick(round(rand(0),0.01)[:10s]))`
+		q := `sort(rollup_candlestick(round(rand(0),0.01)[:10s]))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0.02, 0.02, 0.03, 0, 0.03, 0.02},
