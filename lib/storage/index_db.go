@@ -1678,6 +1678,15 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 		}
 		metricID := encoding.UnmarshalUint64(v)
 		if metricID != nextMetricID {
+			// Skip metricIDs smaller than the found metricID, since they don't
+			// match anything.
+			if len(sortedFilter) > 0 && metricID > sortedFilter[0] {
+				sortedFilter = sortedFilter[1:]
+				n := sort.Search(len(sortedFilter), func(i int) bool {
+					return metricID <= sortedFilter[i]
+				})
+				sortedFilter = sortedFilter[n:]
+			}
 			continue
 		}
 		if isNegative {
