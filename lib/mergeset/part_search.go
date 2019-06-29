@@ -356,16 +356,15 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 }
 
 func binarySearchKey(items [][]byte, key []byte) int {
-	if len(items) > 0 {
-		if string(key) <= string(items[0]) {
-			// Fast path - the item is the first.
-			return 0
-		}
-		if len(items) > 1 && string(key) <= string(items[1]) {
-			// Fast path - the item is the second.
-			return 1
-		}
+	if len(items) == 0 {
+		return 0
 	}
+	if string(key) <= string(items[0]) {
+		// Fast path - the item is the first.
+		return 0
+	}
+	items = items[1:]
+	offset := uint(1)
 
 	// This has been copy-pasted from https://golang.org/src/sort/search.go
 	n := uint(len(items))
@@ -378,5 +377,5 @@ func binarySearchKey(items [][]byte, key []byte) int {
 			j = h
 		}
 	}
-	return int(i)
+	return int(i+offset)
 }
