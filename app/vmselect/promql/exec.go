@@ -27,8 +27,8 @@ func ExpandWithExprs(q string) (string, error) {
 	return string(buf), nil
 }
 
-// Exec executes q for the given ec until the deadline.
-func Exec(ec *EvalConfig, q string) ([]netstorage.Result, error) {
+// Exec executes q for the given ec.
+func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if *logSlowQueryDuration > 0 {
 		startTime := time.Now()
 		defer func() {
@@ -64,6 +64,14 @@ func Exec(ec *EvalConfig, q string) ([]netstorage.Result, error) {
 		ts.Timestamps = ts.Timestamps[:len(ts.Values)]
 	}
 	ec.End -= ec.Step
+
+	if isFirstPointOnly {
+		// Remove all the points except the first one from every time series.
+		for _, ts := range rv {
+			ts.Values = ts.Values[:1]
+			ts.Timestamps = ts.Timestamps[:1]
+		}
+	}
 
 	maySort := maySortResults(e, rv)
 	result, err := timeseriesToResult(rv, maySort)

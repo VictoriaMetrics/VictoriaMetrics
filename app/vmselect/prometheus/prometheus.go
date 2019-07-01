@@ -426,7 +426,7 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 		Step:     step,
 		Deadline: deadline,
 	}
-	result, err := promql.Exec(&ec, query)
+	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
 		return fmt.Errorf("cannot execute %q: %s", query, err)
 	}
@@ -484,7 +484,7 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 		Deadline: deadline,
 		MayCache: mayCache,
 	}
-	result, err := promql.Exec(&ec, query)
+	result, err := promql.Exec(&ec, query, false)
 	if err != nil {
 		return fmt.Errorf("cannot execute %q: %s", query, err)
 	}
