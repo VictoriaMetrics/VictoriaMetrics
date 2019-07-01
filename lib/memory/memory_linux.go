@@ -48,7 +48,7 @@ func readLXCMemoryLimit(totalMem int) (int, error) {
 	// This should properly determine the limit inside lxc container.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/84
 	cmd := exec.Command("/bin/sh", "-c",
-		`cat $(mount | grep cgroup | grep memory | cut -d" " -f3)$(cat /proc/self/cgroup | grep memory | cut -d: -f3)/memory.limit_in_bytes`)
+		`cat /sys/fs/cgroup/memory$(cat /proc/self/cgroup | grep memory | cut -d: -f3)/memory.limit_in_bytes`)
 	data, err := cmd.Output()
 	if err != nil {
 		return 0, err
