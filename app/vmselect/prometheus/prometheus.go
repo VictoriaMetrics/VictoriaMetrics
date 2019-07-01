@@ -501,7 +501,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 
 		DenyPartialResponse: getDenyPartialResponse(r),
 	}
-	result, err := promql.Exec(&ec, query)
+	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
 		return fmt.Errorf("cannot execute %q: %s", query, err)
 	}
@@ -562,7 +562,7 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 
 		DenyPartialResponse: getDenyPartialResponse(r),
 	}
-	result, err := promql.Exec(&ec, query)
+	result, err := promql.Exec(&ec, query, false)
 	if err != nil {
 		return fmt.Errorf("cannot execute %q: %s", query, err)
 	}
