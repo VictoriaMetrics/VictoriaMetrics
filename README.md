@@ -29,7 +29,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   may be crammed into a limited storage comparing to TimescaleDB.
 * Optimized for storage with high-latency IO and low iops (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc). See [graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
 * A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, Uber M3, Cortex, InfluxDB or TimescaleDB.
-  See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+  See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
+  and [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
 * Easy operation:
   * VictoriaMetrics consists of a single executable without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
@@ -472,7 +473,7 @@ Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version]
 
 Though single-node VictoriaMetrics cannot scale to multiple nodes, it is optimized for resource usage - storage size / bandwidth / IOPS, RAM, CPU.
 This means that a single-node VictoriaMetrics may scale vertically and substitute moderately sized cluster built with competing solutions
-such as Thanos, Uber M3, InfluxDB or TimescaleDB.
+such as Thanos, Uber M3, InfluxDB or TimescaleDB. See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
 So try single-node VictoriaMetrics at first and then [switch to cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
 horizontally scalable long-term remote storage for really large Prometheus deployments.
