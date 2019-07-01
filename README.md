@@ -397,6 +397,8 @@ Rough estimation of the required resources:
 
 * RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
+  The number of active time series may be obtained from `vm_cache_entries{type="storage/hour_metric_ids"}` metric
+  exproted on the `/metrics` page.
   VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited by `-memory.allowedPercent` flag.
 
 * CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
@@ -509,6 +511,21 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
 VictoriaMetrics exports internal metrics in Prometheus format on the `/metrics` page.
 Add this page to Prometheus' scrape config in order to collect VictoriaMetrics metrics.
 There is [an official Grafana dashboard for single-node VictoriaMetrics](https://grafana.com/dashboards/10229).
+
+The most interesting metrics are:
+
+* `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
+  aka active time series.
+* `vm_rows{type="indexdb"}` - the number of rows in inverted index. Each label in each unique time series adds a single
+  row into the inverted index. An approximate number of time series in the database may be calculated as
+  `vm_rows{type="indexdb"} / (avg_labels_per_series + 1)`, where `avg_labels_per_series` is the average number of labels
+  per each time series.
+* Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
+  in the database.
+* Sum of all the `vm_cache_size_bytes` metrics - the total size of all the caches in the database.
+* `vm_allowed_memory_bytes` - the maximum allowed size for caches in the database. It is calculated as `system_memory * <-memory.allowedPercent> / 100`,
+  where `system_memory` is the amount of system memory and `-memory.allowedPercent` is the corresponding flag value.
+* `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
 
 
 ### Troubleshooting
