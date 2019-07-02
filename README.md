@@ -4,7 +4,7 @@
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
-We'd recommend using [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of cluster version
+It is recommended using [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of cluster version
 for ingestion rates lower than 10 million of data points per second.
 Single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
 with the number of CPU cores, RAM and available storage space.
@@ -175,15 +175,17 @@ Upgrade follows `Cluster resizing procedure` under the hood.
 ### Replication and data safety
 
 VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
-We recommend storing data on [Google Compute Engine persistent disks](https://cloud.google.com/compute/docs/disks/#pdspecs),
+It is recommended storing data on [Google Compute Engine persistent disks](https://cloud.google.com/compute/docs/disks/#pdspecs),
 since they are protected from data loss and data corruption. They also provide consistently high performance
 and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
 HDD-based persistent disks should be enough for the majority of use cases.
 
+It is recommended using durable replicated persistent volumes in Kubernetes.
+
 
 ### Backups
 
-We'd recommend performing periodical backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+It is recommended performing periodical backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 for protecting from user errors such as accidental data deletion.
 
 The following steps must be performed for each `vmstorage` node for creating a backup:
