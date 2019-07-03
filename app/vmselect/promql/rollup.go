@@ -264,12 +264,14 @@ func deltaValues(values []float64) {
 	if len(values) == 0 {
 		return
 	}
+	prevDelta := float64(0)
 	prevValue := values[0]
 	for i, v := range values[1:] {
-		values[i] = v - prevValue
+		prevDelta = v - prevValue
+		values[i] = prevDelta
 		prevValue = v
 	}
-	values[len(values)-1] = nan
+	values[len(values)-1] = prevDelta
 }
 
 func derivValues(values []float64, timestamps []int64) {
@@ -278,16 +280,23 @@ func derivValues(values []float64, timestamps []int64) {
 	if len(values) == 0 {
 		return
 	}
+	prevDeriv := float64(0)
 	prevValue := values[0]
 	prevTs := timestamps[0]
 	for i, v := range values[1:] {
 		ts := timestamps[i+1]
+		if ts == prevTs {
+			// Use the previous value for duplicate timestamps.
+			values[i] = prevDeriv
+			continue
+		}
 		dt := float64(ts-prevTs) * 1e-3
-		values[i] = (v - prevValue) / dt
+		prevDeriv = (v - prevValue) / dt
+		values[i] = prevDeriv
 		prevValue = v
 		prevTs = ts
 	}
-	values[len(values)-1] = nan
+	values[len(values)-1] = prevDeriv
 }
 
 type newRollupFunc func(args []interface{}) (rollupFunc, error)
@@ -665,18 +674,24 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	tEnd := timestamps[len(timestamps)-1]
 	values = values[:len(values)-1]
 	timestamps = timestamps[:len(timestamps)-1]
-	prevValue := rfa.prevValue
-	prevTimestamp := rfa.prevTimestamp
-	if len(values) == 0 {
-		if math.IsNaN(prevValue) {
+	// Skip data points with duplicate timestamps.
+	for len(timestamps) > 0 && timestamps[len(timestamps)-1] >= tEnd {
+		timestamps = timestamps[:len(timestamps)-1]
+	}
+	var tStart int64
+	var vStart float64
+	if len(timestamps) == 0 {
+		if math.IsNaN(rfa.prevValue) {
 			return 0
 		}
+		tStart = rfa.prevTimestamp
+		vStart = rfa.prevValue
 	} else {
-		prevValue = values[len(values)-1]
-		prevTimestamp = timestamps[len(timestamps)-1]
+		tStart = timestamps[len(timestamps)-1]
+		vStart = values[len(timestamps)-1]
 	}
-	dv := vEnd - prevValue
-	dt := tEnd - prevTimestamp
+	dv := vEnd - vStart
+	dt := tEnd - tStart
 	return dv / (float64(dt) / 1000)
 }
 
