@@ -10,6 +10,68 @@ var (
 	testTimestamps = []int64{5, 15, 24, 36, 49, 60, 78, 80, 97, 115, 120, 130}
 )
 
+func TestRollupIderivDuplicateTimestamps(t *testing.T) {
+	rfa := &rollupFuncArg{
+		values:     []float64{1, 2, 3, 4, 5},
+		timestamps: []int64{100, 100, 200, 300, 300},
+	}
+	n := rollupIderiv(rfa)
+	if n != 20 {
+		t.Fatalf("unexpected value; got %v; want %v", n, 20)
+	}
+
+	rfa = &rollupFuncArg{
+		values:     []float64{1, 2, 3, 4, 5},
+		timestamps: []int64{100, 100, 300, 300, 300},
+	}
+	n = rollupIderiv(rfa)
+	if n != 15 {
+		t.Fatalf("unexpected value; got %v; want %v", n, 15)
+	}
+
+	rfa = &rollupFuncArg{
+		prevValue:  nan,
+		values:     []float64{},
+		timestamps: []int64{},
+	}
+	n = rollupIderiv(rfa)
+	if !math.IsNaN(n) {
+		t.Fatalf("unexpected value; got %v; want %v", n, nan)
+	}
+
+	rfa = &rollupFuncArg{
+		prevValue:  nan,
+		values:     []float64{15},
+		timestamps: []int64{100},
+	}
+	n = rollupIderiv(rfa)
+	if n != 0 {
+		t.Fatalf("unexpected value; got %v; want %v", n, 0)
+	}
+
+	rfa = &rollupFuncArg{
+		prevTimestamp: 100,
+		prevValue:     10,
+		values:        []float64{15},
+		timestamps:    []int64{100},
+	}
+	n = rollupIderiv(rfa)
+	if n != inf {
+		t.Fatalf("unexpected value; got %v; want %v", n, inf)
+	}
+
+	rfa = &rollupFuncArg{
+		prevTimestamp: 100,
+		prevValue:     10,
+		values:        []float64{15, 20},
+		timestamps:    []int64{100, 100},
+	}
+	n = rollupIderiv(rfa)
+	if n != inf {
+		t.Fatalf("unexpected value; got %v; want %v", n, inf)
+	}
+}
+
 func TestRemoveCounterResets(t *testing.T) {
 	removeCounterResets(nil)
 
@@ -38,19 +100,19 @@ func TestDeltaValues(t *testing.T) {
 
 	values := []float64{123}
 	deltaValues(values)
-	valuesExpected := []float64{nan}
+	valuesExpected := []float64{0}
 	testRowsEqual(t, values, testTimestamps[:1], valuesExpected, testTimestamps[:1])
 
 	values = append([]float64{}, testValues...)
 	deltaValues(values)
-	valuesExpected = []float64{-89, 10, -23, 33, -20, 65, -87, 32, -12, 2, 0, nan}
+	valuesExpected = []float64{-89, 10, -23, 33, -20, 65, -87, 32, -12, 2, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 
 	// remove counter resets
 	values = append([]float64{}, testValues...)
 	removeCounterResets(values)
 	deltaValues(values)
-	valuesExpected = []float64{34, 10, 21, 33, 34, 65, 12, 32, 32, 2, 0, nan}
+	valuesExpected = []float64{34, 10, 21, 33, 34, 65, 12, 32, 32, 2, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 }
 
@@ -59,13 +121,13 @@ func TestDerivValues(t *testing.T) {
 
 	values := []float64{123}
 	derivValues(values, testTimestamps[:1])
-	valuesExpected := []float64{nan}
+	valuesExpected := []float64{0}
 	testRowsEqual(t, values, testTimestamps[:1], valuesExpected, testTimestamps[:1])
 
 	values = append([]float64{}, testValues...)
 	derivValues(values, testTimestamps)
 	valuesExpected = []float64{-8900, 1111.111111111111, -1916.6666666666665, 2538.461538461538, -1818.1818181818182, 3611.111111111111,
-		-43500, 1882.3529411764705, -666.6666666666666, 400, 0, nan}
+		-43500, 1882.3529411764705, -666.6666666666666, 400, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 
 	// remove counter resets
@@ -73,8 +135,15 @@ func TestDerivValues(t *testing.T) {
 	removeCounterResets(values)
 	derivValues(values, testTimestamps)
 	valuesExpected = []float64{3400, 1111.111111111111, 1750, 2538.461538461538, 3090.909090909091, 3611.111111111111,
-		6000, 1882.3529411764705, 1777.7777777777776, 400, 0, nan}
+		6000, 1882.3529411764705, 1777.7777777777776, 400, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
+
+	// duplicate timestamps
+	values = []float64{1, 2, 3, 4, 5, 6, 7}
+	timestamps := []int64{100, 100, 200, 200, 300, 400, 400}
+	derivValues(values, timestamps)
+	valuesExpected = []float64{0, 20, 20, 20, 10, 10, 10}
+	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 }
 
 func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpected *metricExpr, vExpected float64) {
