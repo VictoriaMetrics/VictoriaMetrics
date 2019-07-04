@@ -567,7 +567,7 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 		return fmt.Errorf("cannot execute %q: %s", query, err)
 	}
 	if ct-end < latencyOffset {
-		adjustLastPoints(result)
+		result = adjustLastPoints(result)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -580,17 +580,17 @@ var queryRangeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 
 // adjustLastPoints substitutes the last point values with the previous
 // point values, since the last points may contain garbage.
-func adjustLastPoints(tss []netstorage.Result) {
+func adjustLastPoints(tss []netstorage.Result) []netstorage.Result {
 	if len(tss) == 0 {
-		return
+		return nil
 	}
 
 	// Search for the last non-NaN value across all the timeseries.
 	lastNonNaNIdx := -1
 	for i := range tss {
-		r := &tss[i]
-		j := len(r.Values) - 1
-		for j >= 0 && math.IsNaN(r.Values[j]) {
+		values := tss[i].Values
+		j := len(values) - 1
+		for j >= 0 && math.IsNaN(values[j]) {
 			j--
 		}
 		if j > lastNonNaNIdx {
@@ -599,21 +599,22 @@ func adjustLastPoints(tss []netstorage.Result) {
 	}
 	if lastNonNaNIdx == -1 {
 		// All timeseries contain only NaNs.
-		return
+		return nil
 	}
 
-	// Substitute last three values starting from lastNonNaNIdx
+	// Substitute the last two values starting from lastNonNaNIdx
 	// with the previous values for each timeseries.
 	for i := range tss {
-		r := &tss[i]
-		for j := 0; j < 3; j++ {
+		values := tss[i].Values
+		for j := 0; j < 2; j++ {
 			idx := lastNonNaNIdx + j
-			if idx <= 0 || idx >= len(r.Values) {
+			if idx <= 0 || idx >= len(values) || math.IsNaN(values[idx-1]) {
 				continue
 			}
-			r.Values[idx] = r.Values[idx-1]
+			values[idx] = values[idx-1]
 		}
 	}
+	return tss
 }
 
 func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) {
