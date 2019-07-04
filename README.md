@@ -557,6 +557,13 @@ Feel free asking any questions regarding VictoriaMetrics:
 - [telergam-ru](https://t.me/VictoriaMetrics_ru1)
 - [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
+
+If you like VictoriaMetrics and want contributing, then we need the following:
+
+- Filing issues and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+- Spreading a word about VictoriaMetrics: conference talks, articles, comments, experience sharing with colleagues.
+- Updating documentation.
+
 We are open to third-party pull requests provided they follow [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
 
 - Prefer simple code and architecture.
