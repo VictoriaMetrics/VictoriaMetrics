@@ -61,10 +61,11 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Third-party contributions](#third-party-contributions)
   - [Prometheus setup](#prometheus-setup)
   - [Grafana setup](#grafana-setup)
+  - [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
+  - [How to apply new config to VictoriaMetrics?](#how-to-apply-new-config-to-victoriametrics)
   - [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
   - [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   - [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
-  - [How to apply new config / upgrade VictoriaMetrics?](#how-to-apply-new-config--upgrade-victoriametrics)
   - [How to work with snapshots?](#how-to-work-with-snapshots)
   - [How to delete time series?](#how-to-delete-time-series)
   - [How to export time series?](#how-to-export-time-series)
@@ -196,6 +197,28 @@ Then build graphs with the created datasource using [Prometheus query language](
 VictoriaMetrics supports native PromQL and [extends it with useful features](ExtendedPromQL).
 
 
+### How to upgrade VictoriaMetrics?
+
+It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+say otherwise. It is recommended performing regular upgrades to the latest version,
+since it may contain important bug fixes, performance optimizations or new features.
+
+Follow the following steps during the upgrade:
+
+1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
+2) Wait until the process stops. This can take a few seconds.
+3) Start the upgraded VictoriaMetrics.
+
+
+### How to apply new config to VictoriaMetrics?
+
+VictoriaMetrics must be restarted for applying new config:
+
+1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
+2) Wait until the process stops. This can take a few seconds.
+3) Start VictoriaMetrics with new config.
+
+
 ### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)?
 
 Just use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
@@ -315,15 +338,6 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
 ```
-
-
-### How to apply new config / upgrade VictoriaMetrics?
-
-VictoriaMetrics must be restarted in order to upgrade or apply new config:
-
-1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
-2) Wait until the process stops. This can take a few seconds.
-3) Start the upgraded VictoriaMetrics with new config.
 
 
 ### How to work with snapshots?
