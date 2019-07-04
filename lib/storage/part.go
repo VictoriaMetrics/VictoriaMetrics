@@ -36,6 +36,9 @@ type part struct {
 	// Empty for in-memory part.
 	path string
 
+	// Total size in bytes of part data.
+	size uint64
+
 	timestampsFile fs.ReadAtCloser
 	valuesFile     fs.ReadAtCloser
 	indexFile      fs.ReadAtCloser
@@ -59,6 +62,7 @@ func openFilePart(path string) (*part, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot open timestamps file: %s", err)
 	}
+	timestampsSize := fs.MustFileSize(timestampsPath)
 
 	valuesPath := path + "/values.bin"
 	valuesFile, err := fs.OpenReaderAt(valuesPath)
@@ -66,6 +70,7 @@ func openFilePart(path string) (*part, error) {
 		timestampsFile.MustClose()
 		return nil, fmt.Errorf("cannot open values file: %s", err)
 	}
+	valuesSize := fs.MustFileSize(valuesPath)
 
 	indexPath := path + "/index.bin"
 	indexFile, err := fs.OpenReaderAt(indexPath)
@@ -74,6 +79,7 @@ func openFilePart(path string) (*part, error) {
 		valuesFile.MustClose()
 		return nil, fmt.Errorf("cannot open index file: %s", err)
 	}
+	indexSize := fs.MustFileSize(indexPath)
 
 	metaindexPath := path + "/metaindex.bin"
 	metaindexFile, err := filestream.Open(metaindexPath, true)
@@ -83,15 +89,17 @@ func openFilePart(path string) (*part, error) {
 		indexFile.MustClose()
 		return nil, fmt.Errorf("cannot open metaindex file: %s", err)
 	}
+	metaindexSize := fs.MustFileSize(metaindexPath)
 
-	return newPart(&ph, path, metaindexFile, timestampsFile, valuesFile, indexFile)
+	size := timestampsSize + valuesSize + indexSize + metaindexSize
+	return newPart(&ph, path, size, metaindexFile, timestampsFile, valuesFile, indexFile)
 }
 
 // newPart returns new part initialized with the given arguments.
 //
 // The returned part calls MustClose on all the files passed to newPart
 // when calling part.MustClose.
-func newPart(ph *partHeader, path string, metaindexReader filestream.ReadCloser, timestampsFile, valuesFile, indexFile fs.ReadAtCloser) (*part, error) {
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, timestampsFile, valuesFile, indexFile fs.ReadAtCloser) (*part, error) {
 	var errors []error
 	metaindex, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
@@ -102,6 +110,7 @@ func newPart(ph *partHeader, path string, metaindexReader filestream.ReadCloser,
 	p := &part{
 		ph:             *ph,
 		path:           path,
+		size:           size,
 		timestampsFile: timestampsFile,
 		valuesFile:     valuesFile,
 		indexFile:      indexFile,

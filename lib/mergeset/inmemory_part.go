@@ -84,11 +84,16 @@ func (ip *inmemoryPart) Init(ib *inmemoryBlock) {
 // It is unsafe re-using ip while the returned part is in use.
 func (ip *inmemoryPart) NewPart() *part {
 	ph := ip.ph
-	p, err := newPart(&ph, "", ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
+	size := ip.size()
+	p, err := newPart(&ph, "", size, ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
 	if err != nil {
 		logger.Panicf("BUG: cannot create a part from inmemoryPart: %s", err)
 	}
 	return p
+}
+
+func (ip *inmemoryPart) size() uint64 {
+	return uint64(len(ip.metaindexData.B) + len(ip.indexData.B) + len(ip.itemsData.B) + len(ip.lensData.B))
 }
 
 func getInmemoryPart() *inmemoryPart {

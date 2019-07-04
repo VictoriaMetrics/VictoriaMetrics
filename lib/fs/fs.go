@@ -185,6 +185,18 @@ func MustClose(f *os.File) {
 	}
 }
 
+// MustFileSize returns file size for the given path.
+func MustFileSize(path string) uint64 {
+	fi, err := os.Stat(path)
+	if err != nil {
+		logger.Panicf("FATAL: cannot stat %q: %s", path, err)
+	}
+	if fi.IsDir() {
+		logger.Panicf("FATAL: %q must be a file, not a directory", path)
+	}
+	return uint64(fi.Size())
+}
+
 // IsPathExist returns whether the given path exists.
 func IsPathExist(path string) bool {
 	if _, err := os.Stat(path); err != nil {
