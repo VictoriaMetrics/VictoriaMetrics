@@ -431,7 +431,7 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 					ts.Values[n] = nan
 				}
 			}
-			return rvs
+			return removeNaNs(rvs)
 		}
 		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
 	}
