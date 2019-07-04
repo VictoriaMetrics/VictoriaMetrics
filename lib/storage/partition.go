@@ -282,6 +282,9 @@ type partitionMetrics struct {
 	SmallIndexBlocksCacheRequests uint64
 	SmallIndexBlocksCacheMisses   uint64
 
+	BigSizeBytes   uint64
+	SmallSizeBytes uint64
+
 	BigRowsCount   uint64
 	SmallRowsCount uint64
 
@@ -326,6 +329,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.BigIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.BigRowsCount += p.ph.RowsCount
 		m.BigBlocksCount += p.ph.BlocksCount
+		m.BigSizeBytes += p.size
 		m.BigPartsRefCount += atomic.LoadUint64(&pw.refCount)
 	}
 
@@ -337,6 +341,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		m.SmallIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.SmallRowsCount += p.ph.RowsCount
 		m.SmallBlocksCount += p.ph.BlocksCount
+		m.SmallSizeBytes += p.size
 		m.SmallPartsRefCount += atomic.LoadUint64(&pw.refCount)
 	}
 
@@ -1013,12 +1018,14 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	var newPW *partWrapper
+	var newPSize uint64
 	if len(dstPartPath) > 0 {
 		// Open the merged part if it is non-empty.
 		newP, err := openFilePart(dstPartPath)
 		if err != nil {
 			return fmt.Errorf("cannot open merged part %q: %s", dstPartPath, err)
 		}
+		newPSize = newP.size
 		newPW = &partWrapper{
 			p:        newP,
 			refCount: 1,
@@ -1057,7 +1064,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d rows in %s at %d rows/sec to %q", outRowsCount, d, int(float64(outRowsCount)/d.Seconds()), dstPartPath)
+		logger.Infof("merged %d rows in %s at %d rows/sec to %q; sizeBytes: %d", outRowsCount, d, int(float64(outRowsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil

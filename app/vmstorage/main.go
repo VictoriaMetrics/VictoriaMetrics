@@ -45,8 +45,9 @@ func Init() {
 	partsCount := tm.SmallPartsCount + tm.BigPartsCount
 	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
 	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
-	logger.Infof("successfully opened storage %q in %s; partsCount: %d; blocksCount: %d; rowsCount: %d",
-		*DataPath, time.Since(startTime), partsCount, blocksCount, rowsCount)
+	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
+	logger.Infof("successfully opened storage %q in %s; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
+		*DataPath, time.Since(startTime), partsCount, blocksCount, rowsCount, sizeBytes)
 
 	registerStorageMetrics(Storage)
 }
@@ -338,6 +339,16 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_blocks{type="indexdb"}`, func() float64 {
 		return float64(idbm().BlocksCount)
+	})
+
+	metrics.NewGauge(`vm_data_size_bytes{type="storage/big"}`, func() float64 {
+		return float64(tm().BigSizeBytes)
+	})
+	metrics.NewGauge(`vm_data_size_bytes{type="storage/small"}`, func() float64 {
+		return float64(tm().SmallSizeBytes)
+	})
+	metrics.NewGauge(`vm_data_size_bytes{type="indexdb"}`, func() float64 {
+		return float64(idbm().SizeBytes)
 	})
 
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {

@@ -156,7 +156,8 @@ func newTestPart(blocksCount, maxItemsPerBlock int) (*part, []string, error) {
 	if itemsMerged != uint64(len(items)) {
 		return nil, nil, fmt.Errorf("unexpected itemsMerged; got %d; want %d", itemsMerged, len(items))
 	}
-	p, err := newPart(&ip.ph, "partName", ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
+	size := ip.size()
+	p, err := newPart(&ip.ph, "partName", size, ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot create part: %s", err)
 	}

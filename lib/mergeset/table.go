@@ -161,8 +161,8 @@ func OpenTable(path string) (*Table, error) {
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
-	logger.Infof("table %q has been opened in %s; partsCount: %d; blocksCount: %d, itemsCount: %d",
-		path, time.Since(startTime), m.PartsCount, m.BlocksCount, m.ItemsCount)
+	logger.Infof("table %q has been opened in %s; partsCount: %d; blocksCount: %d, itemsCount: %d; sizeBytes: %d",
+		path, time.Since(startTime), m.PartsCount, m.BlocksCount, m.ItemsCount, m.SizeBytes)
 
 	return tb, nil
 }
@@ -242,6 +242,7 @@ type TableMetrics struct {
 
 	BlocksCount uint64
 	ItemsCount  uint64
+	SizeBytes   uint64
 
 	DataBlocksCacheSize     uint64
 	DataBlocksCacheRequests uint64
@@ -274,6 +275,7 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 
 		m.BlocksCount += p.ph.blocksCount
 		m.ItemsCount += p.ph.itemsCount
+		m.SizeBytes += p.size
 
 		m.DataBlocksCacheSize += p.ibCache.Len()
 		m.DataBlocksCacheRequests += p.ibCache.Requests()
@@ -727,6 +729,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	if err != nil {
 		return fmt.Errorf("cannot open merged part %q: %s", dstPartPath, err)
 	}
+	newPSize := newP.size
 	newPW := &partWrapper{
 		p:        newP,
 		refCount: 1,
@@ -761,7 +764,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d items in %s at %d items/sec to %q", outItemsCount, d, int(float64(outItemsCount)/d.Seconds()), dstPartPath)
+		logger.Infof("merged %d items in %s at %d items/sec to %q; bytesSize: %d", outItemsCount, d, int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil

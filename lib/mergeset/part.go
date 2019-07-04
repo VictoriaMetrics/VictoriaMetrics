@@ -48,6 +48,8 @@ type part struct {
 
 	path string
 
+	size uint64
+
 	mrs []metaindexRow
 
 	indexFile fs.ReadAtCloser
@@ -71,6 +73,7 @@ func openFilePart(path string) (*part, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot open %q: %s", metaindexPath, err)
 	}
+	metaindexSize := fs.MustFileSize(metaindexPath)
 
 	indexPath := path + "/index.bin"
 	indexFile, err := fs.OpenReaderAt(indexPath)
@@ -78,6 +81,7 @@ func openFilePart(path string) (*part, error) {
 		metaindexFile.MustClose()
 		return nil, fmt.Errorf("cannot open %q: %s", indexPath, err)
 	}
+	indexSize := fs.MustFileSize(indexPath)
 
 	itemsPath := path + "/items.bin"
 	itemsFile, err := fs.OpenReaderAt(itemsPath)
@@ -86,6 +90,7 @@ func openFilePart(path string) (*part, error) {
 		indexFile.MustClose()
 		return nil, fmt.Errorf("cannot open %q: %s", itemsPath, err)
 	}
+	itemsSize := fs.MustFileSize(itemsPath)
 
 	lensPath := path + "/lens.bin"
 	lensFile, err := fs.OpenReaderAt(lensPath)
@@ -95,11 +100,13 @@ func openFilePart(path string) (*part, error) {
 		itemsFile.MustClose()
 		return nil, fmt.Errorf("cannot open %q: %s", lensPath, err)
 	}
+	lensSize := fs.MustFileSize(lensPath)
 
-	return newPart(&ph, path, metaindexFile, indexFile, itemsFile, lensFile)
+	size := metaindexSize + indexSize + itemsSize + lensSize
+	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
 }
 
-func newPart(ph *partHeader, path string, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.ReadAtCloser) (*part, error) {
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.ReadAtCloser) (*part, error) {
 	var errors []error
 	mrs, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
@@ -109,6 +116,7 @@ func newPart(ph *partHeader, path string, metaindexReader filestream.ReadCloser,
 
 	p := &part{
 		path: path,
+		size: size,
 		mrs:  mrs,
 
 		indexFile: indexFile,
