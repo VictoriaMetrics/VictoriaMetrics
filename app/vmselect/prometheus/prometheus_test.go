@@ -2,9 +2,9 @@ package prometheus
 
 import (
 	"fmt"
-	"testing"
 	"net/http"
 	"net/url"
+	"testing"
 )
 
 func TestGetTimeSuccess(t *testing.T) {
@@ -62,7 +62,7 @@ func TestGetTimeError(t *testing.T) {
 		}
 
 		// Verify timestampExpected
-		ts, err = getTime(r, "s", 123)
+		_, err = getTime(r, "s", 123)
 		if err == nil {
 			t.Fatalf("expecting non-nil error in getTime(%q)", s)
 		}
