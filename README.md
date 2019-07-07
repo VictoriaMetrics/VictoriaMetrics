@@ -23,7 +23,7 @@ Single-node version is easier to configure and operate comparing to cluster vers
 VictoriaMetrics cluster consists of the following services:
 
 - `vmstorage` - stores the data
-- `vminsert` - proxies the ingested data to `vmstorage`
+- `vminsert` - proxies the ingested data to `vmstorage` shards using consistent hashing
 - `vmselect` - performs incoming queries using the data from `vmstorage`
 
 Each service may scale independently and may run on the most suitable hardware.
