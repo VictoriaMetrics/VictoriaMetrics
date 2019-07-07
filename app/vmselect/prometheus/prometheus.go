@@ -549,6 +549,14 @@ func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) 
 		// Try parsing string format
 		t, err := time.Parse(time.RFC3339, argValue)
 		if err != nil {
+			// Handle Prometheus'-provided minTime and maxTime.
+			// See https://github.com/prometheus/client_golang/issues/614
+			switch argValue {
+			case prometheusMinTimeFormatted:
+				return minTimeMsecs, nil
+			case prometheusMaxTimeFormatted:
+				return maxTimeMsecs, nil
+			}
 			return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
 		}
 		secs = float64(t.UnixNano()) / 1e9
@@ -559,6 +567,13 @@ func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) 
 	}
 	return msecs, nil
 }
+
+var (
+	// These constants were obtained from https://github.com/prometheus/prometheus/blob/91d7175eaac18b00e370965f3a8186cc40bf9f55/web/api/v1/api.go#L442
+	// See https://github.com/prometheus/client_golang/issues/614 for details.
+	prometheusMinTimeFormatted = time.Unix(math.MinInt64/1000+62135596801, 0).UTC().Format(time.RFC3339Nano)
+	prometheusMaxTimeFormatted = time.Unix(math.MaxInt64/1000-62135596801, 999999999).UTC().Format(time.RFC3339Nano)
+)
 
 const (
 	// These values prevent from overflow when storing msec-precision time in int64.
