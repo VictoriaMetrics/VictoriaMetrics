@@ -1,0 +1,8 @@
+{
+  "name": "basic_insertion",
+  "data": "graphite.foo.bar.baz;tag1=value1;tag2=value2 123 {TIME}",
+  "query": "/api/v1/export?match={__name__!=\"\"}",
+  "result": [
+    {"metric":{"__name__":"graphite.foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123]}
+  ]
+}

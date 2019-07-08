@@ -3,6 +3,7 @@ package vmselect
 import (
 	"flag"
 	"net/http"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -26,10 +27,10 @@ var (
 
 // Init initializes vmselect
 func Init() {
-	tmpDirPath := *vmstorage.DataPath + "/tmp"
+	tmpDirPath := filepath.Join(*vmstorage.DataPath, "/tmp")
 	fs.RemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
-	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+	promql.InitRollupResultCache(filepath.Join(*vmstorage.DataPath, "/cache/rollupResult"))
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
 }
 

@@ -24,6 +24,8 @@ var (
 
 	// DataPath is a path to storage data.
 	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
+
+	metricsRegistered = false
 )
 
 // Init initializes vmstorage.
@@ -33,6 +35,7 @@ func Init() {
 	}
 	logger.Infof("opening storage at %q with retention period %d months", *DataPath, *retentionPeriod)
 	startTime := time.Now()
+	WG = syncwg.WaitGroup{}
 	strg, err := storage.OpenStorage(*DataPath, *retentionPeriod)
 	if err != nil {
 		logger.Fatalf("cannot open a storage at %s with retention period %d months: %s", *DataPath, *retentionPeriod, err)
@@ -48,7 +51,7 @@ func Init() {
 	logger.Infof("successfully opened storage %q in %s; partsCount: %d; blocksCount: %d; rowsCount: %d",
 		*DataPath, time.Since(startTime), partsCount, blocksCount, rowsCount)
 
-	registerStorageMetrics(Storage)
+	registerStorageMetrics()
 }
 
 // Storage is a storage.
@@ -211,7 +214,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-func registerStorageMetrics(strg *storage.Storage) {
+func registerStorageMetrics() {
+	if metricsRegistered {
+		return
+	}
 	mCache := &storage.Metrics{}
 	var mCacheLock sync.Mutex
 	var lastUpdateTime time.Time
@@ -223,7 +229,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 			return mCache
 		}
 		var mc storage.Metrics
-		strg.UpdateMetrics(&mc)
+		Storage.UpdateMetrics(&mc)
 		mCache = &mc
 		lastUpdateTime = time.Now()
 		return mCache
@@ -487,4 +493,5 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_collisions_total{type="storage/date_metricID"}`, func() float64 {
 		return float64(m().DateMetricIDCacheCollisions)
 	})
+	metricsRegistered = true
 }

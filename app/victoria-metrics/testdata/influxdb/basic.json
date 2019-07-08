@@ -1,0 +1,9 @@
+{
+  "name": "basic_insertion",
+  "data": "measurement,tag1=value1,tag2=value2 field1=1.23,field2=123",
+  "query": "/api/v1/export?match={__name__!=\"\"}",
+  "result": [
+    {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[123]},
+    {"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[1.23]}
+  ]
+}
