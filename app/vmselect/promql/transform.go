@@ -125,7 +125,8 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 }
 
 func doTransformValues(arg []*timeseries, tf func(values []float64), fe *funcExpr) ([]*timeseries, error) {
-	keepMetricGroup := transformFuncsKeepMetricGroup[fe.Name]
+	name := strings.ToLower(fe.Name)
+	keepMetricGroup := transformFuncsKeepMetricGroup[name]
 	for _, ts := range arg {
 		if !keepMetricGroup {
 			ts.MetricName.ResetMetricGroup()

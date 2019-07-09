@@ -574,6 +574,30 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`clamp_max(alias(time(),"foobar"), 1400)`, func(t *testing.T) {
+		t.Parallel()
+		q := `clamp_max(alias(time(), "foobar"), 1400)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1400, 1400, 1400},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`CLAmp_MAx(alias(time(),"foobar"), 1400)`, func(t *testing.T) {
+		t.Parallel()
+		q := `CLAmp_MAx(alias(time(), "foobar"), 1400)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1400, 1400, 1400},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("clamp_min(time(), -time()+3000)", func(t *testing.T) {
 		t.Parallel()
 		q := `clamp_min(time(), -time()+2500)`
