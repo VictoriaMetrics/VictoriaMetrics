@@ -34,7 +34,8 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		defer func() {
 			d := time.Since(startTime)
 			if d >= *logSlowQueryDuration {
-				logger.Infof("slow query: duration=%s, start=%d, end=%d, step=%d, query=%q", d, ec.Start/1000, ec.End/1000, ec.Step/1000, q)
+				logger.Infof("slow query according to -search.logSlowQueryDuration=%s: duration=%s, start=%d, end=%d, step=%d, query=%q",
+					*logSlowQueryDuration, d, ec.Start/1000, ec.End/1000, ec.Step/1000, q)
 			}
 		}()
 	}
