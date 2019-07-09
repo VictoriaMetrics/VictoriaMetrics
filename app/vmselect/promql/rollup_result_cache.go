@@ -71,7 +71,7 @@ func InitRollupResultCache(cachePath string) {
 		return stats
 	}
 	if len(rollupResultCachePath) > 0 {
-		logger.Infof("loaded rollupResult cache from %q in %s; entriesCount: %d, bytesSize: %d",
+		logger.Infof("loaded rollupResult cache from %q in %s; entriesCount: %d, sizeBytes: %d",
 			rollupResultCachePath, time.Since(startTime), fcs().EntriesCount, fcs().BytesSize)
 	}
 
@@ -108,7 +108,7 @@ func StopRollupResultCache() {
 		var fcs fastcache.Stats
 		rollupResultCacheV.c.UpdateStats(&fcs)
 		rollupResultCacheV.c.Reset()
-		logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, bytesSize: %d",
+		logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, sizeBytes: %d",
 			rollupResultCachePath, time.Since(startTime), fcs.EntriesCount, fcs.BytesSize)
 	}
 }

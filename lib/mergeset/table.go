@@ -764,7 +764,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d items in %s at %d items/sec to %q; bytesSize: %d", outItemsCount, d, int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
+		logger.Infof("merged %d items in %s at %d items/sec to %q; sizeBytes: %d", outItemsCount, d, int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil
