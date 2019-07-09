@@ -2208,6 +2208,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`avg(scalar) wiTHout (xx, yy)`, func(t *testing.T) {
+		t.Parallel()
+		q := `avg wiTHout (xx, yy) (123)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123, 123, 123, 123, 123, 123},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(time)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum(time()/100)`
@@ -3853,6 +3864,13 @@ func TestExecError(t *testing.T) {
 		label_set(time(), "__name__", "foo", "a", "x"),
 		label_set(time()+200, "__name__", "bar", "a", "x"),
 	) + 10`)
+
+	// Invalid aggregates
+	f(`sum(1, 2)`)
+	f(`sum(1) foo (bar)`)
+	f(`sum foo () (bar)`)
+	f(`sum(foo) by (1)`)
+	f(`count(foo) without ("bar")`)
 
 	// With expressions
 	f(`ttf()`)

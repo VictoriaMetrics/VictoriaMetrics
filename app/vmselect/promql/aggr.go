@@ -6,6 +6,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -67,33 +70,26 @@ func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 	}
 }
 
+func removeGroupTags(metricName *storage.MetricName, modifier *modifierExpr) {
+	groupOp := strings.ToLower(modifier.Op)
+	switch groupOp {
+	case "", "by":
+		metricName.RemoveTagsOn(modifier.Args)
+	case "without":
+		metricName.RemoveTagsIgnoring(modifier.Args)
+	default:
+		logger.Panicf("BUG: unknown group modifier: %q", groupOp)
+	}
+}
+
 func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *modifierExpr, keepOriginal bool) ([]*timeseries, error) {
 	arg := copyTimeseriesMetricNames(argOrig)
-
-	// Filter out superflouos tags.
-	var groupTags []string
-	groupOp := "by"
-	if modifier.Op != "" {
-		groupTags = modifier.Args
-		groupOp = strings.ToLower(modifier.Op)
-	}
-	switch groupOp {
-	case "by":
-		for _, ts := range arg {
-			ts.MetricName.RemoveTagsOn(groupTags)
-		}
-	case "without":
-		for _, ts := range arg {
-			ts.MetricName.RemoveTagsIgnoring(groupTags)
-		}
-	default:
-		return nil, fmt.Errorf(`unknown modifier: %q`, groupOp)
-	}
 
 	// Perform grouping.
 	m := make(map[string][]*timeseries)
 	bb := bbPool.Get()
 	for i, ts := range arg {
+		removeGroupTags(&ts.MetricName, modifier)
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 		if keepOriginal {
 			ts = argOrig[i]
