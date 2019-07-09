@@ -272,25 +272,25 @@ func (s *Storage) idb() *indexDB {
 // Metrics contains essential metrics for the Storage.
 type Metrics struct {
 	TSIDCacheSize       uint64
-	TSIDCacheBytesSize  uint64
+	TSIDCacheSizeBytes  uint64
 	TSIDCacheRequests   uint64
 	TSIDCacheMisses     uint64
 	TSIDCacheCollisions uint64
 
 	MetricIDCacheSize       uint64
-	MetricIDCacheBytesSize  uint64
+	MetricIDCacheSizeBytes  uint64
 	MetricIDCacheRequests   uint64
 	MetricIDCacheMisses     uint64
 	MetricIDCacheCollisions uint64
 
 	MetricNameCacheSize       uint64
-	MetricNameCacheBytesSize  uint64
+	MetricNameCacheSizeBytes  uint64
 	MetricNameCacheRequests   uint64
 	MetricNameCacheMisses     uint64
 	MetricNameCacheCollisions uint64
 
 	DateMetricIDCacheSize       uint64
-	DateMetricIDCacheBytesSize  uint64
+	DateMetricIDCacheSizeBytes  uint64
 	DateMetricIDCacheRequests   uint64
 	DateMetricIDCacheMisses     uint64
 	DateMetricIDCacheCollisions uint64
@@ -311,7 +311,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
 	m.TSIDCacheSize += cs.EntriesCount
-	m.TSIDCacheBytesSize += cs.BytesSize
+	m.TSIDCacheSizeBytes += cs.BytesSize
 	m.TSIDCacheRequests += cs.GetCalls
 	m.TSIDCacheMisses += cs.Misses
 	m.TSIDCacheCollisions += cs.Collisions
@@ -319,7 +319,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
 	m.MetricIDCacheSize += cs.EntriesCount
-	m.MetricIDCacheBytesSize += cs.BytesSize
+	m.MetricIDCacheSizeBytes += cs.BytesSize
 	m.MetricIDCacheRequests += cs.GetCalls
 	m.MetricIDCacheMisses += cs.Misses
 	m.MetricIDCacheCollisions += cs.Collisions
@@ -327,7 +327,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	cs.Reset()
 	s.metricNameCache.UpdateStats(&cs)
 	m.MetricNameCacheSize += cs.EntriesCount
-	m.MetricNameCacheBytesSize += cs.BytesSize
+	m.MetricNameCacheSizeBytes += cs.BytesSize
 	m.MetricNameCacheRequests += cs.GetCalls
 	m.MetricNameCacheMisses += cs.Misses
 	m.MetricNameCacheCollisions += cs.Collisions
@@ -335,7 +335,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	cs.Reset()
 	s.dateMetricIDCache.UpdateStats(&cs)
 	m.DateMetricIDCacheSize += cs.EntriesCount
-	m.DateMetricIDCacheBytesSize += cs.BytesSize
+	m.DateMetricIDCacheSizeBytes += cs.BytesSize
 	m.DateMetricIDCacheRequests += cs.GetCalls
 	m.DateMetricIDCacheMisses += cs.Misses
 	m.DateMetricIDCacheCollisions += cs.Collisions
@@ -492,7 +492,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		src = src[8:]
 		m[metricID] = struct{}{}
 	}
-	logger.Infof("loaded %s from %q in %s; entriesCount: %d; bytesSize: %d", name, path, time.Since(startTime), hmLen, srcOrigLen)
+	logger.Infof("loaded %s from %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hmLen, srcOrigLen)
 	return &hourMetricIDs{
 		m:      m,
 		hour:   hourLoaded,
@@ -518,17 +518,17 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %s; entriesCount: %d; bytesSize: %d", name, path, time.Since(startTime), len(hm.m), len(dst))
+	logger.Infof("saved %s to %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), len(hm.m), len(dst))
 }
 
-func (s *Storage) mustLoadCache(info, name string, bytesSize int) *fastcache.Cache {
+func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *fastcache.Cache {
 	path := s.cachePath + "/" + name
 	logger.Infof("loading %s cache from %q...", info, path)
 	startTime := time.Now()
-	c := fastcache.LoadFromFileOrNew(path, bytesSize)
+	c := fastcache.LoadFromFileOrNew(path, sizeBytes)
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
-	logger.Infof("loaded %s cache from %q in %s; entriesCount: %d; bytesSize: %d",
+	logger.Infof("loaded %s cache from %q in %s; entriesCount: %d; sizeBytes: %d",
 		info, path, time.Since(startTime), cs.EntriesCount, cs.BytesSize)
 	return c
 }
@@ -544,7 +544,7 @@ func (s *Storage) mustSaveCache(c *fastcache.Cache, info, name string) {
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
 	c.Reset()
-	logger.Infof("saved %s cache to %q in %s; entriesCount: %d; bytesSize: %d",
+	logger.Infof("saved %s cache to %q in %s; entriesCount: %d; sizeBytes: %d",
 		info, path, time.Since(startTime), cs.EntriesCount, cs.BytesSize)
 }
 

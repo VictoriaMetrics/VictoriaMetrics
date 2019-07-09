@@ -164,12 +164,12 @@ func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, c
 // IndexDBMetrics contains essential metrics for indexDB.
 type IndexDBMetrics struct {
 	TagCacheSize      uint64
-	TagCacheBytesSize uint64
+	TagCacheSizeBytes uint64
 	TagCacheRequests  uint64
 	TagCacheMisses    uint64
 
 	UselessTagFiltersCacheSize      uint64
-	UselessTagFiltersCacheBytesSize uint64
+	UselessTagFiltersCacheSizeBytes uint64
 	UselessTagFiltersCacheRequests  uint64
 	UselessTagFiltersCacheMisses    uint64
 
@@ -198,14 +198,14 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	cs.Reset()
 	db.tagCache.UpdateStats(&cs)
 	m.TagCacheSize += cs.EntriesCount
-	m.TagCacheBytesSize += cs.BytesSize
+	m.TagCacheSizeBytes += cs.BytesSize
 	m.TagCacheRequests += cs.GetBigCalls
 	m.TagCacheMisses += cs.Misses
 
 	cs.Reset()
 	db.uselessTagFiltersCache.UpdateStats(&cs)
 	m.UselessTagFiltersCacheSize += cs.EntriesCount
-	m.UselessTagFiltersCacheBytesSize += cs.BytesSize
+	m.UselessTagFiltersCacheSizeBytes += cs.BytesSize
 	m.UselessTagFiltersCacheRequests += cs.GetBigCalls
 	m.UselessTagFiltersCacheMisses += cs.Misses
 
