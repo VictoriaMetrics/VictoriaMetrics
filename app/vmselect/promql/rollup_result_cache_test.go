@@ -29,10 +29,15 @@ func TestRollupResultCache(t *testing.T) {
 			Value: []byte("xxx"),
 		}},
 	}
+	iafc := &incrementalAggrFuncContext{
+		ae: &aggrFuncExpr{
+			Name: "foobar",
+		},
+	}
 
 	// Try obtaining an empty value.
 	t.Run("empty", func(t *testing.T) {
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != ec.Start {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, ec.Start)
 		}
@@ -42,7 +47,7 @@ func TestRollupResultCache(t *testing.T) {
 	})
 
 	// Store timeseries overlapping with start
-	t.Run("start-overlap", func(t *testing.T) {
+	t.Run("start-overlap-no-iafc", func(t *testing.T) {
 		ResetRollupResultCache()
 		tss := []*timeseries{
 			{
@@ -50,8 +55,29 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
+		if newStart != 1400 {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
+		}
+		tssExpected := []*timeseries{
+			{
+				Timestamps: []int64{1000, 1200},
+				Values:     []float64{1, 2},
+			},
+		}
+		testTimeseriesEqual(t, tss, tssExpected)
+	})
+	t.Run("start-overlap-with-iafc", func(t *testing.T) {
+		ResetRollupResultCache()
+		tss := []*timeseries{
+			{
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		rollupResultCacheV.Put(funcName, ec, me, iafc, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, iafc, window)
 		if newStart != 1400 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}
@@ -73,8 +99,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{333, 0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -92,8 +118,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -111,8 +137,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -130,8 +156,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 1000 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1000)
 		}
@@ -149,8 +175,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2, 3, 4, 5, 6, 7},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 2200 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
@@ -172,8 +198,8 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 2200 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
@@ -197,8 +223,8 @@ func TestRollupResultCache(t *testing.T) {
 			}
 			tss = append(tss, ts)
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss)
-		tssResult, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss)
+		tssResult, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 2200 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 2200)
 		}
@@ -226,10 +252,10 @@ func TestRollupResultCache(t *testing.T) {
 				Values:     []float64{0, 1, 2},
 			},
 		}
-		rollupResultCacheV.Put(funcName, ec, me, window, tss1)
-		rollupResultCacheV.Put(funcName, ec, me, window, tss2)
-		rollupResultCacheV.Put(funcName, ec, me, window, tss3)
-		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, window)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss1)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss2)
+		rollupResultCacheV.Put(funcName, ec, me, nil, window, tss3)
+		tss, newStart := rollupResultCacheV.Get(funcName, ec, me, nil, window)
 		if newStart != 1400 {
 			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
 		}

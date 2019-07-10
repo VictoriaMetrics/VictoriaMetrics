@@ -151,14 +151,14 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		re := &rollupExpr{
 			Expr: me,
 		}
-		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re)
+		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, me.AppendString(nil), err)
 		}
 		return rv, nil
 	}
 	if re, ok := e.(*rollupExpr); ok {
-		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re)
+		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, re.AppendString(nil), err)
 		}
@@ -194,13 +194,30 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		if err != nil {
 			return nil, err
 		}
-		rv, err := evalRollupFunc(ec, fe.Name, rf, re)
+		rv, err := evalRollupFunc(ec, fe.Name, rf, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, fe.AppendString(nil), err)
 		}
 		return rv, nil
 	}
 	if ae, ok := e.(*aggrFuncExpr); ok {
+		if callbacks := getIncrementalAggrFuncCallbacks(ae.Name); callbacks != nil {
+			fe, nrf := tryGetArgRollupFuncWithMetricExpr(ae)
+			if fe != nil {
+				// There is an optimized path for calculating aggrFuncExpr over rollupFunc over metricExpr.
+				// The optimized path saves RAM for aggregates over big number of time series.
+				args, re, err := evalRollupFuncArgs(ec, fe)
+				if err != nil {
+					return nil, err
+				}
+				rf, err := nrf(args)
+				if err != nil {
+					return nil, err
+				}
+				iafc := newIncrementalAggrFuncContext(ae, callbacks)
+				return evalRollupFunc(ec, fe.Name, rf, re, iafc)
+			}
+		}
 		args, err := evalExprs(ec, ae.Args)
 		if err != nil {
 			return nil, err
@@ -253,6 +270,69 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		return rv, nil
 	}
 	return nil, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
+}
+
+func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFunc) {
+	if len(ae.Args) != 1 {
+		return nil, nil
+	}
+	e := ae.Args[0]
+	// Make sure e contains one of the following:
+	// - metricExpr
+	// - metricExpr[d]
+	// - rollupFunc(metricExpr)
+	// - rollupFunc(metricExpr[d])
+
+	if me, ok := e.(*metricExpr); ok {
+		// e = metricExpr
+		if me.IsEmpty() {
+			return nil, nil
+		}
+		fe := &funcExpr{
+			Name: "default_rollup",
+			Args: []expr{me},
+		}
+		nrf := getRollupFunc(fe.Name)
+		return fe, nrf
+	}
+	if re, ok := e.(*rollupExpr); ok {
+		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() {
+			return nil, nil
+		}
+		// e = rollupExpr(metricExpr)
+		fe := &funcExpr{
+			Name: "default_rollup",
+			Args: []expr{re},
+		}
+		nrf := getRollupFunc(fe.Name)
+		return fe, nrf
+	}
+	fe, ok := e.(*funcExpr)
+	if !ok {
+		return nil, nil
+	}
+	nrf := getRollupFunc(fe.Name)
+	if nrf == nil {
+		return nil, nil
+	}
+	rollupArgIdx := getRollupArgIdx(fe.Name)
+	arg := fe.Args[rollupArgIdx]
+	if me, ok := arg.(*metricExpr); ok {
+		if me.IsEmpty() {
+			return nil, nil
+		}
+		return &funcExpr{
+			Name: fe.Name,
+			Args: []expr{me},
+		}, nrf
+	}
+	if re, ok := arg.(*rollupExpr); ok {
+		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() {
+			return nil, nil
+		}
+		return fe, nrf
+	}
+	return nil, nil
 }
 
 func evalExprs(ec *EvalConfig, es []expr) ([][]*timeseries, error) {
@@ -314,7 +394,7 @@ func getRollupExprArg(arg expr) *rollupExpr {
 	return &reNew
 }
 
-func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr) ([]*timeseries, error) {
+func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	ecNew := ec
 	var offset int64
 	if len(re.Offset) > 0 {
@@ -331,19 +411,11 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr) 
 	var rvs []*timeseries
 	var err error
 	if me, ok := re.Expr.(*metricExpr); ok {
-		if me.IsEmpty() {
-			rvs = evalNumber(ecNew, nan)
-		} else {
-			var window int64
-			if len(re.Window) > 0 {
-				window, err = DurationValue(re.Window, ec.Step)
-				if err != nil {
-					return nil, err
-				}
-			}
-			rvs, err = evalRollupFuncWithMetricExpr(ecNew, name, rf, me, window)
-		}
+		rvs, err = evalRollupFuncWithMetricExpr(ecNew, name, rf, me, iafc, re.Window)
 	} else {
+		if iafc != nil {
+			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", name, re.AppendString(nil))
+		}
 		rvs, err = evalRollupFuncWithSubquery(ecNew, name, rf, re)
 	}
 	if err != nil {
@@ -484,9 +556,21 @@ var (
 	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
 )
 
-func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me *metricExpr, window int64) ([]*timeseries, error) {
+func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me *metricExpr, iafc *incrementalAggrFuncContext, windowStr string) ([]*timeseries, error) {
+	if me.IsEmpty() {
+		return evalNumber(ec, nan), nil
+	}
+	var window int64
+	if len(windowStr) > 0 {
+		var err error
+		window, err = DurationValue(windowStr, ec.Step)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Search for partial results in cache.
-	tssCached, start := rollupResultCacheV.Get(name, ec, me, window)
+	tssCached, start := rollupResultCacheV.Get(name, ec, me, iafc, window)
 	if start > ec.End {
 		// The result is fully cached.
 		rollupResultCacheFullHits.Inc()
@@ -542,9 +626,71 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	defer rml.Put(uint64(rollupMemorySize))
 
 	// Evaluate rollup
-	tss := make([]*timeseries, 0, rssLen*len(rcs))
+	var tss []*timeseries
+	if iafc != nil {
+		tss, err = evalRollupWithIncrementalAggregate(iafc, rss, rcs, preFunc, sharedTimestamps)
+	} else {
+		tss, err = evalRollupNoIncrementalAggregate(rss, rcs, preFunc, sharedTimestamps)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if !rollupFuncsKeepMetricGroup[name] {
+		tss = copyTimeseriesMetricNames(tss)
+		for _, ts := range tss {
+			ts.MetricName.ResetMetricGroup()
+		}
+	}
+	tss = mergeTimeseries(tssCached, tss, start, ec)
+	if !isPartial {
+		rollupResultCacheV.Put(name, ec, me, iafc, window, tss)
+	}
+	return tss, nil
+}
+
+var (
+	rollupMemoryLimiter     memoryLimiter
+	rollupMemoryLimiterOnce sync.Once
+)
+
+func getRollupMemoryLimiter() *memoryLimiter {
+	rollupMemoryLimiterOnce.Do(func() {
+		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
+	})
+	return &rollupMemoryLimiter
+}
+
+func evalRollupWithIncrementalAggregate(iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	err := rss.RunParallel(func(rs *netstorage.Result) {
+		preFunc(rs.Values, rs.Timestamps)
+		ts := getTimeseries()
+		defer putTimeseries(ts)
+		for _, rc := range rcs {
+			ts.Reset()
+			ts.MetricName.CopyFrom(&rs.MetricName)
+			if len(rc.TagValue) > 0 {
+				ts.MetricName.AddTag("rollup", rc.TagValue)
+			}
+			ts.Values = rc.Do(ts.Values[:0], rs.Values, rs.Timestamps)
+			ts.Timestamps = sharedTimestamps
+			iafc.updateTimeseries(ts)
+			ts.Timestamps = nil
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	tss := iafc.finalizeTimeseries()
+	return tss, nil
+}
+
+func evalRollupNoIncrementalAggregate(rss *netstorage.Results, rcs []*rollupConfig,
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result) {
+	err := rss.RunParallel(func(rs *netstorage.Result) {
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
 			var ts timeseries
@@ -564,29 +710,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	if err != nil {
 		return nil, err
 	}
-	if !rollupFuncsKeepMetricGroup[name] {
-		tss = copyTimeseriesMetricNames(tss)
-		for _, ts := range tss {
-			ts.MetricName.ResetMetricGroup()
-		}
-	}
-	tss = mergeTimeseries(tssCached, tss, start, ec)
-	if !isPartial {
-		rollupResultCacheV.Put(name, ec, me, window, tss)
-	}
 	return tss, nil
-}
-
-var (
-	rollupMemoryLimiter     memoryLimiter
-	rollupMemoryLimiterOnce sync.Once
-)
-
-func getRollupMemoryLimiter() *memoryLimiter {
-	rollupMemoryLimiterOnce.Do(func() {
-		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
-	})
-	return &rollupMemoryLimiter
 }
 
 func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64, sharedTimestamps []int64) (func(values []float64, timestamps []int64), []*rollupConfig) {
