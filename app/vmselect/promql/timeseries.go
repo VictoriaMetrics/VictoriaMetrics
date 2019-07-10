@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"sync"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -60,6 +61,20 @@ func (ts *timeseries) CopyShallow(src *timeseries) {
 	*ts = *src
 	ts.denyReuse = true
 }
+
+func getTimeseries() *timeseries {
+	if v := timeseriesPool.Get(); v != nil {
+		return v.(*timeseries)
+	}
+	return &timeseries{}
+}
+
+func putTimeseries(ts *timeseries) {
+	ts.Reset()
+	timeseriesPool.Put(ts)
+}
+
+var timeseriesPool sync.Pool
 
 func marshalTimeseriesFast(tss []*timeseries, maxSize int, step int64) []byte {
 	if len(tss) == 0 {
