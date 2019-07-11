@@ -376,7 +376,9 @@ func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 	if len(matches) == 0 {
 		return fmt.Errorf("missing `match[]` arg")
 	}
-	start, err := getTime(r, "start", ct-defaultStep)
+	// Set start to minTimeMsecs by default as Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
+	start, err := getTime(r, "start", minTimeMsecs)
 	if err != nil {
 		return err
 	}
