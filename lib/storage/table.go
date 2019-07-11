@@ -310,22 +310,14 @@ func (tb *table) AddRows(rows []rawRow) error {
 	// The slowest path - there are rows that don't fit any existing partition.
 	// Create new partitions for these rows.
 	// Do this under tb.ptwsLock.
-	now := timestampFromTime(time.Now())
-	minTimestamp := now - tb.retentionMilliseconds
-	maxTimestamp := now + 2*24*3600*1000 // allow max +2 days from now due to timezones shit :)
+	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
 	tb.ptwsLock.Lock()
 	var errors []error
 	for i := range missingRows {
 		r := &missingRows[i]
 
-		if r.Timestamp < minTimestamp {
-			// Silently skip row with too small timestamp, since it should be deleted anyway.
-			continue
-		}
-		if r.Timestamp > maxTimestamp {
-			err := fmt.Errorf("cannot add row %+v with too big timestamp to table %q; the timestamp cannot be bigger than %d (+2 days from now)",
-				r, tb.path, maxTimestamp)
-			errors = append(errors, err)
+		if r.Timestamp < minTimestamp || r.Timestamp > maxTimestamp {
+			// Silently skip row outside retention, since it should be deleted anyway.
 			continue
 		}
 
@@ -357,6 +349,20 @@ func (tb *table) AddRows(rows []rawRow) error {
 		return fmt.Errorf("errors while adding rows to table %q: %s", tb.path, errors[0])
 	}
 	return nil
+}
+
+func (tb *table) getMinMaxTimestamps() (int64, int64) {
+	now := timestampFromTime(time.Now())
+	minTimestamp := now - tb.retentionMilliseconds
+	maxTimestamp := now + 2*24*3600*1000 // allow max +2 days from now due to timezones shit :)
+	if minTimestamp < 0 {
+		// Negative timestamps aren't supported by the storage.
+		minTimestamp = 0
+	}
+	if maxTimestamp < 0 {
+		maxTimestamp = (1 << 63) - 1
+	}
+	return minTimestamp, maxTimestamp
 }
 
 func (tb *table) startRetentionWatcher() {

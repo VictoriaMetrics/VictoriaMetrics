@@ -752,11 +752,16 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	}
 	rows = rows[:rowsLen+len(mrs)]
 	j := 0
+	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
 	for i := range mrs {
 		mr := &mrs[i]
 		if math.IsNaN(mr.Value) {
 			// Just skip NaNs, since the underlying encoding
 			// doesn't know how to work with them.
+			continue
+		}
+		if mr.Timestamp < minTimestamp || mr.Timestamp > maxTimestamp {
+			// Skip rows with timestamps outside the retention.
 			continue
 		}
 		r := &rows[rowsLen+j]
