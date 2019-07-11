@@ -1219,7 +1219,6 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 }
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
-	maxMetrics = is.adjustMaxMetricsAdaptive(maxMetrics)
 	kb := &is.kb
 	kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
 	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
@@ -1267,7 +1266,22 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
 
-func (is *indexSearch) adjustMaxMetricsAdaptive(maxMetrics int) int {
+func isTooBigTimeRangeForDateMetricIDs(tr TimeRange) bool {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	return maxDate-minDate > 40
+}
+
+const maxDaysForDateMetricIDs = 40
+
+func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if maxDate-minDate > maxDaysForDateMetricIDs {
+		// Cannot reduce maxMetrics for the given time range,
+		// since the it is expensive extracting metricIDs for the given tr.
+		return maxMetrics
+	}
 	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
 	if !hmPrev.isFull {
 		return maxMetrics
@@ -1455,7 +1469,8 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 	// Sort tag filters for faster ts.Seek below.
 	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
 
-	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
+	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
 	if err != nil {
 		if err != errTooManyMetrics {
 			return err
@@ -1756,7 +1771,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (m
 	atomic.AddUint64(&is.db.dateMetricIDsSearchCalls, 1)
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate-minDate > 40 {
+	if maxDate-minDate > maxDaysForDateMetricIDs {
 		// Too much dates must be covered. Give up.
 		return nil, errMissingMetricIDsForDate
 	}
