@@ -640,8 +640,11 @@ func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) 
 		secs = float64(t.UnixNano()) / 1e9
 	}
 	msecs := int64(secs * 1e3)
-	if msecs < minTimeMsecs || msecs > maxTimeMsecs {
-		return 0, fmt.Errorf("%q=%dms is out of allowed range [%d ... %d]", argKey, msecs, minTimeMsecs, maxTimeMsecs)
+	if msecs < minTimeMsecs {
+		msecs = 0
+	}
+	if msecs > maxTimeMsecs {
+		msecs = maxTimeMsecs
 	}
 	return msecs, nil
 }
@@ -655,7 +658,7 @@ var (
 
 const (
 	// These values prevent from overflow when storing msec-precision time in int64.
-	minTimeMsecs = int64(-1<<63) / 1e6
+	minTimeMsecs = 0 // use 0 instead of `int64(-1<<63) / 1e6` because the storage engine doesn't actually support negative time
 	maxTimeMsecs = int64(1<<63-1) / 1e6
 )
 
