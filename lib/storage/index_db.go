@@ -1316,12 +1316,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
 
-func isTooBigTimeRangeForDateMetricIDs(tr TimeRange) bool {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	return maxDate-minDate > 40
-}
-
 const maxDaysForDateMetricIDs = 40
 
 func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
