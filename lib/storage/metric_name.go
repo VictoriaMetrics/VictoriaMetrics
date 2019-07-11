@@ -50,6 +50,12 @@ func (tag *Tag) copyFrom(src *Tag) {
 	tag.Value = append(tag.Value[:0], src.Value...)
 }
 
+func marshalTagValueNoTrailingTagSeparator(dst, src []byte) []byte {
+	dst = marshalTagValue(dst, src)
+	// Remove trailing tagSeparatorChar
+	return dst[:len(dst)-1]
+}
+
 func marshalTagValue(dst, src []byte) []byte {
 	n1 := bytes.IndexByte(src, escapeChar)
 	n2 := bytes.IndexByte(src, tagSeparatorChar)

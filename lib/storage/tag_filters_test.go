@@ -54,22 +54,23 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 	key := []byte("key")
 	var tf tagFilter
 
-	tv := func(s string) string {
-		return string(marshalTagValue(nil, []byte(s)))
+	tvNoTrailingTagSeparator := func(s string) string {
+		return string(marshalTagValueNoTrailingTagSeparator(nil, []byte(s)))
 	}
 	init := func(value string, isNegative, isRegexp bool, expectedPrefix string) {
 		t.Helper()
 		if err := tf.Init(commonPrefix, key, []byte(value), isNegative, isRegexp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		prefix := string(commonPrefix) + tv(string(key)) + expectedPrefix
+		prefix := string(commonPrefix) + string(marshalTagValue(nil, []byte(key))) + expectedPrefix
 		if prefix != string(tf.prefix) {
 			t.Fatalf("unexpected tf.prefix; got %q; want %q", tf.prefix, prefix)
 		}
 	}
 	match := func(suffix string) {
 		t.Helper()
-		ok, err := tf.matchSuffix([]byte(suffix))
+		suffixEscaped := marshalTagValue(nil, []byte(suffix))
+		ok, err := tf.matchSuffix(suffixEscaped)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -79,7 +80,8 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 	}
 	mismatch := func(suffix string) {
 		t.Helper()
-		ok, err := tf.matchSuffix([]byte(suffix))
+		suffixEscaped := marshalTagValue(nil, []byte(suffix))
+		ok, err := tf.matchSuffix(suffixEscaped)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -92,7 +94,7 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		value := "xx"
 		isNegative := false
 		isRegexp := false
-		expectedPrefix := tv(value)
+		expectedPrefix := tvNoTrailingTagSeparator(value)
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Plain value must match empty suffix only
@@ -104,7 +106,7 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		value := "xx"
 		isNegative := true
 		isRegexp := false
-		expectedPrefix := tv(value)
+		expectedPrefix := tvNoTrailingTagSeparator(value)
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Negaitve plain value must match all except empty suffix
@@ -119,7 +121,7 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		value := "http"
 		isNegative := false
 		isRegexp := true
-		expectedPrefix := tv("http")
+		expectedPrefix := tvNoTrailingTagSeparator(value)
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match only empty suffix
@@ -132,7 +134,7 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		value := "http"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := tv("http")
+		expectedPrefix := tvNoTrailingTagSeparator(value)
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match all except empty suffix
@@ -147,164 +149,164 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		value := "http.*"
 		isNegative := false
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match any suffix
-		match(tv(""))
-		match(tv("x"))
-		match(tv("http"))
-		match(tv("foobar"))
+		match("")
+		match("x")
+		match("http")
+		match("foobar")
 	})
 	t.Run("negative-regexp-prefix-any-suffix", func(t *testing.T) {
 		value := "http.*"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Mustn't match any suffix
-		mismatch(tv(""))
-		mismatch(tv("x"))
-		mismatch(tv("xhttp"))
-		mismatch(tv("http"))
-		mismatch(tv("httpsdf"))
-		mismatch(tv("foobar"))
+		mismatch("")
+		mismatch("x")
+		mismatch("xhttp")
+		mismatch("http")
+		mismatch("httpsdf")
+		mismatch("foobar")
 	})
 	t.Run("regexp-prefix-contains-suffix", func(t *testing.T) {
 		value := "http.*foo.*"
 		isNegative := false
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match any suffix with `foo`
-		mismatch(tv(""))
-		mismatch(tv("x"))
-		mismatch(tv("http"))
-		match(tv("foo"))
-		match(tv("foobar"))
-		match(tv("xfoobar"))
-		match(tv("xfoo"))
+		mismatch("")
+		mismatch("x")
+		mismatch("http")
+		match("foo")
+		match("foobar")
+		match("xfoobar")
+		match("xfoo")
 	})
 	t.Run("negative-regexp-prefix-contains-suffix", func(t *testing.T) {
 		value := "http.*foo.*"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match any suffix without `foo`
-		match(tv(""))
-		match(tv("x"))
-		match(tv("http"))
-		mismatch(tv("foo"))
-		mismatch(tv("foobar"))
-		mismatch(tv("xfoobar"))
-		mismatch(tv("xfoo"))
-		mismatch(tv("httpfoo"))
-		mismatch(tv("httpfoobar"))
-		mismatch(tv("httpxfoobar"))
-		mismatch(tv("httpxfoo"))
+		match("")
+		match("x")
+		match("http")
+		mismatch("foo")
+		mismatch("foobar")
+		mismatch("xfoobar")
+		mismatch("xfoo")
+		mismatch("httpfoo")
+		mismatch("httpfoobar")
+		mismatch("httpxfoobar")
+		mismatch("httpxfoo")
 	})
 	t.Run("negative-regexp-noprefix-contains-suffix", func(t *testing.T) {
 		value := ".*foo.*"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := ""
+		expectedPrefix := tvNoTrailingTagSeparator("")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match anything not matching `.*foo.*`
-		match(tv(""))
-		match(tv("x"))
-		match(tv("http"))
-		mismatch(tv("foo"))
-		mismatch(tv("foobar"))
-		mismatch(tv("xfoobar"))
-		mismatch(tv("xfoo"))
+		match("")
+		match("x")
+		match("http")
+		mismatch("foo")
+		mismatch("foobar")
+		mismatch("xfoobar")
+		mismatch("xfoo")
 	})
 	t.Run("regexp-prefix-special-suffix", func(t *testing.T) {
 		value := "http.*bar"
 		isNegative := false
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match suffix ending on bar
-		mismatch(tv(""))
-		mismatch(tv("x"))
-		match(tv("bar"))
-		mismatch(tv("barx"))
-		match(tv("foobar"))
-		mismatch(tv("foobarx"))
+		mismatch("")
+		mismatch("x")
+		match("bar")
+		mismatch("barx")
+		match("foobar")
+		mismatch("foobarx")
 	})
 	t.Run("negative-regexp-prefix-special-suffix", func(t *testing.T) {
 		value := "http.*bar"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Mustn't match suffix ending on bar
-		match(tv(""))
-		mismatch(tv("bar"))
-		mismatch(tv("xhttpbar"))
-		mismatch(tv("httpbar"))
-		match(tv("httpbarx"))
-		mismatch(tv("httpxybar"))
-		match(tv("httpxybarx"))
-		mismatch(tv("ahttpxybar"))
+		match("")
+		mismatch("bar")
+		mismatch("xhttpbar")
+		mismatch("httpbar")
+		match("httpbarx")
+		mismatch("httpxybar")
+		match("httpxybarx")
+		mismatch("ahttpxybar")
 	})
 	t.Run("negative-regexp-noprefix-special-suffix", func(t *testing.T) {
 		value := ".*bar"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := ""
+		expectedPrefix := tvNoTrailingTagSeparator("")
 		init(value, isNegative, isRegexp, expectedPrefix)
 
 		// Must match all except the regexp from value
-		match(tv(""))
-		mismatch(tv("bar"))
-		mismatch(tv("xhttpbar"))
-		match(tv("barx"))
-		match(tv("pbarx"))
+		match("")
+		mismatch("bar")
+		mismatch("xhttpbar")
+		match("barx")
+		match("pbarx")
 	})
 	t.Run("regexp-or-suffixes", func(t *testing.T) {
 		value := "http(foo|bar)"
 		isNegative := false
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 		if !reflect.DeepEqual(tf.orSuffixes, []string{"bar", "foo"}) {
 			t.Fatalf("unexpected orSuffixes; got %q; want %q", tf.orSuffixes, []string{"bar", "foo"})
 		}
 
 		// Must match foo or bar suffix
-		mismatch(tv(""))
-		mismatch(tv("x"))
-		match(tv("bar"))
-		mismatch(tv("barx"))
-		match(tv("foo"))
-		mismatch(tv("foobar"))
+		mismatch("")
+		mismatch("x")
+		match("bar")
+		mismatch("barx")
+		match("foo")
+		mismatch("foobar")
 	})
 	t.Run("negative-regexp-or-suffixes", func(t *testing.T) {
 		value := "http(foo|bar)"
 		isNegative := true
 		isRegexp := true
-		expectedPrefix := "http"
+		expectedPrefix := tvNoTrailingTagSeparator("http")
 		init(value, isNegative, isRegexp, expectedPrefix)
 		if !reflect.DeepEqual(tf.orSuffixes, []string{"bar", "foo"}) {
 			t.Fatalf("unexpected or suffixes; got %q; want %q", tf.orSuffixes, []string{"bar", "foo"})
 		}
 
 		// Mustn't match foo or bar suffix
-		match(tv(""))
-		match(tv("x"))
-		mismatch(tv("foo"))
-		match(tv("fooa"))
-		match(tv("xfooa"))
-		mismatch(tv("bar"))
-		match(tv("xhttpbar"))
+		match("")
+		match("x")
+		mismatch("foo")
+		match("fooa")
+		match("xfooa")
+		mismatch("bar")
+		match("xhttpbar")
 	})
 }
 
