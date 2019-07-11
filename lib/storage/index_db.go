@@ -1345,7 +1345,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 
 		kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 		kb.B = encoding.MarshalUint64(kb.B[:0], uint64(maxMetrics))
-		kb.B = tf.Marshal(kb.B)
+		kb.B = tf.Marshal(kb.B, tfs.accountID, tfs.projectID)
 		if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 			// Skip useless work below, since the tf matches at least maxMetrics metrics.
 			uselessTagFilters++
@@ -1364,7 +1364,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 			// The tf matches at least maxMetrics. Skip it
 			kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 			kb.B = encoding.MarshalUint64(kb.B[:0], uint64(maxMetrics))
-			kb.B = tf.Marshal(kb.B)
+			kb.B = tf.Marshal(kb.B, tfs.accountID, tfs.projectID)
 			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 			uselessTagFilters++
 			continue

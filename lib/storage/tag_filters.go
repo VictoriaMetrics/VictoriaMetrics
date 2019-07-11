@@ -128,6 +128,12 @@ func (tf *tagFilter) String() string {
 	return bb.String()
 }
 
+func (tf *tagFilter) Marshal(dst []byte, accountID, projectID uint32) []byte {
+	dst = encoding.MarshalUint32(dst, accountID)
+	dst = encoding.MarshalUint32(dst, projectID)
+	return tf.MarshalNoAccountIDProjectID(dst)
+}
+
 // MarshalNoAccountIDProjectID appends marshaled tf to dst
 // and returns the result.
 func (tf *tagFilter) MarshalNoAccountIDProjectID(dst []byte) []byte {
