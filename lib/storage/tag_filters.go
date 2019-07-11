@@ -179,15 +179,14 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 			tf.isRegexp = false
 		}
 	}
-	tf.prefix = marshalTagValue(tf.prefix, prefix)
-	if tf.isRegexp {
-		// Remove the trailing tagSeparatorChar from the prefix.
-		tf.prefix = tf.prefix[:len(tf.prefix)-1]
-	}
-	if len(expr) == 0 {
+	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, prefix)
+	if !tf.isRegexp {
+		// tf contains plain value without regexp.
+		// Add empty orSuffix in order to trigger fast path for orSuffixes
+		// during the search for matching metricIDs.
+		tf.orSuffixes = append(tf.orSuffixes[:0], "")
 		return nil
 	}
-
 	rcv, err := getRegexpFromCache(expr)
 	if err != nil {
 		return err
@@ -198,16 +197,14 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 }
 
 func (tf *tagFilter) matchSuffix(b []byte) (bool, error) {
-	if !tf.isRegexp {
-		return len(b) == 0, nil
-	}
-
-	// Remove the trailing tagSeparatorChar before applying the regexp.
+	// Remove the trailing tagSeparatorChar.
 	if len(b) == 0 || b[len(b)-1] != tagSeparatorChar {
 		return false, fmt.Errorf("unexpected end of b; want %d; b=%q", tagSeparatorChar, b)
 	}
 	b = b[:len(b)-1]
-
+	if !tf.isRegexp {
+		return len(b) == 0, nil
+	}
 	ok := tf.reSuffixMatch(b)
 	return ok, nil
 }
