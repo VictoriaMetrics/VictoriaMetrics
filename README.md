@@ -162,9 +162,9 @@ Then apply the new config via the following command:
 kill -HUP `pidof prometheus`
 ```
 
-Prometheus writes incoming data to local storage and to remote storage in parallel.
+Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
 This means the data remains available in local storage for `--storage.tsdb.retention.time` duration
-if remote storage stops working.
+even if remote storage is unavailable.
 
 If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
 of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
