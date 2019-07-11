@@ -1221,8 +1221,9 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	maxMetrics = is.adjustMaxMetricsAdaptive(maxMetrics)
 	kb := &is.kb
-	kb.B = tfs.marshal(kb.B[:0])
+	kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
 	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+	kb.B = tfs.marshal(kb.B)
 	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 		// Skip useless work below, since the tfs doesn't contain tag filters matching less than maxMetrics metrics.
 		return nil, nil, errTooManyMetrics
@@ -1236,20 +1237,23 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 	}
 	for {
 		minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCount(tfs, maxAllowedMetrics)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(minMetricIDs) < maxAllowedMetrics {
-			// Found the tag filter with the minimum number of metrics.
-			return minTf, minMetricIDs, nil
+		if err != errTooManyMetrics {
+			if err != nil {
+				return nil, nil, err
+			}
+			if len(minMetricIDs) < maxAllowedMetrics {
+				// Found the tag filter with the minimum number of metrics.
+				return minTf, minMetricIDs, nil
+			}
 		}
 
 		// Too many metrics matched.
 		if maxAllowedMetrics >= maxMetrics {
 			// The tag filter with minimum matching metrics matches at least maxMetrics metrics.
-			kb.B = tfs.marshal(kb.B[:0])
+			kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
 			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
-			is.db.uselessTagFiltersCache.Set(kb.B, []byte("1"))
+			kb.B = tfs.marshal(kb.B)
+			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 			return nil, nil, errTooManyMetrics
 		}
 
@@ -1280,12 +1284,24 @@ func (is *indexSearch) adjustMaxMetricsAdaptive(maxMetrics int) int {
 func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	var minMetricIDs map[uint64]struct{}
 	var minTf *tagFilter
+	kb := &is.kb
+	uselessTagFilters := 0
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		if tf.isNegative {
 			// Skip negative filters.
 			continue
 		}
+
+		kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
+		kb.B = encoding.MarshalUint64(kb.B[:0], uint64(maxMetrics))
+		kb.B = tf.Marshal(kb.B)
+		if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
+			// Skip useless work below, since the tf matches at least maxMetrics metrics.
+			uselessTagFilters++
+			continue
+		}
+
 		metricIDs, err := is.getMetricIDsForTagFilter(tf, maxMetrics)
 		if err != nil {
 			if err == errFallbackToMetricNameMatch {
@@ -1294,19 +1310,31 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 			}
 			return nil, nil, fmt.Errorf("cannot find MetricIDs for tagFilter %s: %s", tf, err)
 		}
-		if minTf == nil || len(metricIDs) < len(minMetricIDs) {
-			minMetricIDs = metricIDs
-			minTf = tf
-			maxMetrics = len(minMetricIDs)
-			if maxMetrics <= 1 {
-				// There is no need in inspecting other filters, since minTf
-				// already matches 0 or 1 metric.
-				break
-			}
+		if len(metricIDs) >= maxMetrics {
+			// The tf matches at least maxMetrics. Skip it
+			kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
+			kb.B = encoding.MarshalUint64(kb.B[:0], uint64(maxMetrics))
+			kb.B = tf.Marshal(kb.B)
+			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
+			uselessTagFilters++
+			continue
+		}
+
+		minMetricIDs = metricIDs
+		minTf = tf
+		maxMetrics = len(minMetricIDs)
+		if maxMetrics <= 1 {
+			// There is no need in inspecting other filters, since minTf
+			// already matches 0 or 1 metric.
+			break
 		}
 	}
 	if minTf != nil {
 		return minTf, minMetricIDs, nil
+	}
+	if uselessTagFilters == len(tfs.tfs) {
+		// All the tag filters return at least maxMetrics entries.
+		return nil, nil, errTooManyMetrics
 	}
 
 	// There is no positive filter with small number of matching metrics.
@@ -1493,6 +1521,13 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 	}
 	return nil
 }
+
+const (
+	uselessSingleTagFilterKeyPrefix = 0
+	uselessMultiTagFiltersKeyPrefix = 1
+)
+
+var uselessTagFilterCacheValue = []byte("1")
 
 func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (map[uint64]struct{}, error) {
 	if tf.isNegative {
