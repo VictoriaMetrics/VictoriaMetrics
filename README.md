@@ -408,7 +408,7 @@ with scrape intervals exceeding `5m`.
 
 ### Capacity planning
 
-Rough estimation of the required resources:
+Rough estimation of the required resources for ingestion path:
 
 * RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
@@ -422,11 +422,28 @@ Rough estimation of the required resources:
   If you see lower numbers per CPU core, then it is likely active time series info doesn't fit caches,
   so you need more RAM for lowering CPU usage.
 
-* Storage size: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
+* Storage space: less than a byte per data point on average. So, ~260GB is required for storing a month-long insert stream
   of 100K data points per second.
   The actual storage size heavily depends on data randomness (entropy). Higher randomness means higher storage size requirements.
   Read [this article](https://medium.com/faun/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
+
+* Network usage: outbound traffic is negligible. Ingress traffic is ~100 bytes per ingested data point via
+  [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+  The actual ingress bandwitdh usage depends on the average number of labels per ingested metric and the average size
+  of label values. Higher number of per-metric lables and longer label values mean higher ingress bandwidth.
+
+
+The required resources for query path:
+
+* RAM size: depends on the number of time series to scan in each query and the `step`
+  argument passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+  Higher number of scanned time series and lower `step` argument results in higher RAM usage.
+
+* CPU cores: a CPU core per 30 millions of scanned data points per second.
+
+* Network usage: depends on the frequency and the type of incoming requests. Typical Grafana dashboards usually
+  require negligible network bandwidth.
 
 
 ### High availability
