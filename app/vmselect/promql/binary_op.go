@@ -260,6 +260,9 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 				dstValues[j] = bf(a, b, isBool)
 			}
 		}
+		// Optimization: remove time series containing only NaNs.
+		// This is quite common after applying filters like `q > 0`.
+		dst = removeNaNs(dst)
 		return dst, nil
 	}
 }
