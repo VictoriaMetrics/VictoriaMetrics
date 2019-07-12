@@ -13,30 +13,37 @@ import (
 var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 	"sum": {
 		updateAggrFunc:   updateAggrSum,
+		mergeAggrFunc:    mergeAggrSum,
 		finalizeAggrFunc: finalizeAggrCommon,
 	},
 	"min": {
 		updateAggrFunc:   updateAggrMin,
+		mergeAggrFunc:    mergeAggrMin,
 		finalizeAggrFunc: finalizeAggrCommon,
 	},
 	"max": {
 		updateAggrFunc:   updateAggrMax,
+		mergeAggrFunc:    mergeAggrMax,
 		finalizeAggrFunc: finalizeAggrCommon,
 	},
 	"avg": {
 		updateAggrFunc:   updateAggrAvg,
+		mergeAggrFunc:    mergeAggrAvg,
 		finalizeAggrFunc: finalizeAggrAvg,
 	},
 	"count": {
 		updateAggrFunc:   updateAggrCount,
+		mergeAggrFunc:    mergeAggrCount,
 		finalizeAggrFunc: finalizeAggrCount,
 	},
 	"sum2": {
 		updateAggrFunc:   updateAggrSum2,
+		mergeAggrFunc:    mergeAggrSum2,
 		finalizeAggrFunc: finalizeAggrCommon,
 	},
 	"geomean": {
 		updateAggrFunc:   updateAggrGeomean,
+		mergeAggrFunc:    mergeAggrGeomean,
 		finalizeAggrFunc: finalizeAggrGeomean,
 	},
 }
@@ -44,8 +51,8 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 type incrementalAggrFuncContext struct {
 	ae *aggrFuncExpr
 
-	mu sync.Mutex
-	m  map[string]*incrementalAggrContext
+	mLock sync.Mutex
+	m     map[uint]map[string]*incrementalAggrContext
 
 	callbacks *incrementalAggrFuncCallbacks
 }
@@ -53,17 +60,24 @@ type incrementalAggrFuncContext struct {
 func newIncrementalAggrFuncContext(ae *aggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
 	return &incrementalAggrFuncContext{
 		ae:        ae,
-		m:         make(map[string]*incrementalAggrContext, 1),
+		m:         make(map[uint]map[string]*incrementalAggrContext),
 		callbacks: callbacks,
 	}
 }
 
-func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries) {
+func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries, workerID uint) {
+	iafc.mLock.Lock()
+	m := iafc.m[workerID]
+	if m == nil {
+		m = make(map[string]*incrementalAggrContext, 1)
+		iafc.m[workerID] = m
+	}
+	iafc.mLock.Unlock()
+
 	removeGroupTags(&ts.MetricName, &iafc.ae.Modifier)
 	bb := bbPool.Get()
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-	iafc.mu.Lock()
-	iac := iafc.m[string(bb.B)]
+	iac := m[string(bb.B)]
 	if iac == nil {
 		tsAggr := &timeseries{
 			Values:     make([]float64, len(ts.Values)),
@@ -75,19 +89,30 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries) {
 			ts:     tsAggr,
 			values: make([]float64, len(ts.Values)),
 		}
-		iafc.m[string(bb.B)] = iac
+		m[string(bb.B)] = iac
 	}
-	iafc.callbacks.updateAggrFunc(iac, ts.Values)
-	iafc.mu.Unlock()
 	bbPool.Put(bb)
+	iafc.callbacks.updateAggrFunc(iac, ts.Values)
 }
 
 func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
-	// There is no need in iafc.mu.Lock here, since getTimeseries must be called
+	// There is no need in iafc.mLock.Lock here, since finalizeTimeseries must be called
 	// without concurrent goroutines touching iafc.
-	tss := make([]*timeseries, 0, len(iafc.m))
+	mGlobal := make(map[string]*incrementalAggrContext)
+	mergeAggrFunc := iafc.callbacks.mergeAggrFunc
+	for _, m := range iafc.m {
+		for k, iac := range m {
+			iacGlobal := mGlobal[k]
+			if iacGlobal == nil {
+				mGlobal[k] = iac
+				continue
+			}
+			mergeAggrFunc(iacGlobal, iac)
+		}
+	}
+	tss := make([]*timeseries, 0, len(mGlobal))
 	finalizeAggrFunc := iafc.callbacks.finalizeAggrFunc
-	for _, iac := range iafc.m {
+	for _, iac := range mGlobal {
 		finalizeAggrFunc(iac)
 		tss = append(tss, iac.ts)
 	}
@@ -96,6 +121,7 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 
 type incrementalAggrFuncCallbacks struct {
 	updateAggrFunc   func(iac *incrementalAggrContext, values []float64)
+	mergeAggrFunc    func(dst, src *incrementalAggrContext)
 	finalizeAggrFunc func(iac *incrementalAggrContext)
 }
 
@@ -129,8 +155,33 @@ func updateAggrSum(iac *incrementalAggrContext, values []float64) {
 		if math.IsNaN(v) {
 			continue
 		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = 1
+			continue
+		}
 		dstValues[i] += v
-		dstCounts[i] = 1
+	}
+}
+
+func mergeAggrSum(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	_ = srcCounts[len(srcValues)-1]
+	_ = dstCounts[len(srcValues)-1]
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		if srcCounts[i] == 0 {
+			continue
+		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = 1
+			continue
+		}
+		dstValues[i] += v
 	}
 }
 
@@ -154,6 +205,29 @@ func updateAggrMin(iac *incrementalAggrContext, values []float64) {
 	}
 }
 
+func mergeAggrMin(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	_ = srcCounts[len(srcValues)-1]
+	_ = dstCounts[len(srcValues)-1]
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		if srcCounts[i] == 0 {
+			continue
+		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = 1
+			continue
+		}
+		if v < dstValues[i] {
+			dstValues[i] = v
+		}
+	}
+}
+
 func updateAggrMax(iac *incrementalAggrContext, values []float64) {
 	dstValues := iac.ts.Values
 	dstCounts := iac.values
@@ -161,6 +235,29 @@ func updateAggrMax(iac *incrementalAggrContext, values []float64) {
 	_ = dstCounts[len(values)-1]
 	for i, v := range values {
 		if math.IsNaN(v) {
+			continue
+		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = 1
+			continue
+		}
+		if v > dstValues[i] {
+			dstValues[i] = v
+		}
+	}
+}
+
+func mergeAggrMax(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	_ = srcCounts[len(srcValues)-1]
+	_ = dstCounts[len(srcValues)-1]
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		if srcCounts[i] == 0 {
 			continue
 		}
 		if dstCounts[i] == 0 {
@@ -195,6 +292,28 @@ func updateAggrAvg(iac *incrementalAggrContext, values []float64) {
 	}
 }
 
+func mergeAggrAvg(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	_ = srcCounts[len(srcValues)-1]
+	_ = dstCounts[len(srcValues)-1]
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		if srcCounts[i] == 0 {
+			continue
+		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = srcCounts[i]
+			continue
+		}
+		dstValues[i] += v
+		dstCounts[i] += srcCounts[i]
+	}
+}
+
 func finalizeAggrAvg(iac *incrementalAggrContext) {
 	dstValues := iac.ts.Values
 	counts := iac.values
@@ -219,6 +338,15 @@ func updateAggrCount(iac *incrementalAggrContext, values []float64) {
 	}
 }
 
+func mergeAggrCount(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		dstValues[i] += v
+	}
+}
+
 func finalizeAggrCount(iac *incrementalAggrContext) {
 	// Nothing to do
 }
@@ -232,8 +360,33 @@ func updateAggrSum2(iac *incrementalAggrContext, values []float64) {
 		if math.IsNaN(v) {
 			continue
 		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v * v
+			dstCounts[i] = 1
+			continue
+		}
 		dstValues[i] += v * v
-		dstCounts[i] = 1
+	}
+}
+
+func mergeAggrSum2(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	_ = srcCounts[len(srcValues)-1]
+	_ = dstCounts[len(srcValues)-1]
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		if srcCounts[i] == 0 {
+			continue
+		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = 1
+			continue
+		}
+		dstValues[i] += v
 	}
 }
 
@@ -253,6 +406,28 @@ func updateAggrGeomean(iac *incrementalAggrContext, values []float64) {
 		}
 		dstValues[i] *= v
 		dstCounts[i]++
+	}
+}
+
+func mergeAggrGeomean(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	_ = srcCounts[len(srcValues)-1]
+	_ = dstCounts[len(srcValues)-1]
+	_ = dstValues[len(srcValues)-1]
+	for i, v := range srcValues {
+		if srcCounts[i] == 0 {
+			continue
+		}
+		if dstCounts[i] == 0 {
+			dstValues[i] = v
+			dstCounts[i] = srcCounts[i]
+			continue
+		}
+		dstValues[i] *= v
+		dstCounts[i] += srcCounts[i]
 	}
 }
 

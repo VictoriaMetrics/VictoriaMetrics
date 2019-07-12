@@ -68,9 +68,10 @@ func (rss *Results) Cancel() {
 // RunParallel runs in parallel f for all the results from rss.
 //
 // f shouldn't hold references to rs after returning.
+// workerID is the id of the worker goroutine that calls f.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(f func(rs *Result)) error {
+func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 	defer func() {
 		putTmpBlocksFile(rss.tbf)
 		rss.tbf = nil
@@ -88,7 +89,7 @@ func (rss *Results) RunParallel(f func(rs *Result)) error {
 
 	// Start workers.
 	for i := 0; i < workersCount; i++ {
-		go func() {
+		go func(workerID uint) {
 			rs := getResult()
 			defer putResult(rs)
 			maxWorkersCount := gomaxprocs / workersCount
@@ -106,13 +107,13 @@ func (rss *Results) RunParallel(f func(rs *Result)) error {
 					// Skip empty blocks.
 					continue
 				}
-				f(rs)
+				f(rs, workerID)
 			}
 			// Drain the remaining work
 			for range workCh {
 			}
 			doneCh <- err
-		}()
+		}(uint(i))
 	}
 
 	// Feed workers with work.
