@@ -131,17 +131,22 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 func removeNaNs(tss []*timeseries) []*timeseries {
 	rvs := tss[:0]
 	for _, ts := range tss {
-		nans := 0
+		allNans := true
 		for _, v := range ts.Values {
-			if math.IsNaN(v) {
-				nans++
+			if !math.IsNaN(v) {
+				allNans = false
+				break
 			}
 		}
-		if nans == len(ts.Values) {
+		if allNans {
 			// Skip timeseries with all NaNs.
 			continue
 		}
 		rvs = append(rvs, ts)
+	}
+	for i := len(rvs); i < len(tss); i++ {
+		// Zero unused time series, so GC could reclaim them.
+		tss[i] = nil
 	}
 	return rvs
 }
