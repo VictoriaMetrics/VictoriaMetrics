@@ -73,7 +73,7 @@ func FederateHandler(w http.ResponseWriter, r *http.Request) error {
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
 	doneCh := make(chan error)
 	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result) {
+		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
 			bb := quicktemplate.AcquireByteBuffer()
 			WriteFederate(bb, rs)
 			resultsCh <- bb
@@ -165,7 +165,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
 	doneCh := make(chan error)
 	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result) {
+		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
 			bb := quicktemplate.AcquireByteBuffer()
 			writeLineFunc(bb, rs)
 			resultsCh <- bb
@@ -341,7 +341,7 @@ func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
 	doneCh := make(chan error)
 	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result) {
+		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
 			bb := quicktemplate.AcquireByteBuffer()
 			writemetricNameObject(bb, &rs.MetricName)
 			resultsCh <- bb
