@@ -57,6 +57,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
     - [Production build](#production-build)
     - [Building docker images](#building-docker-images)
   - [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+  - [Start with docker-compose](#start-with-docker-compose)
   - [Setting up service](#setting-up-service)
   - [Third-party contributions](#third-party-contributions)
   - [Prometheus setup](#prometheus-setup)
@@ -131,6 +132,13 @@ The following command line flags are used the most:
 * `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data. By default it is disabled.
 
 Pass `-help` to see all the available flags with description and default values.
+
+
+### Start with docker-compose
+
+[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
+helps to spin up VictoriaMetrics, Prometheus and Grafana with one command.
+More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 
 ### Setting up service
