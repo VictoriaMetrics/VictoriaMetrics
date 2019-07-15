@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -24,7 +25,7 @@ var (
 // Serve starts OpenTSDB collector on the given addr.
 func Serve(addr string) {
 	logger.Infof("starting TCP OpenTSDB collector at %q", addr)
-	lnTCP, err := net.Listen("tcp4", addr)
+	lnTCP, err := netutil.NewTCPListener("opentsdb", addr)
 	if err != nil {
 		logger.Fatalf("cannot start TCP OpenTSDB collector at %q: %s", addr, err)
 	}
