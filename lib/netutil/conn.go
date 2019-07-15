@@ -72,9 +72,10 @@ func (sc *statConn) Read(p []byte) (int, error) {
 	sc.cm.readCalls.Inc()
 	sc.cm.readBytes.Add(n)
 	if err != nil && err != io.EOF {
-		sc.cm.readErrors.Inc()
 		if ne, ok := err.(net.Error); ok && ne.Timeout() {
 			sc.cm.readTimeouts.Inc()
+		} else {
+			sc.cm.readErrors.Inc()
 		}
 	}
 	return n, err
@@ -96,9 +97,10 @@ func (sc *statConn) Write(p []byte) (int, error) {
 	sc.cm.writeCalls.Inc()
 	sc.cm.writtenBytes.Add(n)
 	if err != nil {
-		sc.cm.writeErrors.Inc()
 		if ne, ok := err.(net.Error); ok && ne.Timeout() {
 			sc.cm.writeTimeouts.Inc()
+		} else {
+			sc.cm.writeErrors.Inc()
 		}
 	}
 	return n, err
