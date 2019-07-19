@@ -42,18 +42,15 @@ spec:
           args:
             - {{ printf "%s=%d" "--retentionPeriod" (int .Values.vmstorage.retentionPeriod) | quote}}
             - {{ printf "%s=%s" "--storageDataPath" .Values.vmstorage.persistentVolume.mountPath | quote}}
-            - '--vminsertAddr=:8401'
-            - '--vmselectAddr=:8400'
-            - '--httpListenAddr=:8482'
           {{- range $key, $value := .Values.vmstorage.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
           ports:
             - name: http
               containerPort: 8482
-            - name: vmselect
-              containerPort: 8400
             - name: vminsert
+              containerPort: 8400
+            - name: vmselect
               containerPort: 8401
           readinessProbe:
             httpGet:

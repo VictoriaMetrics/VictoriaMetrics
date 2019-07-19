@@ -107,7 +107,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 {{- end -}}
 
-{{- define "victoria-metrics.vmselect.vmstorage-pod-fqdn" -}}
+{{- define "victoria-metrics.vminsert.vmstorage-pod-fqdn" -}}
 {{- $pod := include "victoria-metrics.vmstorage.fullname" . -}}
 {{- $svc := include "victoria-metrics.vmstorage.fullname" . -}}
 {{- $namespace := .Release.Namespace -}}
@@ -117,7 +117,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 {{- end -}}
 
-{{- define "victoria-metrics.vminsert.vmstorage-pod-fqdn" -}}
+{{- define "victoria-metrics.vmselect.vmstorage-pod-fqdn" -}}
 {{- $pod := include "victoria-metrics.vmstorage.fullname" . -}}
 {{- $svc := include "victoria-metrics.vmstorage.fullname" . -}}
 {{- $namespace := .Release.Namespace -}}
@@ -126,4 +126,3 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- printf "- --storageNode=%s-%d.%s.%s.svc.%s:8401\n" $pod $i $svc $namespace $dnsSuffix -}}
 {{- end -}}
 {{- end -}}
-

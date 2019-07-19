@@ -208,6 +208,6 @@ vmstorage:
     annotations: {}
     labels: {}
     servicePort: 8482
-    vmselectPort: 8400
-    vminsertPort: 8401
+    vminsertPort: 8400
+    vmselectPort: 8401
   terminationGracePeriodSeconds: 60
