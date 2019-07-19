@@ -30,29 +30,26 @@ services:
       - strgdata:/storage
     command:
       - '--storageDataPath=/storage'
-      - '--vminsertAddr=:8401'
-      - '--vmselectAddr=:8400'
-      - '--httpListenAddr=:8482'
     networks:
     - docker_net
+    restart: always
+  vminsert:
+    container_name: vminsert
+    image: victoriametrics/vminsert:heads-public-cluster-0-g7abb96b4
+    depends_on:
+      - "vmstorage"
+    command:
+      - '--storageNode=vmstorage:8400'
+    ports:
+      - 8480:8480
+    networks:
+      - docker_net
     restart: always
   vmselect:
     container_name: vmselect
     image: victoriametrics/vmselect:heads-public-cluster-0-g7abb96b4
     depends_on:
       - "vmstorage"
-    ports:
-      - 8480:8480
-    command:
-      - '--storageNode=vmstorage:8400'
-    networks:
-      - docker_net
-    restart: always
-  vminsert:
-    container_name: vminsert
-    image: victoriametrics/vminsert:heads-public-cluster-0-g7abb96b4
-    depends_on:
-    - "vmstorage"
     command:
       - '--storageNode=vmstorage:8401'
     ports:
