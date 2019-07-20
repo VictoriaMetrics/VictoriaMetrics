@@ -55,6 +55,8 @@ func TestIsGauge(t *testing.T) {
 	testIsGauge(t, []int64{1, 5, 2, 3, 2}, true)
 	testIsGauge(t, []int64{-1, -5, -2, -3}, false) // a single counter reset
 	testIsGauge(t, []int64{-1, -5, -2, -3, -2}, true)
+	testIsGauge(t, []int64{5, 6, 4, 3, 2}, true)
+	testIsGauge(t, []int64{4, 5, 6, 5, 4, 3, 2}, true)
 }
 
 func testIsGauge(t *testing.T, a []int64, okExpected bool) {

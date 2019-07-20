@@ -305,7 +305,7 @@ func isGauge(a []int64) bool {
 		return false
 	}
 
-	extremes := 0
+	extremes, narrows := 0, 0
 	plus := a[0] <= a[1]
 	v1 := a[1]
 	for _, v2 := range a[2:] {
@@ -318,10 +318,20 @@ func isGauge(a []int64) bool {
 			if v2 > v1 {
 				extremes++
 				plus = true
+			} else {
+				if v2 > 0 {
+					narrows++
+				}
 			}
 		}
 		v1 = v2
 	}
+
+	if narrows >= len(a)/2 {
+		// Multiple sequential narrowing cases
+		return true
+	}
+
 	if extremes <= 2 {
 		// Probably counter reset.
 		return false
