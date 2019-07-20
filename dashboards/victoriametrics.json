@@ -60,12 +60,12 @@
       }
     ]
   },
-  "description": "Overview for single node VictoriaMetrics",
+  "description": "Overview for single node VictoriaMetrics v1.22.2 or higher",
   "editable": true,
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1563627408028,
+  "iteration": 1563651131627,
   "links": [
     {
       "icon": "doc",
