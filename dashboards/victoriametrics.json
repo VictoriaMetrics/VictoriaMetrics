@@ -65,7 +65,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1562261153865,
+  "iteration": 1563627408028,
   "links": [
     {
       "icon": "doc",
@@ -1693,7 +1693,7 @@
       },
       "id": 46,
       "panels": [],
-      "title": "Go runtime",
+      "title": "Resource usage",
       "type": "row"
     },
     {
@@ -1805,7 +1805,6 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 8,
@@ -1813,13 +1812,13 @@
         "x": 12,
         "y": 69
       },
-      "id": 42,
+      "id": 57,
       "legend": {
         "avg": false,
         "current": false,
         "max": false,
         "min": false,
-        "show": false,
+        "show": true,
         "total": false,
         "values": false
       },
@@ -1838,10 +1837,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(go_gc_duration_seconds_sum{job=\"$job\"}[2m]))",
+          "expr": "rate(process_cpu_seconds_total{job=\"$job\"}[5m])",
           "format": "time_series",
-          "intervalFactor": 2,
-          "legendFormat": "gc duration",
+          "intervalFactor": 1,
+          "legendFormat": "Rate 5m",
           "refId": "A"
         }
       ],
@@ -1849,7 +1848,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "GC duration",
+      "title": "CPU",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1865,7 +1864,7 @@
       },
       "yaxes": [
         {
-          "format": "s",
+          "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1986,6 +1985,92 @@
         "x": 12,
         "y": 77
       },
+      "id": 42,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {},
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(rate(go_gc_duration_seconds_sum{job=\"$job\"}[2m]))",
+          "format": "time_series",
+          "intervalFactor": 2,
+          "legendFormat": "gc duration",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "GC duration",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS}",
+      "fill": 1,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 85
+      },
       "id": 48,
       "legend": {
         "avg": false,
@@ -2011,7 +2096,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(go_threads{job=\"$job\"})",
+          "expr": "sum(process_num_threads{job=\"$job\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "threads",
@@ -2145,5 +2230,5 @@
   "timezone": "",
   "title": "VictoriaMetrics",
   "uid": "wNf0q_kZk",
-  "version": 1
+  "version": 2
 }
