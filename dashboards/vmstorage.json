@@ -1375,21 +1375,21 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(irate(vm_cache_entries{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_cache_entries{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Entries",
           "refId": "A"
         },
         {
-          "expr": "sum(irate(vm_cache_misses_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_cache_misses_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Misses",
           "refId": "B"
         },
         {
-          "expr": "sum(irate(vm_cache_requests_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_cache_requests_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Requests",
@@ -1475,14 +1475,14 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(irate(vm_cache_size_bytes{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_cache_size_bytes{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Cache",
           "refId": "A"
         },
         {
-          "expr": "sum(irate(vm_data_size_bytes{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_data_size_bytes{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Data",
@@ -1568,28 +1568,28 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(irate(vm_rows{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_rows{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Total",
           "refId": "A"
         },
         {
-          "expr": "sum(irate(vm_rows_merged_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_rows_merged_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Merged",
           "refId": "B"
         },
         {
-          "expr": "sum(irate(vm_rows_deleted_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_rows_deleted_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Deleted",
           "refId": "C"
         },
         {
-          "expr": "sum(irate(vm_pending_rows{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_pending_rows{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Pending",
@@ -1675,28 +1675,28 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(irate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"accept\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"accept\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Accept",
           "refId": "A"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"close\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"close\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Close",
           "refId": "B"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"write\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"write\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Write",
           "refId": "C"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"read\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_errors_total{instance=~\".*$host.*\",type=\"read\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Read",
@@ -1891,14 +1891,14 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(irate(vm_tcplistener_written_bytes_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_written_bytes_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Write",
           "refId": "A"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_read_bytes_total{instance=~\".*$host.*\"}[2m])) * -1",
+          "expr": "sum(rate(vm_tcplistener_read_bytes_total{instance=~\".*$host.*\"}[2m])) * -1",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Read",
@@ -1984,28 +1984,28 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(irate(vm_tcplistener_write_calls_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_write_calls_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Write calls",
           "refId": "A"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_write_timeouts_total{instance=~\".*$host.*\"}[2m]))",
+          "expr": "sum(rate(vm_tcplistener_write_timeouts_total{instance=~\".*$host.*\"}[2m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Write timeouts",
           "refId": "B"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_read_calls_total{instance=~\".*$host.*\"}[2m])) * -1",
+          "expr": "sum(rate(vm_tcplistener_read_calls_total{instance=~\".*$host.*\"}[2m])) * -1",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Read calls",
           "refId": "C"
         },
         {
-          "expr": "sum(irate(vm_tcplistener_read_timeouts_total{instance=~\".*$host.*\"}[2m])) * -1",
+          "expr": "sum(rate(vm_tcplistener_read_timeouts_total{instance=~\".*$host.*\"}[2m])) * -1",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Read timeouts",
