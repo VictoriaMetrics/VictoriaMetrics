@@ -65,7 +65,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1563622305617,
+  "iteration": 1563627408028,
   "links": [
     {
       "icon": "doc",
@@ -1837,18 +1837,11 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(process_cpu_seconds_total{job=\"$job\"}[1m])",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Irate",
-          "refId": "A"
-        },
-        {
           "expr": "rate(process_cpu_seconds_total{job=\"$job\"}[5m])",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "rate 5m",
-          "refId": "B"
+          "legendFormat": "Rate 5m",
+          "refId": "A"
         }
       ],
       "thresholds": [],
