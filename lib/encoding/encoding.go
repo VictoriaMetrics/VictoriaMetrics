@@ -296,7 +296,7 @@ func isDeltaConst(a []int64) bool {
 // i.e. arbitrary changing values.
 //
 // It is OK if a few gauges aren't detected (i.e. detected as counters),
-// since misdetected counters as gauges are much worse condition.
+// since misdetected counters as gauges leads to worser compression ratio.
 func isGauge(a []int64) bool {
 	// Check all the items in a, since a part of items may lead
 	// to incorrect gauge detection.
@@ -305,32 +305,36 @@ func isGauge(a []int64) bool {
 		return false
 	}
 
-	extremes := 0
-	plus := a[0] <= a[1]
-	v1 := a[1]
-	for _, v2 := range a[2:] {
-		if plus {
-			if v2 < v1 {
-				extremes++
-				plus = false
-			}
-		} else {
-			if v2 > v1 {
-				extremes++
-				plus = true
-			}
-		}
-		v1 = v2
+	resets := 0
+	vPrev := a[0]
+	if vPrev < 0 {
+		// Counter values cannot be negative.
+		return true
 	}
-	if extremes <= 2 {
-		// Probably counter reset.
+	for _, v := range a[1:] {
+		if v < vPrev {
+			if v < 0 {
+				// Counter values cannot be negative.
+				return true
+			}
+			if v > (vPrev >> 3) {
+				// Decreasing sequence detected.
+				// This is a gauge.
+				return true
+			}
+			// Possible counter reset.
+			resets++
+		}
+		vPrev = v
+	}
+	if resets <= 2 {
+		// Counter with a few resets.
 		return false
 	}
 
-	// A few extremes may indicate counter resets.
-	// Let it be a gauge if extremes exceed len(a)/32,
-	// otherwise assume counter reset.
-	return extremes > (len(a) >> 5)
+	// Let it be a gauge if resets exceeds len(a)/8,
+	// otherwise assume counter.
+	return resets > (len(a) >> 3)
 }
 
 func getCompressLevel(itemsCount int) int {
