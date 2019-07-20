@@ -34,10 +34,10 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	logger.Infof("initializing netstorage for storageNodes=%s...", *storageNodes)
+	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
 	if len(*storageNodes) == 0 {
-		logger.Fatalf("storageNodes cannot be empty")
+		logger.Fatalf("missing -storageNode arg")
 	}
 	netstorage.InitStorageNodes(*storageNodes)
 	logger.Infof("successfully initialized netstorage in %s", time.Since(startTime))
