@@ -1,4 +1,4 @@
-// +build !cgo
+// +build cgo
 
 package encoding
 
@@ -269,13 +269,13 @@ func TestMarshalInt64ArraySize(t *testing.T) {
 		v += 30e3 + int64(rand.NormFloat64()*1e3)
 	}
 
-	testMarshalInt64ArraySize(t, va, 1, 500, 1700)
-	testMarshalInt64ArraySize(t, va, 2, 600, 1500)
+	testMarshalInt64ArraySize(t, va, 1, 500, 1300)
+	testMarshalInt64ArraySize(t, va, 2, 600, 1400)
 	testMarshalInt64ArraySize(t, va, 3, 900, 1800)
 	testMarshalInt64ArraySize(t, va, 4, 1300, 2100)
-	testMarshalInt64ArraySize(t, va, 5, 2000, 3300)
-	testMarshalInt64ArraySize(t, va, 6, 3000, 5000)
-	testMarshalInt64ArraySize(t, va, 7, 4000, 6500)
+	testMarshalInt64ArraySize(t, va, 5, 2000, 3200)
+	testMarshalInt64ArraySize(t, va, 6, 3000, 4800)
+	testMarshalInt64ArraySize(t, va, 7, 4000, 6400)
 	testMarshalInt64ArraySize(t, va, 8, 6000, 8000)
 	testMarshalInt64ArraySize(t, va, 9, 7000, 8800)
 	testMarshalInt64ArraySize(t, va, 10, 8000, 10000)

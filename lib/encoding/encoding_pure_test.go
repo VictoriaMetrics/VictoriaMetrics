@@ -1,4 +1,4 @@
-// +build cgo
+// +build !cgo
 
 package encoding
 
@@ -45,27 +45,29 @@ func TestIsDeltaConst(t *testing.T) {
 }
 
 func TestIsGauge(t *testing.T) {
-	testIsGauge(t, []int64{}, false)
-	testIsGauge(t, []int64{0}, false)
-	testIsGauge(t, []int64{1, 2}, false)
-	testIsGauge(t, []int64{0, 1, 2, 3, 4, 5}, false)
-	testIsGauge(t, []int64{0, -1, -2, -3, -4}, false)
-	testIsGauge(t, []int64{0, 0, 0, 0, 0, 0, 0}, false)
-	testIsGauge(t, []int64{1, 1, 1, 1, 1}, false)
-	testIsGauge(t, []int64{1, 1, 2, 2, 2, 2}, false)
-	testIsGauge(t, []int64{1, 5, 2, 3}, false) // a single counter reset
-	testIsGauge(t, []int64{1, 5, 2, 3, 2}, true)
-	testIsGauge(t, []int64{-1, -5, -2, -3}, false) // a single counter reset
-	testIsGauge(t, []int64{-1, -5, -2, -3, -2}, true)
-}
-
-func testIsGauge(t *testing.T, a []int64, okExpected bool) {
-	t.Helper()
-
-	ok := isGauge(a)
-	if ok != okExpected {
-		t.Fatalf("unexpected result for isGauge(%d); got %v; expecting %v", a, ok, okExpected)
+	f := func(a []int64, okExpected bool) {
+		t.Helper()
+		ok := isGauge(a)
+		if ok != okExpected {
+			t.Fatalf("unexpected result for isGauge(%d); got %v; expecting %v", a, ok, okExpected)
+		}
 	}
+	f([]int64{}, false)
+	f([]int64{0}, false)
+	f([]int64{1, 2}, false)
+	f([]int64{0, 1, 2, 3, 4, 5}, false)
+	f([]int64{0, -1, -2, -3, -4}, true)
+	f([]int64{0, 0, 0, 0, 0, 0, 0}, false)
+	f([]int64{1, 1, 1, 1, 1}, false)
+	f([]int64{1, 1, 2, 2, 2, 2}, false)
+	f([]int64{1, 17, 2, 3}, false) // a single counter reset
+	f([]int64{1, 5, 2, 3}, true)
+	f([]int64{1, 5, 2, 3, 2}, true)
+	f([]int64{-1, -5, -2, -3}, true)
+	f([]int64{-1, -5, -2, -3, -2}, true)
+	f([]int64{5, 6, 4, 3, 2}, true)
+	f([]int64{4, 5, 6, 5, 4, 3, 2}, true)
+	f([]int64{1064, 1132, 1083, 1062, 856, 747}, true)
 }
 
 func TestEnsureNonDecreasingSequence(t *testing.T) {
@@ -112,7 +114,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 		v += int64(rand.NormFloat64() * 1e6)
 		va = append(va, v)
 	}
-	for precisionBits := uint8(1); precisionBits < 23; precisionBits++ {
+	for precisionBits := uint8(1); precisionBits < 17; precisionBits++ {
 		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta)
 	}
 	for precisionBits := uint8(23); precisionBits < 65; precisionBits++ {
@@ -126,7 +128,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 		v += 30e6 + int64(rand.NormFloat64()*1e6)
 		va = append(va, v)
 	}
-	for precisionBits := uint8(1); precisionBits < 24; precisionBits++ {
+	for precisionBits := uint8(1); precisionBits < 15; precisionBits++ {
 		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta2)
 	}
 	for precisionBits := uint8(24); precisionBits < 65; precisionBits++ {
@@ -267,13 +269,13 @@ func TestMarshalInt64ArraySize(t *testing.T) {
 		v += 30e3 + int64(rand.NormFloat64()*1e3)
 	}
 
-	testMarshalInt64ArraySize(t, va, 1, 500, 1300)
-	testMarshalInt64ArraySize(t, va, 2, 600, 1400)
-	testMarshalInt64ArraySize(t, va, 3, 900, 1800)
-	testMarshalInt64ArraySize(t, va, 4, 1300, 2100)
-	testMarshalInt64ArraySize(t, va, 5, 2000, 3200)
-	testMarshalInt64ArraySize(t, va, 6, 3000, 4800)
-	testMarshalInt64ArraySize(t, va, 7, 4000, 6400)
+	testMarshalInt64ArraySize(t, va, 1, 500, 1700)
+	testMarshalInt64ArraySize(t, va, 2, 600, 1800)
+	testMarshalInt64ArraySize(t, va, 3, 900, 2100)
+	testMarshalInt64ArraySize(t, va, 4, 1300, 2200)
+	testMarshalInt64ArraySize(t, va, 5, 2000, 3300)
+	testMarshalInt64ArraySize(t, va, 6, 3000, 5000)
+	testMarshalInt64ArraySize(t, va, 7, 4000, 6500)
 	testMarshalInt64ArraySize(t, va, 8, 6000, 8000)
 	testMarshalInt64ArraySize(t, va, 9, 7000, 8800)
 	testMarshalInt64ArraySize(t, va, 10, 8000, 10000)

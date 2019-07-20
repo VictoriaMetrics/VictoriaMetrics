@@ -25,3 +25,6 @@ victoria-metrics-arm:
 
 victoria-metrics-arm64:
 	CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm64 ./app/victoria-metrics
+
+victoria-metrics-pure:
+	GO111MODULE=on go build CGO_ENABLED=0 -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-pure ./app/victoria-metrics
