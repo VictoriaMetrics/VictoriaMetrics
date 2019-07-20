@@ -45,27 +45,29 @@ func TestIsDeltaConst(t *testing.T) {
 }
 
 func TestIsGauge(t *testing.T) {
-	testIsGauge(t, []int64{}, false)
-	testIsGauge(t, []int64{0}, false)
-	testIsGauge(t, []int64{1, 2}, false)
-	testIsGauge(t, []int64{0, 1, 2, 3, 4, 5}, false)
-	testIsGauge(t, []int64{0, -1, -2, -3, -4}, false)
-	testIsGauge(t, []int64{0, 0, 0, 0, 0, 0, 0}, false)
-	testIsGauge(t, []int64{1, 1, 1, 1, 1}, false)
-	testIsGauge(t, []int64{1, 1, 2, 2, 2, 2}, false)
-	testIsGauge(t, []int64{1, 5, 2, 3}, false) // a single counter reset
-	testIsGauge(t, []int64{1, 5, 2, 3, 2}, true)
-	testIsGauge(t, []int64{-1, -5, -2, -3}, false) // a single counter reset
-	testIsGauge(t, []int64{-1, -5, -2, -3, -2}, true)
-}
-
-func testIsGauge(t *testing.T, a []int64, okExpected bool) {
-	t.Helper()
-
-	ok := isGauge(a)
-	if ok != okExpected {
-		t.Fatalf("unexpected result for isGauge(%d); got %v; expecting %v", a, ok, okExpected)
+	f := func(a []int64, okExpected bool) {
+		t.Helper()
+		ok := isGauge(a)
+		if ok != okExpected {
+			t.Fatalf("unexpected result for isGauge(%d); got %v; expecting %v", a, ok, okExpected)
+		}
 	}
+	f([]int64{}, false)
+	f([]int64{0}, false)
+	f([]int64{1, 2}, false)
+	f([]int64{0, 1, 2, 3, 4, 5}, false)
+	f([]int64{0, -1, -2, -3, -4}, true)
+	f([]int64{0, 0, 0, 0, 0, 0, 0}, false)
+	f([]int64{1, 1, 1, 1, 1}, false)
+	f([]int64{1, 1, 2, 2, 2, 2}, false)
+	f([]int64{1, 17, 2, 3}, false) // a single counter reset
+	f([]int64{1, 5, 2, 3}, true)
+	f([]int64{1, 5, 2, 3, 2}, true)
+	f([]int64{-1, -5, -2, -3}, true)
+	f([]int64{-1, -5, -2, -3, -2}, true)
+	f([]int64{5, 6, 4, 3, 2}, true)
+	f([]int64{4, 5, 6, 5, 4, 3, 2}, true)
+	f([]int64{1064, 1132, 1083, 1062, 856, 747}, true)
 }
 
 func TestEnsureNonDecreasingSequence(t *testing.T) {
