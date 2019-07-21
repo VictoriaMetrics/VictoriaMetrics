@@ -1,0 +1,8 @@
+[Unit]
+Description=VictoriaMetrics is fast, cost-effective and scalable time series database.
+
+[Service]
+ExecStart=/usr/sbin/victoria-metrics
+
+[Install]
+WantedBy=multi-user.target
