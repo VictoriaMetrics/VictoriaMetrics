@@ -66,6 +66,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [How to apply new config to VictoriaMetrics?](#how-to-apply-new-config-to-victoriametrics)
   - [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
   - [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+  - [Querying Graphite data](#querying-graphite-data)
   - [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
   - [How to work with snapshots?](#how-to-work-with-snapshots)
   - [How to delete time series?](#how-to-delete-time-series)
@@ -315,6 +316,14 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
+
+
+### Querying Graphite data
+
+Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read either via
+[Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/)
+or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+
 
 
 ### How to send data from OpenTSDB-compatible agents?
