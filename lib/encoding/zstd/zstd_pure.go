@@ -39,17 +39,16 @@ func Decompress(dst, src []byte) ([]byte, error) {
 //
 // The given compressionLevel is used for the compression.
 func CompressLevel(dst, src []byte, compressionLevel int) []byte {
-	var e *zstd.Encoder
-	r := av.Load().(registry)
-	e, ok := r[compressionLevel]
-	if !ok {
-		e = newEncoder(compressionLevel)
-	}
-
+	e := getEncoder(compressionLevel)
 	return e.EncodeAll(src, dst)
 }
 
-func newEncoder(compressionLevel int) *zstd.Encoder {
+func getEncoder(compressionLevel int) *zstd.Encoder {
+	r := av.Load().(registry)
+	if e, ok := r[compressionLevel]; ok {
+		return e
+	}
+
 	level := zstd.EncoderLevelFromZstd(compressionLevel)
 	e, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(level))
 	if err != nil {

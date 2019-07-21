@@ -1,4 +1,4 @@
-// +build !cgo
+// +build cgo
 
 package encoding
 
@@ -18,7 +18,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 		v += int64(rand.NormFloat64() * 1e6)
 		va = append(va, v)
 	}
-	for precisionBits := uint8(1); precisionBits < 17; precisionBits++ {
+	for precisionBits := uint8(1); precisionBits < 23; precisionBits++ {
 		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta)
 	}
 	for precisionBits := uint8(23); precisionBits < 65; precisionBits++ {
@@ -32,7 +32,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 		v += 30e6 + int64(rand.NormFloat64()*1e6)
 		va = append(va, v)
 	}
-	for precisionBits := uint8(1); precisionBits < 15; precisionBits++ {
+	for precisionBits := uint8(1); precisionBits < 24; precisionBits++ {
 		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta2)
 	}
 	for precisionBits := uint8(24); precisionBits < 65; precisionBits++ {
@@ -70,13 +70,13 @@ func TestMarshalInt64ArraySize(t *testing.T) {
 		v += 30e3 + int64(rand.NormFloat64()*1e3)
 	}
 
-	testMarshalInt64ArraySize(t, va, 1, 500, 1700)
-	testMarshalInt64ArraySize(t, va, 2, 600, 1800)
-	testMarshalInt64ArraySize(t, va, 3, 900, 2100)
-	testMarshalInt64ArraySize(t, va, 4, 1300, 2200)
-	testMarshalInt64ArraySize(t, va, 5, 2000, 3300)
-	testMarshalInt64ArraySize(t, va, 6, 3000, 5000)
-	testMarshalInt64ArraySize(t, va, 7, 4000, 6500)
+	testMarshalInt64ArraySize(t, va, 1, 500, 1300)
+	testMarshalInt64ArraySize(t, va, 2, 600, 1400)
+	testMarshalInt64ArraySize(t, va, 3, 900, 1800)
+	testMarshalInt64ArraySize(t, va, 4, 1300, 2100)
+	testMarshalInt64ArraySize(t, va, 5, 2000, 3200)
+	testMarshalInt64ArraySize(t, va, 6, 3000, 4800)
+	testMarshalInt64ArraySize(t, va, 7, 4000, 6400)
 	testMarshalInt64ArraySize(t, va, 8, 6000, 8000)
 	testMarshalInt64ArraySize(t, va, 9, 7000, 8800)
 	testMarshalInt64ArraySize(t, va, 10, 8000, 10000)
