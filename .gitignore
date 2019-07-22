@@ -9,4 +9,5 @@
 /victoria-metrics-data
 /vmstorage-data
 /vmselect-cache
-/package/temp-deb
+/package/temp-deb-*
+/package/*.deb

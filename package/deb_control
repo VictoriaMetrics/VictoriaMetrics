@@ -1,5 +1,5 @@
 Package: victoria-metrics
-Maintainer: Aliaksandr Valialkin <kmansoft@gmail.com>
+Maintainer: Aliaksandr Valialkin
 Depends: libc6 (>= 2.7-1)
 Section: net
 Priority: optional

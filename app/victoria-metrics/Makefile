@@ -31,3 +31,12 @@ victoria-metrics-package-deb: victoria-metrics
 	echo "GO_BUILDINFO:" "$(GO_BUILDINFO)"
 	echo "PWD:" "$(PWD)"
 	./package/package_deb.sh amd64
+
+### Packaging for Debian - arm64
+victoria-metrics-package-deb-arm64: victoria-metrics-arm64
+	./package/package_deb.sh arm64
+
+victoria-metrics-package-deb-all: \
+        victoria-metrics-package-deb \
+        victoria-metrics-package-deb-arm64
+
