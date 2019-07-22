@@ -25,3 +25,18 @@ victoria-metrics-arm:
 
 victoria-metrics-arm64:
 	CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm64 ./app/victoria-metrics
+
+### Packaging for Debian - amd64
+victoria-metrics-package-deb: victoria-metrics
+	echo "GO_BUILDINFO:" "$(GO_BUILDINFO)"
+	echo "PWD:" "$(PWD)"
+	./package/package_deb.sh amd64
+
+### Packaging for Debian - arm64
+victoria-metrics-package-deb-arm64: victoria-metrics-arm64
+	./package/package_deb.sh arm64
+
+victoria-metrics-package-deb-all: \
+        victoria-metrics-package-deb \
+        victoria-metrics-package-deb-arm64
+
