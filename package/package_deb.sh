@@ -61,16 +61,16 @@ echo "2.0" > "${TEMPDIR}/debian-binary"
 echo "Version: $VERSION-$BUILD" > "${TEMPDIR}/control"
 echo "Installed-Size:" `du -sb "${TEMPDIR}" | awk '{print int($1/1024)}'` >> "${TEMPDIR}/control"
 echo "Architecture: $DEB_ARCH" >> "${TEMPDIR}/control"
-cat "${PACKDIR}/deb_control" >> "${TEMPDIR}/control"
+cat "${PACKDIR}/deb/control" >> "${TEMPDIR}/control"
 
 # Copy conffile
 
-cp "${PACKDIR}/deb_conffile" "${TEMPDIR}/conffile"
+cp "${PACKDIR}/deb/conffile" "${TEMPDIR}/conffile"
 
 # Copy postinst and postrm
 
-cp "${PACKDIR}/deb_postinst" "${TEMPDIR}/postinst"
-cp "${PACKDIR}/deb_postrm" "${TEMPDIR}/postrm"
+cp "${PACKDIR}/deb/postinst" "${TEMPDIR}/postinst"
+cp "${PACKDIR}/deb/postrm" "${TEMPDIR}/postrm"
 
 (
     # Generate md5 sums
