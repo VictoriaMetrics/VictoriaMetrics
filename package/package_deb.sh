@@ -22,7 +22,7 @@ PACKDIR="./package"
 TEMPDIR="${PACKDIR}/temp-deb-${DEB_ARCH}"
 EXENAME_DST="victoria-metrics"
 
-# Pull in version files
+# Pull in version info
 
 VERSION=`cat ${PACKDIR}/VAR_VERSION | perl -ne 'chomp and print'`
 BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
@@ -48,7 +48,7 @@ echo "*** Out .deb  : ${OUT_DEB}"
 cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/sbin/${EXENAME_DST}"
 file "${TEMPDIR}/usr/sbin/${EXENAME_DST}"
 
-# Copy various supporting files
+# Copy supporting files
 
 cp "${PACKDIR}/victoria-metrics.service" "${TEMPDIR}/lib/systemd/system/"
 
