@@ -89,73 +89,6 @@ func testEnsureNonDecreasingSequence(t *testing.T, a []int64, vMin, vMax int64, 
 	}
 }
 
-func TestMarshalUnmarshalInt64Array(t *testing.T) {
-	testMarshalUnmarshalInt64Array(t, []int64{1, 20, 234}, 4, MarshalTypeNearestDelta2)
-	testMarshalUnmarshalInt64Array(t, []int64{1, 20, -2345, 678934, 342}, 4, MarshalTypeNearestDelta)
-	testMarshalUnmarshalInt64Array(t, []int64{1, 20, 2345, 6789, 12342}, 4, MarshalTypeNearestDelta2)
-
-	// Constant encoding
-	testMarshalUnmarshalInt64Array(t, []int64{1}, 4, MarshalTypeConst)
-	testMarshalUnmarshalInt64Array(t, []int64{1, 2}, 4, MarshalTypeDeltaConst)
-	testMarshalUnmarshalInt64Array(t, []int64{-1, 0, 1, 2, 3, 4, 5}, 4, MarshalTypeDeltaConst)
-	testMarshalUnmarshalInt64Array(t, []int64{-10, -1, 8, 17, 26}, 4, MarshalTypeDeltaConst)
-	testMarshalUnmarshalInt64Array(t, []int64{0, 0, 0, 0, 0, 0}, 4, MarshalTypeConst)
-	testMarshalUnmarshalInt64Array(t, []int64{100, 100, 100, 100}, 4, MarshalTypeConst)
-
-	var va []int64
-	var v int64
-
-	// Verify nearest delta encoding.
-	va = va[:0]
-	v = 0
-	for i := 0; i < 8*1024; i++ {
-		v += int64(rand.NormFloat64() * 1e6)
-		va = append(va, v)
-	}
-	for precisionBits := uint8(1); precisionBits < 23; precisionBits++ {
-		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta)
-	}
-	for precisionBits := uint8(23); precisionBits < 65; precisionBits++ {
-		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeNearestDelta)
-	}
-
-	// Verify nearest delta2 encoding.
-	va = va[:0]
-	v = 0
-	for i := 0; i < 8*1024; i++ {
-		v += 30e6 + int64(rand.NormFloat64()*1e6)
-		va = append(va, v)
-	}
-	for precisionBits := uint8(1); precisionBits < 24; precisionBits++ {
-		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta2)
-	}
-	for precisionBits := uint8(24); precisionBits < 65; precisionBits++ {
-		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeNearestDelta2)
-	}
-
-	// Verify nearest delta encoding.
-	va = va[:0]
-	v = 1000
-	for i := 0; i < 6; i++ {
-		v += int64(rand.NormFloat64() * 100)
-		va = append(va, v)
-	}
-	for precisionBits := uint8(1); precisionBits < 65; precisionBits++ {
-		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeNearestDelta)
-	}
-
-	// Verify nearest delta2 encoding.
-	va = va[:0]
-	v = 0
-	for i := 0; i < 6; i++ {
-		v += 3000 + int64(rand.NormFloat64()*100)
-		va = append(va, v)
-	}
-	for precisionBits := uint8(5); precisionBits < 65; precisionBits++ {
-		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeNearestDelta2)
-	}
-}
-
 func testMarshalUnmarshalInt64Array(t *testing.T, va []int64, precisionBits uint8, mtExpected MarshalType) {
 	t.Helper()
 
@@ -259,24 +192,18 @@ func TestMarshalUnmarshalValues(t *testing.T) {
 	}
 }
 
-func TestMarshalInt64ArraySize(t *testing.T) {
-	var va []int64
-	v := int64(rand.Float64() * 1e9)
-	for i := 0; i < 8*1024; i++ {
-		va = append(va, v)
-		v += 30e3 + int64(rand.NormFloat64()*1e3)
-	}
+func TestMarshalUnmarshalInt64ArrayConstant(t *testing.T) {
+	testMarshalUnmarshalInt64Array(t, []int64{1, 20, 234}, 4, MarshalTypeNearestDelta2)
+	testMarshalUnmarshalInt64Array(t, []int64{1, 20, -2345, 678934, 342}, 4, MarshalTypeNearestDelta)
+	testMarshalUnmarshalInt64Array(t, []int64{1, 20, 2345, 6789, 12342}, 4, MarshalTypeNearestDelta2)
 
-	testMarshalInt64ArraySize(t, va, 1, 500, 1300)
-	testMarshalInt64ArraySize(t, va, 2, 600, 1400)
-	testMarshalInt64ArraySize(t, va, 3, 900, 1800)
-	testMarshalInt64ArraySize(t, va, 4, 1300, 2100)
-	testMarshalInt64ArraySize(t, va, 5, 2000, 3200)
-	testMarshalInt64ArraySize(t, va, 6, 3000, 4800)
-	testMarshalInt64ArraySize(t, va, 7, 4000, 6400)
-	testMarshalInt64ArraySize(t, va, 8, 6000, 8000)
-	testMarshalInt64ArraySize(t, va, 9, 7000, 8800)
-	testMarshalInt64ArraySize(t, va, 10, 8000, 10000)
+	// Constant encoding
+	testMarshalUnmarshalInt64Array(t, []int64{1}, 4, MarshalTypeConst)
+	testMarshalUnmarshalInt64Array(t, []int64{1, 2}, 4, MarshalTypeDeltaConst)
+	testMarshalUnmarshalInt64Array(t, []int64{-1, 0, 1, 2, 3, 4, 5}, 4, MarshalTypeDeltaConst)
+	testMarshalUnmarshalInt64Array(t, []int64{-10, -1, 8, 17, 26}, 4, MarshalTypeDeltaConst)
+	testMarshalUnmarshalInt64Array(t, []int64{0, 0, 0, 0, 0, 0}, 4, MarshalTypeConst)
+	testMarshalUnmarshalInt64Array(t, []int64{100, 100, 100, 100}, 4, MarshalTypeConst)
 }
 
 func testMarshalInt64ArraySize(t *testing.T, va []int64, precisionBits uint8, minSizeExpected, maxSizeExpected int) {

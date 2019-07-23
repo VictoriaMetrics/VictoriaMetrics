@@ -1,8 +1,8 @@
 package encoding
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/gozstd"
 )
 
 // CompressZSTDLevel appends compressed src to dst and returns
@@ -13,7 +13,7 @@ func CompressZSTDLevel(dst, src []byte, compressLevel int) []byte {
 	compressCalls.Inc()
 	originalBytes.Add(len(src))
 	dstLen := len(dst)
-	dst = gozstd.CompressLevel(dst, src, compressLevel)
+	dst = zstd.CompressLevel(dst, src, compressLevel)
 	compressedBytes.Add(len(dst) - dstLen)
 	return dst
 }
@@ -22,7 +22,7 @@ func CompressZSTDLevel(dst, src []byte, compressLevel int) []byte {
 // the appended dst.
 func DecompressZSTD(dst, src []byte) ([]byte, error) {
 	decompressCalls.Inc()
-	return gozstd.Decompress(dst, src)
+	return zstd.Decompress(dst, src)
 }
 
 var (
