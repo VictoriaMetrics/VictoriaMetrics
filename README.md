@@ -127,7 +127,7 @@ Use it with caution!
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics-pure` from the root folder of the repository.
-   It will build `victoria-metrica-pure` binary and put it into the `bin` folder.
+   It will build `victoria-metrics-pure` binary and put it into the `bin` folder.
 
 #### Building docker images
 
