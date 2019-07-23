@@ -192,7 +192,7 @@ func TestMarshalUnmarshalValues(t *testing.T) {
 	}
 }
 
-func TestMarshalUnmarshalInt64ArrayConstant(t *testing.T) {
+func TestMarshalUnmarshalInt64ArrayGeneric(t *testing.T) {
 	testMarshalUnmarshalInt64Array(t, []int64{1, 20, 234}, 4, MarshalTypeNearestDelta2)
 	testMarshalUnmarshalInt64Array(t, []int64{1, 20, -2345, 678934, 342}, 4, MarshalTypeNearestDelta)
 	testMarshalUnmarshalInt64Array(t, []int64{1, 20, 2345, 6789, 12342}, 4, MarshalTypeNearestDelta2)
