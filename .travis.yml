@@ -15,8 +15,12 @@ before_install:
 script:
   - make check_all
   - git diff --exit-code
-  - make test_full
+  - make test-full
+  - make test-pure
   - make victoria-metrics
+  - make victoria-metrics-pure
+  - make victoria-metrics-arm
+  - make victoria-metrics-arm64
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

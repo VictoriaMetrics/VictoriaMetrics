@@ -121,6 +121,10 @@ to your needs.
 
 #### Pure Go (CGO_ENABLED=0)
 
+`Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
+This is experimental mode, which may result in lower compression ratio and slower decompression performance.
+Use it with caution!
+
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics-pure` from the root folder of the repository.
    It will build `victoria-metrica-pure` binary and put it into the `bin` folder.
