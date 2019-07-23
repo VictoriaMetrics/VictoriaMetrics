@@ -19,6 +19,12 @@ vmstorage-prod:
 vmstorage-prod-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) app-via-docker
 
+vmstorage-pure:
+	APP_NAME=vmstorage $(MAKE) app-local-pure
+
+vmstorage-pure-prod:
+	APP_NAME=vmstorage APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) app-via-docker
+
 package-vmstorage:
 	APP_NAME=vmstorage $(MAKE) package-via-docker
 

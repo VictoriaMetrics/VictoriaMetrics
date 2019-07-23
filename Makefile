@@ -15,6 +15,11 @@ all: \
 	vmselect \
 	vmstorage
 
+all-pure: \
+	vminsert-pure \
+	vmselect-pure \
+	vmstorage-pure
+
 include app/*/Makefile
 include deployment/*/Makefile
 include deployment/*/helm/Makefile
@@ -59,15 +64,13 @@ install-errcheck:
 check_all: fmt vet lint errcheck golangci-lint
 
 test:
-	GO111MODULE=on go test -mod=vendor ./lib/...
-	GO111MODULE=on go test -mod=vendor ./app/...
-
-test_full:
-	GO111MODULE=on go test -mod=vendor -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GO111MODULE=on go test -mod=vendor ./lib/... ./app/...
 
 test-pure:
-	GO111MODULE=on CGO_ENABLED=0 go test -mod=vendor ./lib/...
-	GO111MODULE=on CGO_ENABLED=0 go test -mod=vendor ./app/...
+	GO111MODULE=on CGO_ENABLED=0 go test -mod=vendor ./lib/... ./app/...
+
+test-full:
+	GO111MODULE=on go test -mod=vendor -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 benchmark:
 	GO111MODULE=on go test -mod=vendor -bench=. ./lib/...
@@ -84,7 +87,10 @@ vendor-update:
 	GO111MODULE=on go mod vendor
 
 app-local:
-	GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=1 GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+
+app-local-pure:
+	CGO_ENABLED=0 GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-pure$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 quicktemplate-gen: install-qtc
 	qtc

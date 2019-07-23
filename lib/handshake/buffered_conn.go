@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/valyala/gozstd"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 )
 
 type bufferedWriter interface {
@@ -31,12 +31,12 @@ func newBufferedConn(c net.Conn, compressionLevel int, isReadCompressed bool) *B
 	if compressionLevel <= 0 {
 		bc.bw = bufio.NewWriterSize(c, bufferSize)
 	} else {
-		bc.bw = gozstd.NewWriterLevel(c, compressionLevel)
+		bc.bw = zstd.NewWriterLevel(c, compressionLevel)
 	}
 	if !isReadCompressed {
 		bc.br = bufio.NewReaderSize(c, bufferSize)
 	} else {
-		bc.br = gozstd.NewReader(c)
+		bc.br = zstd.NewReader(c)
 	}
 	return bc
 }
@@ -60,12 +60,12 @@ func (bc *BufferedConn) Close() error {
 	err := bc.Conn.Close()
 	bc.Conn = nil
 
-	if zr, ok := bc.br.(*gozstd.Reader); ok {
+	if zr, ok := bc.br.(*zstd.Reader); ok {
 		zr.Release()
 	}
 	bc.br = nil
 
-	if zw, ok := bc.bw.(*gozstd.Writer); ok {
+	if zw, ok := bc.bw.(*zstd.Writer); ok {
 		// Do not call zw.Close(), since we already closed the underlying conn.
 		zw.Release()
 	}

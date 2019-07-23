@@ -21,8 +21,9 @@ app-via-docker: package-certs package-builder
 		--mount type=bind,src="$(shell pwd)/gocache-for-docker",dst=/gocache \
 		--env GOCACHE=/gocache \
 		--env GO111MODULE=on \
+		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
-		go build $(RACE) -mod=vendor -ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" -tags 'netgo osusergo' -o bin/$(APP_NAME)-prod $(PKG_PREFIX)/app/$(APP_NAME)
+		go build $(RACE) -mod=vendor -ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" -tags 'netgo osusergo' -o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)') || (\

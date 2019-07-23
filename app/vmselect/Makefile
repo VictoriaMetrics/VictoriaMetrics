@@ -19,6 +19,12 @@ vmselect-prod:
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
 
+vmselect-pure:
+	APP_NAME=vmselect $(MAKE) app-local-pure
+
+vmselect-pure-prod:
+	APP_NAME=vmselect APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) app-via-docker
+
 package-vmselect:
 	APP_NAME=vmselect $(MAKE) package-via-docker
 
