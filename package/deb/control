@@ -1,0 +1,7 @@
+Package: victoria-metrics
+Maintainer: Aliaksandr Valialkin
+Depends: libc6 (>= 2.7-1)
+Section: net
+Priority: optional
+Homepage: https://github.com/VictoriaMetrics/VictoriaMetrics
+Description: VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.

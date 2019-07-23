@@ -28,3 +28,18 @@ victoria-metrics-arm64:
 
 victoria-metrics-pure:
 	GO111MODULE=on CGO_ENABLED=0 go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-pure ./app/victoria-metrics
+
+### Packaging for Debian - amd64
+victoria-metrics-package-deb: victoria-metrics
+	echo "GO_BUILDINFO:" "$(GO_BUILDINFO)"
+	echo "PWD:" "$(PWD)"
+	./package/package_deb.sh amd64
+
+### Packaging for Debian - arm64
+victoria-metrics-package-deb-arm64: victoria-metrics-arm64
+	./package/package_deb.sh arm64
+
+victoria-metrics-package-deb-all: \
+        victoria-metrics-package-deb \
+        victoria-metrics-package-deb-arm64
+
