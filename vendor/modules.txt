@@ -7,11 +7,11 @@ github.com/cespare/xxhash/v2
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
 # github.com/klauspost/compress v1.7.4
-github.com/klauspost/compress/zstd
+github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
+github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-github.com/klauspost/compress/fse
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
 # github.com/valyala/fastjson v1.4.1
@@ -24,5 +24,5 @@ github.com/valyala/gozstd
 github.com/valyala/histogram
 # github.com/valyala/quicktemplate v1.1.1
 github.com/valyala/quicktemplate
-# golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f
+# golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7
 golang.org/x/sys/unix
