@@ -21,10 +21,13 @@ run-victoria-metrics:
 	$(MAKE) run-via-docker
 
 victoria-metrics-arm:
-	CC=arm-linux-gnueabi-gcc CGO_ENABLED=1 GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm ./app/victoria-metrics
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm ./app/victoria-metrics
 
 victoria-metrics-arm64:
-	CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm64 ./app/victoria-metrics
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm64 ./app/victoria-metrics
+
+victoria-metrics-pure:
+	GO111MODULE=on CGO_ENABLED=0 go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-pure ./app/victoria-metrics
 
 ### Packaging for Debian - amd64
 victoria-metrics-package-deb: victoria-metrics

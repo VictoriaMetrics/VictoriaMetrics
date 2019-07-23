@@ -113,6 +113,18 @@ to your needs.
 2. Run `make victoria-metrics-prod` from the root folder of the repository.
    It will build `victoria-metrics-prod` binary and put it into the `bin` folder.
 
+#### ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
+   It will build `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and put it into the `bin` folder.
+
+#### Pure Go (CGO_ENABLED=0)
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+2. Run `make victoria-metrics-pure` from the root folder of the repository.
+   It will build `victoria-metrica-pure` binary and put it into the `bin` folder.
+
 #### Building docker images
 
 Run `make package-victoria-metrics`. It will build `victoriametrics/victoria-metrics:<PKG_TAG>` docker image locally.
