@@ -71,8 +71,8 @@ func TestMarshalInt64ArraySize(t *testing.T) {
 	}
 
 	testMarshalInt64ArraySize(t, va, 1, 500, 1300)
-	testMarshalInt64ArraySize(t, va, 2, 600, 1400)
-	testMarshalInt64ArraySize(t, va, 3, 900, 1800)
+	testMarshalInt64ArraySize(t, va, 2, 500, 1400)
+	testMarshalInt64ArraySize(t, va, 3, 800, 1800)
 	testMarshalInt64ArraySize(t, va, 4, 1300, 2100)
 	testMarshalInt64ArraySize(t, va, 5, 2000, 3200)
 	testMarshalInt64ArraySize(t, va, 6, 3000, 4800)
