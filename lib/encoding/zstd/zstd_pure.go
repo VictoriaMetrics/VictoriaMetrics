@@ -45,17 +45,15 @@ func CompressLevel(dst, src []byte, compressionLevel int) []byte {
 
 func getEncoder(compressionLevel int) *zstd.Encoder {
 	r := av.Load().(registry)
-	if e, ok := r[compressionLevel]; ok {
+	e := r[compressionLevel]
+	if e != nil {
 		return e
 	}
 
-	level := zstd.EncoderLevelFromZstd(compressionLevel)
-	e, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(level))
-	if err != nil {
-		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
-	}
-
 	mu.Lock()
+	// Create the encoder under lock in order to prevent from wasted work
+	// when concurrent goroutines create encoder for the same compressionLevel.
+	e = newEncoder(compressionLevel)
 	r1 := av.Load().(registry)
 	r2 := make(registry)
 	for k, v := range r1 {
@@ -65,5 +63,16 @@ func getEncoder(compressionLevel int) *zstd.Encoder {
 	av.Store(r2)
 	mu.Unlock()
 
+	return e
+}
+
+func newEncoder(compressionLevel int) *zstd.Encoder {
+	level := zstd.EncoderLevelFromZstd(compressionLevel)
+	e, err := zstd.NewWriter(nil,
+		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
+		zstd.WithEncoderLevel(level))
+	if err != nil {
+		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
+	}
 	return e
 }

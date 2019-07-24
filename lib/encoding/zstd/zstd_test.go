@@ -68,7 +68,9 @@ func testCompressDecompress(t *testing.T, compress compressFn, decompress decomp
 type compressFn func(dst, src []byte, compressionLevel int) ([]byte, error)
 
 func pureCompress(dst, src []byte, _ int) ([]byte, error) {
-	w, err := pure.NewWriter(nil, pure.WithEncoderLevel(pure.SpeedBestCompression))
+	w, err := pure.NewWriter(nil,
+		pure.WithEncoderCRC(false),  // Disable CRC for performance reasons.
+		pure.WithEncoderLevel(pure.SpeedBestCompression))
 	if err != nil {
 		return nil, err
 	}
