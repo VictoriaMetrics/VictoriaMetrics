@@ -10,4 +10,6 @@
 /vmstorage-data
 /vmselect-cache
 /package/temp-deb-*
+/package/temp-rpm-*
 /package/*.deb
+/package/*.rpm

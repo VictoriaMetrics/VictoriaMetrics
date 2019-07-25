@@ -38,17 +38,35 @@ victoria-metrics-pure:
 victoria-metrics-pure-prod:
 	APP_NAME=victoria-metrics APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) app-via-docker
 
-### Packaging for Debian - amd64
+### Packaging as DEB - amd64
 victoria-metrics-package-deb: victoria-metrics
-	echo "GO_BUILDINFO:" "$(GO_BUILDINFO)"
-	echo "PWD:" "$(PWD)"
 	./package/package_deb.sh amd64
 
-### Packaging for Debian - arm64
+### Packaging as DEB - arm64
 victoria-metrics-package-deb-arm64: victoria-metrics-arm64
 	./package/package_deb.sh arm64
 
+### Packaging as DEB - all
 victoria-metrics-package-deb-all: \
         victoria-metrics-package-deb \
         victoria-metrics-package-deb-arm64
 
+### Packaging as RPM - amd64
+victoria-metrics-package-rpm: victoria-metrics
+	./package/package_rpm.sh amd64
+
+### Packaging as RPM - arm64
+victoria-metrics-package-rpm-arm64: victoria-metrics-arm64
+	./package/package_rpm.sh arm64
+
+### Packaging as RPM - all
+victoria-metrics-package-rpm-all: \
+        victoria-metrics-package-rpm \
+        victoria-metrics-package-rpm-arm64
+
+### Packaging as both DEB and RPM - all
+victoria-metrics-package-deb-rpm-all: \
+        victoria-metrics-package-deb \
+        victoria-metrics-package-deb-arm64 \
+        victoria-metrics-package-rpm \
+        victoria-metrics-package-rpm-arm64
