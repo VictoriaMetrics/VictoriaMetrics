@@ -55,6 +55,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [How to build from sources](#how-to-build-from-sources)
     - [Development build](#development-build)
     - [Production build](#production-build)
+    - [ARM build](#arm-build)
+    - [Pure Go build (CGO_ENABLED=0)](#pure-go-build-cgo_enabled0)
     - [Building docker images](#building-docker-images)
   - [How to start VictoriaMetrics](#how-to-start-victoriametrics)
   - [Prometheus setup](#prometheus-setup)
@@ -119,7 +121,7 @@ to your needs.
 2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
    It will build `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and put it into the `bin` folder.
 
-#### Pure Go (CGO_ENABLED=0)
+#### Pure Go build (CGO_ENABLED=0)
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 This is experimental mode, which may result in lower compression ratio and slower decompression performance.
