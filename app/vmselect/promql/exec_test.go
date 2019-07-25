@@ -2343,10 +2343,10 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`count(multi-vector)`, func(t *testing.T) {
 		t.Parallel()
-		q := `count(label_set(10, "foo", "bar") or label_set((15-time()/100)^0.5, "baz", "sss"))`
+		q := `count(label_set(time()<1500, "foo", "bar") or label_set(time()<1800, "baz", "sss"))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{2, 2, 2, 1, 1, 1},
+			Values:     []float64{2, 2, 2, 1, nan, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}

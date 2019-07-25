@@ -348,7 +348,12 @@ func mergeAggrCount(dst, src *incrementalAggrContext) {
 }
 
 func finalizeAggrCount(iac *incrementalAggrContext) {
-	// Nothing to do
+	dstValues := iac.ts.Values
+	for i, v := range dstValues {
+		if v == 0 {
+			dstValues[i] = nan
+		}
+	}
 }
 
 func updateAggrSum2(iac *incrementalAggrContext, values []float64) {
