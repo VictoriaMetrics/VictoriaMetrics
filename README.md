@@ -52,12 +52,6 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 ### Table of contents
 
-  - [How to build from sources](#how-to-build-from-sources)
-    - [Development build](#development-build)
-    - [Production build](#production-build)
-    - [ARM build](#arm-build)
-    - [Pure Go build (CGO_ENABLED=0)](#pure-go-build-cgo_enabled0)
-    - [Building docker images](#building-docker-images)
   - [How to start VictoriaMetrics](#how-to-start-victoriametrics)
   - [Prometheus setup](#prometheus-setup)
   - [Grafana setup](#grafana-setup)
@@ -67,6 +61,12 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   - [Querying Graphite data](#querying-graphite-data)
   - [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
+  - [How to build from sources](#how-to-build-from-sources)
+    - [Development build](#development-build)
+    - [Production build](#production-build)
+    - [ARM build](#arm-build)
+    - [Pure Go build (CGO_ENABLED=0)](#pure-go-build-cgo_enabled0)
+    - [Building docker images](#building-docker-images)
   - [Start with docker-compose](#start-with-docker-compose)
   - [Setting up service](#setting-up-service)
   - [Third-party contributions](#third-party-contributions)
@@ -95,52 +95,10 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [We kindly ask:](#we-kindly-ask)
 
 
-### How to build from sources
-
-We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
-[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
-from sources. Building from sources is reasonable when developing an additional features specific
-to your needs.
-
-
-#### Development build
-
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
-2. Run `make victoria-metrics` from the root folder of the repository.
-   It will build `victoria-metrics` binary and put it into the `bin` folder.
-
-#### Production build
-
-1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-prod` from the root folder of the repository.
-   It will build `victoria-metrics-prod` binary and put it into the `bin` folder.
-
-#### ARM build
-
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
-2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
-   It will build `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and put it into the `bin` folder.
-
-#### Pure Go build (CGO_ENABLED=0)
-
-`Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
-This is experimental mode, which may result in lower compression ratio and slower decompression performance.
-Use it with caution!
-
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
-2. Run `make victoria-metrics-pure` from the root folder of the repository.
-   It will build `victoria-metrics-pure` binary and put it into the `bin` folder.
-
-#### Building docker images
-
-Run `make package-victoria-metrics`. It will build `victoriametrics/victoria-metrics:<PKG_TAG>` docker image locally.
-`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
-The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
-
-
 ### How to start VictoriaMetrics
 
-Just start VictoriaMetrics executable or docker image with the desired command-line flags.
+Just start VictoriaMetrics [executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+or [docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) with the desired command-line flags.
 
 The following command line flags are used the most:
 
@@ -357,6 +315,49 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
 ```
+
+
+### How to build from sources
+
+We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
+[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
+from sources. Building from sources is reasonable when developing an additional features specific
+to your needs.
+
+
+#### Development build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+2. Run `make victoria-metrics` from the root folder of the repository.
+   It will build `victoria-metrics` binary and put it into the `bin` folder.
+
+#### Production build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make victoria-metrics-prod` from the root folder of the repository.
+   It will build `victoria-metrics-prod` binary and put it into the `bin` folder.
+
+#### ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
+   It will build `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and put it into the `bin` folder.
+
+#### Pure Go build (CGO_ENABLED=0)
+
+`Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
+This is experimental mode, which may result in lower compression ratio and slower decompression performance.
+Use it with caution!
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+2. Run `make victoria-metrics-pure` from the root folder of the repository.
+   It will build `victoria-metrics-pure` binary and put it into the `bin` folder.
+
+#### Building docker images
+
+Run `make package-victoria-metrics`. It will build `victoriametrics/victoria-metrics:<PKG_TAG>` docker image locally.
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
 
 ### Start with docker-compose
