@@ -312,7 +312,11 @@ func aggrFuncCount(tss []*timeseries) []*timeseries {
 			}
 			count++
 		}
-		dst.Values[i] = float64(count)
+		v := float64(count)
+		if count == 0 {
+			v = nan
+		}
+		dst.Values[i] = v
 	}
 	return tss[:1]
 }

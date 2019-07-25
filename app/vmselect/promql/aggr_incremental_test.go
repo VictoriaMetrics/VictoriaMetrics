@@ -81,7 +81,7 @@ func TestIncrementalAggr(t *testing.T) {
 	})
 	t.Run("count", func(t *testing.T) {
 		t.Parallel()
-		valuesExpected := []float64{6, 0, 5, 5}
+		valuesExpected := []float64{6, nan, 5, 5}
 		f("count", valuesExpected)
 	})
 	t.Run("sum2", func(t *testing.T) {
