@@ -9,10 +9,10 @@ fi
 # Map to Debian architecture
 if [[ "$ARCH" == "amd64" ]]; then
     DEB_ARCH=amd64
-	EXENAME_SRC="victoria-metrics"
+	EXENAME_SRC="victoria-metrics-prod"
 elif [[ "$ARCH" == "arm64" ]]; then
     DEB_ARCH=arm64
-    EXENAME_SRC="victoria-metrics-arm64"
+    EXENAME_SRC="victoria-metrics-arm64-prod"
 else
     echo "*** Unknown arch $ARCH"
     exit 1
@@ -20,7 +20,7 @@ fi
 
 PACKDIR="./package"
 TEMPDIR="${PACKDIR}/temp-deb-${DEB_ARCH}"
-EXENAME_DST="victoria-metrics"
+EXENAME_DST="victoria-metrics-prod"
 
 # Pull in version info
 
@@ -33,7 +33,7 @@ BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
 
 mkdir -p "${TEMPDIR}" && echo "*** Created   : ${TEMPDIR}"
 
-mkdir -p "${TEMPDIR}/usr/sbin/"
+mkdir -p "${TEMPDIR}/usr/local/bin/"
 mkdir -p "${TEMPDIR}/lib/systemd/system/"
 
 echo "*** Version   : ${VERSION}-${BUILD}"
@@ -45,7 +45,7 @@ echo "*** Out .deb  : ${OUT_DEB}"
 
 # Copy the binary
 
-cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/sbin/${EXENAME_DST}"
+cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/local/bin/${EXENAME_DST}"
 
 # Copy supporting files
 

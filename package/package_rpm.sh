@@ -15,10 +15,10 @@ fi
 # Map to Debian architecture
 if [[ "$ARCH" == "amd64" ]]; then
     RPM_ARCH=x86_64
-	EXENAME_SRC="victoria-metrics"
+	EXENAME_SRC="victoria-metrics-prod"
 elif [[ "$ARCH" == "arm64" ]]; then
     RPM_ARCH=aarch64
-    EXENAME_SRC="victoria-metrics-arm64"
+    EXENAME_SRC="victoria-metrics-arm64-prod"
 else
     echo "*** Unknown arch $ARCH"
     exit 1
@@ -26,7 +26,7 @@ fi
 
 PACKDIR="./package"
 TEMPDIR="${PACKDIR}/temp-rpm-${RPM_ARCH}"
-EXENAME_DST="victoria-metrics"
+EXENAME_DST="victoria-metrics-prod"
 
 # Pull in version info
 
@@ -62,14 +62,14 @@ Requires: libc
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
 %files
-%attr(0744, root, root) /usr/sbin/*
+%attr(0744, root, root) /usr/local/bin/*
 %attr(0644, root, root) /lib/systemd/system/*
 
 %prep
-mkdir -p \$RPM_BUILD_ROOT/usr/sbin/
+mkdir -p \$RPM_BUILD_ROOT/usr/local/bin/
 mkdir -p \$RPM_BUILD_ROOT/lib/systemd/system/
 
-cp ${PWD}/bin/${EXENAME_SRC} \$RPM_BUILD_ROOT/usr/sbin/
+cp ${PWD}/bin/${EXENAME_SRC} \$RPM_BUILD_ROOT/usr/local/bin/${EXENAME_DST}
 cp ${PWD}/package/victoria-metrics.service \$RPM_BUILD_ROOT/lib/systemd/system/
 
 %post
