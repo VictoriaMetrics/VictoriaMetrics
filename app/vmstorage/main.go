@@ -301,6 +301,13 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().SizeBytes)
 	})
 
+	metrics.NewGauge(`vm_too_big_timestamp_rows_total`, func() float64 {
+		return float64(m().TooBigTimestampRows)
+	})
+	metrics.NewGauge(`vm_too_small_timestamp_rows_total`, func() float64 {
+		return float64(m().TooSmallTimestampRows)
+	})
+
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
 		return float64(tm().BigRowsCount)
 	})
