@@ -196,6 +196,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 			var err error
 			tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool)
 			if err != nil {
+				err = fmt.Errorf("cannot unmarshal Influx line %q: %s", s, err)
 				return dst, tagsPool, fieldsPool, err
 			}
 			return dst, tagsPool, fieldsPool, nil
@@ -203,6 +204,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 		var err error
 		tagsPool, fieldsPool, err = r.unmarshal(s[:n], tagsPool, fieldsPool)
 		if err != nil {
+			err = fmt.Errorf("cannot unmarshal Influx line %q: %s", s[:n], err)
 			return dst, tagsPool, fieldsPool, err
 		}
 		s = s[n+1:]

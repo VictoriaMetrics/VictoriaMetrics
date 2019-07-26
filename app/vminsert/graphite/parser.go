@@ -114,6 +114,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag) ([]Row, []Tag, error) {
 			var err error
 			tagsPool, err = r.unmarshal(s, tagsPool)
 			if err != nil {
+				err = fmt.Errorf("cannot unmarshal Graphite line %q: %s", s, err)
 				return dst, tagsPool, err
 			}
 			return dst, tagsPool, nil
@@ -121,6 +122,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag) ([]Row, []Tag, error) {
 		var err error
 		tagsPool, err = r.unmarshal(s[:n], tagsPool)
 		if err != nil {
+			err = fmt.Errorf("cannot unmarshal Graphite line %q: %s", s[:n], err)
 			return dst, tagsPool, err
 		}
 		s = s[n+1:]
