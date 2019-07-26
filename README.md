@@ -339,6 +339,8 @@ to your needs.
 
 #### ARM build
 
+ARM builds may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
    It will build `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and put it into the `bin` folder.
