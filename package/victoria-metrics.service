@@ -1,5 +1,6 @@
 [Unit]
-Description=VictoriaMetrics is a fast, cost-effective and scalable time series database.
+Description=High-performance, cost-effective and scalable time series database, long-term remote storage for Prometheus
+After=network.target
 
 [Service]
 Type=simple
@@ -7,9 +8,9 @@ StartLimitBurst=5
 StartLimitInterval=0
 Restart=on-failure
 RestartSec=1
-ExecStart=/usr/sbin/victoria-metrics -storageDataPath /var/lib/victoria-metrics-data -retentionPeriod 12
+ExecStart=/usr/local/bin/victoriametrics -storageDataPath=/var/lib/victoria-metrics-data
 ExecStop=/bin/kill -s SIGTERM $MAINPID
-LimitNOFILE=32000
+LimitNOFILE=65536
 LimitNPROC=32000
 
 [Install]
