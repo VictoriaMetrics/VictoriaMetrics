@@ -46,7 +46,6 @@ echo "*** Out .deb  : ${OUT_DEB}"
 # Copy the binary
 
 cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/sbin/${EXENAME_DST}"
-file "${TEMPDIR}/usr/sbin/${EXENAME_DST}"
 
 # Copy supporting files
 
@@ -70,6 +69,7 @@ cp "${PACKDIR}/deb/conffile" "${TEMPDIR}/conffile"
 # Copy postinst and postrm
 
 cp "${PACKDIR}/deb/postinst" "${TEMPDIR}/postinst"
+cp "${PACKDIR}/deb/prerm" "${TEMPDIR}/prerm"
 cp "${PACKDIR}/deb/postrm" "${TEMPDIR}/postrm"
 
 (
@@ -84,8 +84,8 @@ cp "${PACKDIR}/deb/postrm" "${TEMPDIR}/postrm"
     # Archive control
 
     chmod 644 control md5sums
-    chmod 755 postrm postinst
-    fakeroot -- tar -c --xz -f ./control.tar.xz ./control ./md5sums ./postinst ./postrm
+    chmod 755 postinst postrm prerm
+    fakeroot -- tar -c --xz -f ./control.tar.xz ./control ./md5sums ./postinst ./prerm ./postrm
 
     # Archive data
 
