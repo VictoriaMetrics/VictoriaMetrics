@@ -15,7 +15,10 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="prometheus"}`)
+var (
+	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="prometheus"}`)
+	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="prometheus"}`)
+)
 
 // InsertHandler processes remote write for prometheus.
 func InsertHandler(at *auth.Token, r *http.Request, maxSize int64) error {
@@ -34,6 +37,7 @@ func insertHandlerInternal(at *auth.Token, r *http.Request, maxSize int64) error
 	ic := &ctx.Common
 	ic.Reset()
 	timeseries := ctx.req.Timeseries
+	rowsTotal := 0
 	for i := range timeseries {
 		ts := &timeseries[i]
 		storageNodeIdx := ic.GetStorageNodeIdx(at, ts.Labels)
@@ -47,8 +51,10 @@ func insertHandlerInternal(at *auth.Token, r *http.Request, maxSize int64) error
 				return err
 			}
 		}
-		rowsInserted.Get(at).Add(len(ts.Samples))
+		rowsTotal += len(ts.Samples)
 	}
+	rowsInserted.Get(at).Add(rowsTotal)
+	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }
 

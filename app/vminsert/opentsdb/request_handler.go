@@ -18,7 +18,10 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 )
 
-var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdb"}`)
+var (
+	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdb"}`)
+	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="opentsdb"}`)
+)
 
 // insertHandler processes remote write for OpenTSDB put protocol.
 //
@@ -69,6 +72,7 @@ func (ctx *pushCtx) InsertRows(at *auth.Token) error {
 	}
 	// Assume that all the rows for a single connection belong to the same (AccountID, ProjectID).
 	rowsInserted.Get(&atCopy).Add(len(rows))
+	rowsPerInsert.Update(float64(len(rows)))
 	return ic.FlushBufs()
 }
 

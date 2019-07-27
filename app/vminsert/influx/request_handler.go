@@ -25,7 +25,10 @@ var (
 	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses `{measurement}` instead of `{measurement}{separator}{field_name}` for metic name if Influx line contains only a single field")
 )
 
-var rowsInserted = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="influx"}`)
+var (
+	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="influx"}`)
+	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="influx"}`)
+)
 
 // InsertHandler processes remote write for influx line protocol.
 //
@@ -83,7 +86,7 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 	rows := ctx.Rows.Rows
 	ic := &ctx.Common
 	ic.Reset()
-	rowsAdded := 0
+	rowsTotal := 0
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -116,9 +119,10 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 				return err
 			}
 		}
-		rowsAdded += len(r.Fields)
+		rowsTotal += len(r.Fields)
 	}
-	rowsInserted.Get(at).Add(rowsAdded)
+	rowsInserted.Get(at).Add(rowsTotal)
+	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }
 
