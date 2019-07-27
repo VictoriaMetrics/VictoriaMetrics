@@ -8,7 +8,7 @@
 
 ## Single-node VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
+VictoriaMetrics is fast, cost-effective and scalable time-series database. It can be used as long-term remote storage for Prometheus.
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
 in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
@@ -26,8 +26,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   [Outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 * [Uses 10x less RAM than InfluxDB](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) when working with millions of unique time series (aka high cardinality).
 * High data compression, so [up to 70x more data points](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
-  may be crammed into a limited storage comparing to TimescaleDB.
-* Optimized for storage with high-latency IO and low iops (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc). See [graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
+  may be crammed into limited storage comparing to TimescaleDB.
+* Optimized for storage with high-latency IO and low IOPS (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc). See [graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
 * A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, Uber M3, Cortex, InfluxDB or TimescaleDB.
   See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
   and [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
@@ -85,6 +85,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Tuning](#tuning)
   - [Monitoring](#monitoring)
   - [Troubleshooting](#troubleshooting)
+- [Roadmap](#roadmap)
 - [Contacts](#contacts)
 - [Community and contributions](#community-and-contributions)
 - [Reporting bugs](#reporting-bugs)
@@ -100,13 +101,13 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 Just start VictoriaMetrics [executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 or [docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) with the desired command-line flags.
 
-The following command line flags are used the most:
+The following command-line flags are used the most:
 
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory.
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted.
-* `-httpListenAddr` - TCP address to listen to for http requests. By default it listens port `8428` on all the network interfaces.
-* `-graphiteListenAddr` - TCP and UDP address to listen to for Graphite data. By default it is disabled.
-* `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data. By default it is disabled.
+* `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
+* `-graphiteListenAddr` - TCP and UDP address to listen to for Graphite data. By default, it is disabled.
+* `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data. By default, it is disabled.
 
 Pass `-help` to see all the available flags with description and default values.
 
@@ -134,7 +135,7 @@ Prometheus writes incoming data to local storage and replicates it to remote sto
 This means the data remains available in local storage for `--storage.tsdb.retention.time` duration
 even if remote storage is unavailable.
 
-If you plan sending data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
+If you plan to send data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
 of [Prometheus config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file):
 
 ```yml
@@ -145,7 +146,7 @@ global:
 
 This instructs Prometheus to add `datacenter=dc-123` label to each time series sent to remote storage.
 The label name may be arbitrary - `datacenter` is just an example. The label value must be unique
-across Prometheus instances, so time series may be filtered and grouped by this label.
+across Prometheus instances, so those time series may be filtered and grouped by this label.
 
 
 It is recommended upgrading Prometheus to [v2.10.0](https://github.com/prometheus/prometheus/releases) or newer,
@@ -185,7 +186,7 @@ VictoriaMetrics must be restarted for applying new config:
 
 1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
 2) Wait until the process stops. This can take a few seconds.
-3) Start VictoriaMetrics with new config.
+3) Start VictoriaMetrics with the new config.
 
 
 ### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)?
@@ -228,7 +229,7 @@ to local VictoriaMetrics using `curl`:
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-Arbitrary number of lines delimited by '\n' may be sent in a single request.
+An arbitrary number of lines delimited by '\n' may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
@@ -262,8 +263,8 @@ Example for writing data with Graphite plaintext protocol to local VictoriaMetri
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
-VictoriaMetrics sets the current time if timestamp is omitted.
-Arbitrary number of lines delimited by `\n` may be sent in one go.
+VictoriaMetrics sets the current time if the timestamp is omitted.
+An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
@@ -303,7 +304,7 @@ Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-Arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
@@ -321,7 +322,7 @@ The `/api/v1/export` endpoint should return the following response:
 
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
-from sources. Building from sources is reasonable when developing an additional features specific
+from sources. Building from sources is reasonable when developing additional features specific
 to your needs.
 
 
@@ -329,43 +330,43 @@ to your needs.
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics` from the root folder of the repository.
-   It will build `victoria-metrics` binary and put it into the `bin` folder.
+   It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
 #### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make victoria-metrics-prod` from the root folder of the repository.
-   It will build `victoria-metrics-prod` binary and put it into the `bin` folder.
+   It builds `victoria-metrics-prod` binary and puts it into the `bin` folder.
 
 #### ARM build
 
-ARM builds may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
 
 #### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
-   It will build `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and put it into the `bin` folder.
+   It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
 
 #### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make victoria-metrics-arm-prod` or `make victoria-metrics-arm64-prod` from the root folder of the repository.
-   It will build `victoria-metrics-arm-prod` or `victoria-metrics-arm64-prod` binary respectively and put it into the `bin` folder.
+   It builds `victoria-metrics-arm-prod` or `victoria-metrics-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 #### Pure Go build (CGO_ENABLED=0)
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
-This is experimental mode, which may result in lower compression ratio and slower decompression performance.
+This is an experimental mode, which may result in a lower compression ratio and slower decompression performance.
 Use it with caution!
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
 2. Run `make victoria-metrics-pure` from the root folder of the repository.
-   It will build `victoria-metrics-pure` binary and put it into the `bin` folder.
+   It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
 #### Building docker images
 
-Run `make package-victoria-metrics`. It will build `victoriametrics/victoria-metrics:<PKG_TAG>` docker image locally.
+Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
@@ -389,7 +390,7 @@ Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/iss
 
 ### How to work with snapshots?
 
-VictoriaMetrics is able to create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+VictoriaMetrics can create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 for all the data stored under `-storageDataPath` directory.
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/create` in order to create an instant snapshot.
 The page will return the following JSON response:
@@ -446,15 +447,15 @@ VictoriaMetrics exports [Prometheus-compatible federation data](https://promethe
 at `http://<victoriametrics-addr>:8428/federate?match[]=<timeseries_selector_for_federation>`.
 
 Optional `start` and `end` args may be added to the request in order to scrape the last point for each selected time series on the `[start ... end]` interval.
-`start` and `end` may contain either unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values. By default the last point
-on the interval `[now - max_lookback ... now]` is scraped for each time series. Default value for `max_lookback` is `5m` (5 minutes), but can be overridden.
+`start` and `end` may contain either unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values. By default, the last point
+on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but can be overridden.
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
 
 
 ### Capacity planning
 
-Rough estimation of the required resources for ingestion path:
+A rough estimation of the required resources for ingestion path:
 
 * RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
@@ -476,15 +477,15 @@ Rough estimation of the required resources for ingestion path:
 
 * Network usage: outbound traffic is negligible. Ingress traffic is ~100 bytes per ingested data point via
   [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
-  The actual ingress bandwitdh usage depends on the average number of labels per ingested metric and the average size
-  of label values. Higher number of per-metric lables and longer label values mean higher ingress bandwidth.
+  The actual ingress bandwidth usage depends on the average number of labels per ingested metric and the average size
+  of label values. The higher number of per-metric labels and longer label values mean the higher ingress bandwidth.
 
 
 The required resources for query path:
 
 * RAM size: depends on the number of time series to scan in each query and the `step`
   argument passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
-  Higher number of scanned time series and lower `step` argument results in higher RAM usage.
+  The higher number of scanned time series and lower `step` argument results in the higher RAM usage.
 
 * CPU cores: a CPU core per 30 millions of scanned data points per second.
 
@@ -540,7 +541,7 @@ There is no downsampling support at the moment, but:
 - VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
 
-These properties reduce the need in downsampling. We plan implementing downsampling in the future.
+These properties reduce the need in downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
 
@@ -552,7 +553,7 @@ Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version]
 ### Scalability and cluster version
 
 Though single-node VictoriaMetrics cannot scale to multiple nodes, it is optimized for resource usage - storage size / bandwidth / IOPS, RAM, CPU.
-This means that a single-node VictoriaMetrics may scale vertically and substitute moderately sized cluster built with competing solutions
+This means that a single-node VictoriaMetrics may scale vertically and substitute a moderately sized cluster built with competing solutions
 such as Thanos, Uber M3, InfluxDB or TimescaleDB. See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
 So try single-node VictoriaMetrics at first and then [switch to cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) if you still need
@@ -568,7 +569,7 @@ on [Prometheus side](https://prometheus.io/docs/alerting/overview/) or on [Grafa
 
 ### Security
 
-Do not forget protecting sensitive endpoints in VictoriaMetrics when exposing it to untrusted networks such as internet.
+Do not forget protecting sensitive endpoints in VictoriaMetrics when exposing it to untrusted networks such as the internet.
 Consider setting the following command-line flags:
 
 * `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS.
@@ -583,10 +584,10 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
 
 ### Tuning
 
-* There is no need in VictoriaMetrics tuning, since it uses reasonable defaults for command-line flags,
+* There is no need in VictoriaMetrics tuning since it uses reasonable defaults for command-line flags,
   which are automatically adjusted for the available CPU and RAM resources.
-* There is no need in Operating System tuning, since VictoriaMetrics is optimized for default OS settings.
-  The only option is increasing the limit on [the number open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a),
+* There is no need in Operating System tuning since VictoriaMetrics is optimized for default OS settings.
+  The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a),
   so Prometheus instances could establish more connections to VictoriaMetrics.
 
 
@@ -623,10 +624,21 @@ The most interesting metrics are:
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directoreis with broken parts. This will recover VictoriaMetrics at the cost
-  of data loss stored in the broken parts. In the future `vmrecover` tool will be created
+  of data loss stored in the broken parts. In the future, `vmrecover` tool will be created
   for automatic recovering from such errors.
 
+## Roadmap
 
+- [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
+- [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
+- [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
+- [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119) 
+- [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
+
+
+The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment any item or add own one
+  
+ 
 ## Contacts
 
 Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics.com](mailto:info@victoriametrics.com).
@@ -642,7 +654,7 @@ Feel free asking any questions regarding VictoriaMetrics:
 - [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 
-If you like VictoriaMetrics and want contributing, then we need the following:
+If you like VictoriaMetrics and want to contribute, then we need the following:
 
 - Filing issues and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 - Spreading a word about VictoriaMetrics: conference talks, articles, comments, experience sharing with colleagues.
