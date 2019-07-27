@@ -33,7 +33,7 @@ BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
 
 mkdir -p "${TEMPDIR}" && echo "*** Created   : ${TEMPDIR}"
 
-mkdir -p "${TEMPDIR}/usr/local/bin/"
+mkdir -p "${TEMPDIR}/usr/bin/"
 mkdir -p "${TEMPDIR}/lib/systemd/system/"
 
 echo "*** Version   : ${VERSION}-${BUILD}"
@@ -45,7 +45,7 @@ echo "*** Out .deb  : ${OUT_DEB}"
 
 # Copy the binary
 
-cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/local/bin/${EXENAME_DST}"
+cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/bin/${EXENAME_DST}"
 
 # Copy supporting files
 
