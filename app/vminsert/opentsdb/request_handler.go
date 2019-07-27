@@ -14,7 +14,10 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var rowsInserted = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdb"}`)
+var (
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdb"}`)
+	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="opentsdb"}`)
+)
 
 // insertHandler processes remote write for OpenTSDB put protocol.
 //
@@ -51,6 +54,7 @@ func (ctx *pushCtx) InsertRows() error {
 		ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, r.Value)
 	}
 	rowsInserted.Add(len(rows))
+	rowsPerInsert.Update(float64(len(rows)))
 	return ic.FlushBufs()
 }
 
