@@ -621,6 +621,10 @@ The most interesting metrics are:
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
+* VictoriaMetrics requires free disk space for [merging data files to bigger ones](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+  It may slow down when there is no enough free space left. So make sure `-storageDataPath` directory
+  has at least 20% of free space comparing to disk size.
+
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directoreis with broken parts. This will recover VictoriaMetrics at the cost
   of data loss stored in the broken parts. In the future `vmrecover` tool will be created
