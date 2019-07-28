@@ -62,11 +62,11 @@ Requires: libc
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
 %files
-%attr(0744, root, root) /usr/local/bin/*
+%attr(0744, root, root) /usr/bin/*
 %attr(0644, root, root) /lib/systemd/system/*
 
 %prep
-mkdir -p \$RPM_BUILD_ROOT/usr/local/bin/
+mkdir -p \$RPM_BUILD_ROOT/usr/bin/
 mkdir -p \$RPM_BUILD_ROOT/lib/systemd/system/
 
 cp ${PWD}/bin/${EXENAME_SRC} \$RPM_BUILD_ROOT/usr/local/bin/${EXENAME_DST}

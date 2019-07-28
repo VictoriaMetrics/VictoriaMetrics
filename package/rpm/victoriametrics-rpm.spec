@@ -1,8 +1,6 @@
-%global _prefix /usr/local
-
 Name:    victoriametrics
-Version: 1.22.2
-Release: 1
+Version: 1.23.0
+Release: 3
 Summary: The best long-term remote storage for Prometheus
 
 Group:   Development Tools
