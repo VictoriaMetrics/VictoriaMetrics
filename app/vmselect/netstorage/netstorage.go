@@ -724,6 +724,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadli
 	var errors []error
 	tbf := getTmpBlocksFile()
 	m := make(map[string][]tmpBlockAddr)
+	blocksRead := 0
 	for i := 0; i < len(storageNodes); i++ {
 		// There is no need in timer here, since all the goroutines executing
 		// sn.processSearchQuery must be finished until the deadline.
@@ -733,9 +734,10 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadli
 			continue
 		}
 		for _, mb := range nr.results {
+			blocksRead++
 			addr, err := tbf.WriteBlock(mb.Block)
 			if err != nil {
-				errors = append(errors, fmt.Errorf("cannot write data to temporary blocks file: %s", err))
+				errors = append(errors, fmt.Errorf("cannot write data block #%d to temporary blocks file: %s", blocksRead, err))
 				break
 			}
 			metricName := mb.MetricName
@@ -760,7 +762,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadli
 	}
 	if err := tbf.Finalize(); err != nil {
 		putTmpBlocksFile(tbf)
-		return nil, false, fmt.Errorf("cannot finalize temporary blocks file: %s", err)
+		return nil, false, fmt.Errorf("cannot finalize temporary blocks file with %d blocks: %s", blocksRead, err)
 	}
 
 	var rss Results
