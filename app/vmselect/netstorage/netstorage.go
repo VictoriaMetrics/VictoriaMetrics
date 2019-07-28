@@ -480,26 +480,28 @@ func ProcessSearchQuery(sq *storage.SearchQuery, deadline Deadline) (*Results, e
 
 	tbf := getTmpBlocksFile()
 	m := make(map[string][]tmpBlockAddr)
+	blocksRead := 0
 	for sr.NextMetricBlock() {
+		blocksRead++
 		addr, err := tbf.WriteBlock(sr.MetricBlock.Block)
 		if err != nil {
 			putTmpBlocksFile(tbf)
-			return nil, fmt.Errorf("cannot write data to temporary blocks file: %s", err)
+			return nil, fmt.Errorf("cannot write data block #%d to temporary blocks file: %s", blocksRead, err)
 		}
 		if time.Until(deadline.Deadline) < 0 {
 			putTmpBlocksFile(tbf)
-			return nil, fmt.Errorf("timeout exceeded while fetching data from storage: %s", deadline.Timeout)
+			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.Timeout)
 		}
 		metricName := sr.MetricBlock.MetricName
 		m[string(metricName)] = append(m[string(metricName)], addr)
 	}
 	if err := sr.Error(); err != nil {
 		putTmpBlocksFile(tbf)
-		return nil, fmt.Errorf("search error: %s", err)
+		return nil, fmt.Errorf("search error after reading %d data blocks: %s", blocksRead, err)
 	}
 	if err := tbf.Finalize(); err != nil {
 		putTmpBlocksFile(tbf)
-		return nil, fmt.Errorf("cannot finalize temporary blocks file: %s", err)
+		return nil, fmt.Errorf("cannot finalize temporary blocks file with %d blocks: %s", blocksRead, err)
 	}
 
 	var rss Results
