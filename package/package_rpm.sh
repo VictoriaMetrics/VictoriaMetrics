@@ -69,7 +69,7 @@ VictoriaMetrics is fast, cost-effective and scalable time series database. It ca
 mkdir -p \$RPM_BUILD_ROOT/usr/bin/
 mkdir -p \$RPM_BUILD_ROOT/lib/systemd/system/
 
-cp ${PWD}/bin/${EXENAME_SRC} \$RPM_BUILD_ROOT/usr/local/bin/${EXENAME_DST}
+cp ${PWD}/bin/${EXENAME_SRC} \$RPM_BUILD_ROOT/usr/bin/${EXENAME_DST}
 cp ${PWD}/package/victoria-metrics.service \$RPM_BUILD_ROOT/lib/systemd/system/
 
 %post
