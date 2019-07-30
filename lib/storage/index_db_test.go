@@ -767,7 +767,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset(mn.AccountID, mn.ProjectID)
+	tfs.Reset()
 	if err := tfs.Add([]byte("non-existing-tag"), []byte(".+"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
@@ -870,7 +870,7 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
-	tfs.Reset(mn.AccountID, mn.ProjectID)
+	tfs.Reset()
 	if err := tfs.Add([]byte("key 3"), []byte(""), true, false); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
