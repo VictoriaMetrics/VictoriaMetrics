@@ -54,10 +54,13 @@ var rollupFuncs = map[string]newRollupFunc{
 }
 
 var rollupFuncsMayAdjustWindow = map[string]bool{
-	"deriv":      true,
-	"deriv_fast": true,
-	"irate":      true,
-	"rate":       true,
+	"default_rollup":  true,
+	"first_over_time": true,
+	"last_over_time":  true,
+	"deriv":           true,
+	"deriv_fast":      true,
+	"irate":           true,
+	"rate":            true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
