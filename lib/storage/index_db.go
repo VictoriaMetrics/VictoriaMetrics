@@ -1430,7 +1430,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 				continue
 			}
 
-			// Found the matching tag name. Match for the value.
+			// Found the matching tag name. Match the value.
 			b := tag.Marshal(kb.B)
 			kb.B = b[:len(kb.B)]
 			ok, err := matchTagFilter(b, tf)
@@ -1443,7 +1443,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			tagMatched = true
 			break
 		}
-		if !tagMatched {
+		if !tagMatched && !tf.isNegative {
 			// Matching tag name wasn't found.
 			return false, nil
 		}
