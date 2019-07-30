@@ -331,13 +331,17 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 			return inf
 		}
 		vReq := xss[len(xss)-1].ts.Values[i] * phi
+		if math.IsNaN(vReq) || vReq < 0 {
+			// Broken bucket.
+			return nan
+		}
 		for _, xs := range xss {
 			v := xs.ts.Values[i]
-			le := xs.le
-			if v <= vPrev {
-				v = vPrev
-				le = lePrev
+			if math.IsNaN(v) || v < 0 {
+				// Broken bucket.
+				return nan
 			}
+			le := xs.le
 			if v < vReq {
 				vPrev = v
 				lePrev = le

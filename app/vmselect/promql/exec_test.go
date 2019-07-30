@@ -2158,6 +2158,26 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantile(negative-bucket-count)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(histogram_quantile(0.6,
+			label_set(90, "foo", "bar", "le", "10")
+			or label_set(-100, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(histogram_quantile(0.6,
+			label_set(90, "foo", "bar", "le", "10")
+			or label_set(NaN, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`median_over_time()`, func(t *testing.T) {
 		t.Parallel()
 		q := `median_over_time({})`
