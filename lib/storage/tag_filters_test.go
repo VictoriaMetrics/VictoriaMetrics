@@ -308,6 +308,62 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		mismatch("bar")
 		match("xhttpbar")
 	})
+	t.Run("non-empty-string-regexp-negative-match", func(t *testing.T) {
+		value := ".+"
+		isNegative := true
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+		if len(tf.orSuffixes) != 0 {
+			t.Fatalf("unexpected non-zero number of or suffixes: %d; %q", len(tf.orSuffixes), tf.orSuffixes)
+		}
+
+		match("")
+		mismatch("x")
+		mismatch("foo")
+	})
+	t.Run("non-empty-string-regexp-match", func(t *testing.T) {
+		value := ".+"
+		isNegative := false
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+		if len(tf.orSuffixes) != 0 {
+			t.Fatalf("unexpected non-zero number of or suffixes: %d; %q", len(tf.orSuffixes), tf.orSuffixes)
+		}
+
+		mismatch("")
+		match("x")
+		match("foo")
+	})
+	t.Run("match-all-regexp-negative-match", func(t *testing.T) {
+		value := ".*"
+		isNegative := true
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+		if len(tf.orSuffixes) != 0 {
+			t.Fatalf("unexpected non-zero number of or suffixes: %d; %q", len(tf.orSuffixes), tf.orSuffixes)
+		}
+
+		mismatch("")
+		mismatch("x")
+		mismatch("foo")
+	})
+	t.Run("match-all-regexp-match", func(t *testing.T) {
+		value := ".*"
+		isNegative := false
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+		if len(tf.orSuffixes) != 0 {
+			t.Fatalf("unexpected non-zero number of or suffixes: %d; %q", len(tf.orSuffixes), tf.orSuffixes)
+		}
+
+		match("")
+		match("x")
+		match("foo")
+	})
 }
 
 func TestGetOrValues(t *testing.T) {
