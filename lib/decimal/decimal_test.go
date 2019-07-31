@@ -108,60 +108,60 @@ func testCalibrateScale(t *testing.T, a, b []int64, ae, be int16, aExpected, bEx
 }
 
 func TestMaxUpExponent(t *testing.T) {
-	testMaxUpExponent(t, 0, 1024)
-	testMaxUpExponent(t, -1<<63, 0)
-	testMaxUpExponent(t, (-1<<63)+1, 0)
-	testMaxUpExponent(t, (1<<63)-1, 0)
-	testMaxUpExponent(t, 1, 18)
-	testMaxUpExponent(t, 12, 17)
-	testMaxUpExponent(t, 123, 16)
-	testMaxUpExponent(t, 1234, 15)
-	testMaxUpExponent(t, 12345, 14)
-	testMaxUpExponent(t, 123456, 13)
-	testMaxUpExponent(t, 1234567, 12)
-	testMaxUpExponent(t, 12345678, 11)
-	testMaxUpExponent(t, 123456789, 10)
-	testMaxUpExponent(t, 1234567890, 9)
-	testMaxUpExponent(t, 12345678901, 8)
-	testMaxUpExponent(t, 123456789012, 7)
-	testMaxUpExponent(t, 1234567890123, 6)
-	testMaxUpExponent(t, 12345678901234, 5)
-	testMaxUpExponent(t, 123456789012345, 4)
-	testMaxUpExponent(t, 1234567890123456, 3)
-	testMaxUpExponent(t, 12345678901234567, 2)
-	testMaxUpExponent(t, 123456789012345678, 1)
-	testMaxUpExponent(t, 1234567890123456789, 0)
-	testMaxUpExponent(t, 923456789012345678, 0)
-	testMaxUpExponent(t, 92345678901234567, 1)
-	testMaxUpExponent(t, 9234567890123456, 2)
-	testMaxUpExponent(t, 923456789012345, 3)
-	testMaxUpExponent(t, 92345678901234, 4)
-	testMaxUpExponent(t, 9234567890123, 5)
-	testMaxUpExponent(t, 923456789012, 6)
-	testMaxUpExponent(t, 92345678901, 7)
-	testMaxUpExponent(t, 9234567890, 8)
-	testMaxUpExponent(t, 923456789, 9)
-	testMaxUpExponent(t, 92345678, 10)
-	testMaxUpExponent(t, 9234567, 11)
-	testMaxUpExponent(t, 923456, 12)
-	testMaxUpExponent(t, 92345, 13)
-	testMaxUpExponent(t, 9234, 14)
-	testMaxUpExponent(t, 923, 15)
-	testMaxUpExponent(t, 92, 17)
-	testMaxUpExponent(t, 9, 18)
-}
+	f := func(v int64, eExpected int16) {
+		t.Helper()
 
-func testMaxUpExponent(t *testing.T, v int64, eExpected int16) {
-	t.Helper()
+		e := maxUpExponent(v)
+		if e != eExpected {
+			t.Fatalf("unexpected e for v=%d; got %d; epxecting %d", v, e, eExpected)
+		}
+		e = maxUpExponent(-v)
+		if e != eExpected {
+			t.Fatalf("unexpected e for v=%d; got %d; expecting %d", -v, e, eExpected)
+		}
+	}
 
-	e := maxUpExponent(v)
-	if e != eExpected {
-		t.Fatalf("unexpected e for v=%d; got %d; epxecting %d", v, e, eExpected)
-	}
-	e = maxUpExponent(-v)
-	if e != eExpected {
-		t.Fatalf("unexpected e for v=%d; got %d; expecting %d", -v, e, eExpected)
-	}
+	f(0, 1024)
+	f(-1<<63, 0)
+	f((-1<<63)+1, 0)
+	f((1<<63)-1, 0)
+	f(1, 18)
+	f(12, 17)
+	f(123, 16)
+	f(1234, 15)
+	f(12345, 14)
+	f(123456, 13)
+	f(1234567, 12)
+	f(12345678, 11)
+	f(123456789, 10)
+	f(1234567890, 9)
+	f(12345678901, 8)
+	f(123456789012, 7)
+	f(1234567890123, 6)
+	f(12345678901234, 5)
+	f(123456789012345, 4)
+	f(1234567890123456, 3)
+	f(12345678901234567, 2)
+	f(123456789012345678, 1)
+	f(1234567890123456789, 0)
+	f(923456789012345678, 0)
+	f(92345678901234567, 1)
+	f(9234567890123456, 2)
+	f(923456789012345, 3)
+	f(92345678901234, 4)
+	f(9234567890123, 5)
+	f(923456789012, 6)
+	f(92345678901, 7)
+	f(9234567890, 8)
+	f(923456789, 9)
+	f(92345678, 10)
+	f(9234567, 11)
+	f(923456, 12)
+	f(92345, 13)
+	f(9234, 14)
+	f(923, 15)
+	f(92, 17)
+	f(9, 18)
 }
 
 func TestAppendFloatToDecimal(t *testing.T) {
@@ -207,105 +207,109 @@ func testAppendFloatToDecimal(t *testing.T, fa []float64, daExpected []int64, eE
 }
 
 func TestFloatToDecimal(t *testing.T) {
-	testFloatToDecimal(t, 0, 0, 0)
-	testFloatToDecimal(t, 1, 1, 0)
-	testFloatToDecimal(t, -1, -1, 0)
-	testFloatToDecimal(t, 0.9, 9, -1)
-	testFloatToDecimal(t, 0.99, 99, -2)
-	testFloatToDecimal(t, 9, 9, 0)
-	testFloatToDecimal(t, 99, 99, 0)
-	testFloatToDecimal(t, 20, 2, 1)
-	testFloatToDecimal(t, 100, 1, 2)
-	testFloatToDecimal(t, 3000, 3, 3)
-
-	testFloatToDecimal(t, 0.123, 123, -3)
-	testFloatToDecimal(t, -0.123, -123, -3)
-	testFloatToDecimal(t, 1.2345, 12345, -4)
-	testFloatToDecimal(t, -1.2345, -12345, -4)
-	testFloatToDecimal(t, 12000, 12, 3)
-	testFloatToDecimal(t, -12000, -12, 3)
-	testFloatToDecimal(t, 1e-30, 1, -30)
-	testFloatToDecimal(t, -1e-30, -1, -30)
-	testFloatToDecimal(t, 1e-260, 1, -260)
-	testFloatToDecimal(t, -1e-260, -1, -260)
-	testFloatToDecimal(t, 321e260, 321, 260)
-	testFloatToDecimal(t, -321e260, -321, 260)
-	testFloatToDecimal(t, 1234567890123, 1234567890123, 0)
-	testFloatToDecimal(t, -1234567890123, -1234567890123, 0)
-	testFloatToDecimal(t, 123e5, 123, 5)
-	testFloatToDecimal(t, 15e18, 15, 18)
-
-	testFloatToDecimal(t, math.Inf(1), vInfPos, 0)
-	testFloatToDecimal(t, math.Inf(-1), vInfNeg, 0)
-	testFloatToDecimal(t, 1<<63-1, 922337203685, 7)
-	testFloatToDecimal(t, -1<<63, -922337203685, 7)
-}
-
-func testFloatToDecimal(t *testing.T, f float64, vExpected int64, eExpected int16) {
-	t.Helper()
-
-	v, e := FromFloat(f)
-	if v != vExpected {
-		t.Fatalf("unexpected v for f=%e; got %d; expecting %d", f, v, vExpected)
+	f := func(f float64, vExpected int64, eExpected int16) {
+		t.Helper()
+		v, e := FromFloat(f)
+		if v != vExpected {
+			t.Fatalf("unexpected v for f=%e; got %d; expecting %d", f, v, vExpected)
+		}
+		if e != eExpected {
+			t.Fatalf("unexpected e for f=%e; got %d; expecting %d", f, e, eExpected)
+		}
 	}
-	if e != eExpected {
-		t.Fatalf("unexpected e for f=%e; got %d; expecting %d", f, e, eExpected)
-	}
+
+	f(0, 0, 0)
+	f(1, 1, 0)
+	f(-1, -1, 0)
+	f(0.9, 9, -1)
+	f(0.99, 99, -2)
+	f(9, 9, 0)
+	f(99, 99, 0)
+	f(20, 2, 1)
+	f(100, 1, 2)
+	f(3000, 3, 3)
+
+	f(0.123, 123, -3)
+	f(-0.123, -123, -3)
+	f(1.2345, 12345, -4)
+	f(-1.2345, -12345, -4)
+	f(12000, 12, 3)
+	f(-12000, -12, 3)
+	f(1e-30, 1, -30)
+	f(-1e-30, -1, -30)
+	f(1e-260, 1, -260)
+	f(-1e-260, -1, -260)
+	f(321e260, 321, 260)
+	f(-321e260, -321, 260)
+	f(1234567890123, 1234567890123, 0)
+	f(-1234567890123, -1234567890123, 0)
+	f(123e5, 123, 5)
+	f(15e18, 15, 18)
+
+	f(math.Inf(1), vInfPos, 0)
+	f(math.Inf(-1), vInfNeg, 0)
+	f(1<<63-1, 922337203685, 7)
+	f(-1<<63, -922337203685, 7)
+
+	// Test precision loss due to conversionPrecision.
+	f(0.1234567890123456, 12345678901234, -14)
+	f(-123456.7890123456, -12345678901234, -8)
 }
 
 func TestFloatToDecimalRoundtrip(t *testing.T) {
-	testFloatToDecimalRoundtrip(t, 0)
-	testFloatToDecimalRoundtrip(t, 1)
-	testFloatToDecimalRoundtrip(t, 0.123)
-	testFloatToDecimalRoundtrip(t, 1.2345)
-	testFloatToDecimalRoundtrip(t, 12000)
-	testFloatToDecimalRoundtrip(t, 1e-30)
-	testFloatToDecimalRoundtrip(t, 1e-260)
-	testFloatToDecimalRoundtrip(t, 321e260)
-	testFloatToDecimalRoundtrip(t, 1234567890123)
-	testFloatToDecimalRoundtrip(t, 12.34567890125)
-	testFloatToDecimalRoundtrip(t, 15e18)
+	f := func(f float64) {
+		t.Helper()
 
-	testFloatToDecimalRoundtrip(t, math.Inf(1))
-	testFloatToDecimalRoundtrip(t, math.Inf(-1))
-	testFloatToDecimalRoundtrip(t, 1<<63-1)
-	testFloatToDecimalRoundtrip(t, -1<<63)
+		v, e := FromFloat(f)
+		fNew := ToFloat(v, e)
+		if !equalFloat(fNew, f) {
+			t.Fatalf("unexpected fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, f)
+		}
+
+		v, e = FromFloat(-f)
+		fNew = ToFloat(v, e)
+		if !equalFloat(fNew, -f) {
+			t.Fatalf("unexepcted fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, -f)
+		}
+	}
+
+	f(0)
+	f(1)
+	f(0.123)
+	f(1.2345)
+	f(12000)
+	f(1e-30)
+	f(1e-260)
+	f(321e260)
+	f(1234567890123)
+	f(12.34567890125)
+	f(-1234567.8901256789)
+	f(15e18)
+
+	f(math.Inf(1))
+	f(math.Inf(-1))
+	f(1<<63 - 1)
+	f(-1 << 63)
 
 	for i := 0; i < 1e4; i++ {
-		f := rand.NormFloat64()
-		testFloatToDecimalRoundtrip(t, f)
-		testFloatToDecimalRoundtrip(t, f*1e-6)
-		testFloatToDecimalRoundtrip(t, f*1e6)
+		v := rand.NormFloat64()
+		f(v)
+		f(v * 1e-6)
+		f(v * 1e6)
 
-		testFloatToDecimalRoundtrip(t, roundFloat(f, 20))
-		testFloatToDecimalRoundtrip(t, roundFloat(f, 10))
-		testFloatToDecimalRoundtrip(t, roundFloat(f, 5))
-		testFloatToDecimalRoundtrip(t, roundFloat(f, 0))
-		testFloatToDecimalRoundtrip(t, roundFloat(f, -5))
-		testFloatToDecimalRoundtrip(t, roundFloat(f, -10))
-		testFloatToDecimalRoundtrip(t, roundFloat(f, -20))
+		f(roundFloat(v, 20))
+		f(roundFloat(v, 10))
+		f(roundFloat(v, 5))
+		f(roundFloat(v, 0))
+		f(roundFloat(v, -5))
+		f(roundFloat(v, -10))
+		f(roundFloat(v, -20))
 	}
 }
 
 func roundFloat(f float64, exp int) float64 {
 	f *= math.Pow10(-exp)
 	return math.Trunc(f) * math.Pow10(exp)
-}
-
-func testFloatToDecimalRoundtrip(t *testing.T, f float64) {
-	t.Helper()
-
-	v, e := FromFloat(f)
-	fNew := ToFloat(v, e)
-	if !equalFloat(fNew, f) {
-		t.Fatalf("unexpected fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, f)
-	}
-
-	v, e = FromFloat(-f)
-	fNew = ToFloat(v, e)
-	if !equalFloat(fNew, -f) {
-		t.Fatalf("unexepcted fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, -f)
-	}
 }
 
 func equalFloat(f1, f2 float64) bool {
