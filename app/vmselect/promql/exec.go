@@ -16,6 +16,8 @@ import (
 
 var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 
+var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
+
 // ExpandWithExprs expands WITH expressions inside q and returns the resulting
 // PromQL without WITH expressions.
 func ExpandWithExprs(q string) (string, error) {
@@ -36,6 +38,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 			if d >= *logSlowQueryDuration {
 				logger.Infof("slow query according to -search.logSlowQueryDuration=%s: duration=%s, start=%d, end=%d, step=%d, accountID=%d, projectID=%d, query=%q",
 					*logSlowQueryDuration, d, ec.Start/1000, ec.End/1000, ec.Step/1000, ec.AuthToken.AccountID, ec.AuthToken.ProjectID, q)
+				slowQueries.Inc()
 			}
 		}()
 	}
