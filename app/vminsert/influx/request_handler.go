@@ -176,6 +176,7 @@ func (ctx *pushCtx) Read(r io.Reader, tsMultiplier int64) bool {
 		}
 	} else if tsMultiplier < 0 {
 		tsMultiplier = -tsMultiplier
+		currentTs -= currentTs % tsMultiplier
 		for i := range ctx.Rows.Rows {
 			row := &ctx.Rows.Rows[i]
 			if row.Timestamp == 0 {
