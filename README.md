@@ -112,6 +112,8 @@ The following command-line flags are used the most:
 
 Pass `-help` to see all the available flags with description and default values.
 
+It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
+
 
 ### Prometheus setup
 
