@@ -454,7 +454,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{44, 34, 34, nan}
+		valuesExpected := []float64{44, 34, 34, 34}
 		timestampsExpected := []int64{100, 120, 140, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})

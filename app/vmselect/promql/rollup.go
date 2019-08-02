@@ -234,7 +234,7 @@ func getMaxPrevInterval(timestamps []int64) int64 {
 		return 1
 	}
 	// Slightly increase d in order to handle possible jitter in scrape interval.
-	return d + (d / 8)
+	return d + (d / 4)
 }
 
 func removeCounterResets(values []float64) {
