@@ -231,10 +231,27 @@ func getMaxPrevInterval(timestamps []int64) int64 {
 	}
 	d := (timestamps[len(timestamps)-1] - timestamps[0]) / int64(len(timestamps)-1)
 	if d <= 0 {
-		return 1
+		return int64(maxSilenceInterval)
 	}
-	// Slightly increase d in order to handle possible jitter in scrape interval.
-	return d + (d / 4)
+	// Increase d more for smaller scrape intervals in order to hide possible gaps
+	// when high jitter is present.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/139 .
+	if d <= 2*1000 {
+		return d + 4*d
+	}
+	if d <= 4*1000 {
+		return d + 2*d
+	}
+	if d <= 8*1000 {
+		return d + d
+	}
+	if d <= 16*1000 {
+		return d + d/2
+	}
+	if d <= 32*1000 {
+		return d + d/4
+	}
+	return d + d/8
 }
 
 func removeCounterResets(values []float64) {
