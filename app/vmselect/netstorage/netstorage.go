@@ -45,9 +45,10 @@ func (r *Result) reset() {
 
 // Results holds results returned from ProcessSearchQuery.
 type Results struct {
-	at       *auth.Token
-	tr       storage.TimeRange
-	deadline Deadline
+	at        *auth.Token
+	tr        storage.TimeRange
+	fetchData bool
+	deadline  Deadline
 
 	tbf *tmpBlocksFile
 
@@ -100,10 +101,10 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.Timeout)
 					break
 				}
-				if err = pts.Unpack(rss.tbf, rs, rss.tr, rss.at, maxWorkersCount); err != nil {
+				if err = pts.Unpack(rss.tbf, rs, rss.tr, rss.fetchData, rss.at, maxWorkersCount); err != nil {
 					break
 				}
-				if len(rs.Timestamps) == 0 {
+				if len(rs.Timestamps) == 0 && rss.fetchData {
 					// Skip empty blocks.
 					continue
 				}
@@ -146,7 +147,7 @@ type packedTimeseries struct {
 }
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.TimeRange, at *auth.Token, maxWorkersCount int) error {
+func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.TimeRange, fetchData bool, at *auth.Token, maxWorkersCount int) error {
 	dst.reset()
 
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
@@ -173,7 +174,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 			var err error
 			for addr := range workCh {
 				sb := getSortBlock()
-				if err = sb.unpackFrom(tbf, addr, tr, at); err != nil {
+				if err = sb.unpackFrom(tbf, addr, tr, fetchData, at); err != nil {
 					break
 				}
 
@@ -292,10 +293,12 @@ func (sb *sortBlock) reset() {
 	sb.NextIdx = 0
 }
 
-func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, at *auth.Token) error {
+func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
 	tbf.MustReadBlockAt(&sb.b, addr)
-	if err := sb.b.UnmarshalData(); err != nil {
-		return fmt.Errorf("cannot unmarshal block: %s", err)
+	if fetchData {
+		if err := sb.b.UnmarshalData(); err != nil {
+			return fmt.Errorf("cannot unmarshal block: %s", err)
+		}
 	}
 	timestamps := sb.b.Timestamps()
 
@@ -692,7 +695,7 @@ func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
 }
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
-func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadline) (*Results, bool, error) {
+func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool, deadline Deadline) (*Results, bool, error) {
 	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
@@ -708,7 +711,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadli
 	for _, sn := range storageNodes {
 		go func(sn *storageNode) {
 			sn.searchRequests.Inc()
-			results, err := sn.processSearchQuery(requestData, tr, deadline)
+			results, err := sn.processSearchQuery(requestData, tr, fetchData, deadline)
 			if err != nil {
 				sn.searchRequestErrors.Inc()
 				err = fmt.Errorf("cannot perform search on vmstorage %s: %s", sn.connPool.Addr(), err)
@@ -769,6 +772,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, deadline Deadli
 	rss.packedTimeseries = make([]packedTimeseries, len(m))
 	rss.at = at
 	rss.tr = tr
+	rss.fetchData = fetchData
 	rss.deadline = deadline
 	rss.tbf = tbf
 	i := 0
@@ -931,20 +935,20 @@ func (sn *storageNode) getSeriesCount(accountID, projectID uint32, deadline Dead
 	return n, nil
 }
 
-func (sn *storageNode) processSearchQuery(requestData []byte, tr storage.TimeRange, deadline Deadline) ([]*storage.MetricBlock, error) {
+func (sn *storageNode) processSearchQuery(requestData []byte, tr storage.TimeRange, fetchData bool, deadline Deadline) ([]*storage.MetricBlock, error) {
 	var results []*storage.MetricBlock
 	f := func(bc *handshake.BufferedConn) error {
-		rs, err := sn.processSearchQueryOnConn(bc, requestData, tr)
+		rs, err := sn.processSearchQueryOnConn(bc, requestData, tr, fetchData)
 		if err != nil {
 			return err
 		}
 		results = rs
 		return nil
 	}
-	if err := sn.execOnConn("search_v2", f, deadline); err != nil {
+	if err := sn.execOnConn("search_v3", f, deadline); err != nil {
 		// Try again before giving up.
 		results = nil
-		if err = sn.execOnConn("search_v2", f, deadline); err != nil {
+		if err = sn.execOnConn("search_v3", f, deadline); err != nil {
 			return nil, err
 		}
 	}
@@ -1197,10 +1201,13 @@ const maxMetricBlockSize = 1024 * 1024
 // from vmstorage.
 const maxErrorMessageSize = 64 * 1024
 
-func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte, tr storage.TimeRange) ([]*storage.MetricBlock, error) {
+func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte, tr storage.TimeRange, fetchData bool) ([]*storage.MetricBlock, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return nil, fmt.Errorf("cannot write requestData: %s", err)
+	}
+	if err := writeBool(bc, fetchData); err != nil {
+		return nil, fmt.Errorf("cannot write fetchData=%v: %s", fetchData, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush requestData to conn: %s", err)
@@ -1260,6 +1267,17 @@ func writeBytes(bc *handshake.BufferedConn, buf []byte) error {
 func writeUint32(bc *handshake.BufferedConn, n uint32) error {
 	buf := encoding.MarshalUint32(nil, n)
 	if _, err := bc.Write(buf); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeBool(bc *handshake.BufferedConn, b bool) error {
+	var buf [1]byte
+	if b {
+		buf[0] = 1
+	}
+	if _, err := bc.Write(buf[:]); err != nil {
 		return err
 	}
 	return nil

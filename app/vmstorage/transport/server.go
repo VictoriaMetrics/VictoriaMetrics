@@ -392,6 +392,18 @@ func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 	return nil
 }
 
+func (ctx *vmselectRequestCtx) readBool() (bool, error) {
+	ctx.dataBuf = bytesutil.Resize(ctx.dataBuf, 1)
+	if _, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
+		if err == io.EOF {
+			return false, err
+		}
+		return false, fmt.Errorf("cannot read bool: %s", err)
+	}
+	v := ctx.dataBuf[0] != 0
+	return v, nil
+}
+
 func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 	if err := ctx.writeUint64(uint64(len(ctx.dataBuf))); err != nil {
 		return fmt.Errorf("cannot write data size: %s", err)
@@ -443,7 +455,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	}()
 
 	switch string(ctx.dataBuf) {
-	case "search_v2":
+	case "search_v3":
 		return s.processVMSelectSearchQuery(ctx)
 	case "labelValues":
 		return s.processVMSelectLabelValues(ctx)
@@ -714,6 +726,10 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 	if len(tail) > 0 {
 		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
 	}
+	fetchData, err := ctx.readBool()
+	if err != nil {
+		return fmt.Errorf("cannot read `fetchData` bool: %s", err)
+	}
 
 	// Setup search.
 	if err := ctx.setupTfss(); err != nil {
@@ -728,7 +744,7 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 		MinTimestamp: ctx.sq.MinTimestamp,
 		MaxTimestamp: ctx.sq.MaxTimestamp,
 	}
-	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch)
+	ctx.sr.Init(s.storage, ctx.tfss, tr, fetchData, *maxMetricsPerSearch)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
 		// Send the error message to vmselect.

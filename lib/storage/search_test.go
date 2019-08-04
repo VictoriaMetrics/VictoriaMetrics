@@ -200,7 +200,7 @@ func testSearch(st *Storage, tr TimeRange, mrs []MetricRow, accountsCount int) e
 		}
 
 		// Search
-		s.Init(st, []*TagFilters{tfs}, tr, 1e5)
+		s.Init(st, []*TagFilters{tfs}, tr, true, 1e5)
 		var mbs []MetricBlock
 		for s.NextMetricBlock() {
 			var b Block

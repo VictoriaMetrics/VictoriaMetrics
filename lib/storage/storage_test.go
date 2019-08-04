@@ -506,12 +506,24 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		MaxTimestamp: 2e10,
 	}
 	metricBlocksCount := func(tfs *TagFilters) int {
+		// Verify the number of blocks with fetchData=true
 		n := 0
-		sr.Init(s, []*TagFilters{tfs}, tr, 1e5)
+		sr.Init(s, []*TagFilters{tfs}, tr, true, 1e5)
 		for sr.NextMetricBlock() {
 			n++
 		}
 		sr.MustClose()
+
+		// Make sure the number of blocks with fetchData=false is the same.
+		m := 0
+		sr.Init(s, []*TagFilters{tfs}, tr, false, 1e5)
+		for sr.NextMetricBlock() {
+			m++
+		}
+		sr.MustClose()
+		if n != m {
+			return -1
+		}
 		return n
 	}
 	for i := 0; i < metricsCount; i++ {

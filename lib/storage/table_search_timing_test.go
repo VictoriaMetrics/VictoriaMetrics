@@ -26,7 +26,11 @@ func BenchmarkTableSearch(b *testing.B) {
 				b.Run(fmt.Sprintf("tsidsCount_%d", tsidsCount), func(b *testing.B) {
 					for _, tsidsSearch := range []int{1, 1e1, 1e2, 1e3, 1e4} {
 						b.Run(fmt.Sprintf("tsidsSearch_%d", tsidsSearch), func(b *testing.B) {
-							benchmarkTableSearch(b, rowsCount, tsidsCount, tsidsSearch)
+							for _, fetchData := range []bool{true, false} {
+								b.Run(fmt.Sprintf("fetchData_%v", fetchData), func(b *testing.B) {
+									benchmarkTableSearch(b, rowsCount, tsidsCount, tsidsSearch, fetchData)
+								})
+							}
 						})
 					}
 				})
@@ -103,9 +107,9 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	tb.MustClose()
 }
 
-func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) {
+func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int, fetchData bool) {
 	startTimestamp := timestampFromTime(time.Now()) - 365*24*3600*1000
-	rowsPerInsert := int(maxRawRowsPerPartition)
+	rowsPerInsert := getMaxRawRowsPerPartition()
 
 	tb := openBenchTable(b, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 	tr := TimeRange{
@@ -127,7 +131,7 @@ func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) 
 			for i := range tsids {
 				tsids[i].MetricID = 1 + uint64(i)
 			}
-			ts.Init(tb, tsids, tr)
+			ts.Init(tb, tsids, tr, fetchData)
 			for ts.NextBlock() {
 			}
 			ts.MustClose()

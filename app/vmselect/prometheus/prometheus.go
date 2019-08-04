@@ -72,7 +72,7 @@ func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) err
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
 	}
@@ -169,7 +169,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, star
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
 	}
@@ -405,7 +405,7 @@ func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, false, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
 	}

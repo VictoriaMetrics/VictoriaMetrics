@@ -55,7 +55,7 @@ func (ts *tableSearch) reset() {
 // Init initializes the ts.
 //
 // MustClose must be called then the tableSearch is done.
-func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
+func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange, fetchData bool) {
 	if ts.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -86,7 +86,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 	}
 	ts.ptsPool = ts.ptsPool[:len(ts.ptws)]
 	for i, ptw := range ts.ptws {
-		ts.ptsPool[i].Init(ptw.pt, tsids, tr)
+		ts.ptsPool[i].Init(ptw.pt, tsids, tr, fetchData)
 	}
 
 	// Initialize the ptsHeap.

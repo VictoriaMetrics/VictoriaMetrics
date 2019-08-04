@@ -578,8 +578,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 		MaxTimestamp: ec.End + ec.Step,
 		TagFilterss:  [][]storage.TagFilter{me.TagFilters},
 	}
-
-	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, sq, ec.Deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}

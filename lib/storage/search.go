@@ -110,7 +110,7 @@ func (s *Search) reset() {
 // Init initializes s from the given storage, tfss and tr.
 //
 // MustClose must be called when the search is done.
-func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int) {
+func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, fetchData bool, maxMetrics int) {
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -123,7 +123,7 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMet
 	// It is ok to call Init on error from storage.searchTSIDs.
 	// Init must be called before returning because it will fail
 	// on Seach.MustClose otherwise.
-	s.ts.Init(storage.tb, tsids, tr)
+	s.ts.Init(storage.tb, tsids, tr, fetchData)
 
 	if err != nil {
 		s.err = err

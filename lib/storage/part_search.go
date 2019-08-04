@@ -28,6 +28,9 @@ type partSearch struct {
 	// tr is a time range to search.
 	tr TimeRange
 
+	// Skip populating timestampsData and valuesData in Block if fetchData=false.
+	fetchData bool
+
 	metaindex []metaindexRow
 
 	ibCache *indexBlockCache
@@ -61,7 +64,7 @@ func (ps *partSearch) reset() {
 }
 
 // Init initializes the ps with the given p, tsids and tr.
-func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange) {
+func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange, fetchData bool) {
 	ps.reset()
 	ps.p = p
 
@@ -72,6 +75,7 @@ func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange) {
 		ps.tsids = append(ps.tsids[:0], tsids...)
 	}
 	ps.tr = tr
+	ps.fetchData = fetchData
 	ps.metaindex = p.metaindex
 	ps.ibCache = &p.ibCache
 
@@ -281,11 +285,14 @@ func (ps *partSearch) searchBHS() bool {
 
 func (ps *partSearch) readBlock(bh *blockHeader) {
 	ps.Block.Reset()
+	ps.Block.bh = *bh
+	if !ps.fetchData {
+		return
+	}
+
 	ps.Block.timestampsData = bytesutil.Resize(ps.Block.timestampsData[:0], int(bh.TimestampsBlockSize))
 	ps.p.timestampsFile.ReadAt(ps.Block.timestampsData, int64(bh.TimestampsBlockOffset))
 
 	ps.Block.valuesData = bytesutil.Resize(ps.Block.valuesData[:0], int(bh.ValuesBlockSize))
 	ps.p.valuesFile.ReadAt(ps.Block.valuesData, int64(bh.ValuesBlockOffset))
-
-	ps.Block.bh = *bh
 }
