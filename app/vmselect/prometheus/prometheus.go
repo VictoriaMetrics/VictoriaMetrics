@@ -6,8 +6,10 @@ import (
 	"math"
 	"net/http"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -284,9 +286,40 @@ var httpClient = &http.Client{
 func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
 	deadline := getDeadline(r)
-	labelValues, isPartial, err := netstorage.GetLabelValues(at, labelName, deadline)
-	if err != nil {
-		return fmt.Errorf(`cannot obtain label values for %q: %s`, labelName, err)
+
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse form values: %s", err)
+	}
+	var labelValues []string
+	var isPartial bool
+	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+		var err error
+		labelValues, isPartial, err = netstorage.GetLabelValues(at, labelName, deadline)
+		if err != nil {
+			return fmt.Errorf(`cannot obtain label values for %q: %s`, labelName, err)
+		}
+	} else {
+		// Extended functionality that allows filtering by label filters and time range
+		// i.e. /api/v1/label/foo/values?match[]=foobar{baz="abc"}&start=...&end=...
+		// is equivalent to `label_values(foobar{baz="abc"}, foo)` call on the selected
+		// time range in Grafana templating.
+		matches := r.Form["match[]"]
+		if len(matches) == 0 {
+			matches = []string{fmt.Sprintf("{%s!=''}", labelName)}
+		}
+		ct := currentTime()
+		end, err := getTime(r, "end", ct)
+		if err != nil {
+			return err
+		}
+		start, err := getTime(r, "start", end-defaultStep)
+		if err != nil {
+			return err
+		}
+		labelValues, isPartial, err = labelValuesWithMatches(at, labelName, matches, start, end, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %s", labelName, matches, start, end, err)
+		}
 	}
 	if isPartial && getDenyPartialResponse(r) {
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
@@ -296,6 +329,52 @@ func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter,
 	WriteLabelValuesResponse(w, labelValues)
 	labelValuesDuration.UpdateDuration(startTime)
 	return nil
+}
+
+func labelValuesWithMatches(at *auth.Token, labelName string, matches []string, start, end int64, deadline netstorage.Deadline) ([]string, bool, error) {
+	if len(matches) == 0 {
+		logger.Panicf("BUG: matches must be non-empty")
+	}
+	tagFilterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return nil, false, err
+	}
+	if start >= end {
+		start = end - defaultStep
+	}
+	sq := &storage.SearchQuery{
+		AccountID:    at.AccountID,
+		ProjectID:    at.ProjectID,
+		MinTimestamp: start,
+		MaxTimestamp: end,
+		TagFilterss:  tagFilterss,
+	}
+	rss, isPartial, err := netstorage.ProcessSearchQuery(at, sq, false, deadline)
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+	}
+
+	m := make(map[string]struct{})
+	var mLock sync.Mutex
+	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+		labelValue := rs.MetricName.GetTagValue(labelName)
+		if len(labelValue) == 0 {
+			return
+		}
+		mLock.Lock()
+		m[string(labelValue)] = struct{}{}
+		mLock.Unlock()
+	})
+	if err != nil {
+		return nil, false, fmt.Errorf("error when data fetching: %s", err)
+	}
+
+	labelValues := make([]string, 0, len(m))
+	for labelValue := range m {
+		labelValues = append(labelValues, labelValue)
+	}
+	sort.Strings(labelValues)
+	return labelValues, isPartial, nil
 }
 
 var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/label/{}/values"}`)
