@@ -53,6 +53,36 @@ vmselect:
     loadBalancerSourceRanges: []
     servicePort: 8481
     type: ClusterIP
+  statefulSet:
+    ## Creates statefulset instead of deployment, useful when you want to keep the cache
+    enabled: false
+    podManagementPolicy: OrderedReady
+    ## Headless service for statefulset
+    service:
+      annotations: {}
+      labels: {}
+      servicePort: 8481
+  persistentVolume:
+    ## If true, vmselect will create/use a Persistent Volume Claim
+    ## If false, use emptyDir
+    ##
+    enabled: false
+
+    ## Must match those of existing PV or dynamic provisioner
+    ## Ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+    ##
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+
+    ## Requires vmselect.persistentVolume.enabled: true
+    ## If defined, PVC must be created manually before volume will be bound
+    existingClaim: ""
+
+    ## Vmselect data Persistent Volume mount root path
+    ##
+    size: 2Gi
+    subPath: ""
 
 vminsert:
   enabled: true

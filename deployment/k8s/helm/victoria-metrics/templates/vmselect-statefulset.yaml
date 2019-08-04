@@ -1,15 +1,17 @@
-{{- if and .Values.vmselect.enabled (not .Values.vmselect.statefulSet.enabled) -}}
-apiVersion: extensions/v1beta1
-kind: Deployment
+{{- if and .Values.vmselect.enabled .Values.vmselect.statefulSet.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
   labels:
     {{- include "victoria-metrics.vmselect.labels" . | nindent 4 }}
   name: {{ template "victoria-metrics.vmselect.fullname" . }}
 spec:
+  serviceName: {{ template "victoria-metrics.vmselect.fullname" . }}
   selector:
     matchLabels:
       {{- include "victoria-metrics.vmselect.matchLabels" . | nindent 6 }}
   replicas: {{ .Values.vmselect.replicaCount }}
+  podManagementPolicy: {{ .Values.vmselect.podManagementPolicy }}
   template:
     metadata:
     {{- if .Values.vmselect.podAnnotations }}
@@ -66,12 +68,30 @@ spec:
       affinity:
 {{ toYaml .Values.vmselect.affinity | indent 8 }}
     {{- end }}
+{{- if .Values.vmselect.persistentVolume.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: cache-volume
+        {{- if .Values.vmselect.persistentVolume.annotations }}
+        annotations:
+    {{ toYaml .Values.vmselect.persistentVolume.annotations | indent 10 }}
+    {{- end }}
+      spec:
+        accessModes:
+        {{ toYaml .Values.vmselect.persistentVolume.accessModes | indent 10 }}
+        resources:
+          requests:
+            storage: "{{ .Values.vmselect.persistentVolume.size }}"
+          {{- if .Values.vmselect.persistentVolume.storageClass }}
+        {{- if (eq "-" .Values.vmselect.persistentVolume.storageClass) }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: "{{ .Values.vmselect.persistentVolume.storageClass }}"
+        {{- end }}
+        {{- end }}
+    {{- else }}
       volumes:
         - name: cache-volume
-        {{- if .Values.vmselect.persistentVolume.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ if .Values.vmselect.persistentVolume.existingClaim }}{{ .Values.vmselect.persistentVolume.existingClaim }}{{- else }}{{ template "victoria-metrics.vmselect.fullname" . }}{{- end }}
-            {{- else }}
           emptyDir: {}
-            {{- end -}}
+{{- end }}
 {{- end }}

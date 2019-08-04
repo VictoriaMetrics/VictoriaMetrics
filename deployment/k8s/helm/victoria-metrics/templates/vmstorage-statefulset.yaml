@@ -158,6 +158,7 @@ spec:
       {{- end }}
       {{- end }}
 {{- else }}
+      volumes:
         - name: vmstorage-volume
           emptyDir: {}
 {{- end }}
