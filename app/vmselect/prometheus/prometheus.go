@@ -309,13 +309,16 @@ func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
 	if len(matches) == 0 {
 		return fmt.Errorf("missing `match[]` arg")
 	}
-	// Set start to minTimeMsecs by default as Prometheus does.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	start, err := getTime(r, "start", minTimeMsecs)
+	end, err := getTime(r, "end", ct)
 	if err != nil {
 		return err
 	}
-	end, err := getTime(r, "end", ct)
+	// Do not set start to minTimeMsecs by default as Prometheus does,
+	// since this leads to fetching and scanning all the data from the storage,
+	// which can take a lot of time for big storages.
+	// It is better setting start as end-defaultStep by default.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
+	start, err := getTime(r, "start", end-defaultStep)
 	if err != nil {
 		return err
 	}
