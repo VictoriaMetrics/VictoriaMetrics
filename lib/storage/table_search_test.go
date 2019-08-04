@@ -251,7 +251,7 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 
 	bs := []Block{}
 	var ts tableSearch
-	ts.Init(tb, tsids, tr)
+	ts.Init(tb, tsids, tr, true)
 	for ts.NextBlock() {
 		var b Block
 		b.CopyFrom(ts.Block)
@@ -276,7 +276,7 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 	}
 
 	// verify that empty tsids returns empty result
-	ts.Init(tb, []TSID{}, tr)
+	ts.Init(tb, []TSID{}, tr, true)
 	if ts.NextBlock() {
 		return fmt.Errorf("unexpected block got for an empty tsids list: %+v", ts.Block)
 	}
@@ -284,5 +284,15 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 		return fmt.Errorf("unexpected error on empty tsids list: %s", err)
 	}
 	ts.MustClose()
+
+	ts.Init(tb, []TSID{}, tr, false)
+	if ts.NextBlock() {
+		return fmt.Errorf("unexpected block got for an empty tsids list with fetchData=false: %+v", ts.Block)
+	}
+	if err := ts.Error(); err != nil {
+		return fmt.Errorf("unexpected error on empty tsids list with fetchData=false: %s", err)
+	}
+	ts.MustClose()
+
 	return nil
 }

@@ -56,7 +56,7 @@ func (pts *partitionSearch) reset() {
 // Init initializes the search in the given partition for the given tsid and tr.
 //
 // MustClose must be called when partition search is done.
-func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
+func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange, fetchData bool) {
 	if pts.needClosing {
 		logger.Panicf("BUG: missing partitionSearch.MustClose call before the next call to Init")
 	}
@@ -85,7 +85,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	}
 	pts.psPool = pts.psPool[:len(pts.pws)]
 	for i, pw := range pts.pws {
-		pts.psPool[i].Init(pw.p, tsids, tr)
+		pts.psPool[i].Init(pw.p, tsids, tr, fetchData)
 	}
 
 	// Initialize the psHeap.

@@ -1247,7 +1247,7 @@ func testPartSearch(t *testing.T, p *part, tsids []TSID, tr TimeRange, expectedR
 
 func testPartSearchSerial(p *part, tsids []TSID, tr TimeRange, expectedRawBlocks []rawBlock) error {
 	var ps partSearch
-	ps.Init(p, tsids, tr)
+	ps.Init(p, tsids, tr, true)
 	var bs []Block
 	for ps.NextBlock() {
 		var b Block

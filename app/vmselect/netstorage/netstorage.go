@@ -49,8 +49,9 @@ func (r *Result) reset() {
 
 // Results holds results returned from ProcessSearchQuery.
 type Results struct {
-	tr       storage.TimeRange
-	deadline Deadline
+	tr        storage.TimeRange
+	fetchData bool
+	deadline  Deadline
 
 	tbf *tmpBlocksFile
 
@@ -103,10 +104,10 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.Timeout)
 					break
 				}
-				if err = pts.Unpack(rss.tbf, rs, rss.tr, maxWorkersCount); err != nil {
+				if err = pts.Unpack(rss.tbf, rs, rss.tr, rss.fetchData, maxWorkersCount); err != nil {
 					break
 				}
-				if len(rs.Timestamps) == 0 {
+				if len(rs.Timestamps) == 0 && rss.fetchData {
 					// Skip empty blocks.
 					continue
 				}
@@ -149,7 +150,7 @@ type packedTimeseries struct {
 }
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.TimeRange, maxWorkersCount int) error {
+func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.TimeRange, fetchData bool, maxWorkersCount int) error {
 	dst.reset()
 
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
@@ -176,7 +177,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 			var err error
 			for addr := range workCh {
 				sb := getSortBlock()
-				if err = sb.unpackFrom(tbf, addr, tr); err != nil {
+				if err = sb.unpackFrom(tbf, addr, tr, fetchData); err != nil {
 					break
 				}
 
@@ -295,10 +296,12 @@ func (sb *sortBlock) reset() {
 	sb.NextIdx = 0
 }
 
-func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange) error {
+func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool) error {
 	tbf.MustReadBlockAt(&sb.b, addr)
-	if err := sb.b.UnmarshalData(); err != nil {
-		return fmt.Errorf("cannot unmarshal block: %s", err)
+	if fetchData {
+		if err := sb.b.UnmarshalData(); err != nil {
+			return fmt.Errorf("cannot unmarshal block: %s", err)
+		}
 	}
 	timestamps := sb.b.Timestamps()
 
@@ -460,7 +463,7 @@ var ssPool sync.Pool
 var missingMetricNamesForMetricID = metrics.NewCounter(`vm_missing_metric_names_for_metric_id_total`)
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
-func ProcessSearchQuery(sq *storage.SearchQuery, deadline Deadline) (*Results, error) {
+func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadline) (*Results, error) {
 	// Setup search.
 	tfss, err := setupTfss(sq.TagFilterss)
 	if err != nil {
@@ -476,7 +479,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, deadline Deadline) (*Results, e
 
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
-	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch)
+	sr.Init(vmstorage.Storage, tfss, tr, fetchData, *maxMetricsPerSearch)
 
 	tbf := getTmpBlocksFile()
 	m := make(map[string][]tmpBlockAddr)
@@ -507,6 +510,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, deadline Deadline) (*Results, e
 	var rss Results
 	rss.packedTimeseries = make([]packedTimeseries, len(m))
 	rss.tr = tr
+	rss.fetchData = fetchData
 	rss.deadline = deadline
 	rss.tbf = tbf
 	i := 0
