@@ -51,6 +51,7 @@ func (ps *partSearch) reset() {
 	ps.p = nil
 	ps.tsids = ps.tsids[:0]
 	ps.tsidIdx = 0
+	ps.fetchData = true
 	ps.metaindex = nil
 	ps.ibCache = nil
 	ps.bhs = nil
