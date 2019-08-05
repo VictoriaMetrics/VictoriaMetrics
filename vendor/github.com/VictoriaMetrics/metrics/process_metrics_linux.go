@@ -67,7 +67,11 @@ func writeProcessMetrics(w io.Writer) {
 	// It is expensive obtaining `process_open_fds` when big number of file descriptors is opened,
 	// don't do it here.
 
-	fmt.Fprintf(w, "process_cpu_seconds_total %g\n", float64(p.Utime+p.Stime)/userHZ)
+	utime := float64(p.Utime) / userHZ
+	stime := float64(p.Stime) / userHZ
+	fmt.Fprintf(w, "process_cpu_seconds_system_total %g\n", stime)
+	fmt.Fprintf(w, "process_cpu_seconds_total %g\n", utime+stime)
+	fmt.Fprintf(w, "process_cpu_seconds_user_total %g\n", utime)
 	fmt.Fprintf(w, "process_major_pagefaults_total %d\n", p.Majflt)
 	fmt.Fprintf(w, "process_minor_pagefaults_total %d\n", p.Minflt)
 	fmt.Fprintf(w, "process_num_threads %d\n", p.NumThreads)

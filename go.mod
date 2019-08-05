@@ -2,7 +2,7 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.1
-	github.com/VictoriaMetrics/metrics v1.7.0
+	github.com/VictoriaMetrics/metrics v1.7.1
 	github.com/cespare/xxhash/v2 v2.0.1-0.20190104013014-3767db7a7e18
 	github.com/golang/snappy v0.0.1
 	github.com/google/go-cmp v0.3.0 // indirect
