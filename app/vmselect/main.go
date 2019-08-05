@@ -80,18 +80,37 @@ func main() {
 
 var concurrencyCh chan struct{}
 
+var (
+	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_select_limit_reached_total`)
+	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_select_limit_timeout_total`)
+
+	_ = metrics.NewGauge(`vm_concurrent_select_capacity`, func() float64 {
+		return float64(cap(concurrencyCh))
+	})
+	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
+		return float64(len(concurrencyCh))
+	})
+)
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Limit the number of concurrent queries.
-	// Sleep for a while until giving up. This should resolve short bursts in requests.
-	t := timerpool.Get(*maxQueueDuration)
 	select {
 	case concurrencyCh <- struct{}{}:
-		timerpool.Put(t)
 		defer func() { <-concurrencyCh }()
-	case <-t.C:
-		timerpool.Put(t)
-		httpserver.Errorf(w, "cannot handle more than %d concurrent requests", cap(concurrencyCh))
-		return true
+	default:
+		// Sleep for a while until giving up. This should resolve short bursts in requests.
+		concurrencyLimitReached.Inc()
+		t := timerpool.Get(*maxQueueDuration)
+		select {
+		case concurrencyCh <- struct{}{}:
+			timerpool.Put(t)
+			defer func() { <-concurrencyCh }()
+		case <-t.C:
+			timerpool.Put(t)
+			concurrencyLimitTimeout.Inc()
+			httpserver.Errorf(w, "cannot handle more than %d concurrent requests", cap(concurrencyCh))
+			return true
+		}
 	}
 
 	path := r.URL.Path

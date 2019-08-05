@@ -32,6 +32,17 @@ func Init() {
 func Do(f func() error) error {
 	// Limit the number of conurrent f calls in order to prevent from excess
 	// memory usage and CPU trashing.
+	select {
+	case ch <- struct{}{}:
+		err := f()
+		<-ch
+		return err
+	default:
+	}
+
+	// All the workers are busy.
+	// Sleep for up to waitDuration.
+	concurrencyLimitReached.Inc()
 	t := timerpool.Get(waitDuration)
 	select {
 	case ch <- struct{}{}:
@@ -41,9 +52,19 @@ func Do(f func() error) error {
 		return err
 	case <-t.C:
 		timerpool.Put(t)
-		concurrencyLimitErrors.Inc()
+		concurrencyLimitTimeout.Inc()
 		return fmt.Errorf("the server is overloaded with %d concurrent inserts; either increase -maxConcurrentInserts or reduce the load", cap(ch))
 	}
 }
 
-var concurrencyLimitErrors = metrics.NewCounter(`vm_concurrency_limit_errors_total`)
+var (
+	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_insert_limit_reached_total`)
+	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_insert_limit_timeout_total`)
+
+	_ = metrics.NewGauge(`vm_concurrent_insert_capacity`, func() float64 {
+		return float64(cap(ch))
+	})
+	_ = metrics.NewGauge(`vm_concurrent_insert_current`, func() float64 {
+		return float64(len(ch))
+	})
+)
