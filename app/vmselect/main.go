@@ -30,29 +30,49 @@ func Init() {
 	fs.RemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
 }
-
-var concurrencyCh chan struct{}
 
 // Stop stops vmselect
 func Stop() {
 	promql.StopRollupResultCache()
 }
 
+var concurrencyCh chan struct{}
+
+var (
+	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_select_limit_reached_total`)
+	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_select_limit_timeout_total`)
+
+	_ = metrics.NewGauge(`vm_concurrent_select_capacity`, func() float64 {
+		return float64(cap(concurrencyCh))
+	})
+	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
+		return float64(len(concurrencyCh))
+	})
+)
+
 // RequestHandler handles remote read API requests for Prometheus
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// Limit the number of concurrent queries.
-	// Sleep for a while until giving up. This should resolve short bursts in requests.
-	t := timerpool.Get(*maxQueueDuration)
 	select {
 	case concurrencyCh <- struct{}{}:
-		timerpool.Put(t)
 		defer func() { <-concurrencyCh }()
-	case <-t.C:
-		timerpool.Put(t)
-		httpserver.Errorf(w, "cannot handle more than %d concurrent requests", cap(concurrencyCh))
-		return true
+	default:
+		// Sleep for a while until giving up. This should resolve short bursts in requests.
+		concurrencyLimitReached.Inc()
+		t := timerpool.Get(*maxQueueDuration)
+		select {
+		case concurrencyCh <- struct{}{}:
+			timerpool.Put(t)
+			defer func() { <-concurrencyCh }()
+		case <-t.C:
+			timerpool.Put(t)
+			concurrencyLimitTimeout.Inc()
+			httpserver.Errorf(w, "cannot handle more than %d concurrent requests", cap(concurrencyCh))
+			return true
+		}
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
