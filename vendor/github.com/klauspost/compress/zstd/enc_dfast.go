@@ -82,16 +82,11 @@ func (e *doubleFastEncoder) Encode(blk *blockEnc, src []byte) {
 		stepSize++
 	}
 
-	// TEMPLATE
-
 	const kSearchStrength = 8
 
 	// nextEmit is where in src the next emitLiteral should start from.
 	nextEmit := s
 	cv := load6432(src, s)
-	// nextHash is the hash at s
-	nextHashS := hash5(cv, dFastShortTableBits)
-	nextHashL := hash8(cv, dFastLongTableBits)
 
 	// Relative offsets
 	offset1 := int32(blk.recentOffsets[0])
@@ -119,8 +114,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashS = nextHashS & dFastShortTableMask
-			nextHashL = nextHashL & dFastLongTableMask
+			nextHashS := hash5(cv, dFastShortTableBits)
+			nextHashL := hash8(cv, dFastLongTableBits)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -172,8 +167,6 @@ encodeLoop:
 						break encodeLoop
 					}
 					cv = load6432(src, s)
-					nextHashS = hash5(cv, dFastShortTableBits)
-					nextHashL = hash8(cv, dFastLongTableBits)
 					continue
 				}
 				const repOff2 = 1
@@ -221,8 +214,6 @@ encodeLoop:
 						break encodeLoop
 					}
 					cv = load6432(src, s)
-					nextHashS = hash5(cv, dFastShortTableBits)
-					nextHashL = hash8(cv, dFastLongTableBits)
 					// Swap offsets
 					offset1, offset2 = offset2, offset1
 					continue
@@ -296,8 +287,6 @@ encodeLoop:
 				break encodeLoop
 			}
 			cv = load6432(src, s)
-			nextHashS = hash5(cv, dFastShortTableBits)
-			nextHashL = hash8(cv, dFastLongTableBits)
 		}
 
 		// A 4-byte match has been found. Update recent offsets.
@@ -354,20 +343,18 @@ encodeLoop:
 		cv1 := load6432(src, index1)
 		te0 := tableEntry{offset: index0 + e.cur, val: uint32(cv0)}
 		te1 := tableEntry{offset: index1 + e.cur, val: uint32(cv1)}
-		e.longTable[hash8(cv0, dFastLongTableBits)&dFastLongTableMask] = te0
-		e.longTable[hash8(cv1, dFastLongTableBits)&dFastLongTableMask] = te1
+		e.longTable[hash8(cv0, dFastLongTableBits)] = te0
+		e.longTable[hash8(cv1, dFastLongTableBits)] = te1
 		cv0 >>= 8
 		cv1 >>= 8
 		te0.offset++
 		te1.offset++
 		te0.val = uint32(cv0)
 		te1.val = uint32(cv1)
-		e.table[hash5(cv0, dFastShortTableBits)&dFastShortTableMask] = te0
-		e.table[hash5(cv1, dFastShortTableBits)&dFastShortTableMask] = te1
+		e.table[hash5(cv0, dFastShortTableBits)] = te0
+		e.table[hash5(cv1, dFastShortTableBits)] = te1
 
 		cv = load6432(src, s)
-		nextHashS = hash5(cv1>>8, dFastShortTableBits)
-		nextHashL = hash8(cv, dFastLongTableBits)
 
 		if !canRepeat {
 			continue
@@ -381,14 +368,17 @@ encodeLoop:
 				break
 			}
 
+			// Store this, since we have it.
+			nextHashS := hash5(cv1>>8, dFastShortTableBits)
+			nextHashL := hash8(cv, dFastLongTableBits)
+
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match
 			l := 4 + e.matchlen(s+4, o2+4, src)
 
-			// Store this, since we have it.
 			entry := tableEntry{offset: s + e.cur, val: uint32(cv)}
-			e.longTable[nextHashL&dFastLongTableMask] = entry
-			e.table[nextHashS&dFastShortTableMask] = entry
+			e.longTable[nextHashL] = entry
+			e.table[nextHashS] = entry
 			seq.matchLen = uint32(l) - zstdMinMatch
 			seq.litLen = 0
 
@@ -408,8 +398,6 @@ encodeLoop:
 				break encodeLoop
 			}
 			cv = load6432(src, s)
-			nextHashS = hash5(cv, dFastShortTableBits)
-			nextHashL = hash8(cv, dFastLongTableBits)
 		}
 	}
 

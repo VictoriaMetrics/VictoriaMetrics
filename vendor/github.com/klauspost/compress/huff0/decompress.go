@@ -247,9 +247,13 @@ func (s *Scratch) Decompress4X(in []byte, dstSize int) (out []byte, err error) {
 	dstOut := s.Out
 	dstEvery := (dstSize + 3) / 4
 
+	const tlSize = 1 << tableLogMax
+	const tlMask = tlSize - 1
+	single := s.dt.single[:tlSize]
+
 	decode := func(br *bitReader) byte {
 		val := br.peekBitsFast(s.actualTableLog) /* note : actualTableLog >= 1 */
-		v := s.dt.single[val]
+		v := single[val&tlMask]
 		br.bitsRead += v.nBits
 		return v.byte
 	}
