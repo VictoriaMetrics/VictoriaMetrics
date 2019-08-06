@@ -205,19 +205,6 @@ func (b *Block) MarshalData(timestampsBlockOffset, valuesBlockOffset uint64) ([]
 	b.bh.ValuesBlockSize = uint32(len(b.valuesData))
 	b.values = b.values[:0]
 
-	if len(timestamps) > 1 && (b.bh.ValuesMarshalType == encoding.MarshalTypeConst || b.bh.ValuesMarshalType == encoding.MarshalTypeDeltaConst) {
-		// Special case - values are constant or are changed with constant rate.
-		// In this case we may 'cheat' by assuming timestamps are changed
-		// at ideal constant rate. This improves timestamps' compression rate.
-		minTimestamp := timestamps[0]
-		maxTimestamp := timestamps[len(timestamps)-1]
-		delta := (maxTimestamp - minTimestamp) / int64(len(timestamps)-1)
-		ts := minTimestamp
-		for i := 1; i < len(timestamps); i++ {
-			ts += delta
-			timestamps[i] = ts
-		}
-	}
 	b.timestampsData, b.bh.TimestampsMarshalType, b.bh.MinTimestamp = encoding.MarshalTimestamps(b.timestampsData[:0], timestamps, b.bh.PrecisionBits)
 	b.bh.TimestampsBlockOffset = timestampsBlockOffset
 	b.bh.TimestampsBlockSize = uint32(len(b.timestampsData))
