@@ -308,6 +308,22 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().TooSmallTimestampRows)
 	})
 
+	metrics.NewGauge(`vm_concurrent_addrows_limit_reached_total`, func() float64 {
+		return float64(m().AddRowsConcurrencyLimitReached)
+	})
+	metrics.NewGauge(`vm_concurrent_addrows_limit_timeout_total`, func() float64 {
+		return float64(m().AddRowsConcurrencyLimitTimeout)
+	})
+	metrics.NewGauge(`vm_concurrent_addrows_dropped_rows_total`, func() float64 {
+		return float64(m().AddRowsConcurrencyDroppedRows)
+	})
+	metrics.NewGauge(`vm_concurrent_addrows_capacity`, func() float64 {
+		return float64(m().AddRowsConcurrencyCapacity)
+	})
+	metrics.NewGauge(`vm_concurrent_addrows_current`, func() float64 {
+		return float64(m().AddRowsConcurrencyCurrent)
+	})
+
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
 		return float64(tm().BigRowsCount)
 	})
