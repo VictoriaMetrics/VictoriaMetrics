@@ -768,6 +768,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 }
 
 var (
+	//addRowsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1)*2)
 	addRowsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1)*2)
 	addRowsTimeout       = 30 * time.Second
 )

@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/metrics"
@@ -18,6 +19,7 @@ import (
 var (
 	graphiteListenAddr   = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
 	opentsdbListenAddr   = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB put messages. Usually :4242 must be set. Doesn't work if empty")
+	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
 	maxInsertRequestSize = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
 )
 
@@ -30,6 +32,10 @@ func Init() {
 	if len(*opentsdbListenAddr) > 0 {
 		go opentsdb.Serve(*opentsdbListenAddr)
 	}
+	if len(*opentsdbHTTPListenAddr) > 0 {
+		go opentsdbhttp.Serve(*opentsdbHTTPListenAddr, int64(*maxInsertRequestSize))
+	}
+
 }
 
 // Stop stops vminsert.
@@ -39,6 +45,9 @@ func Stop() {
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdb.Stop()
+	}
+	if len(*opentsdbListenAddr) > 0 {
+		opentsdbhttp.Stop()
 	}
 }
 
@@ -84,4 +93,5 @@ var (
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/write", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/query", protocol="influx"}`)
+
 )
