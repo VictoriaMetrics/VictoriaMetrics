@@ -715,7 +715,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	dstPartPath := ph.Path(tb.path, mergeIdx)
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
 	txnPath := fmt.Sprintf("%s/txn/%016X", tb.path, mergeIdx)
-	if err := fs.WriteFile(txnPath, bb.B); err != nil {
+	if err := fs.WriteFileAtomically(txnPath, bb.B); err != nil {
 		return fmt.Errorf("cannot create transaction file %q: %s", txnPath, err)
 	}
 
@@ -994,7 +994,12 @@ func runTransactions(txnLock *sync.RWMutex, path string) error {
 	})
 
 	for _, fi := range fis {
-		txnPath := txnDir + "/" + fi.Name()
+		fn := fi.Name()
+		if fs.IsTemporaryFileName(fn) {
+			// Skip temporary files, which could be left after unclean shutdown.
+			continue
+		}
+		txnPath := txnDir + "/" + fn
 		if err := runTransaction(txnLock, path, txnPath); err != nil {
 			return fmt.Errorf("cannot run transaction from %q: %s", txnPath, err)
 		}

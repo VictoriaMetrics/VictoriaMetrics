@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -87,25 +89,41 @@ func MustSyncPath(path string) {
 	}
 }
 
-// WriteFile writes data to the given file path.
+var tmpFileNum uint64
+
+// WriteFileAtomically atomically writes data to the given file path.
 //
-// WriteFile returns only after the file is fully written
+// WriteFile returns only after the file is fully written and synced
 // to the underlying storage.
-func WriteFile(path string, data []byte) error {
+func WriteFileAtomically(path string, data []byte) error {
+	// Check for the existing file. It is expected that
+	// the WriteFileAtomically function cannot be called concurrently
+	// with the same `path`.
 	if IsPathExist(path) {
 		return fmt.Errorf("cannot create file %q, since it already exists", path)
 	}
-	f, err := filestream.Create(path, false)
+
+	n := atomic.AddUint64(&tmpFileNum, 1)
+	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
+	f, err := filestream.Create(tmpPath, false)
 	if err != nil {
-		return fmt.Errorf("cannot create file %q: %s", path, err)
+		return fmt.Errorf("cannot create file %q: %s", tmpPath, err)
 	}
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
-		return fmt.Errorf("cannot write %d bytes to file %q: %s", len(data), path, err)
+		MustRemoveAll(tmpPath)
+		return fmt.Errorf("cannot write %d bytes to file %q: %s", len(data), tmpPath, err)
 	}
 
 	// Sync and close the file.
 	f.MustClose()
+
+	// Atomically move the file from tmpPath to path.
+	if err := os.Rename(tmpPath, path); err != nil {
+		// do not call MustRemoveAll(tmpPath) here, so the user could inspect
+		// the file contents during investigating the issue.
+		return fmt.Errorf("cannot move %q to %q: %s", tmpPath, path, err)
+	}
 
 	// Sync the containing directory, so the file is guaranteed to appear in the directory.
 	// See https://www.quora.com/When-should-you-fsync-the-containing-directory-in-addition-to-the-file-itself
@@ -118,6 +136,15 @@ func WriteFile(path string, data []byte) error {
 
 	return nil
 }
+
+// IsTemporaryFileName returns true if fn matches temporary file name pattern
+// from WriteFileAtomically.
+func IsTemporaryFileName(fn string) bool {
+	return tmpFileNameRe.MatchString(fn)
+}
+
+// tmpFileNameRe is regexp for temporary file name - see WriteFileAtomically for details.
+var tmpFileNameRe = regexp.MustCompile(`\.tmp\.\d+$`)
 
 // MkdirAllIfNotExist creates the given path dir if it isn't exist.
 func MkdirAllIfNotExist(path string) error {
