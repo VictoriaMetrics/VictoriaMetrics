@@ -246,6 +246,9 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"measurement.field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
 ```
 
+Note that Influx line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
+while VictoriaMetrics stores them with *milliseconds* precision.
+
 
 ### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)?
 
