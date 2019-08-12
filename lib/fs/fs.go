@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
+	"golang.org/x/sys/unix"
 )
 
 // ReadAtCloser is rand-access read interface.
@@ -384,4 +385,18 @@ func MustWriteData(w io.Writer, data []byte) {
 	if n != len(data) {
 		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes", n, len(data))
 	}
+}
+
+// CreateFlockFile creates flock.lock file in the directory dir
+// and returns the handler to the file.
+func CreateFlockFile(dir string) (*os.File, error) {
+	flockFile := dir + "/flock.lock"
+	flockF, err := os.Create(flockFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create lock file %q: %s", flockFile, err)
+	}
+	if err := unix.Flock(int(flockF.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		return nil, fmt.Errorf("cannot acquire lock on file %q: %s", flockFile, err)
+	}
+	return flockF, nil
 }

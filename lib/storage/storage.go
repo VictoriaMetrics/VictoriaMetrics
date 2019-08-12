@@ -21,7 +21,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/fastcache"
-	"golang.org/x/sys/unix"
 )
 
 const maxRetentionMonths = 12 * 100
@@ -103,13 +102,10 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 		return nil, fmt.Errorf("cannot create %q: %s", snapshotsPath, err)
 	}
 
-	flockFile := path + "/flock.lock"
-	flockF, err := os.Create(flockFile)
+	// Protect from concurrent opens.
+	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file %q: %s", flockFile, err)
-	}
-	if err := unix.Flock(int(flockF.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return nil, fmt.Errorf("cannot acquire lock on file %q: %s", flockFile, err)
+		return nil, err
 	}
 	s.flockF = flockF
 

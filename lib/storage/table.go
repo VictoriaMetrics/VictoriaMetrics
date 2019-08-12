@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"golang.org/x/sys/unix"
 )
 
 // table represents a single table with time series data.
@@ -84,13 +83,10 @@ func openTable(path string, retentionMonths int, getDeletedMetricIDs func() map[
 		return nil, fmt.Errorf("cannot create directory for table %q: %s", path, err)
 	}
 
-	flockFile := path + "/flock.lock"
-	flockF, err := os.Create(flockFile)
+	// Protect from concurrent opens.
+	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file %q: %s", flockFile, err)
-	}
-	if err := unix.Flock(int(flockF.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return nil, fmt.Errorf("cannot acquire lock on file %q: %s", flockFile, err)
+		return nil, err
 	}
 
 	// Create directories for small and big partitions if they don't exist yet.
