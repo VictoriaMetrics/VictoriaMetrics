@@ -221,8 +221,8 @@ foo,tag1=value1,tag2=value2 field1=12,field2=40
 is converted into the following Prometheus data points:
 
 ```
-foo.field1{tag1="value1", tag2="value2"} 12
-foo.field2{tag1="value1", tag2="value2"} 40
+foo_field1{tag1="value1", tag2="value2"} 12
+foo_field2{tag1="value1", tag2="value2"} 40
 ```
 
 Example for writing data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
