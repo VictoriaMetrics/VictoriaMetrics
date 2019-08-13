@@ -991,7 +991,8 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 		extTSIDs, err = is.searchTSIDs(tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 
-		db.putToTagCache(tsids, tfKeyExtBuf.B)
+		sort.Slice(extTSIDs, func(i, j int) bool { return extTSIDs[i].Less(&extTSIDs[j]) })
+		extDB.putToTagCache(extTSIDs, tfKeyExtBuf.B)
 	}) {
 		if err != nil {
 			return nil, err
