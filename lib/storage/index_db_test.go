@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 func TestMarshalUnmarshalTSIDs(t *testing.T) {
@@ -57,10 +57,10 @@ func TestMarshalUnmarshalTSIDs(t *testing.T) {
 }
 
 func TestIndexDBOpenClose(t *testing.T) {
-	metricIDCache := fastcache.New(1234)
-	metricNameCache := fastcache.New(1234)
-	defer metricIDCache.Reset()
-	defer metricNameCache.Reset()
+	metricIDCache := workingsetcache.New(1234, time.Hour)
+	metricNameCache := workingsetcache.New(1234, time.Hour)
+	defer metricIDCache.Stop()
+	defer metricNameCache.Stop()
 
 	var hmCurr atomic.Value
 	hmCurr.Store(&hourMetricIDs{})
@@ -85,10 +85,10 @@ func TestIndexDB(t *testing.T) {
 	const metricGroups = 10
 
 	t.Run("serial", func(t *testing.T) {
-		metricIDCache := fastcache.New(1234)
-		metricNameCache := fastcache.New(1234)
-		defer metricIDCache.Reset()
-		defer metricNameCache.Reset()
+		metricIDCache := workingsetcache.New(1234, time.Hour)
+		metricNameCache := workingsetcache.New(1234, time.Hour)
+		defer metricIDCache.Stop()
+		defer metricNameCache.Stop()
 
 		var hmCurr atomic.Value
 		hmCurr.Store(&hourMetricIDs{})
@@ -142,10 +142,10 @@ func TestIndexDB(t *testing.T) {
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
-		metricIDCache := fastcache.New(1234)
-		metricNameCache := fastcache.New(1234)
-		defer metricIDCache.Reset()
-		defer metricNameCache.Reset()
+		metricIDCache := workingsetcache.New(1234, time.Hour)
+		metricNameCache := workingsetcache.New(1234, time.Hour)
+		defer metricIDCache.Stop()
+		defer metricNameCache.Stop()
 
 		var hmCurr atomic.Value
 		hmCurr.Store(&hourMetricIDs{})

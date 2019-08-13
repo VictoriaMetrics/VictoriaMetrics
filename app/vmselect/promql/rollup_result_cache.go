@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -19,7 +19,7 @@ import (
 var disableCache = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 
 var rollupResultCacheV = &rollupResultCache{
-	fastcache.New(1024 * 1024), // This is a cache for testing.
+	c: workingsetcache.New(1024*1024, time.Hour), // This is a cache for testing.
 }
 var rollupResultCachePath string
 
@@ -43,15 +43,17 @@ var (
 func InitRollupResultCache(cachePath string) {
 	rollupResultCachePath = cachePath
 	startTime := time.Now()
-	var c *fastcache.Cache
+	cacheSize := getRollupResultCacheSize()
+	var c *workingsetcache.Cache
 	if len(rollupResultCachePath) > 0 {
 		logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
-		c = fastcache.LoadFromFileOrNew(rollupResultCachePath, getRollupResultCacheSize())
+		c = workingsetcache.Load(rollupResultCachePath, cacheSize, time.Hour)
 	} else {
-		c = fastcache.New(getRollupResultCacheSize())
+		c = workingsetcache.New(cacheSize, time.Hour)
 	}
 	if *disableCache {
-		c.Reset()
+		c.Stop()
+		c = nil
 	}
 
 	stats := &fastcache.Stats{}
@@ -96,25 +98,28 @@ func InitRollupResultCache(cachePath string) {
 // StopRollupResultCache closes the rollupResult cache.
 func StopRollupResultCache() {
 	if len(rollupResultCachePath) == 0 {
-		rollupResultCacheV.c.Reset()
+		if !*disableCache {
+			rollupResultCacheV.c.Stop()
+			rollupResultCacheV.c = nil
+		}
 		return
 	}
-	gomaxprocs := runtime.GOMAXPROCS(-1)
 	logger.Infof("saving rollupResult cache to %q...", rollupResultCachePath)
 	startTime := time.Now()
-	if err := rollupResultCacheV.c.SaveToFileConcurrent(rollupResultCachePath, gomaxprocs); err != nil {
+	if err := rollupResultCacheV.c.Save(rollupResultCachePath); err != nil {
 		logger.Errorf("cannot close rollupResult cache at %q: %s", rollupResultCachePath, err)
-	} else {
-		var fcs fastcache.Stats
-		rollupResultCacheV.c.UpdateStats(&fcs)
-		rollupResultCacheV.c.Reset()
-		logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, sizeBytes: %d",
-			rollupResultCachePath, time.Since(startTime), fcs.EntriesCount, fcs.BytesSize)
+		return
 	}
+	var fcs fastcache.Stats
+	rollupResultCacheV.c.UpdateStats(&fcs)
+	rollupResultCacheV.c.Stop()
+	rollupResultCacheV.c = nil
+	logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, sizeBytes: %d",
+		rollupResultCachePath, time.Since(startTime), fcs.EntriesCount, fcs.BytesSize)
 }
 
 type rollupResultCache struct {
-	c *fastcache.Cache
+	c *workingsetcache.Cache
 }
 
 var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="promql/rollupResult"}`)
