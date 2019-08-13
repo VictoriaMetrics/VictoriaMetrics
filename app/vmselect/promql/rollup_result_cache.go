@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -158,15 +159,23 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 		return nil, ec.Start
 	}
 	bb.B = key.Marshal(bb.B[:0])
-	resultBuf := rrc.c.GetBig(nil, bb.B)
-	if len(resultBuf) == 0 {
+	compressedResultBuf := resultBufPool.Get()
+	defer resultBufPool.Put(compressedResultBuf)
+	compressedResultBuf.B = rrc.c.GetBig(compressedResultBuf.B[:0], bb.B)
+	if len(compressedResultBuf.B) == 0 {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
 		bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, ec.AuthToken, me, iafc, window, ec.Step)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
-	tss, err := unmarshalTimeseriesFast(resultBuf)
+	// Decompress into newly allocated byte slice, since tss returned from unmarshalTimeseriesFast
+	// refers to the byte slice, so it cannot be returned to the resultBufPool.
+	resultBuf, err := encoding.DecompressZSTD(nil, compressedResultBuf.B)
+	if err != nil {
+		logger.Panicf("BUG: cannot decompress resultBuf from rollupResultCache: %s; it looks like it was improperly saved", err)
+	}
+	tss, err = unmarshalTimeseriesFast(resultBuf)
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal timeseries from rollupResultCache: %s; it looks like it was improperly saved", err)
 	}
@@ -206,6 +215,8 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 	return tss, newStart
 }
 
+var resultBufPool bytesutil.ByteBufferPool
+
 func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExpr, iafc *incrementalAggrFuncContext, window int64, tss []*timeseries) {
 	if *disableCache || len(tss) == 0 || !ec.mayCache() {
 		return
@@ -237,11 +248,16 @@ func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExp
 
 	// Store tss in the cache.
 	maxMarshaledSize := getRollupResultCacheSize() / 4
-	tssMarshaled := marshalTimeseriesFast(tss, maxMarshaledSize, ec.Step)
-	if tssMarshaled == nil {
+	resultBuf := resultBufPool.Get()
+	defer resultBufPool.Put(resultBuf)
+	resultBuf.B = marshalTimeseriesFast(resultBuf.B[:0], tss, maxMarshaledSize, ec.Step)
+	if len(resultBuf.B) == 0 {
 		tooBigRollupResults.Inc()
 		return
 	}
+	compressedResultBuf := resultBufPool.Get()
+	defer resultBufPool.Put(compressedResultBuf)
+	compressedResultBuf.B = encoding.CompressZSTDLevel(compressedResultBuf.B[:0], resultBuf.B, 1)
 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
@@ -250,7 +266,7 @@ func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExp
 	key.prefix = rollupResultCacheKeyPrefix
 	key.suffix = atomic.AddUint64(&rollupResultCacheKeySuffix, 1)
 	bb.B = key.Marshal(bb.B[:0])
-	rrc.c.SetBig(bb.B, tssMarshaled)
+	rrc.c.SetBig(bb.B, compressedResultBuf.B)
 
 	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, ec.AuthToken, me, iafc, window, ec.Step)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
@@ -280,7 +296,7 @@ var (
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 5
+const rollupResultCacheVersion = 6
 
 func marshalRollupResultCacheKey(dst []byte, funcName string, at *auth.Token, me *metricExpr, iafc *incrementalAggrFuncContext, window, step int64) []byte {
 	dst = append(dst, rollupResultCacheVersion)
