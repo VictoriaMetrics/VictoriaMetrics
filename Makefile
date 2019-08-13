@@ -61,7 +61,7 @@ errcheck: install-errcheck
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck
 
-check_all: fmt vet lint errcheck golangci-lint
+check-all: fmt vet lint errcheck golangci-lint
 
 test:
 	GO111MODULE=on go test -mod=vendor ./lib/... ./app/...
