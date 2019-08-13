@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 )
 
@@ -39,16 +40,16 @@ type Storage struct {
 	tb *table
 
 	// tsidCache is MetricName -> TSID cache.
-	tsidCache *fastcache.Cache
+	tsidCache *workingsetcache.Cache
 
 	// metricIDCache is MetricID -> TSID cache.
-	metricIDCache *fastcache.Cache
+	metricIDCache *workingsetcache.Cache
 
 	// metricNameCache is MetricID -> MetricName cache.
-	metricNameCache *fastcache.Cache
+	metricNameCache *workingsetcache.Cache
 
 	// dateMetricIDCache is (Date, MetricID) cache.
-	dateMetricIDCache *fastcache.Cache
+	dateMetricIDCache *workingsetcache.Cache
 
 	// Fast cache for MetricID values occured during the current hour.
 	currHourMetricIDs atomic.Value
@@ -460,10 +461,10 @@ func (s *Storage) MustClose() {
 	s.idb().MustClose()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
-	s.mustSaveCache(s.metricIDCache, "MetricID->TSID", "metricID_tsid")
-	s.mustSaveCache(s.metricNameCache, "MetricID->MetricName", "metricID_metricName")
-	s.mustSaveCache(s.dateMetricIDCache, "Date->MetricID", "date_metricID")
+	s.mustSaveAndStopCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
+	s.mustSaveAndStopCache(s.metricIDCache, "MetricID->TSID", "metricID_tsid")
+	s.mustSaveAndStopCache(s.metricNameCache, "MetricID->MetricName", "metricID_metricName")
+	s.mustSaveAndStopCache(s.dateMetricIDCache, "Date->MetricID", "date_metricID")
 
 	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids")
@@ -542,11 +543,11 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	logger.Infof("saved %s to %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), len(hm.m), len(dst))
 }
 
-func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *fastcache.Cache {
+func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
 	path := s.cachePath + "/" + name
 	logger.Infof("loading %s cache from %q...", info, path)
 	startTime := time.Now()
-	c := fastcache.LoadFromFileOrNew(path, sizeBytes)
+	c := workingsetcache.Load(path, sizeBytes, time.Hour)
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
 	logger.Infof("loaded %s cache from %q in %s; entriesCount: %d; sizeBytes: %d",
@@ -554,17 +555,16 @@ func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *fastcache.Cac
 	return c
 }
 
-func (s *Storage) mustSaveCache(c *fastcache.Cache, info, name string) {
-	gomaxprocs := runtime.GOMAXPROCS(-1)
+func (s *Storage) mustSaveAndStopCache(c *workingsetcache.Cache, info, name string) {
 	path := s.cachePath + "/" + name
 	logger.Infof("saving %s cache to %q...", info, path)
 	startTime := time.Now()
-	if err := c.SaveToFileConcurrent(path, gomaxprocs); err != nil {
+	if err := c.Save(path); err != nil {
 		logger.Panicf("FATAL: cannot save %s cache to %q: %s", info, path, err)
 	}
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
-	c.Reset()
+	c.Stop()
 	logger.Infof("saved %s cache to %q in %s; entriesCount: %d; sizeBytes: %d",
 		info, path, time.Since(startTime), cs.EntriesCount, cs.BytesSize)
 }
@@ -975,7 +975,7 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func openIndexDBTables(path string, metricIDCache, metricNameCache *fastcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (curr, prev *indexDB, err error) {
+func openIndexDBTables(path string, metricIDCache, metricNameCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %s", path, err)
 	}

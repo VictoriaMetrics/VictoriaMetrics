@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	xxhash "github.com/cespare/xxhash/v2"
 )
@@ -52,17 +53,17 @@ type indexDB struct {
 	extDBLock sync.Mutex
 
 	// Cache for fast TagFilters -> TSIDs lookup.
-	tagCache *fastcache.Cache
+	tagCache *workingsetcache.Cache
 
 	// Cache for fast MetricID -> TSID lookup.
-	metricIDCache *fastcache.Cache
+	metricIDCache *workingsetcache.Cache
 
 	// Cache for fast MetricID -> MetricName lookup.
-	metricNameCache *fastcache.Cache
+	metricNameCache *workingsetcache.Cache
 
 	// Cache holding useless TagFilters entries, which have no tag filters
 	// matching low number of metrics.
-	uselessTagFiltersCache *fastcache.Cache
+	uselessTagFiltersCache *workingsetcache.Cache
 
 	tagCachePrefixes     map[accountProjectKey]uint64
 	tagCachePrefixesLock sync.RWMutex
@@ -110,7 +111,7 @@ type accountProjectKey struct {
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
+func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
 	if metricIDCache == nil {
 		logger.Panicf("BUG: metricIDCache must be non-nil")
 	}
@@ -139,10 +140,10 @@ func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, c
 		tb:       tb,
 		name:     name,
 
-		tagCache:               fastcache.New(mem / 32),
+		tagCache:               workingsetcache.New(mem/32, time.Hour),
 		metricIDCache:          metricIDCache,
 		metricNameCache:        metricNameCache,
-		uselessTagFiltersCache: fastcache.New(mem / 128),
+		uselessTagFiltersCache: workingsetcache.New(mem/128, time.Hour),
 
 		tagCachePrefixes: make(map[accountProjectKey]uint64),
 
@@ -284,8 +285,8 @@ func (db *indexDB) decRef() {
 	db.SetExtDB(nil)
 
 	// Free space occupied by caches owned by db.
-	db.tagCache.Reset()
-	db.uselessTagFiltersCache.Reset()
+	db.tagCache.Stop()
+	db.uselessTagFiltersCache.Stop()
 
 	db.tagCache = nil
 	db.metricIDCache = nil

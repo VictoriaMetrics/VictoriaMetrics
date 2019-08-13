@@ -6,17 +6,18 @@ import (
 	"strconv"
 	"sync/atomic"
 	"testing"
+	"time"
 
-	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const recordsPerLoop = 1e3
 
-	metricIDCache := fastcache.New(1234)
-	metricNameCache := fastcache.New(1234)
-	defer metricIDCache.Reset()
-	defer metricNameCache.Reset()
+	metricIDCache := workingsetcache.New(1234, time.Hour)
+	metricNameCache := workingsetcache.New(1234, time.Hour)
+	defer metricIDCache.Stop()
+	defer metricNameCache.Stop()
 
 	var hmCurr atomic.Value
 	hmCurr.Store(&hourMetricIDs{})
@@ -82,10 +83,10 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 }
 
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
-	metricIDCache := fastcache.New(1234)
-	metricNameCache := fastcache.New(1234)
-	defer metricIDCache.Reset()
-	defer metricNameCache.Reset()
+	metricIDCache := workingsetcache.New(1234, time.Hour)
+	metricNameCache := workingsetcache.New(1234, time.Hour)
+	defer metricIDCache.Stop()
+	defer metricNameCache.Stop()
 
 	var hmCurr atomic.Value
 	hmCurr.Store(&hourMetricIDs{})
