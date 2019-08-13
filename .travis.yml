@@ -13,7 +13,7 @@ before_install:
   - GO111MODULE=off go get -u github.com/kisielk/errcheck
 
 script:
-  - make check_all
+  - make check-all
   - git diff --exit-code
   - make test-full
   - make test-pure
