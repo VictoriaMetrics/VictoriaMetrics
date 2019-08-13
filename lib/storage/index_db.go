@@ -292,20 +292,36 @@ func (db *indexDB) decRef() {
 }
 
 func (db *indexDB) getFromTagCache(key []byte) ([]TSID, bool) {
-	value := db.tagCache.GetBig(nil, key)
-	if len(value) == 0 {
+	compressedBuf := tagBufPool.Get()
+	defer tagBufPool.Put(compressedBuf)
+	compressedBuf.B = db.tagCache.GetBig(compressedBuf.B[:0], key)
+	if len(compressedBuf.B) == 0 {
 		return nil, false
 	}
-	tsids, err := unmarshalTSIDs(nil, value)
+	buf := tagBufPool.Get()
+	defer tagBufPool.Put(buf)
+	var err error
+	buf.B, err = encoding.DecompressZSTD(buf.B[:0], compressedBuf.B)
+	if err != nil {
+		logger.Panicf("FATAL: cannot decompress tsids from tagCache: %s", err)
+	}
+	tsids, err := unmarshalTSIDs(nil, buf.B)
 	if err != nil {
 		logger.Panicf("FATAL: cannot unmarshal tsids from tagCache: %s", err)
 	}
 	return tsids, true
 }
 
+var tagBufPool bytesutil.ByteBufferPool
+
 func (db *indexDB) putToTagCache(tsids []TSID, key []byte) {
-	value := marshalTSIDs(nil, tsids)
-	db.tagCache.SetBig(key, value)
+	buf := tagBufPool.Get()
+	buf.B = marshalTSIDs(buf.B[:0], tsids)
+	compressedBuf := tagBufPool.Get()
+	compressedBuf.B = encoding.CompressZSTDLevel(compressedBuf.B[:0], buf.B, 1)
+	tagBufPool.Put(buf)
+	db.tagCache.SetBig(key, compressedBuf.B)
+	tagBufPool.Put(compressedBuf)
 }
 
 func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
