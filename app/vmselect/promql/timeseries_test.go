@@ -74,7 +74,7 @@ func TestTimeseriesMarshalUnmarshalFast(t *testing.T) {
 
 			tssOrig = append(tssOrig, &ts)
 		}
-		buf := marshalTimeseriesFast(tssOrig, 1e6, 123)
+		buf := marshalTimeseriesFast(nil, tssOrig, 1e6, 123)
 		tssGot, err := unmarshalTimeseriesFast(buf)
 		if err != nil {
 			t.Fatalf("error in unmarshalTimeseriesFast: %s", err)

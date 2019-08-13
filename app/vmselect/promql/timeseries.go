@@ -76,7 +76,7 @@ func putTimeseries(ts *timeseries) {
 
 var timeseriesPool sync.Pool
 
-func marshalTimeseriesFast(tss []*timeseries, maxSize int, step int64) []byte {
+func marshalTimeseriesFast(dst []byte, tss []*timeseries, maxSize int, step int64) []byte {
 	if len(tss) == 0 {
 		logger.Panicf("BUG: tss cannot be empty")
 	}
@@ -92,13 +92,13 @@ func marshalTimeseriesFast(tss []*timeseries, maxSize int, step int64) []byte {
 
 	if size > maxSize {
 		// Do not marshal tss, since it would occupy too much space
-		return nil
+		return dst
 	}
 
 	// Allocate the buffer for the marshaled tss before its' marshaling.
 	// This should reduce memory fragmentation and memory usage.
-	dst := make([]byte, 0, size)
-	dst = marshalFastTimestamps(dst, tss[0].Timestamps)
+	dst = bytesutil.Resize(dst, size)
+	dst = marshalFastTimestamps(dst[:0], tss[0].Timestamps)
 	for _, ts := range tss {
 		dst = ts.marshalFastNoTimestamps(dst)
 	}
