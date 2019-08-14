@@ -527,7 +527,7 @@ kill -HUP `pidof prometheus`
 
 
 If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
-to write data to `<victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
+to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
 
 
 ### Multiple retentions
