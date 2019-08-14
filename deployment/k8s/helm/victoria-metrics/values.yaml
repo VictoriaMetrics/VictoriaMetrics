@@ -12,7 +12,7 @@ vmselect:
   name: vmselect
   image:
     repository: victoriametrics/vmselect
-    tag: v1.24.1-cluster
+    tag: v1.25.0-cluster
     pullPolicy: IfNotPresent
   priorityClassName: ""
   extraArgs: {}
@@ -89,7 +89,7 @@ vminsert:
   name: vminsert
   image:
     repository: victoriametrics/vminsert
-    tag: v1.24.1-cluster
+    tag: v1.25.0-cluster
     pullPolicy: IfNotPresent
   priorityClassName: ""
   extraArgs: {}
@@ -133,7 +133,7 @@ vmstorage:
   name: vmstorage
   image:
     repository: victoriametrics/vmstorage
-    tag: v1.24.1-cluster
+    tag: v1.25.0-cluster
     pullPolicy: IfNotPresent
   priorityClassName: ""
   fullnameOverride:
