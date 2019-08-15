@@ -1,6 +1,8 @@
 package gozstd
 
 /*
+#cgo CFLAGS: -O3
+
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 
@@ -86,7 +88,10 @@ func BuildDict(samples [][]byte, desiredDictLen int) []byte {
 		&samplesSizes[0],
 		C.unsigned(len(samplesSizes)))
 	buildDictLock.Unlock()
-	ensureNoError("ZDICT_trainFromBuffer", result)
+	if C.ZDICT_isError(result) != 0 {
+		// Return empty dictionary, since the original samples are too small.
+		return nil
+	}
 
 	dictLen := int(result)
 	return dict[:dictLen]

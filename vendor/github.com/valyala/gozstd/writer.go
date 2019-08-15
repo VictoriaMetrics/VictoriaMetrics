@@ -164,14 +164,18 @@ func (zw *Writer) ReadFrom(r io.Reader) (int64, error) {
 		// Fill the inBuf.
 		for zw.inBuf.size < cstreamInBufSize {
 			n, err := r.Read(zw.inBufGo[zw.inBuf.size:cstreamInBufSize])
+
+			// Sometimes n > 0 even when Read() returns an error.
+			// This is true especially if the error is io.EOF.
+			zw.inBuf.size += C.size_t(n)
+			nn += int64(n)
+
 			if err != nil {
 				if err == io.EOF {
 					return nn, nil
 				}
 				return nn, err
 			}
-			zw.inBuf.size += C.size_t(n)
-			nn += int64(n)
 		}
 
 		// Flush the inBuf.
