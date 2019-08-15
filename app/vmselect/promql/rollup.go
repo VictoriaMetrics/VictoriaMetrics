@@ -615,10 +615,15 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		if len(values) == 0 {
 			return nan
 		}
+		if len(values) == 1 {
+			// Assume that the previous non-existing value was 0.
+			return values[0]
+		}
 		prevValue = values[0]
 		values = values[1:]
 	}
 	if len(values) == 0 {
+		// Assume that the value didn't change on the given interval.
 		return 0
 	}
 	return values[len(values)-1] - prevValue
@@ -632,6 +637,7 @@ func rollupIdelta(rfa *rollupFuncArg) float64 {
 		if math.IsNaN(rfa.prevValue) {
 			return nan
 		}
+		// Assume that the value didn't change on the given interval.
 		return 0
 	}
 	lastValue := values[len(values)-1]
@@ -639,7 +645,8 @@ func rollupIdelta(rfa *rollupFuncArg) float64 {
 	if len(values) == 0 {
 		prevValue := rfa.prevValue
 		if math.IsNaN(prevValue) {
-			return 0
+			// Assume that the previous non-existing value was 0.
+			return lastValue
 		}
 		return lastValue - prevValue
 	}
@@ -661,7 +668,8 @@ func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	prevValue := rfa.prevValue
 	prevTimestamp := rfa.prevTimestamp
 	if math.IsNaN(prevValue) {
-		if len(values) == 0 {
+		if len(values) < 2 {
+			// It is impossible to calculate derivative on 0 or 1 values.
 			return nan
 		}
 		prevValue = values[0]
@@ -670,6 +678,7 @@ func rollupDerivFast(rfa *rollupFuncArg) float64 {
 		timestamps = timestamps[1:]
 	}
 	if len(values) == 0 {
+		// Assume that the value didn't change on the given interval.
 		return 0
 	}
 	vEnd := values[len(values)-1]
@@ -684,11 +693,12 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
+	if len(values) < 2 {
+		if len(values) == 0 || math.IsNaN(rfa.prevValue) {
+			// It is impossible to calculate derivative on 0 or 1 values.
 			return nan
 		}
-		return 0
+		return (values[0] - rfa.prevValue) / float64(timestamps[0]-rfa.prevTimestamp)
 	}
 	vEnd := values[len(values)-1]
 	tEnd := timestamps[len(timestamps)-1]
