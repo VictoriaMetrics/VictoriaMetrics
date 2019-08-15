@@ -37,6 +37,12 @@ package: \
 	package-vmselect \
 	package-vminsert
 
+release: \
+	vminsert-prod \
+	vmselect-prod \
+	vmstorage-prod
+	cd bin && tar czf victoria-metrics-$(PKG_TAG)-cluster.tar.gz vminsert-prod vmselect-prod vmstorage-prod
+
 fmt:
 	GO111MODULE=on gofmt -l -w -s ./lib
 	GO111MODULE=on gofmt -l -w -s ./app
