@@ -56,7 +56,7 @@ func TestRollupIderivDuplicateTimestamps(t *testing.T) {
 		timestamps:    []int64{100},
 	}
 	n = rollupIderiv(rfa)
-	if n != 0.5 {
+	if n != 500 {
 		t.Fatalf("unexpected value; got %v; want %v", n, 0.5)
 	}
 

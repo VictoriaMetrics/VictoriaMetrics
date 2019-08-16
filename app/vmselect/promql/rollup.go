@@ -698,7 +698,7 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 			// It is impossible to calculate derivative on 0 or 1 values.
 			return nan
 		}
-		return (values[0] - rfa.prevValue) / float64(timestamps[0]-rfa.prevTimestamp)
+		return (values[0] - rfa.prevValue) / (float64(timestamps[0]-rfa.prevTimestamp) * 1e-3)
 	}
 	vEnd := values[len(values)-1]
 	tEnd := timestamps[len(timestamps)-1]
@@ -722,7 +722,7 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	}
 	dv := vEnd - vStart
 	dt := tEnd - tStart
-	return dv / (float64(dt) / 1000)
+	return dv / (float64(dt) * 1e-3)
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {
