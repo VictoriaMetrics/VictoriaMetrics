@@ -584,6 +584,34 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{10, 50, 90, 130}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
+	t.Run("lifetime", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupLifetime,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 0,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 0.031, 0.044, 0.04, 0.01}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("lifetime", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupLifetime,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 200,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 0.031, 0.075, 0.115, 0.125}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
 	t.Run("changes", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupChanges,
