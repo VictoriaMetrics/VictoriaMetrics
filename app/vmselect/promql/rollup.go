@@ -45,6 +45,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"distinct_over_time": newRollupFuncOneArg(rollupDistinct),
 	"integrate":          newRollupFuncOneArg(rollupIntegrate),
 	"ideriv":             newRollupFuncOneArg(rollupIderiv),
+	"lifetime":           newRollupFuncOneArg(rollupLifetime),
 	"rollup":             newRollupFuncOneArg(rollupFake),
 	"rollup_rate":        newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
 	"rollup_deriv":       newRollupFuncOneArg(rollupFake),
@@ -723,6 +724,21 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	dv := vEnd - vStart
 	dt := tEnd - tStart
 	return dv / (float64(dt) * 1e-3)
+}
+
+func rollupLifetime(rfa *rollupFuncArg) float64 {
+	// Calculate the duration between the first and the last data points.
+	timestamps := rfa.timestamps
+	if math.IsNaN(rfa.prevValue) {
+		if len(timestamps) < 2 {
+			return nan
+		}
+		return float64(timestamps[len(timestamps)-1]-timestamps[0]) * 1e-3
+	}
+	if len(timestamps) == 0 {
+		return nan
+	}
+	return float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {
