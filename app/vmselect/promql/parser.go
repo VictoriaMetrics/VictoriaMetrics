@@ -373,7 +373,7 @@ func (p *parser) parseSingleExpr() (expr, error) {
 }
 
 func (p *parser) parseSingleExprWithoutRollupSuffix() (expr, error) {
-	if isPositiveNumberPrefix(p.lex.Token) {
+	if isPositiveNumberPrefix(p.lex.Token) || isInfOrNaN(p.lex.Token) {
 		return p.parsePositiveNumberExpr()
 	}
 	if isStringPrefix(p.lex.Token) {
@@ -417,7 +417,7 @@ func (p *parser) parseSingleExprWithoutRollupSuffix() (expr, error) {
 }
 
 func (p *parser) parsePositiveNumberExpr() (*numberExpr, error) {
-	if !isPositiveNumberPrefix(p.lex.Token) {
+	if !isPositiveNumberPrefix(p.lex.Token) && !isInfOrNaN(p.lex.Token) {
 		return nil, fmt.Errorf(`positiveNumberExpr: unexpected token %q; want "number"`, p.lex.Token)
 	}
 
