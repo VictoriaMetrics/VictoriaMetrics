@@ -416,10 +416,25 @@ func binaryOpIfnot(left, right float64) float64 {
 }
 
 func binaryOpEq(left, right float64) bool {
+	// Special handling for nan == nan.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150 .
+	if math.IsNaN(left) {
+		return math.IsNaN(right)
+	}
+
 	return left == right
 }
 
 func binaryOpNeq(left, right float64) bool {
+	// Special handling for comparison with nan.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150 .
+	if math.IsNaN(left) {
+		return !math.IsNaN(right)
+	}
+	if math.IsNaN(right) {
+		return true
+	}
+
 	return left != right
 }
 

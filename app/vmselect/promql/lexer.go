@@ -149,12 +149,6 @@ func scanString(s string) (string, error) {
 }
 
 func scanPositiveNumber(s string) (string, error) {
-	if strings.HasPrefix(s, "Inf") {
-		return "Inf", nil
-	}
-	if strings.HasPrefix(s, "NaN") {
-		return "NaN", nil
-	}
 	// Scan integer part. It may be empty if fractional part exists.
 	i := 0
 	for i < len(s) && isDecimalChar(s[i]) {
@@ -333,6 +327,14 @@ func scanTagFilterOpPrefix(s string) int {
 	return -1
 }
 
+func isInfOrNaN(s string) bool {
+	if len(s) != 3 {
+		return false
+	}
+	s = strings.ToLower(s)
+	return s == "inf" || s == "nan"
+}
+
 func isOffset(s string) bool {
 	s = strings.ToLower(s)
 	return s == "offset"
@@ -361,7 +363,7 @@ func isPositiveNumberPrefix(s string) bool {
 
 	// Check for .234 numbers
 	if s[0] != '.' || len(s) < 2 {
-		return strings.HasPrefix(s, "Inf") || strings.HasPrefix(s, "NaN")
+		return false
 	}
 	return isDecimalChar(s[1])
 }
