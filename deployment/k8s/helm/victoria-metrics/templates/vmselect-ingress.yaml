@@ -1,0 +1,29 @@
+{{- if and .Values.vmselect.enabled .Values.vmselect.ingress.enabled  }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+{{- if .Values.vmselect.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.vmselect.ingress.annotations | indent 4 }}
+{{- end }}
+  labels:
+  {{- include "victoria-metrics.vmselect.labels" . | nindent 4 }}
+{{ toYaml .Values.vmselect.ingress.extraLabels | indent 4 }}
+  name: {{ template "victoria-metrics.vmselect.fullname" . }}
+spec:
+  rules:
+  {{- $serviceName := include "victoria-metrics.vmselect.fullname" . }}
+  {{- range .Values.vmselect.ingress.hosts }}
+  - host: {{ .name }}
+    http:
+      paths:
+        - path: {{ .path }}
+          backend:
+            serviceName: {{ $serviceName }}
+            servicePort: http
+    {{- end -}}
+  {{- if .Values.vmselect.ingress.tls }}
+tls:
+  {{ toYaml .Values.vmselect.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}
