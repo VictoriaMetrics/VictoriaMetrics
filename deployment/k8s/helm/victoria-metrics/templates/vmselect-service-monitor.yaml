@@ -1,0 +1,28 @@
+{{- if and .Values.vmselect.enabled .Values.vmselect.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  {{- if .Values.vmselect.serviceMonitor.annotations }}
+  annotations:
+{{ toYaml .Values.vmselect.serviceMonitor.annotations | indent 4 }}
+  {{- end }}
+  labels:
+  {{- include "victoria-metrics.vmselect.labels" . | nindent 4 }}
+{{ toYaml .Values.vmselect.serviceMonitor.extraLabels | indent 4 }}
+  name: {{ template "victoria-metrics.vmselect.fullname" . }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "victoria-metrics.vmselect.matchLabels" . | nindent 6 }} 
+  endpoints:
+    - port: http
+      {{- if .Values.vmselect.serviceMonitor.interval }}
+      interval: {{ .Values.vmselect.serviceMonitor.interval }}
+      {{- end }}
+      {{- if .Values.vmselect.serviceMonitor.scrapeTimeout }}
+      scrapeTimeout: {{ .Values.vmselect.serviceMonitor.scrapeTimeout }}
+      {{- end }}
+  {{- end }}

@@ -28,8 +28,7 @@ vmselect:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
-  podAnnotations:
-    prometheus.io/scrape: "true"
+  podAnnotations: {}
   replicaCount: 2
   resources: {}
     # limits:
@@ -53,6 +52,21 @@ vmselect:
     loadBalancerSourceRanges: []
     servicePort: 8481
     type: ClusterIP
+  ingress:
+    enabled: false
+    annotations: {}
+    #   kubernetes.io/ingress.class: nginx
+    #   kubernetes.io/tls-acme: 'true'
+
+    extraLabels: {}
+    hosts: []
+    #   - name: vmselect.local
+    #     path: /select
+
+    tls: []
+    #   - secretName: vmselect-ingress-tls
+    #     hosts:
+    #       - vmselect.local
   statefulSet:
     ## Creates statefulset instead of deployment, useful when you want to keep the cache
     enabled: false
@@ -83,6 +97,12 @@ vmselect:
     ##
     size: 2Gi
     subPath: ""
+  serviceMonitor:
+    enabled: false
+    extraLabels: {}
+    annotations: {}
+#    interval: 15s
+#    scrapeTimeout: 5s
 
 vminsert:
   enabled: true
@@ -105,8 +125,7 @@ vminsert:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
-  podAnnotations:
-    prometheus.io/scrape: "true"
+  podAnnotations: {}
   replicaCount: 2
   resources: {}
     # limits:
@@ -127,6 +146,26 @@ vminsert:
     loadBalancerSourceRanges: []
     servicePort: 8480
     type: ClusterIP
+  ingress:
+    enabled: false
+    annotations: {}
+    #   kubernetes.io/ingress.class: nginx
+    #   kubernetes.io/tls-acme: 'true'
+    extraLabels: {}
+    hosts: []
+    # - name: vminsert.local
+    #   path: /insert
+    tls: []
+    #   - secretName: vminsert-ingress-tls
+    #     hosts:
+    #       - vminsert.local
+  serviceMonitor:
+    enabled: false
+    extraLabels: {}
+    annotations: {}
+#    interval: 15s
+#    scrapeTimeout: 5s
+
 
 vmstorage:
   enabled: true
@@ -215,9 +254,7 @@ vmstorage:
     subPath: ""
 
 
-  podAnnotations: {
-    prometheus.io/scrape: "true"
-  }
+  podAnnotations: {}
   replicaCount: 2
   podManagementPolicy: OrderedReady
 
@@ -241,3 +278,9 @@ vmstorage:
     vminsertPort: 8400
     vmselectPort: 8401
   terminationGracePeriodSeconds: 60
+  serviceMonitor:
+    enabled: false
+    extraLabels: {}
+    annotations: {}
+#    interval: 15s
+#    scrapeTimeout: 5s

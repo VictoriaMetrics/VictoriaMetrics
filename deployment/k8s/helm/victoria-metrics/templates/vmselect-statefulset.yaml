@@ -43,6 +43,12 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 15
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
             - mountPath: {{ .Values.vmselect.cacheMountPath }}
               name: cache-volume
