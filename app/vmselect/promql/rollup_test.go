@@ -612,6 +612,34 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
+	t.Run("scrape_interval", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupScrapeInterval,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 0,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 0.010333333333333333, 0.011, 0.013333333333333334, 0.01}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("scrape_interval", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupScrapeInterval,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 80,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 0.010333333333333333, 0.010714285714285714, 0.012, 0.0125}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
 	t.Run("changes", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupChanges,

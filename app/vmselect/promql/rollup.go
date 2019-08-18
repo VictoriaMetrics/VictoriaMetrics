@@ -46,6 +46,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"integrate":          newRollupFuncOneArg(rollupIntegrate),
 	"ideriv":             newRollupFuncOneArg(rollupIderiv),
 	"lifetime":           newRollupFuncOneArg(rollupLifetime),
+	"scrape_interval":    newRollupFuncOneArg(rollupScrapeInterval),
 	"rollup":             newRollupFuncOneArg(rollupFake),
 	"rollup_rate":        newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
 	"rollup_deriv":       newRollupFuncOneArg(rollupFake),
@@ -62,6 +63,8 @@ var rollupFuncsMayAdjustWindow = map[string]bool{
 	"deriv_fast":      true,
 	"irate":           true,
 	"rate":            true,
+	"lifetime":        true,
+	"scrape_interval": true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -739,6 +742,21 @@ func rollupLifetime(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3
+}
+
+func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
+	// Calculate the average interval between data points.
+	timestamps := rfa.timestamps
+	if math.IsNaN(rfa.prevValue) {
+		if len(timestamps) < 2 {
+			return nan
+		}
+		return float64(timestamps[len(timestamps)-1]-timestamps[0]) * 1e-3 / float64(len(timestamps)-1)
+	}
+	if len(timestamps) == 0 {
+		return nan
+	}
+	return (float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3) / float64(len(timestamps))
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {
