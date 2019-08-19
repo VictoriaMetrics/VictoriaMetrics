@@ -584,7 +584,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{10, 50, 90, 130}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
-	t.Run("lifetime", func(t *testing.T) {
+	t.Run("lifetime_1", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupLifetime,
 			Start:  0,
@@ -598,7 +598,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
-	t.Run("lifetime", func(t *testing.T) {
+	t.Run("lifetime_2", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupLifetime,
 			Start:  0,
@@ -612,7 +612,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
-	t.Run("scrape_interval", func(t *testing.T) {
+	t.Run("scrape_interval_1", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupScrapeInterval,
 			Start:  0,
@@ -626,7 +626,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
-	t.Run("scrape_interval", func(t *testing.T) {
+	t.Run("scrape_interval_2", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupScrapeInterval,
 			Start:  0,
@@ -752,7 +752,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
-	t.Run("distinct", func(t *testing.T) {
+	t.Run("distinct_over_time_1", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupDistinct,
 			Start:  0,
@@ -763,6 +763,20 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
 		valuesExpected := []float64{nan, 4, 4, 3, 1}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("distinct_over_time_2", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupDistinct,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 80,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 4, 7, 6, 3}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
