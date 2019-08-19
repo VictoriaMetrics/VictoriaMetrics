@@ -197,18 +197,15 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 	i := 0
 	j := 0
+	n := 0
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
-		n := sort.Search(len(timestamps)-i, func(n int) bool {
-			return timestamps[i+n] > tStart
-		})
+		n = seekFirstTimestampIdxAfter(timestamps[i:], tStart, n)
 		i += n
 		if j < i {
 			j = i
 		}
-		n = sort.Search(len(timestamps)-j, func(n int) bool {
-			return timestamps[j+n] > tEnd
-		})
+		n = seekFirstTimestampIdxAfter(timestamps[j:], tEnd, n)
 		j += n
 
 		rfa.prevValue = nan
@@ -227,6 +224,46 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 	putRollupFuncArg(rfa)
 
 	return dstValues
+}
+
+func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint int) int {
+	if len(timestamps) == 0 || timestamps[0] > seekTimestamp {
+		return 0
+	}
+	startIdx := nHint - 2
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	if startIdx >= len(timestamps) {
+		startIdx = len(timestamps) - 1
+	}
+	endIdx := nHint + 2
+	if endIdx > len(timestamps) {
+		endIdx = len(timestamps)
+	}
+	if startIdx > 0 && timestamps[startIdx] <= seekTimestamp {
+		timestamps = timestamps[startIdx:]
+		endIdx -= startIdx
+	} else {
+		startIdx = 0
+	}
+	if endIdx < len(timestamps) && timestamps[endIdx] > seekTimestamp {
+		timestamps = timestamps[:endIdx]
+	}
+	if len(timestamps) < 16 {
+		// Fast path: the number of timestamps to search is small, so scan them all.
+		for i, timestamp := range timestamps {
+			if timestamp > seekTimestamp {
+				return startIdx + i
+			}
+		}
+		return startIdx + len(timestamps)
+	}
+	// Slow path: too big len(timestamps), so use binary search.
+	i := sort.Search(len(timestamps), func(n int) bool {
+		return n >= 0 && n < len(timestamps) && timestamps[n] > seekTimestamp
+	})
+	return startIdx + i
 }
 
 func getMaxPrevInterval(timestamps []int64) int64 {
