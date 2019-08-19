@@ -181,6 +181,10 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 		logger.Panicf("BUG: blockHeadersCount must be greater than zero; got %d", blockHeadersCount)
 	}
 	dstLen := len(dst)
+	if n := dstLen + blockHeadersCount - cap(dst); n > 0 {
+		dst = append(dst[:cap(dst)], make([]blockHeader, n)...)
+		dst = dst[:dstLen]
+	}
 	var bh blockHeader
 	for len(src) > 0 {
 		tmp, err := bh.Unmarshal(src)
