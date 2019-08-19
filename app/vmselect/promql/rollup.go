@@ -197,16 +197,17 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 	i := 0
 	j := 0
-	n := 0
+	ni := 0
+	nj := 0
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
-		n = seekFirstTimestampIdxAfter(timestamps[i:], tStart, n)
-		i += n
+		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
+		i += ni
 		if j < i {
 			j = i
 		}
-		n = seekFirstTimestampIdxAfter(timestamps[j:], tEnd, n)
-		j += n
+		nj = seekFirstTimestampIdxAfter(timestamps[j:], tEnd, nj)
+		j += nj
 
 		rfa.prevValue = nan
 		rfa.prevTimestamp = tStart - maxPrevInterval
