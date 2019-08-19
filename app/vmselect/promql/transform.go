@@ -63,6 +63,7 @@ var transformFuncs = map[string]transformFunc{
 	"label_copy":         transformLabelCopy,
 	"label_move":         transformLabelMove,
 	"label_transform":    transformLabelTransform,
+	"label_value":        transformLabelValue,
 	"union":              transformUnion,
 	"":                   transformUnion, // empty func is a synonim to union
 	"keep_last_value":    transformKeepLastValue,
@@ -879,6 +880,31 @@ func labelReplace(tss []*timeseries, srcLabel string, r *regexp.Regexp, dstLabel
 		}
 	}
 	return tss, nil
+}
+
+func transformLabelValue(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	labelName, err := getString(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get label name: %s", err)
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		ts.MetricName.ResetMetricGroup()
+		labelValue := ts.MetricName.GetTagValue(labelName)
+		v, err := strconv.ParseFloat(string(labelValue), 64)
+		if err != nil {
+			v = nan
+		}
+		values := ts.Values
+		for i := range values {
+			values[i] = v
+		}
+	}
+	return rvs, nil
 }
 
 func transformLn(v float64) float64 {
