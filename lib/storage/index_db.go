@@ -1236,6 +1236,82 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	return nil
 }
 
+func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilters, tr TimeRange, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+	// Try fast path with the minimized number of maxMetrics.
+	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
+	if err == nil {
+		return minTf, minMetricIDs, nil
+	}
+	if err != errTooManyMetrics {
+		return nil, nil, err
+	}
+
+	// All the tag filters match too many metrics.
+
+	// Slow path: try filtering the matching metrics by time range.
+	// This should work well for cases when old metrics are constantly substituted
+	// by big number of new metrics. For example, prometheus-operator creates many new
+	// metrics for each new deployment.
+	//
+	// Allow fetching up to 20*maxMetrics metrics for the given time range
+	// in the hope these metricIDs will be filtered out by other filters later.
+	maxTimeRangeMetrics := 20 * maxMetrics
+	metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1)
+	if err == errMissingMetricIDsForDate {
+		// Slow path: try to select find the tag filter without maxMetrics adjustement.
+		minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
+		if err == nil {
+			return minTf, minMetricIDs, nil
+		}
+		if err != errTooManyMetrics {
+			return nil, nil, err
+		}
+		return nil, nil, fmt.Errorf("cannot find tag filter matching less than %d time series; "+
+			"either increase -search.maxUniqueTimeseries or use more specific tag filters", maxMetrics)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(metricIDsForTimeRange) <= maxTimeRangeMetrics {
+		return nil, metricIDsForTimeRange, nil
+	}
+
+	// Slow path: try to select the tag filter without maxMetrics adjustement.
+	minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
+	if err == nil {
+		return minTf, minMetricIDs, nil
+	}
+	if err != errTooManyMetrics {
+		return nil, nil, err
+	}
+	return nil, nil, fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
+		maxTimeRangeMetrics, tr.String())
+}
+
+const maxDaysForDateMetricIDs = 40
+
+func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if maxDate-minDate > maxDaysForDateMetricIDs {
+		// Cannot reduce maxMetrics for the given time range,
+		// since it is expensive extracting metricIDs for the given tr.
+		return maxMetrics
+	}
+	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
+	if !hmPrev.isFull {
+		return maxMetrics
+	}
+	hourMetrics := len(hmPrev.m)
+	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
+		// It is cheaper to filter on the hour or day metrics if the minimum
+		// number of matching metrics across tfs exceeds hourMetrics / 4.
+		return hourMetrics / 4
+	}
+	return maxMetrics
+}
+
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	kb := &is.kb
 	kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
@@ -1283,29 +1359,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 }
 
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
-
-const maxDaysForDateMetricIDs = 40
-
-func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate-minDate > maxDaysForDateMetricIDs {
-		// Cannot reduce maxMetrics for the given time range,
-		// since the it is expensive extracting metricIDs for the given tr.
-		return maxMetrics
-	}
-	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
-	if !hmPrev.isFull {
-		return maxMetrics
-	}
-	hourMetrics := len(hmPrev.m)
-	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
-		// It is cheaper to filter on the hour or day metrics if the minimum
-		// number of matching metrics across tfs exceeds hourMetrics / 4.
-		return hourMetrics / 4
-	}
-	return maxMetrics
-}
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	var minMetricIDs map[uint64]struct{}
@@ -1481,37 +1534,9 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 	// Sort tag filters for faster ts.Seek below.
 	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
 
-	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
-	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
 	if err != nil {
-		if err != errTooManyMetrics {
-			return err
-		}
-
-		// All the tag filters match too many metrics.
-
-		// Slow path: try filtering the matching metrics by time range.
-		// This should work well for cases when old metrics are constantly substituted
-		// by big number of new metrics. For example, prometheus-operator creates many new
-		// metrics for each new deployment.
-		//
-		// Allow fetching up to 20*maxMetrics metrics for the given time range
-		// in the hope these metricIDs will be filtered out by other filters below.
-		maxTimeRangeMetrics := 20 * maxMetrics
-		metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1)
-		if err == errMissingMetricIDsForDate {
-			return fmt.Errorf("cannot find tag filter matching less than %d time series; either increase -search.maxUniqueTimeseries or use more specific tag filters",
-				maxMetrics)
-		}
-		if err != nil {
-			return err
-		}
-		if len(metricIDsForTimeRange) > maxTimeRangeMetrics {
-			return fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
-				maxTimeRangeMetrics, tr.String())
-		}
-		minMetricIDs = metricIDsForTimeRange
-		minTf = nil
+		return err
 	}
 
 	// Find intersection of minTf with other tfs.
