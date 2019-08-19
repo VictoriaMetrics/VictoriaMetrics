@@ -38,7 +38,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * All the data is stored in a single directory pointed by `-storageDataPath` flag.
   * Easy backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * Storage is protected from corruption on unclean shutdown (i.e. hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-* Supports metrics' ingestion and backfilling via the following protocols:
+* Supports metrics' ingestion and [backfilling](#backfilling) via the following protocols:
   * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
   * [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
   * [Graphite plaintext protocol](https://graphite.readthedocs.io/en/latest/feeding-carbon.html) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
@@ -86,6 +86,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Tuning](#tuning)
   - [Monitoring](#monitoring)
   - [Troubleshooting](#troubleshooting)
+  - [Backfilling](#backfilling)
 - [Roadmap](#roadmap)
 - [Contacts](#contacts)
 - [Community and contributions](#community-and-contributions)
@@ -636,6 +637,14 @@ The most interesting metrics are:
   then just remove directoreis with broken parts. This will recover VictoriaMetrics at the cost
   of data loss stored in the broken parts. In the future, `vmrecover` tool will be created
   for automatic recovering from such errors.
+
+
+### Backfilling
+
+It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
+historical data with timestamps from the past, since the cache assumes that the data is written with
+the current timestamps. Query cache can be enabled after the backfilling is complete.
+
 
 ## Roadmap
 
