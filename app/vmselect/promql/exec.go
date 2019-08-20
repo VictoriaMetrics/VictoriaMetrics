@@ -105,14 +105,14 @@ func maySortResults(e expr, tss []*timeseries) bool {
 func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, error) {
 	tss = removeNaNs(tss)
 	result := make([]netstorage.Result, len(tss))
-	m := make(map[string]bool)
+	m := make(map[string]struct{}, len(tss))
 	bb := bbPool.Get()
 	for i, ts := range tss {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		if m[string(bb.B)] {
+		if _, ok := m[string(bb.B)]; ok {
 			return nil, fmt.Errorf(`duplicate output timeseries: %s%s`, ts.MetricName.MetricGroup, stringMetricName(&ts.MetricName))
 		}
-		m[string(bb.B)] = true
+		m[string(bb.B)] = struct{}{}
 
 		rs := &result[i]
 		rs.MetricNameMarshaled = append(rs.MetricNameMarshaled[:0], bb.B...)
