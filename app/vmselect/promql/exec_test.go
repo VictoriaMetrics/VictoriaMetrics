@@ -1302,6 +1302,44 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_value()`, func(t *testing.T) {
+		t.Parallel()
+		q := `with (
+			x = (
+				label_set(time(), "foo", "123.456", "__name__", "aaa"),
+				label_set(-time(), "foo", "bar", "__name__", "bbb"),
+				label_set(-time(), "__name__", "bxs"),
+				label_set(-time(), "foo", "45", "bar", "xs"),
+			)
+		)
+		sort(x + label_value(x, "foo"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-955, -1155, -1355, -1555, -1755, -1955},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("bar"),
+				Value: []byte("xs"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("45"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1123.456, 1323.456, 1523.456, 1723.456, 1923.456, 2123.456},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("123.456"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`label_transform(mismatch)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_transform(time(), "__name__", "foobar", "xx")`

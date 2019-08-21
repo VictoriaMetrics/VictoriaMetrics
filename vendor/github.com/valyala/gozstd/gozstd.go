@@ -66,72 +66,55 @@ func CompressDict(dst, src []byte, cd *CDict) []byte {
 }
 
 func compressDictLevel(dst, src []byte, cd *CDict, compressionLevel int) []byte {
-	compressInitOnce.Do(compressInit)
+	concurrencyLimitCh <- struct{}{}
 
-	cw := getCompressWork()
-	cw.dst = dst
-	cw.src = src
-	cw.cd = cd
-	cw.compressionLevel = compressionLevel
-	compressWorkCh <- cw
-	<-cw.done
-	dst = cw.dst
-	putCompressWork(cw)
+	var cctx, cctxDict *cctxWrapper
+	if cd == nil {
+		cctx = cctxPool.Get().(*cctxWrapper)
+	} else {
+		cctxDict = cctxDictPool.Get().(*cctxWrapper)
+	}
+
+	dst = compress(cctx, cctxDict, dst, src, cd, compressionLevel)
+
+	if cd == nil {
+		cctxPool.Put(cctx)
+	} else {
+		cctxDictPool.Put(cctxDict)
+	}
+
+	<-concurrencyLimitCh
+
 	return dst
 }
 
-func getCompressWork() *compressWork {
-	v := compressWorkPool.Get()
-	if v == nil {
-		v = &compressWork{
-			done: make(chan struct{}),
-		}
-	}
-	return v.(*compressWork)
+var cctxPool = &sync.Pool{
+	New: newCCtx,
 }
 
-func putCompressWork(cw *compressWork) {
-	cw.src = nil
-	cw.dst = nil
-	cw.cd = nil
-	cw.compressionLevel = 0
-	compressWorkPool.Put(cw)
+var cctxDictPool = &sync.Pool{
+	New: newCCtx,
 }
 
-type compressWork struct {
-	dst              []byte
-	src              []byte
-	cd               *CDict
-	compressionLevel int
-	done             chan struct{}
-}
-
-var (
-	compressWorkCh   chan *compressWork
-	compressWorkPool sync.Pool
-	compressInitOnce sync.Once
-)
-
-func compressInit() {
-	gomaxprocs := runtime.GOMAXPROCS(-1)
-
-	compressWorkCh = make(chan *compressWork, gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go compressWorker()
-	}
-}
-
-func compressWorker() {
+func newCCtx() interface{} {
 	cctx := C.ZSTD_createCCtx()
-	cctxDict := C.ZSTD_createCCtx()
-
-	for cw := range compressWorkCh {
-		cw.dst = compress(cctx, cctxDict, cw.dst, cw.src, cw.cd, cw.compressionLevel)
-		cw.done <- struct{}{}
+	cw := &cctxWrapper{
+		cctx: cctx,
 	}
+	runtime.SetFinalizer(cw, freeCCtx)
+	return cw
 }
 
-func compress(cctx, cctxDict *C.ZSTD_CCtx, dst, src []byte, cd *CDict, compressionLevel int) []byte {
+func freeCCtx(cw *cctxWrapper) {
+	C.ZSTD_freeCCtx(cw.cctx)
+	cw.cctx = nil
+}
+
+type cctxWrapper struct {
+	cctx *C.ZSTD_CCtx
+}
+
+func compress(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressionLevel int) []byte {
 	if len(src) == 0 {
 		return dst
 	}
@@ -167,9 +150,9 @@ func compress(cctx, cctxDict *C.ZSTD_CCtx, dst, src []byte, cd *CDict, compressi
 	return dst[:dstLen+compressedSize]
 }
 
-func compressInternal(cctx, cctxDict *C.ZSTD_CCtx, dst, src []byte, cd *CDict, compressionLevel int, mustSucceed bool) C.size_t {
+func compressInternal(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressionLevel int, mustSucceed bool) C.size_t {
 	if cd != nil {
-		result := C.ZSTD_compress_usingCDict_wrapper(cctxDict,
+		result := C.ZSTD_compress_usingCDict_wrapper(cctxDict.cctx,
 			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(cap(dst)),
 			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
@@ -183,7 +166,7 @@ func compressInternal(cctx, cctxDict *C.ZSTD_CCtx, dst, src []byte, cd *CDict, c
 		}
 		return result
 	}
-	result := C.ZSTD_compressCCtx_wrapper(cctx,
+	result := C.ZSTD_compressCCtx_wrapper(cctx.cctx,
 		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 		C.size_t(cap(dst)),
 		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
@@ -207,72 +190,56 @@ func Decompress(dst, src []byte) ([]byte, error) {
 //
 // The given dictionary dd is used for the decompression.
 func DecompressDict(dst, src []byte, dd *DDict) ([]byte, error) {
-	decompressInitOnce.Do(decompressInit)
+	concurrencyLimitCh <- struct{}{}
 
-	dw := getDecompressWork()
-	dw.dst = dst
-	dw.src = src
-	dw.dd = dd
-	decompressWorkCh <- dw
-	<-dw.done
-	dst = dw.dst
-	err := dw.err
-	putDecompressWork(dw)
+	var dctx, dctxDict *dctxWrapper
+	if dd == nil {
+		dctx = dctxPool.Get().(*dctxWrapper)
+	} else {
+		dctxDict = dctxDictPool.Get().(*dctxWrapper)
+	}
+
+	var err error
+	dst, err = decompress(dctx, dctxDict, dst, src, dd)
+
+	if dd == nil {
+		dctxPool.Put(dctx)
+	} else {
+		dctxDictPool.Put(dctxDict)
+	}
+
+	<-concurrencyLimitCh
+
 	return dst, err
 }
 
-func getDecompressWork() *decompressWork {
-	v := decompressWorkPool.Get()
-	if v == nil {
-		v = &decompressWork{
-			done: make(chan struct{}),
-		}
-	}
-	return v.(*decompressWork)
+var dctxPool = &sync.Pool{
+	New: newDCtx,
 }
 
-func putDecompressWork(dw *decompressWork) {
-	dw.dst = nil
-	dw.src = nil
-	dw.dd = nil
-	dw.err = nil
-	decompressWorkPool.Put(dw)
+var dctxDictPool = &sync.Pool{
+	New: newDCtx,
 }
 
-type decompressWork struct {
-	dst  []byte
-	src  []byte
-	dd   *DDict
-	err  error
-	done chan struct{}
-}
-
-var (
-	decompressWorkCh   chan *decompressWork
-	decompressWorkPool sync.Pool
-	decompressInitOnce sync.Once
-)
-
-func decompressInit() {
-	gomaxprocs := runtime.GOMAXPROCS(-1)
-
-	decompressWorkCh = make(chan *decompressWork, gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go decompressWorker()
-	}
-}
-
-func decompressWorker() {
+func newDCtx() interface{} {
 	dctx := C.ZSTD_createDCtx()
-	dctxDict := C.ZSTD_createDCtx()
-
-	for dw := range decompressWorkCh {
-		dw.dst, dw.err = decompress(dctx, dctxDict, dw.dst, dw.src, dw.dd)
-		dw.done <- struct{}{}
+	dw := &dctxWrapper{
+		dctx: dctx,
 	}
+	runtime.SetFinalizer(dw, freeDCtx)
+	return dw
 }
 
-func decompress(dctx, dctxDict *C.ZSTD_DCtx, dst, src []byte, dd *DDict) ([]byte, error) {
+func freeDCtx(dw *dctxWrapper) {
+	C.ZSTD_freeDCtx(dw.dctx)
+	dw.dctx = nil
+}
+
+type dctxWrapper struct {
+	dctx *C.ZSTD_DCtx
+}
+
+func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte, error) {
 	if len(src) == 0 {
 		return dst, nil
 	}
@@ -325,17 +292,17 @@ func decompress(dctx, dctxDict *C.ZSTD_DCtx, dst, src []byte, dd *DDict) ([]byte
 	return dst[:dstLen], fmt.Errorf("decompression error: %s", errStr(result))
 }
 
-func decompressInternal(dctx, dctxDict *C.ZSTD_DCtx, dst, src []byte, dd *DDict) C.size_t {
+func decompressInternal(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) C.size_t {
 	var n C.size_t
 	if dd != nil {
-		n = C.ZSTD_decompress_usingDDict_wrapper(dctxDict,
+		n = C.ZSTD_decompress_usingDDict_wrapper(dctxDict.dctx,
 			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(cap(dst)),
 			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 			C.size_t(len(src)),
 			dd.p)
 	} else {
-		n = C.ZSTD_decompressDCtx_wrapper(dctx,
+		n = C.ZSTD_decompressDCtx_wrapper(dctx.dctx,
 			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(cap(dst)),
 			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
@@ -346,6 +313,11 @@ func decompressInternal(dctx, dctxDict *C.ZSTD_DCtx, dst, src []byte, dd *DDict)
 	runtime.KeepAlive(src)
 	return n
 }
+
+var concurrencyLimitCh = func() chan struct{} {
+	gomaxprocs := runtime.GOMAXPROCS(-1)
+	return make(chan struct{}, gomaxprocs)
+}()
 
 func errStr(result C.size_t) string {
 	errCode := C.ZSTD_getErrorCode(result)

@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	xxhash "github.com/cespare/xxhash/v2"
 )
@@ -52,17 +53,17 @@ type indexDB struct {
 	extDBLock sync.Mutex
 
 	// Cache for fast TagFilters -> TSIDs lookup.
-	tagCache *fastcache.Cache
+	tagCache *workingsetcache.Cache
 
 	// Cache for fast MetricID -> TSID lookup.
-	metricIDCache *fastcache.Cache
+	metricIDCache *workingsetcache.Cache
 
 	// Cache for fast MetricID -> MetricName lookup.
-	metricNameCache *fastcache.Cache
+	metricNameCache *workingsetcache.Cache
 
 	// Cache holding useless TagFilters entries, which have no tag filters
 	// matching low number of metrics.
-	uselessTagFiltersCache *fastcache.Cache
+	uselessTagFiltersCache *workingsetcache.Cache
 
 	indexSearchPool sync.Pool
 
@@ -101,7 +102,7 @@ type indexDB struct {
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
+func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
 	if metricIDCache == nil {
 		logger.Panicf("BUG: metricIDCache must be non-nil")
 	}
@@ -130,10 +131,10 @@ func openIndexDB(path string, metricIDCache, metricNameCache *fastcache.Cache, c
 		tb:       tb,
 		name:     name,
 
-		tagCache:               fastcache.New(mem / 32),
+		tagCache:               workingsetcache.New(mem/32, time.Hour),
 		metricIDCache:          metricIDCache,
 		metricNameCache:        metricNameCache,
-		uselessTagFiltersCache: fastcache.New(mem / 128),
+		uselessTagFiltersCache: workingsetcache.New(mem/128, time.Hour),
 
 		currHourMetricIDs: currHourMetricIDs,
 		prevHourMetricIDs: prevHourMetricIDs,
@@ -273,8 +274,8 @@ func (db *indexDB) decRef() {
 	db.SetExtDB(nil)
 
 	// Free space occupied by caches owned by db.
-	db.tagCache.Reset()
-	db.uselessTagFiltersCache.Reset()
+	db.tagCache.Stop()
+	db.uselessTagFiltersCache.Stop()
 
 	db.tagCache = nil
 	db.metricIDCache = nil
@@ -291,20 +292,36 @@ func (db *indexDB) decRef() {
 }
 
 func (db *indexDB) getFromTagCache(key []byte) ([]TSID, bool) {
-	value := db.tagCache.GetBig(nil, key)
-	if len(value) == 0 {
+	compressedBuf := tagBufPool.Get()
+	defer tagBufPool.Put(compressedBuf)
+	compressedBuf.B = db.tagCache.GetBig(compressedBuf.B[:0], key)
+	if len(compressedBuf.B) == 0 {
 		return nil, false
 	}
-	tsids, err := unmarshalTSIDs(nil, value)
+	buf := tagBufPool.Get()
+	defer tagBufPool.Put(buf)
+	var err error
+	buf.B, err = encoding.DecompressZSTD(buf.B[:0], compressedBuf.B)
+	if err != nil {
+		logger.Panicf("FATAL: cannot decompress tsids from tagCache: %s", err)
+	}
+	tsids, err := unmarshalTSIDs(nil, buf.B)
 	if err != nil {
 		logger.Panicf("FATAL: cannot unmarshal tsids from tagCache: %s", err)
 	}
 	return tsids, true
 }
 
+var tagBufPool bytesutil.ByteBufferPool
+
 func (db *indexDB) putToTagCache(tsids []TSID, key []byte) {
-	value := marshalTSIDs(nil, tsids)
-	db.tagCache.SetBig(key, value)
+	buf := tagBufPool.Get()
+	buf.B = marshalTSIDs(buf.B[:0], tsids)
+	compressedBuf := tagBufPool.Get()
+	compressedBuf.B = encoding.CompressZSTDLevel(compressedBuf.B[:0], buf.B, 1)
+	tagBufPool.Put(buf)
+	db.tagCache.SetBig(key, compressedBuf.B)
+	tagBufPool.Put(compressedBuf)
 }
 
 func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
@@ -974,7 +991,8 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 		extTSIDs, err = is.searchTSIDs(tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 
-		db.putToTagCache(tsids, tfKeyExtBuf.B)
+		sort.Slice(extTSIDs, func(i, j int) bool { return extTSIDs[i].Less(&extTSIDs[j]) })
+		extDB.putToTagCache(extTSIDs, tfKeyExtBuf.B)
 	}) {
 		if err != nil {
 			return nil, err
@@ -1218,6 +1236,82 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	return nil
 }
 
+func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilters, tr TimeRange, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+	// Try fast path with the minimized number of maxMetrics.
+	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
+	if err == nil {
+		return minTf, minMetricIDs, nil
+	}
+	if err != errTooManyMetrics {
+		return nil, nil, err
+	}
+
+	// All the tag filters match too many metrics.
+
+	// Slow path: try filtering the matching metrics by time range.
+	// This should work well for cases when old metrics are constantly substituted
+	// by big number of new metrics. For example, prometheus-operator creates many new
+	// metrics for each new deployment.
+	//
+	// Allow fetching up to 20*maxMetrics metrics for the given time range
+	// in the hope these metricIDs will be filtered out by other filters later.
+	maxTimeRangeMetrics := 20 * maxMetrics
+	metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1)
+	if err == errMissingMetricIDsForDate {
+		// Slow path: try to select find the tag filter without maxMetrics adjustement.
+		minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
+		if err == nil {
+			return minTf, minMetricIDs, nil
+		}
+		if err != errTooManyMetrics {
+			return nil, nil, err
+		}
+		return nil, nil, fmt.Errorf("cannot find tag filter matching less than %d time series; "+
+			"either increase -search.maxUniqueTimeseries or use more specific tag filters", maxMetrics)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(metricIDsForTimeRange) <= maxTimeRangeMetrics {
+		return nil, metricIDsForTimeRange, nil
+	}
+
+	// Slow path: try to select the tag filter without maxMetrics adjustement.
+	minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
+	if err == nil {
+		return minTf, minMetricIDs, nil
+	}
+	if err != errTooManyMetrics {
+		return nil, nil, err
+	}
+	return nil, nil, fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
+		maxTimeRangeMetrics, tr.String())
+}
+
+const maxDaysForDateMetricIDs = 40
+
+func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if maxDate-minDate > maxDaysForDateMetricIDs {
+		// Cannot reduce maxMetrics for the given time range,
+		// since it is expensive extracting metricIDs for the given tr.
+		return maxMetrics
+	}
+	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
+	if !hmPrev.isFull {
+		return maxMetrics
+	}
+	hourMetrics := len(hmPrev.m)
+	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
+		// It is cheaper to filter on the hour or day metrics if the minimum
+		// number of matching metrics across tfs exceeds hourMetrics / 4.
+		return hourMetrics / 4
+	}
+	return maxMetrics
+}
+
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	kb := &is.kb
 	kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
@@ -1265,29 +1359,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 }
 
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
-
-const maxDaysForDateMetricIDs = 40
-
-func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate-minDate > maxDaysForDateMetricIDs {
-		// Cannot reduce maxMetrics for the given time range,
-		// since the it is expensive extracting metricIDs for the given tr.
-		return maxMetrics
-	}
-	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
-	if !hmPrev.isFull {
-		return maxMetrics
-	}
-	hourMetrics := len(hmPrev.m)
-	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
-		// It is cheaper to filter on the hour or day metrics if the minimum
-		// number of matching metrics across tfs exceeds hourMetrics / 4.
-		return hourMetrics / 4
-	}
-	return maxMetrics
-}
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
 	var minMetricIDs map[uint64]struct{}
@@ -1463,37 +1534,9 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 	// Sort tag filters for faster ts.Seek below.
 	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
 
-	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
-	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
 	if err != nil {
-		if err != errTooManyMetrics {
-			return err
-		}
-
-		// All the tag filters match too many metrics.
-
-		// Slow path: try filtering the matching metrics by time range.
-		// This should work well for cases when old metrics are constantly substituted
-		// by big number of new metrics. For example, prometheus-operator creates many new
-		// metrics for each new deployment.
-		//
-		// Allow fetching up to 20*maxMetrics metrics for the given time range
-		// in the hope these metricIDs will be filtered out by other filters below.
-		maxTimeRangeMetrics := 20 * maxMetrics
-		metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1)
-		if err == errMissingMetricIDsForDate {
-			return fmt.Errorf("cannot find tag filter matching less than %d time series; either increase -search.maxUniqueTimeseries or use more specific tag filters",
-				maxMetrics)
-		}
-		if err != nil {
-			return err
-		}
-		if len(metricIDsForTimeRange) > maxTimeRangeMetrics {
-			return fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
-				maxTimeRangeMetrics, tr.String())
-		}
-		minMetricIDs = metricIDsForTimeRange
-		minTf = nil
+		return err
 	}
 
 	// Find intersection of minTf with other tfs.

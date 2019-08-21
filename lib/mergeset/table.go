@@ -134,13 +134,9 @@ func OpenTable(path string) (*Table, error) {
 	}
 
 	// Protect from concurrent opens.
-	flockFile := path + "/flock.lock"
-	flockF, err := os.Create(flockFile)
+	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file %q: %s", flockFile, err)
-	}
-	if err := unix.Flock(int(flockF.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return nil, fmt.Errorf("cannot acquire lock on file %q: %s", flockFile, err)
+		return nil, err
 	}
 
 	// Open table parts.

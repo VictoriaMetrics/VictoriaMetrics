@@ -2,10 +2,47 @@ package prometheus
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
+	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 )
+
+func TestRemoveNaNValuesInplace(t *testing.T) {
+	f := func(tss []netstorage.Result, tssExpected []netstorage.Result) {
+		t.Helper()
+		removeNaNValuesInplace(tss)
+		if !reflect.DeepEqual(tss, tssExpected) {
+			t.Fatalf("unexpected result; got %v; want %v", tss, tssExpected)
+		}
+	}
+
+	nan := math.NaN()
+
+	f(nil, nil)
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300},
+			Values:     []float64{1, 2, 3},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400},
+			Values:     []float64{nan, nan, 3, nan},
+		},
+	}, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300},
+			Values:     []float64{1, 2, 3},
+		},
+		{
+			Timestamps: []int64{300},
+			Values:     []float64{3},
+		},
+	})
+}
 
 func TestGetTimeSuccess(t *testing.T) {
 	f := func(s string, timestampExpected int64) {

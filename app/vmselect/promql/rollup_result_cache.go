@@ -4,14 +4,15 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -19,7 +20,7 @@ import (
 var disableCache = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 
 var rollupResultCacheV = &rollupResultCache{
-	fastcache.New(1024 * 1024), // This is a cache for testing.
+	c: workingsetcache.New(1024*1024, time.Hour), // This is a cache for testing.
 }
 var rollupResultCachePath string
 
@@ -43,15 +44,17 @@ var (
 func InitRollupResultCache(cachePath string) {
 	rollupResultCachePath = cachePath
 	startTime := time.Now()
-	var c *fastcache.Cache
+	cacheSize := getRollupResultCacheSize()
+	var c *workingsetcache.Cache
 	if len(rollupResultCachePath) > 0 {
 		logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
-		c = fastcache.LoadFromFileOrNew(rollupResultCachePath, getRollupResultCacheSize())
+		c = workingsetcache.Load(rollupResultCachePath, cacheSize, time.Hour)
 	} else {
-		c = fastcache.New(getRollupResultCacheSize())
+		c = workingsetcache.New(cacheSize, time.Hour)
 	}
 	if *disableCache {
-		c.Reset()
+		c.Stop()
+		c = nil
 	}
 
 	stats := &fastcache.Stats{}
@@ -96,25 +99,28 @@ func InitRollupResultCache(cachePath string) {
 // StopRollupResultCache closes the rollupResult cache.
 func StopRollupResultCache() {
 	if len(rollupResultCachePath) == 0 {
-		rollupResultCacheV.c.Reset()
+		if !*disableCache {
+			rollupResultCacheV.c.Stop()
+			rollupResultCacheV.c = nil
+		}
 		return
 	}
-	gomaxprocs := runtime.GOMAXPROCS(-1)
 	logger.Infof("saving rollupResult cache to %q...", rollupResultCachePath)
 	startTime := time.Now()
-	if err := rollupResultCacheV.c.SaveToFileConcurrent(rollupResultCachePath, gomaxprocs); err != nil {
+	if err := rollupResultCacheV.c.Save(rollupResultCachePath); err != nil {
 		logger.Errorf("cannot close rollupResult cache at %q: %s", rollupResultCachePath, err)
-	} else {
-		var fcs fastcache.Stats
-		rollupResultCacheV.c.UpdateStats(&fcs)
-		rollupResultCacheV.c.Reset()
-		logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, sizeBytes: %d",
-			rollupResultCachePath, time.Since(startTime), fcs.EntriesCount, fcs.BytesSize)
+		return
 	}
+	var fcs fastcache.Stats
+	rollupResultCacheV.c.UpdateStats(&fcs)
+	rollupResultCacheV.c.Stop()
+	rollupResultCacheV.c = nil
+	logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, sizeBytes: %d",
+		rollupResultCachePath, time.Since(startTime), fcs.EntriesCount, fcs.BytesSize)
 }
 
 type rollupResultCache struct {
-	c *fastcache.Cache
+	c *workingsetcache.Cache
 }
 
 var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="promql/rollupResult"}`)
@@ -148,15 +154,23 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 		return nil, ec.Start
 	}
 	bb.B = key.Marshal(bb.B[:0])
-	resultBuf := rrc.c.GetBig(nil, bb.B)
-	if len(resultBuf) == 0 {
+	compressedResultBuf := resultBufPool.Get()
+	defer resultBufPool.Put(compressedResultBuf)
+	compressedResultBuf.B = rrc.c.GetBig(compressedResultBuf.B[:0], bb.B)
+	if len(compressedResultBuf.B) == 0 {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
 		bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, iafc, window, ec.Step)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
-	tss, err := unmarshalTimeseriesFast(resultBuf)
+	// Decompress into newly allocated byte slice, since tss returned from unmarshalTimeseriesFast
+	// refers to the byte slice, so it cannot be returned to the resultBufPool.
+	resultBuf, err := encoding.DecompressZSTD(nil, compressedResultBuf.B)
+	if err != nil {
+		logger.Panicf("BUG: cannot decompress resultBuf from rollupResultCache: %s; it looks like it was improperly saved", err)
+	}
+	tss, err = unmarshalTimeseriesFast(resultBuf)
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal timeseries from rollupResultCache: %s; it looks like it was improperly saved", err)
 	}
@@ -196,6 +210,8 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricExp
 	return tss, newStart
 }
 
+var resultBufPool bytesutil.ByteBufferPool
+
 func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExpr, iafc *incrementalAggrFuncContext, window int64, tss []*timeseries) {
 	if *disableCache || len(tss) == 0 || !ec.mayCache() {
 		return
@@ -227,11 +243,16 @@ func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExp
 
 	// Store tss in the cache.
 	maxMarshaledSize := getRollupResultCacheSize() / 4
-	tssMarshaled := marshalTimeseriesFast(tss, maxMarshaledSize, ec.Step)
-	if tssMarshaled == nil {
+	resultBuf := resultBufPool.Get()
+	defer resultBufPool.Put(resultBuf)
+	resultBuf.B = marshalTimeseriesFast(resultBuf.B[:0], tss, maxMarshaledSize, ec.Step)
+	if len(resultBuf.B) == 0 {
 		tooBigRollupResults.Inc()
 		return
 	}
+	compressedResultBuf := resultBufPool.Get()
+	defer resultBufPool.Put(compressedResultBuf)
+	compressedResultBuf.B = encoding.CompressZSTDLevel(compressedResultBuf.B[:0], resultBuf.B, 1)
 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
@@ -240,7 +261,7 @@ func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricExp
 	key.prefix = rollupResultCacheKeyPrefix
 	key.suffix = atomic.AddUint64(&rollupResultCacheKeySuffix, 1)
 	bb.B = key.Marshal(bb.B[:0])
-	rrc.c.SetBig(bb.B, tssMarshaled)
+	rrc.c.SetBig(bb.B, compressedResultBuf.B)
 
 	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, iafc, window, ec.Step)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
@@ -270,7 +291,7 @@ var (
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 5
+const rollupResultCacheVersion = 6
 
 func marshalRollupResultCacheKey(dst []byte, funcName string, me *metricExpr, iafc *incrementalAggrFuncContext, window, step int64) []byte {
 	dst = append(dst, rollupResultCacheVersion)

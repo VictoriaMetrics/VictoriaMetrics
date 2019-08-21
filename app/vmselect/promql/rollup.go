@@ -45,6 +45,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"distinct_over_time": newRollupFuncOneArg(rollupDistinct),
 	"integrate":          newRollupFuncOneArg(rollupIntegrate),
 	"ideriv":             newRollupFuncOneArg(rollupIderiv),
+	"lifetime":           newRollupFuncOneArg(rollupLifetime),
+	"scrape_interval":    newRollupFuncOneArg(rollupScrapeInterval),
 	"rollup":             newRollupFuncOneArg(rollupFake),
 	"rollup_rate":        newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
 	"rollup_deriv":       newRollupFuncOneArg(rollupFake),
@@ -61,6 +63,8 @@ var rollupFuncsMayAdjustWindow = map[string]bool{
 	"deriv_fast":      true,
 	"irate":           true,
 	"rate":            true,
+	"lifetime":        true,
+	"scrape_interval": true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -193,19 +197,17 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 	i := 0
 	j := 0
+	ni := 0
+	nj := 0
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
-		n := sort.Search(len(timestamps)-i, func(n int) bool {
-			return timestamps[i+n] > tStart
-		})
-		i += n
+		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
+		i += ni
 		if j < i {
 			j = i
 		}
-		n = sort.Search(len(timestamps)-j, func(n int) bool {
-			return timestamps[j+n] > tEnd
-		})
-		j += n
+		nj = seekFirstTimestampIdxAfter(timestamps[j:], tEnd, nj)
+		j += nj
 
 		rfa.prevValue = nan
 		rfa.prevTimestamp = tStart - maxPrevInterval
@@ -223,6 +225,46 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 	putRollupFuncArg(rfa)
 
 	return dstValues
+}
+
+func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint int) int {
+	if len(timestamps) == 0 || timestamps[0] > seekTimestamp {
+		return 0
+	}
+	startIdx := nHint - 2
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	if startIdx >= len(timestamps) {
+		startIdx = len(timestamps) - 1
+	}
+	endIdx := nHint + 2
+	if endIdx > len(timestamps) {
+		endIdx = len(timestamps)
+	}
+	if startIdx > 0 && timestamps[startIdx] <= seekTimestamp {
+		timestamps = timestamps[startIdx:]
+		endIdx -= startIdx
+	} else {
+		startIdx = 0
+	}
+	if endIdx < len(timestamps) && timestamps[endIdx] > seekTimestamp {
+		timestamps = timestamps[:endIdx]
+	}
+	if len(timestamps) < 16 {
+		// Fast path: the number of timestamps to search is small, so scan them all.
+		for i, timestamp := range timestamps {
+			if timestamp > seekTimestamp {
+				return startIdx + i
+			}
+		}
+		return startIdx + len(timestamps)
+	}
+	// Slow path: too big len(timestamps), so use binary search.
+	i := sort.Search(len(timestamps), func(n int) bool {
+		return n >= 0 && n < len(timestamps) && timestamps[n] > seekTimestamp
+	})
+	return startIdx + i
 }
 
 func getMaxPrevInterval(timestamps []int64) int64 {
@@ -615,10 +657,15 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		if len(values) == 0 {
 			return nan
 		}
+		if len(values) == 1 {
+			// Assume that the previous non-existing value was 0.
+			return values[0]
+		}
 		prevValue = values[0]
 		values = values[1:]
 	}
 	if len(values) == 0 {
+		// Assume that the value didn't change on the given interval.
 		return 0
 	}
 	return values[len(values)-1] - prevValue
@@ -632,6 +679,7 @@ func rollupIdelta(rfa *rollupFuncArg) float64 {
 		if math.IsNaN(rfa.prevValue) {
 			return nan
 		}
+		// Assume that the value didn't change on the given interval.
 		return 0
 	}
 	lastValue := values[len(values)-1]
@@ -639,7 +687,8 @@ func rollupIdelta(rfa *rollupFuncArg) float64 {
 	if len(values) == 0 {
 		prevValue := rfa.prevValue
 		if math.IsNaN(prevValue) {
-			return 0
+			// Assume that the previous non-existing value was 0.
+			return lastValue
 		}
 		return lastValue - prevValue
 	}
@@ -661,7 +710,8 @@ func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	prevValue := rfa.prevValue
 	prevTimestamp := rfa.prevTimestamp
 	if math.IsNaN(prevValue) {
-		if len(values) == 0 {
+		if len(values) < 2 {
+			// It is impossible to calculate derivative on 0 or 1 values.
 			return nan
 		}
 		prevValue = values[0]
@@ -670,6 +720,7 @@ func rollupDerivFast(rfa *rollupFuncArg) float64 {
 		timestamps = timestamps[1:]
 	}
 	if len(values) == 0 {
+		// Assume that the value didn't change on the given interval.
 		return 0
 	}
 	vEnd := values[len(values)-1]
@@ -684,11 +735,12 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
+	if len(values) < 2 {
+		if len(values) == 0 || math.IsNaN(rfa.prevValue) {
+			// It is impossible to calculate derivative on 0 or 1 values.
 			return nan
 		}
-		return 0
+		return (values[0] - rfa.prevValue) / (float64(timestamps[0]-rfa.prevTimestamp) * 1e-3)
 	}
 	vEnd := values[len(values)-1]
 	tEnd := timestamps[len(timestamps)-1]
@@ -712,7 +764,37 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	}
 	dv := vEnd - vStart
 	dt := tEnd - tStart
-	return dv / (float64(dt) / 1000)
+	return dv / (float64(dt) * 1e-3)
+}
+
+func rollupLifetime(rfa *rollupFuncArg) float64 {
+	// Calculate the duration between the first and the last data points.
+	timestamps := rfa.timestamps
+	if math.IsNaN(rfa.prevValue) {
+		if len(timestamps) < 2 {
+			return nan
+		}
+		return float64(timestamps[len(timestamps)-1]-timestamps[0]) * 1e-3
+	}
+	if len(timestamps) == 0 {
+		return nan
+	}
+	return float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3
+}
+
+func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
+	// Calculate the average interval between data points.
+	timestamps := rfa.timestamps
+	if math.IsNaN(rfa.prevValue) {
+		if len(timestamps) < 2 {
+			return nan
+		}
+		return float64(timestamps[len(timestamps)-1]-timestamps[0]) * 1e-3 / float64(len(timestamps)-1)
+	}
+	if len(timestamps) == 0 {
+		return nan
+	}
+	return (float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3) / float64(len(timestamps))
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {

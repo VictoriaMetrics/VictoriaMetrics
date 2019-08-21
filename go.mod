@@ -12,7 +12,7 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/valyala/fasthttp v1.4.0
 	github.com/valyala/fastjson v1.4.1
-	github.com/valyala/gozstd v1.5.1
+	github.com/valyala/gozstd v1.6.0
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.1.1
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
