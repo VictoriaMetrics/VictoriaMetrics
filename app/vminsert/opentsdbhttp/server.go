@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	writeRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/put", protocol="opentsdb-http"}`)
-	writeErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/put", protocol="opentsdb-http"}`)
+	writeRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/put", protocol="opentsdb-fasthttp"}`)
+	writeErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/put", protocol="opentsdb-fasthttp"}`)
 )
 
 var (
@@ -27,7 +27,7 @@ func Serve(addr string, maxSize int64) {
 		Handler: func(req *fasthttp.RequestCtx) {
 			if req.IsPost() && (ob2s(req.Path()) == "/api/put") {
 				writeRequests.Inc()
-				err := InsertHandler(req)
+				err := InsertHandlerFastHttp(req)
 				if err != nil {
 					writeErrors.Inc()
 					_, _ = fmt.Fprintf(req, "error in %q: %s", req.URI().Path(), err)

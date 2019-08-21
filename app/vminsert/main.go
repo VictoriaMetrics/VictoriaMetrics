@@ -79,6 +79,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
+	case "/api/put":
+		opentsdbHttpWriteRequests.Inc()
+		if err := opentsdbhttp.InsertHandler(r, int64(*maxInsertRequestSize)); err != nil {
+			opentsdbHttpWriteErrors.Inc()
+			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	default:
 		// This is not our link
 		return false
@@ -94,4 +103,6 @@ var (
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/query", protocol="influx"}`)
 
+	opentsdbHttpWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/put", protocol="opentsdb-http"}`)
+	opentsdbHttpWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/put", protocol="opentsdb-http"}`)
 )
