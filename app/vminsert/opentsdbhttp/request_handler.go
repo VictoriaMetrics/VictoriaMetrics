@@ -31,12 +31,9 @@ var (
 	opentsdbReadCallsFastHttp       = metrics.NewCounter(`vm_read_calls_total{name="opentsdb-fasthttp"}`)
 	opentsdbReadErrorsFastHttp      = metrics.NewCounter(`vm_read_errors_total{name="opentsdb-fasthttp"}`)
 	opentsdbUnmarshalErrorsFastHttp = metrics.NewCounter(`vm_unmarshal_errors_total{name="opentsdb-fasthttp"}`)
-
-
-
 )
 
-// InsertHandlerFastHttp processes remote write for openTSDB http protocol via fasthttp.
+// InsertHandlerFastHttp processes remote write for openTSDB http protocol with fasthttp.
 //
 func InsertHandlerFastHttp(req *fasthttp.RequestCtx) error {
 	return concurrencylimiter.Do(func() error {
@@ -61,36 +58,22 @@ func insertHandlerInternalFastHttp(req *fasthttp.RequestCtx) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
-	if err = ctx.ReadBytes(r, true); err != nil {
+	ctx.isFastHttpRequest = true
+
+	if err = ctx.ParseRequest(r); err != nil {
 		return err
 	}
 
-	if err = ctx.InsertRows(true); err != nil {
+	if err = ctx.InsertRows(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func getGzipReader(r io.Reader) (*gzip.Reader, error) {
-	v := gzipReaderPool.Get()
-	if v == nil {
-		return gzip.NewReader(r)
-	}
-	zr := v.(*gzip.Reader)
-	if err := zr.Reset(r); err != nil {
-		return nil, err
-	}
-	return zr, nil
-}
 
-func putGzipReader(zr *gzip.Reader) {
-	_ = zr.Close()
-	gzipReaderPool.Put(zr)
-}
-
-var gzipReaderPool sync.Pool
-
+// InsertHandlerFastHttp processes remote write for openTSDB http protocol with net/http.
+//
 
 func InsertHandler(req *http.Request, maxSize int64) error {
 	return concurrencylimiter.Do(func() error {
@@ -116,18 +99,20 @@ func insertHandlerInternal(req *http.Request, maxSize int64) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
+	ctx.isFastHttpRequest = false
+
 	if err = ctx.Read(r, maxSize); err != nil {
 		return err
 	}
 
-	if err = ctx.InsertRows(false); err != nil {
+	if err = ctx.InsertRows(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (ctx *pushCtx) InsertRows(isFastHttp bool) error {
+func (ctx *pushCtx) InsertRows() error {
 	rows := ctx.Rows.Rows
 	ic := &ctx.Common
 	ic.Reset(len(rows))
@@ -142,7 +127,7 @@ func (ctx *pushCtx) InsertRows(isFastHttp bool) error {
 		ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, r.Value)
 	}
 
-	if isFastHttp {
+	if ctx.isFastHttpRequest {
 		rowsInsertedFastHttp.Add(len(rows))
 		rowsPerInsertFastHttp.Update(float64(len(rows)))
 	} else {
@@ -153,13 +138,13 @@ func (ctx *pushCtx) InsertRows(isFastHttp bool) error {
 	return ic.FlushBufs()
 }
 
-func (ctx *pushCtx) ReadBytes(r []byte, isFastHttp bool) error {
+func (ctx *pushCtx) ParseRequest(r []byte) error {
 	var err error
 
 	v, err := ctx.parser.ParseBytes(r)
 
 	if err != nil {
-		if isFastHttp {
+		if ctx.isFastHttpRequest {
 			opentsdbUnmarshalErrorsFastHttp.Inc()
 		} else {
 			opentsdbUnmarshalErrors.Inc()
@@ -170,7 +155,7 @@ func (ctx *pushCtx) ReadBytes(r []byte, isFastHttp bool) error {
 	}
 
 	if err := ctx.Rows.Unmarshal(v); err != nil {
-		if isFastHttp {
+		if ctx.isFastHttpRequest {
 			opentsdbUnmarshalErrorsFastHttp.Inc()
 		} else {
 			opentsdbUnmarshalErrors.Inc()
@@ -199,7 +184,7 @@ func (ctx *pushCtx) Read(r io.Reader, maxSize int64) error {
 		ctx.err = fmt.Errorf("too big packed request; mustn't exceed %d bytes", maxSize)
 		return ctx.err
 	}
-	return ctx.ReadBytes(ctx.reqBuf.B, false)
+	return ctx.ParseRequest(ctx.reqBuf.B)
 }
 
 
@@ -209,6 +194,8 @@ type pushCtx struct {
 
 	reqBuf         bytesutil.ByteBuffer
 	parser 		   fastjson.Parser
+
+	isFastHttpRequest	bool
 
 	err error
 }
@@ -246,3 +233,21 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))
 
+func getGzipReader(r io.Reader) (*gzip.Reader, error) {
+	v := gzipReaderPool.Get()
+	if v == nil {
+		return gzip.NewReader(r)
+	}
+	zr := v.(*gzip.Reader)
+	if err := zr.Reset(r); err != nil {
+		return nil, err
+	}
+	return zr, nil
+}
+
+func putGzipReader(zr *gzip.Reader) {
+	_ = zr.Close()
+	gzipReaderPool.Put(zr)
+}
+
+var gzipReaderPool sync.Pool
