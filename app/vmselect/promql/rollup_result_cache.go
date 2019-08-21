@@ -53,8 +53,7 @@ func InitRollupResultCache(cachePath string) {
 		c = workingsetcache.New(cacheSize, time.Hour)
 	}
 	if *disableCache {
-		c.Stop()
-		c = nil
+		c.Reset()
 	}
 
 	stats := &fastcache.Stats{}
@@ -99,10 +98,8 @@ func InitRollupResultCache(cachePath string) {
 // StopRollupResultCache closes the rollupResult cache.
 func StopRollupResultCache() {
 	if len(rollupResultCachePath) == 0 {
-		if !*disableCache {
-			rollupResultCacheV.c.Stop()
-			rollupResultCacheV.c = nil
-		}
+		rollupResultCacheV.c.Stop()
+		rollupResultCacheV.c = nil
 		return
 	}
 	logger.Infof("saving rollupResult cache to %q...", rollupResultCachePath)
