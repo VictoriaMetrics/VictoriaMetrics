@@ -904,6 +904,8 @@ func transformLabelValue(tfa *transformFuncArg) ([]*timeseries, error) {
 			values[i] = v
 		}
 	}
+	// Do not remove timeseries with only NaN values, so `default` could be applied to them:
+	// label_value(q, "label") default 123
 	return rvs, nil
 }
 
