@@ -37,9 +37,6 @@ func (rs *Rows) Reset() {
 func (rs *Rows) Unmarshal(s string) error {
 	var err error
 	rs.Rows, rs.tagsPool, err = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0])
-	if err != nil {
-		return err
-	}
 	return err
 }
 

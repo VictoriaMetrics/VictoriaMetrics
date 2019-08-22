@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -22,11 +23,12 @@ import (
 )
 
 var (
-	graphiteListenAddr   = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
-	opentsdbListenAddr   = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB put messages. Usually :4242 must be set. Doesn't work if empty")
-	httpListenAddr       = flag.String("httpListenAddr", ":8480", "Address to listen for http connections")
-	maxInsertRequestSize = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
-	storageNodes         = flagutil.NewArray("storageNode", "Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400")
+	graphiteListenAddr     = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
+	opentsdbListenAddr     = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB put messages. Usually :4242 must be set. Doesn't work if empty")
+	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
+	httpListenAddr         = flag.String("httpListenAddr", ":8480", "Address to listen for http connections")
+	maxInsertRequestSize   = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
+	storageNodes           = flagutil.NewArray("storageNode", "Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400")
 )
 
 func main() {
@@ -49,6 +51,9 @@ func main() {
 	if len(*opentsdbListenAddr) > 0 {
 		go opentsdb.Serve(*opentsdbListenAddr)
 	}
+	if len(*opentsdbHTTPListenAddr) > 0 {
+		go opentsdbhttp.Serve(*opentsdbHTTPListenAddr, int64(*maxInsertRequestSize))
+	}
 
 	go func() {
 		httpserver.Serve(*httpListenAddr, requestHandler)
@@ -69,6 +74,9 @@ func main() {
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdb.Stop()
+	}
+	if len(*opentsdbHTTPListenAddr) > 0 {
+		opentsdbhttp.Stop()
 	}
 
 	logger.Infof("shutting down neststorage...")
