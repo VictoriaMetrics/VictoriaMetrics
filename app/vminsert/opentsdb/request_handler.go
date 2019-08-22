@@ -91,9 +91,19 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 		return false
 	}
 
+	// Fill in missing timestamps
+	currentTimestamp := time.Now().Unix()
+	rows := ctx.Rows.Rows
+	for i := range rows {
+		r := &rows[i]
+		if r.Timestamp == 0 {
+			r.Timestamp = currentTimestamp
+		}
+	}
+
 	// Convert timestamps from seconds to milliseconds
-	for i := range ctx.Rows.Rows {
-		ctx.Rows.Rows[i].Timestamp *= 1e3
+	for i := range rows {
+		rows[i].Timestamp *= 1e3
 	}
 	return true
 }

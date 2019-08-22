@@ -1,7 +1,6 @@
 package influx
 
 import (
-	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
@@ -41,11 +40,11 @@ func insertHandlerInternal(req *http.Request) error {
 
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := getGzipReader(r)
+		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return fmt.Errorf("cannot read gzipped influx line protocol data: %s", err)
 		}
-		defer putGzipReader(zr)
+		defer common.PutGzipReader(zr)
 		r = zr
 	}
 
@@ -119,25 +118,6 @@ func (ctx *pushCtx) InsertRows(db string) error {
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }
-
-func getGzipReader(r io.Reader) (*gzip.Reader, error) {
-	v := gzipReaderPool.Get()
-	if v == nil {
-		return gzip.NewReader(r)
-	}
-	zr := v.(*gzip.Reader)
-	if err := zr.Reset(r); err != nil {
-		return nil, err
-	}
-	return zr, nil
-}
-
-func putGzipReader(zr *gzip.Reader) {
-	_ = zr.Close()
-	gzipReaderPool.Put(zr)
-}
-
-var gzipReaderPool sync.Pool
 
 func (ctx *pushCtx) Read(r io.Reader, tsMultiplier int64) bool {
 	if ctx.err != nil {

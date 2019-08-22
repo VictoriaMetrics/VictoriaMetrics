@@ -44,6 +44,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * [Graphite plaintext protocol](https://graphite.readthedocs.io/en/latest/feeding-carbon.html) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
     if `-graphiteListenAddr` is set.
   * [OpenTSDB put message](http://opentsdb.net/docs/build/html/api_telnet/put.html) if `-opentsdbListenAddr` is set.
+  * [HTTP OpenTSDB /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) if `-opentsdbHTTPListenAddr` is set.
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars and industrial telemetry.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
@@ -109,7 +110,8 @@ The following command-line flags are used the most:
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
 * `-graphiteListenAddr` - TCP and UDP address to listen to for Graphite data. By default, it is disabled.
-* `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data. By default, it is disabled.
+* `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data over telnet protocol. By default, it is disabled.
+* `-opentsdbHTTPListenAddr` - TCP address to listen to for HTTP OpenTSDB data over `/api/put`. By default, it is disabled.
 
 Pass `-help` to see all the available flags with description and default values.
 
@@ -237,7 +239,7 @@ An arbitrary number of lines delimited by '\n' may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
@@ -275,7 +277,7 @@ An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
@@ -295,8 +297,13 @@ or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/mas
 
 ### How to send data from OpenTSDB-compatible agents?
 
+VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
+and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) for ingesting OpenTSDB data.
+
+#### Sending data via `telnet put` protocol
+
 1) Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
-the following command will enable OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
+the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
 
 ```
 /path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
@@ -315,13 +322,51 @@ An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost:8428/api/v1/export' --data-urlencode 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 
 ```
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
+```
+
+
+#### Sending OpenTSDB data via HTTP `/api/put` requests
+
+1) Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
+the following command enables OpenTSDB HTTP server on port `4242`:
+
+```
+/path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
+```
+
+2) Send data to the given address from OpenTSDB-compatible agents.
+
+Example for writing a single data point:
+
+```
+curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
+```
+
+Example for writing multiple data points in a single request:
+
+```
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
+```
+
+After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+
+```
+curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
+```
+
+The `/api/v1/export` endpoint should return the following response:
+
+```
+{"metric":{"__name__":"foo"},"values":[45.34],"timestamps":[1566464846000]}
+{"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
+{"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
 ```
 
 

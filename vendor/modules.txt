@@ -15,6 +15,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
 # github.com/valyala/fastjson v1.4.1
+github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
 # github.com/valyala/fastrand v1.0.0
 github.com/valyala/fastrand
