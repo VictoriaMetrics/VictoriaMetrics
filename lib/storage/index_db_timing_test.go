@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -10,6 +11,34 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
+
+func BenchmarkRegexpFilterMatch(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		re := regexp.MustCompile(`.*foo-bar-baz.*`)
+		b := []byte("fdsffd foo-bar-baz assd fdsfad dasf dsa")
+		for pb.Next() {
+			if !re.Match(b) {
+				panic("BUG: regexp must match!")
+			}
+			b[0]++
+		}
+	})
+}
+
+func BenchmarkRegexpFilterMismatch(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		re := regexp.MustCompile(`.*foo-bar-baz.*`)
+		b := []byte("fdsffd foo-bar sfddsf assd nmn,mfdsdsakj")
+		for pb.Next() {
+			if re.Match(b) {
+				panic("BUG: regexp mustn't match!")
+			}
+			b[0]++
+		}
+	})
+}
 
 func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const recordsPerLoop = 1e3
