@@ -309,8 +309,16 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	bbPool.Put(bb)
 
 	// Calculate quantile for each group in m
-	lastNonInf := func(xss []x) float64 {
-		for len(xss) > 0 && math.IsInf(xss[len(xss)-1].le, 0) {
+
+	lastNonInf := func(i int, xss []x) float64 {
+		for len(xss) > 0 {
+			xsLast := xss[len(xss)-1]
+			if xsLast.ts.Values[i] == 0 {
+				return nan
+			}
+			if !math.IsInf(xsLast.le, 0) {
+				break
+			}
 			xss = xss[:len(xss)-1]
 		}
 		if len(xss) == 0 {
@@ -319,19 +327,24 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		return xss[len(xss)-1].le
 	}
 	quantile := func(i int, phis []float64, xss []x) float64 {
-		vPrev := float64(0)
-		lePrev := float64(0)
 		phi := phis[i]
 		if math.IsNaN(phi) {
 			return nan
 		}
-		// Verify for broken buckets with NaN or negative values.
+		// Fix broken buckets.
+		// They are already sorted by le, so their values must be in ascending order,
+		// since the next bucket value includes all the previous buckets.
+		vPrev := float64(0)
 		for _, xs := range xss {
 			v := xs.ts.Values[i]
-			if math.IsNaN(v) || v < 0 {
-				// Broken bucket.
-				return nan
+			if math.IsNaN(v) || v < vPrev {
+				xs.ts.Values[i] = vPrev
+			} else {
+				vPrev = v
 			}
+		}
+		if len(xss) == 0 {
+			return nan
 		}
 		if phi < 0 {
 			return -inf
@@ -339,7 +352,13 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		if phi > 1 {
 			return inf
 		}
-		vReq := xss[len(xss)-1].ts.Values[i] * phi
+		vLast := xss[len(xss)-1].ts.Values[i]
+		if vLast == 0 {
+			return nan
+		}
+		vReq := vLast * phi
+		vPrev = 0
+		lePrev := float64(0)
 		for _, xs := range xss {
 			v := xs.ts.Values[i]
 			le := xs.le
@@ -349,16 +368,16 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			if math.IsInf(le, 0) {
-				return lastNonInf(xss)
+				return lastNonInf(i, xss)
 			}
 			if v == vPrev {
 				return lePrev
 			}
 			return lePrev + (le-lePrev)*(vReq-vPrev)/(v-vPrev)
 		}
-		return lastNonInf(xss)
+		return lastNonInf(i, xss)
 	}
-	var rvs []*timeseries
+	rvs := make([]*timeseries, 0, len(m))
 	for _, xss := range m {
 		sort.Slice(xss, func(i, j int) bool {
 			return xss[i].le < xss[j].le

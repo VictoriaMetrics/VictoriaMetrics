@@ -2208,21 +2208,78 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`histogram_quantile(negative-bucket-count)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(histogram_quantile(0.6,
+		q := `histogram_quantile(0.6,
 			label_set(90, "foo", "bar", "le", "10")
 			or label_set(-100, "foo", "bar", "le", "30")
 			or label_set(300, "foo", "bar", "le", "+Inf")
-		))`
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{30, 30, 30, 30, 30, 30},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.6,
+			label_set(90, "foo", "bar", "le", "10")
+			or label_set(NaN, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{30, 30, 30, 30, 30, 30},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.2,
+			label_set(0, "foo", "bar", "le", "10")
+			or label_set(100, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{22, 22, 22, 22, 22, 22},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(zero-bucket-count)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.6,
+			label_set(0, "foo", "bar", "le", "10")
+			or label_set(0, "foo", "bar", "le", "30")
+			or label_set(0, "foo", "bar", "le", "+Inf")
+		)`
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
 	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(histogram_quantile(0.6,
-			label_set(90, "foo", "bar", "le", "10")
-			or label_set(NaN, "foo", "bar", "le", "30")
-			or label_set(300, "foo", "bar", "le", "+Inf")
-		))`
+		q := `histogram_quantile(0.6,
+			label_set(nan, "foo", "bar", "le", "10")
+			or label_set(nan, "foo", "bar", "le", "30")
+			or label_set(nan, "foo", "bar", "le", "+Inf")
+		)`
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
