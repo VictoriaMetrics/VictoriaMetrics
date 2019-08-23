@@ -88,6 +88,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Monitoring](#monitoring)
   - [Troubleshooting](#troubleshooting)
   - [Backfilling](#backfilling)
+  - [Profiling](#profiling)
 - [Roadmap](#roadmap)
 - [Contacts](#contacts)
 - [Community and contributions](#community-and-contributions)
@@ -689,6 +690,25 @@ The most interesting metrics are:
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
+
+
+### Profiling
+
+VictoriaMetrics provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+- Memory profile. It can be collected with the following command:
+```
+curl -s http://<victoria-metrics-host>:8428/debug/pprof/heap > mem.pprof
+```
+
+- CPU profile. It can be collected with the following command:
+```
+curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
+```
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 
 
 ## Roadmap
