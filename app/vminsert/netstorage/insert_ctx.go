@@ -2,11 +2,13 @@ package netstorage
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	xxhash "github.com/cespare/xxhash/v2"
@@ -33,7 +35,10 @@ func (br *bufRows) pushTo(sn *storageNode) error {
 	br.buf = br.buf[:0]
 	br.rows = 0
 	if err != nil {
-		return fmt.Errorf("cannot send %d bytes to storageNode %q: %s", bufLen, sn.dialer.Addr(), err)
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %s", bufLen, sn.dialer.Addr(), err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
 	}
 	return nil
 }

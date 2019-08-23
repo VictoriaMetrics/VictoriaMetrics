@@ -107,7 +107,9 @@ func insertHandlerInternal(at *auth.Token, req *http.Request, maxSize int64) err
 			tag := &r.Tags[j]
 			ic.AddLabel(tag.Key, tag.Value)
 		}
-		ic.WriteDataPoint(at, ic.Labels, r.Timestamp, r.Value)
+		if err := ic.WriteDataPoint(at, ic.Labels, r.Timestamp, r.Value); err != nil {
+			return err
+		}
 	}
 	rowsInserted.Get(at).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))

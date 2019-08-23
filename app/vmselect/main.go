@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"runtime"
 	"strings"
@@ -108,7 +109,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		case <-t.C:
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
-			httpserver.Errorf(w, "cannot handle more than %d concurrent requests", cap(concurrencyCh))
+			err := &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("cannot handle more than %d concurrent requests", cap(concurrencyCh)),
+				StatusCode: http.StatusServiceUnavailable,
+			}
+			httpserver.Errorf(w, "%s", err)
 			return true
 		}
 	}
@@ -252,7 +257,10 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	logger.Errorf("error in %q: %s", r.URL.Path, err)
 
 	w.Header().Set("Content-Type", "application/json")
-	statusCode := 422
+	statusCode := http.StatusUnprocessableEntity
+	if esc, ok := err.(*httpserver.ErrorWithStatusCode); ok {
+		statusCode = esc.StatusCode
+	}
 	w.WriteHeader(statusCode)
 	prometheus.WriteErrorResponse(w, statusCode, err)
 }
