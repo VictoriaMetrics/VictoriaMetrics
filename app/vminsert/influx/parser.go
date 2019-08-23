@@ -180,7 +180,7 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]Row, []Tag, []Field, error) {
 	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	for len(s) > 0 {
-		n := nextUnquotedChar(s, '\n', noEscapeChars, true)
+		n := strings.IndexByte(s, '\n')
 		if n == 0 {
 			// Skip empty line
 			s = s[1:]
@@ -291,7 +291,7 @@ func unescapeTagValue(s string, noEscapeChars bool) string {
 			return string(append(dst, '\\'))
 		}
 		ch := s[0]
-		if ch != ' ' && ch != ',' && ch != '=' && ch != '\\' && ch != '\n' {
+		if ch != ' ' && ch != ',' && ch != '=' && ch != '\\' {
 			dst = append(dst, '\\')
 		}
 		dst = append(dst, ch)

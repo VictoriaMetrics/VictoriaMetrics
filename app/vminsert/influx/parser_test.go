@@ -324,38 +324,17 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Escape chars
-	f(`fo\,bar\=baz,x\==\\a\,\=\q\  \\\a\=\,=4.34`, &Rows{
+	f(`fo\,bar\=baz,x\=\b=\\a\,\=\q\  \\\a\=\,=4.34`, &Rows{
 		Rows: []Row{{
 			Measurement: `fo,bar=baz`,
 			Tags: []Tag{{
-				Key:   `x=`,
+				Key:   `x=\b`,
 				Value: `\a,=\q `,
 			}},
 			Fields: []Field{{
 				Key:   `\\a=,`,
 				Value: 4.34,
 			}},
-		}},
-	})
-
-	// Escape newline
-	f("fo\\\nb\\,ar,x\\\ny=\\\n\\y a=\"foo\nbar\",b\\\nc\\==34\n", &Rows{
-		Rows: []Row{{
-			Measurement: "fo\nb,ar",
-			Tags: []Tag{{
-				Key:   "x\ny",
-				Value: "\n\\y",
-			}},
-			Fields: []Field{
-				{
-					Key:   "a",
-					Value: 0,
-				},
-				{
-					Key:   "b\nc=",
-					Value: 34,
-				},
-			},
 		}},
 	})
 
