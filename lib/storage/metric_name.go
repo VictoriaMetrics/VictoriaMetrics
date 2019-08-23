@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
@@ -392,9 +393,18 @@ const maxLabelNameLen = 256
 const maxLabelValueLen = 16 * 1024
 
 // The maximum number of labels per each timeseries.
+var maxLabelsPerTimeseries = 30
+
+// SetMaxLabelsPerTimeseries sets the limit on the number of labels
+// per each time series.
 //
-// Superflouos lables are dropped.
-const maxLabelsPerTimeseries = 30
+// Superfouos labels are dropped.
+func SetMaxLabelsPerTimeseries(maxLabels int) {
+	if maxLabels <= 0 {
+		logger.Panicf("BUG: maxLabels must be positive; got %d", maxLabels)
+	}
+	maxLabelsPerTimeseries = maxLabels
+}
 
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
