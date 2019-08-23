@@ -54,8 +54,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Invalid timestamp type
 	f(`{"metric": "aaa", "timestamp": "foobar", "value": 0.45, "tags": {"foo": "bar"}}`)
-	f(`{"metric": "aaa", "timestamp": 123.456, "value": 0.45, "tags": {"foo": "bar"}}`)
-	f(`{"metric": "aaa", "timestamp": "123", "value": 0.45, "tags": {"foo": "bar"}}`)
+	f(`{"metric": "aaa", "timestamp": [1,2], "value": 0.45, "tags": {"foo": "bar"}}`)
+	f(`{"metric": "aaa", "timestamp": {"a":1}, "value": 0.45, "tags": {"foo": "bar"}}`)
 
 	// Invalid value type
 	f(`{"metric": "aaa", "timestamp": 1122, "value": [0,1], "tags": {"foo":"bar"}}`)
@@ -114,6 +114,30 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Metric:    "foobar",
 			Value:     -123.456,
 			Timestamp: 789,
+			Tags: []Tag{{
+				Key:   "a",
+				Value: "b",
+			}},
+		}},
+	})
+	// Timestamp as string
+	f(`{"metric": "foobar", "timestamp": "1789", "value": -123.456, "tags": {"a":"b"}}`, &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 1789,
+			Tags: []Tag{{
+				Key:   "a",
+				Value: "b",
+			}},
+		}},
+	})
+	// Timestamp as float64 (it is truncated to integer)
+	f(`{"metric": "foobar", "timestamp": 17.89, "value": -123.456, "tags": {"a":"b"}}`, &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 17,
 			Tags: []Tag{{
 				Key:   "a",
 				Value: "b",
