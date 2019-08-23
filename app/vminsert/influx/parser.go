@@ -64,6 +64,10 @@ func (r *Row) reset() {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeChars bool) ([]Tag, []Field, error) {
 	r.reset()
+	// Remove optional \r from the end of s
+	if len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[:len(s)-1]
+	}
 	n := nextUnescapedChar(s, ' ', noEscapeChars)
 	if n < 0 {
 		return tagsPool, fieldsPool, fmt.Errorf("cannot find Whitespace I in %q", s)
@@ -182,6 +186,11 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 			s = s[1:]
 			continue
 		}
+		if n == 1 && s[0] == '\r' {
+			// Skip empty line
+			s = s[2:]
+			continue
+		}
 		if s[0] == '#' {
 			// Skip comment
 			if n > 0 {
@@ -191,6 +200,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 			}
 			continue
 		}
+
 		if cap(dst) > len(dst) {
 			dst = dst[:len(dst)+1]
 		} else {

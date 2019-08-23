@@ -146,6 +146,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Empty line
 	f("", &Rows{})
 	f("\n\n", &Rows{})
+	f("\n\r\n", &Rows{})
 
 	// Comment
 	f("\n# foobar\n", &Rows{})
@@ -162,7 +163,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 		}},
 	})
-	f("# comment\nfoo bar=123\n#comment2 sdsf dsf", &Rows{
+	f("# comment\nfoo bar=123\r\n#comment2 sdsf dsf", &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
 			Fields: []Field{{
