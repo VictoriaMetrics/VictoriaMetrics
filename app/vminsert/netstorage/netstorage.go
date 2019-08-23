@@ -343,6 +343,12 @@ func addToReroutedBuf(buf []byte, rows int) error {
 }
 
 func spreadReroutedBufToStorageNodes(swapBuf []byte) ([]byte, error) {
+	healthyStorageNodes := getHealthyStorageNodes()
+	if len(healthyStorageNodes) == 0 {
+		// No more vmstorage nodes to write data to.
+		return swapBuf, fmt.Errorf("all the storage nodes are unhealthy")
+	}
+
 	reroutedLock.Lock()
 	reroutedBuf, swapBuf = swapBuf[:0], reroutedBuf
 	rows := reroutedRows
@@ -352,26 +358,6 @@ func spreadReroutedBufToStorageNodes(swapBuf []byte) ([]byte, error) {
 	if len(swapBuf) == 0 {
 		// Nothing to re-route.
 		return swapBuf, nil
-	}
-
-	healthyStorageNodes := getHealthyStorageNodes()
-	if len(healthyStorageNodes) == 0 {
-		// No more vmstorage nodes to write data to.
-		// Try returning the the data to reroutedBuf if it has enough free space.
-		recovered := false
-		reroutedLock.Lock()
-		if len(swapBuf)+len(reroutedBuf) <= reroutedBufMaxSize {
-			swapBuf = append(swapBuf, reroutedBuf...)
-			reroutedBuf, swapBuf = swapBuf, reroutedBuf[:0]
-			reroutedRows += rows
-			recovered = true
-		}
-		reroutedLock.Unlock()
-		if recovered {
-			return swapBuf, nil
-		}
-		rowsLostTotal.Add(rows)
-		return swapBuf, fmt.Errorf("all the %d vmstorage nodes are unealthy; lost %d rows", len(storageNodes), rows)
 	}
 
 	var mr storage.MetricRow
