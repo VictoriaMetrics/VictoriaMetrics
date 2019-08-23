@@ -257,7 +257,12 @@ func (e *Encoder) nextBlock(final bool) error {
 				}
 				s.wWg.Done()
 			}()
-			err := blk.encode()
+			err := errIncompressible
+			// If we got the exact same number of literals as input,
+			// assume the literals cannot be compressed.
+			if len(src) != len(blk.literals) || len(src) != e.o.blockSize {
+				err = blk.encode()
+			}
 			switch err {
 			case errIncompressible:
 				if debug {
@@ -444,7 +449,13 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 		if len(src) == 0 {
 			blk.last = true
 		}
-		err := blk.encode()
+		err := errIncompressible
+		// If we got the exact same number of literals as input,
+		// assume the literals cannot be compressed.
+		if len(blk.literals) != len(todo) || len(todo) != e.o.blockSize {
+			err = blk.encode()
+		}
+
 		switch err {
 		case errIncompressible:
 			if debug {
