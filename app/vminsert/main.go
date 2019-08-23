@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -28,6 +29,7 @@ var (
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
 	httpListenAddr         = flag.String("httpListenAddr", ":8480", "Address to listen for http connections")
 	maxInsertRequestSize   = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
+	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superflouos labels are dropped")
 	storageNodes           = flagutil.NewArray("storageNode", "Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400")
 )
 
@@ -43,6 +45,8 @@ func main() {
 	}
 	netstorage.InitStorageNodes(*storageNodes)
 	logger.Infof("successfully initialized netstorage in %s", time.Since(startTime))
+
+	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 
 	concurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
