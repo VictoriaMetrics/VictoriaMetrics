@@ -147,8 +147,22 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f("", &Rows{})
 	f("\n\n", &Rows{})
 
+	// Comment
+	f("\n# foobar\n", &Rows{})
+	f("#foobar baz", &Rows{})
+	f("#foobar baz\n#sss", &Rows{})
+
 	// Minimal line without tags and timestamp
 	f("foo bar=123", &Rows{
+		Rows: []Row{{
+			Measurement: "foo",
+			Fields: []Field{{
+				Key:   "bar",
+				Value: 123,
+			}},
+		}},
+	})
+	f("# comment\nfoo bar=123\n#comment2 sdsf dsf", &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
 			Fields: []Field{{
