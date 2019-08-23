@@ -62,9 +62,8 @@ func (r *Row) reset() {
 	r.Timestamp = 0
 }
 
-func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field) ([]Tag, []Field, error) {
+func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeChars bool) ([]Tag, []Field, error) {
 	r.reset()
-	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	n := nextUnescapedChar(s, ' ', noEscapeChars)
 	if n < 0 {
 		return tagsPool, fieldsPool, fmt.Errorf("cannot find Whitespace I in %q", s)
@@ -175,8 +174,9 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 }
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]Row, []Tag, []Field, error) {
+	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	for len(s) > 0 {
-		n := strings.IndexByte(s, '\n')
+		n := nextUnquotedChar(s, '\n', noEscapeChars, true)
 		if n == 0 {
 			// Skip empty line
 			s = s[1:]
@@ -200,7 +200,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 		if n < 0 {
 			// The last line.
 			var err error
-			tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool)
+			tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool, noEscapeChars)
 			if err != nil {
 				err = fmt.Errorf("cannot unmarshal Influx line %q: %s", s, err)
 				return dst, tagsPool, fieldsPool, err
@@ -208,7 +208,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 			return dst, tagsPool, fieldsPool, nil
 		}
 		var err error
-		tagsPool, fieldsPool, err = r.unmarshal(s[:n], tagsPool, fieldsPool)
+		tagsPool, fieldsPool, err = r.unmarshal(s[:n], tagsPool, fieldsPool, noEscapeChars)
 		if err != nil {
 			err = fmt.Errorf("cannot unmarshal Influx line %q: %s", s[:n], err)
 			return dst, tagsPool, fieldsPool, err
@@ -281,7 +281,7 @@ func unescapeTagValue(s string, noEscapeChars bool) string {
 			return string(append(dst, '\\'))
 		}
 		ch := s[0]
-		if ch != ' ' && ch != ',' && ch != '=' && ch != '\\' {
+		if ch != ' ' && ch != ',' && ch != '=' && ch != '\\' && ch != '\n' {
 			dst = append(dst, '\\')
 		}
 		dst = append(dst, ch)

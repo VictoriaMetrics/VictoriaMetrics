@@ -337,6 +337,27 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
+	// Escape newline
+	f("fo\\\nb\\,ar,x\\\ny=\\\n\\y a=\"foo\nbar\",b\\\nc\\==34\n", &Rows{
+		Rows: []Row{{
+			Measurement: "fo\nb,ar",
+			Tags: []Tag{{
+				Key:   "x\ny",
+				Value: "\n\\y",
+			}},
+			Fields: []Field{
+				{
+					Key:   "a",
+					Value: 0,
+				},
+				{
+					Key:   "b\nc=",
+					Value: 34,
+				},
+			},
+		}},
+	})
+
 	// Multiple lines
 	f("foo,tag=xyz field=1.23 48934\n"+
 		"bar x=-1i\n\n", &Rows{
@@ -362,6 +383,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		},
 	})
+
 	// No newline after the second line.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/82
 	f("foo,tag=xyz field=1.23 48934\n"+
@@ -387,5 +409,25 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				}},
 			},
 		},
+	})
+
+	f("x,y=z,g=p:\\ \\ 5432\\,\\ gp\\ mon\\ [lol]\\ con10\\ cmd5\\ SELECT f=1", &Rows{
+		Rows: []Row{{
+			Measurement: "x",
+			Tags: []Tag{
+				{
+					Key:   "y",
+					Value: "z",
+				},
+				{
+					Key:   "g",
+					Value: "p:  5432, gp mon [lol] con10 cmd5 SELECT",
+				},
+			},
+			Fields: []Field{{
+				Key:   "f",
+				Value: 1,
+			}},
+		}},
 	})
 }
