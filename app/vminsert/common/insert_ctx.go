@@ -2,9 +2,11 @@ package common
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -99,7 +101,10 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
 	if err := vmstorage.AddRows(ctx.mrs); err != nil {
-		return fmt.Errorf("cannot store metrics: %s", err)
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot store metrics: %s", err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
 	}
 	return nil
 }

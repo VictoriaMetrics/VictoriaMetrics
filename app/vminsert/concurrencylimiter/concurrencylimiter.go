@@ -3,9 +3,11 @@ package concurrencylimiter
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"runtime"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -53,7 +55,10 @@ func Do(f func() error) error {
 	case <-t.C:
 		timerpool.Put(t)
 		concurrencyLimitTimeout.Inc()
-		return fmt.Errorf("the server is overloaded with %d concurrent inserts; either increase -maxConcurrentInserts or reduce the load", cap(ch))
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("the server is overloaded with %d concurrent inserts; either increase -maxConcurrentInserts or reduce the load", cap(ch)),
+			StatusCode: http.StatusServiceUnavailable,
+		}
 	}
 }
 

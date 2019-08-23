@@ -423,7 +423,29 @@ var (
 func Errorf(w http.ResponseWriter, format string, args ...interface{}) {
 	errStr := fmt.Sprintf(format, args...)
 	logger.Errorf("%s", errStr)
-	http.Error(w, errStr, http.StatusBadRequest)
+
+	// Extract statusCode from args
+	statusCode := http.StatusBadRequest
+	for _, arg := range args {
+		if esc, ok := arg.(*ErrorWithStatusCode); ok {
+			statusCode = esc.StatusCode
+			break
+		}
+	}
+	http.Error(w, errStr, statusCode)
+}
+
+// ErrorWithStatusCode is error with HTTP status code.
+//
+// The given StatusCode is sent to client when the error is passed to Errorf.
+type ErrorWithStatusCode struct {
+	Err        error
+	StatusCode int
+}
+
+// Error implements error interface.
+func (e *ErrorWithStatusCode) Error() string {
+	return e.Err.Error()
 }
 
 func isTrivialNetworkError(err error) bool {
