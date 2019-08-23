@@ -65,7 +65,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 
 	rawTs := o.Get("timestamp")
 	if rawTs != nil {
-		ts, err := rawTs.Int64()
+		ts, err := getFloat64(rawTs)
 		if err != nil {
 			return tagsPool, fmt.Errorf("invalid `timestamp` in %s: %s", o, err)
 		}
@@ -80,7 +80,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	if rawV == nil {
 		return tagsPool, fmt.Errorf("missing `value` in %s", o)
 	}
-	v, err := getValue(rawV)
+	v, err := getFloat64(rawV)
 	if err != nil {
 		return tagsPool, fmt.Errorf("invalid `value` in %s: %s", o, err)
 	}
@@ -106,7 +106,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	return tagsPool, nil
 }
 
-func getValue(v *fastjson.Value) (float64, error) {
+func getFloat64(v *fastjson.Value) (float64, error) {
 	switch v.Type() {
 	case fastjson.TypeNumber:
 		return v.Float64()
