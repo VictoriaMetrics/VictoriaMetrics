@@ -182,6 +182,15 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]R
 			s = s[1:]
 			continue
 		}
+		if s[0] == '#' {
+			// Skip comment
+			if n > 0 {
+				s = s[n+1:]
+			} else {
+				s = s[len(s):]
+			}
+			continue
+		}
 		if cap(dst) > len(dst) {
 			dst = dst[:len(dst)+1]
 		} else {
