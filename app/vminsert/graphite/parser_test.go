@@ -21,6 +21,9 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 		}
 	}
 
+	// Missing metric
+	f(" 123 455")
+
 	// Missing value
 	f("aaa")
 
@@ -29,7 +32,6 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// missing tag value
 	f("aa;bb 23 34")
-	f("aa;=dsd 234 45")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
@@ -95,17 +97,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Timestamp: 2,
 		}},
 	})
-	f("foo;bar=baz;aa=;x=y 1 2", &Rows{
+	// Empty tags
+	f("foo;bar=baz;aa=;x=y;=z 1 2", &Rows{
 		Rows: []Row{{
 			Metric: "foo",
 			Tags: []Tag{
 				{
 					Key:   "bar",
 					Value: "baz",
-				},
-				{
-					Key:   "aa",
-					Value: "",
 				},
 				{
 					Key:   "x",

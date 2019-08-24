@@ -96,11 +96,7 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	// Missing tag value
 	f("foo,bar")
 	f("foo,bar baz")
-	f("foo,bar= baz")
 	f("foo,bar=123, 123")
-
-	// Missing tag name
-	f("foo,=bar baz=234")
 
 	// Missing field value
 	f("foo bar")
@@ -229,17 +225,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Line with empty tag values
-	f("foo,tag1=xyz,tagN=,tag2=43as bar=123", &Rows{
+	f("foo,tag1=xyz,tagN=,tag2=43as,=xxx bar=123", &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
 			Tags: []Tag{
 				{
 					Key:   "tag1",
 					Value: "xyz",
-				},
-				{
-					Key:   "tagN",
-					Value: "",
 				},
 				{
 					Key:   "tag2",
