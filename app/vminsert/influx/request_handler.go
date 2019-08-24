@@ -137,11 +137,7 @@ func (ctx *pushCtx) Read(r io.Reader, tsMultiplier int64) bool {
 		}
 		return false
 	}
-	if err := ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf)); err != nil {
-		influxUnmarshalErrors.Inc()
-		ctx.err = fmt.Errorf("cannot unmarshal influx line protocol data with size %d: %s", len(ctx.reqBuf), err)
-		return false
-	}
+	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 
 	// Adjust timestamps according to tsMultiplier
 	currentTs := time.Now().UnixNano() / 1e6
@@ -170,9 +166,8 @@ func (ctx *pushCtx) Read(r io.Reader, tsMultiplier int64) bool {
 }
 
 var (
-	influxReadCalls       = metrics.NewCounter(`vm_read_calls_total{name="influx"}`)
-	influxReadErrors      = metrics.NewCounter(`vm_read_errors_total{name="influx"}`)
-	influxUnmarshalErrors = metrics.NewCounter(`vm_unmarshal_errors_total{name="influx"}`)
+	influxReadCalls  = metrics.NewCounter(`vm_read_calls_total{name="influx"}`)
+	influxReadErrors = metrics.NewCounter(`vm_read_errors_total{name="influx"}`)
 )
 
 type pushCtx struct {

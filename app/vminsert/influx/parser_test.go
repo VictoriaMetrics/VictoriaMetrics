@@ -74,13 +74,15 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		if err := rows.Unmarshal(s); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
 
 		// Try again
-		if err := rows.Unmarshal(s); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
 	}
 
@@ -122,17 +124,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
-		if err := rows.Unmarshal(s); err != nil {
-			t.Fatalf("cannot unmarshal %q: %s", s, err)
-		}
+		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		if err := rows.Unmarshal(s); err != nil {
-			t.Fatalf("cannot unmarshal %q: %s", s, err)
-		}
+		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -340,6 +338,33 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 
 	// Multiple lines
 	f("foo,tag=xyz field=1.23 48934\n"+
+		"bar x=-1i\n\n", &Rows{
+		Rows: []Row{
+			{
+				Measurement: "foo",
+				Tags: []Tag{{
+					Key:   "tag",
+					Value: "xyz",
+				}},
+				Fields: []Field{{
+					Key:   "field",
+					Value: 1.23,
+				}},
+				Timestamp: 48934,
+			},
+			{
+				Measurement: "bar",
+				Fields: []Field{{
+					Key:   "x",
+					Value: -1,
+				}},
+			},
+		},
+	})
+
+	// Multiple lines with invalid line in the middle.
+	f("foo,tag=xyz field=1.23 48934\n"+
+		"invalid line\n"+
 		"bar x=-1i\n\n", &Rows{
 		Rows: []Row{
 			{
