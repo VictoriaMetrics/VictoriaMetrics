@@ -687,6 +687,8 @@ The most interesting metrics are:
 
 ### Backfilling
 
+Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
+
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
