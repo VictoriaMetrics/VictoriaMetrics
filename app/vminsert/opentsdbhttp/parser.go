@@ -58,7 +58,7 @@ func (r *Row) reset() {
 func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
 	m := o.GetStringBytes("metric")
-	if m == nil {
+	if len(m) == 0 {
 		return tagsPool, fmt.Errorf("missing `metric` in %s", o)
 	}
 	r.Metric = bytesutil.ToUnsafeString(m)
@@ -163,6 +163,10 @@ func unmarshalTags(dst []Tag, o *fastjson.Object) ([]Tag, error) {
 	o.Visit(func(k []byte, v *fastjson.Value) {
 		if v.Type() != fastjson.TypeString {
 			err = fmt.Errorf("tag value must be string; got %s; value=%s", v.Type(), v)
+			return
+		}
+		if len(k) == 0 {
+			// Skip empty tags
 			return
 		}
 		vStr, _ := v.StringBytes()

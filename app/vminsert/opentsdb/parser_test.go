@@ -24,6 +24,9 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	// Missing put prefix
 	f("xx")
 
+	// Missing metric
+	f("put  111 34")
+
 	// Missing timestamp
 	f("put aaa")
 
@@ -44,9 +47,6 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Invalid tag
 	f("put aaa 123 4.5 foo")
-	f("put aaa 123 4.5 =")
-	f("put aaa 123 4.5 =foo")
-	f("put aaa 123 4.5 =foo a=b")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
@@ -88,17 +88,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 		}},
 	})
-	// Empty tag value
-	f("put foobar 789 -123.456 a= b=c", &Rows{
+	// Empty tag
+	f("put foobar 789 -123.456 a= b=c =d", &Rows{
 		Rows: []Row{{
 			Metric:    "foobar",
 			Value:     -123.456,
 			Timestamp: 789,
 			Tags: []Tag{
-				{
-					Key:   "a",
-					Value: "",
-				},
 				{
 					Key:   "b",
 					Value: "c",

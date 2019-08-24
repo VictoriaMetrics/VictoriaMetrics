@@ -50,6 +50,7 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"metric": "aaa", "timestamp": 1122, "value": "0.0.0"}`)
 
 	// Invalid metric type
+	f(`{"metric": "", "timestamp": 1122, "value": 0.45, "tags": {"foo": "bar"}}`)
 	f(`{"metric": ["aaa"], "timestamp": 1122, "value": 0.45, "tags": {"foo": "bar"}}`)
 	f(`{"metric": {"aaa":1}, "timestamp": 1122, "value": 0.45, "tags": {"foo": "bar"}}`)
 	f(`{"metric": 1, "timestamp": 1122, "value": 0.45, "tags": {"foo": "bar"}}`)
@@ -161,7 +162,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 	// Empty tag value
-	f(`{"metric": "foobar", "timestamp": 123, "value": -123.456, "tags": {"a":"", "b":"c"}}`, &Rows{
+	f(`{"metric": "foobar", "timestamp": 123, "value": -123.456, "tags": {"a":"", "b":"c", "": "d"}}`, &Rows{
 		Rows: []Row{{
 			Metric:    "foobar",
 			Value:     -123.456,

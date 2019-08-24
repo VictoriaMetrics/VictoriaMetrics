@@ -66,6 +66,9 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, fmt.Errorf("cannot find whitespace between metric and timestamp in %q", s)
 	}
 	r.Metric = s[:n]
+	if len(r.Metric) == 0 {
+		return tagsPool, fmt.Errorf("metric cannot be empty")
+	}
 	tail := s[n+1:]
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
@@ -144,12 +147,20 @@ func unmarshalTags(dst []Tag, s string) ([]Tag, error) {
 			if err := tag.unmarshal(s); err != nil {
 				return dst[:len(dst)-1], err
 			}
+			if len(tag.Key) == 0 || len(tag.Value) == 0 {
+				// Skip empty tag
+				dst = dst[:len(dst)-1]
+			}
 			return dst, nil
 		}
 		if err := tag.unmarshal(s[:n]); err != nil {
 			return dst[:len(dst)-1], err
 		}
 		s = s[n+1:]
+		if len(tag.Key) == 0 || len(tag.Value) == 0 {
+			// Skip empty tag
+			dst = dst[:len(dst)-1]
+		}
 	}
 }
 
@@ -171,9 +182,6 @@ func (t *Tag) unmarshal(s string) error {
 		return fmt.Errorf("missing tag value for %q", s)
 	}
 	t.Key = s[:n]
-	if len(t.Key) == 0 {
-		return fmt.Errorf("tag key cannot be empty for %q", s)
-	}
 	t.Value = s[n+1:]
 	return nil
 }

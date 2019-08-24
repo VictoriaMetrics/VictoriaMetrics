@@ -137,9 +137,6 @@ func (tag *Tag) unmarshal(s string, noEscapeChars bool) error {
 		return fmt.Errorf("missing tag value for %q", s)
 	}
 	tag.Key = unescapeTagValue(s[:n], noEscapeChars)
-	if len(tag.Key) == 0 {
-		return fmt.Errorf("tag key cannot be empty")
-	}
 	tag.Value = unescapeTagValue(s[n+1:], noEscapeChars)
 	return nil
 }
@@ -229,14 +226,22 @@ func unmarshalTags(dst []Tag, s string, noEscapeChars bool) ([]Tag, error) {
 		n := nextUnescapedChar(s, ',', noEscapeChars)
 		if n < 0 {
 			if err := tag.unmarshal(s, noEscapeChars); err != nil {
-				return dst, err
+				return dst[:len(dst)-1], err
+			}
+			if len(tag.Key) == 0 || len(tag.Value) == 0 {
+				// Skip empty tag
+				dst = dst[:len(dst)-1]
 			}
 			return dst, nil
 		}
 		if err := tag.unmarshal(s[:n], noEscapeChars); err != nil {
-			return dst, err
+			return dst[:len(dst)-1], err
 		}
 		s = s[n+1:]
+		if len(tag.Key) == 0 || len(tag.Value) == 0 {
+			// Skip empty tag
+			dst = dst[:len(dst)-1]
+		}
 	}
 }
 
