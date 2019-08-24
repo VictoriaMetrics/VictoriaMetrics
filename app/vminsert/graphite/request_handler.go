@@ -85,11 +85,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 			return false
 		}
 	}
-	if err := ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf)); err != nil {
-		graphiteUnmarshalErrors.Inc()
-		ctx.err = fmt.Errorf("cannot unmarshal graphite plaintext protocol data with size %d: %s", len(ctx.reqBuf), err)
-		return false
-	}
+	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 
 	// Fill missing timestamps with the current timestamp rounded to seconds.
 	currentTimestamp := time.Now().Unix()
@@ -136,9 +132,8 @@ func (ctx *pushCtx) reset() {
 }
 
 var (
-	graphiteReadCalls       = metrics.NewCounter(`vm_read_calls_total{name="graphite"}`)
-	graphiteReadErrors      = metrics.NewCounter(`vm_read_errors_total{name="graphite"}`)
-	graphiteUnmarshalErrors = metrics.NewCounter(`vm_unmarshal_errors_total{name="graphite"}`)
+	graphiteReadCalls  = metrics.NewCounter(`vm_read_calls_total{name="graphite"}`)
+	graphiteReadErrors = metrics.NewCounter(`vm_read_errors_total{name="graphite"}`)
 )
 
 func getPushCtx() *pushCtx {

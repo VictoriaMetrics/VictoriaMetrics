@@ -16,8 +16,9 @@ cpu.usage_irq 0.34432 1234556768
 	b.RunParallel(func(pb *testing.PB) {
 		var rows Rows
 		for pb.Next() {
-			if err := rows.Unmarshal(s); err != nil {
-				panic(fmt.Errorf("cannot unmarshal %q: %s", s, err))
+			rows.Unmarshal(s)
+			if len(rows.Rows) != 4 {
+				panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 4", len(rows.Rows)))
 			}
 		}
 	})
