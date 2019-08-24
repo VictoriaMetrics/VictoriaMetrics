@@ -69,10 +69,7 @@ func insertHandlerInternal(req *http.Request, maxSize int64) error {
 		opentsdbUnmarshalErrors.Inc()
 		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %s", err)
 	}
-	if err := ctx.Rows.Unmarshal(v); err != nil {
-		opentsdbUnmarshalErrors.Inc()
-		return fmt.Errorf("cannot unmarshal HTTP OpenTSDB json %s, %s", err, v)
-	}
+	ctx.Rows.Unmarshal(v)
 
 	// Fill in missing timestamps
 	currentTimestamp := time.Now().Unix()

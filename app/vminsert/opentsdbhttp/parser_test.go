@@ -17,12 +17,14 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 			return
 		}
 		// Verify OpenTSDB body parsing error
-		if err := rows.Unmarshal(v); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(v)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
 		}
 		// Try again
-		if err := rows.Unmarshal(v); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(v)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
 		}
 	}
 
@@ -73,7 +75,7 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"metric": "aaa", "timestamp": 1122, "value": 0.45, "tags": {"foo": 1}}`)
 
 	// Invalid multiline
-	f(`[{"metric": "aaa", "timestamp": 1122, "value": "trt", "tags":{"foo":"bar"}}, {"metric": "aaa", "timestamp": 1122, "value": 111}]`)
+	f(`[{"metric": "aaa", "timestamp": 1122, "value": "trt", "tags":{"foo":"bar"}}, {"metric": "aaa", "timestamp": [1122], "value": 111}]`)
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
@@ -87,17 +89,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse json %s: %s", s, err)
 		}
-		if err := rows.Unmarshal(v); err != nil {
-			t.Fatalf("cannot unmarshal %s: %s", v, err)
-		}
+		rows.Unmarshal(v)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		if err := rows.Unmarshal(v); err != nil {
-			t.Fatalf("cannot unmarshal %s: %s", v, err)
-		}
+		rows.Unmarshal(v)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
