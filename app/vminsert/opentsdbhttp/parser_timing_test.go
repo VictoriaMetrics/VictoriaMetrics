@@ -24,8 +24,9 @@ func BenchmarkRowsUnmarshal(b *testing.B) {
 			if err != nil {
 				panic(fmt.Errorf("cannot parse %q: %s", s, err))
 			}
-			if err := rows.Unmarshal(v); err != nil {
-				panic(fmt.Errorf("cannot unmarshal %q: %s", s, err))
+			rows.Unmarshal(v)
+			if len(rows.Rows) != 4 {
+				panic(fmt.Errorf("unexpected number of rows unmarshaled; got %d; want 4", len(rows.Rows)))
 			}
 		}
 	})

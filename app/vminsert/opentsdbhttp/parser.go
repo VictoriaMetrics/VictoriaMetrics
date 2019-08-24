@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fastjson/fastfloat"
 )
@@ -34,10 +36,8 @@ func (rs *Rows) Reset() {
 // See http://opentsdb.net/docs/build/html/api_http/put.html
 //
 // s must be unchanged until rs is in use.
-func (rs *Rows) Unmarshal(av *fastjson.Value) error {
-	var err error
-	rs.Rows, rs.tagsPool, err = unmarshalRows(rs.Rows[:0], av, rs.tagsPool[:0])
-	return err
+func (rs *Rows) Unmarshal(av *fastjson.Value) {
+	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], av, rs.tagsPool[:0])
 }
 
 // Row is a single OpenTSDB row.
@@ -122,26 +122,24 @@ func getFloat64(v *fastjson.Value) (float64, error) {
 	}
 }
 
-func unmarshalRows(dst []Row, av *fastjson.Value, tagsPool []Tag) ([]Row, []Tag, error) {
+func unmarshalRows(dst []Row, av *fastjson.Value, tagsPool []Tag) ([]Row, []Tag) {
 	switch av.Type() {
 	case fastjson.TypeObject:
 		return unmarshalRow(dst, av, tagsPool)
 	case fastjson.TypeArray:
 		a, _ := av.Array()
-		for i, o := range a {
-			var err error
-			dst, tagsPool, err = unmarshalRow(dst, o, tagsPool)
-			if err != nil {
-				return dst, tagsPool, fmt.Errorf("cannot unmarshal %d object out of %d objects: %s", i, len(a), err)
-			}
+		for _, o := range a {
+			dst, tagsPool = unmarshalRow(dst, o, tagsPool)
 		}
-		return dst, tagsPool, nil
+		return dst, tagsPool
 	default:
-		return dst, tagsPool, fmt.Errorf("OpenTSDB body must be either object or array; got %s; body=%s", av.Type(), av)
+		logger.Errorf("OpenTSDB JSON must be either object or array; got %s; body=%s", av.Type(), av)
+		invalidLines.Inc()
+		return dst, tagsPool
 	}
 }
 
-func unmarshalRow(dst []Row, o *fastjson.Value, tagsPool []Tag) ([]Row, []Tag, error) {
+func unmarshalRow(dst []Row, o *fastjson.Value, tagsPool []Tag) ([]Row, []Tag) {
 	if cap(dst) > len(dst) {
 		dst = dst[:len(dst)+1]
 	} else {
@@ -151,10 +149,14 @@ func unmarshalRow(dst []Row, o *fastjson.Value, tagsPool []Tag) ([]Row, []Tag, e
 	var err error
 	tagsPool, err = r.unmarshal(o, tagsPool)
 	if err != nil {
-		return dst, tagsPool, fmt.Errorf("cannot unmarshal OpenTSDB object %s: %s", o, err)
+		dst = dst[:len(dst)-1]
+		logger.Errorf("cannot unmarshal OpenTSDB object %s: %s", o, err)
+		invalidLines.Inc()
 	}
-	return dst, tagsPool, nil
+	return dst, tagsPool
 }
+
+var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="opentsdb-http"}`)
 
 func unmarshalTags(dst []Tag, o *fastjson.Object) ([]Tag, error) {
 	var err error
