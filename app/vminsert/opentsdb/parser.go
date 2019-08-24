@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
@@ -34,10 +36,8 @@ func (rs *Rows) Reset() {
 // See http://opentsdb.net/docs/build/html/api_telnet/put.html
 //
 // s must be unchanged until rs is in use.
-func (rs *Rows) Unmarshal(s string) error {
-	var err error
-	rs.Rows, rs.tagsPool, err = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0])
-	return err
+func (rs *Rows) Unmarshal(s string) {
+	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0])
 }
 
 // Row is a single OpenTSDB row.
@@ -89,40 +89,45 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	return tagsPool, nil
 }
 
-func unmarshalRows(dst []Row, s string, tagsPool []Tag) ([]Row, []Tag, error) {
+func unmarshalRows(dst []Row, s string, tagsPool []Tag) ([]Row, []Tag) {
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
-		if n == 0 {
-			// Skip empty line
-			s = s[1:]
-			continue
-		}
-		if cap(dst) > len(dst) {
-			dst = dst[:len(dst)+1]
-		} else {
-			dst = append(dst, Row{})
-		}
-		r := &dst[len(dst)-1]
 		if n < 0 {
 			// The last line.
-			var err error
-			tagsPool, err = r.unmarshal(s, tagsPool)
-			if err != nil {
-				err = fmt.Errorf("cannot unmarshal OpenTSDB line %q: %s", s, err)
-				return dst, tagsPool, err
-			}
-			return dst, tagsPool, nil
+			return unmarshalRow(dst, s, tagsPool)
 		}
-		var err error
-		tagsPool, err = r.unmarshal(s[:n], tagsPool)
-		if err != nil {
-			err = fmt.Errorf("cannot unmarshal OpenTSDB line %q: %s", s[:n], err)
-			return dst, tagsPool, err
-		}
+		dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool)
 		s = s[n+1:]
 	}
-	return dst, tagsPool, nil
+	return dst, tagsPool
 }
+
+func unmarshalRow(dst []Row, s string, tagsPool []Tag) ([]Row, []Tag) {
+	if len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[:len(s)-1]
+	}
+	if len(s) == 0 {
+		// Skip empty line
+		return dst, tagsPool
+	}
+
+	if cap(dst) > len(dst) {
+		dst = dst[:len(dst)+1]
+	} else {
+		dst = append(dst, Row{})
+	}
+	r := &dst[len(dst)-1]
+	var err error
+	tagsPool, err = r.unmarshal(s, tagsPool)
+	if err != nil {
+		dst = dst[:len(dst)-1]
+		logger.Errorf("cannot unmarshal OpenTSDB line %q: %s", s, err)
+		invalidLines.Inc()
+	}
+	return dst, tagsPool
+}
+
+var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="opentsdb"}`)
 
 func unmarshalTags(dst []Tag, s string) ([]Tag, error) {
 	for {

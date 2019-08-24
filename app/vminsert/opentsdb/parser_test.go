@@ -9,13 +9,15 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		if err := rows.Unmarshal(s); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
 		}
 
 		// Try again
-		if err := rows.Unmarshal(s); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
 		}
 	}
 
@@ -51,17 +53,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
-		if err := rows.Unmarshal(s); err != nil {
-			t.Fatalf("cannot unmarshal %q: %s", s, err)
-		}
+		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		if err := rows.Unmarshal(s); err != nil {
-			t.Fatalf("cannot unmarshal %q: %s", s, err)
-		}
+		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -74,7 +72,9 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 
 	// Empty line
 	f("", &Rows{})
+	f("\r", &Rows{})
 	f("\n\n", &Rows{})
+	f("\n\r\n", &Rows{})
 
 	// Single line
 	f("put foobar 789 -123.456 a=b", &Rows{
@@ -179,6 +179,29 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 
 	// Multi lines
 	f("put foo 2 0.3 a=b\nput bar.baz 43 0.34 a=b\n", &Rows{
+		Rows: []Row{
+			{
+				Metric:    "foo",
+				Value:     0.3,
+				Timestamp: 2,
+				Tags: []Tag{{
+					Key:   "a",
+					Value: "b",
+				}},
+			},
+			{
+				Metric:    "bar.baz",
+				Value:     0.34,
+				Timestamp: 43,
+				Tags: []Tag{{
+					Key:   "a",
+					Value: "b",
+				}},
+			},
+		},
+	})
+	// Multi lines with invalid line
+	f("put foo 2 0.3 a=b\naaa bbb\nput bar.baz 43 0.34 a=b\n", &Rows{
 		Rows: []Row{
 			{
 				Metric:    "foo",
