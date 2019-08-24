@@ -85,11 +85,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 			return false
 		}
 	}
-	if err := ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf)); err != nil {
-		opentsdbUnmarshalErrors.Inc()
-		ctx.err = fmt.Errorf("cannot unmarshal OpenTSDB put protocol data with size %d: %s", len(ctx.reqBuf), err)
-		return false
-	}
+	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 
 	// Fill in missing timestamps
 	currentTimestamp := time.Now().Unix()
@@ -135,9 +131,8 @@ func (ctx *pushCtx) reset() {
 }
 
 var (
-	opentsdbReadCalls       = metrics.NewCounter(`vm_read_calls_total{name="opentsdb"}`)
-	opentsdbReadErrors      = metrics.NewCounter(`vm_read_errors_total{name="opentsdb"}`)
-	opentsdbUnmarshalErrors = metrics.NewCounter(`vm_unmarshal_errors_total{name="opentsdb"}`)
+	opentsdbReadCalls  = metrics.NewCounter(`vm_read_calls_total{name="opentsdb"}`)
+	opentsdbReadErrors = metrics.NewCounter(`vm_read_errors_total{name="opentsdb"}`)
 )
 
 func getPushCtx() *pushCtx {
