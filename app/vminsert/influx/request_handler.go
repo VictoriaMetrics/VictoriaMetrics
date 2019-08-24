@@ -89,10 +89,16 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
-		ic.AddLabel("db", db)
+		hasDBLabel := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
+			if tag.Key == "db" {
+				hasDBLabel = true
+			}
 			ic.AddLabel(tag.Key, tag.Value)
+		}
+		if len(db) > 0 && !hasDBLabel {
+			ic.AddLabel("db", db)
 		}
 		ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], at.AccountID, at.ProjectID, ic.Labels)
 		metricNameBufLen := len(ic.MetricNameBuf)
