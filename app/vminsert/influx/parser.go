@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
@@ -41,10 +43,8 @@ func (rs *Rows) Reset() {
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
 // s must be unchanged until rs is in use.
-func (rs *Rows) Unmarshal(s string) error {
-	var err error
-	rs.Rows, rs.tagsPool, rs.fieldsPool, err = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], rs.fieldsPool[:0])
-	return err
+func (rs *Rows) Unmarshal(s string) {
+	rs.Rows, rs.tagsPool, rs.fieldsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], rs.fieldsPool[:0])
 }
 
 // Row is a single influx row.
@@ -64,10 +64,6 @@ func (r *Row) reset() {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeChars bool) ([]Tag, []Field, error) {
 	r.reset()
-	// Remove optional \r from the end of s
-	if len(s) > 0 && s[len(s)-1] == '\r' {
-		s = s[:len(s)-1]
-	}
 	n := nextUnescapedChar(s, ' ', noEscapeChars)
 	if n < 0 {
 		return tagsPool, fieldsPool, fmt.Errorf("cannot find Whitespace I in %q", s)
@@ -177,56 +173,50 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 	return nil
 }
 
-func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]Row, []Tag, []Field, error) {
+func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]Row, []Tag, []Field) {
 	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
-		if n == 0 {
-			// Skip empty line
-			s = s[1:]
-			continue
-		}
-		if n == 1 && s[0] == '\r' {
-			// Skip empty line
-			s = s[2:]
-			continue
-		}
-		if s[0] == '#' {
-			// Skip comment
-			if n > 0 {
-				s = s[n+1:]
-			} else {
-				s = s[len(s):]
-			}
-			continue
-		}
-
-		if cap(dst) > len(dst) {
-			dst = dst[:len(dst)+1]
-		} else {
-			dst = append(dst, Row{})
-		}
-		r := &dst[len(dst)-1]
 		if n < 0 {
 			// The last line.
-			var err error
-			tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool, noEscapeChars)
-			if err != nil {
-				err = fmt.Errorf("cannot unmarshal Influx line %q: %s", s, err)
-				return dst, tagsPool, fieldsPool, err
-			}
-			return dst, tagsPool, fieldsPool, nil
+			return unmarshalRow(dst, s, tagsPool, fieldsPool, noEscapeChars)
 		}
-		var err error
-		tagsPool, fieldsPool, err = r.unmarshal(s[:n], tagsPool, fieldsPool, noEscapeChars)
-		if err != nil {
-			err = fmt.Errorf("cannot unmarshal Influx line %q: %s", s[:n], err)
-			return dst, tagsPool, fieldsPool, err
-		}
+		dst, tagsPool, fieldsPool = unmarshalRow(dst, s[:n], tagsPool, fieldsPool, noEscapeChars)
 		s = s[n+1:]
 	}
-	return dst, tagsPool, fieldsPool, nil
+	return dst, tagsPool, fieldsPool
 }
+
+func unmarshalRow(dst []Row, s string, tagsPool []Tag, fieldsPool []Field, noEscapeChars bool) ([]Row, []Tag, []Field) {
+	if len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[:len(s)-1]
+	}
+	if len(s) == 0 {
+		// Skip empty line
+		return dst, tagsPool, fieldsPool
+	}
+	if s[0] == '#' {
+		// Skip comment
+		return dst, tagsPool, fieldsPool
+	}
+
+	if cap(dst) > len(dst) {
+		dst = dst[:len(dst)+1]
+	} else {
+		dst = append(dst, Row{})
+	}
+	r := &dst[len(dst)-1]
+	var err error
+	tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool, noEscapeChars)
+	if err != nil {
+		dst = dst[:len(dst)-1]
+		logger.Errorf("cannot unmarshal Influx line %q: %s; skipping it", s, err)
+		invalidLines.Inc()
+	}
+	return dst, tagsPool, fieldsPool
+}
+
+var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="influx"}`)
 
 func unmarshalTags(dst []Tag, s string, noEscapeChars bool) ([]Tag, error) {
 	for {
