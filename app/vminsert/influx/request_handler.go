@@ -90,10 +90,16 @@ func (ctx *pushCtx) InsertRows(db string) error {
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
-		ic.AddLabel("db", db)
+		hasDBLabel := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
+			if tag.Key == "db" {
+				hasDBLabel = true
+			}
 			ic.AddLabel(tag.Key, tag.Value)
+		}
+		if len(db) > 0 && !hasDBLabel {
+			ic.AddLabel("db", db)
 		}
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)

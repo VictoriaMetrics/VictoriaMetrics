@@ -209,7 +209,8 @@ For instance, put the following lines into `Telegraf` config, so it sends data t
 Do not forget substituting `<victoriametrics-addr>` with the real address where VictoriaMetrics runs.
 
 VictoriaMetrics maps Influx data using the following rules:
-* [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value.
+* [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
+  unless `db` tag exists in the Influx line.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value,
   where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag.
   See also `-influxSkipSingleField` command-line flag.
