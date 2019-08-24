@@ -9,21 +9,20 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		if err := rows.Unmarshal(s); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
 		}
 
 		// Try again
-		if err := rows.Unmarshal(s); err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+		rows.Unmarshal(s)
+		if len(rows.Rows) != 0 {
+			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
 		}
 	}
 
 	// Missing value
 	f("aaa")
-
-	// Invalid multiline
-	f("aaa\nbbb 123 34")
 
 	// missing tag
 	f("aa; 12 34")
@@ -37,17 +36,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
-		if err := rows.Unmarshal(s); err != nil {
-			t.Fatalf("cannot unmarshal %q: %s", s, err)
-		}
+		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		if err := rows.Unmarshal(s); err != nil {
-			t.Fatalf("cannot unmarshal %q: %s", s, err)
-		}
+		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -60,7 +55,9 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 
 	// Empty line
 	f("", &Rows{})
+	f("\r", &Rows{})
 	f("\n\n", &Rows{})
+	f("\n\r\n", &Rows{})
 
 	// Single line
 	f("foobar -123.456 789", &Rows{
@@ -131,6 +128,22 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			{
 				Metric: "aaa",
 				Value:  3,
+			},
+			{
+				Metric:    "bar.baz",
+				Value:     0.34,
+				Timestamp: 43,
+			},
+		},
+	})
+
+	// Multi lines with invalid line
+	f("foo 0.3 2\naaa\nbar.baz 0.34 43\n", &Rows{
+		Rows: []Row{
+			{
+				Metric:    "foo",
+				Value:     0.3,
+				Timestamp: 2,
 			},
 			{
 				Metric:    "bar.baz",
