@@ -349,7 +349,8 @@ func testStorageRandTimestamps(s *Storage) error {
 			mrs = append(mrs, mr)
 		}
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			if !strings.Contains(err.Error(), "too big timestamp") {
+			errStr := err.Error()
+			if !strings.Contains(errStr, "too big timestamp") && !strings.Contains(errStr, "too small timestamp") {
 				return fmt.Errorf("unexpected error when adding mrs: %s", err)
 			}
 		}

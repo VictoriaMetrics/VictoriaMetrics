@@ -769,7 +769,9 @@ var (
 )
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
-	var errors []error
+	// Return only the last error, since it has no sense in returning all errors.
+	var lastError error
+
 	var is *indexSearch
 	var mn *MetricName
 	var kb *bytesutil.ByteBuffer
@@ -792,11 +794,13 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
+			lastError = fmt.Errorf("cannot insert row with too small timestamp %d outside the retention; minimum allowed timestamp is %d", mr.Timestamp, minTimestamp)
 			atomic.AddUint64(&s.tooSmallTimestampRows, 1)
 			continue
 		}
 		if mr.Timestamp > maxTimestamp {
 			// Skip rows with too big timestamps significantly exceeding the current time.
+			lastError = fmt.Errorf("cannot insert row with too big timestamp %d exceeding the current time; maximum allowd timestamp is %d", mr.Timestamp, maxTimestamp)
 			atomic.AddUint64(&s.tooBigTimestampRows, 1)
 			continue
 		}
@@ -826,8 +830,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			// Do not stop adding rows on error - just skip invalid row.
 			// This guarantees that invalid rows don't prevent
 			// from adding valid rows into the storage.
-			err = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %s", mr.MetricNameRaw, err)
-			errors = append(errors, err)
+			lastError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %s", mr.MetricNameRaw, err)
 			j--
 			continue
 		}
@@ -837,8 +840,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			// Do not stop adding rows on error - just skip invalid row.
 			// This guarantees that invalid rows don't prevent
 			// from adding valid rows into the storage.
-			err = fmt.Errorf("cannot obtain TSID for MetricName %q: %s", kb.B, err)
-			errors = append(errors, err)
+			lastError = fmt.Errorf("cannot obtain TSID for MetricName %q: %s", kb.B, err)
 			j--
 			continue
 		}
@@ -852,18 +854,16 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	rows = rows[:rowsLen+j]
 
 	if err := s.tb.AddRows(rows); err != nil {
-		err = fmt.Errorf("cannot add rows to table: %s", err)
-		errors = append(errors, err)
+		lastError = fmt.Errorf("cannot add rows to table: %s", err)
 	}
-	errors = s.updateDateMetricIDCache(rows, errors)
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		return rows, fmt.Errorf("errors occurred during rows addition: %s", errors[0])
+	lastError = s.updateDateMetricIDCache(rows, lastError)
+	if lastError != nil {
+		return rows, fmt.Errorf("errors occurred during rows addition: %s", lastError)
 	}
 	return rows, nil
 }
 
-func (s *Storage) updateDateMetricIDCache(rows []rawRow, errors []error) []error {
+func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error {
 	var date uint64
 	var hour uint64
 	var prevTimestamp int64
@@ -905,11 +905,11 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, errors []error) []error
 		// by concurrent goroutines.
 		s.dateMetricIDCache.Set(keyBuf, nil)
 		if err := idb.storeDateMetricID(date, metricID); err != nil {
-			errors = append(errors, err)
+			lastError = err
 			continue
 		}
 	}
-	return errors
+	return lastError
 }
 
 func (s *Storage) updateCurrHourMetricIDs() {
