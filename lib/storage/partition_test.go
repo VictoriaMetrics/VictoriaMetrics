@@ -6,11 +6,8 @@ import (
 	"testing"
 )
 
-func TestPartitionMaxOutPartRows(t *testing.T) {
-	pt := &partition{
-		bigPartsPath: ".",
-	}
-	n := pt.maxOutPartRows()
+func TestPartitionMaxRowsByPath(t *testing.T) {
+	n := maxRowsByPath(".")
 	if n < 1e3 {
 		t.Fatalf("too small number of rows can be created in the current directory: %d", n)
 	}
