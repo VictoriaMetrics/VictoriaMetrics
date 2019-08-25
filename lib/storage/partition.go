@@ -24,12 +24,7 @@ import (
 
 // The maximum number of rows in a small part.
 //
-// Small part merges cannot be interrupted during server stop, so this value
-// must be small enough to complete a merge
-// of `maxRowsPerSmallPart * defaultPartsToMerge` rows in a reasonable amount
-// of time (up to a a minute).
-//
-// Additionally, this number limits the maximum size of small parts storage.
+// This number limits the maximum size of small parts storage.
 // Production simultation shows that the required size of the storage
 // may be estimated as:
 //
