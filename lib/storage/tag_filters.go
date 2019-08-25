@@ -592,15 +592,18 @@ func extractRegexpPrefix(b []byte) ([]byte, []byte) {
 	if re == emptyRegexp {
 		return nil, nil
 	}
-	if re.Op == syntax.OpLiteral {
+	if re.Op == syntax.OpLiteral && re.Flags & syntax.FoldCase == 0 {
 		return []byte(string(re.Rune)), nil
 	}
 	var prefix []byte
-	if re.Op == syntax.OpConcat && re.Sub[0].Op == syntax.OpLiteral {
-		prefix = []byte(string(re.Sub[0].Rune))
-		re.Sub = re.Sub[1:]
-		if len(re.Sub) == 0 {
-			return nil, nil
+	if re.Op == syntax.OpConcat {
+		sub0 := re.Sub[0]
+		if sub0.Op == syntax.OpLiteral && sub0.Flags & syntax.FoldCase == 0 {
+			prefix = []byte(string(sub0.Rune))
+			re.Sub = re.Sub[1:]
+			if len(re.Sub) == 0 {
+				return nil, nil
+			}
 		}
 	}
 	if _, err := syntax.Compile(re); err != nil {

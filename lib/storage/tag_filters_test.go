@@ -5,6 +5,21 @@ import (
 	"testing"
 )
 
+func TestExtractRegexpPrefix(t *testing.T) {
+	f := func(s string, expectedPrefix, expectedSuffix string) {
+		t.Helper()
+		prefix, suffix := extractRegexpPrefix([]byte(s))
+		if string(prefix) != expectedPrefix {
+			t.Fatalf("unexpected prefix for %q; got %q; want %q", s, prefix, expectedPrefix)
+		}
+		if string(suffix) != expectedSuffix {
+			t.Fatalf("unexpected suffix for %q; got %q; want %q", s, suffix, expectedSuffix)
+		}
+	}
+	f("", "", "")
+	f("foobar", "foobar", "")
+}
+
 func TestGetRegexpFromCache(t *testing.T) {
 	f := func(s string, orValuesExpected, expectedMatches, expectedMismatches []string) {
 		t.Helper()
@@ -397,67 +412,73 @@ func TestGetOrValues(t *testing.T) {
 }
 
 func TestGetRegexpPrefix(t *testing.T) {
-	testGetRegexpPrefix(t, "", "", "")
-	testGetRegexpPrefix(t, "^", "", "")
-	testGetRegexpPrefix(t, "$", "", "")
-	testGetRegexpPrefix(t, "^()$", "", "")
-	testGetRegexpPrefix(t, "^(?:)$", "", "")
-	testGetRegexpPrefix(t, "foobar", "foobar", "")
-	testGetRegexpPrefix(t, "foo$|^foobar", "foo", "(?:(?:)|bar)")
-	testGetRegexpPrefix(t, "^(foo$|^foobar)$", "foo", "(?:(?:)|bar)")
-	testGetRegexpPrefix(t, "foobar|foobaz", "fooba", "[rz]")
-	testGetRegexpPrefix(t, "(fo|(zar|bazz)|x)", "", "fo|zar|bazz|x")
-	testGetRegexpPrefix(t, "(тестЧЧ|тест)", "тест", "(?:ЧЧ|(?:))")
-	testGetRegexpPrefix(t, "foo(bar|baz|bana)", "fooba", "(?:[rz]|na)")
-	testGetRegexpPrefix(t, "^foobar|foobaz", "fooba", "[rz]")
-	testGetRegexpPrefix(t, "^foobar|^foobaz$", "fooba", "[rz]")
-	testGetRegexpPrefix(t, "foobar|foobaz", "fooba", "[rz]")
-	testGetRegexpPrefix(t, "(?:^foobar|^foobaz)aa.*", "fooba", "[rz]aa(?-s:.)*")
-	testGetRegexpPrefix(t, "foo[bar]+", "foo", "[a-br]+")
-	testGetRegexpPrefix(t, "foo[a-z]+", "foo", "[a-z]+")
-	testGetRegexpPrefix(t, "foo[bar]*", "foo", "[a-br]*")
-	testGetRegexpPrefix(t, "foo[a-z]*", "foo", "[a-z]*")
-	testGetRegexpPrefix(t, "foo[x]+", "foo", "x+")
-	testGetRegexpPrefix(t, "foo[^x]+", "foo", "[^x]+")
-	testGetRegexpPrefix(t, "foo[x]*", "foo", "x*")
-	testGetRegexpPrefix(t, "foo[^x]*", "foo", "[^x]*")
-	testGetRegexpPrefix(t, "foo[x]*bar", "foo", "x*bar")
-	testGetRegexpPrefix(t, "fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
+	f := func(t *testing.T, s, expectedPrefix, expectedSuffix string) {
+		t.Helper()
+
+		prefix, suffix := getRegexpPrefix([]byte(s))
+		if string(prefix) != expectedPrefix {
+			t.Fatalf("unexpected prefix for s=%q; got %q; want %q", s, prefix, expectedPrefix)
+		}
+		if string(suffix) != expectedSuffix {
+			t.Fatalf("unexpected suffix for s=%q; got %q; want %q", s, suffix, expectedSuffix)
+		}
+
+		// Get the prefix from cache.
+		prefix, suffix = getRegexpPrefix([]byte(s))
+		if string(prefix) != expectedPrefix {
+			t.Fatalf("unexpected prefix for s=%q; got %q; want %q", s, prefix, expectedPrefix)
+		}
+		if string(suffix) != expectedSuffix {
+			t.Fatalf("unexpected suffix for s=%q; got %q; want %q", s, suffix, expectedSuffix)
+		}
+	}
+
+	f(t, "", "", "")
+	f(t, "^", "", "")
+	f(t, "$", "", "")
+	f(t, "^()$", "", "")
+	f(t, "^(?:)$", "", "")
+	f(t, "foobar", "foobar", "")
+	f(t, "foo$|^foobar", "foo", "(?:(?:)|bar)")
+	f(t, "^(foo$|^foobar)$", "foo", "(?:(?:)|bar)")
+	f(t, "foobar|foobaz", "fooba", "[rz]")
+	f(t, "(fo|(zar|bazz)|x)", "", "fo|zar|bazz|x")
+	f(t, "(тестЧЧ|тест)", "тест", "(?:ЧЧ|(?:))")
+	f(t, "foo(bar|baz|bana)", "fooba", "(?:[rz]|na)")
+	f(t, "^foobar|foobaz", "fooba", "[rz]")
+	f(t, "^foobar|^foobaz$", "fooba", "[rz]")
+	f(t, "foobar|foobaz", "fooba", "[rz]")
+	f(t, "(?:^foobar|^foobaz)aa.*", "fooba", "[rz]aa(?-s:.)*")
+	f(t, "foo[bar]+", "foo", "[a-br]+")
+	f(t, "foo[a-z]+", "foo", "[a-z]+")
+	f(t, "foo[bar]*", "foo", "[a-br]*")
+	f(t, "foo[a-z]*", "foo", "[a-z]*")
+	f(t, "foo[x]+", "foo", "x+")
+	f(t, "foo[^x]+", "foo", "[^x]+")
+	f(t, "foo[x]*", "foo", "x*")
+	f(t, "foo[^x]*", "foo", "[^x]*")
+	f(t, "foo[x]*bar", "foo", "x*bar")
+	f(t, "fo\\Bo[x]*bar?", "fo", "\\Box*bar?")
+	f(t, "foo.+bar", "foo", "(?-s:.)+bar")
+	f(t, "a(b|c.*).+", "a", "(?:b|c(?-s:.)*)(?-s:.)+")
+	f(t, "ab|ac", "a", "[b-c]")
+	f(t, "(?i)xyz", "", "(?i:XYZ)")
+	f(t, "(?i)up.+x", "", "(?i:UP)(?-s:.)+(?i:X)")
+	f(t, "(?smi)xy.*z$", "", "(?i:XY)(?s:.)*(?i:Z)(?m:$)")
 
 	// test invalid regexps
-	testGetRegexpPrefix(t, "a(", "a(", "")
-	testGetRegexpPrefix(t, "a[", "a[", "")
-	testGetRegexpPrefix(t, "a[]", "a[]", "")
-	testGetRegexpPrefix(t, "a{", "a{", "")
-	testGetRegexpPrefix(t, "a{}", "a{}", "")
-	testGetRegexpPrefix(t, "invalid(regexp", "invalid(regexp", "")
+	f(t, "a(", "a(", "")
+	f(t, "a[", "a[", "")
+	f(t, "a[]", "a[]", "")
+	f(t, "a{", "a{", "")
+	f(t, "a{}", "a{}", "")
+	f(t, "invalid(regexp", "invalid(regexp", "")
 
 	// The transformed regexp mustn't match aba
-	testGetRegexpPrefix(t, "a?(^ba|c)", "", "a?(?:\\Aba|c)")
+	f(t, "a?(^ba|c)", "", "a?(?:\\Aba|c)")
 
 	// The transformed regexp mustn't match barx
-	testGetRegexpPrefix(t, "(foo|bar$)x*", "", "(?:foo|bar(?-m:$))x*")
-}
-
-func testGetRegexpPrefix(t *testing.T, s, expectedPrefix, expectedSuffix string) {
-	t.Helper()
-
-	prefix, suffix := getRegexpPrefix([]byte(s))
-	if string(prefix) != expectedPrefix {
-		t.Fatalf("unexpected prefix for s=%q; got %q; want %q", s, prefix, expectedPrefix)
-	}
-	if string(suffix) != expectedSuffix {
-		t.Fatalf("unexpected suffix for s=%q; got %q; want %q", s, suffix, expectedSuffix)
-	}
-
-	// Get the prefix from cache.
-	prefix, suffix = getRegexpPrefix([]byte(s))
-	if string(prefix) != expectedPrefix {
-		t.Fatalf("unexpected prefix for s=%q; got %q; want %q", s, prefix, expectedPrefix)
-	}
-	if string(suffix) != expectedSuffix {
-		t.Fatalf("unexpected suffix for s=%q; got %q; want %q", s, suffix, expectedSuffix)
-	}
+	f(t, "(foo|bar$)x*", "", "(?:foo|bar(?-m:$))x*")
 }
 
 func TestTagFiltersAddEmpty(t *testing.T) {
