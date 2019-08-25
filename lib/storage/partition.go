@@ -22,15 +22,16 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// The maximum number of rows in a small part.
-//
-// This number limits the maximum size of small parts storage.
-// Production simultation shows that the required size of the storage
-// may be estimated as:
-//
-//     maxRowsPerSmallPart * 2 * defaultPartsToMerge * mergeWorkers
-//
-const maxRowsPerSmallPart = 300e6
+func maxRowsPerSmallPart() uint64 {
+	// Small parts are cached in the OS page cache,
+	// so limit the number of rows for small part
+	// by the remaining free RAM.
+	mem := memory.Remaining()
+	if mem <= 0 {
+		return 100e6
+	}
+	return uint64(mem) / defaultPartsToMerge
+}
 
 // The maximum number of rows per big part.
 //
@@ -885,7 +886,7 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 
 func (pt *partition) mergeSmallParts(isFinal bool) error {
 	maxRows := maxRowsByPath(pt.smallPartsPath)
-	if maxRows > maxRowsPerSmallPart {
+	if maxRows > maxRowsPerSmallPart() {
 		// The output part may go to big part,
 		// so make sure it as enough space.
 		maxBigPartRows := maxRowsByPath(pt.bigPartsPath)
@@ -955,7 +956,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	for _, pw := range pws {
 		outRowsCount += pw.p.ph.RowsCount
 	}
-	isBigPart := outRowsCount > maxRowsPerSmallPart
+	isBigPart := outRowsCount > maxRowsPerSmallPart()
 	nocache := isBigPart
 
 	// Prepare BlockStreamWriter for destination part.
