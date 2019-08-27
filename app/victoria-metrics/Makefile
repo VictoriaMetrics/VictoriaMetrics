@@ -1,6 +1,9 @@
 # All these commands must run from repository root.
 
 victoria-metrics:
+	APP_NAME=victoria-metrics $(MAKE) app-via-host-builder
+
+app-via-host-builder:
 	GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics ./app/victoria-metrics
 
 victoria-metrics-prod:
