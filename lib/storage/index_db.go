@@ -939,6 +939,9 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	_ = db.invalidateTagCache(accountID, projectID)
 
+	// Do not reset uselessTagFiltersCache, since the found metricIDs
+	// on cache miss are filtered out later with deletedMetricIDs.
+
 	// Delete TSIDs in the extDB.
 	if db.doExtDB(func(extDB *indexDB) {
 		var n int
@@ -1336,7 +1339,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 		return nil, nil, err
 	}
 	return nil, nil, fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
-		maxTimeRangeMetrics, tr.String())
+		maxMetrics, tr.String())
 }
 
 const maxDaysForDateMetricIDs = 40
