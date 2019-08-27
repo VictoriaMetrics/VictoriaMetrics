@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
-	"golang.org/x/sys/unix"
 )
 
 // maxParts is the maximum number of parts in the table.
@@ -804,19 +803,7 @@ func (tb *Table) maxOutPartItems() uint64 {
 }
 
 func (tb *Table) maxOutPartItemsSlow() uint64 {
-	// Determine the amount of free space on tb.path.
-	d, err := os.Open(tb.path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", tb.path, err)
-	}
-	defer fs.MustClose(d)
-
-	fd := d.Fd()
-	var stat unix.Statfs_t
-	if err := unix.Fstatfs(int(fd), &stat); err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", tb.path, err)
-	}
-	freeSpace := stat.Bavail * uint64(stat.Bsize)
+	freeSpace := fs.MustGetFreeSpace(tb.path)
 
 	// Calculate the maximum number of items in the output merge part
 	// by dividing the freeSpace by 4 and by the number of concurrent

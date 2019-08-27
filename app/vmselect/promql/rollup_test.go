@@ -182,7 +182,8 @@ func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpecte
 				t.Fatalf("unexpected value; got %v; want %v", v, vExpected)
 			}
 		} else {
-			if v != vExpected {
+			eps := math.Abs(v - vExpected)
+			if eps > 1e-14 {
 				t.Fatalf("unexpected value; got %v; want %v", v, vExpected)
 			}
 		}

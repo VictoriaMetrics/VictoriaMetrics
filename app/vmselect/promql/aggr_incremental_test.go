@@ -179,7 +179,8 @@ func compareValues(vs1, vs2 []float64) error {
 			}
 			continue
 		}
-		if v1 != v2 {
+		eps := math.Abs(v1 - v2)
+		if eps > 1e-14 {
 			return fmt.Errorf("unexpected value; got %v; want %v", v1, v2)
 		}
 	}

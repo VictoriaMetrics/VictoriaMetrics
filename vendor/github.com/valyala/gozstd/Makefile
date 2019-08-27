@@ -26,7 +26,7 @@ endif
 
 clean:
 	rm -f $(LIBZSTD_NAME)
-	cd zstd && make clean
+	cd zstd && $(MAKE) clean
 
 update-zstd:
 	rm -rf zstd-tmp
