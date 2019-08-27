@@ -478,6 +478,9 @@ where `<timeseries_selector_for_delete>` may contain any [time series selector](
 for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
 the deleted time series isn't freed instantly - it is freed during subsequent merges of data files.
 
+It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
+before actually deleting the metrics.
+
 
 ### How to export time series?
 
