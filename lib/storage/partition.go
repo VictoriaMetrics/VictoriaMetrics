@@ -19,7 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"golang.org/x/sys/unix"
 )
 
 func maxRowsPerSmallPart() uint64 {
@@ -838,18 +837,7 @@ func mustGetFreeDiskSpace(path string) uint64 {
 
 	// Slow path.
 	// Determine the amount of free space on bigPartsPath.
-	d, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
-	}
-	defer fs.MustClose(d)
-
-	fd := d.Fd()
-	var stat unix.Statfs_t
-	if err := unix.Fstatfs(int(fd), &stat); err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
-	}
-	e.freeSpace = stat.Bavail * uint64(stat.Bsize)
+	e.freeSpace = fs.MustGetFreeSpace(path)
 	e.updateTime = time.Now()
 	freeSpaceMap[path] = e
 	return e.freeSpace

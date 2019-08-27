@@ -400,3 +400,20 @@ func CreateFlockFile(dir string) (*os.File, error) {
 	}
 	return flockF, nil
 }
+
+// MustGetFreeSpace returns free space for the given directory path.
+func MustGetFreeSpace(path string) uint64 {
+	d, err := os.Open(path)
+	if err != nil {
+		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
+	}
+	defer MustClose(d)
+
+	fd := d.Fd()
+	var stat unix.Statfs_t
+	if err := unix.Fstatfs(int(fd), &stat); err != nil {
+		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
+	}
+	freeSpace := uint64(stat.Bavail) * uint64(stat.Bsize)
+	return freeSpace
+}
