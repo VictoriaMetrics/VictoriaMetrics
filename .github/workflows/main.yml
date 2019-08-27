@@ -1,0 +1,40 @@
+name: main
+on:
+  - push
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.12
+        id: go
+      - name: Code checkout
+        uses: actions/checkout@v1
+      - name: Dependencies
+        env:
+          GO111MODULE: off
+        run: |
+          go get -v golang.org/x/lint/golint
+          go get -u github.com/kisielk/errcheck
+      - name: Build
+        env:
+          GO111MODULE: on
+        run: |
+            export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
+            make check-all
+            git diff --exit-code
+            make test-full
+            make test-pure
+            make victoria-metrics
+            make victoria-metrics-pure
+            make victoria-metrics-arm
+            make victoria-metrics-arm64
+      - name: Publish coverage
+        uses: codecov/codecov-action@v1.0.0
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+          file: ./coverage.txt
+
