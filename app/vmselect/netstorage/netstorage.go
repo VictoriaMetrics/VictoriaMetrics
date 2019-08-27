@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	maxTagKeysPerSearch   = flag.Int("search.maxTagKeys", 10e3, "The maximum number of tag keys returned per search")
-	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 10e3, "The maximum number of tag values returned per search")
-	maxMetricsPerSearch   = flag.Int("search.maxUniqueTimeseries", 100e3, "The maximum number of unique time series each search can scan")
+	maxTagKeysPerSearch   = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
+	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
+	maxMetricsPerSearch   = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
 )
 
 // Result is a single timeseries result.
