@@ -75,6 +75,12 @@ vendor-update:
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor
 
+app-local:
+	CGO_ENABLED=1 GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+
+app-local-pure:
+	CGO_ENABLED=0 GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-pure$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+
 quicktemplate-gen: install-qtc
 	qtc
 

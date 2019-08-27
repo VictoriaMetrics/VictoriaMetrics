@@ -1,10 +1,7 @@
 # All these commands must run from repository root.
 
 victoria-metrics:
-	APP_NAME=victoria-metrics $(MAKE) app-via-host-builder
-
-app-via-host-builder:
-	GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics ./app/victoria-metrics
+	APP_NAME=victoria-metrics $(MAKE) app-local
 
 victoria-metrics-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker
@@ -36,7 +33,7 @@ victoria-metrics-arm64-prod:
 	APP_NAME=victoria-metrics APP_SUFFIX='-arm64' DOCKER_OPTS='--env CGO_ENABLED=0 --env GOARCH=arm64' $(MAKE) app-via-docker
 
 victoria-metrics-pure:
-	GO111MODULE=on CGO_ENABLED=0 go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-pure ./app/victoria-metrics
+	APP_NAME=victoria-metrics $(MAKE) app-local-pure
 
 victoria-metrics-pure-prod:
 	APP_NAME=victoria-metrics APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) app-via-docker
