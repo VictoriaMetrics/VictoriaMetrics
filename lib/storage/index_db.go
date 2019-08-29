@@ -65,9 +65,6 @@ type indexDB struct {
 	// matching low number of metrics.
 	uselessTagFiltersCache *workingsetcache.Cache
 
-	tagCachePrefixes     map[accountProjectKey]uint64
-	tagCachePrefixesLock sync.RWMutex
-
 	indexSearchPool sync.Pool
 
 	// An inmemory map[uint64]struct{} of deleted metricIDs.
@@ -104,12 +101,6 @@ type indexDB struct {
 	mustDrop uint64
 }
 
-// accountProjectKey is used for maps keyed by (AccountID, ProjectID).
-type accountProjectKey struct {
-	AccountID uint32
-	ProjectID uint32
-}
-
 // openIndexDB opens index db from the given path with the given caches.
 func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
 	if metricIDCache == nil {
@@ -125,7 +116,7 @@ func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Ca
 		logger.Panicf("BUG: prevHourMetricIDs must be non-nil")
 	}
 
-	tb, err := mergeset.OpenTable(path)
+	tb, err := mergeset.OpenTable(path, invalidateTagCache)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %s", path, err)
 	}
@@ -144,8 +135,6 @@ func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Ca
 		metricIDCache:          metricIDCache,
 		metricNameCache:        metricNameCache,
 		uselessTagFiltersCache: workingsetcache.New(mem/128, time.Hour),
-
-		tagCachePrefixes: make(map[accountProjectKey]uint64),
 
 		currHourMetricIDs: currHourMetricIDs,
 		prevHourMetricIDs: prevHourMetricIDs,
@@ -377,27 +366,17 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	db.metricNameCache.Set(key[:], metricName)
 }
 
-func (db *indexDB) marshalTagFiltersKey(dst []byte, tfss []*TagFilters, versioned bool) []byte {
-	if len(tfss) == 0 {
-		return nil
-	}
+func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, versioned bool) []byte {
 	prefix := ^uint64(0)
 	if versioned {
-		k := accountProjectKey{
-			AccountID: tfss[0].accountID,
-			ProjectID: tfss[0].projectID,
-		}
-		db.tagCachePrefixesLock.RLock()
-		prefix = db.tagCachePrefixes[k]
-		db.tagCachePrefixesLock.RUnlock()
-		if prefix == 0 {
-			// Create missing prefix.
-			// It is OK if multiple concurrent goroutines call invalidateTagCache
-			// for the same (accountID, projectID).
-			prefix = db.invalidateTagCache(k.AccountID, k.ProjectID)
-		}
+		prefix = atomic.LoadUint64(&tagFiltersKeyGen)
 	}
 	dst = encoding.MarshalUint64(dst, prefix)
+	if len(tfss) == 0 {
+		return dst
+	}
+	dst = encoding.MarshalUint32(dst, tfss[0].accountID)
+	dst = encoding.MarshalUint32(dst, tfss[0].projectID)
 	for _, tfs := range tfss {
 		dst = append(dst, 0) // separator between tfs groups.
 		for i := range tfs.tfs {
@@ -439,21 +418,13 @@ func unmarshalTSIDs(dst []TSID, src []byte) ([]TSID, error) {
 	return dst, nil
 }
 
-func (db *indexDB) invalidateTagCache(accountID, projectID uint32) uint64 {
+func invalidateTagCache() {
 	// This function must be fast, since it is called each
 	// time new timeseries is added.
-	prefix := atomic.AddUint64(&tagCacheKeyPrefix, 1)
-	k := accountProjectKey{
-		AccountID: accountID,
-		ProjectID: projectID,
-	}
-	db.tagCachePrefixesLock.Lock()
-	db.tagCachePrefixes[k] = prefix
-	db.tagCachePrefixesLock.Unlock()
-	return prefix
+	atomic.AddUint64(&tagFiltersKeyGen, 1)
 }
 
-var tagCacheKeyPrefix uint64
+var tagFiltersKeyGen uint64
 
 // getTSIDByNameNoCreate fills the dst with TSID for the given metricName.
 //
@@ -555,9 +526,8 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 		return fmt.Errorf("cannot create indexes: %s", err)
 	}
 
-	// Invalidate tag cache for the given (AccountID, ProjectID), since
-	// it doesn't contain tags for the created mn -> TSID mapping.
-	_ = db.invalidateTagCache(mn.AccountID, mn.ProjectID)
+	// There is no need in invalidating tag cache, since it is invalidated
+	// on db.tb flush via invalidateTagCache flushCallback passed to OpenTable.
 
 	return nil
 }
@@ -904,8 +874,6 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	if len(tfss) == 0 {
 		return 0, nil
 	}
-	accountID := tfss[0].accountID
-	projectID := tfss[0].projectID
 
 	// Obtain metricIDs to delete.
 	is := db.getIndexSearch()
@@ -937,7 +905,7 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	db.updateDeletedMetricIDs(metricIDs)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	_ = db.invalidateTagCache(accountID, projectID)
+	invalidateTagCache()
 
 	// Do not reset uselessTagFiltersCache, since the found metricIDs
 	// on cache miss are filtered out later with deletedMetricIDs.
@@ -1010,7 +978,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 
-	tfKeyBuf.B = db.marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, true)
+	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, true)
 	tsids, ok := db.getFromTagCache(tfKeyBuf.B)
 	if ok {
 		// Fast path - tsids found in the cache.
@@ -1031,7 +999,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 		defer tagFiltersKeyBufPool.Put(tfKeyExtBuf)
 
 		// Data in extDB cannot be changed, so use unversioned keys for tag cache.
-		tfKeyExtBuf.B = extDB.marshalTagFiltersKey(tfKeyExtBuf.B[:0], tfss, false)
+		tfKeyExtBuf.B = marshalTagFiltersKey(tfKeyExtBuf.B[:0], tfss, false)
 		tsids, ok := extDB.getFromTagCache(tfKeyExtBuf.B)
 		if ok {
 			extTSIDs = tsids
