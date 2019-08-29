@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	testutil "github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-metrics/test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -27,18 +29,21 @@ import (
 )
 
 const (
-	testFixturesDir        = "testdata"
-	testStorageSuffix      = "vm-test-storage"
-	testHTTPListenAddr     = ":7654"
-	testStatsDListenAddr   = ":2003"
-	testOpenTSDBListenAddr = ":4242"
-	testLogLevel           = "INFO"
+	testFixturesDir            = "testdata"
+	testStorageSuffix          = "vm-test-storage"
+	testHTTPListenAddr         = ":7654"
+	testStatsDListenAddr       = ":2003"
+	testOpenTSDBListenAddr     = ":4242"
+	testOpenTSDBHTTPListenAddr = ":4243"
+	testLogLevel               = "INFO"
 )
 
 const (
-	testReadHTTPPath   = "http://127.0.0.1" + testHTTPListenAddr
-	testWriteHTTPPath  = "http://127.0.0.1" + testHTTPListenAddr + "/write"
-	testHealthHTTPPath = "http://127.0.0.1" + testHTTPListenAddr + "/health"
+	testReadHTTPPath          = "http://127.0.0.1" + testHTTPListenAddr
+	testWriteHTTPPath         = "http://127.0.0.1" + testHTTPListenAddr + "/write"
+	testOpenTSDBWriteHTTPPath = "http://127.0.0.1" + testOpenTSDBHTTPListenAddr + "/api/put"
+	testPromWriteHTTPPath     = "http://127.0.0.1" + testHTTPListenAddr + "/api/v1/write"
+	testHealthHTTPPath        = "http://127.0.0.1" + testHTTPListenAddr + "/health"
 )
 
 const (
@@ -102,6 +107,7 @@ func processFlags() {
 		{flag: "graphiteListenAddr", value: testStatsDListenAddr},
 		{flag: "opentsdbListenAddr", value: testOpenTSDBListenAddr},
 		{flag: "loggerLevel", value: testLogLevel},
+		{flag: "opentsdbHTTPListenAddr", value: testOpenTSDBHTTPListenAddr},
 	} {
 		// panics if flag doesn't exist
 		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {
@@ -123,7 +129,7 @@ func waitFor(timeout time.Duration, f func() bool) error {
 
 func tearDown() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
-		log.Fatalf("cannot stop the webservice: %s", err)
+		log.Printf("cannot stop the webservice: %s", err)
 	}
 	vminsert.Stop()
 	vmstorage.Stop()
@@ -143,11 +149,26 @@ func TestWriteRead(t *testing.T) {
 }
 
 func testWrite(t *testing.T) {
+	t.Run("prometheus", func(t *testing.T) {
+		for _, test := range readIn("prometheus", t, fmt.Sprintf("%d", timeToMillis(insertionTime))) {
+			s := newSuite(t)
+			r := testutil.WriteRequest{}
+			s.noError(json.Unmarshal([]byte(test.Data), &r.Timeseries))
+			data, err := testutil.Compress(r)
+			s.greaterThan(len(r.Timeseries), 0)
+			if err != nil {
+				t.Errorf("error compressing %v %s", r, err)
+				t.Fail()
+			}
+			httpWrite(t, testPromWriteHTTPPath, bytes.NewBuffer(data))
+		}
+	})
+
 	t.Run("influxdb", func(t *testing.T) {
 		for _, test := range readIn("influxdb", t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
-				httpWrite(t, testWriteHTTPPath, test.Data)
+				httpWrite(t, testWriteHTTPPath, bytes.NewBufferString(test.Data))
 			})
 		}
 	})
@@ -167,10 +188,18 @@ func testWrite(t *testing.T) {
 			})
 		}
 	})
+	t.Run("opentsdbhttp", func(t *testing.T) {
+		for _, test := range readIn("opentsdbhttp", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+			t.Run(test.Name, func(t *testing.T) {
+				t.Parallel()
+				httpWrite(t, testOpenTSDBWriteHTTPPath, bytes.NewBufferString(test.Data))
+			})
+		}
+	})
 }
 
 func testRead(t *testing.T) {
-	for _, engine := range []string{"graphite", "opentsdb", "influxdb"} {
+	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
 		t.Run(engine, func(t *testing.T) {
 			for _, test := range readIn(engine, t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
 				test := test
@@ -195,7 +224,7 @@ func readIn(readFor string, t *testing.T, timeStr string) []test {
 		s.noError(err)
 		item := test{}
 		s.noError(json.Unmarshal(b, &item))
-		item.Data = strings.Replace(item.Data, "{TIME}", timeStr, 1)
+		item.Data = strings.Replace(item.Data, "{TIME}", timeStr, -1)
 		tt = append(tt, item)
 		return nil
 	}))
@@ -205,10 +234,10 @@ func readIn(readFor string, t *testing.T, timeStr string) []test {
 	return tt
 }
 
-func httpWrite(t *testing.T, address string, data string) {
+func httpWrite(t *testing.T, address string, r io.Reader) {
 	t.Helper()
 	s := newSuite(t)
-	resp, err := http.Post(address, "", bytes.NewBufferString(data))
+	resp, err := http.Post(address, "", r)
 	s.noError(err)
 	s.noError(resp.Body.Close())
 	s.equalInt(resp.StatusCode, 204)
@@ -280,4 +309,16 @@ func (s *suite) equalInt(a, b int) {
 		s.t.Errorf("%d not equal %d", a, b)
 		s.t.FailNow()
 	}
+}
+
+func (s *suite) greaterThan(a, b int) {
+	s.t.Helper()
+	if a <= b {
+		s.t.Errorf("%d less or equal then %d", a, b)
+		s.t.FailNow()
+	}
+}
+
+func timeToMillis(t time.Time) int64 {
+	return t.UnixNano() / 1e6
 }
