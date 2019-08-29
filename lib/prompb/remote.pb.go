@@ -31,7 +31,7 @@ func (m *WriteRequest) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -118,7 +118,7 @@ func skipRemote(dAtA []byte) (n int, err error) {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -176,7 +176,7 @@ func skipRemote(dAtA []byte) (n int, err error) {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
+					innerWire |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
