@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -39,7 +40,7 @@ func TestTableSearchSerial(t *testing.T) {
 
 	func() {
 		// Re-open the table and verify the search works.
-		tb, err := OpenTable(path)
+		tb, err := OpenTable(path, nil)
 		if err != nil {
 			t.Fatalf("cannot open table: %s", err)
 		}
@@ -74,7 +75,7 @@ func TestTableSearchConcurrent(t *testing.T) {
 
 	// Re-open the table and verify the search works.
 	func() {
-		tb, err := OpenTable(path)
+		tb, err := OpenTable(path, nil)
 		if err != nil {
 			t.Fatalf("cannot open table: %s", err)
 		}
@@ -146,7 +147,11 @@ func testTableSearchSerial(tb *Table, items []string) error {
 }
 
 func newTestTable(path string, itemsCount int) (*Table, []string, error) {
-	tb, err := OpenTable(path)
+	var flushes uint64
+	flushCallback := func() {
+		atomic.AddUint64(&flushes, 1)
+	}
+	tb, err := OpenTable(path, flushCallback)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open table: %s", err)
 	}
@@ -159,6 +164,9 @@ func newTestTable(path string, itemsCount int) (*Table, []string, error) {
 		items[i] = item
 	}
 	tb.DebugFlush()
+	if itemsCount > 0 && atomic.LoadUint64(&flushes) == 0 {
+		return nil, nil, fmt.Errorf("unexpeted zero flushes for itemsCount=%d", itemsCount)
+	}
 
 	sort.Strings(items)
 	return tb, items, nil

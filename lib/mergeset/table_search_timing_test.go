@@ -32,7 +32,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 
 	// Force finishing pending merges
 	tb.MustClose()
-	tb, err = OpenTable(path)
+	tb, err = OpenTable(path, nil)
 	if err != nil {
 		b.Fatalf("unexpected error when re-opening table %q: %s", path, err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -20,7 +21,7 @@ func TestTableOpenClose(t *testing.T) {
 	}()
 
 	// Create a new table
-	tb, err := OpenTable(path)
+	tb, err := OpenTable(path, nil)
 	if err != nil {
 		t.Fatalf("cannot create new table: %s", err)
 	}
@@ -30,7 +31,7 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Re-open created table multiple times.
 	for i := 0; i < 10; i++ {
-		tb, err := OpenTable(path)
+		tb, err := OpenTable(path, nil)
 		if err != nil {
 			t.Fatalf("cannot open created table: %s", err)
 		}
@@ -44,14 +45,14 @@ func TestTableOpenMultipleTimes(t *testing.T) {
 		_ = os.RemoveAll(path)
 	}()
 
-	tb1, err := OpenTable(path)
+	tb1, err := OpenTable(path, nil)
 	if err != nil {
 		t.Fatalf("cannot open table: %s", err)
 	}
 	defer tb1.MustClose()
 
 	for i := 0; i < 10; i++ {
-		tb2, err := OpenTable(path)
+		tb2, err := OpenTable(path, nil)
 		if err == nil {
 			tb2.MustClose()
 			t.Fatalf("expecting non-nil error when opening already opened table")
@@ -68,7 +69,11 @@ func TestTableAddItemSerial(t *testing.T) {
 		_ = os.RemoveAll(path)
 	}()
 
-	tb, err := OpenTable(path)
+	var flushes uint64
+	flushCallback := func() {
+		atomic.AddUint64(&flushes, 1)
+	}
+	tb, err := OpenTable(path, flushCallback)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
@@ -78,6 +83,9 @@ func TestTableAddItemSerial(t *testing.T) {
 
 	// Verify items count after pending items flush.
 	tb.DebugFlush()
+	if atomic.LoadUint64(&flushes) == 0 {
+		t.Fatalf("unexpected zero flushes")
+	}
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
@@ -91,7 +99,7 @@ func TestTableAddItemSerial(t *testing.T) {
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
-	tb, err = OpenTable(path)
+	tb, err = OpenTable(path, nil)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
@@ -124,7 +132,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 		_ = os.RemoveAll(path)
 	}()
 
-	tb, err := OpenTable(path)
+	tb, err := OpenTable(path, nil)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
@@ -155,13 +163,13 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	}()
 
 	// Verify snapshots contain all the data.
-	tb1, err := OpenTable(snapshot1)
+	tb1, err := OpenTable(snapshot1, nil)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
 	defer tb1.MustClose()
 
-	tb2, err := OpenTable(snapshot2)
+	tb2, err := OpenTable(snapshot2, nil)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
@@ -205,7 +213,11 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 		_ = os.RemoveAll(path)
 	}()
 
-	tb, err := OpenTable(path)
+	var flushes uint64
+	flushCallback := func() {
+		atomic.AddUint64(&flushes, 1)
+	}
+	tb, err := OpenTable(path, flushCallback)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
@@ -215,6 +227,10 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 
 	// Verify items count after pending items flush.
 	tb.DebugFlush()
+	if atomic.LoadUint64(&flushes) == 0 {
+		t.Fatalf("unexpected zero flushes")
+	}
+
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
 	if m.ItemsCount != itemsCount {
@@ -227,7 +243,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
-	tb, err = OpenTable(path)
+	tb, err = OpenTable(path, nil)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
@@ -269,7 +285,7 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 	t.Helper()
 
 	for i := 0; i < 10; i++ {
-		tb, err := OpenTable(path)
+		tb, err := OpenTable(path, nil)
 		if err != nil {
 			t.Fatalf("cannot re-open %q: %s", path, err)
 		}

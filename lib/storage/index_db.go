@@ -116,7 +116,7 @@ func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Ca
 		logger.Panicf("BUG: prevHourMetricIDs must be non-nil")
 	}
 
-	tb, err := mergeset.OpenTable(path)
+	tb, err := mergeset.OpenTable(path, invalidateTagCache)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %s", path, err)
 	}
@@ -405,7 +405,7 @@ func unmarshalTSIDs(dst []TSID, src []byte) ([]TSID, error) {
 	return dst, nil
 }
 
-func (db *indexDB) invalidateTagCache() {
+func invalidateTagCache() {
 	// This function must be fast, since it is called each
 	// time new timeseries is added.
 	atomic.AddUint64(&tagFiltersKeyGen, 1)
@@ -513,8 +513,8 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 		return fmt.Errorf("cannot create indexes: %s", err)
 	}
 
-	// Invalidate tag cache, since it doesn't contain tags for the created mn -> TSID mapping.
-	db.invalidateTagCache()
+	// There is no need in invalidating tag cache, since it is invalidated
+	// on db.tb flush via invalidateTagCache flushCallback passed to OpenTable.
 
 	return nil
 }
@@ -890,7 +890,7 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	db.updateDeletedMetricIDs(metricIDs)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	db.invalidateTagCache()
+	invalidateTagCache()
 
 	// Do not reset uselessTagFiltersCache, since the found metricIDs
 	// on cache miss are filtered out later with deletedMetricIDs.

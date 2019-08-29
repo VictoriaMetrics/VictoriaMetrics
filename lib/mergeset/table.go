@@ -59,6 +59,8 @@ const rawItemsFlushInterval = time.Second
 type Table struct {
 	path string
 
+	flushCallback func()
+
 	partsLock sync.Mutex
 	parts     []*partWrapper
 
@@ -121,8 +123,11 @@ func (pw *partWrapper) decRef() {
 
 // OpenTable opens a table on the given path.
 //
+// Optional flushCallback is called every time new data batch is flushed
+// to the underlying storage and becomes visible to search.
+//
 // The table is created if it doesn't exist yet.
-func OpenTable(path string) (*Table, error) {
+func OpenTable(path string, flushCallback func()) (*Table, error) {
 	path = filepath.Clean(path)
 	logger.Infof("opening table %q...", path)
 	startTime := time.Now()
@@ -145,11 +150,12 @@ func OpenTable(path string) (*Table, error) {
 	}
 
 	tb := &Table{
-		path:     path,
-		parts:    pws,
-		mergeIdx: uint64(time.Now().UnixNano()),
-		flockF:   flockF,
-		stopCh:   make(chan struct{}),
+		path:          path,
+		flushCallback: flushCallback,
+		parts:         pws,
+		mergeIdx:      uint64(time.Now().UnixNano()),
+		flockF:        flockF,
+		stopCh:        make(chan struct{}),
 	}
 	tb.startPartMergers()
 	tb.startRawItemsFlusher()
@@ -443,6 +449,9 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 	if len(pws) > 0 {
 		if err := tb.mergeParts(pws, nil, true); err != nil {
 			logger.Panicf("FATAL: cannot merge raw parts: %s", err)
+		}
+		if tb.flushCallback != nil {
+			tb.flushCallback()
 		}
 	}
 
