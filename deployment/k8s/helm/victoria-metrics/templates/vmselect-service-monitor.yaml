@@ -8,7 +8,9 @@ metadata:
   {{- end }}
   labels:
   {{- include "victoria-metrics.vmselect.labels" . | nindent 4 }}
+  {{- if .Values.vmselect.serviceMonitor.extraLabels }}
 {{ toYaml .Values.vmselect.serviceMonitor.extraLabels | indent 4 }}
+  {{- end }}
   name: {{ template "victoria-metrics.vmselect.fullname" . }}
 spec:
   namespaceSelector:

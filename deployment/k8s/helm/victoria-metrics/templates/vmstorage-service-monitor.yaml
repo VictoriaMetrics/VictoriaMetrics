@@ -8,7 +8,9 @@ metadata:
   {{- end }}
   labels:
   {{- include "victoria-metrics.vmstorage.labels" . | nindent 4 }}
+  {{- if .Values.vmstorage.serviceMonitor.extraLabels }}
 {{ toYaml .Values.vmstorage.serviceMonitor.extraLabels | indent 4 }}
+  {{- end }}
   name: {{ template "victoria-metrics.vmstorage.fullname" . }}
 spec:
   namespaceSelector:
