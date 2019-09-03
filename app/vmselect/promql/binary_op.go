@@ -322,6 +322,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 			}
 			src := tssRight[0]
 			for _, ts := range tssLeft {
+				resetMetricGroupIfRequired(be, ts)
 				ts.MetricName.AddMissingTags(joinTags, &src.MetricName)
 				rvsLeft = append(rvsLeft, ts)
 				rvsRight = append(rvsRight, src)
@@ -332,6 +333,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 			}
 			src := tssLeft[0]
 			for _, ts := range tssRight {
+				resetMetricGroupIfRequired(be, ts)
 				ts.MetricName.AddMissingTags(joinTags, &src.MetricName)
 				rvsLeft = append(rvsLeft, src)
 				rvsRight = append(rvsRight, ts)
