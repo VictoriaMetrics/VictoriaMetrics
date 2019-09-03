@@ -30,7 +30,7 @@ func TestTmpBlocksFileSerial(t *testing.T) {
 }
 
 func TestTmpBlocksFileConcurrent(t *testing.T) {
-	concurrency := 4
+	concurrency := 3
 	ch := make(chan error, concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
@@ -69,7 +69,7 @@ func testTmpBlocksFile() error {
 		_, _, _ = b.MarshalData(0, 0)
 		return &b
 	}
-	for _, size := range []int{1024, 16 * 1024, maxInmemoryTmpBlocksFile / 2, 2 * maxInmemoryTmpBlocksFile} {
+	for _, size := range []int{1024, 16 * 1024, maxInmemoryTmpBlocksFile() / 2, 2 * maxInmemoryTmpBlocksFile()} {
 		err := func() error {
 			tbf := getTmpBlocksFile()
 			defer putTmpBlocksFile(tbf)
@@ -94,7 +94,7 @@ func testTmpBlocksFile() error {
 			}
 
 			// Read blocks in parallel and verify them
-			concurrency := 3
+			concurrency := 2
 			workCh := make(chan int)
 			doneCh := make(chan error)
 			for i := 0; i < concurrency; i++ {
