@@ -1859,9 +1859,9 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`vector * on(foo) group_left() duplicate_timeseries`, func(t *testing.T) {
+	t.Run(`vector * on(foo) group_left() duplicate_nonoverlapping_timeseries`, func(t *testing.T) {
 		t.Parallel()
-		q := `label_set(time()/10, "foo", "bar") + on(foo) group_left() (
+		q := `label_set(time()/10, "foo", "bar", "xx", "yy", "__name__", "qwert") + on(foo) group_left() (
 			label_set(time() < 1400, "foo", "bar", "op", "le"),
 			label_set(time() >= 1400, "foo", "bar", "op", "ge"),
 		)`
@@ -1870,11 +1870,83 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1100, 1320, 1540, 1760, 1980, 2200},
 			Timestamps: timestampsExpected,
 		}
-		r1.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("bar"),
-		}}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
 		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`vector * on(foo) group_left(__name__)`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time()/10, "foo", "bar", "xx", "yy", "__name__", "qwert") + on(foo) group_left(__name__)
+			label_set(time(), "foo", "bar", "__name__", "aaa")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1320, 1540, 1760, 1980, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("aaa")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`vector * on(foo) group_right()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(label_set(time()/10, "foo", "bar", "xx", "yy", "__name__", "qwert") + on(foo) group_right(xx) (
+			label_set(time(), "foo", "bar", "__name__", "aaa"),
+			label_set(time()+3, "foo", "bar", "__name__", "yyy","ppp", "123"),
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1320, 1540, 1760, 1980, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1103, 1323, 1543, 1763, 1983, 2203},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("ppp"),
+				Value: []byte("123"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`vector * on() group_left scalar`, func(t *testing.T) {
