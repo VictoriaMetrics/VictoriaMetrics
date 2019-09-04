@@ -248,12 +248,16 @@ func mustSyncParentDirIfExists(path string) {
 //
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 func MustRemoveAll(path string) {
+	_ = mustRemoveAll(path)
+}
+
+func mustRemoveAll(path string) bool {
 	err := os.RemoveAll(path)
 	if err == nil {
 		// Make sure the parent directory doesn't contain references
 		// to the current directory.
 		mustSyncParentDirIfExists(path)
-		return
+		return true
 	}
 	if !isTemporaryNFSError(err) {
 		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
@@ -261,38 +265,40 @@ func MustRemoveAll(path string) {
 	// NFS prevents from removing directories with open files.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 	// Schedule for later directory removal.
+	nfsDirRemoveFailedAttempts.Inc()
 	select {
 	case removeDirCh <- path:
 	default:
 		logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirCh))
 	}
+	return false
 }
+
+var nfsDirRemoveFailedAttempts = metrics.NewCounter(`vm_nfs_dir_remove_failed_attempts_total`)
 
 var removeDirCh = make(chan string, 1024)
 
 func dirRemover() {
+	const minSleepTime = 100 * time.Millisecond
+	const maxSleepTime = time.Second
+	sleepTime := minSleepTime
 	for path := range removeDirCh {
-		attempts := 0
-		for {
-			err := os.RemoveAll(path)
-			if err == nil {
-				break
-			}
-			if !isTemporaryNFSError(err) {
-				logger.Panicf("FATAL: cannot remove %q: %s", path, err)
-			}
-			// NFS prevents from removing directories with open files.
-			// Sleep for a while and try again in the hope open files will be closed.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-			attempts++
-			if attempts > 10 {
-				logger.Panicf("FATAL: cannot remove %q in %d attempts: %s", path, attempts, err)
-			}
-			time.Sleep(100 * time.Millisecond)
+		if mustRemoveAll(path) {
+			sleepTime = minSleepTime
+			continue
 		}
-		// Make sure the parent directory doesn't contain references
-		// to the current directory.
-		mustSyncParentDirIfExists(path)
+
+		// Couldn't remove the directory at the path because of NFS lock.
+		// Sleep for a while and try again.
+		// Do not limit the amount of time required for deleting the directory,
+		// since this may break on laggy NFS.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/162 .
+		time.Sleep(sleepTime)
+		if sleepTime < maxSleepTime {
+			sleepTime *= 2
+		} else {
+			logger.Errorf("failed to remove directory %q due to NFS lock; retrying later", path)
+		}
 	}
 }
 
