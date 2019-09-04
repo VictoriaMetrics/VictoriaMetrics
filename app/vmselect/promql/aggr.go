@@ -353,6 +353,25 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Remove dstLabel from grouping like Prometheus does.
+	modifier := &afa.ae.Modifier
+	switch strings.ToLower(modifier.Op) {
+	case "without":
+		modifier.Args = append(modifier.Args, dstLabel)
+	case "by":
+		dstArgs := modifier.Args[:0]
+		for _, arg := range modifier.Args {
+			if arg == dstLabel {
+				continue
+			}
+			dstArgs = append(dstArgs, arg)
+		}
+		modifier.Args = dstArgs
+	default:
+		// Do nothing
+	}
+
 	afe := func(tss []*timeseries) []*timeseries {
 		m := make(map[float64]bool)
 		for _, ts := range tss {
