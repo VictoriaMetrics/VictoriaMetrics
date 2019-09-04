@@ -186,6 +186,9 @@ Follow the following steps during the upgrade:
 2) Wait until the process stops. This can take a few seconds.
 3) Start the upgraded VictoriaMetrics.
 
+Prometheus doesn't drop data during VictoriaMetrics restart.
+See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
+
 
 ### How to apply new config to VictoriaMetrics?
 
@@ -194,6 +197,9 @@ VictoriaMetrics must be restarted for applying new config:
 1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
 2) Wait until the process stops. This can take a few seconds.
 3) Start VictoriaMetrics with the new config.
+
+Prometheus doesn't drop data during VictoriaMetrics restart.
+See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
 
 
 ### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)?
