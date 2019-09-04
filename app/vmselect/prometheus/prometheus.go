@@ -557,7 +557,9 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 	if err := promql.ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
 		return err
 	}
-	start, end = promql.AdjustStartEnd(start, end, step)
+	if mayCache {
+		start, end = promql.AdjustStartEnd(start, end, step)
+	}
 
 	ec := promql.EvalConfig{
 		Start:    start,
