@@ -34,6 +34,36 @@ func testMetricNameSortTags(t *testing.T, tags, expectedTags []string) {
 	}
 }
 
+func TestMetricNameMarshalDuplicateKeys(t *testing.T) {
+	var mn MetricName
+	mn.AccountID = 123
+	mn.ProjectID = 324
+	mn.MetricGroup = []byte("xxx")
+	mn.AddTag("foo", "bar")
+	mn.AddTag("duplicate", "tag")
+	mn.AddTag("duplicate", "tag")
+	mn.AddTag("tt", "xx")
+	mn.AddTag("duplicate", "tag2")
+
+	var mnExpected MetricName
+	mnExpected.AccountID = 123
+	mnExpected.ProjectID = 324
+	mnExpected.MetricGroup = []byte("xxx")
+	mnExpected.AddTag("duplicate", "tag")
+	mnExpected.AddTag("foo", "bar")
+	mnExpected.AddTag("tt", "xx")
+
+	mn.sortTags()
+	data := mn.Marshal(nil)
+	var mn1 MetricName
+	if err := mn1.Unmarshal(data); err != nil {
+		t.Fatalf("cannot unmarshal mn %s: %s", &mn, err)
+	}
+	if !reflect.DeepEqual(&mnExpected, &mn1) {
+		t.Fatalf("unexpected mn unmarshaled;\ngot\n%+v\nwant\n%+v", &mn1, &mnExpected)
+	}
+}
+
 func TestMetricNameMarshalUnmarshal(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		for tagsCount := 0; tagsCount < 10; tagsCount++ {

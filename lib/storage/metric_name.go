@@ -367,17 +367,8 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 		}
 	}
 
-	// Verify no identical tag keys.
-	if len(mn.Tags) > 0 {
-		prevKey := mn.Tags[0].Key
-		for i := range mn.Tags[1:] {
-			t := &mn.Tags[1+i]
-			if bytes.Equal(t.Key, prevKey) {
-				return fmt.Errorf("found duplicate key %q", prevKey)
-			}
-			prevKey = t.Key
-		}
-	}
+	// There is no need in verifying for identical tag keys,
+	// since they must be handled in MetricName.Marshal inside marshalTags.
 
 	return nil
 }
@@ -584,8 +575,15 @@ func (ts *canonicalTagsSort) Swap(i, j int) {
 }
 
 func marshalTags(dst []byte, tags []Tag) []byte {
+	var prevKey []byte
 	for i := range tags {
-		dst = tags[i].Marshal(dst)
+		t := &tags[i]
+		if string(prevKey) == string(t.Key) {
+			// Skip duplicate keys, since they aren't allowed in Prometheus data model.
+			continue
+		}
+		prevKey = t.Key
+		dst = t.Marshal(dst)
 	}
 	return dst
 }
