@@ -359,7 +359,7 @@ func TestRollupNoWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{2, 0, 0, 0, 0, 0, 0, 0}
+		valuesExpected := []float64{2, 0, 0, 0, nan, nan, nan, nan}
 		timestampsExpected := []int64{120, 124, 128, 132, 136, 140, 144, 148}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -390,7 +390,7 @@ func TestRollupWindowNoPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{34, 34, 34, nan}
+		valuesExpected := []float64{nan, nan, nan, nan}
 		timestampsExpected := []int64{161, 171, 181, 191}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -421,7 +421,7 @@ func TestRollupNoWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{12, 44, 34, 34}
+		valuesExpected := []float64{12, 44, 34, nan}
 		timestampsExpected := []int64{100, 120, 140, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -466,7 +466,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{44, 34, 34, 34}
+		valuesExpected := []float64{44, 34, 34, nan}
 		timestampsExpected := []int64{100, 120, 140, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -480,7 +480,7 @@ func TestRollupWindowPartialPoints(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, 54, 44, 34}
+		valuesExpected := []float64{nan, 54, 44, nan}
 		timestampsExpected := []int64{0, 50, 100, 150}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
