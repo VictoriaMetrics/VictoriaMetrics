@@ -211,7 +211,7 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 		rfa.prevValue = nan
 		rfa.prevTimestamp = tStart - maxPrevInterval
-		if i > 0 && timestamps[i-1] > rfa.prevTimestamp {
+		if i < len(timestamps) && i > 0 && timestamps[i-1] > rfa.prevTimestamp {
 			rfa.prevValue = values[i-1]
 			rfa.prevTimestamp = timestamps[i-1]
 		}
