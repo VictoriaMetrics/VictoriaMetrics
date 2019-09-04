@@ -36,8 +36,6 @@ func testMetricNameSortTags(t *testing.T, tags, expectedTags []string) {
 
 func TestMetricNameMarshalDuplicateKeys(t *testing.T) {
 	var mn MetricName
-	mn.AccountID = 123
-	mn.ProjectID = 324
 	mn.MetricGroup = []byte("xxx")
 	mn.AddTag("foo", "bar")
 	mn.AddTag("duplicate", "tag")
@@ -46,8 +44,6 @@ func TestMetricNameMarshalDuplicateKeys(t *testing.T) {
 	mn.AddTag("duplicate", "tag2")
 
 	var mnExpected MetricName
-	mnExpected.AccountID = 123
-	mnExpected.ProjectID = 324
 	mnExpected.MetricGroup = []byte("xxx")
 	mnExpected.AddTag("duplicate", "tag")
 	mnExpected.AddTag("foo", "bar")
