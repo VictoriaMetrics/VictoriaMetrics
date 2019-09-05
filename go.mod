@@ -13,7 +13,7 @@ require (
 	github.com/valyala/gozstd v1.6.1
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.2.0
-	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a
+	golang.org/x/sys v0.0.0-20190904154756-749cb33beabd
 )
 
 go 1.12
