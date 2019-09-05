@@ -1,0 +1,9 @@
+{
+  "name": "multiline",
+  "data": "[{\"metric\": \"opentsdbhttp.multiline1\", \"value\": 1001, \"timestamp\": \"{TIME}\", \"tags\": {\"bar\":\"baz\", \"x\": \"y\"}}, {\"metric\": \"opentsdbhttp.multiline2\", \"value\": 1002, \"timestamp\": {TIME}}]",
+  "query": "/api/v1/export?match={__name__!=\"\"}",
+  "result": [
+    {"metric":{"__name__":"opentsdbhttp.multiline1","bar":"baz","x":"y"},"values":[1001]},
+    {"metric":{"__name__":"opentsdbhttp.multiline2"},"values":[1002]}
+  ]
+}
