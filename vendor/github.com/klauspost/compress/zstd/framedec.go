@@ -62,6 +62,9 @@ func newFrameDec(o decoderOptions) *frameDec {
 		o:             o,
 		maxWindowSize: 1 << 30,
 	}
+	if d.maxWindowSize > o.maxDecodedSize {
+		d.maxWindowSize = o.maxDecodedSize
+	}
 	return &d
 }
 
