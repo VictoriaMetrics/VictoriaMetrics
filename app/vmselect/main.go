@@ -76,6 +76,8 @@ func main() {
 	}
 	logger.Infof("successfully stopped netstorage in %s", time.Since(startTime))
 
+	fs.MustStopDirRemover()
+
 	logger.Infof("the vmselect has been stopped")
 }
 
