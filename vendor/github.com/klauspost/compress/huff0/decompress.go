@@ -193,14 +193,26 @@ func (s *Scratch) Decompress1X(in []byte) (out []byte, err error) {
 		tmp[off+3] = hasDec(dt[br.peekBitsFast(s.actualTableLog)&tlMask])
 		off += 4
 		if off == 0 {
+			if len(s.Out)+256 > s.MaxDecodedSize {
+				br.close()
+				return nil, ErrMaxDecodedSizeExceeded
+			}
 			s.Out = append(s.Out, tmp...)
 		}
 	}
 
+	if len(s.Out)+int(off) > s.MaxDecodedSize {
+		br.close()
+		return nil, ErrMaxDecodedSizeExceeded
+	}
 	s.Out = append(s.Out, tmp[:off]...)
 
 	for !br.finished() {
 		br.fill()
+		if len(s.Out) >= s.MaxDecodedSize {
+			br.close()
+			return nil, ErrMaxDecodedSizeExceeded
+		}
 		s.Out = append(s.Out, decode())
 	}
 	return s.Out, br.close()
@@ -217,6 +229,9 @@ func (s *Scratch) Decompress4X(in []byte, dstSize int) (out []byte, err error) {
 	}
 	if len(in) < 6+(4*1) {
 		return nil, errors.New("input too small")
+	}
+	if dstSize > s.MaxDecodedSize {
+		return nil, ErrMaxDecodedSizeExceeded
 	}
 	// TODO: We do not detect when we overrun a buffer, except if the last one does.
 

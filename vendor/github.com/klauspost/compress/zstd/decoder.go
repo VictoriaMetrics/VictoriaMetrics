@@ -75,6 +75,7 @@ var (
 // The Reset function can be used to initiate a new stream, which is will considerably
 // reduce the allocations normally caused by NewReader.
 func NewReader(r io.Reader, opts ...DOption) (*Decoder, error) {
+	initPredefined()
 	var d Decoder
 	d.o.setDefault()
 	for _, o := range opts {
@@ -285,10 +286,6 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) {
 		d.frames <- frame
 	}()
 	frame.bBuf = input
-	if cap(dst) == 0 {
-		// Allocate 1MB by default if nothing is provided.
-		dst = make([]byte, 0, 1<<20)
-	}
 
 	for {
 		err := frame.reset(&frame.bBuf)
@@ -309,6 +306,16 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) {
 				dst = dst2
 			}
 		}
+		if cap(dst) == 0 {
+			// Allocate window size * 2 by default if nothing is provided and we didn't get frame content size.
+			size := frame.WindowSize * 2
+			// Cap to 1 MB.
+			if size > 1<<20 {
+				size = 1 << 20
+			}
+			dst = make([]byte, 0, frame.WindowSize)
+		}
+
 		dst, err = frame.runDecoder(dst, block)
 		if err != nil {
 			return dst, err
