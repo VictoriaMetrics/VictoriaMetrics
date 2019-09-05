@@ -165,7 +165,8 @@ func testWrite(t *testing.T) {
 	})
 
 	t.Run("influxdb", func(t *testing.T) {
-		for _, test := range readIn("influxdb", t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
+		for _, x := range readIn("influxdb", t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
+			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
 				httpWrite(t, testWriteHTTPPath, bytes.NewBufferString(test.Data))
@@ -173,7 +174,8 @@ func testWrite(t *testing.T) {
 		}
 	})
 	t.Run("graphite", func(t *testing.T) {
-		for _, test := range readIn("graphite", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+		for _, x := range readIn("graphite", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
 				tcpWrite(t, "127.0.0.1"+testStatsDListenAddr, test.Data)
@@ -181,7 +183,8 @@ func testWrite(t *testing.T) {
 		}
 	})
 	t.Run("opentsdb", func(t *testing.T) {
-		for _, test := range readIn("opentsdb", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+		for _, x := range readIn("opentsdb", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
 				tcpWrite(t, "127.0.0.1"+testOpenTSDBListenAddr, test.Data)
@@ -189,9 +192,11 @@ func testWrite(t *testing.T) {
 		}
 	})
 	t.Run("opentsdbhttp", func(t *testing.T) {
-		for _, test := range readIn("opentsdbhttp", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+		for _, x := range readIn("opentsdbhttp", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
+				logger.Infof("writing %s", test.Data)
 				httpWrite(t, testOpenTSDBWriteHTTPPath, bytes.NewBufferString(test.Data))
 			})
 		}
@@ -201,8 +206,8 @@ func testWrite(t *testing.T) {
 func testRead(t *testing.T) {
 	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
 		t.Run(engine, func(t *testing.T) {
-			for _, test := range readIn(engine, t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
-				test := test
+			for _, x := range readIn(engine, t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
+				test := x
 				t.Run(test.Name, func(t *testing.T) {
 					t.Parallel()
 					rowContains(t, httpRead(t, testReadHTTPPath, test.Query), test.Result)
