@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -92,7 +93,7 @@ func setUp() {
 
 func processFlags() {
 	flag.Parse()
-	for _, fs := range []struct {
+	for _, fv := range []struct {
 		flag  string
 		value string
 	}{
@@ -103,8 +104,8 @@ func processFlags() {
 		{flag: "loggerLevel", value: testLogLevel},
 	} {
 		// panics if flag doesn't exist
-		if err := flag.Lookup(fs.flag).Value.Set(fs.value); err != nil {
-			log.Fatalf("unable to set %q with value %q, err: %v", fs.flag, fs.value, err)
+		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {
+			log.Fatalf("unable to set %q with value %q, err: %v", fv.flag, fv.value, err)
 		}
 	}
 }
@@ -121,13 +122,14 @@ func waitFor(timeout time.Duration, f func() bool) error {
 }
 
 func tearDown() {
-	vminsert.Stop()
-	vmstorage.Stop()
-	vmselect.Stop()
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		log.Fatalf("cannot stop the webservice: %s", err)
 	}
-	os.RemoveAll(storagePath)
+	vminsert.Stop()
+	vmstorage.Stop()
+	vmselect.Stop()
+	fs.MustRemoveAll(storagePath)
+	fs.MustStopDirRemover()
 }
 
 func TestWriteRead(t *testing.T) {
