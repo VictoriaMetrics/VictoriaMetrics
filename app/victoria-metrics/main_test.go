@@ -50,6 +50,12 @@ const (
 	testStorageInitTimeout = 10 * time.Second
 )
 
+const (
+	tplWordTime              = "{TIME}"
+	tplQuotedWordTimeSeconds = `"{TIME_S}"`
+	tplQuotedWordTimeMillis  = `"{TIME_MS}"`
+)
+
 var (
 	storagePath   string
 	insertionTime = time.Now().UTC()
@@ -66,6 +72,30 @@ type Row struct {
 	Metric     map[string]string `json:"metric"`
 	Values     []float64         `json:"values"`
 	Timestamps []int64           `json:"timestamps"`
+}
+
+func (r *Row) UnmarshalJSON(b []byte) error {
+	type withoutInterface Row
+	var to withoutInterface
+	if err := json.Unmarshal(populateTimeTpl(b), &to); err != nil {
+		return err
+	}
+	*r = Row(to)
+	return nil
+}
+
+func populateTimeTpl(b []byte) []byte {
+	var (
+		tplTimeToQuotedMS = [2][]byte{[]byte(tplQuotedWordTimeMillis), []byte(fmt.Sprintf("%d", timeToMillis(insertionTime)))}
+		tpsTimeToQuotedS  = [2][]byte{[]byte(tplQuotedWordTimeSeconds), []byte(fmt.Sprintf("%d", insertionTime.Unix()*1e3))}
+	)
+	tpls := [][2][]byte{
+		tplTimeToQuotedMS, tpsTimeToQuotedS,
+	}
+	for i := range tpls {
+		b = bytes.ReplaceAll(b, tpls[i][0], tpls[i][1])
+	}
+	return b
 }
 
 func TestMain(m *testing.M) {
@@ -142,7 +172,6 @@ func TestWriteRead(t *testing.T) {
 	t.Run("write", testWrite)
 	time.Sleep(1 * time.Second)
 	vmstorage.Stop()
-
 	// open storage after stop in write
 	vmstorage.InitWithoutMetrics()
 	t.Run("read", testRead)
@@ -229,7 +258,7 @@ func readIn(readFor string, t *testing.T, timeStr string) []test {
 		s.noError(err)
 		item := test{}
 		s.noError(json.Unmarshal(b, &item))
-		item.Data = strings.Replace(item.Data, "{TIME}", timeStr, -1)
+		item.Data = strings.Replace(item.Data, tplWordTime, timeStr, -1)
 		tt = append(tt, item)
 		return nil
 	}))
@@ -287,8 +316,8 @@ func rowContains(t *testing.T, rows, contains []Row) {
 
 func removeIfFound(r Row, contains []Row) []Row {
 	for i, item := range contains {
-		// todo check time
-		if reflect.DeepEqual(r.Metric, item.Metric) && reflect.DeepEqual(r.Values, item.Values) {
+		if reflect.DeepEqual(r.Metric, item.Metric) && reflect.DeepEqual(r.Values, item.Values) &&
+			reflect.DeepEqual(r.Timestamps, item.Timestamps) {
 			contains[i] = contains[len(contains)-1]
 			return contains[:len(contains)-1]
 		}
