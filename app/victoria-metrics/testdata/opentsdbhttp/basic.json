@@ -3,6 +3,6 @@
   "data": "{\"metric\": \"opentsdbhttp.foo\", \"value\": 1001, \"timestamp\": {TIME}, \"tags\": {\"bar\":\"baz\", \"x\": \"y\"}}",
   "query": "/api/v1/export?match={__name__!=\"\"}",
   "result": [
-    {"metric":{"__name__":"opentsdbhttp.foo","bar":"baz","x":"y"},"values":[1001]}
+    {"metric":{"__name__":"opentsdbhttp.foo","bar":"baz","x":"y"},"values":[1001], "timestamps": ["{TIME_S}"]}
   ]
 }
