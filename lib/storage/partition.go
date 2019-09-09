@@ -23,13 +23,18 @@ import (
 
 func maxRowsPerSmallPart() uint64 {
 	// Small parts are cached in the OS page cache,
-	// so limit the number of rows for small part
-	// by the remaining free RAM.
+	// so limit the number of rows for small part by the remaining free RAM.
 	mem := memory.Remaining()
-	if mem <= 0 {
-		return 100e6
+	// Production data shows that each row occupies ~1 byte in the compressed part.
+	// It is expected no more than defaultPartsToMerge/2 parts exist
+	// in the OS page cache before they are merged into bigger part.
+	// Halft of the remaining RAM must be left for lib/mergeset parts,
+	// so the maxItems is calculated using the below code:
+	maxRows := uint64(mem) / defaultPartsToMerge
+	if maxRows < 10e6 {
+		maxRows = 10e6
 	}
-	return uint64(mem) / defaultPartsToMerge
+	return maxRows
 }
 
 // The maximum number of rows per big part.
