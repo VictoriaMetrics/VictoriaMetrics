@@ -171,7 +171,7 @@ http://<victoriametrics-addr>:8428
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
 Then build graphs with the created datasource using [Prometheus query language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
-VictoriaMetrics supports native PromQL and [extends it with useful features](ExtendedPromQL).
+VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL).
 
 
 ### How to upgrade VictoriaMetrics?
