@@ -1,6 +1,7 @@
 name: main
 on:
   - push
+  - pull_request
 jobs:
   build:
     name: Build
