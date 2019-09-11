@@ -1296,8 +1296,8 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 	if dataSize == 0 {
 		return buf, nil
 	}
-	if _, err := io.ReadFull(bc, buf); err != nil {
-		return buf, fmt.Errorf("cannot read data with size %d: %s", dataSize, err)
+	if n, err := io.ReadFull(bc, buf); err != nil {
+		return buf, fmt.Errorf("cannot read data with size %d: %s; read only %d bytes", dataSize, err, n)
 	}
 	return buf, nil
 }

@@ -158,8 +158,8 @@ func readData(c net.Conn, dataLen int) ([]byte, error) {
 		return nil, fmt.Errorf("cannot set read deadline: %s", err)
 	}
 	data := make([]byte, dataLen)
-	if _, err := io.ReadFull(c, data); err != nil {
-		return nil, fmt.Errorf("cannot read message with size %d: %s", dataLen, err)
+	if n, err := io.ReadFull(c, data); err != nil {
+		return nil, fmt.Errorf("cannot read message with size %d: %s; read only %d bytes", dataLen, err, n)
 	}
 	if err := c.SetReadDeadline(zeroTime); err != nil {
 		return nil, fmt.Errorf("cannot reset read deadline: %s", err)

@@ -291,8 +291,8 @@ func (s *Server) processVMInsertConn(r io.Reader) error {
 			return fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSize)
 		}
 		buf = bytesutil.Resize(buf, int(packetSize))
-		if _, err := io.ReadFull(r, buf); err != nil {
-			return fmt.Errorf("cannot read packet with size %d: %s", packetSize, err)
+		if n, err := io.ReadFull(r, buf); err != nil {
+			return fmt.Errorf("cannot read packet with size %d: %s; read only %d bytes", packetSize, err, n)
 		}
 		vminsertPacketsRead.Inc()
 
@@ -386,8 +386,8 @@ func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 	if dataSize == 0 {
 		return nil
 	}
-	if _, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
-		return fmt.Errorf("cannot read data with size %d: %s", dataSize, err)
+	if n, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
+		return fmt.Errorf("cannot read data with size %d: %s; read only %d bytes", dataSize, err, n)
 	}
 	return nil
 }
