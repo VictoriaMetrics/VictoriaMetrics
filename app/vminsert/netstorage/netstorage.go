@@ -85,7 +85,8 @@ func (sn *storageNode) sendReroutedRow(buf []byte) error {
 var errBrokenStorageNode = fmt.Errorf("the vmstorage node is temporarily broken")
 
 func (sn *storageNode) flushBufLocked() error {
-	if err := sn.sendBufLocked(sn.buf); err == nil {
+	err := sn.sendBufLocked(sn.buf)
+	if err == nil {
 		// Successful flush. Remove broken flag.
 		sn.broken = false
 		sn.rowsSent.Add(sn.rows)
@@ -96,8 +97,9 @@ func (sn *storageNode) flushBufLocked() error {
 
 	// Couldn't flush sn.buf to vmstorage. Mark sn as broken
 	// and try re-routing sn.buf to healthy vmstorage nodes.
+	logger.Errorf("cannot send data to vmstorage %s: %s; re-routing data to healthy vmstorage nodes", sn.dialer.Addr(), err)
 	sn.broken = true
-	err := addToReroutedBuf(sn.buf, sn.rows)
+	err = addToReroutedBuf(sn.buf, sn.rows)
 	if err != nil {
 		rowsLostTotal.Add(sn.rows)
 	}
@@ -116,8 +118,8 @@ func (sn *storageNode) sendBufLocked(buf []byte) error {
 		}
 	}
 	timeoutSeconds := len(buf) / 1e6
-	if timeoutSeconds < 10 {
-		timeoutSeconds = 10
+	if timeoutSeconds < 60 {
+		timeoutSeconds = 60
 	}
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
