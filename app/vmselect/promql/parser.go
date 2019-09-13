@@ -1550,6 +1550,10 @@ type rollupExpr struct {
 	InheritStep bool
 }
 
+func (re *rollupExpr) ForSubquery() bool {
+	return len(re.Step) > 0 || re.InheritStep
+}
+
 func (re *rollupExpr) AppendString(dst []byte) []byte {
 	needParens := func() bool {
 		if _, ok := re.Expr.(*rollupExpr); ok {

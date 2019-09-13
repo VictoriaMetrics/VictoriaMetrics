@@ -296,10 +296,10 @@ func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFu
 		return fe, nrf
 	}
 	if re, ok := e.(*rollupExpr); ok {
-		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() {
+		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
 			return nil, nil
 		}
-		// e = rollupExpr(metricExpr)
+		// e = metricExpr[d]
 		fe := &funcExpr{
 			Name: "default_rollup",
 			Args: []expr{re},
@@ -321,15 +321,17 @@ func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFu
 		if me.IsEmpty() {
 			return nil, nil
 		}
+		// e = rollupFunc(metricExpr)
 		return &funcExpr{
 			Name: fe.Name,
 			Args: []expr{me},
 		}, nrf
 	}
 	if re, ok := arg.(*rollupExpr); ok {
-		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() {
+		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
 			return nil, nil
 		}
+		// e = rollupFunc(metricExpr[d])
 		return fe, nrf
 	}
 	return nil, nil
@@ -374,8 +376,8 @@ func getRollupExprArg(arg expr) *rollupExpr {
 			Expr: arg,
 		}
 	}
-	if len(re.Step) == 0 && !re.InheritStep {
-		// Return standard rollup if it doesn't set step.
+	if !re.ForSubquery() {
+		// Return standard rollup if it doesn't contain subquery.
 		return re
 	}
 	me, ok := re.Expr.(*metricExpr)
