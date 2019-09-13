@@ -1837,10 +1837,6 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("aa"),
-				Value: []byte("bb"),
-			},
-			{
 				Key:   []byte("foo"),
 				Value: []byte("bar"),
 			},
@@ -1861,12 +1857,75 @@ func TestExecSuccess(t *testing.T) {
 				Key:   []byte("foo"),
 				Value: []byte("bar"),
 			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`vector * on(foo) group_left(additional_tag) duplicate_timeseries_differ_by_additional_tag`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(label_set(time()/10, "foo", "bar", "xx", "yy", "__name__", "qwert") + on(foo) group_left(op) (
+			label_set(time() < 1400, "foo", "bar", "op", "le"),
+			label_set(time() >= 1400, "foo", "bar", "op", "ge"),
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1320, nan, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("op"),
+				Value: []byte("le"),
+			},
 			{
 				Key:   []byte("xx"),
 				Value: []byte("yy"),
 			},
 		}
-		resultExpected := []netstorage.Result{r}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1540, 1760, 1980, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("op"),
+				Value: []byte("ge"),
+			},
+			{
+				Key:   []byte("xx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`vector * on(foo) duplicate_nonoverlapping_timeseries`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time()/10, "foo", "bar", "xx", "yy", "__name__", "qwert") + on(foo) (
+			label_set(time() < 1400, "foo", "bar", "op", "le"),
+			label_set(time() >= 1400, "foo", "bar", "op", "ge"),
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1320, 1540, 1760, 1980, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
 	t.Run(`vector * on(foo) group_left() duplicate_nonoverlapping_timeseries`, func(t *testing.T) {
@@ -2054,10 +2113,6 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("t1"),
-				Value: []byte("v123"),
-			},
-			{
 				Key:   []byte("t2"),
 				Value: []byte("v3"),
 			},
@@ -2162,10 +2217,6 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{
-			{
-				Key:   []byte("t1"),
-				Value: []byte("v123"),
-			},
 			{
 				Key:   []byte("t2"),
 				Value: []byte("v3"),
