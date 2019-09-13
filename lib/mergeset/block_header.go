@@ -158,7 +158,7 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 	newBHS := dst[dstLen:]
 
 	// Verify that block headers are sorted by firstItem.
-	if !sort.SliceIsSorted(newBHS, func(i, j int) bool { return string(newBHS[i].firstItem) <= string(newBHS[j].firstItem) }) {
+	if !sort.SliceIsSorted(newBHS, func(i, j int) bool { return string(newBHS[i].firstItem) < string(newBHS[j].firstItem) }) {
 		return nil, fmt.Errorf("block headers must be sorted by firstItem; unmarshaled unsorted block headers: %#v", newBHS)
 	}
 
