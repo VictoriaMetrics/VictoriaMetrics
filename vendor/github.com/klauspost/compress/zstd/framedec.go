@@ -49,7 +49,8 @@ type frameDec struct {
 
 const (
 	// The minimum Window_Size is 1 KB.
-	minWindowSize = 1 << 10
+	MinWindowSize = 1 << 10
+	MaxWindowSize = 1 << 30
 )
 
 var (
@@ -60,7 +61,7 @@ var (
 func newFrameDec(o decoderOptions) *frameDec {
 	d := frameDec{
 		o:             o,
-		maxWindowSize: 1 << 30,
+		maxWindowSize: MaxWindowSize,
 	}
 	if d.maxWindowSize > o.maxDecodedSize {
 		d.maxWindowSize = o.maxDecodedSize
@@ -215,8 +216,8 @@ func (d *frameDec) reset(br byteBuffer) error {
 	if d.WindowSize == 0 && d.SingleSegment {
 		// We may not need window in this case.
 		d.WindowSize = d.FrameContentSize
-		if d.WindowSize < minWindowSize {
-			d.WindowSize = minWindowSize
+		if d.WindowSize < MinWindowSize {
+			d.WindowSize = MinWindowSize
 		}
 	}
 
@@ -225,7 +226,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 		return ErrWindowSizeExceeded
 	}
 	// The minimum Window_Size is 1 KB.
-	if d.WindowSize < minWindowSize {
+	if d.WindowSize < MinWindowSize {
 		println("got window size: ", d.WindowSize)
 		return ErrWindowSizeTooSmall
 	}
