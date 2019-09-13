@@ -404,7 +404,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte {
 			// Add frame header.
 			fh := frameHeader{
 				ContentSize:   0,
-				WindowSize:    minWindowSize,
+				WindowSize:    MinWindowSize,
 				SingleSegment: true,
 				// Adding a checksum would be a waste of space.
 				Checksum: false,
