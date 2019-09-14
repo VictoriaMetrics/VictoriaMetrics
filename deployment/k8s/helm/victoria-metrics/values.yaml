@@ -182,32 +182,6 @@ vmstorage:
   ## Additional vmstorage container arguments
   ##
   extraArgs: {}
-
-  ## Additional vmstorage hostPath mounts
-  ##
-  extraHostPathMounts: []
-    # - name: certs-dir
-    #   mountPath: /etc/kubernetes/certs
-    #   subPath: ""
-    #   hostPath: /etc/kubernetes/certs
-    #   readOnly: true
-
-  extraConfigmapMounts: []
-    # - name: certs-configmap
-    #   mountPath: /certs
-    #   subPath: ""
-    #   configMap: certs-configmap
-    #   readOnly: true
-
-  ## Additional Vmstorage Secret mounts
-  # Defines additional mounts with secrets. Secrets must be manually created in the namespace.
-  extraSecretMounts: []
-    # - name: secret-files
-    #   mountPath: /etc/secrets
-    #   subPath: ""
-    #   secretName: secret-files
-    #   readOnly: true
-
   ## Node tolerations for server scheduling to nodes with taints
   ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   ##
@@ -252,7 +226,6 @@ vmstorage:
     mountPath: /storage
     size: 8Gi
     subPath: ""
-
 
   podAnnotations: {}
   replicaCount: 2
