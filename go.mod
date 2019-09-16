@@ -9,7 +9,7 @@ require (
 	github.com/klauspost/compress v1.8.3
 	github.com/lithammer/go-jump-consistent-hash v1.0.1
 	github.com/valyala/fastjson v1.4.1
-	github.com/valyala/gozstd v1.6.1
+	github.com/valyala/gozstd v1.6.2
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.2.0
 	golang.org/x/sys v0.0.0-20190913121621-c3b328c6e5a7
