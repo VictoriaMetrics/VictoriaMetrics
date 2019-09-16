@@ -3,9 +3,10 @@ language: go
 os:
   - linux
   - osx
+  - freebsd
   
 go:
-  - 1.10.x
+  - 1.12
 
 script:
   # build test for supported platforms

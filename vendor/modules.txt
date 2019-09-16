@@ -19,7 +19,7 @@ github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
 # github.com/valyala/fastrand v1.0.0
 github.com/valyala/fastrand
-# github.com/valyala/gozstd v1.6.1
+# github.com/valyala/gozstd v1.6.2
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.0.1
 github.com/valyala/histogram
