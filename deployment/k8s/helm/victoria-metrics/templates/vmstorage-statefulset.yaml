@@ -110,32 +110,6 @@ spec:
 {{ toYaml .Values.vmstorage.affinity | indent 8 }}
     {{- end }}
       terminationGracePeriodSeconds: {{ .Values.vmstorage.terminationGracePeriodSeconds }}
-      volumes:
-      {{- range .Values.vmstorage.extraHostPathMounts }}
-        - name: {{ .name }}
-          hostPath:
-            path: {{ .hostPath }}
-      {{- end }}
-      {{- range .Values.vmstorage.extraConfigmapMounts }}
-        - name: {{ $.Values.vmstorage.name }}-{{ .name }}
-          configMap:
-            name: {{ .configMap }}
-      {{- end }}
-      {{- range .Values.vmstorage.extraConfigmapMounts }}
-        - name: {{ $.Values.vmstorage.name }}-{{ .name }}
-          configMap:
-            name: {{ .configMap }}
-      {{- end }}
-      {{- range .Values.vmstorage.extraSecretMounts }}
-        - name: {{ .name }}
-          secret:
-            secretName: {{ .secretName }}
-      {{- end }}
-      {{- range .Values.vmstorage.extraConfigmapMounts }}
-        - name: {{ .name }}
-          configMap:
-            name: {{ .configMap }}
-      {{- end }}
 {{- if .Values.vmstorage.persistentVolume.enabled }}
   volumeClaimTemplates:
     - metadata:
