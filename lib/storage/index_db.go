@@ -1376,7 +1376,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 		}
 
 		kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
-		kb.B = encoding.MarshalUint64(kb.B[:0], uint64(maxMetrics))
+		kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
 		kb.B = tf.Marshal(kb.B)
 		if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 			// Skip useless work below, since the tf matches at least maxMetrics metrics.
@@ -1395,7 +1395,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 		if len(metricIDs) >= maxMetrics {
 			// The tf matches at least maxMetrics. Skip it
 			kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
-			kb.B = encoding.MarshalUint64(kb.B[:0], uint64(maxMetrics))
+			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
 			kb.B = tf.Marshal(kb.B)
 			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 			uselessTagFilters++
@@ -1421,9 +1421,21 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 
 	// There is no positive filter with small number of matching metrics.
 	// Create it, so it matches all the MetricIDs for tfs.commonPrefix.
+	kb.B = append(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
+	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+	kb.B = tfs.marshal(kb.B)
+	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
+		return nil, nil, errTooManyMetrics
+	}
 	metricIDs := make(map[uint64]struct{})
 	if err := is.updateMetricIDsForCommonPrefix(metricIDs, tfs.commonPrefix, maxMetrics); err != nil {
 		return nil, nil, err
+	}
+	if len(metricIDs) >= maxMetrics {
+		kb.B = append(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
+		kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+		kb.B = tfs.marshal(kb.B)
+		is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 	}
 	return nil, metricIDs, nil
 }
@@ -1578,8 +1590,9 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 }
 
 const (
-	uselessSingleTagFilterKeyPrefix = 0
-	uselessMultiTagFiltersKeyPrefix = 1
+	uselessSingleTagFilterKeyPrefix   = 0
+	uselessMultiTagFiltersKeyPrefix   = 1
+	uselessNegativeTagFilterKeyPrefix = 2
 )
 
 var uselessTagFilterCacheValue = []byte("1")
