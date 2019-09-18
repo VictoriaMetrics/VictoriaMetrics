@@ -1578,6 +1578,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 
 	// Find intersection of minTf with other tfs.
 	var tfsPostponed []*tagFilter
+	successfulIntersects := 0
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		if tf == minTf {
@@ -1594,6 +1595,10 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 			return err
 		}
 		minMetricIDs = mIDs
+		successfulIntersects++
+	}
+	if len(tfsPostponed) > 0 && successfulIntersects == 0 {
+		return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed, tfs.accountID, tfs.projectID)
 	}
 	for i, tf := range tfsPostponed {
 		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
