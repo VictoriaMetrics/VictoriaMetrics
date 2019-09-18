@@ -1406,6 +1406,11 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 		if err != nil {
 			if err == errFallbackToMetricNameMatch {
 				// Skip tag filters requiring to scan for too many metrics.
+				kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
+				kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
+				kb.B = tf.Marshal(kb.B, tfs.accountID, tfs.projectID)
+				is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
+				uselessTagFilters++
 				continue
 			}
 			return nil, nil, fmt.Errorf("cannot find MetricIDs for tagFilter %s: %s", tf, err)
