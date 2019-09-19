@@ -477,7 +477,7 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 		}
 
 		// The added part exceeds maxParts count. Assist with merging other parts.
-		err := tb.mergeSmallParts(false)
+		err := tb.mergeExistingParts(false)
 		if err == nil {
 			atomic.AddUint64(&tb.assistedMerges, 1)
 			continue
@@ -569,7 +569,7 @@ func (tb *Table) startPartMergers() {
 	}
 }
 
-func (tb *Table) mergeSmallParts(isFinal bool) error {
+func (tb *Table) mergeExistingParts(isFinal bool) error {
 	maxItems := tb.maxOutPartItems()
 	if maxItems > maxItemsPerPart {
 		maxItems = maxItemsPerPart
@@ -593,7 +593,7 @@ func (tb *Table) partMerger() error {
 	isFinal := false
 	t := time.NewTimer(sleepTime)
 	for {
-		err := tb.mergeSmallParts(isFinal)
+		err := tb.mergeExistingParts(isFinal)
 		if err == nil {
 			// Try merging additional parts.
 			sleepTime = minMergeSleepTime
