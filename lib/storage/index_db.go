@@ -1224,11 +1224,7 @@ func (is *indexSearch) getSeriesCount(accountID, projectID uint32) (uint64, erro
 // and adds matching metrics to metricIDs.
 func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs map[uint64]struct{}, tfs []*tagFilter, accountID, projectID uint32) error {
 	// sort srcMetricIDs in order to speed up Seek below.
-	sortedMetricIDs := make([]uint64, 0, len(srcMetricIDs))
-	for metricID := range srcMetricIDs {
-		sortedMetricIDs = append(sortedMetricIDs, metricID)
-	}
-	sort.Slice(sortedMetricIDs, func(i, j int) bool { return sortedMetricIDs[i] < sortedMetricIDs[j] })
+	sortedMetricIDs := getSortedMetricIDs(srcMetricIDs)
 
 	metricName := kbPool.Get()
 	defer kbPool.Put(metricName)
@@ -2129,12 +2125,23 @@ func marshalCommonPrefix(dst []byte, nsPrefix byte, accountID, projectID uint32)
 }
 
 func getSortedMetricIDs(m map[uint64]struct{}) []uint64 {
-	a := make([]uint64, len(m))
+	a := make(uint64Sorter, len(m))
 	i := 0
 	for metricID := range m {
 		a[i] = metricID
 		i++
 	}
-	sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
+	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations
+	sort.Sort(a)
 	return a
+}
+
+type uint64Sorter []uint64
+
+func (s uint64Sorter) Len() int { return len(s) }
+func (s uint64Sorter) Less(i, j int) bool {
+	return s[i] < s[j]
+}
+func (s uint64Sorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
