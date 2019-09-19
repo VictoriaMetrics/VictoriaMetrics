@@ -95,11 +95,6 @@ again:
 
 	bsr := heap.Pop(&bsm.bsrHeap).(*blockStreamReader)
 
-	if !bsm.phFirstItemCaught {
-		ph.firstItem = append(ph.firstItem[:0], bsr.Block.items[0]...)
-		bsm.phFirstItemCaught = true
-	}
-
 	var nextItem []byte
 	hasNextItem := false
 	if len(bsm.bsrHeap) > 0 {
@@ -142,6 +137,10 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 	itemsCount := uint64(len(bsm.ib.items))
 	ph.itemsCount += itemsCount
 	atomic.AddUint64(itemsMerged, itemsCount)
+	if !bsm.phFirstItemCaught {
+		ph.firstItem = append(ph.firstItem[:0], bsm.ib.items[0]...)
+		bsm.phFirstItemCaught = true
+	}
 	ph.lastItem = append(ph.lastItem[:0], bsm.ib.items[len(bsm.ib.items)-1]...)
 	bsw.WriteBlock(&bsm.ib)
 	bsm.ib.Reset()
