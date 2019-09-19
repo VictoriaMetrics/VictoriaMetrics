@@ -11,6 +11,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	isInTest = true
 	n := m.Run()
 	os.Exit(n)
 }
