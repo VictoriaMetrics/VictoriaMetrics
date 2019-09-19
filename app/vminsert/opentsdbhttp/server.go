@@ -38,7 +38,7 @@ func Serve(addr string, maxReqSize int64) {
 			return
 		}
 		if err != nil {
-			logger.Fatalf("FATAL: error serving HTTP OpenTSDB: %s", err)
+			logger.Fatalf("error serving HTTP OpenTSDB: %s", err)
 		}
 	}()
 }
@@ -65,6 +65,6 @@ func Stop() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := httpServer.Shutdown(ctx); err != nil {
-		logger.Fatalf("FATAL: cannot close HTTP OpenTSDB server: %s", err)
+		logger.Fatalf("cannot close HTTP OpenTSDB server: %s", err)
 	}
 }
