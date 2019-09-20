@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	"encoding/binary"
 	"fmt"
 	"sync"
 )
@@ -12,8 +13,8 @@ func MarshalUint16(dst []byte, u uint16) []byte {
 
 // UnmarshalUint16 returns unmarshaled uint32 from src.
 func UnmarshalUint16(src []byte) uint16 {
-	_ = src[1]
-	return uint16(src[0])<<8 | uint16(src[1])
+	// This is faster than the manual conversion.
+	return binary.BigEndian.Uint16(src)
 }
 
 // MarshalUint32 appends marshaled v to dst and returns the result.
@@ -23,8 +24,8 @@ func MarshalUint32(dst []byte, u uint32) []byte {
 
 // UnmarshalUint32 returns unmarshaled uint32 from src.
 func UnmarshalUint32(src []byte) uint32 {
-	_ = src[3]
-	return uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+	// This is faster than the manual conversion.
+	return binary.BigEndian.Uint32(src)
 }
 
 // MarshalUint64 appends marshaled v to dst and returns the result.
@@ -34,8 +35,8 @@ func MarshalUint64(dst []byte, u uint64) []byte {
 
 // UnmarshalUint64 returns unmarshaled uint64 from src.
 func UnmarshalUint64(src []byte) uint64 {
-	_ = src[7]
-	return uint64(src[0])<<56 | uint64(src[1])<<48 | uint64(src[2])<<40 | uint64(src[3])<<32 | uint64(src[4])<<24 | uint64(src[5])<<16 | uint64(src[6])<<8 | uint64(src[7])
+	// This is faster than the manual conversion.
+	return binary.BigEndian.Uint64(src)
 }
 
 // MarshalInt16 appends marshaled v to dst and returns the result.
@@ -48,8 +49,8 @@ func MarshalInt16(dst []byte, v int16) []byte {
 
 // UnmarshalInt16 returns unmarshaled int16 from src.
 func UnmarshalInt16(src []byte) int16 {
-	_ = src[1]
-	u := uint16(src[0])<<8 | uint16(src[1])
+	// This is faster than the manual conversion.
+	u := binary.BigEndian.Uint16(src)
 	v := int16(u>>1) ^ (int16(u<<15) >> 15) // zig-zag decoding without branching.
 	return v
 }
@@ -64,8 +65,8 @@ func MarshalInt64(dst []byte, v int64) []byte {
 
 // UnmarshalInt64 returns unmarshaled int64 from src.
 func UnmarshalInt64(src []byte) int64 {
-	_ = src[7]
-	u := uint64(src[0])<<56 | uint64(src[1])<<48 | uint64(src[2])<<40 | uint64(src[3])<<32 | uint64(src[4])<<24 | uint64(src[5])<<16 | uint64(src[6])<<8 | uint64(src[7])
+	// This is faster than the manual conversion.
+	u := binary.BigEndian.Uint64(src)
 	v := int64(u>>1) ^ (int64(u<<63) >> 63) // zig-zag decoding without branching.
 	return v
 }

@@ -6,6 +6,33 @@ import (
 	"testing"
 )
 
+func BenchmarkMarshalUint64(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		var dst []byte
+		var sink uint64
+		for pb.Next() {
+			dst = MarshalUint64(dst[:0], sink)
+			sink += uint64(len(dst))
+		}
+		atomic.AddUint64(&Sink, sink)
+	})
+}
+
+func BenchmarkUnmarshalUint64(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		var sink uint64
+		for pb.Next() {
+			v := UnmarshalUint64(testMarshaledUint64Data)
+			sink += v
+		}
+		atomic.AddUint64(&Sink, sink)
+	})
+}
+
 func BenchmarkMarshalInt64(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(1)
@@ -120,3 +147,4 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 }
 
 var testMarshaledInt64Data = MarshalInt64(nil, 1234567890)
+var testMarshaledUint64Data = MarshalUint64(nil, 1234567890)
