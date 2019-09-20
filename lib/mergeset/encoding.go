@@ -185,7 +185,7 @@ func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefi
 	firstItemDst = append(firstItemDst, ib.items[0]...)
 	commonPrefixDst = append(commonPrefixDst, ib.commonPrefix...)
 
-	if len(ib.data)-len(ib.commonPrefix)*len(ib.items) < 64 || len(ib.items) < 10 {
+	if len(ib.data)-len(ib.commonPrefix)*len(ib.items) < 64 || len(ib.items) < 2 {
 		// Use plain encoding form small block, since it is cheaper.
 		ib.marshalDataPlain(sb)
 		return firstItemDst, commonPrefixDst, uint32(len(ib.items)), marshalTypePlain

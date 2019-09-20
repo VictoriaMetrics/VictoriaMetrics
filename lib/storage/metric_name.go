@@ -25,6 +25,17 @@ type Tag struct {
 	Value []byte
 }
 
+// Reset resets the tag.
+func (tag *Tag) Reset() {
+	tag.Key = tag.Key[:0]
+	tag.Value = tag.Value[:0]
+}
+
+// Equal returns true if tag equals t
+func (tag *Tag) Equal(t *Tag) bool {
+	return string(tag.Key) == string(t.Key) && string(tag.Value) == string(t.Value)
+}
+
 // Marshal appends marshaled tag to dst and returns the result.
 func (tag *Tag) Marshal(dst []byte) []byte {
 	dst = marshalTagValue(dst, tag.Key)

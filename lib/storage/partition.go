@@ -881,7 +881,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	maxRows := maxRowsByPath(pt.smallPartsPath)
 	if maxRows > maxRowsPerSmallPart() {
 		// The output part may go to big part,
-		// so make sure it as enough space.
+		// so make sure it has enough space.
 		maxBigPartRows := maxRowsByPath(pt.bigPartsPath)
 		if maxRows > maxBigPartRows {
 			maxRows = maxBigPartRows
