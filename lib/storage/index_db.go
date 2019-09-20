@@ -28,7 +28,7 @@ const (
 	nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.
-	nsPrefixTagToMetricID = 1
+	nsPrefixTagToMetricIDs = 1
 
 	// Prefix for MetricID->TSID entries.
 	nsPrefixMetricIDToTSID = 2
@@ -116,7 +116,7 @@ func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Ca
 		logger.Panicf("BUG: prevHourMetricIDs must be non-nil")
 	}
 
-	tb, err := mergeset.OpenTable(path, invalidateTagCache)
+	tb, err := mergeset.OpenTable(path, invalidateTagCache, mergeTagToMetricIDsRows)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexDB %q: %s", path, err)
 	}
@@ -451,6 +451,7 @@ type indexSearch struct {
 	db *indexDB
 	ts mergeset.TableSearch
 	kb bytesutil.ByteBuffer
+	mp tagToMetricIDsRowParser
 
 	// tsidByNameMisses and tsidByNameSkips is used for a performance
 	// hack in GetOrCreateTSIDByName. See the comment there.
@@ -505,6 +506,7 @@ func (db *indexDB) getIndexSearch() *indexSearch {
 func (db *indexDB) putIndexSearch(is *indexSearch) {
 	is.ts.MustClose()
 	is.kb.Reset()
+	is.mp.Reset()
 
 	// Do not reset tsidByNameMisses and tsidByNameSkips,
 	// since they are used in GetOrCreateTSIDByName across call boundaries.
@@ -548,7 +550,7 @@ func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) er
 		}
 	}
 
-	// The TSID wan't found in the external storage.
+	// The TSID wasn't found in the external storage.
 	// Generate it locally.
 	dst.AccountID = mn.AccountID
 	dst.ProjectID = mn.ProjectID
@@ -589,7 +591,7 @@ func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {
 	items.Next()
 
 	commonPrefix := kbPool.Get()
-	commonPrefix.B = marshalCommonPrefix(commonPrefix.B[:0], nsPrefixTagToMetricID, mn.AccountID, mn.ProjectID)
+	commonPrefix.B = marshalCommonPrefix(commonPrefix.B[:0], nsPrefixTagToMetricIDs, mn.AccountID, mn.ProjectID)
 
 	// Create MetricGroup -> MetricID index.
 	items.B = append(items.B, commonPrefix.B...)
@@ -680,50 +682,37 @@ func (db *indexDB) SearchTagKeys(accountID, projectID uint32, maxTagKeys int) ([
 func (is *indexSearch) searchTagKeys(accountID, projectID uint32, tks map[string]struct{}, maxTagKeys int) error {
 	ts := &is.ts
 	kb := &is.kb
+	mp := &is.mp
+	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
-	commonPrefix := marshalCommonPrefix(nil, nsPrefixTagToMetricID, accountID, projectID)
-	ts.Seek(commonPrefix)
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	prefix := kb.B
+	ts.Seek(prefix)
 	for len(tks) < maxTagKeys && ts.NextItem() {
 		item := ts.Item
-		if !bytes.HasPrefix(item, commonPrefix) {
+		if !bytes.HasPrefix(item, prefix) {
 			break
 		}
-		tail := item[len(commonPrefix):]
-
-		// Unmarshal tag key into kb.B
-		var err error
-		tail, kb.B, err = unmarshalTagValue(kb.B[:0], tail)
-		if err != nil {
-			return fmt.Errorf("cannot unmarshal tagKey from %X: %s", item, err)
+		if err := mp.Init(item); err != nil {
+			return err
 		}
-
-		// Verify that the tag key points to existing metric.
-		if len(tail) < 8 {
-			return fmt.Errorf("cannot unmarshal metricID from less than 8 bytes; got %d bytes; item=%X", len(tail), tail)
-		}
-		metricID := encoding.UnmarshalUint64(tail[len(tail)-8:])
-		if _, deleted := dmis[metricID]; deleted {
-			// The given metric is deleted. Skip it.
+		if mp.IsDeletedTag(dmis) {
 			continue
 		}
 
 		// Store tag key.
-		tks[string(kb.B)] = struct{}{}
+		tks[string(mp.Tag.Key)] = struct{}{}
 
 		// Search for the next tag key.
-		// tkp (tag key prefix) contains (commonPrefix + encoded tag key).
-		// The last char must be tagSeparatorChar. Just increment it
-		// in order to jump to the next tag key.
-		tkp := item[:len(item)-len(tail)]
-		if len(tkp) == 0 || tkp[len(tkp)-1] != tagSeparatorChar || tagSeparatorChar >= 0xff {
-			logger.Panicf("BUG: the last char in tkp=%X must be %X. Check unmarshalTagValue code", tkp, tagSeparatorChar)
-		}
-		kb.B = append(kb.B[:0], tkp...)
+		// The last char in kb.B must be tagSeparatorChar.
+		// Just increment it in order to jump to the next tag key.
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("error during search for commonPrefix %q: %s", commonPrefix, err)
+		return fmt.Errorf("error during search for prefix %q: %s", prefix, err)
 	}
 	return nil
 }
@@ -732,24 +721,18 @@ func (is *indexSearch) searchTagKeys(accountID, projectID uint32, tks map[string
 func (db *indexDB) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int) ([]string, error) {
 	// TODO: cache results?
 
-	kb := kbPool.Get()
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricID, accountID, projectID)
-	kb.B = marshalTagValue(kb.B, tagKey)
-
 	tvs := make(map[string]struct{})
 	is := db.getIndexSearch()
-	err := is.searchTagValues(tvs, kb.B, maxTagValues)
+	err := is.searchTagValues(accountID, projectID, tvs, tagKey, maxTagValues)
 	db.putIndexSearch(is)
 	if err != nil {
-		kbPool.Put(kb)
 		return nil, err
 	}
 	ok := db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch()
-		err = is.searchTagValues(tvs, kb.B, maxTagValues)
+		err = is.searchTagValues(accountID, projectID, tvs, tagKey, maxTagValues)
 		extDB.putIndexSearch(is)
 	})
-	kbPool.Put(kb)
 	if ok && err != nil {
 		return nil, err
 	}
@@ -763,49 +746,37 @@ func (db *indexDB) SearchTagValues(accountID, projectID uint32, tagKey []byte, m
 	return tagValues, nil
 }
 
-func (is *indexSearch) searchTagValues(tvs map[string]struct{}, prefix []byte, maxTagValues int) error {
+func (is *indexSearch) searchTagValues(accountID, projectID uint32, tvs map[string]struct{}, tagKey []byte, maxTagValues int) error {
 	ts := &is.ts
 	kb := &is.kb
+	mp := &is.mp
+	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	kb.B = marshalTagValue(kb.B, tagKey)
+	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tvs) < maxTagValues && ts.NextItem() {
-		k := ts.Item
-		if !bytes.HasPrefix(k, prefix) {
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
 			break
 		}
-
-		// Get TagValue
-		k = k[len(prefix):]
-		var err error
-		k, kb.B, err = unmarshalTagValue(kb.B[:0], k)
-		if err != nil {
-			return fmt.Errorf("cannot unmarshal tagValue: %s", err)
+		if err := mp.Init(item); err != nil {
+			return err
 		}
-		if len(k) != 8 {
-			return fmt.Errorf("unexpected suffix after tag value; want %d bytes; got %d bytes", 8, len(k))
-		}
-
-		// Verify whether the corresponding metric is deleted.
-		if len(dmis) > 0 {
-			metricID := encoding.UnmarshalUint64(k)
-			if _, deleted := dmis[metricID]; deleted {
-				// The metric is deleted.
-				continue
-			}
+		if mp.IsDeletedTag(dmis) {
+			continue
 		}
 
 		// Store tag value
-		tvs[string(kb.B)] = struct{}{}
+		tvs[string(mp.Tag.Value)] = struct{}{}
 
 		// Search for the next tag value.
-		// tkp (tag key prefix) contains (commonPrefix + encoded tag value).
-		// The last char must be tagSeparatorChar. Just increment it
-		// in order to jump to the next tag key.
-		tkp := ts.Item[:len(ts.Item)-8]
-		if len(tkp) == 0 || tkp[len(tkp)-1] != tagSeparatorChar || tagSeparatorChar >= 0xff {
-			logger.Panicf("BUG: the last char in tkp=%X must be %X. Check unmarshalTagValue code", tkp, tagSeparatorChar)
-		}
-		kb.B = append(kb.B[:0], tkp...)
+		// The last char in kb.B must be tagSeparatorChar.
+		// Just increment it in order to jump to the next tag key.
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -1460,7 +1431,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 }
 
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricID, mn.AccountID, mn.ProjectID)
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, mn.AccountID, mn.ProjectID)
 	for _, tf := range tfs {
 		if len(tf.key) == 0 {
 			// Match against mn.MetricGroup.
@@ -1628,7 +1599,10 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffxies.
 		if err := is.updateMetricIDsForOrSuffixesNoFilter(tf, maxMetrics, metricIDs); err != nil {
-			return nil, err
+			if err == errFallbackToMetricNameMatch {
+				return nil, err
+			}
+			return nil, fmt.Errorf("error when searching for metricIDs for tagFilter in fast path: %s; tagFilter=%s", err, tf)
 		}
 		return metricIDs, nil
 	}
@@ -1640,7 +1614,10 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (
 		return len(metricIDs) < maxMetrics
 	})
 	if err != nil {
-		return nil, err
+		if err == errFallbackToMetricNameMatch {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error when searching for metricIDs for tagFilter in slow path: %s; tagFilter=%s", err, tf)
 	}
 	return metricIDs, nil
 }
@@ -1654,46 +1631,53 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 	loops := 0
 	ts := &is.ts
 	kb := &is.kb
-	var prevMatchingK []byte
+	mp := &is.mp
+	mp.Reset()
+	var prevMatchingSuffix []byte
 	var prevMatch bool
-	ts.Seek(tf.prefix)
+	prefix := tf.prefix
+	ts.Seek(prefix)
 	for ts.NextItem() {
-		loops++
-		if loops > maxLoops {
-			return errFallbackToMetricNameMatch
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			return nil
 		}
-		k := ts.Item
-		if !bytes.HasPrefix(k, tf.prefix) {
-			break
+		tail := item[len(prefix):]
+		n := bytes.IndexByte(tail, tagSeparatorChar)
+		if n < 0 {
+			return fmt.Errorf("invalid tag->metricIDs line %q: cannot find tagSeparatorChar=%d", item, tagSeparatorChar)
 		}
-
-		// Get MetricID from k (the last 8 bytes).
-		k = k[len(tf.prefix):]
-		if len(k) < 8 {
-			return fmt.Errorf("invald key suffix size; want at least %d bytes; got %d bytes", 8, len(k))
+		suffix := tail[:n+1]
+		tail = tail[n+1:]
+		if err := mp.InitOnlyTail(item, tail); err != nil {
+			return err
 		}
-		v := k[len(k)-8:]
-		k = k[:len(k)-8]
-		metricID := encoding.UnmarshalUint64(v)
-
-		if prevMatch && string(k) == string(prevMatchingK) {
+		if prevMatch && string(suffix) == string(prevMatchingSuffix) {
 			// Fast path: the same tag value found.
 			// There is no need in checking it again with potentially
 			// slow tf.matchSuffix, which may call regexp.
-			if !f(metricID) {
-				break
+			mp.ParseMetricIDs()
+			loops += len(mp.MetricIDs)
+			if loops > maxLoops {
+				return errFallbackToMetricNameMatch
+			}
+			for _, metricID := range mp.MetricIDs {
+				if !f(metricID) {
+					return nil
+				}
 			}
 			continue
 		}
 
-		ok, err := tf.matchSuffix(k)
+		// Slow path: need tf.matchSuffix call.
+		ok, err := tf.matchSuffix(suffix)
 		if err != nil {
-			return fmt.Errorf("error when matching %s: %s", tf, err)
+			return fmt.Errorf("error when matching %s against suffix %q: %s", tf, suffix, err)
 		}
 		if !ok {
 			prevMatch = false
 			// Optimization: skip all the metricIDs for the given tag value
-			kb.B = append(kb.B[:0], ts.Item[:len(ts.Item)-8]...)
+			kb.B = append(kb.B[:0], item[:len(item)-len(tail)]...)
 			// The last char in kb.B must be tagSeparatorChar. Just increment it
 			// in order to jump to the next tag value.
 			if len(kb.B) == 0 || kb.B[len(kb.B)-1] != tagSeparatorChar || tagSeparatorChar >= 0xff {
@@ -1704,13 +1688,20 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 			continue
 		}
 		prevMatch = true
-		prevMatchingK = append(prevMatchingK[:0], k...)
-		if !f(metricID) {
-			break
+		prevMatchingSuffix = append(prevMatchingSuffix[:0], suffix...)
+		mp.ParseMetricIDs()
+		loops += len(mp.MetricIDs)
+		if loops > maxLoops {
+			return errFallbackToMetricNameMatch
+		}
+		for _, metricID := range mp.MetricIDs {
+			if !f(metricID) {
+				return nil
+			}
 		}
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("error when searching for tag filter prefix %q: %s", tf.prefix, err)
+		return fmt.Errorf("error when searching for tag filter prefix %q: %s", prefix, err)
 	}
 	return nil
 }
@@ -1752,24 +1743,27 @@ func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, met
 
 func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetrics int, metricIDs map[uint64]struct{}) error {
 	ts := &is.ts
+	mp := &is.mp
+	mp.Reset()
 	maxLoops := maxMetrics * maxIndexScanLoopsPerMetric
 	loops := 0
 	ts.Seek(prefix)
 	for len(metricIDs) < maxMetrics && ts.NextItem() {
-		loops++
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			return nil
+		}
+		if err := mp.InitOnlyTail(item, item[len(prefix):]); err != nil {
+			return err
+		}
+		mp.ParseMetricIDs()
+		loops += len(mp.MetricIDs)
 		if loops > maxLoops {
 			return errFallbackToMetricNameMatch
 		}
-		if !bytes.HasPrefix(ts.Item, prefix) {
-			break
+		for _, metricID := range mp.MetricIDs {
+			metricIDs[metricID] = struct{}{}
 		}
-		// Get MetricID from ts.Item (the last 8 bytes).
-		v := ts.Item[len(prefix):]
-		if len(v) != 8 {
-			return fmt.Errorf("invalid key suffix size for prefix=%q; want %d bytes; got %d bytes; value=%q", 8, prefix, len(v), v)
-		}
-		metricID := encoding.UnmarshalUint64(v)
-		metricIDs[metricID] = struct{}{}
 	}
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error when searching for tag filter prefix %q: %s", prefix, err)
@@ -1778,48 +1772,67 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 }
 
 func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metricIDs map[uint64]struct{}, sortedFilter []uint64, isNegative bool) error {
+	if len(sortedFilter) == 0 {
+		return nil
+	}
+	firstFilterMetricID := sortedFilter[0]
+	lastFilterMetricID := sortedFilter[len(sortedFilter)-1]
 	ts := &is.ts
-	kb := &is.kb
-	for {
-		// Seek for the next metricID from sortedFilter.
-		if len(sortedFilter) == 0 {
-			// All the sorteFilter entries have been searched.
-			break
+	mp := &is.mp
+	mp.Reset()
+	maxLoops := len(sortedFilter) * maxIndexScanLoopsPerMetric
+	loops := 0
+	ts.Seek(prefix)
+	var sf []uint64
+	var metricID uint64
+	for ts.NextItem() {
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			return nil
 		}
-		nextMetricID := sortedFilter[0]
-		sortedFilter = sortedFilter[1:]
-		kb.B = append(kb.B[:0], prefix...)
-		kb.B = encoding.MarshalUint64(kb.B, nextMetricID)
-		ts.Seek(kb.B)
-		if !ts.NextItem() {
-			break
+		if err := mp.InitOnlyTail(item, item[len(prefix):]); err != nil {
+			return err
 		}
-		if !bytes.HasPrefix(ts.Item, prefix) {
-			break
+		firstMetricID, lastMetricID := mp.FirstAndLastMetricIDs()
+		if lastMetricID < firstFilterMetricID {
+			// Skip the item, since it contains metricIDs lower
+			// than metricIDs in sortedFilter.
+			continue
 		}
-		// Get MetricID from ts.Item (the last 8 bytes).
-		v := ts.Item[len(prefix):]
-		if len(v) != 8 {
-			return fmt.Errorf("invalid key suffix size for prefix=%q; want %d bytes; got %d bytes; value=%q", 8, prefix, len(v), v)
+		if firstMetricID > lastFilterMetricID {
+			// Stop searching, since the current item and all the subsequent items
+			// contain metricIDs higher than metricIDs in sortedFilter.
+			return nil
 		}
-		metricID := encoding.UnmarshalUint64(v)
-		if metricID != nextMetricID {
-			// Skip metricIDs smaller than the found metricID, since they don't
-			// match anything.
-			if len(sortedFilter) > 0 && metricID > sortedFilter[0] {
-				sortedFilter = sortedFilter[1:]
-				n := sort.Search(len(sortedFilter), func(i int) bool {
-					return metricID <= sortedFilter[i]
-				})
-				sortedFilter = sortedFilter[n:]
+		sf = sortedFilter
+		mp.ParseMetricIDs()
+		loops += len(mp.MetricIDs)
+		if loops > maxLoops {
+			return errFallbackToMetricNameMatch
+		}
+		for _, metricID = range mp.MetricIDs {
+			if len(sf) == 0 {
+				break
 			}
-			continue
+			if metricID > sf[0] {
+				n := sort.Search(len(sf), func(i int) bool {
+					return i >= 0 && i < len(sf) && sf[i] >= metricID
+				})
+				sf = sf[n:]
+				if len(sf) == 0 {
+					break
+				}
+			}
+			if metricID < sf[0] {
+				continue
+			}
+			if isNegative {
+				delete(metricIDs, metricID)
+			} else {
+				metricIDs[metricID] = struct{}{}
+			}
+			sf = sf[1:]
 		}
-		if isNegative {
-			delete(metricIDs, metricID)
-			continue
-		}
-		metricIDs[metricID] = struct{}{}
 	}
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error when searching for tag filter prefix %q: %s", prefix, err)
@@ -2071,7 +2084,7 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs map[uint64]struct{}, account
 // The maximum number of index scan loops per already found metric.
 // Bigger number of loops is slower than updateMetricIDsByMetricNameMatch
 // over the found metrics.
-const maxIndexScanLoopsPerMetric = 32
+const maxIndexScanLoopsPerMetric = 400
 
 func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter map[uint64]struct{}) (map[uint64]struct{}, error) {
 	if len(filter) == 0 {
@@ -2084,7 +2097,10 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter map
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffixes.
 		if err := is.updateMetricIDsForOrSuffixesWithFilter(tf, metricIDs, filter); err != nil {
-			return nil, err
+			if err == errFallbackToMetricNameMatch {
+				return nil, err
+			}
+			return nil, fmt.Errorf("error when intersecting metricIDs for tagFilter in fast path: %s; tagFilter=%s", err, tf)
 		}
 		return metricIDs, nil
 	}
@@ -2103,7 +2119,10 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter map
 		return true
 	})
 	if err != nil {
-		return nil, err
+		if err == errFallbackToMetricNameMatch {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error when intersecting metricIDs for tagFilter in slow path: %s; tagFilter=%s", err, tf)
 	}
 	return metricIDs, nil
 }
@@ -2127,6 +2146,19 @@ func marshalCommonPrefix(dst []byte, nsPrefix byte, accountID, projectID uint32)
 	return dst
 }
 
+func unmarshalCommonPrefix(src []byte) ([]byte, byte, uint32, uint32, error) {
+	if len(src) < commonPrefixLen {
+		return nil, 0, 0, 0, fmt.Errorf("cannot unmarshal common prefix from %d bytes; need at least %d bytes; data=%X", len(src), commonPrefixLen, src)
+	}
+	prefix := src[0]
+	accountID := encoding.UnmarshalUint32(src[1:])
+	projectID := encoding.UnmarshalUint32(src[5:])
+	return src[commonPrefixLen:], prefix, accountID, projectID, nil
+}
+
+// 1 byte for prefix, 4 bytes for accountID, 4 bytes for projectID
+const commonPrefixLen = 9
+
 func getSortedMetricIDs(m map[uint64]struct{}) []uint64 {
 	a := make(uint64Sorter, len(m))
 	i := 0
@@ -2139,6 +2171,179 @@ func getSortedMetricIDs(m map[uint64]struct{}) []uint64 {
 	return a
 }
 
+type tagToMetricIDsRowParser struct {
+	// AccountID contains parsed value after Init call
+	AccountID uint32
+
+	// ProjectID contains parsed value after Init call
+	ProjectID uint32
+
+	// MetricIDs contains parsed MetricIDs after ParseMetricIDs call
+	MetricIDs []uint64
+
+	// Tag contains parsed tag after Init call
+	Tag Tag
+
+	// tail contains the remaining unparsed metricIDs
+	tail []byte
+}
+
+func (mp *tagToMetricIDsRowParser) Reset() {
+	mp.AccountID = 0
+	mp.ProjectID = 0
+	mp.MetricIDs = mp.MetricIDs[:0]
+	mp.Tag.Reset()
+	mp.tail = nil
+}
+
+// Init initializes mp from b, which should contain encoded tag->metricIDs row.
+//
+// b cannot be re-used until Reset call.
+func (mp *tagToMetricIDsRowParser) Init(b []byte) error {
+	tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(b)
+	if err != nil {
+		return fmt.Errorf("invalid tag->metricIDs row %q: %s", b, err)
+	}
+	if prefix != nsPrefixTagToMetricIDs {
+		return fmt.Errorf("invalid prefix for tag->metricIDs row %q; got %d; want %d", b, prefix, nsPrefixTagToMetricIDs)
+	}
+	mp.AccountID = accountID
+	mp.ProjectID = projectID
+	tail, err = mp.Tag.Unmarshal(tail)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal tag from tag->metricIDs row %q: %s", b, err)
+	}
+	return mp.InitOnlyTail(b, tail)
+}
+
+// InitOnlyTail initializes mp.tail from tail.
+//
+// b must contain tag->metricIDs row.
+// b cannot be re-used until Reset call.
+func (mp *tagToMetricIDsRowParser) InitOnlyTail(b, tail []byte) error {
+	if len(tail) == 0 {
+		return fmt.Errorf("missing metricID in the tag->metricIDs row %q", b)
+	}
+	if len(tail)%8 != 0 {
+		return fmt.Errorf("invalid tail length in the tag->metricIDs row; got %d bytes; must be multiple of 8 bytes", len(tail))
+	}
+	mp.tail = tail
+	return nil
+}
+
+// EqualPrefix returns true if prefixes for mp and x are equal.
+//
+// Prefix contains (tag, accountID, projectID)
+func (mp *tagToMetricIDsRowParser) EqualPrefix(x *tagToMetricIDsRowParser) bool {
+	if !mp.Tag.Equal(&x.Tag) {
+		return false
+	}
+	return mp.ProjectID == x.ProjectID && mp.AccountID == x.AccountID
+}
+
+// FirstAndLastMetricIDs returns the first and the last metricIDs in the mp.tail.
+func (mp *tagToMetricIDsRowParser) FirstAndLastMetricIDs() (uint64, uint64) {
+	tail := mp.tail
+	if len(tail) < 8 {
+		logger.Panicf("BUG: cannot unmarshal metricID from %d bytes; need 8 bytes", len(tail))
+		return 0, 0
+	}
+	firstMetricID := encoding.UnmarshalUint64(tail)
+	lastMetricID := firstMetricID
+	if len(tail) > 8 {
+		lastMetricID = encoding.UnmarshalUint64(tail[len(tail)-8:])
+	}
+	return firstMetricID, lastMetricID
+}
+
+// ParseMetricIDs parses MetricIDs from mp.tail into mp.MetricIDs.
+func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
+	tail := mp.tail
+	mp.MetricIDs = mp.MetricIDs[:0]
+	n := len(tail) / 8
+	if n <= cap(mp.MetricIDs) {
+		mp.MetricIDs = mp.MetricIDs[:n]
+	} else {
+		mp.MetricIDs = append(mp.MetricIDs[:cap(mp.MetricIDs)], make([]uint64, n-cap(mp.MetricIDs))...)
+	}
+	metricIDs := mp.MetricIDs
+	_ = metricIDs[n-1]
+	for i := 0; i < n; i++ {
+		if len(tail) < 8 {
+			logger.Panicf("BUG: tail cannot be smaller than 8 bytes; got %d bytes; tail=%X", len(tail), tail)
+			return
+		}
+		metricID := encoding.UnmarshalUint64(tail)
+		metricIDs[i] = metricID
+		tail = tail[8:]
+	}
+}
+
+// IsDeletedTag verifies whether the tag from mp is deleted according to dmis.
+//
+// dmis must contain deleted MetricIDs.
+func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis map[uint64]struct{}) bool {
+	if len(dmis) == 0 {
+		return false
+	}
+	mp.ParseMetricIDs()
+	for _, metricID := range mp.MetricIDs {
+		if _, ok := dmis[metricID]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
+	// Perform quick checks whether items contain tag->metricIDs rows
+	// based on the fact that items are sorted.
+	if len(items) == 0 {
+		return data, items
+	}
+	firstItem := items[0]
+	if len(firstItem) > 0 && firstItem[0] > nsPrefixTagToMetricIDs {
+		return data, items
+	}
+	lastItem := items[len(items)-1]
+	if len(lastItem) > 0 && lastItem[0] < nsPrefixTagToMetricIDs {
+		return data, items
+	}
+
+	// items contain at least one tag->metricIDs row. Merge rows with common tag.
+	dstData := data[:0]
+	dstItems := items[:0]
+
+	tmm := getTagToMetricIDsRowsMerger()
+	defer putTagToMetricIDsRowsMerger(tmm)
+
+	mp := &tmm.mp
+	mpPrev := &tmm.mpPrev
+	for _, item := range items {
+		if len(item) == 0 || item[0] != nsPrefixTagToMetricIDs {
+			if len(tmm.pendingMetricIDs) > 0 {
+				dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
+			}
+			dstData = append(dstData, item...)
+			dstItems = append(dstItems, dstData[len(dstData)-len(item):])
+			continue
+		}
+		if err := mp.Init(item); err != nil {
+			logger.Panicf("FATAL: cannot parse tag->metricIDs row during merge: %s", err)
+		}
+		if len(tmm.pendingMetricIDs) > 0 && !mp.EqualPrefix(mpPrev) {
+			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
+		}
+		mp.ParseMetricIDs()
+		tmm.pendingMetricIDs = append(tmm.pendingMetricIDs, mp.MetricIDs...)
+		mpPrev, mp = mp, mpPrev
+	}
+	if len(tmm.pendingMetricIDs) > 0 {
+		dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
+	}
+	return dstData, dstItems
+}
+
 type uint64Sorter []uint64
 
 func (s uint64Sorter) Len() int { return len(s) }
@@ -2148,3 +2353,43 @@ func (s uint64Sorter) Less(i, j int) bool {
 func (s uint64Sorter) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
+
+type tagToMetricIDsRowsMerger struct {
+	pendingMetricIDs uint64Sorter
+	mp               tagToMetricIDsRowParser
+	mpPrev           tagToMetricIDsRowParser
+}
+
+func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstItems [][]byte, mp *tagToMetricIDsRowParser) ([]byte, [][]byte) {
+	if len(tmm.pendingMetricIDs) == 0 {
+		logger.Panicf("BUG: pendingMetricIDs must be non-empty")
+	}
+	dstDataLen := len(dstData)
+	dstData = marshalCommonPrefix(dstData, nsPrefixTagToMetricIDs, mp.AccountID, mp.ProjectID)
+	dstData = mp.Tag.Marshal(dstData)
+	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations
+	sort.Sort(&tmm.pendingMetricIDs)
+	for _, metricID := range tmm.pendingMetricIDs {
+		dstData = encoding.MarshalUint64(dstData, metricID)
+	}
+	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
+	dstItems = append(dstItems, dstData[dstDataLen:])
+	return dstData, dstItems
+}
+
+func getTagToMetricIDsRowsMerger() *tagToMetricIDsRowsMerger {
+	v := tmmPool.Get()
+	if v == nil {
+		return &tagToMetricIDsRowsMerger{}
+	}
+	return v.(*tagToMetricIDsRowsMerger)
+}
+
+func putTagToMetricIDsRowsMerger(tmm *tagToMetricIDsRowsMerger) {
+	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
+	tmm.mp.Reset()
+	tmm.mpPrev.Reset()
+	tmmPool.Put(tmm)
+}
+
+var tmmPool sync.Pool

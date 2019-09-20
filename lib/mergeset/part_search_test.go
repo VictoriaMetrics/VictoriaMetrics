@@ -150,7 +150,7 @@ func newTestPart(blocksCount, maxItemsPerBlock int) (*part, []string, error) {
 	var ip inmemoryPart
 	var bsw blockStreamWriter
 	bsw.InitFromInmemoryPart(&ip, 0)
-	if err := mergeBlockStreams(&ip.ph, &bsw, bsrs, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&ip.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
 		return nil, nil, fmt.Errorf("cannot merge blocks: %s", err)
 	}
 	if itemsMerged != uint64(len(items)) {

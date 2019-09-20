@@ -30,14 +30,14 @@ func TestMultilevelMerge(t *testing.T) {
 	var dstIP1 inmemoryPart
 	var bsw1 blockStreamWriter
 	bsw1.InitFromInmemoryPart(&dstIP1, 0)
-	if err := mergeBlockStreams(&dstIP1.ph, &bsw1, bsrs[:5], nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP1.ph, &bsw1, bsrs[:5], nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge first level part 1: %s", err)
 	}
 
 	var dstIP2 inmemoryPart
 	var bsw2 blockStreamWriter
 	bsw2.InitFromInmemoryPart(&dstIP2, 0)
-	if err := mergeBlockStreams(&dstIP2.ph, &bsw2, bsrs[5:], nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP2.ph, &bsw2, bsrs[5:], nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge first level part 2: %s", err)
 	}
 
@@ -54,7 +54,7 @@ func TestMultilevelMerge(t *testing.T) {
 		newTestBlockStreamReader(&dstIP2),
 	}
 	bsw.InitFromInmemoryPart(&dstIP, 0)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrsTop, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrsTop, nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge second level: %s", err)
 	}
 	if itemsMerged != uint64(len(items)) {
@@ -76,7 +76,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	ch := make(chan struct{})
 	var itemsMerged uint64
 	close(ch)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, ch, &itemsMerged); err != errForciblyStopped {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, ch, &itemsMerged); err != errForciblyStopped {
 		t.Fatalf("unexpected error during merge: got %v; want %v", err, errForciblyStopped)
 	}
 	if itemsMerged != 0 {
@@ -120,7 +120,7 @@ func testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock int) error {
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
 	bsw.InitFromInmemoryPart(&dstIP, 0)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, &itemsMerged); err != nil {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
 		return fmt.Errorf("cannot merge block streams: %s", err)
 	}
 	if itemsMerged != uint64(len(items)) {

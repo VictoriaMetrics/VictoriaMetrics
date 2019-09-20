@@ -7,16 +7,27 @@ import (
 	"sync/atomic"
 )
 
+// PrepareBlockCallback can transform the passed items allocated at the given data.
+//
+// The callback is called during merge before flushing full block of the given items
+// to persistent storage.
+//
+// The callback must return sorted items.
+// The callback can re-use data and items for storing the result.
+type PrepareBlockCallback func(data []byte, items [][]byte) ([]byte, [][]byte)
+
 // mergeBlockStreams merges bsrs and writes result to bsw.
 //
 // It also fills ph.
 //
+// prepareBlock is optional.
+//
 // The function immediately returns when stopCh is closed.
 //
 // It also atomically adds the number of items merged to itemsMerged.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, itemsMerged *uint64) error {
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{}, itemsMerged *uint64) error {
 	bsm := bsmPool.Get().(*blockStreamMerger)
-	if err := bsm.Init(bsrs); err != nil {
+	if err := bsm.Init(bsrs, prepareBlock); err != nil {
 		return fmt.Errorf("cannot initialize blockStreamMerger: %s", err)
 	}
 	err := bsm.Merge(bsw, ph, stopCh, itemsMerged)
@@ -39,6 +50,8 @@ var bsmPool = &sync.Pool{
 }
 
 type blockStreamMerger struct {
+	prepareBlock PrepareBlockCallback
+
 	bsrHeap bsrHeap
 
 	// ib is a scratch block with pending items.
@@ -48,6 +61,8 @@ type blockStreamMerger struct {
 }
 
 func (bsm *blockStreamMerger) reset() {
+	bsm.prepareBlock = nil
+
 	for i := range bsm.bsrHeap {
 		bsm.bsrHeap[i] = nil
 	}
@@ -57,8 +72,9 @@ func (bsm *blockStreamMerger) reset() {
 	bsm.phFirstItemCaught = false
 }
 
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader) error {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback) error {
 	bsm.reset()
+	bsm.prepareBlock = prepareBlock
 	for _, bsr := range bsrs {
 		if bsr.Next() {
 			bsm.bsrHeap = append(bsm.bsrHeap, bsr)
@@ -134,9 +150,11 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 		// Nothing to flush.
 		return
 	}
-	itemsCount := uint64(len(bsm.ib.items))
-	ph.itemsCount += itemsCount
-	atomic.AddUint64(itemsMerged, itemsCount)
+	atomic.AddUint64(itemsMerged, uint64(len(bsm.ib.items)))
+	if bsm.prepareBlock != nil {
+		bsm.ib.data, bsm.ib.items = bsm.prepareBlock(bsm.ib.data, bsm.ib.items)
+	}
+	ph.itemsCount += uint64(len(bsm.ib.items))
 	if !bsm.phFirstItemCaught {
 		ph.firstItem = append(ph.firstItem[:0], bsm.ib.items[0]...)
 		bsm.phFirstItemCaught = true

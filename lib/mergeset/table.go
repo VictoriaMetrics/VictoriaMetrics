@@ -74,6 +74,8 @@ type Table struct {
 
 	flushCallback func()
 
+	prepareBlock PrepareBlockCallback
+
 	partsLock sync.Mutex
 	parts     []*partWrapper
 
@@ -93,6 +95,8 @@ type Table struct {
 	partMergersWG syncwg.WaitGroup
 
 	rawItemsFlusherWG sync.WaitGroup
+
+	convertersWG sync.WaitGroup
 
 	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
 	rawItemsPendingFlushesWG syncwg.WaitGroup
@@ -139,8 +143,11 @@ func (pw *partWrapper) decRef() {
 // Optional flushCallback is called every time new data batch is flushed
 // to the underlying storage and becomes visible to search.
 //
+// Optional prepareBlock is called during merge before flushing the prepared block
+// to persistent storage.
+//
 // The table is created if it doesn't exist yet.
-func OpenTable(path string, flushCallback func()) (*Table, error) {
+func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback) (*Table, error) {
 	path = filepath.Clean(path)
 	logger.Infof("opening table %q...", path)
 	startTime := time.Now()
@@ -165,6 +172,7 @@ func OpenTable(path string, flushCallback func()) (*Table, error) {
 	tb := &Table{
 		path:          path,
 		flushCallback: flushCallback,
+		prepareBlock:  prepareBlock,
 		parts:         pws,
 		mergeIdx:      uint64(time.Now().UnixNano()),
 		flockF:        flockF,
@@ -178,6 +186,12 @@ func OpenTable(path string, flushCallback func()) (*Table, error) {
 	logger.Infof("table %q has been opened in %s; partsCount: %d; blocksCount: %d, itemsCount: %d; sizeBytes: %d",
 		path, time.Since(startTime), m.PartsCount, m.BlocksCount, m.ItemsCount, m.SizeBytes)
 
+	tb.convertersWG.Add(1)
+	go func() {
+		tb.convertToV1280()
+		tb.convertersWG.Done()
+	}()
+
 	return tb, nil
 }
 
@@ -189,6 +203,11 @@ func (tb *Table) MustClose() {
 	startTime := time.Now()
 	tb.rawItemsFlusherWG.Wait()
 	logger.Infof("raw items flusher stopped in %s on %q", time.Since(startTime), tb.path)
+
+	logger.Infof("waiting for converters to stop on %q...", tb.path)
+	startTime = time.Now()
+	tb.convertersWG.Wait()
+	logger.Infof("converters stopped in %s on %q", time.Since(startTime), tb.path)
 
 	logger.Infof("waiting for part mergers to stop on %q...", tb.path)
 	startTime = time.Now()
@@ -216,7 +235,7 @@ func (tb *Table) MustClose() {
 	}
 	tb.partsLock.Unlock()
 
-	if err := tb.mergePartsOptimal(pws); err != nil {
+	if err := tb.mergePartsOptimal(pws, nil); err != nil {
 		logger.Panicf("FATAL: cannot flush inmemory parts to files in %q: %s", tb.path, err)
 	}
 	logger.Infof("%d inmemory parts have been flushed to files in %s on %q", len(pws), time.Since(startTime), tb.path)
@@ -393,15 +412,67 @@ func (tb *Table) rawItemsFlusher() {
 	}
 }
 
-func (tb *Table) mergePartsOptimal(pws []*partWrapper) error {
+const convertToV1280FileName = "converted-to-v1.28.0"
+
+func (tb *Table) convertToV1280() {
+	// Convert tag->metricID rows into tag->metricIDs rows when upgrading to v1.28.0+.
+	flagFilePath := tb.path + "/" + convertToV1280FileName
+	if fs.IsPathExist(flagFilePath) {
+		// The conversion has been already performed.
+		return
+	}
+
+	getAllPartsForMerge := func() []*partWrapper {
+		var pws []*partWrapper
+		tb.partsLock.Lock()
+		for _, pw := range tb.parts {
+			if pw.isInMerge {
+				continue
+			}
+			pw.isInMerge = true
+			pws = append(pws, pw)
+		}
+		tb.partsLock.Unlock()
+		return pws
+	}
+	pws := getAllPartsForMerge()
+	if len(pws) > 0 {
+		logger.Infof("started round 1 of background conversion of %q to v1.28.0 format; merge %d parts", tb.path, len(pws))
+		startTime := time.Now()
+		if err := tb.mergePartsOptimal(pws, tb.stopCh); err != nil {
+			logger.Errorf("failed round 1 of background conversion of %q to v1.28.0 format: %s", tb.path, err)
+			return
+		}
+		logger.Infof("finished round 1 of background conversion of %q to v1.28.0 format in %s", tb.path, time.Since(startTime))
+
+		// The second round is needed in order to merge small blocks
+		// with tag->metricIDs rows left after the first round.
+		pws = getAllPartsForMerge()
+		logger.Infof("started round 2 of background conversion of %q to v1.28.0 format; merge %d parts", tb.path, len(pws))
+		startTime = time.Now()
+		if len(pws) > 0 {
+			if err := tb.mergePartsOptimal(pws, tb.stopCh); err != nil {
+				logger.Errorf("failed round 2 of background conversion of %q to v1.28.0 format: %s", tb.path, err)
+				return
+			}
+		}
+		logger.Infof("finished round 2 of background conversion of %q to v1.28.0 format in %s", tb.path, time.Since(startTime))
+	}
+
+	if err := fs.WriteFileAtomically(flagFilePath, []byte("ok")); err != nil {
+		logger.Panicf("FATAL: cannot create %q: %s", flagFilePath, err)
+	}
+}
+
+func (tb *Table) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
 	for len(pws) > defaultPartsToMerge {
-		if err := tb.mergeParts(pws[:defaultPartsToMerge], nil, false); err != nil {
+		if err := tb.mergeParts(pws[:defaultPartsToMerge], stopCh, false); err != nil {
 			return fmt.Errorf("cannot merge %d parts: %s", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
 	}
 	if len(pws) > 0 {
-		if err := tb.mergeParts(pws, nil, false); err != nil {
+		if err := tb.mergeParts(pws, stopCh, false); err != nil {
 			return fmt.Errorf("cannot merge %d parts: %s", len(pws), err)
 		}
 	}
@@ -541,7 +612,7 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
 	// since it may be final after stopCh is closed.
-	if err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, nil, &tb.itemsMerged); err != nil {
+	if err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, &tb.itemsMerged); err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
 	putBlockStreamWriter(bsw)
@@ -700,7 +771,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	// Merge parts into a temporary location.
 	var ph partHeader
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, &tb.itemsMerged)
+	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, &tb.itemsMerged)
 	putBlockStreamWriter(bsw)
 	if err != nil {
 		if err == errForciblyStopped {
@@ -950,11 +1021,20 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 		return fmt.Errorf("cannot read directory: %s", err)
 	}
 	for _, fi := range fis {
+		fn := fi.Name()
 		if !fs.IsDirOrSymlink(fi) {
-			// Skip non-directories.
+			switch fn {
+			case convertToV1280FileName:
+				srcPath := srcDir + "/" + fn
+				dstPath := dstDir + "/" + fn
+				if err := os.Link(srcPath, dstPath); err != nil {
+					return fmt.Errorf("cannot hard link from %q to %q: %s", srcPath, dstPath, err)
+				}
+			default:
+				// Skip other non-directories.
+			}
 			continue
 		}
-		fn := fi.Name()
 		if isSpecialDir(fn) {
 			// Skip special dirs.
 			continue
