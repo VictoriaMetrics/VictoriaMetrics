@@ -2,6 +2,7 @@ package mergeset
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -146,7 +147,9 @@ func (ib *inmemoryBlock) MarshalUnsortedData(sb *storageBlock, firstItemDst, com
 	return ib.marshalData(sb, firstItemDst, commonPrefixDst, compressLevel)
 }
 
-var isInTest bool
+var isInTest = func() bool {
+	return strings.HasSuffix(os.Args[0], ".test")
+}()
 
 // MarshalUnsortedData marshals sorted items from ib to sb.
 //
