@@ -216,7 +216,7 @@ func (c *Cache) Reset() {
 	curr := c.curr.Load().(*fastcache.Cache)
 	curr.Reset()
 
-	c.misses = 0
+	atomic.StoreUint64(&c.misses, 0)
 }
 
 // UpdateStats updates fcs with cache stats.
