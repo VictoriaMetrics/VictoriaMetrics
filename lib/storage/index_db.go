@@ -2298,7 +2298,21 @@ func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstIt
 	dstData = mp.Tag.Marshal(dstData)
 	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations
 	sort.Sort(&tmm.pendingMetricIDs)
-	for _, metricID := range tmm.pendingMetricIDs {
+	pendingMetricIDs := tmm.pendingMetricIDs
+	if len(dstItems) == 0 {
+		// Put the first item with a single metricID, since this item goes into index, so it must be short.
+		dstData = encoding.MarshalUint64(dstData, pendingMetricIDs[0])
+		dstItems = append(dstItems, dstData[dstDataLen:])
+		pendingMetricIDs = pendingMetricIDs[1:]
+		if len(pendingMetricIDs) == 0 {
+			tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
+			return dstData, dstItems
+		}
+		dstDataLen = len(dstData)
+		dstData = marshalCommonPrefix(dstData, nsPrefixTagToMetricIDs)
+		dstData = mp.Tag.Marshal(dstData)
+	}
+	for _, metricID := range pendingMetricIDs {
 		dstData = encoding.MarshalUint64(dstData, metricID)
 	}
 	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
