@@ -940,7 +940,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (map[uint64]struct{}, error) {
 	return dmis, nil
 }
 
-// searchTSIDs returns tsids matching the given tfss over the given tr.
+// searchTSIDs returns sorted tsids matching the given tfss over the given tr.
 func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	if len(tfss) == 0 {
 		return nil, nil

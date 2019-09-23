@@ -3,7 +3,9 @@ package storage
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -49,7 +51,7 @@ type partSearch struct {
 func (ps *partSearch) reset() {
 	ps.Block.Reset()
 	ps.p = nil
-	ps.tsids = ps.tsids[:0]
+	ps.tsids = nil
 	ps.tsidIdx = 0
 	ps.fetchData = true
 	ps.metaindex = nil
@@ -64,16 +66,24 @@ func (ps *partSearch) reset() {
 	ps.err = nil
 }
 
+var isInTest = func() bool {
+	return strings.HasSuffix(os.Args[0], ".test")
+}()
+
 // Init initializes the ps with the given p, tsids and tr.
+//
+// tsids must be sorted.
+// tsids cannot be modified after the Init call, since it is owned by ps.
 func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange, fetchData bool) {
 	ps.reset()
 	ps.p = p
 
 	if p.ph.MinTimestamp <= tr.MaxTimestamp && p.ph.MaxTimestamp >= tr.MinTimestamp {
-		if !sort.SliceIsSorted(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) }) {
+		if isInTest && !sort.SliceIsSorted(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) }) {
 			logger.Panicf("BUG: tsids must be sorted; got %+v", tsids)
 		}
-		ps.tsids = append(ps.tsids[:0], tsids...)
+		// take ownership of of tsids.
+		ps.tsids = tsids
 	}
 	ps.tr = tr
 	ps.fetchData = fetchData

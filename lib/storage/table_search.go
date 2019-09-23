@@ -54,6 +54,9 @@ func (ts *tableSearch) reset() {
 
 // Init initializes the ts.
 //
+// tsids must be sorted.
+// tsids cannot be modified after the Init call, since it is owned by ts.
+//
 // MustClose must be called then the tableSearch is done.
 func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange, fetchData bool) {
 	if ts.needClosing {
