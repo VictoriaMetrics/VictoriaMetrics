@@ -2265,12 +2265,23 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 		if err := mp.Init(item); err != nil {
 			logger.Panicf("FATAL: cannot parse tag->metricIDs row during merge: %s", err)
 		}
+		if mp.MetricIDsLen() >= maxMetricIDsPerRow {
+			if len(tmm.pendingMetricIDs) > 0 {
+				dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
+			}
+			dstData = append(dstData, item...)
+			dstItems = append(dstItems, dstData[len(dstData)-len(item):])
+			continue
+		}
 		if len(tmm.pendingMetricIDs) > 0 && !mp.EqualPrefix(mpPrev) {
 			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 		}
 		mp.ParseMetricIDs()
 		tmm.pendingMetricIDs = append(tmm.pendingMetricIDs, mp.MetricIDs...)
 		mpPrev, mp = mp, mpPrev
+		if len(tmm.pendingMetricIDs) >= maxMetricIDsPerRow {
+			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
+		}
 	}
 	if len(tmm.pendingMetricIDs) > 0 {
 		dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
@@ -2278,6 +2289,11 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	putTagToMetricIDsRowsMerger(tmm)
 	return data, dstItems
 }
+
+// maxMetricIDsPerRow limits the number of metricIDs in tag->metricIDs row.
+//
+// This reduces overhead on index and metaindex in lib/mergeset.
+const maxMetricIDsPerRow = 64
 
 type uint64Sorter []uint64
 
