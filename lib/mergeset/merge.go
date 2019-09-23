@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // PrepareBlockCallback can transform the passed items allocated at the given data.
@@ -12,7 +14,7 @@ import (
 // The callback is called during merge before flushing full block of the given items
 // to persistent storage.
 //
-// The callback must return sorted items.
+// The callback must return sorted items. The first and the last item must be unchanged.
 // The callback can re-use data and items for storing the result.
 type PrepareBlockCallback func(data []byte, items [][]byte) ([]byte, [][]byte)
 
@@ -58,6 +60,11 @@ type blockStreamMerger struct {
 	ib inmemoryBlock
 
 	phFirstItemCaught bool
+
+	// This are auxiliary buffers used in flushIB
+	// for consistency checks after prepareBlock call.
+	firstItem []byte
+	lastItem  []byte
 }
 
 func (bsm *blockStreamMerger) reset() {
@@ -117,14 +124,17 @@ again:
 		nextItem = bsm.bsrHeap[0].bh.firstItem
 		hasNextItem = true
 	}
-	for bsr.blockItemIdx < len(bsr.Block.items) && (!hasNextItem || string(bsr.Block.items[bsr.blockItemIdx]) <= string(nextItem)) {
-		if bsm.ib.Add(bsr.Block.items[bsr.blockItemIdx]) {
-			bsr.blockItemIdx++
+	for bsr.blockItemIdx < len(bsr.Block.items) {
+		item := bsr.Block.items[bsr.blockItemIdx]
+		if hasNextItem && string(item) > string(nextItem) {
+			break
+		}
+		if !bsm.ib.Add(item) {
+			// The bsm.ib is full. Flush it to bsw and continue.
+			bsm.flushIB(bsw, ph, itemsMerged)
 			continue
 		}
-
-		// The bsm.ib is full. Flush it to bsw and continue.
-		bsm.flushIB(bsw, ph, itemsMerged)
+		bsr.blockItemIdx++
 	}
 	if bsr.blockItemIdx == len(bsr.Block.items) {
 		// bsr.Block is fully read. Proceed to the next block.
@@ -152,7 +162,27 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 	}
 	atomic.AddUint64(itemsMerged, uint64(len(bsm.ib.items)))
 	if bsm.prepareBlock != nil {
+		bsm.firstItem = append(bsm.firstItem[:0], bsm.ib.items[0]...)
+		bsm.lastItem = append(bsm.lastItem[:0], bsm.ib.items[len(bsm.ib.items)-1]...)
 		bsm.ib.data, bsm.ib.items = bsm.prepareBlock(bsm.ib.data, bsm.ib.items)
+		if len(bsm.ib.items) == 0 {
+			// Nothing to flush
+			return
+		}
+		// Consistency checks after prepareBlock call.
+		firstItem := bsm.ib.items[0]
+		if string(firstItem) != string(bsm.firstItem) {
+			logger.Panicf("BUG: prepareBlock must return first item equal to the original first item;\ngot\n%X\nwant\n%X", firstItem, bsm.firstItem)
+		}
+		lastItem := bsm.ib.items[len(bsm.ib.items)-1]
+		if string(lastItem) != string(bsm.lastItem) {
+			logger.Panicf("BUG: prepareBlock must return last item equal to the original last item;\ngot\n%X\nwant\n%X", lastItem, bsm.lastItem)
+		}
+		// Verify whether the bsm.ib.items are sorted only in tests, since this
+		// can be expensive check in prod for items with long common prefix.
+		if isInTest && !bsm.ib.isSorted() {
+			logger.Panicf("BUG: prepareBlock must return sorted items;\ngot\n%s", bsm.ib.debugItemsString())
+		}
 	}
 	ph.itemsCount += uint64(len(bsm.ib.items))
 	if !bsm.phFirstItemCaught {
