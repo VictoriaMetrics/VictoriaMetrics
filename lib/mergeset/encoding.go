@@ -168,8 +168,13 @@ func (ib *inmemoryBlock) MarshalSortedData(sb *storageBlock, firstItemDst, commo
 
 func (ib *inmemoryBlock) debugItemsString() string {
 	var sb strings.Builder
+	var prevItem []byte
 	for i, item := range ib.items {
+		if string(item) < string(prevItem) {
+			fmt.Fprintf(&sb, "!!! the next item is smaller than the previous item !!!\n")
+		}
 		fmt.Fprintf(&sb, "%05d %X\n", i, item)
+		prevItem = item
 	}
 	return sb.String()
 }

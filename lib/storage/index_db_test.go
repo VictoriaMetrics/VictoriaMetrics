@@ -280,6 +280,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	is := db.getIndexSearch()
 	defer db.putIndexSearch(is)
 
+	var metricNameBuf []byte
 	for i := 0; i < 4e2+1; i++ {
 		var mn MetricName
 		mn.AccountID = uint32((i + 2) % accountsCount)
@@ -296,11 +297,11 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 			mn.AddTag(key, value)
 		}
 		mn.sortTags()
-		metricName := mn.Marshal(nil)
+		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
 		// Create tsid for the metricName.
 		var tsid TSID
-		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
+		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf); err != nil {
 			return nil, nil, fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err)
 		}
 		if tsid.AccountID != mn.AccountID {
@@ -314,22 +315,22 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		tsids = append(tsids, tsid)
 	}
 
+	// fill Date -> MetricID cache
+	date := uint64(timestampFromTime(time.Now())) / msecPerDay
+	for i := range tsids {
+		tsid := &tsids[i]
+		if err := db.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
+			return nil, nil, fmt.Errorf("error in storeDateMetricID(%d, %d, %d, %d): %s", date, tsid.MetricID, tsid.AccountID, tsid.ProjectID, err)
+		}
+	}
+
+	// Flush index to disk, so it becomes visible for search
 	db.tb.DebugFlush()
 
 	return mns, tsids, nil
 }
 
 func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isConcurrent bool) error {
-	// fill Date -> MetricID cache
-	date := uint64(timestampFromTime(time.Now())) / msecPerDay
-	for i := range tsids {
-		tsid := &tsids[i]
-		if err := db.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
-			return fmt.Errorf("error in storeDateMetricID(%d, %d, %d, %d): %s", date, tsid.MetricID, tsid.AccountID, tsid.ProjectID, err)
-		}
-	}
-	db.tb.DebugFlush()
-
 	hasValue := func(tvs []string, v []byte) bool {
 		for _, tv := range tvs {
 			if string(v) == tv {
@@ -381,7 +382,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		var err error
 		metricNameCopy, err = db.searchMetricName(metricNameCopy[:0], tsidCopy.MetricID, tsidCopy.AccountID, tsidCopy.ProjectID)
 		if err != nil {
-			return fmt.Errorf("error in searchMetricName: %s", err)
+			return fmt.Errorf("error in searchMetricName for metricID=%d; i=%d: %s", tsidCopy.MetricID, i, err)
 		}
 		if !bytes.Equal(metricName, metricNameCopy) {
 			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", tsidCopy.MetricID, metricNameCopy, metricName)
@@ -480,7 +481,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 			return fmt.Errorf("cannot search by exact tag filter: %s", err)
 		}
 		if !testHasTSID(tsidsFound, tsid) {
-			return fmt.Errorf("tsids is missing in exact tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
+			return fmt.Errorf("tsids is missing in exact tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s\ni=%d", tsid, tsidsFound, tfs, mn, i)
 		}
 
 		// Verify tag cache.

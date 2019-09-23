@@ -1656,11 +1656,11 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 			// Fast path: the same tag value found.
 			// There is no need in checking it again with potentially
 			// slow tf.matchSuffix, which may call regexp.
-			mp.ParseMetricIDs()
-			loops += len(mp.MetricIDs)
+			loops += mp.MetricIDsLen()
 			if loops > maxLoops {
 				return errFallbackToMetricNameMatch
 			}
+			mp.ParseMetricIDs()
 			for _, metricID := range mp.MetricIDs {
 				if !f(metricID) {
 					return nil
@@ -1689,11 +1689,11 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 		}
 		prevMatch = true
 		prevMatchingSuffix = append(prevMatchingSuffix[:0], suffix...)
-		mp.ParseMetricIDs()
-		loops += len(mp.MetricIDs)
+		loops += mp.MetricIDsLen()
 		if loops > maxLoops {
 			return errFallbackToMetricNameMatch
 		}
+		mp.ParseMetricIDs()
 		for _, metricID := range mp.MetricIDs {
 			if !f(metricID) {
 				return nil
@@ -1756,11 +1756,11 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 		if err := mp.InitOnlyTail(item, item[len(prefix):]); err != nil {
 			return err
 		}
-		mp.ParseMetricIDs()
-		loops += len(mp.MetricIDs)
+		loops += mp.MetricIDsLen()
 		if loops > maxLoops {
 			return errFallbackToMetricNameMatch
 		}
+		mp.ParseMetricIDs()
 		for _, metricID := range mp.MetricIDs {
 			metricIDs[metricID] = struct{}{}
 		}
@@ -1805,11 +1805,11 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 			return nil
 		}
 		sf = sortedFilter
-		mp.ParseMetricIDs()
-		loops += len(mp.MetricIDs)
+		loops += mp.MetricIDsLen()
 		if loops > maxLoops {
 			return errFallbackToMetricNameMatch
 		}
+		mp.ParseMetricIDs()
 		for _, metricID = range mp.MetricIDs {
 			if len(sf) == 0 {
 				break
@@ -2256,6 +2256,11 @@ func (mp *tagToMetricIDsRowParser) FirstAndLastMetricIDs() (uint64, uint64) {
 	return firstMetricID, lastMetricID
 }
 
+// MetricIDsLen returns the number of MetricIDs in the mp.tail
+func (mp *tagToMetricIDsRowParser) MetricIDsLen() int {
+	return len(mp.tail) / 8
+}
+
 // ParseMetricIDs parses MetricIDs from mp.tail into mp.MetricIDs.
 func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 	tail := mp.tail
@@ -2313,14 +2318,14 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	// items contain at least one tag->metricIDs row. Merge rows with common tag.
 	dstData := data[:0]
 	dstItems := items[:0]
-
 	tmm := getTagToMetricIDsRowsMerger()
-	defer putTagToMetricIDsRowsMerger(tmm)
-
 	mp := &tmm.mp
 	mpPrev := &tmm.mpPrev
-	for _, item := range items {
-		if len(item) == 0 || item[0] != nsPrefixTagToMetricIDs {
+	for i, item := range items {
+		if len(item) == 0 || item[0] != nsPrefixTagToMetricIDs || i == 0 || i == len(items)-1 {
+			// Write rows other than tag->metricIDs as-is.
+			// Additionally write the first and the last row as-is in order to preserve
+			// sort order for adjancent blocks.
 			if len(tmm.pendingMetricIDs) > 0 {
 				dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 			}
@@ -2341,7 +2346,8 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	if len(tmm.pendingMetricIDs) > 0 {
 		dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 	}
-	return dstData, dstItems
+	putTagToMetricIDsRowsMerger(tmm)
+	return data, dstItems
 }
 
 type uint64Sorter []uint64
@@ -2360,34 +2366,27 @@ type tagToMetricIDsRowsMerger struct {
 	mpPrev           tagToMetricIDsRowParser
 }
 
+func (tmm *tagToMetricIDsRowsMerger) Reset() {
+	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
+	tmm.mp.Reset()
+	tmm.mpPrev.Reset()
+}
+
 func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstItems [][]byte, mp *tagToMetricIDsRowParser) ([]byte, [][]byte) {
 	if len(tmm.pendingMetricIDs) == 0 {
 		logger.Panicf("BUG: pendingMetricIDs must be non-empty")
 	}
+	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations.
+	sort.Sort(&tmm.pendingMetricIDs)
+
 	dstDataLen := len(dstData)
 	dstData = marshalCommonPrefix(dstData, nsPrefixTagToMetricIDs, mp.AccountID, mp.ProjectID)
 	dstData = mp.Tag.Marshal(dstData)
-	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations
-	sort.Sort(&tmm.pendingMetricIDs)
-	pendingMetricIDs := tmm.pendingMetricIDs
-	if len(dstItems) == 0 {
-		// Put the first item with a single metricID, since this item goes into index, so it must be short.
-		dstData = encoding.MarshalUint64(dstData, pendingMetricIDs[0])
-		dstItems = append(dstItems, dstData[dstDataLen:])
-		pendingMetricIDs = pendingMetricIDs[1:]
-		if len(pendingMetricIDs) == 0 {
-			tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
-			return dstData, dstItems
-		}
-		dstDataLen = len(dstData)
-		dstData = marshalCommonPrefix(dstData, nsPrefixTagToMetricIDs, mp.AccountID, mp.ProjectID)
-		dstData = mp.Tag.Marshal(dstData)
-	}
-	for _, metricID := range pendingMetricIDs {
+	for _, metricID := range tmm.pendingMetricIDs {
 		dstData = encoding.MarshalUint64(dstData, metricID)
 	}
-	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
 	dstItems = append(dstItems, dstData[dstDataLen:])
+	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
 	return dstData, dstItems
 }
 
@@ -2400,9 +2399,7 @@ func getTagToMetricIDsRowsMerger() *tagToMetricIDsRowsMerger {
 }
 
 func putTagToMetricIDsRowsMerger(tmm *tagToMetricIDsRowsMerger) {
-	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
-	tmm.mp.Reset()
-	tmm.mpPrev.Reset()
+	tmm.Reset()
 	tmmPool.Put(tmm)
 }
 
