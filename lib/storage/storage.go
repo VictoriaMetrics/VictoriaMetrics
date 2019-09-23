@@ -579,7 +579,7 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 	return deadline.Sub(t)
 }
 
-// searchTSIDs returns TSIDs for the given tfss and the given tr.
+// searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
