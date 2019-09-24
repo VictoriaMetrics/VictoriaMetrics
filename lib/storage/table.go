@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // table represents a single table with time series data.
@@ -18,7 +19,7 @@ type table struct {
 	smallPartitionsPath string
 	bigPartitionsPath   string
 
-	getDeletedMetricIDs func() map[uint64]struct{}
+	getDeletedMetricIDs func() *uint64set.Set
 
 	ptws     []*partitionWrapper
 	ptwsLock sync.Mutex
@@ -75,7 +76,7 @@ func (ptw *partitionWrapper) scheduleToDrop() {
 // The table is created if it doesn't exist.
 //
 // Data older than the retentionMonths may be dropped at any time.
-func openTable(path string, retentionMonths int, getDeletedMetricIDs func() map[uint64]struct{}) (*table, error) {
+func openTable(path string, retentionMonths int, getDeletedMetricIDs func() *uint64set.Set) (*table, error) {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
@@ -430,7 +431,7 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() map[uint64]struct{}) ([]*partition, error) {
+func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set) ([]*partition, error) {
 	smallD, err := os.Open(smallPartitionsPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open directory with small partitions %q: %s", smallPartitionsPath, err)

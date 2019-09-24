@@ -7,6 +7,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func TestPartitionSearch(t *testing.T) {
@@ -284,6 +286,6 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 	return nil
 }
 
-func nilGetDeletedMetricIDs() map[uint64]struct{} {
+func nilGetDeletedMetricIDs() *uint64set.Set {
 	return nil
 }

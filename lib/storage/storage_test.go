@@ -9,6 +9,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
@@ -16,19 +18,18 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		var s Storage
 		s.currHourMetricIDs.Store(&hourMetricIDs{})
 		s.prevHourMetricIDs.Store(&hourMetricIDs{})
-		s.pendingHourMetricIDs = make(map[uint64]struct{})
+		s.pendingHourMetricIDs = &uint64set.Set{}
 		return &s
 	}
 	t.Run("empty_pedning_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
-			m: map[uint64]struct{}{
-				12: {},
-				34: {},
-			},
+			m:    &uint64set.Set{},
 			hour: 123,
 		}
+		hmOrig.m.Add(12)
+		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -39,8 +40,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 			}
 		}
-		if len(hmCurr.m) != 0 {
-			t.Fatalf("unexpected length of hm.m; got %d; want %d", len(hmCurr.m), 0)
+		if hmCurr.m.Len() != 0 {
+			t.Fatalf("unexpected length of hm.m; got %d; want %d", hmCurr.m.Len(), 0)
 		}
 		if !hmCurr.isFull {
 			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
@@ -51,20 +52,19 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if s.pendingHourMetricIDs.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
 		}
 	})
 	t.Run("empty_pedning_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
-			m: map[uint64]struct{}{
-				12: {},
-				34: {},
-			},
+			m:    &uint64set.Set{},
 			hour: hour,
 		}
+		hmOrig.m.Add(12)
+		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -90,27 +90,25 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if s.pendingHourMetricIDs.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		pendingHourMetricIDs := map[uint64]struct{}{
-			343:     {},
-			32424:   {},
-			8293432: {},
-		}
+		pendingHourMetricIDs := &uint64set.Set{}
+		pendingHourMetricIDs.Add(343)
+		pendingHourMetricIDs.Add(32424)
+		pendingHourMetricIDs.Add(8293432)
 		s.pendingHourMetricIDs = pendingHourMetricIDs
 
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
-			m: map[uint64]struct{}{
-				12: {},
-				34: {},
-			},
+			m:    &uint64set.Set{},
 			hour: 123,
 		}
+		hmOrig.m.Add(12)
+		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -133,27 +131,25 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if s.pendingHourMetricIDs.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		pendingHourMetricIDs := map[uint64]struct{}{
-			343:     {},
-			32424:   {},
-			8293432: {},
-		}
+		pendingHourMetricIDs := &uint64set.Set{}
+		pendingHourMetricIDs.Add(343)
+		pendingHourMetricIDs.Add(32424)
+		pendingHourMetricIDs.Add(8293432)
 		s.pendingHourMetricIDs = pendingHourMetricIDs
 
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
-			m: map[uint64]struct{}{
-				12: {},
-				34: {},
-			},
+			m:    &uint64set.Set{},
 			hour: hour,
 		}
+		hmOrig.m.Add(12)
+		hmOrig.m.Add(34)
 		s.currHourMetricIDs.Store(hmOrig)
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -166,9 +162,10 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			// Do not run other checks, since they may fail.
 			return
 		}
-		m := getMetricIDsCopy(pendingHourMetricIDs)
-		for metricID := range hmOrig.m {
-			m[metricID] = struct{}{}
+		m := pendingHourMetricIDs.Clone()
+		origMetricIDs := hmOrig.m.AppendTo(nil)
+		for _, metricID := range origMetricIDs {
+			m.Add(metricID)
 		}
 		if !reflect.DeepEqual(hmCurr.m, m) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
@@ -183,8 +180,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if s.pendingHourMetricIDs.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
 		}
 	})
 }

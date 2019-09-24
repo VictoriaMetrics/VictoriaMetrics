@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 )
@@ -59,7 +60,7 @@ type Storage struct {
 
 	// Pending MetricID values to be added to currHourMetricIDs.
 	pendingHourMetricIDsLock sync.Mutex
-	pendingHourMetricIDs     map[uint64]struct{}
+	pendingHourMetricIDs     *uint64set.Set
 
 	stop chan struct{}
 
@@ -122,7 +123,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
-	s.pendingHourMetricIDs = make(map[uint64]struct{})
+	s.pendingHourMetricIDs = &uint64set.Set{}
 
 	// Load indexdb
 	idbPath := path + "/indexdb"
@@ -158,7 +159,7 @@ func (s *Storage) debugFlush() {
 	s.idb().tb.DebugFlush()
 }
 
-func (s *Storage) getDeletedMetricIDs() map[uint64]struct{} {
+func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
 	return s.idb().getDeletedMetricIDs()
 }
 
@@ -364,9 +365,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
-	hourMetricIDsLen := len(hmPrev.m)
-	if len(hmCurr.m) > hourMetricIDsLen {
-		hourMetricIDsLen = len(hmCurr.m)
+	hourMetricIDsLen := hmPrev.m.Len()
+	if hmCurr.m.Len() > hourMetricIDsLen {
+		hourMetricIDsLen = hmCurr.m.Len()
 	}
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 
@@ -508,11 +509,11 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		logger.Errorf("discarding %s, since it has broken body; got %d bytes; want %d bytes", path, len(src), 8*hmLen)
 		return &hourMetricIDs{}
 	}
-	m := make(map[uint64]struct{}, hmLen)
+	m := &uint64set.Set{}
 	for i := uint64(0); i < hmLen; i++ {
 		metricID := encoding.UnmarshalUint64(src)
 		src = src[8:]
-		m[metricID] = struct{}{}
+		m.Add(metricID)
 	}
 	logger.Infof("loaded %s from %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hmLen, srcOrigLen)
 	return &hourMetricIDs{
@@ -526,21 +527,21 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	path := s.cachePath + "/" + name
 	logger.Infof("saving %s to %q...", name, path)
 	startTime := time.Now()
-	dst := make([]byte, 0, len(hm.m)*8+24)
+	dst := make([]byte, 0, hm.m.Len()*8+24)
 	isFull := uint64(0)
 	if hm.isFull {
 		isFull = 1
 	}
 	dst = encoding.MarshalUint64(dst, isFull)
 	dst = encoding.MarshalUint64(dst, hm.hour)
-	dst = encoding.MarshalUint64(dst, uint64(len(hm.m)))
-	for metricID := range hm.m {
+	dst = encoding.MarshalUint64(dst, uint64(hm.m.Len()))
+	for _, metricID := range hm.m.AppendTo(nil) {
 		dst = encoding.MarshalUint64(dst, metricID)
 	}
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), len(hm.m), len(dst))
+	logger.Infof("saved %s to %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hm.m.Len(), len(dst))
 }
 
 func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
@@ -814,11 +815,11 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
-			if len(dmis) == 0 {
+			if dmis.Len() == 0 {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 				continue
 			}
-			if _, deleted := dmis[r.TSID.MetricID]; !deleted {
+			if !dmis.Has(r.TSID.MetricID) {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 				continue
 			}
@@ -888,12 +889,12 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 		hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 		if hour == hm.hour {
 			// The r belongs to the current hour. Check for the current hour cache.
-			if _, ok := hm.m[metricID]; ok {
+			if hm.m.Has(metricID) {
 				// Fast path: the metricID is in the current hour cache.
 				continue
 			}
 			s.pendingHourMetricIDsLock.Lock()
-			s.pendingHourMetricIDs[metricID] = struct{}{}
+			s.pendingHourMetricIDs.Add(metricID)
 			s.pendingHourMetricIDsLock.Unlock()
 		}
 
@@ -919,7 +920,7 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 func (s *Storage) updateCurrHourMetricIDs() {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDsLen := len(s.pendingHourMetricIDs)
+	newMetricIDsLen := s.pendingHourMetricIDs.Len()
 	s.pendingHourMetricIDsLock.Unlock()
 	hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 	if newMetricIDsLen == 0 && hm.hour == hour {
@@ -928,23 +929,20 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	}
 
 	// Slow path: hm.m must be updated with non-empty s.pendingHourMetricIDs.
-	var m map[uint64]struct{}
+	var m *uint64set.Set
 	isFull := hm.isFull
 	if hm.hour == hour {
-		m = make(map[uint64]struct{}, len(hm.m)+newMetricIDsLen)
-		for metricID := range hm.m {
-			m[metricID] = struct{}{}
-		}
+		m = hm.m.Clone()
 	} else {
-		m = make(map[uint64]struct{}, newMetricIDsLen)
+		m = &uint64set.Set{}
 		isFull = true
 	}
 	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDs := s.pendingHourMetricIDs
-	s.pendingHourMetricIDs = make(map[uint64]struct{}, len(newMetricIDs))
+	newMetricIDs := s.pendingHourMetricIDs.AppendTo(nil)
+	s.pendingHourMetricIDs = &uint64set.Set{}
 	s.pendingHourMetricIDsLock.Unlock()
-	for metricID := range newMetricIDs {
-		m[metricID] = struct{}{}
+	for _, metricID := range newMetricIDs {
+		m.Add(metricID)
 	}
 
 	hmNew := &hourMetricIDs{
@@ -959,7 +957,7 @@ func (s *Storage) updateCurrHourMetricIDs() {
 }
 
 type hourMetricIDs struct {
-	m      map[uint64]struct{}
+	m      *uint64set.Set
 	hour   uint64
 	isFull bool
 }
