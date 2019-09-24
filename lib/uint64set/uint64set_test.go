@@ -48,14 +48,14 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	// Verify Has on existing bits
 	for i := 0; i < itemsCount; i++ {
 		if !s.Has(uint64(i) + offset) {
-			t.Fatalf("missing bit %d", i)
+			t.Fatalf("missing bit %d", uint64(i)+offset)
 		}
 	}
 
 	// Verify Has on missing bits
 	for i := itemsCount; i < 2*itemsCount; i++ {
 		if s.Has(uint64(i) + offset) {
-			t.Fatalf("unexpected bit found: %d", i)
+			t.Fatalf("unexpected bit found: %d", uint64(i)+offset)
 		}
 	}
 
@@ -66,7 +66,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 	for i := 0; i < itemsCount; i++ {
 		if !sCopy.Has(uint64(i) + offset) {
-			t.Fatalf("missing bit %d on sCopy", i)
+			t.Fatalf("missing bit %d on sCopy", uint64(i)+offset)
 		}
 	}
 
@@ -84,7 +84,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 	for i := 0; i < itemsCount; i++ {
 		if !m[uint64(i)+offset] {
-			t.Fatalf("missing bit %d in the exported bits; array:\n%d", i, a)
+			t.Fatalf("missing bit %d in the exported bits; array:\n%d", uint64(i)+offset, a)
 		}
 	}
 
@@ -106,11 +106,11 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	for i := 0; i < itemsCount; i++ {
 		if i >= itemsCount/2 && i < itemsCount-itemsCount/4 {
 			if m[uint64(i)+offset] {
-				t.Fatalf("unexpected bit found after deleting: %d", i)
+				t.Fatalf("unexpected bit found after deleting: %d", uint64(i)+offset)
 			}
 		} else {
 			if !m[uint64(i)+offset] {
-				t.Fatalf("missing bit %d in the exported bits after deleting", i)
+				t.Fatalf("missing bit %d in the exported bits after deleting", uint64(i)+offset)
 			}
 		}
 	}
@@ -131,7 +131,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 	for i := 0; i < itemsCount; i++ {
 		if !sCopy.Has(uint64(i) + offset) {
-			t.Fatalf("missing bit %d on sCopy", i)
+			t.Fatalf("missing bit %d on sCopy", uint64(i)+offset)
 		}
 	}
 }

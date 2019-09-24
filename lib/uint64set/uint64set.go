@@ -1,6 +1,7 @@
 package uint64set
 
 import (
+	"math/bits"
 	"sort"
 )
 
@@ -299,11 +300,19 @@ func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	var wordNum uint64
 	for _, word := range b.bits {
-		for bitNum := uint64(0); bitNum < 64; bitNum++ {
-			if word&(uint64(1)<<bitNum) != 0 {
-				x := hi64 | uint64(wordNum)*64 | bitNum
-				dst = append(dst, x)
+		if word == 0 {
+			wordNum++
+			continue
+		}
+		x64 := hi64 | (wordNum * 64)
+		for {
+			tzn := uint64(bits.TrailingZeros64(word))
+			if tzn >= 64 {
+				break
 			}
+			word &^= uint64(1) << tzn
+			x := x64 | tzn
+			dst = append(dst, x)
 		}
 		wordNum++
 	}
