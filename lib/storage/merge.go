@@ -6,6 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // mergeBlockStreams merges bsrs into bsw and updates ph.
@@ -14,7 +15,7 @@ import (
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
 func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, rowsMerged *uint64,
-	deletedMetricIDs map[uint64]struct{}, rowsDeleted *uint64) error {
+	deletedMetricIDs *uint64set.Set, rowsDeleted *uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
@@ -41,7 +42,7 @@ var bsmPool = &sync.Pool{
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
 func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, rowsMerged *uint64,
-	deletedMetricIDs map[uint64]struct{}, rowsDeleted *uint64) error {
+	deletedMetricIDs *uint64set.Set, rowsDeleted *uint64) error {
 	// Search for the first block to merge
 	var pendingBlock *Block
 	for bsm.NextBlock() {
@@ -50,7 +51,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			return errForciblyStopped
 		default:
 		}
-		if _, deleted := deletedMetricIDs[bsm.Block.bh.TSID.MetricID]; deleted {
+		if deletedMetricIDs.Has(bsm.Block.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
 			*rowsDeleted += uint64(bsm.Block.bh.RowsCount)
 			continue
@@ -72,7 +73,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			return errForciblyStopped
 		default:
 		}
-		if _, deleted := deletedMetricIDs[bsm.Block.bh.TSID.MetricID]; deleted {
+		if deletedMetricIDs.Has(bsm.Block.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
 			*rowsDeleted += uint64(bsm.Block.bh.RowsCount)
 			continue

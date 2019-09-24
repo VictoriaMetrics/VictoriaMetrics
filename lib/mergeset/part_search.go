@@ -371,7 +371,7 @@ func binarySearchKey(items [][]byte, key []byte) int {
 	i, j := uint(0), n
 	for i < j {
 		h := uint(i+j) >> 1
-		if string(key) > string(items[h]) {
+		if h >= 0 && h < uint(len(items)) && string(key) > string(items[h]) {
 			i = h + 1
 		} else {
 			j = h

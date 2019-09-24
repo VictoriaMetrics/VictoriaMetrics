@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func maxRowsPerSmallPart() uint64 {
@@ -93,7 +94,7 @@ type partition struct {
 	bigPartsPath   string
 
 	// The callack that returns deleted metric ids which must be skipped during merge.
-	getDeletedMetricIDs func() map[uint64]struct{}
+	getDeletedMetricIDs func() *uint64set.Set
 
 	// Name is the name of the partition in the form YYYY_MM.
 	name string
@@ -183,7 +184,7 @@ func (pw *partWrapper) decRef() {
 
 // createPartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() map[uint64]struct{}) (*partition, error) {
+func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set) (*partition, error) {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Clean(smallPartitionsPath) + "/" + name
 	bigPartsPath := filepath.Clean(bigPartitionsPath) + "/" + name
@@ -218,7 +219,7 @@ func (pt *partition) Drop() {
 }
 
 // openPartition opens the existing partition from the given paths.
-func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() map[uint64]struct{}) (*partition, error) {
+func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set) (*partition, error) {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
@@ -255,7 +256,7 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 	return pt, nil
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() map[uint64]struct{}) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set) *partition {
 	return &partition{
 		name:           name,
 		smallPartsPath: smallPartsPath,

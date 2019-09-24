@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	xxhash "github.com/cespare/xxhash/v2"
@@ -67,12 +68,12 @@ type indexDB struct {
 
 	indexSearchPool sync.Pool
 
-	// An inmemory map[uint64]struct{} of deleted metricIDs.
+	// An inmemory set of deleted metricIDs.
 	//
-	// The map holds deleted metricIDs for the current db and for the extDB.
+	// The set holds deleted metricIDs for the current db and for the extDB.
 	//
-	// It is safe to keep the map in memory even for big number of deleted
-	// metricIDs, since it occupies only 8 bytes per deleted metricID.
+	// It is safe to keep the set in memory even for big number of deleted
+	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
 
@@ -199,7 +200,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.UselessTagFiltersCacheRequests += cs.GetBigCalls
 	m.UselessTagFiltersCacheMisses += cs.Misses
 
-	m.DeletedMetricsCount += uint64(len(db.getDeletedMetricIDs()))
+	m.DeletedMetricsCount += uint64(db.getDeletedMetricIDs().Len())
 
 	m.IndexDBRefCount += atomic.LoadUint64(&db.refCount)
 	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
@@ -237,7 +238,7 @@ func (db *indexDB) SetExtDB(extDB *indexDB) {
 	// Add deleted metricIDs from extDB to db.
 	if extDB != nil {
 		dmisExt := extDB.getDeletedMetricIDs()
-		metricIDs := getSortedMetricIDs(dmisExt)
+		metricIDs := dmisExt.AppendTo(nil)
 		db.updateDeletedMetricIDs(metricIDs)
 	}
 
@@ -879,30 +880,27 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	return deletedCount, nil
 }
 
-func (db *indexDB) getDeletedMetricIDs() map[uint64]struct{} {
-	return db.deletedMetricIDs.Load().(map[uint64]struct{})
+func (db *indexDB) getDeletedMetricIDs() *uint64set.Set {
+	return db.deletedMetricIDs.Load().(*uint64set.Set)
 }
 
-func (db *indexDB) setDeletedMetricIDs(dmis map[uint64]struct{}) {
+func (db *indexDB) setDeletedMetricIDs(dmis *uint64set.Set) {
 	db.deletedMetricIDs.Store(dmis)
 }
 
 func (db *indexDB) updateDeletedMetricIDs(metricIDs []uint64) {
 	db.deletedMetricIDsUpdateLock.Lock()
 	dmisOld := db.getDeletedMetricIDs()
-	dmisNew := make(map[uint64]struct{}, len(dmisOld)+len(metricIDs))
-	for metricID := range dmisOld {
-		dmisNew[metricID] = struct{}{}
-	}
+	dmisNew := dmisOld.Clone()
 	for _, metricID := range metricIDs {
-		dmisNew[metricID] = struct{}{}
+		dmisNew.Add(metricID)
 	}
 	db.setDeletedMetricIDs(dmisNew)
 	db.deletedMetricIDsUpdateLock.Unlock()
 }
 
-func (is *indexSearch) loadDeletedMetricIDs() (map[uint64]struct{}, error) {
-	dmis := make(map[uint64]struct{})
+func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
+	dmis := &uint64set.Set{}
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = append(kb.B[:0], nsPrefixDeteletedMetricID)
@@ -917,7 +915,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (map[uint64]struct{}, error) {
 			return nil, fmt.Errorf("unexpected item len; got %d bytes; want %d bytes", len(item), 8)
 		}
 		metricID := encoding.UnmarshalUint64(item)
-		dmis[metricID] = struct{}{}
+		dmis.Add(metricID)
 	}
 	if err := ts.Error(); err != nil {
 		return nil, err
@@ -1009,9 +1007,9 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte) error {
 		if len(tail) > 0 {
 			return fmt.Errorf("unexpected non-empty tail left after unmarshaling TSID: %X", tail)
 		}
-		if len(dmis) > 0 {
+		if dmis.Len() > 0 {
 			// Verify whether the dst is marked as deleted.
-			if _, deleted := dmis[dst.MetricID]; deleted {
+			if dmis.Has(dst.MetricID) {
 				// The dst is deleted. Continue searching.
 				continue
 			}
@@ -1175,9 +1173,9 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 
 // updateMetricIDsByMetricNameMatch matches metricName values for the given srcMetricIDs against tfs
 // and adds matching metrics to metricIDs.
-func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs map[uint64]struct{}, tfs []*tagFilter) error {
+func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs *uint64set.Set, tfs []*tagFilter) error {
 	// sort srcMetricIDs in order to speed up Seek below.
-	sortedMetricIDs := getSortedMetricIDs(srcMetricIDs)
+	sortedMetricIDs := srcMetricIDs.AppendTo(nil)
 
 	metricName := kbPool.Get()
 	defer kbPool.Put(metricName)
@@ -1201,12 +1199,12 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 		if !ok {
 			continue
 		}
-		metricIDs[metricID] = struct{}{}
+		metricIDs.Add(metricID)
 	}
 	return nil
 }
 
-func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilters, tr TimeRange, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilters, tr TimeRange, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
 	// Try fast path with the minimized number of maxMetrics.
 	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
 	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
@@ -1243,7 +1241,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(metricIDsForTimeRange) <= maxTimeRangeMetrics {
+	if metricIDsForTimeRange.Len() <= maxTimeRangeMetrics {
 		return nil, metricIDsForTimeRange, nil
 	}
 
@@ -1273,7 +1271,7 @@ func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) in
 	if !hmPrev.isFull {
 		return maxMetrics
 	}
-	hourMetrics := len(hmPrev.m)
+	hourMetrics := hmPrev.m.Len()
 	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
 		// It is cheaper to filter on the hour or day metrics if the minimum
 		// number of matching metrics across tfs exceeds hourMetrics / 4.
@@ -1282,7 +1280,7 @@ func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) in
 	return maxMetrics
 }
 
-func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
+func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
 	kb := &is.kb
 	kb.B = append(kb.B[:0], uselessMultiTagFiltersKeyPrefix)
 	kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
@@ -1304,7 +1302,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 			if err != nil {
 				return nil, nil, err
 			}
-			if len(minMetricIDs) < maxAllowedMetrics {
+			if minMetricIDs.Len() < maxAllowedMetrics {
 				// Found the tag filter with the minimum number of metrics.
 				return minTf, minMetricIDs, nil
 			}
@@ -1330,8 +1328,8 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters
 
 var errTooManyMetrics = errors.New("all the tag filters match too many metrics")
 
-func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, map[uint64]struct{}, error) {
-	var minMetricIDs map[uint64]struct{}
+func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
+	var minMetricIDs *uint64set.Set
 	var minTf *tagFilter
 	kb := &is.kb
 	uselessTagFilters := 0
@@ -1364,7 +1362,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 			}
 			return nil, nil, fmt.Errorf("cannot find MetricIDs for tagFilter %s: %s", tf, err)
 		}
-		if len(metricIDs) >= maxMetrics {
+		if metricIDs.Len() >= maxMetrics {
 			// The tf matches at least maxMetrics. Skip it
 			kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
@@ -1376,7 +1374,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 
 		minMetricIDs = metricIDs
 		minTf = tf
-		maxMetrics = len(minMetricIDs)
+		maxMetrics = minMetricIDs.Len()
 		if maxMetrics <= 1 {
 			// There is no need in inspecting other filters, since minTf
 			// already matches 0 or 1 metric.
@@ -1399,11 +1397,11 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 		return nil, nil, errTooManyMetrics
 	}
-	metricIDs := make(map[uint64]struct{})
+	metricIDs := &uint64set.Set{}
 	if err := is.updateMetricIDsAll(metricIDs, maxMetrics); err != nil {
 		return nil, nil, err
 	}
-	if len(metricIDs) >= maxMetrics {
+	if metricIDs.Len() >= maxMetrics {
 		kb.B = append(kb.B[:0], uselessNegativeTagFilterKeyPrefix)
 		kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
 		kb.B = tfs.marshal(kb.B)
@@ -1475,14 +1473,14 @@ func matchTagFilter(b []byte, tf *tagFilter) (bool, error) {
 }
 
 func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
-	metricIDs := make(map[uint64]struct{})
+	metricIDs := &uint64set.Set{}
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
 			// Return all the metric ids
 			if err := is.updateMetricIDsAll(metricIDs, maxMetrics+1); err != nil {
 				return nil, err
 			}
-			if len(metricIDs) > maxMetrics {
+			if metricIDs.Len() > maxMetrics {
 				return nil, fmt.Errorf("the number or unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 			}
 			// Stop the iteration, since we cannot find more metric ids with the remaining tfss.
@@ -1491,23 +1489,23 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 		if err := is.updateMetricIDsForTagFilters(metricIDs, tfs, tr, maxMetrics+1); err != nil {
 			return nil, err
 		}
-		if len(metricIDs) > maxMetrics {
+		if metricIDs.Len() > maxMetrics {
 			return nil, fmt.Errorf("the number or matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 		}
 	}
-	if len(metricIDs) == 0 {
+	if metricIDs.Len() == 0 {
 		// Nothing found
 		return nil, nil
 	}
 
-	sortedMetricIDs := getSortedMetricIDs(metricIDs)
+	sortedMetricIDs := metricIDs.AppendTo(nil)
 
 	// Filter out deleted metricIDs.
 	dmis := is.db.getDeletedMetricIDs()
-	if len(dmis) > 0 {
+	if dmis.Len() > 0 {
 		metricIDsFiltered := sortedMetricIDs[:0]
 		for _, metricID := range sortedMetricIDs {
-			if _, deleted := dmis[metricID]; !deleted {
+			if !dmis.Has(metricID) {
 				metricIDsFiltered = append(metricIDsFiltered, metricID)
 			}
 		}
@@ -1517,7 +1515,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 	return sortedMetricIDs, nil
 }
 
-func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{}, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
+func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	// Sort tag filters for faster ts.Seek below.
 	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
 
@@ -1560,8 +1558,8 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs map[uint64]struct{
 		}
 		minMetricIDs = mIDs
 	}
-	for metricID := range minMetricIDs {
-		metricIDs[metricID] = struct{}{}
+	for _, metricID := range minMetricIDs.AppendTo(nil) {
+		metricIDs.Add(metricID)
 	}
 	return nil
 }
@@ -1574,11 +1572,11 @@ const (
 
 var uselessTagFilterCacheValue = []byte("1")
 
-func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (map[uint64]struct{}, error) {
+func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (*uint64set.Set, error) {
 	if tf.isNegative {
 		logger.Panicf("BUG: isNegative must be false")
 	}
-	metricIDs := make(map[uint64]struct{}, maxMetrics)
+	metricIDs := &uint64set.Set{}
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffxies.
 		if err := is.updateMetricIDsForOrSuffixesNoFilter(tf, maxMetrics, metricIDs); err != nil {
@@ -1593,8 +1591,8 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (
 	// Slow path - scan for all the rows with the given prefix.
 	maxLoops := maxMetrics * maxIndexScanLoopsPerMetric
 	err := is.getMetricIDsForTagFilterSlow(tf, maxLoops, func(metricID uint64) bool {
-		metricIDs[metricID] = struct{}{}
-		return len(metricIDs) < maxMetrics
+		metricIDs.Add(metricID)
+		return metricIDs.Len() < maxMetrics
 	})
 	if err != nil {
 		if err == errFallbackToMetricNameMatch {
@@ -1689,7 +1687,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 	return nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixesNoFilter(tf *tagFilter, maxMetrics int, metricIDs map[uint64]struct{}) error {
+func (is *indexSearch) updateMetricIDsForOrSuffixesNoFilter(tf *tagFilter, maxMetrics int, metricIDs *uint64set.Set) error {
 	if tf.isNegative {
 		logger.Panicf("BUG: isNegative must be false")
 	}
@@ -1702,15 +1700,15 @@ func (is *indexSearch) updateMetricIDsForOrSuffixesNoFilter(tf *tagFilter, maxMe
 		if err := is.updateMetricIDsForOrSuffixNoFilter(kb.B, maxMetrics, metricIDs); err != nil {
 			return err
 		}
-		if len(metricIDs) >= maxMetrics {
+		if metricIDs.Len() >= maxMetrics {
 			return nil
 		}
 	}
 	return nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, metricIDs, filter map[uint64]struct{}) error {
-	sortedFilter := getSortedMetricIDs(filter)
+func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, metricIDs, filter *uint64set.Set) error {
+	sortedFilter := filter.AppendTo(nil)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
 	for _, orSuffix := range tf.orSuffixes {
@@ -1724,14 +1722,14 @@ func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, met
 	return nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetrics int, metricIDs map[uint64]struct{}) error {
+func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetrics int, metricIDs *uint64set.Set) error {
 	ts := &is.ts
 	mp := &is.mp
 	mp.Reset()
 	maxLoops := maxMetrics * maxIndexScanLoopsPerMetric
 	loops := 0
 	ts.Seek(prefix)
-	for len(metricIDs) < maxMetrics && ts.NextItem() {
+	for metricIDs.Len() < maxMetrics && ts.NextItem() {
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -1745,7 +1743,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 		}
 		mp.ParseMetricIDs()
 		for _, metricID := range mp.MetricIDs {
-			metricIDs[metricID] = struct{}{}
+			metricIDs.Add(metricID)
 		}
 	}
 	if err := ts.Error(); err != nil {
@@ -1754,7 +1752,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 	return nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metricIDs map[uint64]struct{}, sortedFilter []uint64, isNegative bool) error {
+func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metricIDs *uint64set.Set, sortedFilter []uint64, isNegative bool) error {
 	if len(sortedFilter) == 0 {
 		return nil
 	}
@@ -1810,9 +1808,9 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 				continue
 			}
 			if isNegative {
-				delete(metricIDs, metricID)
+				metricIDs.Del(metricID)
 			} else {
-				metricIDs[metricID] = struct{}{}
+				metricIDs.Add(metricID)
 			}
 			sf = sf[1:]
 		}
@@ -1827,7 +1825,7 @@ var errFallbackToMetricNameMatch = errors.New("fall back to updateMetricIDsByMet
 
 var errMissingMetricIDsForDate = errors.New("missing metricIDs for date")
 
-func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (map[uint64]struct{}, error) {
+func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
 	if tr.isZero() {
 		return nil, errMissingMetricIDsForDate
 	}
@@ -1847,7 +1845,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (m
 		// Too much dates must be covered. Give up.
 		return nil, errMissingMetricIDsForDate
 	}
-	metricIDs := make(map[uint64]struct{}, maxMetrics)
+	metricIDs := &uint64set.Set{}
 	for minDate <= maxDate {
 		if err := is.getMetricIDsForDate(minDate, metricIDs, maxMetrics); err != nil {
 			return nil, err
@@ -1858,7 +1856,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (m
 	return metricIDs, nil
 }
 
-func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) (map[uint64]struct{}, bool) {
+func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) (*uint64set.Set, bool) {
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
 	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
 	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -1866,44 +1864,33 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) 
 		// The tr fits the current hour.
 		// Return a copy of hmCurr.m, because the caller may modify
 		// the returned map.
-		if len(hmCurr.m) > maxMetrics {
+		if hmCurr.m.Len() > maxMetrics {
 			return nil, false
 		}
-		return getMetricIDsCopy(hmCurr.m), true
+		return hmCurr.m.Clone(), true
 	}
 	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
 		// The tr fits the previous hour.
 		// Return a copy of hmPrev.m, because the caller may modify
 		// the returned map.
-		if len(hmPrev.m) > maxMetrics {
+		if hmPrev.m.Len() > maxMetrics {
 			return nil, false
 		}
-		return getMetricIDsCopy(hmPrev.m), true
+		return hmPrev.m.Clone(), true
 	}
 	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
 		// The tr spans the previous and the current hours.
-		if len(hmCurr.m)+len(hmPrev.m) > maxMetrics {
+		if hmCurr.m.Len()+hmPrev.m.Len() > maxMetrics {
 			return nil, false
 		}
-		metricIDs := make(map[uint64]struct{}, len(hmCurr.m)+len(hmPrev.m))
-		for metricID := range hmCurr.m {
-			metricIDs[metricID] = struct{}{}
-		}
-		for metricID := range hmPrev.m {
-			metricIDs[metricID] = struct{}{}
+		metricIDs := hmCurr.m.Clone()
+		for _, metricID := range hmPrev.m.AppendTo(nil) {
+			metricIDs.Add(metricID)
 		}
 		return metricIDs, true
 	}
 	return nil, false
-}
-
-func getMetricIDsCopy(src map[uint64]struct{}) map[uint64]struct{} {
-	dst := make(map[uint64]struct{}, len(src))
-	for metricID := range src {
-		dst[metricID] = struct{}{}
-	}
-	return dst
 }
 
 func (db *indexDB) storeDateMetricID(date, metricID uint64) error {
@@ -1947,14 +1934,14 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) (bool, error) {
 	return true, nil
 }
 
-func (is *indexSearch) getMetricIDsForDate(date uint64, metricIDs map[uint64]struct{}, maxMetrics int) error {
+func (is *indexSearch) getMetricIDsForDate(date uint64, metricIDs *uint64set.Set, maxMetrics int) error {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ts.Seek(kb.B)
 	items := 0
-	for len(metricIDs) < maxMetrics && ts.NextItem() {
+	for metricIDs.Len() < maxMetrics && ts.NextItem() {
 		if !bytes.HasPrefix(ts.Item, kb.B) {
 			break
 		}
@@ -1964,7 +1951,7 @@ func (is *indexSearch) getMetricIDsForDate(date uint64, metricIDs map[uint64]str
 			return fmt.Errorf("cannot extract metricID from k; want %d bytes; got %d bytes", 8, len(v))
 		}
 		metricID := encoding.UnmarshalUint64(v)
-		metricIDs[metricID] = struct{}{}
+		metricIDs.Add(metricID)
 		items++
 	}
 	if err := ts.Error(); err != nil {
@@ -2000,7 +1987,7 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	return true, nil
 }
 
-func (is *indexSearch) updateMetricIDsAll(metricIDs map[uint64]struct{}, maxMetrics int) error {
+func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, maxMetrics int) error {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
@@ -2016,8 +2003,8 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs map[uint64]struct{}, maxMetr
 			return fmt.Errorf("cannot unmarshal metricID from item with size %d; need at least 9 bytes; item=%q", len(tail), tail)
 		}
 		metricID := encoding.UnmarshalUint64(tail)
-		metricIDs[metricID] = struct{}{}
-		if len(metricIDs) >= maxMetrics {
+		metricIDs.Add(metricID)
+		if metricIDs.Len() >= maxMetrics {
 			return nil
 		}
 	}
@@ -2032,13 +2019,13 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs map[uint64]struct{}, maxMetr
 // over the found metrics.
 const maxIndexScanLoopsPerMetric = 400
 
-func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter map[uint64]struct{}) (map[uint64]struct{}, error) {
-	if len(filter) == 0 {
+func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
+	if filter.Len() == 0 {
 		return nil, nil
 	}
 	metricIDs := filter
 	if !tf.isNegative {
-		metricIDs = make(map[uint64]struct{}, len(filter))
+		metricIDs = &uint64set.Set{}
 	}
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffixes.
@@ -2052,15 +2039,15 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter map
 	}
 
 	// Slow path - scan for all the rows with the given prefix.
-	maxLoops := len(filter) * maxIndexScanLoopsPerMetric
+	maxLoops := filter.Len() * maxIndexScanLoopsPerMetric
 	err := is.getMetricIDsForTagFilterSlow(tf, maxLoops, func(metricID uint64) bool {
 		if tf.isNegative {
 			// filter must be equal to metricIDs
-			delete(metricIDs, metricID)
+			metricIDs.Del(metricID)
 			return true
 		}
-		if _, ok := filter[metricID]; ok {
-			metricIDs[metricID] = struct{}{}
+		if filter.Has(metricID) {
+			metricIDs.Add(metricID)
 		}
 		return true
 	})
@@ -2100,18 +2087,6 @@ func unmarshalCommonPrefix(src []byte) ([]byte, byte, error) {
 
 // 1 byte for prefix
 const commonPrefixLen = 1
-
-func getSortedMetricIDs(m map[uint64]struct{}) []uint64 {
-	a := make(uint64Sorter, len(m))
-	i := 0
-	for metricID := range m {
-		a[i] = metricID
-		i++
-	}
-	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations
-	sort.Sort(a)
-	return a
-}
 
 type tagToMetricIDsRowParser struct {
 	// MetricIDs contains parsed MetricIDs after ParseMetricIDs call
@@ -2216,13 +2191,13 @@ func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 // IsDeletedTag verifies whether the tag from mp is deleted according to dmis.
 //
 // dmis must contain deleted MetricIDs.
-func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis map[uint64]struct{}) bool {
-	if len(dmis) == 0 {
+func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis *uint64set.Set) bool {
+	if dmis.Len() == 0 {
 		return false
 	}
 	mp.ParseMetricIDs()
 	for _, metricID := range mp.MetricIDs {
-		if _, ok := dmis[metricID]; !ok {
+		if !dmis.Has(metricID) {
 			return false
 		}
 	}
