@@ -2287,7 +2287,7 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 		dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 	}
 	putTagToMetricIDsRowsMerger(tmm)
-	return data, dstItems
+	return dstData, dstItems
 }
 
 // maxMetricIDsPerRow limits the number of metricIDs in tag->metricIDs row.
