@@ -137,11 +137,11 @@ func (sn *storageNode) sendBufLocked(buf []byte) error {
 	}
 	if _, err := sn.bc.Write(buf); err != nil {
 		sn.closeBrokenConn()
-		return fmt.Errorf("cannot write data: %s", err)
+		return fmt.Errorf("cannot write data with size %d: %s", len(buf), err)
 	}
 	if err := sn.bc.Flush(); err != nil {
 		sn.closeBrokenConn()
-		return fmt.Errorf("cannot flush data: %s", err)
+		return fmt.Errorf("cannot flush data with size %d: %s", len(buf), err)
 	}
 	return nil
 }
