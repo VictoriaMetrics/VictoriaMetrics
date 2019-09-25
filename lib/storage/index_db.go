@@ -2343,6 +2343,7 @@ func removeDuplicateMetricIDs(sortedMetricIDs []uint64) []uint64 {
 	for _, metricID := range sortedMetricIDs[1:] {
 		if prevMetricID == metricID {
 			hasDuplicates = true
+			break
 		}
 		prevMetricID = metricID
 	}
