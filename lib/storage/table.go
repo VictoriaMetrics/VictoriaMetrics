@@ -243,105 +243,83 @@ func (tb *table) AddRows(rows []rawRow) error {
 		return nil
 	}
 
-	// Verify whether all the rows may be added to a single partition.
-	ptwsX := getPartitionWrappers()
-	defer putPartitionWrappers(ptwsX)
-
-	ptwsX.a = tb.GetPartitions(ptwsX.a[:0])
-	ptws := ptwsX.a
-
-	// split rows into per-partition buckets.
-	// add first match range at the end for only-one-partition match case
-	ptBuckets := make(map[*partitionWrapper][]rawRow)
-	var missingRows []rawRow
-	var firstPtEnd = -1
-	var firstPt *partitionWrapper
+	// split rows into per-TimeRange buckets.
+	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
+	trBuckets := make(map[TimeRange][]rawRow)
+	var firstTrEnd = -1
+	var firstTr, tr TimeRange
 	for i := range rows {
 		r := &rows[i]
-		ptFound := false
-		var j int
-		var ptw *partitionWrapper
-		for j, ptw = range ptws {
-			if ptw.pt.HasTimestamp(r.Timestamp) {
-				if firstPt == nil {
-					firstPt = ptw
-				}
-				if firstPt == ptw && len(ptBuckets) == 0 && len(missingRows) == 0 {
-					firstPtEnd = i + 1
-				} else {
-					ptBuckets[ptw] = append(ptBuckets[ptw], *r)
-				}
-				ptFound = true
+		if r.Timestamp < minTimestamp || r.Timestamp > maxTimestamp {
+			// Silently skip row outside retention, since it should be deleted anyway.
+			continue
+		}
+		tr.fromPartitionTimestamp(r.Timestamp)
+		if firstTrEnd == -1 {
+			firstTr = tr
+		}
+		if firstTr == tr {
+			firstTrEnd = i + 1
+		} else {
+			trBuckets[tr] = append(trBuckets[tr], *r)
+		}
+	}
+	// add first match TimeRnage's rows to buckets
+	if firstTrEnd > 0 {
+		trBuckets[firstTr] = append(rows[:firstTrEnd], trBuckets[firstTr]...)
+	}
+
+	// add rows to existing partitions
+	ptwsX := getPartitionWrappers()
+	defer putPartitionWrappers(ptwsX)
+	ptwsX.a = tb.GetPartitions(ptwsX.a[:0])
+	ptws := ptwsX.a
+	for tr, trRows := range trBuckets {
+		ptFould := false
+		for _, ptw := range ptws {
+			if ptw.pt.HasTimestamp(trRows[0].Timestamp) {
+				ptFould = true
+				ptw.pt.AddRows(trRows)
 				break
 			}
 		}
-		if !ptFound {
-			missingRows = append(missingRows, *r)
-		} else if j > 0 {
-			ptws[0], ptws[j] = ptws[j], ptws[0]
+		if ptFould {
+			delete(trBuckets, tr)
 		}
-	}
-	if firstPtEnd > 0 {
-		ptBuckets[firstPt] = append(rows[:firstPtEnd], ptBuckets[firstPt]...)
-		if firstPtEnd == len(rows) {
-			// Move the partition with the matching rows to the front of tb.ptws,
-			// so it will be detected faster next time.
-			tb.ptwsLock.Lock()
-			for i := range tb.ptws {
-				if firstPt == tb.ptws[i] {
-					tb.ptws[0], tb.ptws[i] = tb.ptws[i], tb.ptws[0]
-					break
-				}
-			}
-			tb.ptwsLock.Unlock()
-		}
-	}
-
-	for ptw, ptRows := range ptBuckets {
-		ptw.pt.AddRows(ptRows)
 	}
 	tb.PutPartitions(ptws)
-	if len(missingRows) == 0 {
+
+	if len(trBuckets) == 0 {
 		return nil
 	}
 
 	// The slowest path - there are rows that don't fit any existing partition.
 	// Create new partitions for these rows.
 	// Do this under tb.ptwsLock.
-	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
-	tb.ptwsLock.Lock()
 	var errors []error
-	for i := range missingRows {
-		r := &missingRows[i]
-
-		if r.Timestamp < minTimestamp || r.Timestamp > maxTimestamp {
-			// Silently skip row outside retention, since it should be deleted anyway.
-			continue
-		}
-
+	tb.ptwsLock.Lock()
+	for _, trRows := range trBuckets {
+		r := trRows[0]
+		ptFould := false
 		// Make sure the partition for the r hasn't been added by another goroutines.
-		ptFound := false
 		for _, ptw := range tb.ptws {
 			if ptw.pt.HasTimestamp(r.Timestamp) {
-				ptFound = true
-				ptw.pt.AddRows(missingRows[i : i+1])
+				ptFould = true
 				break
 			}
 		}
-		if ptFound {
+		if ptFould {
 			continue
 		}
-
 		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.getDeletedMetricIDs)
 		if err != nil {
 			errors = append(errors, err)
 			continue
 		}
-		pt.AddRows(missingRows[i : i+1])
+		pt.AddRows(trRows)
 		tb.addPartitionNolock(pt)
 	}
 	tb.ptwsLock.Unlock()
-
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
 		return fmt.Errorf("errors while adding rows to table %q: %s", tb.path, errors[0])
