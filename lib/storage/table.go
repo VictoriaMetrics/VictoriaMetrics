@@ -305,6 +305,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 		for _, ptw := range tb.ptws {
 			if ptw.pt.HasTimestamp(r.Timestamp) {
 				ptFould = true
+				ptw.pt.AddRows(trRows)
 				break
 			}
 		}
