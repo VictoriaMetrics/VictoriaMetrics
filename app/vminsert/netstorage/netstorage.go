@@ -167,6 +167,9 @@ func (sn *storageNode) dial() error {
 }
 
 func (sn *storageNode) closeBrokenConn() {
+	if sn.bc == nil {
+		return
+	}
 	_ = sn.bc.Close()
 	sn.bc = nil
 	sn.connectionErrors.Inc()
