@@ -58,7 +58,7 @@ func (ts *TableSearch) reset() {
 // Init initializes ts for searching in the tb.
 //
 // MustClose must be called when the ts is no longer needed.
-func (ts *TableSearch) Init(tb *Table) {
+func (ts *TableSearch) Init(tb *Table, shouldCacheBlock func(item []byte) bool) {
 	if ts.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -76,7 +76,7 @@ func (ts *TableSearch) Init(tb *Table) {
 	}
 	ts.psPool = ts.psPool[:len(ts.pws)]
 	for i, pw := range ts.pws {
-		ts.psPool[i].Init(pw.p)
+		ts.psPool[i].Init(pw.p, shouldCacheBlock)
 	}
 }
 

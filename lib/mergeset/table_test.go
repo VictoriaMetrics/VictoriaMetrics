@@ -176,10 +176,10 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	defer tb2.MustClose()
 
 	var ts, ts1, ts2 TableSearch
-	ts.Init(tb)
-	ts1.Init(tb1)
+	ts.Init(tb, nil)
+	ts1.Init(tb1, nil)
 	defer ts1.MustClose()
-	ts2.Init(tb2)
+	ts2.Init(tb2, nil)
 	defer ts2.MustClose()
 	for i := 0; i < itemsCount; i++ {
 		key := []byte(fmt.Sprintf("item %d", i))

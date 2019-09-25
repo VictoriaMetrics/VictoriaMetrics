@@ -51,7 +51,7 @@ func testPartSearchConcurrent(p *part, items []string) error {
 func testPartSearchSerial(p *part, items []string) error {
 	var ps partSearch
 
-	ps.Init(p)
+	ps.Init(p, nil)
 	var k []byte
 
 	// Search for the item smaller than the items[0]

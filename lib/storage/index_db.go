@@ -38,11 +38,33 @@ const (
 	nsPrefixMetricIDToMetricName = 3
 
 	// Prefix for deleted MetricID entries.
-	nsPrefixDeteletedMetricID = 4
+	nsPrefixDeletedMetricID = 4
 
 	// Prefix for Date->MetricID entries.
 	nsPrefixDateToMetricID = 5
 )
+
+func shouldCacheBlock(item []byte) bool {
+	if len(item) == 0 {
+		return true
+	}
+	// Do not cache items starting from
+	switch item[0] {
+	case nsPrefixTagToMetricIDs:
+		// Do not cache blocks with tag->metricIDs items, since:
+		// - these blocks are scanned sequentially, so the overhead
+		//   on their unmarshaling is amortized by the sequential scan.
+		// - these blocks can occupy high amounts of RAM in cache
+		//   and evict other frequently accessed blocks.
+		return false
+	case nsPrefixDeletedMetricID:
+		// Do not cache blocks with deleted metricIDs,
+		// since these metricIDs are loaded only once during app start.
+		return false
+	default:
+		return true
+	}
+}
 
 // indexDB represents an index db.
 type indexDB struct {
@@ -487,7 +509,7 @@ func (db *indexDB) getIndexSearch() *indexSearch {
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(db.tb)
+	is.ts.Init(db.tb, shouldCacheBlock)
 	return is
 }
 
@@ -847,7 +869,7 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	// Mark the found metricIDs as deleted.
 	items := getIndexItems()
 	for _, metricID := range metricIDs {
-		items.B = append(items.B, nsPrefixDeteletedMetricID)
+		items.B = append(items.B, nsPrefixDeletedMetricID)
 		items.B = encoding.MarshalUint64(items.B, metricID)
 		items.Next()
 	}
@@ -903,7 +925,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 	dmis := &uint64set.Set{}
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = append(kb.B[:0], nsPrefixDeteletedMetricID)
+	kb.B = append(kb.B[:0], nsPrefixDeletedMetricID)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
 		item := ts.Item
