@@ -2320,7 +2320,9 @@ func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstIt
 	}
 	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations.
 	sort.Sort(&tmm.pendingMetricIDs)
+	tmm.pendingMetricIDs = removeDuplicateMetricIDs(tmm.pendingMetricIDs)
 
+	// Marshal pendingMetricIDs
 	dstDataLen := len(dstData)
 	dstData = marshalCommonPrefix(dstData, nsPrefixTagToMetricIDs)
 	dstData = mp.Tag.Marshal(dstData)
@@ -2330,6 +2332,33 @@ func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstIt
 	dstItems = append(dstItems, dstData[dstDataLen:])
 	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
 	return dstData, dstItems
+}
+
+func removeDuplicateMetricIDs(sortedMetricIDs []uint64) []uint64 {
+	if len(sortedMetricIDs) < 2 {
+		return sortedMetricIDs
+	}
+	prevMetricID := sortedMetricIDs[0]
+	hasDuplicates := false
+	for _, metricID := range sortedMetricIDs[1:] {
+		if prevMetricID == metricID {
+			hasDuplicates = true
+		}
+		prevMetricID = metricID
+	}
+	if !hasDuplicates {
+		return sortedMetricIDs
+	}
+	dstMetricIDs := sortedMetricIDs[:1]
+	prevMetricID = sortedMetricIDs[0]
+	for _, metricID := range sortedMetricIDs[1:] {
+		if prevMetricID == metricID {
+			continue
+		}
+		dstMetricIDs = append(dstMetricIDs, metricID)
+		prevMetricID = metricID
+	}
+	return dstMetricIDs
 }
 
 func getTagToMetricIDsRowsMerger() *tagToMetricIDsRowsMerger {

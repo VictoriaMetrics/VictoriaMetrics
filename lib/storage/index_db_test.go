@@ -15,6 +15,23 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
+func TestRemoveDuplicateMetricIDs(t *testing.T) {
+	f := func(metricIDs, expectedMetricIDs []uint64) {
+		a := removeDuplicateMetricIDs(metricIDs)
+		if !reflect.DeepEqual(a, expectedMetricIDs) {
+			t.Fatalf("unexpected result from removeDuplicateMetricIDs:\ngot\n%d\nwant\n%d", a, expectedMetricIDs)
+		}
+	}
+	f(nil, nil)
+	f([]uint64{123}, []uint64{123})
+	f([]uint64{123, 123}, []uint64{123})
+	f([]uint64{123, 123, 123}, []uint64{123})
+	f([]uint64{0, 1, 1, 2}, []uint64{0, 1, 2})
+	f([]uint64{0, 0, 0, 1, 1, 2}, []uint64{0, 1, 2})
+	f([]uint64{0, 1, 1, 2, 2}, []uint64{0, 1, 2})
+	f([]uint64{0, 1, 2, 2}, []uint64{0, 1, 2})
+}
+
 func TestMarshalUnmarshalTSIDs(t *testing.T) {
 	f := func(tsids []TSID) {
 		t.Helper()
