@@ -2671,6 +2671,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`increases_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `increases_over_time(rand(0)[200s:10s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{11, 9, 9, 12, 9, 8},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`decreases_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `decreases_over_time(rand(0)[200s:10s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{9, 11, 11, 8, 11, 12},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`limitk(-1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `limitk(-1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`

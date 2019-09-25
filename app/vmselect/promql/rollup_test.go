@@ -294,6 +294,8 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("integrate", 61.0275)
 	f("distinct_over_time", 8)
 	f("ideriv", 0)
+	f("decreases_over_time", 5)
+	f("increases_over_time", 5)
 }
 
 func TestRollupNewRollupFuncError(t *testing.T) {

@@ -38,21 +38,23 @@ var rollupFuncs = map[string]newRollupFunc{
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
 
 	// Additional rollup funcs.
-	"sum2_over_time":     newRollupFuncOneArg(rollupSum2),
-	"geomean_over_time":  newRollupFuncOneArg(rollupGeomean),
-	"first_over_time":    newRollupFuncOneArg(rollupFirst),
-	"last_over_time":     newRollupFuncOneArg(rollupLast),
-	"distinct_over_time": newRollupFuncOneArg(rollupDistinct),
-	"integrate":          newRollupFuncOneArg(rollupIntegrate),
-	"ideriv":             newRollupFuncOneArg(rollupIderiv),
-	"lifetime":           newRollupFuncOneArg(rollupLifetime),
-	"scrape_interval":    newRollupFuncOneArg(rollupScrapeInterval),
-	"rollup":             newRollupFuncOneArg(rollupFake),
-	"rollup_rate":        newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_deriv":       newRollupFuncOneArg(rollupFake),
-	"rollup_delta":       newRollupFuncOneArg(rollupFake),
-	"rollup_increase":    newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_candlestick": newRollupFuncOneArg(rollupFake),
+	"sum2_over_time":      newRollupFuncOneArg(rollupSum2),
+	"geomean_over_time":   newRollupFuncOneArg(rollupGeomean),
+	"first_over_time":     newRollupFuncOneArg(rollupFirst),
+	"last_over_time":      newRollupFuncOneArg(rollupLast),
+	"distinct_over_time":  newRollupFuncOneArg(rollupDistinct),
+	"increases_over_time": newRollupFuncOneArg(rollupIncreases),
+	"decreases_over_time": newRollupFuncOneArg(rollupDecreases),
+	"integrate":           newRollupFuncOneArg(rollupIntegrate),
+	"ideriv":              newRollupFuncOneArg(rollupIderiv),
+	"lifetime":            newRollupFuncOneArg(rollupLifetime),
+	"scrape_interval":     newRollupFuncOneArg(rollupScrapeInterval),
+	"rollup":              newRollupFuncOneArg(rollupFake),
+	"rollup_rate":         newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_deriv":        newRollupFuncOneArg(rollupFake),
+	"rollup_delta":        newRollupFuncOneArg(rollupFake),
+	"rollup_increase":     newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_candlestick":  newRollupFuncOneArg(rollupFake),
 }
 
 var rollupFuncsMayAdjustWindow = map[string]bool{
@@ -819,6 +821,37 @@ func rollupChanges(rfa *rollupFuncArg) float64 {
 	}
 	return float64(n)
 }
+
+func rollupIncreases(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	if len(values) == 0 {
+		if math.IsNaN(rfa.prevValue) {
+			return nan
+		}
+		return 0
+	}
+	prevValue := rfa.prevValue
+	if math.IsNaN(prevValue) {
+		prevValue = values[0]
+		values = values[1:]
+	}
+	if len(values) == 0 {
+		return 0
+	}
+	n := 0
+	for _, v := range values {
+		if v > prevValue {
+			n++
+		}
+		prevValue = v
+	}
+	return float64(n)
+}
+
+// `decreases_over_time` logic is the same as `resets` logic.
+var rollupDecreases = rollupResets
 
 func rollupResets(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
