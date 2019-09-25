@@ -156,7 +156,7 @@ The label name may be arbitrary - `datacenter` is just an example. The label val
 across Prometheus instances, so those time series may be filtered and grouped by this label.
 
 
-It is recommended upgrading Prometheus to [v2.10.0](https://github.com/prometheus/prometheus/releases) or newer,
+It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer,
 since the previous versions may have issues with `remote_write`.
 
 
@@ -527,7 +527,7 @@ A rough estimation of the required resources for ingestion path:
   VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited by `-memory.allowedPercent` flag.
 
 * CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
-  the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data.
+  the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data or for time series with high number of labels.
   See [this article](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) for details.
   If you see lower numbers per CPU core, then it is likely active time series info doesn't fit caches,
   so you need more RAM for lowering CPU usage.
