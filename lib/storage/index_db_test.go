@@ -26,6 +26,7 @@ func TestRemoveDuplicateMetricIDs(t *testing.T) {
 	f([]uint64{123}, []uint64{123})
 	f([]uint64{123, 123}, []uint64{123})
 	f([]uint64{123, 123, 123}, []uint64{123})
+	f([]uint64{123, 1234, 1235}, []uint64{123, 1234, 1235})
 	f([]uint64{0, 1, 1, 2}, []uint64{0, 1, 2})
 	f([]uint64{0, 0, 0, 1, 1, 2}, []uint64{0, 1, 2})
 	f([]uint64{0, 1, 1, 2, 2}, []uint64{0, 1, 2})
