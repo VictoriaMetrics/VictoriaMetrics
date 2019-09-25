@@ -654,6 +654,12 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
   so Prometheus instances could establish more connections to VictoriaMetrics.
 * The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
   since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
+  If you plan storing more than 1TB of data on `ext4` parition or plan extending it to more than 16TB,
+  then the following options are recommended to pass to `mkfs.ext4`:
+
+```
+mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
+```
 
 
 ### Monitoring
