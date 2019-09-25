@@ -249,50 +249,51 @@ func (tb *table) AddRows(rows []rawRow) error {
 
 	ptwsX.a = tb.GetPartitions(ptwsX.a[:0])
 	ptws := ptwsX.a
-	for _, ptw := range ptws {
-		singlePt := true
-		for i := range rows {
-			if !ptw.pt.HasTimestamp(rows[i].Timestamp) {
-				singlePt = false
-				break
-			}
-		}
-		if !singlePt {
-			continue
-		}
 
-		// Move the partition with the matching rows to the front of tb.ptws,
-		// so it will be detected faster next time.
-		tb.ptwsLock.Lock()
-		for i := range tb.ptws {
-			if ptw == tb.ptws[i] {
-				tb.ptws[0], tb.ptws[i] = tb.ptws[i], tb.ptws[0]
-				break
-			}
-		}
-		tb.ptwsLock.Unlock()
-
-		// Fast path - add all the rows into the ptw.
-		ptw.pt.AddRows(rows)
-		tb.PutPartitions(ptws)
-		return nil
-	}
-
-	// Slower path - split rows into per-partition buckets.
+	// split rows into per-partition buckets.
+	// add first match range at the end for only-one-partition match case
 	ptBuckets := make(map[*partitionWrapper][]rawRow)
 	var missingRows []rawRow
+	var firstPtEnd = -1
+	var firstPt *partitionWrapper
 	for i := range rows {
 		r := &rows[i]
 		ptFound := false
-		for _, ptw := range ptws {
+		var j int
+		var ptw *partitionWrapper
+		for j, ptw = range ptws {
 			if ptw.pt.HasTimestamp(r.Timestamp) {
-				ptBuckets[ptw] = append(ptBuckets[ptw], *r)
+				if firstPt == nil {
+					firstPt = ptw
+				}
+				if firstPt == ptw && len(ptBuckets) == 0 && len(missingRows) == 0 {
+					firstPtEnd = i + 1
+				} else {
+					ptBuckets[ptw] = append(ptBuckets[ptw], *r)
+				}
 				ptFound = true
 				break
 			}
 		}
 		if !ptFound {
 			missingRows = append(missingRows, *r)
+		} else if j > 0 {
+			ptws[0], ptws[j] = ptws[j], ptws[0]
+		}
+	}
+	if firstPtEnd > 0 {
+		ptBuckets[firstPt] = append(rows[:firstPtEnd], ptBuckets[firstPt]...)
+		if firstPtEnd == len(rows) {
+			// Move the partition with the matching rows to the front of tb.ptws,
+			// so it will be detected faster next time.
+			tb.ptwsLock.Lock()
+			for i := range tb.ptws {
+				if firstPt == tb.ptws[i] {
+					tb.ptws[0], tb.ptws[i] = tb.ptws[i], tb.ptws[0]
+					break
+				}
+			}
+			tb.ptwsLock.Unlock()
 		}
 	}
 
