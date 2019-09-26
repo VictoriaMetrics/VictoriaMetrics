@@ -1,5 +1,5 @@
 DOCKER_NAMESPACE := victoriametrics
-BUILDER_IMAGE := local/builder:go1.13.0
+BUILDER_IMAGE := local/builder:go1.13.1
 CERTS_IMAGE := local/certs:1.0.2
 
 package-certs:
