@@ -1,7 +1,7 @@
 {
   "name": "basic_insertion",
   "data": "[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.bar\"},{\"name\":\"baz\",\"value\":\"qux\"}],\"samples\":[{\"value\":100000,\"timestamp\":{TIME}}]}]",
-  "query": "/api/v1/export?match={__name__!=\"\"}",
+  "query": "/api/v1/export?match={__name__!=''}",
   "result": [
     {"metric":{"__name__":"prometheus.bar","baz":"qux"},"values":[100000], "timestamps": ["{TIME_MS}"]}
   ]
