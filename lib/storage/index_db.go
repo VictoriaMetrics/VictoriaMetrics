@@ -2284,7 +2284,21 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 		dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 	}
 	putTagToMetricIDsRowsMerger(tmm)
+	assertItemsSorted(dstItems)
 	return dstData, dstItems
+}
+
+func assertItemsSorted(items [][]byte) {
+	if len(items) == 0 {
+		return
+	}
+	prevItem := items[0]
+	for _, currItem := range items[1:] {
+		if string(prevItem) > string(currItem) {
+			logger.Panicf("BUG: items aren't sorted: prevItem > currItem\nprevItem=%X\ncurrItem=%X\nitems=%X", prevItem, currItem, items)
+		}
+		prevItem = currItem
+	}
 }
 
 // maxMetricIDsPerRow limits the number of metricIDs in tag->metricIDs row.
