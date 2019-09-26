@@ -53,10 +53,16 @@ func TestGetRegexpFromCache(t *testing.T) {
 	f("((.*)foo(.*))", nil, []string{"foo", "xfoo", "foox", "xfoobar"}, []string{"", "bar", "foxx"})
 	f(".+foo", nil, []string{"afoo", "bbfoo"}, []string{"foo", "foobar", "afoox", ""})
 	f("a|b", []string{"a", "b"}, []string{"a", "b"}, []string{"xa", "bx", "xab", ""})
+	f("(a|b)", []string{"a", "b"}, []string{"a", "b"}, []string{"xa", "bx", "xab", ""})
 	f("foo.+", nil, []string{"foox", "foobar"}, []string{"foo", "afoox", "afoo", ""})
 	f(".*foo.*bar", nil, []string{"foobar", "xfoobar", "xfooxbar", "fooxbar"}, []string{"", "foobarx", "afoobarx", "aaa"})
 	f("foo.*bar", nil, []string{"foobar", "fooxbar"}, []string{"xfoobar", "", "foobarx", "aaa"})
 	f("foo.*bar.*", nil, []string{"foobar", "fooxbar", "foobarx", "fooxbarx"}, []string{"", "afoobarx", "aaa", "afoobar"})
+
+	f("(?i)foo", nil, []string{"foo", "Foo", "FOO"}, []string{"xfoo", "foobar", "xFOObar"})
+	f("(?i).+foo", nil, []string{"xfoo", "aaFoo", "bArFOO"}, []string{"foosdf", "xFOObar"})
+	f("(?i)(foo|bar)", nil, []string{"foo", "Foo", "BAR", "bAR"}, []string{"foobar", "xfoo", "xFOObAR"})
+	f("(?i)foo.*bar", nil, []string{"foobar", "FooBAR", "FOOxxbaR"}, []string{"xfoobar", "foobarx", "xFOObarx"})
 
 	f(".*", nil, []string{"", "a", "foo", "foobar"}, nil)
 	f("foo|.*", nil, []string{"", "a", "foo", "foobar"}, nil)
@@ -323,6 +329,76 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 		mismatch("bar")
 		match("xhttpbar")
 	})
+	t.Run("regexp-iflag-no-suffix", func(t *testing.T) {
+		value := "(?i)http"
+		isNegative := false
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+
+		// Must match case-insenstive http
+		match("http")
+		match("HTTP")
+		match("hTTp")
+
+		mismatch("")
+		mismatch("foobar")
+		mismatch("xhttp")
+		mismatch("xhttp://")
+		mismatch("hTTp://foobar.com")
+	})
+	t.Run("negative-regexp-iflag-no-suffix", func(t *testing.T) {
+		value := "(?i)http"
+		isNegative := true
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+
+		// Mustn't match case-insensitive http
+		mismatch("http")
+		mismatch("HTTP")
+		mismatch("hTTp")
+
+		match("")
+		match("foobar")
+		match("xhttp")
+		match("xhttp://")
+		match("hTTp://foobar.com")
+	})
+	t.Run("regexp-iflag-any-suffix", func(t *testing.T) {
+		value := "(?i)http.*"
+		isNegative := false
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+
+		// Must match case-insenstive http
+		match("http")
+		match("HTTP")
+		match("hTTp://foobar.com")
+
+		mismatch("")
+		mismatch("foobar")
+		mismatch("xhttp")
+		mismatch("xhttp://")
+	})
+	t.Run("negative-regexp-iflag-any-suffix", func(t *testing.T) {
+		value := "(?i)http.*"
+		isNegative := true
+		isRegexp := true
+		expectedPrefix := tvNoTrailingTagSeparator("")
+		init(value, isNegative, isRegexp, expectedPrefix)
+
+		// Mustn't match case-insensitive http
+		mismatch("http")
+		mismatch("HTTP")
+		mismatch("hTTp://foobar.com")
+
+		match("")
+		match("foobar")
+		match("xhttp")
+		match("xhttp://")
+	})
 	t.Run("non-empty-string-regexp-negative-match", func(t *testing.T) {
 		value := ".+"
 		isNegative := true
@@ -409,6 +485,8 @@ func TestGetOrValues(t *testing.T) {
 	f("foo(?:bar|baz)x(qwe|rt)", []string{"foobarxqwe", "foobarxrt", "foobazxqwe", "foobazxrt"})
 	f("foo(bar||baz)", []string{"foo", "foobar", "foobaz"})
 	f("(a|b|c)(d|e|f)(g|h|k)", nil)
+	f("(?i)foo", nil)
+	f("(?i)(foo|bar)", nil)
 }
 
 func TestGetRegexpPrefix(t *testing.T) {
@@ -463,6 +541,7 @@ func TestGetRegexpPrefix(t *testing.T) {
 	f(t, "a(b|c.*).+", "a", "(?:b|c(?-s:.)*)(?-s:.)+")
 	f(t, "ab|ac", "a", "[b-c]")
 	f(t, "(?i)xyz", "", "(?i:XYZ)")
+	f(t, "(?i)foo|bar", "", "(?i:FOO)|(?i:BAR)")
 	f(t, "(?i)up.+x", "", "(?i:UP)(?-s:.)+(?i:X)")
 	f(t, "(?smi)xy.*z$", "", "(?i:XY)(?s:.)*(?i:Z)(?m:$)")
 

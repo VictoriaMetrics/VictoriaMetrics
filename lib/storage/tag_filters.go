@@ -317,6 +317,9 @@ func getSingleValueFuncExt(re *syntax.Regexp) func(b []byte) bool {
 	case syntax.OpCapture:
 		return getSingleValueFuncExt(re.Sub[0])
 	case syntax.OpLiteral:
+		if !isLiteral(re) {
+			return nil
+		}
 		s := string(re.Rune)
 		return func(b []byte) bool {
 			return string(b) == s
@@ -399,7 +402,7 @@ func isLiteral(re *syntax.Regexp) bool {
 	if re.Op == syntax.OpCapture {
 		return isLiteral(re.Sub[0])
 	}
-	return re.Op == syntax.OpLiteral
+	return re.Op == syntax.OpLiteral && re.Flags&syntax.FoldCase == 0
 }
 
 func getOrValues(expr string) []string {
@@ -420,6 +423,9 @@ func getOrValuesExt(re *syntax.Regexp) []string {
 	case syntax.OpCapture:
 		return getOrValuesExt(re.Sub[0])
 	case syntax.OpLiteral:
+		if !isLiteral(re) {
+			return nil
+		}
 		return []string{string(re.Rune)}
 	case syntax.OpEmptyMatch:
 		return []string{""}
@@ -592,13 +598,13 @@ func extractRegexpPrefix(b []byte) ([]byte, []byte) {
 	if re == emptyRegexp {
 		return nil, nil
 	}
-	if re.Op == syntax.OpLiteral && re.Flags&syntax.FoldCase == 0 {
+	if isLiteral(re) {
 		return []byte(string(re.Rune)), nil
 	}
 	var prefix []byte
 	if re.Op == syntax.OpConcat {
 		sub0 := re.Sub[0]
-		if sub0.Op == syntax.OpLiteral && sub0.Flags&syntax.FoldCase == 0 {
+		if isLiteral(sub0) {
 			prefix = []byte(string(sub0.Rune))
 			re.Sub = re.Sub[1:]
 			if len(re.Sub) == 0 {
