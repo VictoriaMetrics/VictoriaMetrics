@@ -102,46 +102,22 @@ func (t *TSID) Unmarshal(src []byte) ([]byte, error) {
 
 // Less return true if t < b.
 func (t *TSID) Less(b *TSID) bool {
-	if t.MetricID == b.MetricID {
-		// Fast path - two TSID values are identical.
-		return false
+	// Do not compare MetricIDs here as fast path for determining identical TSIDs,
+	// since identical TSIDs aren't passed here in hot paths.
+	if t.AccountID != b.AccountID {
+		return t.AccountID < b.AccountID
 	}
-
-	if t.AccountID < b.AccountID {
-		return true
+	if t.ProjectID != b.ProjectID {
+		return t.ProjectID < b.ProjectID
 	}
-	if t.AccountID > b.AccountID {
-		return false
+	if t.MetricGroupID != b.MetricGroupID {
+		return t.MetricGroupID < b.MetricGroupID
 	}
-	if t.ProjectID < b.ProjectID {
-		return true
+	if t.JobID != b.JobID {
+		return t.JobID < b.JobID
 	}
-	if t.ProjectID > b.ProjectID {
-		return false
+	if t.InstanceID != b.InstanceID {
+		return t.InstanceID < b.InstanceID
 	}
-	if t.MetricGroupID < b.MetricGroupID {
-		return true
-	}
-	if t.MetricGroupID > b.MetricGroupID {
-		return false
-	}
-	if t.JobID < b.JobID {
-		return true
-	}
-	if t.JobID > b.JobID {
-		return false
-	}
-	if t.InstanceID < b.InstanceID {
-		return true
-	}
-	if t.InstanceID > b.InstanceID {
-		return false
-	}
-	if t.MetricID < b.MetricID {
-		return true
-	}
-	if t.MetricID > b.MetricID {
-		return false
-	}
-	return false
+	return t.MetricID < b.MetricID
 }

@@ -48,54 +48,36 @@ type rawRowsSort []rawRow
 func (rrs *rawRowsSort) Len() int { return len(*rrs) }
 func (rrs *rawRowsSort) Less(i, j int) bool {
 	x := *rrs
+	if i < 0 || j < 0 || i >= len(x) || j >= len(x) {
+		// This is no-op for compiler, so it doesn't generate panic code
+		// for out of range access on x[i], x[j] below
+		return false
+	}
 	a := &x[i]
 	b := &x[j]
 	ta := &a.TSID
 	tb := &b.TSID
-	if ta.MetricID == tb.MetricID {
-		// Fast path - identical TSID values.
-		return a.Timestamp < b.Timestamp
-	}
 
-	// Slow path - compare TSIDs.
 	// Manually inline TSID.Less here, since the compiler doesn't inline it yet :(
-	if ta.AccountID < tb.AccountID {
-		return true
+	if ta.AccountID != tb.AccountID {
+		return ta.AccountID < tb.AccountID
 	}
-	if ta.AccountID > tb.AccountID {
-		return false
+	if ta.ProjectID != tb.ProjectID {
+		return ta.ProjectID < tb.ProjectID
 	}
-	if ta.ProjectID < tb.ProjectID {
-		return true
+	if ta.MetricGroupID != tb.MetricGroupID {
+		return ta.MetricGroupID < tb.MetricGroupID
 	}
-	if ta.ProjectID > tb.ProjectID {
-		return false
+	if ta.JobID != tb.JobID {
+		return ta.JobID < tb.JobID
 	}
-	if ta.MetricGroupID < tb.MetricGroupID {
-		return true
+	if ta.InstanceID != tb.InstanceID {
+		return ta.InstanceID < tb.InstanceID
 	}
-	if ta.MetricGroupID > tb.MetricGroupID {
-		return false
+	if ta.MetricID != tb.MetricID {
+		return ta.MetricID < tb.MetricID
 	}
-	if ta.JobID < tb.JobID {
-		return true
-	}
-	if ta.JobID > tb.JobID {
-		return false
-	}
-	if ta.InstanceID < tb.InstanceID {
-		return true
-	}
-	if ta.InstanceID > tb.InstanceID {
-		return false
-	}
-	if ta.MetricID < tb.MetricID {
-		return true
-	}
-	if ta.MetricID > tb.MetricID {
-		return false
-	}
-	return false
+	return a.Timestamp < b.Timestamp
 }
 func (rrs *rawRowsSort) Swap(i, j int) {
 	x := *rrs
