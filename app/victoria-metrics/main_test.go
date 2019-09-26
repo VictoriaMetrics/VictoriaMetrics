@@ -52,6 +52,7 @@ const (
 
 const (
 	tplWordTime              = "{TIME}"
+	tplQuotedWordTime        = `"{TIME}"`
 	tplQuotedWordTimeSeconds = `"{TIME_S}"`
 	tplQuotedWordTimeMillis  = `"{TIME_MS}"`
 )
@@ -66,6 +67,7 @@ type test struct {
 	Data   string `json:"data"`
 	Query  string `json:"query"`
 	Result []Row  `json:"result"`
+	Issue  string `json:"issue"`
 }
 
 type Row struct {
@@ -239,7 +241,7 @@ func testRead(t *testing.T) {
 				test := x
 				t.Run(test.Name, func(t *testing.T) {
 					t.Parallel()
-					rowContains(t, httpRead(t, testReadHTTPPath, test.Query), test.Result)
+					rowContains(t, httpRead(t, testReadHTTPPath, test.Query), test.Result, test.Issue)
 				})
 			}
 		})
@@ -258,6 +260,7 @@ func readIn(readFor string, t *testing.T, timeStr string) []test {
 		s.noError(err)
 		item := test{}
 		s.noError(json.Unmarshal(b, &item))
+		item.Data = strings.Replace(item.Data, tplQuotedWordTime, timeStr, -1)
 		item.Data = strings.Replace(item.Data, tplWordTime, timeStr, -1)
 		tt = append(tt, item)
 		return nil
@@ -304,13 +307,16 @@ func httpRead(t *testing.T, address, query string) []Row {
 	return rows
 }
 
-func rowContains(t *testing.T, rows, contains []Row) {
+func rowContains(t *testing.T, rows, contains []Row, issue string) {
 	t.Helper()
 	for _, r := range rows {
 		contains = removeIfFound(r, contains)
 	}
 	if len(contains) > 0 {
-		t.Fatalf("result rows %+v not found in %+v", contains, rows)
+		if issue != "" {
+			issue = "Regression in " + issue
+		}
+		t.Fatalf("result rows %+v not found in %+v.%s", contains, rows, issue)
 	}
 }
 

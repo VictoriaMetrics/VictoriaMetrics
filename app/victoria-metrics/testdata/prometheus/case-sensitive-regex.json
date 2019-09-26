@@ -1,0 +1,10 @@
+{
+  "name": "case-sensitive-regex",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/161",
+  "data": "[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.sensitiveRegex\"},{\"name\":\"label\",\"value\":\"sensitiveRegex\"}],\"samples\":[{\"value\":2,\"timestamp\":\"{TIME}\"}]},{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.sensitiveRegex\"},{\"name\":\"label\",\"value\":\"SensitiveRegex\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME}\"}]}]",
+  "query": "/api/v1/export?match={label=~'(?i)sensitiveregex'}",
+  "result": [
+    {"metric":{"__name__":"prometheus.sensitiveRegex","label":"sensitiveRegex"},"values":[2], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"prometheus.sensitiveRegex","label":"SensitiveRegex"},"values":[1], "timestamps": ["{TIME_MS}"]}
+  ]
+}
