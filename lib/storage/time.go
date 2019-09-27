@@ -41,6 +41,10 @@ func timestampToPartitionName(timestamp int64) string {
 	return t.Format("2006_01")
 }
 
+func (tr *TimeRange) hasTimestamp(timestamp int64) bool {
+	return timestamp >= tr.MinTimestamp && timestamp <= tr.MaxTimestamp
+}
+
 // fromPartitionName initializes tr from the given parition name.
 func (tr *TimeRange) fromPartitionName(name string) error {
 	t, err := time.Parse("2006_01", name)

@@ -254,11 +254,13 @@ func (tb *table) AddRows(rows []rawRow) error {
 			// Silently skip row outside retention, since it should be deleted anyway.
 			continue
 		}
-		tr.fromPartitionTimestamp(r.Timestamp)
+		if !tr.hasTimestamp(r.Timestamp) {
+			tr.fromPartitionTimestamp(r.Timestamp)
+		}
 		if firstTrEnd == -1 {
 			firstTr = tr
 		}
-		if firstTr == tr {
+		if firstTr == tr && len(trBuckets) == 0 {
 			firstTrEnd = i + 1
 		} else {
 			trBuckets[tr] = append(trBuckets[tr], *r)
@@ -276,7 +278,8 @@ func (tb *table) AddRows(rows []rawRow) error {
 	ptws := ptwsX.a
 	for tr, trRows := range trBuckets {
 		ptFould := false
-		for _, ptw := range ptws {
+		for i := len(ptws) - 1; i >= 0; i-- {
+			ptw := ptws[i]
 			if ptw.pt.HasTimestamp(trRows[0].Timestamp) {
 				ptFould = true
 				ptw.pt.AddRows(trRows)
