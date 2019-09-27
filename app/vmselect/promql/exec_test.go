@@ -369,6 +369,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("timestamp(time()>=1600)", func(t *testing.T) {
+		t.Parallel()
+		q := `timestamp(time()>=1600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("time()/100", func(t *testing.T) {
 		t.Parallel()
 		q := `time()/100`

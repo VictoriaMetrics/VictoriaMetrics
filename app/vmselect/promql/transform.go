@@ -1121,7 +1121,10 @@ func transformTimestamp(tfa *transformFuncArg) ([]*timeseries, error) {
 		ts.MetricName.ResetMetricGroup()
 		values := ts.Values
 		for i, t := range ts.Timestamps {
-			values[i] = float64(t) / 1e3
+			v := values[i]
+			if !math.IsNaN(v) {
+				values[i] = float64(t) / 1e3
+			}
 		}
 	}
 	return rvs, nil
