@@ -63,27 +63,28 @@ var (
 )
 
 type test struct {
-	Name   string `json:"name"`
-	Data   string `json:"data"`
-	Query  string `json:"query"`
-	Result []Row  `json:"result"`
-	Issue  string `json:"issue"`
+	Name          string   `json:"name"`
+	Data          string   `json:"data"`
+	Query         []string `json:"query"`
+	ResultMetrics []Metric `json:"result_metrics"`
+	ResultSeries  Series   `json:"result_series"`
+	Issue         string   `json:"issue"`
 }
 
-type Row struct {
+type Metric struct {
 	Metric     map[string]string `json:"metric"`
 	Values     []float64         `json:"values"`
 	Timestamps []int64           `json:"timestamps"`
 }
 
-func (r *Row) UnmarshalJSON(b []byte) error {
-	type withoutInterface Row
-	var to withoutInterface
-	if err := json.Unmarshal(populateTimeTpl(b), &to); err != nil {
-		return err
-	}
-	*r = Row(to)
-	return nil
+type Series struct {
+	Status string              `json:"status"`
+	Data   []map[string]string `json:"data"`
+}
+
+func (r *Metric) UnmarshalJSON(b []byte) error {
+	type plain Metric
+	return json.Unmarshal(populateTimeTpl(b), (*plain)(r))
 }
 
 func populateTimeTpl(b []byte) []byte {
@@ -241,7 +242,16 @@ func testRead(t *testing.T) {
 				test := x
 				t.Run(test.Name, func(t *testing.T) {
 					t.Parallel()
-					rowContains(t, httpRead(t, testReadHTTPPath, test.Query), test.Result, test.Issue)
+					for _, q := range test.Query {
+						switch true {
+						case strings.HasPrefix(q, "/api/v1/export"):
+							checkMetricsResult(t, httpReadMetrics(t, testReadHTTPPath, q), test.ResultMetrics, q, test.Issue)
+						case strings.HasPrefix(q, "/api/v1/series"):
+							checkSeriesResult(t, httpReadSeries(t, testReadHTTPPath, q), test.ResultSeries, q, test.Issue)
+						default:
+							t.Fatalf("unsupported read query %s", q)
+						}
+					}
 				})
 			}
 		})
@@ -291,39 +301,80 @@ func tcpWrite(t *testing.T, address string, data string) {
 	s.equalInt(n, len(data))
 }
 
-func httpRead(t *testing.T, address, query string) []Row {
+func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	t.Helper()
 	s := newSuite(t)
 	resp, err := http.Get(address + query)
 	s.noError(err)
 	defer resp.Body.Close()
 	s.equalInt(resp.StatusCode, 200)
-	var rows []Row
+	var rows []Metric
 	for dec := json.NewDecoder(resp.Body); dec.More(); {
-		var row Row
+		var row Metric
 		s.noError(dec.Decode(&row))
 		rows = append(rows, row)
 	}
 	return rows
 }
 
-func rowContains(t *testing.T, rows, contains []Row, issue string) {
+func httpReadSeries(t *testing.T, address, query string) Series {
 	t.Helper()
-	for _, r := range rows {
-		contains = removeIfFound(r, contains)
+	s := newSuite(t)
+	resp, err := http.Get(address + query)
+	s.noError(err)
+	defer resp.Body.Close()
+	s.equalInt(resp.StatusCode, 200)
+	var Series Series
+	if err := json.NewDecoder(resp.Body).Decode(&Series); err != nil {
+		s.noError(err)
 	}
-	if len(contains) > 0 {
+	return Series
+}
+
+func checkMetricsResult(t *testing.T, got, want []Metric, query, issue string) {
+	t.Helper()
+	for _, r := range append([]Metric(nil), got...) {
+		want = removeIfFoundMetrics(r, want)
+	}
+	if len(want) > 0 {
 		if issue != "" {
 			issue = "Regression in " + issue
 		}
-		t.Fatalf("result rows %+v not found in %+v.%s", contains, rows, issue)
+		t.Fatalf("query: %s. Result metrics %+v not found in %+v.%s", query, want, got, issue)
 	}
 }
 
-func removeIfFound(r Row, contains []Row) []Row {
+func removeIfFoundMetrics(r Metric, contains []Metric) []Metric {
 	for i, item := range contains {
 		if reflect.DeepEqual(r.Metric, item.Metric) && reflect.DeepEqual(r.Values, item.Values) &&
 			reflect.DeepEqual(r.Timestamps, item.Timestamps) {
+			contains[i] = contains[len(contains)-1]
+			return contains[:len(contains)-1]
+		}
+	}
+	return contains
+}
+
+func checkSeriesResult(t *testing.T, got, want Series, query, issue string) {
+	t.Helper()
+	if got.Status != want.Status {
+		t.Fatalf("query %s. Result ResultSeries status mismatch %q - %q. %s", query, want.Status, got.Status, issue)
+	}
+	wantData := append([]map[string]string(nil), want.Data...)
+	for _, r := range got.Data {
+		wantData = removeIfFoundSeries(r, wantData)
+	}
+	if len(wantData) > 0 {
+		if issue != "" {
+			issue = "Regression in " + issue
+		}
+		t.Fatalf("query %s. Result series %+v not found in %+v.%s", query, wantData, got.Data, issue)
+	}
+}
+
+func removeIfFoundSeries(r map[string]string, contains []map[string]string) []map[string]string {
+	for i, item := range contains {
+		if reflect.DeepEqual(r, item) {
 			contains[i] = contains[len(contains)-1]
 			return contains[:len(contains)-1]
 		}

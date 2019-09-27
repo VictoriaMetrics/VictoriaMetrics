@@ -1,0 +1,9 @@
+{
+  "name": "duplicate_label",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/172",
+  "data": "[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.duplicate_label\"},{\"name\":\"duplicate\",\"value\":\"label\"},{\"name\":\"duplicate\",\"value\":\"label\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME}\"}]}]",
+  "query": ["/api/v1/export?match={__name__!=''}"],
+  "result_metrics": [
+    {"metric":{"__name__":"prometheus.duplicate_label","duplicate":"label"},"values":[1], "timestamps": ["{TIME_MS}"]}
+  ]
+}
