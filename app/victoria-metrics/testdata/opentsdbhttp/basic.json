@@ -1,8 +1,8 @@
 {
   "name": "basic_insertion",
   "data": "{\"metric\": \"opentsdbhttp.foo\", \"value\": 1001, \"timestamp\": {TIME}, \"tags\": {\"bar\":\"baz\", \"x\": \"y\"}}",
-  "query": "/api/v1/export?match={__name__!=\"\"}",
-  "result": [
+  "query": ["/api/v1/export?match={__name__!=''}"],
+  "result_metrics": [
     {"metric":{"__name__":"opentsdbhttp.foo","bar":"baz","x":"y"},"values":[1001], "timestamps": ["{TIME_S}"]}
   ]
 }
