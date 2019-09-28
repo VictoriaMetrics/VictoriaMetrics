@@ -484,9 +484,12 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 	tbf := getTmpBlocksFile()
 	m := make(map[string][]tmpBlockAddr)
 	blocksRead := 0
+	bb := tmpBufPool.Get()
+	defer tmpBufPool.Put(bb)
 	for sr.NextMetricBlock() {
 		blocksRead++
-		addr, err := tbf.WriteBlock(sr.MetricBlock.Block)
+		bb.B = storage.MarshalBlock(bb.B[:0], sr.MetricBlock.Block)
+		addr, err := tbf.WriteBlockData(bb.B)
 		if err != nil {
 			putTmpBlocksFile(tbf)
 			return nil, fmt.Errorf("cannot write data block #%d to temporary blocks file: %s", blocksRead, err)
