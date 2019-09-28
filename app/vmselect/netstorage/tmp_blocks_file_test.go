@@ -77,9 +77,12 @@ func testTmpBlocksFile() error {
 			// Write blocks until their summary size exceeds `size`.
 			var addrs []tmpBlockAddr
 			var blocks []*storage.Block
+			bb := tmpBufPool.Get()
+			defer tmpBufPool.Put(bb)
 			for tbf.offset < uint64(size) {
 				b := createBlock()
-				addr, err := tbf.WriteBlock(b)
+				bb.B = storage.MarshalBlock(bb.B[:0], b)
+				addr, err := tbf.WriteBlockData(bb.B)
 				if err != nil {
 					return fmt.Errorf("cannot write block at offset %d: %s", tbf.offset, err)
 				}

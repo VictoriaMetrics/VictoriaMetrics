@@ -701,16 +701,17 @@ type tmpBlocksFileWrapper struct {
 }
 
 func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
+	bb := tmpBufPool.Get()
+	bb.B = storage.MarshalBlock(bb.B[:0], mb.Block)
 	tbfw.mu.Lock()
-	defer tbfw.mu.Unlock()
-
-	addr, err := tbfw.tbf.WriteBlock(mb.Block)
-	if err != nil {
-		return err
+	addr, err := tbfw.tbf.WriteBlockData(bb.B)
+	tmpBufPool.Put(bb)
+	if err == nil {
+		metricName := mb.MetricName
+		tbfw.m[string(metricName)] = append(tbfw.m[string(metricName)], addr)
 	}
-	metricName := mb.MetricName
-	tbfw.m[string(metricName)] = append(tbfw.m[string(metricName)], addr)
-	return nil
+	tbfw.mu.Unlock()
+	return err
 }
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
