@@ -520,6 +520,15 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		pts.metricName = metricName
 		pts.addrs = addrs
 	}
+
+	// Sort rss.packedTimeseries by the first addr offset in order
+	// to reduce the number of disk seeks during unpacking in RunParallel.
+	// In this case tmpBlocksFile must be read almost sequentially.
+	sort.Slice(rss.packedTimeseries, func(i, j int) bool {
+		pts := rss.packedTimeseries
+		return pts[i].addrs[0].offset < pts[j].addrs[0].offset
+	})
+
 	return &rss, nil
 }
 
