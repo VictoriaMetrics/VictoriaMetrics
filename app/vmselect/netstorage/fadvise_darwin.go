@@ -4,6 +4,6 @@ import (
 	"os"
 )
 
-func mustFadviseRandomRead(f *os.File) {
+func mustFadviseSequentialRead(f *os.File) {
 	// Do nothing :)
 }
