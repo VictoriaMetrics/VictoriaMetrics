@@ -125,7 +125,10 @@ func (tbf *tmpBlocksFile) Finalize() error {
 	if _, err := tbf.f.Seek(0, 0); err != nil {
 		logger.Panicf("FATAL: cannot seek to the start of file: %s", err)
 	}
-	mustFadviseRandomRead(tbf.f)
+	// Hint the OS that the file is read almost sequentiallly.
+	// This should reduce the number of disk seeks, which is important
+	// for HDDs.
+	mustFadviseSequentialRead(tbf.f)
 	return nil
 }
 
