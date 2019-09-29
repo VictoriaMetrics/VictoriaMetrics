@@ -1,8 +1,8 @@
 {
   "name": "basic_insertion",
-  "data": "put openstdb.foo.bar.baz {TIME} 123 tag1=value1 tag2=value2",
+  "data": ["put openstdb.foo.bar.baz {TIME_S} 123 tag1=value1 tag2=value2"],
   "query": ["/api/v1/export?match={__name__!=''}"],
   "result_metrics": [
-    {"metric":{"__name__":"openstdb.foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123], "timestamps": ["{TIME_S}"]}
+    {"metric":{"__name__":"openstdb.foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123], "timestamps": ["{TIME_MSZ}"]}
   ]
 }

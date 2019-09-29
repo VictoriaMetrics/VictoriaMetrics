@@ -1,6 +1,6 @@
 {
   "name": "basic_insertion",
-  "data": "[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.bar\"},{\"name\":\"baz\",\"value\":\"qux\"}],\"samples\":[{\"value\":100000,\"timestamp\":\"{TIME}\"}]}]",
+  "data": ["[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.bar\"},{\"name\":\"baz\",\"value\":\"qux\"}],\"samples\":[{\"value\":100000,\"timestamp\":\"{TIME_MS}\"}]}]"],
   "query": ["/api/v1/export?match={__name__!=''}"],
   "result_metrics": [
     {"metric":{"__name__":"prometheus.bar","baz":"qux"},"values":[100000], "timestamps": ["{TIME_MS}"]}
