@@ -1,7 +1,7 @@
 {
   "name": "case-sensitive-regex",
   "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/161",
-  "data": "[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.sensitiveRegex\"},{\"name\":\"label\",\"value\":\"sensitiveRegex\"}],\"samples\":[{\"value\":2,\"timestamp\":\"{TIME}\"}]},{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.sensitiveRegex\"},{\"name\":\"label\",\"value\":\"SensitiveRegex\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME}\"}]}]",
+  "data": ["[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.sensitiveRegex\"},{\"name\":\"label\",\"value\":\"sensitiveRegex\"}],\"samples\":[{\"value\":2,\"timestamp\":\"{TIME_MS}\"}]},{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.sensitiveRegex\"},{\"name\":\"label\",\"value\":\"SensitiveRegex\"}],\"samples\":[{\"value\":1,\"timestamp\":\"{TIME_MS}\"}]}]"],
   "query": ["/api/v1/export?match={label=~'(?i)sensitiveregex'}"],
   "result_metrics": [
     {"metric":{"__name__":"prometheus.sensitiveRegex","label":"sensitiveRegex"},"values":[2], "timestamps": ["{TIME_MS}"]},

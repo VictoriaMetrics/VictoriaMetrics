@@ -1,0 +1,14 @@
+{
+  "name": "subquery-aggregation",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/184",
+  "data": [
+    "forms_daily_count;item=x 1 {TIME_S-1m}",
+    "forms_daily_count;item=x 2 {TIME_S-2m}",
+    "forms_daily_count;item=y 3 {TIME_S-1m}",
+    "forms_daily_count;item=y 4 {TIME_S-2m}"],
+  "query": ["/api/v1/query?query=min%20by%20(item)%20(min_over_time(forms_daily_count[10m:1m]))&time={TIME_S-1m}"],
+  "result_query": {
+    "status":"success",
+    "data":{"resultType":"vector","result":[{"metric":{"item":"x"},"value":["{TIME_S-1m}","1"]},{"metric":{"item":"y"},"value":["{TIME_S-1m}","3"]}]}
+  }
+}

@@ -50,13 +50,6 @@ const (
 	testStorageInitTimeout = 10 * time.Second
 )
 
-const (
-	tplWordTime              = "{TIME}"
-	tplQuotedWordTime        = `"{TIME}"`
-	tplQuotedWordTimeSeconds = `"{TIME_S}"`
-	tplQuotedWordTimeMillis  = `"{TIME_MS}"`
-)
-
 var (
 	storagePath   string
 	insertionTime = time.Now().UTC()
@@ -64,10 +57,11 @@ var (
 
 type test struct {
 	Name          string   `json:"name"`
-	Data          string   `json:"data"`
+	Data          []string `json:"data"`
 	Query         []string `json:"query"`
 	ResultMetrics []Metric `json:"result_metrics"`
 	ResultSeries  Series   `json:"result_series"`
+	ResultQuery   Query    `json:"result_query"`
 	Issue         string   `json:"issue"`
 }
 
@@ -77,28 +71,32 @@ type Metric struct {
 	Timestamps []int64           `json:"timestamps"`
 }
 
+func (r *Metric) UnmarshalJSON(b []byte) error {
+	type plain Metric
+	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(r))
+}
+
 type Series struct {
 	Status string              `json:"status"`
 	Data   []map[string]string `json:"data"`
 }
-
-func (r *Metric) UnmarshalJSON(b []byte) error {
-	type plain Metric
-	return json.Unmarshal(populateTimeTpl(b), (*plain)(r))
+type Query struct {
+	Status string    `json:"status"`
+	Data   QueryData `json:"data"`
+}
+type QueryData struct {
+	ResultType string            `json:"resultType"`
+	Result     []QueryDataResult `json:"result"`
 }
 
-func populateTimeTpl(b []byte) []byte {
-	var (
-		tplTimeToQuotedMS = [2][]byte{[]byte(tplQuotedWordTimeMillis), []byte(fmt.Sprintf("%d", timeToMillis(insertionTime)))}
-		tpsTimeToQuotedS  = [2][]byte{[]byte(tplQuotedWordTimeSeconds), []byte(fmt.Sprintf("%d", insertionTime.Unix()*1e3))}
-	)
-	tpls := [][2][]byte{
-		tplTimeToQuotedMS, tpsTimeToQuotedS,
-	}
-	for i := range tpls {
-		b = bytes.ReplaceAll(b, tpls[i][0], tpls[i][1])
-	}
-	return b
+type QueryDataResult struct {
+	Metric map[string]string `json:"metric"`
+	Value  []interface{}     `json:"value"`
+}
+
+func (r *QueryDataResult) UnmarshalJSON(b []byte) error {
+	type plain QueryDataResult
+	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(r))
 }
 
 func TestMain(m *testing.M) {
@@ -182,10 +180,10 @@ func TestWriteRead(t *testing.T) {
 
 func testWrite(t *testing.T) {
 	t.Run("prometheus", func(t *testing.T) {
-		for _, test := range readIn("prometheus", t, fmt.Sprintf("%d", timeToMillis(insertionTime))) {
+		for _, test := range readIn("prometheus", t, insertionTime) {
 			s := newSuite(t)
 			r := testutil.WriteRequest{}
-			s.noError(json.Unmarshal([]byte(test.Data), &r.Timeseries))
+			s.noError(json.Unmarshal([]byte(strings.Join(test.Data, "\n")), &r.Timeseries))
 			data, err := testutil.Compress(r)
 			s.greaterThan(len(r.Timeseries), 0)
 			if err != nil {
@@ -197,39 +195,39 @@ func testWrite(t *testing.T) {
 	})
 
 	t.Run("influxdb", func(t *testing.T) {
-		for _, x := range readIn("influxdb", t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
+		for _, x := range readIn("influxdb", t, insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
-				httpWrite(t, testWriteHTTPPath, bytes.NewBufferString(test.Data))
+				httpWrite(t, testWriteHTTPPath, bytes.NewBufferString(strings.Join(test.Data, "\n")))
 			})
 		}
 	})
 	t.Run("graphite", func(t *testing.T) {
-		for _, x := range readIn("graphite", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+		for _, x := range readIn("graphite", t, insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
-				tcpWrite(t, "127.0.0.1"+testStatsDListenAddr, test.Data)
+				tcpWrite(t, "127.0.0.1"+testStatsDListenAddr, strings.Join(test.Data, "\n"))
 			})
 		}
 	})
 	t.Run("opentsdb", func(t *testing.T) {
-		for _, x := range readIn("opentsdb", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+		for _, x := range readIn("opentsdb", t, insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
-				tcpWrite(t, "127.0.0.1"+testOpenTSDBListenAddr, test.Data)
+				tcpWrite(t, "127.0.0.1"+testOpenTSDBListenAddr, strings.Join(test.Data, "\n"))
 			})
 		}
 	})
 	t.Run("opentsdbhttp", func(t *testing.T) {
-		for _, x := range readIn("opentsdbhttp", t, fmt.Sprintf("%d", insertionTime.Unix())) {
+		for _, x := range readIn("opentsdbhttp", t, insertionTime) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
 				logger.Infof("writing %s", test.Data)
-				httpWrite(t, testOpenTSDBWriteHTTPPath, bytes.NewBufferString(test.Data))
+				httpWrite(t, testOpenTSDBWriteHTTPPath, bytes.NewBufferString(strings.Join(test.Data, "\n")))
 			})
 		}
 	})
@@ -238,16 +236,25 @@ func testWrite(t *testing.T) {
 func testRead(t *testing.T) {
 	for _, engine := range []string{"prometheus", "graphite", "opentsdb", "influxdb", "opentsdbhttp"} {
 		t.Run(engine, func(t *testing.T) {
-			for _, x := range readIn(engine, t, fmt.Sprintf("%d", insertionTime.UnixNano())) {
+			for _, x := range readIn(engine, t, insertionTime) {
 				test := x
 				t.Run(test.Name, func(t *testing.T) {
 					t.Parallel()
 					for _, q := range test.Query {
+						q = testutil.PopulateTimeTplString(q, insertionTime)
 						switch true {
 						case strings.HasPrefix(q, "/api/v1/export"):
 							checkMetricsResult(t, httpReadMetrics(t, testReadHTTPPath, q), test.ResultMetrics, q, test.Issue)
 						case strings.HasPrefix(q, "/api/v1/series"):
-							checkSeriesResult(t, httpReadSeries(t, testReadHTTPPath, q), test.ResultSeries, q, test.Issue)
+							s := Series{}
+							httpReadStruct(t, testReadHTTPPath, q, &s)
+							checkSeriesResult(t, s, test.ResultSeries, q, test.Issue)
+						case strings.HasPrefix(q, "/api/v1/query_range"):
+							t.Fatalf("unsupported read query %s", q)
+						case strings.HasPrefix(q, "/api/v1/query"):
+							queryResult := Query{}
+							httpReadStruct(t, testReadHTTPPath, q, &queryResult)
+							checkQueryResult(t, queryResult, test.ResultQuery, q, test.Issue)
 						default:
 							t.Fatalf("unsupported read query %s", q)
 						}
@@ -258,7 +265,7 @@ func testRead(t *testing.T) {
 	}
 }
 
-func readIn(readFor string, t *testing.T, timeStr string) []test {
+func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 	t.Helper()
 	s := newSuite(t)
 	var tt []test
@@ -270,8 +277,9 @@ func readIn(readFor string, t *testing.T, timeStr string) []test {
 		s.noError(err)
 		item := test{}
 		s.noError(json.Unmarshal(b, &item))
-		item.Data = strings.Replace(item.Data, tplQuotedWordTime, timeStr, -1)
-		item.Data = strings.Replace(item.Data, tplWordTime, timeStr, -1)
+		for i := range item.Data {
+			item.Data[i] = testutil.PopulateTimeTplString(item.Data[i], insertTime)
+		}
 		tt = append(tt, item)
 		return nil
 	}))
@@ -316,19 +324,14 @@ func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	}
 	return rows
 }
-
-func httpReadSeries(t *testing.T, address, query string) Series {
+func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
 	t.Helper()
 	s := newSuite(t)
 	resp, err := http.Get(address + query)
 	s.noError(err)
 	defer resp.Body.Close()
 	s.equalInt(resp.StatusCode, 200)
-	var Series Series
-	if err := json.NewDecoder(resp.Body).Decode(&Series); err != nil {
-		s.noError(err)
-	}
-	return Series
+	s.noError(json.NewDecoder(resp.Body).Decode(dst))
 }
 
 func checkMetricsResult(t *testing.T, got, want []Metric, query, issue string) {
@@ -358,7 +361,7 @@ func removeIfFoundMetrics(r Metric, contains []Metric) []Metric {
 func checkSeriesResult(t *testing.T, got, want Series, query, issue string) {
 	t.Helper()
 	if got.Status != want.Status {
-		t.Fatalf("query %s. Result ResultSeries status mismatch %q - %q. %s", query, want.Status, got.Status, issue)
+		t.Fatalf("query %s. Result Series status mismatch %q - %q. %s", query, want.Status, got.Status, issue)
 	}
 	wantData := append([]map[string]string(nil), want.Data...)
 	for _, r := range got.Data {
@@ -368,13 +371,44 @@ func checkSeriesResult(t *testing.T, got, want Series, query, issue string) {
 		if issue != "" {
 			issue = "Regression in " + issue
 		}
-		t.Fatalf("query %s. Result series %+v not found in %+v.%s", query, wantData, got.Data, issue)
+		t.Fatalf("query %s. Result Series %+v not found in %+v.%s", query, wantData, got.Data, issue)
 	}
 }
 
 func removeIfFoundSeries(r map[string]string, contains []map[string]string) []map[string]string {
 	for i, item := range contains {
 		if reflect.DeepEqual(r, item) {
+			contains[i] = contains[len(contains)-1]
+			return contains[:len(contains)-1]
+		}
+	}
+	return contains
+}
+
+func checkQueryResult(t *testing.T, got, want Query, query, issue string) {
+	t.Helper()
+	if got.Status != want.Status {
+		t.Fatalf("query %s. Result Query status mismatch %q - %q. %s", query, want.Status, got.Status, issue)
+	}
+	if got.Data.ResultType != want.Data.ResultType {
+		t.Fatalf("query %s. Result Query Data ResultType status mismatch %q - %q. %s", query, want.Data.ResultType, got.Data.ResultType, issue)
+	}
+
+	wantData := append([]QueryDataResult(nil), want.Data.Result...)
+	for _, r := range got.Data.Result {
+		wantData = removeIfFoundQueryData(r, wantData)
+	}
+	if len(wantData) > 0 {
+		if issue != "" {
+			issue = "Regression in " + issue
+		}
+		t.Fatalf("query %s. Result query %+v not found in %+v.%s", query, wantData, got.Data.Result, issue)
+	}
+}
+
+func removeIfFoundQueryData(r QueryDataResult, contains []QueryDataResult) []QueryDataResult {
+	for i, item := range contains {
+		if reflect.DeepEqual(r.Metric, item.Metric) && reflect.DeepEqual(r.Value[0], item.Value[0]) && reflect.DeepEqual(r.Value[1], item.Value[1]) {
 			contains[i] = contains[len(contains)-1]
 			return contains[:len(contains)-1]
 		}
@@ -408,8 +442,4 @@ func (s *suite) greaterThan(a, b int) {
 		s.t.Errorf("%d less or equal then %d", a, b)
 		s.t.FailNow()
 	}
-}
-
-func timeToMillis(t time.Time) int64 {
-	return t.UnixNano() / 1e6
 }

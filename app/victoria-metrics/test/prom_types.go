@@ -5,7 +5,6 @@ package test
 
 import (
 	"encoding/binary"
-	"log"
 	"math"
 	"math/bits"
 )
@@ -124,7 +123,6 @@ func (m *Sample) MarshalTo(dAtA []byte) (int, error) {
 func (m *Sample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Timestamp != 0 {
-		log.Printf("prom types %d", m.Timestamp)
 		i = encodeVarintTypes(dAtA, i, uint64(m.Timestamp))
 		i--
 		dAtA[i] = 0x10
