@@ -13,7 +13,7 @@ import (
 
 func getMaxCachedIndexBlocksPerPart() int {
 	maxCachedIndexBlocksPerPartOnce.Do(func() {
-		n := memory.Allowed() / 1024 / 1024 / 2
+		n := memory.Allowed() / 1024 / 1024 / 4
 		if n == 0 {
 			n = 10
 		}
@@ -29,7 +29,7 @@ var (
 
 func getMaxCachedInmemoryBlocksPerPart() int {
 	maxCachedInmemoryBlocksPerPartOnce.Do(func() {
-		n := memory.Allowed() / 1024 / 1024 / 2
+		n := memory.Allowed() / 1024 / 1024 / 4
 		if n == 0 {
 			n = 10
 		}
