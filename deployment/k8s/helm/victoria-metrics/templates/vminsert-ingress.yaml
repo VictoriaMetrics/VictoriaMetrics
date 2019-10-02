@@ -8,7 +8,7 @@ metadata:
 {{- end }}
   labels:
   {{- include "victoria-metrics.vminsert.labels" . | nindent 4 }}
-{{ toYaml .Values.vminsert.ingress.extraLabels | indent 4 }}
+  {{ toYaml .Values.vminsert.ingress.extraLabels | indent 4 }}
   name: {{ template "victoria-metrics.vminsert.fullname" . }}
 spec:
   rules:
