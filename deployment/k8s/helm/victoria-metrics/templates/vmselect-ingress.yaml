@@ -8,7 +8,9 @@ metadata:
 {{- end }}
   labels:
   {{- include "victoria-metrics.vmselect.labels" . | nindent 4 }}
+  {{ if .Values.vmselect.ingress.extraLabels }}
   {{ toYaml .Values.vmselect.ingress.extraLabels | indent 4 }}
+  {{ end }}
   name: {{ template "victoria-metrics.vmselect.fullname" . }}
 spec:
   rules:
@@ -23,7 +25,7 @@ spec:
             servicePort: http
     {{- end -}}
 {{- if .Values.vmselect.ingress.tls }}
-tls:
+  tls:
 {{ toYaml .Values.vmselect.ingress.tls | indent 4 }}
 {{- end -}}
 {{- end -}}
