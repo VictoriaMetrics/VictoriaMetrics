@@ -1,6 +1,6 @@
 # github.com/VictoriaMetrics/fastcache v1.5.1
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/metrics v1.7.1
+# github.com/VictoriaMetrics/metrics v1.7.2
 github.com/VictoriaMetrics/metrics
 # github.com/cespare/xxhash/v2 v2.1.0
 github.com/cespare/xxhash/v2
