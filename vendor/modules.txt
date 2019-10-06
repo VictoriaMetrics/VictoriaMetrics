@@ -6,7 +6,7 @@ github.com/VictoriaMetrics/metrics
 github.com/cespare/xxhash/v2
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
-# github.com/klauspost/compress v1.8.3
+# github.com/klauspost/compress v1.8.5
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
@@ -25,5 +25,5 @@ github.com/valyala/gozstd
 github.com/valyala/histogram
 # github.com/valyala/quicktemplate v1.2.0
 github.com/valyala/quicktemplate
-# golang.org/x/sys v0.0.0-20190913121621-c3b328c6e5a7
+# golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9
 golang.org/x/sys/unix
