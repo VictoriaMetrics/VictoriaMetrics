@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/VictoriaMetrics/metrics.svg)](https://travis-ci.org/VictoriaMetrics/metrics)
+[![Build Status](https://github.com/VictoriaMetrics/metrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/metrics/actions)
 [![GoDoc](https://godoc.org/github.com/VictoriaMetrics/metrics?status.svg)](http://godoc.org/github.com/VictoriaMetrics/metrics)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/metrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/metrics)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/metrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/metrics)

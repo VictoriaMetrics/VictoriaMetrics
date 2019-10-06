@@ -47,7 +47,7 @@ func (s *Set) WritePrometheus(w io.Writer) {
 
 // NewCounter registers and returns new counter with the given name in the s.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -64,7 +64,7 @@ func (s *Set) NewCounter(name string) *Counter {
 // GetOrCreateCounter returns registered counter in s with the given name
 // or creates new counter if s doesn't contain counter with the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -130,7 +130,7 @@ func (s *Set) NewGauge(name string, f func() float64) *Gauge {
 // GetOrCreateGauge returns registered gauge with the given name in s
 // or creates new gauge if s doesn't contain gauge with the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -176,7 +176,7 @@ func (s *Set) GetOrCreateGauge(name string, f func() float64) *Gauge {
 
 // NewSummary creates and returns new summary with the given name in s.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -191,7 +191,7 @@ func (s *Set) NewSummary(name string) *Summary {
 // NewSummaryExt creates and returns new summary in s with the given name,
 // window and quantiles.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -213,7 +213,7 @@ func (s *Set) NewSummaryExt(name string, window time.Duration, quantiles []float
 // GetOrCreateSummary returns registered summary with the given name in s
 // or creates new summary if s doesn't contain summary with the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -231,7 +231,7 @@ func (s *Set) GetOrCreateSummary(name string) *Summary {
 // window and quantiles in s or creates new summary if s doesn't
 // contain summary with the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo

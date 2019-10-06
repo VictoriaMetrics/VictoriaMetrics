@@ -8,7 +8,7 @@ import (
 
 // NewCounter registers and returns new counter with the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
@@ -62,7 +62,7 @@ func (c *Counter) marshalTo(prefix string, w io.Writer) {
 // or creates new counter if the registry doesn't contain counter with
 // the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo

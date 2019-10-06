@@ -37,7 +37,7 @@ func (g *Gauge) Get() float64 {
 func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 	v := g.f()
 	if float64(int64(v)) == v {
-		// Marshal integer values without scientific notations
+		// Marshal integer values without scientific notation
 		fmt.Fprintf(w, "%s %d\n", prefix, int64(v))
 	} else {
 		fmt.Fprintf(w, "%s %g\n", prefix, v)
@@ -48,7 +48,7 @@ func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 // or creates new gauge if the registry doesn't contain gauge with
 // the given name.
 //
-// name must be valid Prometheus-compatible metric with possible lables.
+// name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
 //     * foo
