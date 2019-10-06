@@ -1,0 +1,14 @@
+{
+  "name": "not-nan-as-missing-data",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153",
+  "data": [
+    "not_nan_as_missing_data;item=x 1 {TIME_S-1m}",
+    "not_nan_as_missing_data;item=x 2 {TIME_S-2m}",
+    "not_nan_as_missing_data;item=y 3 {TIME_S-1m}",
+    "not_nan_as_missing_data;item=y 4 {TIME_S-2m}"],
+  "query": ["/api/v1/query_range?query=not_nan_as_missing_data>1&start={TIME_S-2m}&end={TIME_S}&step=60"],
+  "result_query_range": {
+    "status":"success",
+    "data":{"resultType":"matrix",
+      "result":[{"metric":{"__name__":"not_nan_as_missing_data","item":"x"},"values":[["{TIME_S-2m}","2"]]},{"metric":{"__name__":"not_nan_as_missing_data","item":"y"},"values":[["{TIME_S-2m}","4"]]}]}}
+}
