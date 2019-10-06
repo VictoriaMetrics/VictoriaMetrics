@@ -31,6 +31,18 @@ Each service may scale independently and may run on the most suitable hardware.
 <img src="https://docs.google.com/drawings/d/e/2PACX-1vTvk2raU9kFgZ84oF-OKolrGwHaePhHRsZEcfQ1I_EC5AB_XPWwB392XshxPramLJ8E4bqptTnFn5LL/pub?w=1104&amp;h=746">
 
 
+## Binaries
+
+Compiled binaries for cluster version are available in the `assets` section of [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+See archives containing `cluster` word.
+
+Docker images for cluster version are available here:
+
+- `vminsert` - https://hub.docker.com/r/victoriametrics/vminsert/tags
+- `vmselect` - https://hub.docker.com/r/victoriametrics/vmselect/tags
+- `vmstorage` - https://hub.docker.com/r/victoriametrics/vmstorage/tags
+
+
 ## Building from sources
 
 Source code for cluster version is available at [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
