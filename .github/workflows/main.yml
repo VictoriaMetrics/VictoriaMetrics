@@ -35,9 +35,9 @@ jobs:
             make victoria-metrics-arm64
             GOOS=freebsd go build -mod=vendor ./app/victoria-metrics
             GOOS=darwin go build -mod=vendor ./app/victoria-metrics
-      - name: Publish coverage
-        uses: codecov/codecov-action@v1.0.0
-        with:
-          token: ${{secrets.CODECOV_TOKEN}}
-          file: ./coverage.txt
-
+      - name: Upload coverage
+        if: success()
+        run: bash <(curl -s https://codecov.io/bash) -B $REF
+        env:
+          CODECOV_TOKEN: "${{ secrets.CODECOV_TOKEN }}"
+          REF: "${{ github.ref }}"
