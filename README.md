@@ -107,8 +107,8 @@ or [docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) wi
 
 The following command-line flags are used the most:
 
-* `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory.
-* `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted.
+* `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
+* `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
 * `-graphiteListenAddr` - TCP and UDP address to listen to for Graphite data. By default, it is disabled.
 * `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data over telnet protocol. By default, it is disabled.
