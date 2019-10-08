@@ -12,11 +12,315 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
+func TestMergeTagToMetricIDsRows(t *testing.T) {
+	f := func(items []string, expectedItems []string) {
+		t.Helper()
+		var data []byte
+		var itemsB [][]byte
+		for _, item := range items {
+			data = append(data, item...)
+			itemsB = append(itemsB, data[len(data)-len(item):])
+		}
+		if err := checkItemsSorted(itemsB); err != nil {
+			t.Fatalf("source items aren't sorted: %s", err)
+		}
+		resultData, resultItemsB := mergeTagToMetricIDsRows(data, itemsB)
+		if len(resultItemsB) != len(expectedItems) {
+			t.Fatalf("unexpected len(resultItemsB); got %d; want %d", len(resultItemsB), len(expectedItems))
+		}
+		if err := checkItemsSorted(resultItemsB); err != nil {
+			t.Fatalf("result items aren't sorted: %s", err)
+		}
+		for i, item := range resultItemsB {
+			if !bytes.HasPrefix(resultData, item) {
+				t.Fatalf("unexpected prefix for resultData #%d;\ngot\n%X\nwant\n%X", i, resultData, item)
+			}
+			resultData = resultData[len(item):]
+		}
+		if len(resultData) != 0 {
+			t.Fatalf("unexpected tail left in resultData: %X", resultData)
+		}
+		var resultItems []string
+		for _, item := range resultItemsB {
+			resultItems = append(resultItems, string(item))
+		}
+		if !reflect.DeepEqual(expectedItems, resultItems) {
+			t.Fatalf("unexpected items;\ngot\n%X\nwant\n%X", resultItems, expectedItems)
+		}
+	}
+	x := func(key, value string, metricIDs []uint64) string {
+		dst := marshalCommonPrefix(nil, nsPrefixTagToMetricIDs)
+		t := &Tag{
+			Key:   []byte(key),
+			Value: []byte(value),
+		}
+		dst = t.Marshal(dst)
+		for _, metricID := range metricIDs {
+			dst = encoding.MarshalUint64(dst, metricID)
+		}
+		return string(dst)
+	}
+
+	f(nil, nil)
+	f([]string{}, nil)
+	f([]string{"foo"}, []string{"foo"})
+	f([]string{"a", "b", "c", "def"}, []string{"a", "b", "c", "def"})
+	f([]string{"\x00", "\x00b", "\x00c", "\x00def"}, []string{"\x00", "\x00b", "\x00c", "\x00def"})
+	f([]string{
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+	}, []string{
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+	})
+	f([]string{
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		"xyz",
+	}, []string{
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		"xyz",
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		x("", "", []uint64{0}),
+		"xyz",
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{0}),
+		"xyz",
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("", "", []uint64{2}),
+		x("", "", []uint64{3}),
+		x("", "", []uint64{4}),
+		"xyz",
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{1, 2, 3, 4}),
+		"xyz",
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("", "", []uint64{2}),
+		x("", "", []uint64{3}),
+		x("", "", []uint64{4}),
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{1, 2, 3}),
+		x("", "", []uint64{4}),
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("", "", []uint64{2, 3, 4}),
+		x("", "", []uint64{2, 3, 4, 5}),
+		x("", "", []uint64{3, 5}),
+		"foo",
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{1, 2, 3, 4, 5}),
+		"foo",
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("", "a", []uint64{2, 3, 4}),
+		x("", "a", []uint64{2, 3, 4, 5}),
+		x("", "b", []uint64{3, 5}),
+		"foo",
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("", "a", []uint64{2, 3, 4, 5}),
+		x("", "b", []uint64{3, 5}),
+		"foo",
+	})
+	f([]string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("x", "a", []uint64{2, 3, 4}),
+		x("y", "", []uint64{2, 3, 4, 5}),
+		x("y", "x", []uint64{3, 5}),
+		"foo",
+	}, []string{
+		"\x00asdf",
+		x("", "", []uint64{1}),
+		x("x", "a", []uint64{2, 3, 4}),
+		x("y", "", []uint64{2, 3, 4, 5}),
+		x("y", "x", []uint64{3, 5}),
+		"foo",
+	})
+	f([]string{
+		"\x00asdf",
+		x("sdf", "aa", []uint64{1, 1, 3}),
+		x("sdf", "aa", []uint64{1, 2}),
+		"foo",
+	}, []string{
+		"\x00asdf",
+		x("sdf", "aa", []uint64{1, 2, 3}),
+		"foo",
+	})
+	f([]string{
+		"\x00asdf",
+		x("sdf", "aa", []uint64{1, 2, 2, 4}),
+		x("sdf", "aa", []uint64{1, 2, 3}),
+		"foo",
+	}, []string{
+		"\x00asdf",
+		x("sdf", "aa", []uint64{1, 2, 3, 4}),
+		"foo",
+	})
+
+	// Construct big source chunks
+	var metricIDs []uint64
+
+	metricIDs = metricIDs[:0]
+	for i := 0; i < maxMetricIDsPerRow-1; i++ {
+		metricIDs = append(metricIDs, uint64(i))
+	}
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		"x",
+	})
+
+	metricIDs = metricIDs[:0]
+	for i := 0; i < maxMetricIDsPerRow; i++ {
+		metricIDs = append(metricIDs, uint64(i))
+	}
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	})
+
+	metricIDs = metricIDs[:0]
+	for i := 0; i < 3*maxMetricIDsPerRow; i++ {
+		metricIDs = append(metricIDs, uint64(i))
+	}
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	})
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", []uint64{0, 0, 1, 2, 3}),
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", []uint64{0, 1, 2, 3}),
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	})
+
+	// Check for duplicate metricIDs removal
+	metricIDs = metricIDs[:0]
+	for i := 0; i < maxMetricIDsPerRow-1; i++ {
+		metricIDs = append(metricIDs, 123)
+	}
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", metricIDs),
+		"x",
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", []uint64{123}),
+		"x",
+	})
+
+	// Check fallback to the original items after merging, which result in incorrect ordering.
+	metricIDs = metricIDs[:0]
+	for i := 0; i < maxMetricIDsPerRow-3; i++ {
+		metricIDs = append(metricIDs, uint64(123))
+	}
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", []uint64{123, 123, 125}),
+		x("foo", "bar", []uint64{123, 124}),
+		"x",
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", []uint64{123, 123, 125}),
+		x("foo", "bar", []uint64{123, 124}),
+		"x",
+	})
+	f([]string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", []uint64{123, 123, 125}),
+		x("foo", "bar", []uint64{123, 124}),
+	}, []string{
+		"\x00aa",
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", []uint64{123, 123, 125}),
+		x("foo", "bar", []uint64{123, 124}),
+	})
+	f([]string{
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", []uint64{123, 123, 125}),
+		x("foo", "bar", []uint64{123, 124}),
+	}, []string{
+		x("foo", "bar", metricIDs),
+		x("foo", "bar", []uint64{123, 123, 125}),
+		x("foo", "bar", []uint64{123, 124}),
+	})
+}
+
 func TestRemoveDuplicateMetricIDs(t *testing.T) {
 	f := func(metricIDs, expectedMetricIDs []uint64) {
+		t.Helper()
 		a := removeDuplicateMetricIDs(metricIDs)
 		if !reflect.DeepEqual(a, expectedMetricIDs) {
 			t.Fatalf("unexpected result from removeDuplicateMetricIDs:\ngot\n%d\nwant\n%d", a, expectedMetricIDs)

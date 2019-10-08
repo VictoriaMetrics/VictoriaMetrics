@@ -2229,7 +2229,8 @@ func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis *uint64set.Set) bool {
 func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	// Perform quick checks whether items contain tag->metricIDs rows
 	// based on the fact that items are sorted.
-	if len(items) == 0 {
+	if len(items) <= 2 {
+		// The first and the last row must remain unchanged.
 		return data, items
 	}
 	firstItem := items[0]
@@ -2242,11 +2243,13 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	}
 
 	// items contain at least one tag->metricIDs row. Merge rows with common tag.
-	dstData := data[:0]
-	dstItems := items[:0]
 	tmm := getTagToMetricIDsRowsMerger()
+	tmm.dataCopy = append(tmm.dataCopy[:0], data...)
+	tmm.itemsCopy = append(tmm.itemsCopy[:0], items...)
 	mp := &tmm.mp
 	mpPrev := &tmm.mpPrev
+	dstData := data[:0]
+	dstItems := items[:0]
 	for i, item := range items {
 		if len(item) == 0 || item[0] != nsPrefixTagToMetricIDs || i == 0 || i == len(items)-1 {
 			// Write rows other than tag->metricIDs as-is.
@@ -2281,24 +2284,29 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 		}
 	}
 	if len(tmm.pendingMetricIDs) > 0 {
-		dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
+		logger.Panicf("BUG: tmm.pendingMetricIDs must be empty at this point; got %d items: %d", len(tmm.pendingMetricIDs), tmm.pendingMetricIDs)
+	}
+	if err := checkItemsSorted(dstItems); err != nil {
+		logger.Errorf("please report this error at https://github.com/VictoriaMetrics/VictoriaMetrics/issues : %s", err)
+		dstData = append(dstData[:0], tmm.dataCopy...)
+		dstItems = append(dstItems[:0], tmm.itemsCopy...)
 	}
 	putTagToMetricIDsRowsMerger(tmm)
-	assertItemsSorted(dstItems)
 	return dstData, dstItems
 }
 
-func assertItemsSorted(items [][]byte) {
+func checkItemsSorted(items [][]byte) error {
 	if len(items) == 0 {
-		return
+		return nil
 	}
 	prevItem := items[0]
 	for _, currItem := range items[1:] {
 		if string(prevItem) > string(currItem) {
-			logger.Panicf("BUG: items aren't sorted: prevItem > currItem\nprevItem=%X\ncurrItem=%X\nitems=%X", prevItem, currItem, items)
+			return fmt.Errorf("items aren't sorted: prevItem > currItem\nprevItem=%X\ncurrItem=%X\nitems=%X", prevItem, currItem, items)
 		}
 		prevItem = currItem
 	}
+	return nil
 }
 
 // maxMetricIDsPerRow limits the number of metricIDs in tag->metricIDs row.
@@ -2320,12 +2328,18 @@ type tagToMetricIDsRowsMerger struct {
 	pendingMetricIDs uint64Sorter
 	mp               tagToMetricIDsRowParser
 	mpPrev           tagToMetricIDsRowParser
+
+	itemsCopy [][]byte
+	dataCopy  []byte
 }
 
 func (tmm *tagToMetricIDsRowsMerger) Reset() {
 	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
 	tmm.mp.Reset()
 	tmm.mpPrev.Reset()
+
+	tmm.itemsCopy = tmm.itemsCopy[:0]
+	tmm.dataCopy = tmm.dataCopy[:0]
 }
 
 func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstItems [][]byte, mp *tagToMetricIDsRowParser) ([]byte, [][]byte) {
