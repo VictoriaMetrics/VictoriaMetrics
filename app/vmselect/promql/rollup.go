@@ -533,11 +533,14 @@ func rollupAvg(rfa *rollupFuncArg) float64 {
 func rollupMin(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
+	minValue := rfa.prevValue
 	values := rfa.values
-	if len(values) == 0 {
-		return rfa.prevValue
+	if math.IsNaN(minValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		minValue = values[0]
 	}
-	minValue := values[0]
 	for _, v := range values {
 		if v < minValue {
 			minValue = v
@@ -549,11 +552,14 @@ func rollupMin(rfa *rollupFuncArg) float64 {
 func rollupMax(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
+	maxValue := rfa.prevValue
 	values := rfa.values
-	if len(values) == 0 {
-		return rfa.prevValue
+	if math.IsNaN(maxValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		maxValue = values[0]
 	}
-	maxValue := values[0]
 	for _, v := range values {
 		if v > maxValue {
 			maxValue = v
@@ -567,7 +573,10 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue
+		if math.IsNaN(rfa.prevValue) {
+			return nan
+		}
+		return 0
 	}
 	var sum float64
 	for _, v := range values {
