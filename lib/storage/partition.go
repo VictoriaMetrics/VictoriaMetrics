@@ -29,7 +29,7 @@ func maxRowsPerSmallPart() uint64 {
 	// Production data shows that each row occupies ~1 byte in the compressed part.
 	// It is expected no more than defaultPartsToMerge/2 parts exist
 	// in the OS page cache before they are merged into bigger part.
-	// Halft of the remaining RAM must be left for lib/mergeset parts,
+	// Half of the remaining RAM must be left for lib/mergeset parts,
 	// so the maxItems is calculated using the below code:
 	maxRows := uint64(mem) / defaultPartsToMerge
 	if maxRows < 10e6 {
