@@ -2360,7 +2360,17 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	if err := checkItemsSorted(dstItems); err != nil {
 		logger.Errorf("please report this error at https://github.com/VictoriaMetrics/VictoriaMetrics/issues : %s", err)
 		dstData = append(dstData[:0], tmm.dataCopy...)
-		dstItems = append(dstItems[:0], tmm.itemsCopy...)
+		dstItems = dstItems[:0]
+		// tmm.itemsCopy can point to overwritten data, so it must be updated
+		// to point to real data from tmm.dataCopy.
+		buf := dstData
+		for _, item := range tmm.itemsCopy {
+			dstItems = append(dstItems, buf[:len(item)])
+			buf = buf[len(item):]
+		}
+		if err := checkItemsSorted(dstItems); err != nil {
+			logger.Panicf("BUG: the original items weren't sorted: %s", err)
+		}
 	}
 	putTagToMetricIDsRowsMerger(tmm)
 	return dstData, dstItems
