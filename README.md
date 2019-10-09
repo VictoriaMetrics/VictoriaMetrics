@@ -14,7 +14,7 @@ Single-node version is easier to configure and operate comparing to cluster vers
 ## Prominent features
 
 - Supports all the features of [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics).
-- Scales horizontally to multiple nodes.
+- Performance and capacity scales horizontally.
 - Supports multiple independent namespaces for time series data (aka multi-tenancy).
 
 
@@ -140,11 +140,16 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
   across `vmstorage` nodes.
 
 
-### Cluster resizing
+### Cluster resizing and scalability.
+
+Cluster performance and capacity scales with adding new nodes.
 
 * `vminsert` and `vmselect` nodes are stateless and may be added / removed at any time.
   Do not forget updating the list of these nodes on http load balancer.
+  Adding more `vminsert` nodes scales data ingestion rate.
+  Adding more `vmselect` nodes scales select queries rate.
 * `vmstorage` nodes own the ingested data, so they cannot be removed without data loss.
+  Adding more `vmstorage` nodes scales cluster capacity.
 
 Steps to add `vmstorage` node:
 
