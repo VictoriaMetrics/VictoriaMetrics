@@ -111,13 +111,13 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 
 ### URL format
 
-* URLs for data ingestion: `/insert/<accountID>/<suffix>`, where:
+* URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying namespace for data ingestion (aka tenant)
   - `<suffix>` may have the following values:
      - `prometheus` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
      - `influx/write` or `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 
-* URLs for querying: `/select/<accountID>/prometheus/<suffix>`, where:
+* URLs for querying: `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
   - `<suffix>` may have the following values:
     - `api/v1/query` - performs [PromQL instant query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
@@ -127,6 +127,10 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
     - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
     - `federate` - returns [federated metrics](https://prometheus.io/docs/prometheus/latest/federation/)
     - `api/v1/export` - exports raw data. See [this article](https://medium.com/@valyala/analyzing-prometheus-data-with-external-tools-5f3e5e147639) for details
+
+* URL for time series deletion: `http://<vmselect>:8481/delete/<accountID>/prometheus/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`.
+  Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
+  be used on a regular basis, since it carries non-zero overhead.
 
 * `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
