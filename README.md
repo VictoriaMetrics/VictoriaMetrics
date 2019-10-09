@@ -146,7 +146,8 @@ Cluster performance and capacity scales with adding new nodes.
 
 * `vminsert` and `vmselect` nodes are stateless and may be added / removed at any time.
   Do not forget updating the list of these nodes on http load balancer.
-  Adding more `vminsert` nodes scales data ingestion rate.
+  Adding more `vminsert` nodes scales data ingestion rate. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/175#issuecomment-536925841)
+  about ingestion rate scalability.
   Adding more `vmselect` nodes scales select queries rate.
 * `vmstorage` nodes own the ingested data, so they cannot be removed without data loss.
   Adding more `vmstorage` nodes scales cluster capacity.
