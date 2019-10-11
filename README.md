@@ -89,6 +89,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Troubleshooting](#troubleshooting)
   - [Backfilling](#backfilling)
   - [Profiling](#profiling)
+- [Integrations](#integrations)
 - [Roadmap](#roadmap)
 - [Contacts](#contacts)
 - [Community and contributions](#community-and-contributions)
@@ -732,6 +733,14 @@ curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
 The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+
+
+## Integrations
+
+* [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
+  See [these docs](https://github.com/netdata/netdata#integrations).
+* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
+  See [this example](/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 
 
 ## Roadmap
