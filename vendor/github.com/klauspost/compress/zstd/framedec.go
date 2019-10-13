@@ -310,7 +310,9 @@ func (d *frameDec) checkCRC() error {
 		}
 		return ErrCRCMismatch
 	}
-	println("CRC ok")
+	if debug {
+		println("CRC ok", tmp[:])
+	}
 	return nil
 }
 
