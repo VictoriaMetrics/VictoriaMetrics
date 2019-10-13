@@ -1,5 +1,0 @@
-apiVersion: v1
-appVersion: 1.26.0
-description: Victoria Metrics Helm chart for Kubernetes
-name: victoria-metrics
-version: 0.2.0
