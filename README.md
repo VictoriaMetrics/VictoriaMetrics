@@ -185,11 +185,7 @@ the update process. See [cluster availability](#cluster-availability) section fo
 ### Helm
 
 Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
-It is available in the `deployment/k8s/helm/victoria-metrics` folder.
-
-1. Install Cluster: `helm install -n <NAME> deployment/k8s/helm/victoria-metrics` or `ENV=<NAME> make helm-install`.
-2. Upgrade Cluster: `helm upgrade <NAME> deployment/k8s/helm/victoria-metrics` or `ENV=<NAME> make helm-upgrade`.
-3. Delete Cluster: `helm del --purge <NAME>` or `ENV=<NAME> make helm-delete`.
+It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-charts) repository.
 
 Upgrade follows `Cluster resizing procedure` under the hood.
 
