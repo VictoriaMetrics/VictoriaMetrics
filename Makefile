@@ -22,7 +22,6 @@ all-pure: \
 
 include app/*/Makefile
 include deployment/*/Makefile
-include deployment/*/helm/Makefile
 
 clean:
 	rm -rf bin/*
