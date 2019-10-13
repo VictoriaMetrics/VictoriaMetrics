@@ -602,22 +602,6 @@ const (
 	RTN_THROW               = 0x9
 	RTN_NAT                 = 0xa
 	RTN_XRESOLVE            = 0xb
-	RTNLGRP_NONE            = 0x0
-	RTNLGRP_LINK            = 0x1
-	RTNLGRP_NOTIFY          = 0x2
-	RTNLGRP_NEIGH           = 0x3
-	RTNLGRP_TC              = 0x4
-	RTNLGRP_IPV4_IFADDR     = 0x5
-	RTNLGRP_IPV4_MROUTE     = 0x6
-	RTNLGRP_IPV4_ROUTE      = 0x7
-	RTNLGRP_IPV4_RULE       = 0x8
-	RTNLGRP_IPV6_IFADDR     = 0x9
-	RTNLGRP_IPV6_MROUTE     = 0xa
-	RTNLGRP_IPV6_ROUTE      = 0xb
-	RTNLGRP_IPV6_IFINFO     = 0xc
-	RTNLGRP_IPV6_PREFIX     = 0x12
-	RTNLGRP_IPV6_RULE       = 0x13
-	RTNLGRP_ND_USEROPT      = 0x14
 	SizeofNlMsghdr          = 0x10
 	SizeofNlMsgerr          = 0x14
 	SizeofRtGenmsg          = 0x1
@@ -2484,6 +2468,42 @@ const (
 	BPF_FD_TYPE_KRETPROBE               = 0x3
 	BPF_FD_TYPE_UPROBE                  = 0x4
 	BPF_FD_TYPE_URETPROBE               = 0x5
+)
+
+const (
+	RTNLGRP_NONE          = 0x0
+	RTNLGRP_LINK          = 0x1
+	RTNLGRP_NOTIFY        = 0x2
+	RTNLGRP_NEIGH         = 0x3
+	RTNLGRP_TC            = 0x4
+	RTNLGRP_IPV4_IFADDR   = 0x5
+	RTNLGRP_IPV4_MROUTE   = 0x6
+	RTNLGRP_IPV4_ROUTE    = 0x7
+	RTNLGRP_IPV4_RULE     = 0x8
+	RTNLGRP_IPV6_IFADDR   = 0x9
+	RTNLGRP_IPV6_MROUTE   = 0xa
+	RTNLGRP_IPV6_ROUTE    = 0xb
+	RTNLGRP_IPV6_IFINFO   = 0xc
+	RTNLGRP_DECnet_IFADDR = 0xd
+	RTNLGRP_NOP2          = 0xe
+	RTNLGRP_DECnet_ROUTE  = 0xf
+	RTNLGRP_DECnet_RULE   = 0x10
+	RTNLGRP_NOP4          = 0x11
+	RTNLGRP_IPV6_PREFIX   = 0x12
+	RTNLGRP_IPV6_RULE     = 0x13
+	RTNLGRP_ND_USEROPT    = 0x14
+	RTNLGRP_PHONET_IFADDR = 0x15
+	RTNLGRP_PHONET_ROUTE  = 0x16
+	RTNLGRP_DCB           = 0x17
+	RTNLGRP_IPV4_NETCONF  = 0x18
+	RTNLGRP_IPV6_NETCONF  = 0x19
+	RTNLGRP_MDB           = 0x1a
+	RTNLGRP_MPLS_ROUTE    = 0x1b
+	RTNLGRP_NSID          = 0x1c
+	RTNLGRP_MPLS_NETCONF  = 0x1d
+	RTNLGRP_IPV4_MROUTE_R = 0x1e
+	RTNLGRP_IPV6_MROUTE_R = 0x1f
+	RTNLGRP_NEXTHOP       = 0x20
 )
 
 type CapUserHeader struct {

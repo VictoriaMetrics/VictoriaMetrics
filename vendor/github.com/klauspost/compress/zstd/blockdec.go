@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/klauspost/compress/huff0"
+	"github.com/klauspost/compress/zstd/internal/xxhash"
 )
 
 type blockType uint8
@@ -275,7 +276,7 @@ func (b *blockDec) decodeBuf(hist *history) error {
 		hist.b = nil
 		err := b.decodeCompressed(hist)
 		if debug {
-			println("Decompressed to total", len(b.dst), "bytes, error:", err)
+			println("Decompressed to total", len(b.dst), "bytes, hash:", xxhash.Sum64(b.dst), "error:", err)
 		}
 		hist.b = b.dst
 		b.dst = saved
@@ -368,7 +369,7 @@ func (b *blockDec) decodeCompressed(hist *history) error {
 		}
 	}
 	if debug {
-		println("literals type:", litType, "litRegenSize:", litRegenSize, "litCompSize", litCompSize)
+		println("literals type:", litType, "litRegenSize:", litRegenSize, "litCompSize:", litCompSize, "sizeFormat:", sizeFormat, "4X:", fourStreams)
 	}
 	var literals []byte
 	var huff *huff0.Scratch
@@ -426,7 +427,6 @@ func (b *blockDec) decodeCompressed(hist *history) error {
 		}
 		literals = in[:litCompSize]
 		in = in[litCompSize:]
-
 		huff = huffDecoderPool.Get().(*huff0.Scratch)
 		var err error
 		// Ensure we have space to store it.
@@ -637,7 +637,7 @@ func (b *blockDec) decodeCompressed(hist *history) error {
 		hist.huffTree = huff
 	}
 	if debug {
-		println("Final literals:", len(literals), "and", nSeqs, "sequences.")
+		println("Final literals:", len(literals), "hash:", xxhash.Sum64(literals), "and", nSeqs, "sequences.")
 	}
 
 	if nSeqs == 0 {
