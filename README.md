@@ -10,6 +10,8 @@ Single-node version [scales perfectly](https://medium.com/@valyala/measuring-ver
 with the number of CPU cores, RAM and available storage space.
 Single-node version is easier to configure and operate comparing to cluster version, so think twice before sticking to cluster version.
 
+[Contact us](mailto:info@victoriametrics.com) with consulting and support questions.
+
 
 ## Prominent features
 
