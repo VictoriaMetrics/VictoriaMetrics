@@ -23,8 +23,10 @@ import (
 )
 
 var (
-	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
-	maxQueryLen         = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
+	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+	maxLookback      = flag.Duration("search.maxLookback", 0, "Synonim to `-search.lookback-delta` from Prometheus. "+
+		"The value is dynamically detected from interval between time series datapoints if not set. It can be overriden on per-query basis via `max_lookback` arg")
 	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses when some of vmstorage nodes are unavailable. This trades consistency over availability")
 	selectNodes         = flagutil.NewArray("selectNode", "Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
 )
@@ -47,11 +49,14 @@ func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) err
 	if len(matches) == 0 {
 		return fmt.Errorf("missing `match[]` arg")
 	}
-	maxLookback, err := getDuration(r, "max_lookback", defaultStep)
+	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
 	}
-	start, err := getTime(r, "start", ct-maxLookback)
+	if lookbackDelta <= 0 {
+		lookbackDelta = defaultStep
+	}
+	start, err := getTime(r, "start", ct-lookbackDelta)
 	if err != nil {
 		return err
 	}
@@ -542,6 +547,10 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 	deadline := getDeadline(r)
+	lookbackDelta, err := getMaxLookback(r)
+	if err != nil {
+		return err
+	}
 
 	if len(query) > *maxQueryLen {
 		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
@@ -577,11 +586,12 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 	}
 
 	ec := promql.EvalConfig{
-		AuthToken: at,
-		Start:     start,
-		End:       start,
-		Step:      step,
-		Deadline:  deadline,
+		AuthToken:     at,
+		Start:         start,
+		End:           start,
+		Step:          step,
+		Deadline:      deadline,
+		LookbackDelta: lookbackDelta,
 
 		DenyPartialResponse: getDenyPartialResponse(r),
 	}
@@ -623,6 +633,10 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 	}
 	deadline := getDeadline(r)
 	mayCache := !getBool(r, "nocache")
+	lookbackDelta, err := getMaxLookback(r)
+	if err != nil {
+		return err
+	}
 
 	// Validate input args.
 	if len(query) > *maxQueryLen {
@@ -639,12 +653,13 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 	}
 
 	ec := promql.EvalConfig{
-		AuthToken: at,
-		Start:     start,
-		End:       end,
-		Step:      step,
-		Deadline:  deadline,
-		MayCache:  mayCache,
+		AuthToken:     at,
+		Start:         start,
+		End:           end,
+		Step:          step,
+		Deadline:      deadline,
+		MayCache:      mayCache,
+		LookbackDelta: lookbackDelta,
 
 		DenyPartialResponse: getDenyPartialResponse(r),
 	}
@@ -805,6 +820,11 @@ func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 }
 
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
+
+func getMaxLookback(r *http.Request) (int64, error) {
+	d := int64(*maxLookback / time.Millisecond)
+	return getDuration(r, "max_lookback", d)
+}
 
 func getDeadline(r *http.Request) netstorage.Deadline {
 	d, err := getDuration(r, "timeout", 0)

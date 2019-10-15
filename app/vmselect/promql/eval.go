@@ -72,6 +72,9 @@ type EvalConfig struct {
 
 	MayCache bool
 
+	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
+	LookbackDelta int64
+
 	DenyPartialResponse bool
 
 	timestamps     []int64
@@ -87,6 +90,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Step = src.Step
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
+	ec.LookbackDelta = src.LookbackDelta
 	ec.DenyPartialResponse = src.DenyPartialResponse
 
 	// do not copy src.timestamps - they must be generated again.
@@ -471,7 +475,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	}
 
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
-	preFunc, rcs := getRollupConfigs(name, rf, ec.Start, ec.End, ec.Step, window, sharedTimestamps)
+	preFunc, rcs := getRollupConfigs(name, rf, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	var tssLock sync.Mutex
 	removeMetricGroup := !rollupFuncsKeepMetricGroup[name]
@@ -597,7 +601,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 		return tss, nil
 	}
 	sharedTimestamps := getTimestamps(start, ec.End, ec.Step)
-	preFunc, rcs := getRollupConfigs(name, rf, start, ec.End, ec.Step, window, sharedTimestamps)
+	preFunc, rcs := getRollupConfigs(name, rf, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
 
 	// Verify timeseries fit available memory after the rollup.
 	// Take into account points from tssCached.
@@ -701,7 +705,8 @@ func doRollupForTimeseries(rc *rollupConfig, tsDst *timeseries, mnSrc *storage.M
 	tsDst.denyReuse = true
 }
 
-func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64, sharedTimestamps []int64) (func(values []float64, timestamps []int64), []*rollupConfig) {
+func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
+	func(values []float64, timestamps []int64), []*rollupConfig) {
 	preFunc := func(values []float64, timestamps []int64) {}
 	if rollupFuncsRemoveCounterResets[name] {
 		preFunc = func(values []float64, timestamps []int64) {
@@ -717,6 +722,7 @@ func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64
 			Step:            step,
 			Window:          window,
 			MayAdjustWindow: rollupFuncsMayAdjustWindow[name],
+			LookbackDelta:   lookbackDelta,
 			Timestamps:      sharedTimestamps,
 		}
 	}
