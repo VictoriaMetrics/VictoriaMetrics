@@ -23,6 +23,8 @@ import (
 var (
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
 	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+	maxLookback      = flag.Duration("search.maxLookback", 0, "Synonim to `-search.lookback-delta` from Prometheus. "+
+		"The value is dynamically detected from interval between time series datapoints if not set. It can be overriden on per-query basis via `max_lookback` arg")
 )
 
 // Default step used if not set.
@@ -43,11 +45,14 @@ func FederateHandler(w http.ResponseWriter, r *http.Request) error {
 	if len(matches) == 0 {
 		return fmt.Errorf("missing `match[]` arg")
 	}
-	maxLookback, err := getDuration(r, "max_lookback", defaultStep)
+	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
 	}
-	start, err := getTime(r, "start", ct-maxLookback)
+	if lookbackDelta <= 0 {
+		lookbackDelta = defaultStep
+	}
+	start, err := getTime(r, "start", ct-lookbackDelta)
 	if err != nil {
 		return err
 	}
@@ -468,6 +473,10 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	deadline := getDeadline(r)
+	lookbackDelta, err := getMaxLookback(r)
+	if err != nil {
+		return err
+	}
 
 	if len(query) > *maxQueryLen {
 		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
@@ -503,10 +512,11 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	ec := promql.EvalConfig{
-		Start:    start,
-		End:      start,
-		Step:     step,
-		Deadline: deadline,
+		Start:         start,
+		End:           start,
+		Step:          step,
+		Deadline:      deadline,
+		LookbackDelta: lookbackDelta,
 	}
 	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
@@ -546,6 +556,10 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 	}
 	deadline := getDeadline(r)
 	mayCache := !getBool(r, "nocache")
+	lookbackDelta, err := getMaxLookback(r)
+	if err != nil {
+		return err
+	}
 
 	// Validate input args.
 	if len(query) > *maxQueryLen {
@@ -562,11 +576,12 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	ec := promql.EvalConfig{
-		Start:    start,
-		End:      end,
-		Step:     step,
-		Deadline: deadline,
-		MayCache: mayCache,
+		Start:         start,
+		End:           end,
+		Step:          step,
+		Deadline:      deadline,
+		MayCache:      mayCache,
+		LookbackDelta: lookbackDelta,
 	}
 	result, err := promql.Exec(&ec, query, false)
 	if err != nil {
@@ -725,6 +740,11 @@ func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 }
 
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
+
+func getMaxLookback(r *http.Request) (int64, error) {
+	d := int64(*maxLookback / time.Millisecond)
+	return getDuration(r, "max_lookback", d)
+}
 
 func getDeadline(r *http.Request) netstorage.Deadline {
 	d, err := getDuration(r, "timeout", 0)

@@ -149,6 +149,9 @@ type rollupConfig struct {
 	MayAdjustWindow bool
 
 	Timestamps []int64
+
+	// LoookbackDelta is the analog to `-query.lookback-delta` from Prometheus world.
+	LookbackDelta int64
 }
 
 var (
@@ -186,6 +189,9 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
 	maxPrevInterval := getMaxPrevInterval(timestamps)
+	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
+		maxPrevInterval = rc.LookbackDelta
+	}
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
