@@ -1,0 +1,24 @@
+{
+  "name": "max_lookback_set",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/209",
+  "data": [
+    "max_lookback_set 1 {TIME_S-30s}",
+    "max_lookback_set 2 {TIME_S-60s}",
+    "max_lookback_set 3 {TIME_S-120s}",
+    "max_lookback_set 4 {TIME_S-150s}"
+  ],
+  "query": ["/api/v1/query_range?query=max_lookback_set&start={TIME_S-150s}&end={TIME_S}&step=10s&max_lookback=1s"],
+  "result_query_range": {
+    "status":"success",
+    "data":{"resultType":"matrix",
+      "result":[{"metric":{"__name__":"max_lookback_set"},"values":[
+	      ["{TIME_S-150s}","4"],
+	      ["{TIME_S-140s}","4"],
+	      ["{TIME_S-120s}","3"],
+	      ["{TIME_S-110s}","3"],
+	      ["{TIME_S-60s}","2"],
+	      ["{TIME_S-50s}","2"],
+	      ["{TIME_S-30s}","1"],
+	      ["{TIME_S-20s}","1"]
+      ]}]}}
+}
