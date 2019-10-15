@@ -1,5 +1,3 @@
-// +build integration
-
 package test
 
 import (
@@ -19,8 +17,9 @@ func PopulateTimeTplString(s string, t time.Time) string {
 	return string(PopulateTimeTpl([]byte(s), t))
 }
 
-func PopulateTimeTpl(b []byte, t time.Time) []byte {
+func PopulateTimeTpl(b []byte, tGlobal time.Time) []byte {
 	return parseTimeExpRegex.ReplaceAllFunc(b, func(repl []byte) []byte {
+		t := tGlobal
 		repl = extractRegex.FindSubmatch(repl)[1]
 		parts := strings.SplitN(string(repl), "-", 2)
 		if len(parts) == 2 {

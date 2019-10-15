@@ -3,12 +3,14 @@
   "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150",
   "data": [
     "not_nan_not_inf;item=x 1 {TIME_S-1m}",
-    "not_nan_not_inf;item=x 2 {TIME_S-2m}",
-    "not_nan_not_inf;item=y 1 {TIME_S-1m}",
-    "not_nan_not_inf;item=y 2 {TIME_S-2m}"],
-  "query": ["/api/v1/query_range?query=1/(not_nan_not_inf-1)!=inf!=nan&start={TIME_S-2m}&end={TIME_S}&step=60"],
+    "not_nan_not_inf;item=x 1 {TIME_S-2m}",
+    "not_nan_not_inf;item=y 3 {TIME_S-1m}",
+    "not_nan_not_inf;item=y 1 {TIME_S-2m}"],
+  "query": ["/api/v1/query_range?query=1/(not_nan_not_inf-1)!=inf!=nan&start={TIME_S-3m}&end={TIME_S}&step=60"],
   "result_query_range": {
     "status":"success",
     "data":{"resultType":"matrix",
-      "result":[{"metric":{"item":"x"},"values":[["{TIME_S-2m}","1"]]},{"metric":{"item":"y"},"values":[["{TIME_S-2m}","1"]]}]}}
+      "result":[
+	      {"metric":{"item":"y"},"values":[["{TIME_S-1m}","0.5"],["{TIME_S}","0.5"]]}
+      ]}}
 }
