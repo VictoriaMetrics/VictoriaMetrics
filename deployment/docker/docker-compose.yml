@@ -2,7 +2,7 @@ version: '3.5'
 services:
   prometheus:
     container_name: prometheus
-    image: prom/prometheus:v2.12.0
+    image: prom/prometheus:v2.13.0
     depends_on:
     - "vminsert"
     - "vmselect"
