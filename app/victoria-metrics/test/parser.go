@@ -13,10 +13,12 @@ var (
 	extractRegex      = regexp.MustCompile(`"?{([^}]*)}"?`)
 )
 
+// PopulateTimeTplString substitutes {TIME_*} with t in s and returns the result.
 func PopulateTimeTplString(s string, t time.Time) string {
 	return string(PopulateTimeTpl([]byte(s), t))
 }
 
+// PopulateTimeTpl substitutes {TIME_*} with tGlobal in b and returns the result.
 func PopulateTimeTpl(b []byte, tGlobal time.Time) []byte {
 	return parseTimeExpRegex.ReplaceAllFunc(b, func(repl []byte) []byte {
 		t := tGlobal
