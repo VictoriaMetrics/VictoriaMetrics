@@ -9,12 +9,17 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+const maxInt = int(^uint(0) >> 1)
+
 func sysTotalMemory() int {
 	var si syscall.Sysinfo_t
 	if err := syscall.Sysinfo(&si); err != nil {
 		logger.Panicf("FATAL: error in syscall.Sysinfo: %s", err)
 	}
-	totalMem := int(si.Totalram) * int(si.Unit)
+	totalMem := maxInt
+	if uint64(maxInt)/uint64(si.Totalram) > uint64(si.Unit) {
+		totalMem = int(uint64(si.Totalram) * uint64(si.Unit))
+	}
 
 	// Try determining the amount of memory inside docker container.
 	// See https://stackoverflow.com/questions/42187085/check-mem-limit-within-a-docker-container .
