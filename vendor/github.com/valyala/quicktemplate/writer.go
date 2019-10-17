@@ -114,6 +114,17 @@ func (w *QWriter) D(n int) {
 	}
 }
 
+// DL writes n to w
+func (w *QWriter) DL(n int64) {
+	bb, ok := w.w.(*ByteBuffer)
+	if ok {
+		bb.B = strconv.AppendInt(bb.B, n, 10)
+	} else {
+		w.b = strconv.AppendInt(w.b[:0], n, 10)
+		w.Write(w.b)
+	}
+}
+
 // F writes f to w.
 func (w *QWriter) F(f float64) {
 	n := int(f)
