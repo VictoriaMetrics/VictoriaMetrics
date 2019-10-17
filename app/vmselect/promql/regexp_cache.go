@@ -51,11 +51,14 @@ type regexpCacheValue struct {
 }
 
 type regexpCache struct {
-	m  map[string]*regexpCacheValue
-	mu sync.RWMutex
+	// Move atomic counters to the top of struct for 8-byte alignment on 32-bit arch.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
 
 	requests uint64
 	misses   uint64
+
+	m  map[string]*regexpCacheValue
+	mu sync.RWMutex
 }
 
 func (rc *regexpCache) Requests() uint64 {

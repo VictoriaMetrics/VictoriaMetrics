@@ -34,11 +34,15 @@ type table struct {
 
 // partitionWrapper provides refcounting mechanism for the partition.
 type partitionWrapper struct {
-	pt       *partition
+	// Atomic counters must be at the top of struct for proper 8-byte alignment on 32-bit archs.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+
 	refCount uint64
 
 	// The partition must be dropped if mustDrop > 0
 	mustDrop uint64
+
+	pt       *partition
 }
 
 func (ptw *partitionWrapper) incRef() {

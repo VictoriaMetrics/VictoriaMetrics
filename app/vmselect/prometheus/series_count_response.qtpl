@@ -3,7 +3,7 @@ SeriesCountResponse generates response for /api/v1/series/count .
 {% func SeriesCountResponse(n uint64) %}
 {
 	"status":"success",
-	"data":[{%d int(n) %}]
+	"data":[{%dl int64(n) %}]
 }
 {% endfunc %}
 {% endstripspace %}

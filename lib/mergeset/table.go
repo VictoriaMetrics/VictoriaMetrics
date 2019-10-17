@@ -70,6 +70,17 @@ const rawItemsFlushInterval = time.Second
 
 // Table represents mergeset table.
 type Table struct {
+	// Atomically updated counters must go first in the struct, so they are properly
+	// aligned to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+
+	activeMerges   uint64
+	mergesCount    uint64
+	itemsMerged    uint64
+	assistedMerges uint64
+
+	mergeIdx uint64
+
 	path string
 
 	flushCallback func()
@@ -82,8 +93,6 @@ type Table struct {
 	rawItemsBlocks        []*inmemoryBlock
 	rawItemsLock          sync.Mutex
 	rawItemsLastFlushTime time.Time
-
-	mergeIdx uint64
 
 	snapshotLock sync.RWMutex
 
@@ -100,11 +109,6 @@ type Table struct {
 
 	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
 	rawItemsPendingFlushesWG syncwg.WaitGroup
-
-	activeMerges   uint64
-	mergesCount    uint64
-	itemsMerged    uint64
-	assistedMerges uint64
 }
 
 type partWrapper struct {

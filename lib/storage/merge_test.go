@@ -25,7 +25,7 @@ func TestMergeBlockStreamsOneStreamOneBlockManyRows(t *testing.T) {
 	minTimestamp := int64(1<<63 - 1)
 	maxTimestamp := int64(-1 << 63)
 	for i := 0; i < maxRowsPerBlock; i++ {
-		r.Timestamp = int64(rand.Intn(1e15))
+		r.Timestamp = int64(rand.Intn(1e9))
 		r.Value = rand.NormFloat64() * 2332
 		rows = append(rows, r)
 
@@ -51,7 +51,7 @@ func TestMergeBlockStreamsOneStreamManyBlocksOneRow(t *testing.T) {
 	for i := 0; i < blocksCount; i++ {
 		initTestTSID(&r.TSID)
 		r.TSID.MetricID = uint64(i * 123)
-		r.Timestamp = int64(rand.Intn(1e15))
+		r.Timestamp = int64(rand.Intn(1e9))
 		r.Value = rand.NormFloat64() * 2332
 		rows = append(rows, r)
 
@@ -78,7 +78,7 @@ func TestMergeBlockStreamsOneStreamManyBlocksManyRows(t *testing.T) {
 	maxTimestamp := int64(-1 << 63)
 	for i := 0; i < rowsCount; i++ {
 		r.TSID.MetricID = uint64(i % blocksCount)
-		r.Timestamp = int64(rand.Intn(1e15))
+		r.Timestamp = int64(rand.Intn(1e9))
 		r.Value = rand.NormFloat64() * 2332
 		rows = append(rows, r)
 
@@ -175,7 +175,7 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 	const rowsCount1 = 4938
 	for i := 0; i < rowsCount1; i++ {
 		r.TSID.MetricID = uint64(i % blocksCount)
-		r.Timestamp = int64(rand.Intn(1e15))
+		r.Timestamp = int64(rand.Intn(1e9))
 		r.Value = rand.NormFloat64() * 2332
 		rows = append(rows, r)
 
@@ -192,7 +192,7 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 	const rowsCount2 = 3281
 	for i := 0; i < rowsCount2; i++ {
 		r.TSID.MetricID = uint64((i + 17) % blocksCount)
-		r.Timestamp = int64(rand.Intn(1e15))
+		r.Timestamp = int64(rand.Intn(1e9))
 		r.Value = rand.NormFloat64() * 2332
 		rows = append(rows, r)
 
@@ -310,7 +310,7 @@ func TestMergeBlockStreamsManyStreamsManyBlocksManyRows(t *testing.T) {
 		var rows []rawRow
 		for j := 0; j < rowsPerStream; j++ {
 			r.TSID.MetricID = uint64(j % blocksCount)
-			r.Timestamp = int64(rand.Intn(1e10))
+			r.Timestamp = int64(rand.Intn(1e9))
 			r.Value = rand.NormFloat64()
 			rows = append(rows, r)
 
@@ -343,7 +343,7 @@ func TestMergeForciblyStop(t *testing.T) {
 		var rows []rawRow
 		for j := 0; j < rowsPerStream; j++ {
 			r.TSID.MetricID = uint64(j % blocksCount)
-			r.Timestamp = int64(rand.Intn(1e10))
+			r.Timestamp = int64(rand.Intn(1e9))
 			r.Value = rand.NormFloat64()
 			rows = append(rows, r)
 

@@ -59,7 +59,7 @@ func TestBlockStreamReaderManyTSIDManyRows(t *testing.T) {
 	r.PrecisionBits = defaultPrecisionBits
 	const blocks = 123
 	for i := 0; i < 3210; i++ {
-		r.TSID.MetricID = uint64((1e12 - i) % blocks)
+		r.TSID.MetricID = uint64((1e9 - i) % blocks)
 		r.Value = rand.Float64()
 		r.Timestamp = int64(rand.Float64() * 1e9)
 		rows = append(rows, r)
@@ -73,7 +73,7 @@ func TestBlockStreamReaderReadConcurrent(t *testing.T) {
 	r.PrecisionBits = defaultPrecisionBits
 	const blocks = 123
 	for i := 0; i < 3210; i++ {
-		r.TSID.MetricID = uint64((1e12 - i) % blocks)
+		r.TSID.MetricID = uint64((1e9 - i) % blocks)
 		r.Value = rand.Float64()
 		r.Timestamp = int64(rand.Float64() * 1e9)
 		rows = append(rows, r)

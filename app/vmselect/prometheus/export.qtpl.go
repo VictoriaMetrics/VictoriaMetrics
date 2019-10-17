@@ -49,7 +49,7 @@ func StreamExportPrometheusLine(qw422016 *qt422016.Writer, rs *netstorage.Result
 //line app/vmselect/prometheus/export.qtpl:15
 		qw422016.N().S(` `)
 //line app/vmselect/prometheus/export.qtpl:16
-		qw422016.N().D(int(ts))
+		qw422016.N().DL(ts)
 //line app/vmselect/prometheus/export.qtpl:16
 		qw422016.N().S(`
 `)
@@ -129,7 +129,7 @@ func StreamExportJSONLine(qw422016 *qt422016.Writer, rs *netstorage.Result) {
 		timestamps := rs.Timestamps
 
 //line app/vmselect/prometheus/export.qtpl:38
-		qw422016.N().D(int(timestamps[0]))
+		qw422016.N().DL(timestamps[0])
 //line app/vmselect/prometheus/export.qtpl:39
 		timestamps = timestamps[1:]
 
@@ -138,7 +138,7 @@ func StreamExportJSONLine(qw422016 *qt422016.Writer, rs *netstorage.Result) {
 //line app/vmselect/prometheus/export.qtpl:40
 			qw422016.N().S(`,`)
 //line app/vmselect/prometheus/export.qtpl:41
-			qw422016.N().D(int(ts))
+			qw422016.N().DL(ts)
 //line app/vmselect/prometheus/export.qtpl:42
 		}
 //line app/vmselect/prometheus/export.qtpl:43

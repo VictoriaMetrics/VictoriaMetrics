@@ -858,7 +858,7 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 			}
 			continue
 		}
-		if v != vExpected {
+		if math.Abs(v-vExpected) > 1e-15 {
 			t.Fatalf("unexpected value at values[%d]; got %f; want %f\nvalues=\n%v\nvaluesExpected=\n%v",
 				i, v, vExpected, values, valuesExpected)
 		}

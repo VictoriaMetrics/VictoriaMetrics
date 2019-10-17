@@ -29,6 +29,15 @@ const maxRetentionMonths = 12 * 100
 
 // Storage represents TSDB storage.
 type Storage struct {
+	// Atomic counters must go at the top of the structure in order to properly align by 8 bytes on 32-bit archs.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
+	tooSmallTimestampRows uint64
+	tooBigTimestampRows   uint64
+
+	addRowsConcurrencyLimitReached uint64
+	addRowsConcurrencyLimitTimeout uint64
+	addRowsConcurrencyDroppedRows  uint64
+
 	path            string
 	cachePath       string
 	retentionMonths int
@@ -66,13 +75,6 @@ type Storage struct {
 
 	currHourMetricIDsUpdaterWG sync.WaitGroup
 	retentionWatcherWG         sync.WaitGroup
-
-	tooSmallTimestampRows uint64
-	tooBigTimestampRows   uint64
-
-	addRowsConcurrencyLimitReached uint64
-	addRowsConcurrencyLimitTimeout uint64
-	addRowsConcurrencyDroppedRows  uint64
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.

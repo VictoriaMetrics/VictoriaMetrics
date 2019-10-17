@@ -10,7 +10,7 @@
 	{% if len(rs.Timestamps) == 0 || len(rs.Values) == 0 %}{% return %}{% endif %}
 	{%= prometheusMetricName(&rs.MetricName) %}{% space %}
 	{%f= rs.Values[len(rs.Values)-1] %}{% space %}
-	{%d= int(rs.Timestamps[len(rs.Timestamps)-1]) %}{% newline %}
+	{%dl= rs.Timestamps[len(rs.Timestamps)-1] %}{% newline %}
 {% endfunc %}
 
 {% endstripspace %}

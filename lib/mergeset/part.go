@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -43,7 +44,7 @@ var (
 	maxCachedInmemoryBlocksPerPartOnce sync.Once
 )
 
-type part struct {
+type partInternals struct {
 	ph partHeader
 
 	path string
@@ -55,7 +56,14 @@ type part struct {
 	indexFile fs.ReadAtCloser
 	itemsFile fs.ReadAtCloser
 	lensFile  fs.ReadAtCloser
+}
 
+type part struct {
+	partInternals
+
+	// Align atomic counters inside caches by 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
+	_         [(8 - (unsafe.Sizeof(partInternals{}) % 8)) % 8]byte
 	idxbCache indexBlockCache
 	ibCache   inmemoryBlockCache
 }
@@ -114,15 +122,15 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	}
 	metaindexReader.MustClose()
 
-	p := &part{
-		path: path,
-		size: size,
-		mrs:  mrs,
+	var p part
+	p.path = path
+	p.size = size
+	p.mrs = mrs
 
-		indexFile: indexFile,
-		itemsFile: itemsFile,
-		lensFile:  lensFile,
-	}
+	p.indexFile = indexFile
+	p.itemsFile = itemsFile
+	p.lensFile = lensFile
+
 	p.ph.CopyFrom(ph)
 	p.idxbCache.Init()
 	p.ibCache.Init()
@@ -133,7 +141,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 		p.MustClose()
 		return nil, err
 	}
-	return p, nil
+	return &p, nil
 }
 
 func (p *part) MustClose() {
@@ -165,12 +173,15 @@ func putIndexBlock(idxb *indexBlock) {
 var indexBlockPool sync.Pool
 
 type indexBlockCache struct {
+	// Atomically updated counters must go first in the struct, so they are properly
+	// aligned to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	requests uint64
+	misses   uint64
+
 	m         map[uint64]*indexBlock
 	missesMap map[uint64]uint64
 	mu        sync.RWMutex
-
-	requests uint64
-	misses   uint64
 }
 
 func (idxbc *indexBlockCache) Init() {
@@ -274,12 +285,15 @@ func (idxbc *indexBlockCache) Misses() uint64 {
 }
 
 type inmemoryBlockCache struct {
+	// Atomically updated counters must go first in the struct, so they are properly
+	// aligned to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	requests uint64
+	misses   uint64
+
 	m         map[inmemoryBlockCacheKey]*inmemoryBlock
 	missesMap map[inmemoryBlockCacheKey]uint64
 	mu        sync.RWMutex
-
-	requests uint64
-	misses   uint64
 }
 
 type inmemoryBlockCacheKey struct {

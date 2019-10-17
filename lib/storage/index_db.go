@@ -68,9 +68,31 @@ func shouldCacheBlock(item []byte) bool {
 
 // indexDB represents an index db.
 type indexDB struct {
-	name     string
+	// Atomic counters must go at the top of the structure in order to properly align by 8 bytes on 32-bit archs.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
+
 	refCount uint64
-	tb       *mergeset.Table
+
+	// The number of missing MetricID -> TSID entries.
+	// High rate for this value means corrupted indexDB.
+	missingTSIDsForMetricID uint64
+
+	// The number of calls to search for metric ids for recent hours.
+	recentHourMetricIDsSearchCalls uint64
+
+	// The number of cache hits during search for metric ids in recent hours.
+	recentHourMetricIDsSearchHits uint64
+
+	// The number of searches for metric ids by days.
+	dateMetricIDsSearchCalls uint64
+
+	// The number of successful searches for metric ids by days.
+	dateMetricIDsSearchHits uint64
+
+	mustDrop uint64
+
+	name string
+	tb   *mergeset.Table
 
 	extDB     *indexDB
 	extDBLock sync.Mutex
@@ -104,24 +126,6 @@ type indexDB struct {
 	// up to two last hours.
 	currHourMetricIDs *atomic.Value
 	prevHourMetricIDs *atomic.Value
-
-	// The number of missing MetricID -> TSID entries.
-	// High rate for this value means corrupted indexDB.
-	missingTSIDsForMetricID uint64
-
-	// The number of calls to search for metric ids for recent hours.
-	recentHourMetricIDsSearchCalls uint64
-
-	// The number of cache hits during search for metric ids in recent hours.
-	recentHourMetricIDsSearchHits uint64
-
-	// The number of searches for metric ids by days.
-	dateMetricIDsSearchCalls uint64
-
-	// The number of successful searches for metric ids by days.
-	dateMetricIDsSearchHits uint64
-
-	mustDrop uint64
 }
 
 // openIndexDB opens index db from the given path with the given caches.

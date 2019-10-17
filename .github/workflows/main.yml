@@ -29,6 +29,7 @@ jobs:
             git diff --exit-code
             make test-full
             make test-pure
+            make test-full-386
             make vminsert vmselect vmstorage
             make vminsert-pure vmselect-pure vmstorage-pure
             GOOS=freebsd go build -mod=vendor ./app/vminsert

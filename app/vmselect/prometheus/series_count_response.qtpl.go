@@ -24,7 +24,7 @@ func StreamSeriesCountResponse(qw422016 *qt422016.Writer, n uint64) {
 //line app/vmselect/prometheus/series_count_response.qtpl:3
 	qw422016.N().S(`{"status":"success","data":[`)
 //line app/vmselect/prometheus/series_count_response.qtpl:6
-	qw422016.N().D(int(n))
+	qw422016.N().DL(int64(n))
 //line app/vmselect/prometheus/series_count_response.qtpl:6
 	qw422016.N().S(`]}`)
 //line app/vmselect/prometheus/series_count_response.qtpl:8
