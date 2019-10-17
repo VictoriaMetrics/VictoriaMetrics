@@ -88,8 +88,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Timestamp bigger than 1<<31
 	f("aaa 1123 429496729600", &Rows{
 		Rows: []Row{{
-			Metric: "aaa",
-			Value:  1123,
+			Metric:    "aaa",
+			Value:     1123,
 			Timestamp: 429496729600,
 		}},
 	})

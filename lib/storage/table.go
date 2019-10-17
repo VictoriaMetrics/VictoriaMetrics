@@ -42,7 +42,7 @@ type partitionWrapper struct {
 	// The partition must be dropped if mustDrop > 0
 	mustDrop uint64
 
-	pt       *partition
+	pt *partition
 }
 
 func (ptw *partitionWrapper) incRef() {

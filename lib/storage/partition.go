@@ -147,7 +147,6 @@ type partition struct {
 	bigPartsMergerWG       sync.WaitGroup
 	rawRowsFlusherWG       sync.WaitGroup
 	inmemoryPartsFlusherWG sync.WaitGroup
-
 }
 
 // partWrapper is a wrapper for the part.
