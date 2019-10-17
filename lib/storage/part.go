@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -27,8 +28,7 @@ var (
 	maxCachedIndexBlocksPerPartOnce sync.Once
 )
 
-// part represents a searchable part containing time series data.
-type part struct {
+type partInternals struct {
 	ph partHeader
 
 	// Filesystem path to the part.
@@ -44,7 +44,15 @@ type part struct {
 	indexFile      fs.ReadAtCloser
 
 	metaindex []metaindexRow
+}
 
+// part represents a searchable part containing time series data.
+type part struct {
+	partInternals
+
+	// Align ibCache to 8 bytes in order to align internal counters on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	_       [(8 - (unsafe.Sizeof(partInternals{}) % 8)) % 8]byte
 	ibCache indexBlockCache
 }
 
@@ -107,27 +115,26 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	}
 	metaindexReader.MustClose()
 
-	p := &part{
-		ph:             *ph,
-		path:           path,
-		size:           size,
-		timestampsFile: timestampsFile,
-		valuesFile:     valuesFile,
-		indexFile:      indexFile,
+	var p part
+	p.ph = *ph
+	p.path = path
+	p.size = size
+	p.timestampsFile = timestampsFile
+	p.valuesFile = valuesFile
+	p.indexFile = indexFile
 
-		metaindex: metaindex,
-	}
+	p.metaindex = metaindex
 
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		err = fmt.Errorf("cannot initialize part %q: %s", p, errors[0])
+		err = fmt.Errorf("cannot initialize part %q: %s", &p, errors[0])
 		p.MustClose()
 		return nil, err
 	}
 
 	p.ibCache.Init()
 
-	return p, nil
+	return &p, nil
 }
 
 // String returns human-readable representation of p.
@@ -168,12 +175,14 @@ func putIndexBlock(ib *indexBlock) {
 var indexBlockPool sync.Pool
 
 type indexBlockCache struct {
+	// Put atomic counters to the top of struct in order to align them to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	requests uint64
+	misses   uint64
+
 	m         map[uint64]*indexBlock
 	missesMap map[uint64]uint64
 	mu        sync.RWMutex
-
-	requests uint64
-	misses   uint64
 }
 
 func (ibc *indexBlockCache) Init() {

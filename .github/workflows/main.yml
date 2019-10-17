@@ -29,6 +29,7 @@ jobs:
             git diff --exit-code
             make test-full
             make test-pure
+            make test-full-386
             make victoria-metrics
             make victoria-metrics-pure
             make victoria-metrics-arm

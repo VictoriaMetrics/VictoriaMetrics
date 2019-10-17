@@ -13,7 +13,7 @@
 	{% for i, ts := range rs.Timestamps %}
 		{%z= bb.B %}{% space %}
 		{%f= rs.Values[i] %}{% space %}
-		{%d= int(ts) %}{% newline %}
+		{%dl= ts %}{% newline %}
 	{% endfor %}
 	{% code quicktemplate.ReleaseByteBuffer(bb) %}
 {% endfunc %}
@@ -35,10 +35,10 @@
 		"timestamps":[
 			{% if len(rs.Timestamps) > 0 %}
 				{% code timestamps := rs.Timestamps %}
-				{%d= int(timestamps[0]) %}
+				{%dl= timestamps[0] %}
 				{% code timestamps = timestamps[1:] %}
 				{% for _, ts := range timestamps %}
-					,{%d= int(ts) %}
+					,{%dl= ts %}
 				{% endfor %}
 			{% endif %}
 		]

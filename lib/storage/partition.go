@@ -90,6 +90,22 @@ const inmemoryPartsFlushInterval = 5 * time.Second
 
 // partition represents a partition.
 type partition struct {
+	// Put atomic counters to the top of struct, so they are aligned to 8 bytes on 32-bit arch.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+
+	activeBigMerges   uint64
+	activeSmallMerges uint64
+	bigMergesCount    uint64
+	smallMergesCount  uint64
+	bigRowsMerged     uint64
+	smallRowsMerged   uint64
+	bigRowsDeleted    uint64
+	smallRowsDeleted  uint64
+
+	smallAssistedMerges uint64
+
+	mergeIdx uint64
+
 	smallPartsPath string
 	bigPartsPath   string
 
@@ -123,8 +139,6 @@ type partition struct {
 	// rawRowsLastFlushTime is the last time rawRows are flushed.
 	rawRowsLastFlushTime time.Time
 
-	mergeIdx uint64
-
 	snapshotLock sync.RWMutex
 
 	stopCh chan struct{}
@@ -134,28 +148,21 @@ type partition struct {
 	rawRowsFlusherWG       sync.WaitGroup
 	inmemoryPartsFlusherWG sync.WaitGroup
 
-	activeBigMerges   uint64
-	activeSmallMerges uint64
-	bigMergesCount    uint64
-	smallMergesCount  uint64
-	bigRowsMerged     uint64
-	smallRowsMerged   uint64
-	bigRowsDeleted    uint64
-	smallRowsDeleted  uint64
-
-	smallAssistedMerges uint64
 }
 
 // partWrapper is a wrapper for the part.
 type partWrapper struct {
+	// Put atomic counters to the top of struct, so they are aligned to 8 bytes on 32-bit arch.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+
+	// The number of references to the part.
+	refCount uint64
+
 	// The part itself.
 	p *part
 
 	// non-nil if the part is inmemoryPart.
 	mp *inmemoryPart
-
-	// The number of references to the part.
-	refCount uint64
 
 	// Whether the part is in merge now.
 	isInMerge bool

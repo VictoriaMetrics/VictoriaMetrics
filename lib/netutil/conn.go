@@ -43,6 +43,11 @@ func (cm *connMetrics) init(group, name, addr string) {
 }
 
 type statConn struct {
+	// Move atomic counters to the top of struct in order to properly align them on 32-bit arch.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+
+	closeCalls uint64
+
 	readTimeout  time.Duration
 	lastReadTime time.Time
 
@@ -52,8 +57,6 @@ type statConn struct {
 	net.Conn
 
 	cm *connMetrics
-
-	closeCalls uint64
 }
 
 func (sc *statConn) Read(p []byte) (int, error) {

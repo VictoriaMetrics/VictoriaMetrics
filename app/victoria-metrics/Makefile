@@ -32,6 +32,12 @@ victoria-metrics-arm64:
 victoria-metrics-arm64-prod:
 	APP_NAME=victoria-metrics APP_SUFFIX='-arm64' DOCKER_OPTS='--env CGO_ENABLED=0 --env GOARCH=arm64' $(MAKE) app-via-docker
 
+victoria-metrics-386:
+	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-386 ./app/victoria-metrics
+
+victoria-metrics-386-prod:
+	APP_NAME=victoria-metrics APP_SUFFIX='-386' DOCKER_OPTS='--env CGO_ENABLED=0 --env GOARCH=386' $(MAKE) app-via-docker
+
 victoria-metrics-pure:
 	APP_NAME=victoria-metrics $(MAKE) app-local-pure
 

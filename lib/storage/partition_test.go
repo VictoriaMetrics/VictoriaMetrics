@@ -14,34 +14,34 @@ func TestPartitionMaxRowsByPath(t *testing.T) {
 }
 
 func TestAppendPartsToMerge(t *testing.T) {
-	testAppendPartsToMerge(t, 2, []int{}, nil)
-	testAppendPartsToMerge(t, 2, []int{123}, nil)
-	testAppendPartsToMerge(t, 2, []int{4, 2}, nil)
-	testAppendPartsToMerge(t, 2, []int{128, 64, 32, 16, 8, 4, 2, 1}, nil)
-	testAppendPartsToMerge(t, 4, []int{128, 64, 32, 10, 9, 7, 2, 1}, []int{2, 7, 9, 10})
-	testAppendPartsToMerge(t, 2, []int{128, 64, 32, 16, 8, 4, 2, 2}, []int{2, 2})
-	testAppendPartsToMerge(t, 4, []int{128, 64, 32, 16, 8, 4, 2, 2}, []int{2, 2, 4, 8})
-	testAppendPartsToMerge(t, 2, []int{1, 1}, []int{1, 1})
-	testAppendPartsToMerge(t, 2, []int{2, 2, 2}, []int{2, 2})
-	testAppendPartsToMerge(t, 2, []int{4, 2, 4}, []int{4, 4})
-	testAppendPartsToMerge(t, 2, []int{1, 3, 7, 2}, nil)
-	testAppendPartsToMerge(t, 3, []int{1, 3, 7, 2}, []int{1, 2, 3})
-	testAppendPartsToMerge(t, 4, []int{1, 3, 7, 2}, []int{1, 2, 3})
-	testAppendPartsToMerge(t, 3, []int{11, 1, 10, 100, 10}, []int{10, 10, 11})
+	testAppendPartsToMerge(t, 2, []uint64{}, nil)
+	testAppendPartsToMerge(t, 2, []uint64{123}, nil)
+	testAppendPartsToMerge(t, 2, []uint64{4, 2}, nil)
+	testAppendPartsToMerge(t, 2, []uint64{128, 64, 32, 16, 8, 4, 2, 1}, nil)
+	testAppendPartsToMerge(t, 4, []uint64{128, 64, 32, 10, 9, 7, 2, 1}, []uint64{2, 7, 9, 10})
+	testAppendPartsToMerge(t, 2, []uint64{128, 64, 32, 16, 8, 4, 2, 2}, []uint64{2, 2})
+	testAppendPartsToMerge(t, 4, []uint64{128, 64, 32, 16, 8, 4, 2, 2}, []uint64{2, 2, 4, 8})
+	testAppendPartsToMerge(t, 2, []uint64{1, 1}, []uint64{1, 1})
+	testAppendPartsToMerge(t, 2, []uint64{2, 2, 2}, []uint64{2, 2})
+	testAppendPartsToMerge(t, 2, []uint64{4, 2, 4}, []uint64{4, 4})
+	testAppendPartsToMerge(t, 2, []uint64{1, 3, 7, 2}, nil)
+	testAppendPartsToMerge(t, 3, []uint64{1, 3, 7, 2}, []uint64{1, 2, 3})
+	testAppendPartsToMerge(t, 4, []uint64{1, 3, 7, 2}, []uint64{1, 2, 3})
+	testAppendPartsToMerge(t, 3, []uint64{11, 1, 10, 100, 10}, []uint64{10, 10, 11})
 }
 
 func TestAppendPartsToMergeManyParts(t *testing.T) {
 	// Verify that big number of parts are merged into minimal number of parts
 	// using minimum merges.
-	var a []int
+	var a []uint64
 	maxOutPartRows := uint64(0)
 	for i := 0; i < 1024; i++ {
-		n := int(rand.NormFloat64() * 1e9)
+		n := uint64(uint32(rand.NormFloat64() * 1e9))
 		if n < 0 {
 			n = -n
 		}
 		n++
-		maxOutPartRows += uint64(n)
+		maxOutPartRows += n
 		a = append(a, n)
 	}
 	pws := newTestPartWrappersForRowsCount(a)
@@ -67,11 +67,10 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 			}
 		}
 		pw := &partWrapper{
-			p: &part{
-				ph: partHeader{
-					RowsCount: rowsCount,
-				},
-			},
+			p: &part{},
+		}
+		pw.p.ph = partHeader{
+			RowsCount: rowsCount,
 		}
 		rowsMerged += rowsCount
 		pwsNew = append(pwsNew, pw)
@@ -94,7 +93,7 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 	}
 }
 
-func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount, expectedRowsCount []int) {
+func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount, expectedRowsCount []uint64) {
 	t.Helper()
 
 	pws := newTestPartWrappersForRowsCount(initialRowsCount)
@@ -111,8 +110,10 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 	prefix := []*partWrapper{
 		{
 			p: &part{
-				ph: partHeader{
-					RowsCount: 1234,
+				partInternals: partInternals{
+					ph: partHeader{
+						RowsCount: 1234,
+					},
 				},
 			},
 		},
@@ -132,21 +133,23 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 	}
 }
 
-func newTestRowsCountFromPartWrappers(pws []*partWrapper) []int {
-	var rowsCount []int
+func newTestRowsCountFromPartWrappers(pws []*partWrapper) []uint64 {
+	var rowsCount []uint64
 	for _, pw := range pws {
-		rowsCount = append(rowsCount, int(pw.p.ph.RowsCount))
+		rowsCount = append(rowsCount, pw.p.ph.RowsCount)
 	}
 	return rowsCount
 }
 
-func newTestPartWrappersForRowsCount(rowsCount []int) []*partWrapper {
+func newTestPartWrappersForRowsCount(rowsCount []uint64) []*partWrapper {
 	var pws []*partWrapper
 	for _, rc := range rowsCount {
 		pw := &partWrapper{
 			p: &part{
-				ph: partHeader{
-					RowsCount: uint64(rc),
+				partInternals: partInternals{
+					ph: partHeader{
+						RowsCount: rc,
+					},
 				},
 			},
 		}
