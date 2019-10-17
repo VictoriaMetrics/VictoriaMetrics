@@ -12,7 +12,7 @@ require (
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.6.2
 	github.com/valyala/histogram v1.0.1
-	github.com/valyala/quicktemplate v1.2.0
+	github.com/valyala/quicktemplate v1.3.1
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47
 )
 

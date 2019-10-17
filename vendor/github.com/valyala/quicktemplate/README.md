@@ -208,7 +208,7 @@ The `{%s x %}` is used for printing HTML-safe strings, while `{%= F() %}`
 is used for embedding template function calls. Quicktemplate supports also
 other output tags:
 
-  * `{%d num %}` for integers.
+  * `{%d int %}` and `{%dl int64 %}` for integers.
   * `{%f float %}` for float64.
     Floating point precision may be set via `{%f.precision float %}`.
     For example, `{%f.2 1.2345 %}` outputs `1.23`.
