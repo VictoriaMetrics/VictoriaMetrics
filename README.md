@@ -184,6 +184,33 @@ Cluster should remain in working state if at least a single node of each type re
 the update process. See [cluster availability](#cluster-availability) section for details.
 
 
+### Capacity planning
+
+Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware.
+
+#### vminsert
+
+* The recommended total number of vCPU cores for all the `vminsert` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
+* The recommended number of vCPU cores per each `vminsert` instance should equal to the number of `vmstorage` instances in the cluster.
+* The amount of RAM per each `vminsert` instance should be 1GB or more. RAM is used as a buffer for spikes in ingestion rate.
+* Sometimes `-rpc.disableCompression` command-line flag on `vminsert` instances could increase ingestion capacity at the cost
+  of higher network bandwidth usage between `vminsert` and `vmstorage`.
+
+#### vmstorage
+
+* The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
+* The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = active_time_series * 1KB`.
+  Time series is active if it received at least a single data point during the last hour or if it has been queried during the last hour.
+* The recommended total amount of storage space for all the `vmstorage` instances can be calculated
+  from the ingestion rate and retention: `storage_space = ingestion_rate * retention_seconds`.
+
+#### vmselect
+
+The recommended hardware for `vmselect` instances highly depends on the type of queries. Lightweight queries over small number of time series usually require
+small number of vCPU cores and small amount of RAM on `vmselect`, while heavy queries over big number of time series (>10K) usually require
+bigger number of vCPU cores and bigger amounts of RAM.
+
+
 ### Helm
 
 Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
