@@ -1,7 +1,7 @@
 # All these commands must run from repository root.
 
 DOCKER_NAMESPACE := victoriametrics
-BUILDER_IMAGE := local/builder:go1.13.1
+BUILDER_IMAGE := local/builder:go1.13.3
 CERTS_IMAGE := local/certs:1.0.2
 
 package-certs:
