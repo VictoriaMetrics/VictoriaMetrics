@@ -765,8 +765,8 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 Feel free asking any questions regarding VictoriaMetrics:
 
 - [slack](http://slack.victoriametrics.com/)
-- [telergam-en](https://t.me/VictoriaMetrics_en)
-- [telergam-ru](https://t.me/VictoriaMetrics_ru1)
+- [telegram-en](https://t.me/VictoriaMetrics_en)
+- [telegram-ru](https://t.me/VictoriaMetrics_ru1)
 - [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 
