@@ -502,6 +502,14 @@ func (s *fseEncoder) validateNorm() (err error) {
 // writeCount will write the normalized histogram count to header.
 // This is read back by readNCount.
 func (s *fseEncoder) writeCount(out []byte) ([]byte, error) {
+	if s.useRLE {
+		return append(out, s.rleVal), nil
+	}
+	if s.preDefined || s.reUsed {
+		// Never write predefined.
+		return out, nil
+	}
+
 	var (
 		tableLog  = s.actualTableLog
 		tableSize = 1 << tableLog
@@ -516,15 +524,12 @@ func (s *fseEncoder) writeCount(out []byte) ([]byte, error) {
 		remaining = int16(tableSize + 1) /* +1 for extra accuracy */
 		threshold = int16(tableSize)
 		nbBits    = uint(tableLog + 1)
+		outP      = len(out)
 	)
-	if s.useRLE {
-		return append(out, s.rleVal), nil
+	if cap(out) < outP+maxHeaderSize {
+		out = append(out, make([]byte, maxHeaderSize*3)...)
+		out = out[:len(out)-maxHeaderSize*3]
 	}
-	if s.preDefined || s.reUsed {
-		// Never write predefined.
-		return out, nil
-	}
-	outP := len(out)
 	out = out[:outP+maxHeaderSize]
 
 	// stops at 1
@@ -598,7 +603,7 @@ func (s *fseEncoder) writeCount(out []byte) ([]byte, error) {
 	out[outP+1] = byte(bitStream >> 8)
 	outP += int((bitCount + 7) / 8)
 
-	if uint16(charnum) > s.symbolLen {
+	if charnum > s.symbolLen {
 		return nil, errors.New("internal error: charnum > s.symbolLen")
 	}
 	return out[:outP], nil

@@ -51,7 +51,7 @@ func (b *blockEnc) init() {
 		b.coders.llEnc = &fseEncoder{}
 		b.coders.llPrev = &fseEncoder{}
 	}
-	b.litEnc = &huff0.Scratch{}
+	b.litEnc = &huff0.Scratch{WantLogLess: 4}
 	b.reset(nil)
 }
 
@@ -415,16 +415,10 @@ func (b *blockEnc) encode() error {
 	if len(b.literals) >= 1024 {
 		// Use 4 Streams.
 		out, reUsed, err = huff0.Compress4X(b.literals, b.litEnc)
-		if len(out) > len(b.literals)-len(b.literals)>>4 {
-			err = huff0.ErrIncompressible
-		}
 	} else if len(b.literals) > 32 {
 		// Use 1 stream
 		single = true
 		out, reUsed, err = huff0.Compress1X(b.literals, b.litEnc)
-		if len(out) > len(b.literals)-len(b.literals)>>4 {
-			err = huff0.ErrIncompressible
-		}
 	} else {
 		err = huff0.ErrIncompressible
 	}
@@ -711,7 +705,7 @@ func (b *blockEnc) encode() error {
 	return nil
 }
 
-var errIncompressible = errors.New("uncompressible")
+var errIncompressible = errors.New("incompressible")
 
 func (b *blockEnc) genCodes() {
 	if len(b.sequences) == 0 {
