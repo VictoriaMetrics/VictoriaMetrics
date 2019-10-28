@@ -7,6 +7,44 @@ import (
 	"testing"
 )
 
+func TestPositiveFloatToDecimal(t *testing.T) {
+	f := func(f float64, decimalExpected int64, exponentExpected int16) {
+		t.Helper()
+		decimal, exponent := positiveFloatToDecimal(f)
+		if decimal != decimalExpected {
+			t.Fatalf("unexpected decimal for positiveFloatToDecimal(%f); got %d; want %d", f, decimal, decimalExpected)
+		}
+		if exponent != exponentExpected {
+			t.Fatalf("unexpected exponent for positiveFloatToDecimal(%f); got %d; want %d", f, exponent, exponentExpected)
+		}
+	}
+	f(0, 0, 0)
+	f(1, 1, 0)
+	f(30, 3, 1)
+	f(12345678900000000, 123456789, 8)
+	f(12345678901234567, 12345678901234568, 0)
+	f(1234567890123456789, 12345678901234567, 2)
+	f(12345678901234567890, 12345678901234567, 3)
+	f(18446744073670737131, 1844674407367073, 4)
+	f(123456789012345678901, 12345678901234568, 4)
+	f(1<<53, 1<<53, 0)
+	f(1<<54, 1801439850948198, 1)
+	f(1<<55, 3602879701896396, 1)
+	f(1<<62, 4611686018427387, 3)
+	f(1<<63, 9223372036854775, 3)
+	f(1<<64, 18446744073709548, 3)
+	f(1<<65, 368934881474191, 5)
+	f(1<<66, 737869762948382, 5)
+	f(1<<67, 1475739525896764, 5)
+
+	f(0.1, 1, -1)
+	f(123456789012345678e-5, 12345678901234568, -4)
+	f(1234567890123456789e-10, 12345678901234568, -8)
+	f(1234567890123456789e-14, 1234567890123, -8)
+	f(1234567890123456789e-17, 12345678901234, -12)
+	f(1234567890123456789e-20, 1234567890123, -14)
+}
+
 func TestAppendDecimalToFloat(t *testing.T) {
 	testAppendDecimalToFloat(t, []int64{}, 0, nil)
 	testAppendDecimalToFloat(t, []int64{0}, 0, []float64{0})
@@ -248,8 +286,8 @@ func TestFloatToDecimal(t *testing.T) {
 
 	f(math.Inf(1), vInfPos, 0)
 	f(math.Inf(-1), vInfNeg, 0)
-	f(1<<63-1, 922337203685, 7)
-	f(-1<<63, -922337203685, 7)
+	f(1<<63-1, 9223372036854775, 3)
+	f(-1<<63, -9223372036854775, 3)
 
 	// Test precision loss due to conversionPrecision.
 	f(0.1234567890123456, 12345678901234, -14)
