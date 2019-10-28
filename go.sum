@@ -26,6 +26,8 @@ github.com/klauspost/compress v1.8.6 h1:970MQcQdxX7hfgc/aqmB4a3grW0ivUVV6i1TLkP8
 github.com/klauspost/compress v1.8.6/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
 github.com/klauspost/compress v1.9.0 h1:GhthINjveNZAdFUD8QoQYfjxnOONZgztK/Yr6M23UTY=
 github.com/klauspost/compress v1.9.0/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
+github.com/klauspost/compress v1.9.1 h1:TWy0o9J9c6LK9C8t7Msh6IAJNXbsU/nvKLTQUU5HdaY=
+github.com/klauspost/compress v1.9.1/go.mod h1:RyIbtBH6LamlWaDj8nUwkbUhJ87Yi3uG0guNDohfE1A=
 github.com/klauspost/cpuid v0.0.0-20180405133222-e7e905edc00e/go.mod h1:Pj4uuM528wm8OyEC2QMXAi2YiTZ96dNQPGgoMS4s3ek=
 github.com/klauspost/cpuid v1.2.0 h1:NMpwD2G9JSFOE1/TJjGSo5zG7Yb2bTe7eq1jH+irmeE=
 github.com/klauspost/cpuid v1.2.0/go.mod h1:Pj4uuM528wm8OyEC2QMXAi2YiTZ96dNQPGgoMS4s3ek=

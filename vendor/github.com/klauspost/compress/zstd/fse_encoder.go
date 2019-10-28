@@ -516,7 +516,8 @@ func (s *fseEncoder) writeCount(out []byte) ([]byte, error) {
 		previous0 bool
 		charnum   uint16
 
-		maxHeaderSize = ((int(s.symbolLen) * int(tableLog)) >> 3) + 3
+		// maximum header size plus 2 extra bytes for final output if bitCount == 0.
+		maxHeaderSize = ((int(s.symbolLen) * int(tableLog)) >> 3) + 3 + 2
 
 		// Write Table Size
 		bitStream = uint32(tableLog - minEncTablelog)
@@ -599,6 +600,9 @@ func (s *fseEncoder) writeCount(out []byte) ([]byte, error) {
 		}
 	}
 
+	if outP+2 > len(out) {
+		return nil, fmt.Errorf("internal error: %d > %d, maxheader: %d, sl: %d, tl: %d, normcount: %v", outP+2, len(out), maxHeaderSize, s.symbolLen, int(tableLog), s.norm[:s.symbolLen])
+	}
 	out[outP] = byte(bitStream)
 	out[outP+1] = byte(bitStream >> 8)
 	outP += int((bitCount + 7) / 8)

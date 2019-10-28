@@ -6,7 +6,7 @@ github.com/VictoriaMetrics/metrics
 github.com/cespare/xxhash/v2
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
-# github.com/klauspost/compress v1.9.0
+# github.com/klauspost/compress v1.9.1
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
