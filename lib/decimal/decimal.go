@@ -299,12 +299,18 @@ func FromFloat(f float64) (v int64, e int16) {
 
 func positiveFloatToDecimal(f float64) (int64, int16) {
 	var scale int16
-	v := int64(f)
-	if f == float64(v) {
+	u := uint64(f)
+	if float64(u) == f {
 		// Fast path for integers.
-		u := uint64(v)
-		if u%10 != 0 {
-			return v, 0
+		for u >= 1<<54 {
+			// Remove trailing garbage bits left after float64->uint64 conversion,
+			// since float64 contains only 53 significant bits.
+			// See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+			u /= 10
+			scale++
+		}
+		if u%10 != 0 || u == 0 {
+			return int64(u), scale
 		}
 		// Minimize v by converting trailing zeros to scale.
 		u /= 10
@@ -317,9 +323,15 @@ func positiveFloatToDecimal(f float64) (int64, int16) {
 	}
 
 	// Slow path for floating point numbers.
+	prec := conversionPrecision
 	if f > 1e6 || f < 1e-6 {
 		// Normalize f, so it is in the small range suitable
 		// for the next loop.
+		if f > 1e6 {
+			// Increase conversion precision for big numbers.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/213
+			prec = 1e15
+		}
 		_, exp := math.Frexp(f)
 		scale = int16(float64(exp) * math.Ln2 / math.Ln10)
 		f *= math.Pow10(-int(scale))
@@ -327,20 +339,20 @@ func positiveFloatToDecimal(f float64) (int64, int16) {
 
 	// Multiply f by 100 until the fractional part becomes
 	// too small comparing to integer part.
-	for f < conversionPrecision {
+	for f < prec {
 		x, frac := math.Modf(f)
-		if frac*conversionPrecision < x {
+		if frac*prec < x {
 			f = x
 			break
 		}
-		if (1-frac)*conversionPrecision < x {
+		if (1-frac)*prec < x {
 			f = x + 1
 			break
 		}
 		f *= 100
 		scale -= 2
 	}
-	u := uint64(f)
+	u = uint64(f)
 	if u%10 != 0 {
 		return int64(u), scale
 	}
