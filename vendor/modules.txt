@@ -6,17 +6,17 @@ github.com/VictoriaMetrics/metrics
 github.com/cespare/xxhash/v2
 # github.com/golang/snappy v0.0.1
 github.com/golang/snappy
-# github.com/klauspost/compress v1.8.6
-github.com/klauspost/compress/fse
+# github.com/klauspost/compress v1.9.1
+github.com/klauspost/compress/zstd
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
-github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
+github.com/klauspost/compress/fse
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
 # github.com/valyala/fastjson v1.4.1
-github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
+github.com/valyala/fastjson
 # github.com/valyala/fastrand v1.0.0
 github.com/valyala/fastrand
 # github.com/valyala/gozstd v1.6.2
