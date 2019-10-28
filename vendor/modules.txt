@@ -27,5 +27,5 @@ github.com/valyala/gozstd
 github.com/valyala/histogram
 # github.com/valyala/quicktemplate v1.3.1
 github.com/valyala/quicktemplate
-# golang.org/x/sys v0.0.0-20191010194322-b09406accb47
+# golang.org/x/sys v0.0.0-20191027211539-f8518d3b3627
 golang.org/x/sys/unix
