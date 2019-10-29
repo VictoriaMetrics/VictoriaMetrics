@@ -226,6 +226,9 @@ type bucket struct {
 }
 
 func (b *bucket) Init(maxBytes uint64) {
+	if maxBytes == 0 {
+		panic(fmt.Errorf("maxBytes cannot be zero"))
+	}
 	if maxBytes >= maxBucketSize {
 		panic(fmt.Errorf("too big maxBytes=%d; should be smaller than %d", maxBytes, maxBucketSize))
 	}
