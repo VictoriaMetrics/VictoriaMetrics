@@ -254,8 +254,8 @@ curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
 The `/api/v1/export` endpoint should return the following response:
 
 ```
-{"metric":{"__name__":"measurement.field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
-{"metric":{"__name__":"measurement.field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
+{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
+{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
 ```
 
 Note that Influx line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
