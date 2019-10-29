@@ -92,7 +92,7 @@ var tmpFileNum uint64
 
 // WriteFileAtomically atomically writes data to the given file path.
 //
-// WriteFile returns only after the file is fully written and synced
+// WriteFileAtomically returns only after the file is fully written and synced
 // to the underlying storage.
 func WriteFileAtomically(path string, data []byte) error {
 	// Check for the existing file. It is expected that
