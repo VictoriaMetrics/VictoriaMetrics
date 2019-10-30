@@ -302,7 +302,7 @@ func positiveFloatToDecimal(f float64) (int64, int16) {
 	u := uint64(f)
 	if float64(u) == f {
 		// Fast path for integers.
-		for u >= 1<<54 {
+		for u >= 1<<55 {
 			// Remove trailing garbage bits left after float64->uint64 conversion,
 			// since float64 contains only 53 significant bits.
 			// See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
