@@ -25,12 +25,18 @@ var (
 	vminsertAddr    = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
 	vmselectAddr    = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
 	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+
+	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
+	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
 )
 
 func main() {
 	flag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
+	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 
 	logger.Infof("opening storage at %q with retention period %d months", *storageDataPath, *retentionPeriod)
 	startTime := time.Now()
