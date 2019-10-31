@@ -678,10 +678,6 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		return false
 	}
 
-	type accountProjectKey struct {
-		AccountID uint32
-		ProjectID uint32
-	}
 	allKeys := make(map[accountProjectKey]map[string]bool)
 	timeseriesCounters := make(map[accountProjectKey]map[uint64]bool)
 	var tsidCopy TSID

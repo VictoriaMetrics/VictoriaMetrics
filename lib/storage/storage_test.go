@@ -18,10 +18,9 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		var s Storage
 		s.currHourMetricIDs.Store(&hourMetricIDs{})
 		s.prevHourMetricIDs.Store(&hourMetricIDs{})
-		s.pendingHourMetricIDs = &uint64set.Set{}
 		return &s
 	}
-	t.Run("empty_pedning_metric_ids_stale_curr_hour", func(t *testing.T) {
+	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
@@ -52,11 +51,11 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
 		}
 	})
-	t.Run("empty_pedning_metric_ids_valid_curr_hour", func(t *testing.T) {
+	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
@@ -89,18 +88,34 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
-
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		pendingHourMetricIDs := &uint64set.Set{}
-		pendingHourMetricIDs.Add(343)
-		pendingHourMetricIDs.Add(32424)
-		pendingHourMetricIDs.Add(8293432)
-		s.pendingHourMetricIDs = pendingHourMetricIDs
+		s.pendingHourMetricIDs = []pendingHourMetricIDEntry{
+			{AccountID: 123, ProjectID: 431, MetricID: 343},
+			{AccountID: 123, ProjectID: 431, MetricID: 32424},
+			{AccountID: 1, ProjectID: 2, MetricID: 8293432},
+		}
+		mExpected := &uint64set.Set{}
+		for _, e := range s.pendingHourMetricIDs {
+			mExpected.Add(e.MetricID)
+		}
+		byTenantExpected := make(map[accountProjectKey]*uint64set.Set)
+		for _, e := range s.pendingHourMetricIDs {
+			k := accountProjectKey{
+				AccountID: e.AccountID,
+				ProjectID: e.ProjectID,
+			}
+			x := byTenantExpected[k]
+			if x == nil {
+				x = &uint64set.Set{}
+				byTenantExpected[k] = x
+			}
+			x.Add(e.MetricID)
+		}
 
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
@@ -119,8 +134,11 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 			}
 		}
-		if !reflect.DeepEqual(hmCurr.m, pendingHourMetricIDs) {
-			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, pendingHourMetricIDs)
+		if !reflect.DeepEqual(hmCurr.m, mExpected) {
+			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, mExpected)
+		}
+		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
+			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
 		if !hmCurr.isFull {
 			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
@@ -130,18 +148,34 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
-
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		pendingHourMetricIDs := &uint64set.Set{}
-		pendingHourMetricIDs.Add(343)
-		pendingHourMetricIDs.Add(32424)
-		pendingHourMetricIDs.Add(8293432)
-		s.pendingHourMetricIDs = pendingHourMetricIDs
+		s.pendingHourMetricIDs = []pendingHourMetricIDEntry{
+			{AccountID: 123, ProjectID: 431, MetricID: 343},
+			{AccountID: 123, ProjectID: 431, MetricID: 32424},
+			{AccountID: 1, ProjectID: 2, MetricID: 8293432},
+		}
+		mExpected := &uint64set.Set{}
+		for _, e := range s.pendingHourMetricIDs {
+			mExpected.Add(e.MetricID)
+		}
+		byTenantExpected := make(map[accountProjectKey]*uint64set.Set)
+		for _, e := range s.pendingHourMetricIDs {
+			k := accountProjectKey{
+				AccountID: e.AccountID,
+				ProjectID: e.ProjectID,
+			}
+			x := byTenantExpected[k]
+			if x == nil {
+				x = &uint64set.Set{}
+				byTenantExpected[k] = x
+			}
+			x.Add(e.MetricID)
+		}
 
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
@@ -162,13 +196,16 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			// Do not run other checks, since they may fail.
 			return
 		}
-		m := pendingHourMetricIDs.Clone()
+		m := mExpected.Clone()
 		origMetricIDs := hmOrig.m.AppendTo(nil)
 		for _, metricID := range origMetricIDs {
 			m.Add(metricID)
 		}
 		if !reflect.DeepEqual(hmCurr.m, m) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
+		}
+		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
+			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
 		}
 		if hmCurr.isFull {
 			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
@@ -179,9 +216,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
-
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if len(s.pendingHourMetricIDs) != 0 {
+			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", len(s.pendingHourMetricIDs), 0)
 		}
 	})
 }
