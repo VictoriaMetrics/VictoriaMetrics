@@ -773,7 +773,6 @@ var (
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	// Return only the last error, since it has no sense in returning all errors.
-	var lastError error
 	var lastWarn error
 
 	var is *indexSearch
@@ -814,10 +813,6 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
-			if dmis.Len() == 0 {
-				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
-				continue
-			}
 			if !dmis.Has(r.TSID.MetricID) {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 				continue
@@ -850,6 +845,9 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 		s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
 	}
+	if lastWarn != nil {
+		logger.Errorf("warn occurred during rows addition: %s", lastWarn)
+	}
 	if is != nil {
 		kbPool.Put(kb)
 		PutMetricName(mn)
@@ -857,15 +855,15 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	}
 	rows = rows[:rowsLen+j]
 
+	var lastError error
 	if err := s.tb.AddRows(rows); err != nil {
 		lastError = fmt.Errorf("cannot add rows to table: %s", err)
 	}
-	lastError = s.updateDateMetricIDCache(rows, lastError)
-	if lastError != nil {
-		return rows, fmt.Errorf("errors occurred during rows addition: %s", lastError)
+	if err := s.updateDateMetricIDCache(rows, lastError); err != nil {
+		lastError = err
 	}
-	if lastWarn != nil {
-		logger.Errorf("warns occurred during rows addition: %s", lastWarn)
+	if lastError != nil {
+		return rows, fmt.Errorf("error occurred during rows addition: %s", lastError)
 	}
 	return rows, nil
 }
