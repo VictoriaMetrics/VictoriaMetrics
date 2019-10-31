@@ -18,7 +18,7 @@ func TestPositiveFloatToDecimal(t *testing.T) {
 			t.Fatalf("unexpected exponent for positiveFloatToDecimal(%f); got %d; want %d", f, exponent, exponentExpected)
 		}
 	}
-	f(0, 0, 0)
+	f(0, 0, 1) // The exponent is 1 is OK here. See comment in positiveFloatToDecimal.
 	f(1, 1, 0)
 	f(30, 3, 1)
 	f(12345678900000000, 123456789, 8)
@@ -206,7 +206,7 @@ func TestAppendFloatToDecimal(t *testing.T) {
 	// no-op
 	testAppendFloatToDecimal(t, []float64{}, nil, 0)
 	testAppendFloatToDecimal(t, []float64{0}, []int64{0}, 0)
-	testAppendFloatToDecimal(t, []float64{0, 1, -1, 12345678, -123456789}, []int64{0, 1, -1, 12345678, -123456789}, 0)
+	testAppendFloatToDecimal(t, []float64{0, -0, 1, -1, 12345678, -123456789}, []int64{0, 0, 1, -1, 12345678, -123456789}, 0)
 
 	// upExp
 	testAppendFloatToDecimal(t, []float64{-24, 0, 4.123, 0.3}, []int64{-24000, 0, 4123, 300}, -3)
