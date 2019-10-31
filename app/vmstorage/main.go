@@ -24,6 +24,9 @@ var (
 
 	// DataPath is a path to storage data.
 	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
+
+	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
+	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
 )
 
 // Init initializes vmstorage.
@@ -39,6 +42,10 @@ func InitWithoutMetrics() {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid `-precisionBits`: %s", err)
 	}
+
+	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
+	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
+
 	logger.Infof("opening storage at %q with retention period %d months", *DataPath, *retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
