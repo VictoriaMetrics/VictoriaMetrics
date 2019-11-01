@@ -8,16 +8,37 @@ import (
 )
 
 func BenchmarkAppendDecimalToFloat(b *testing.B) {
+	b.Run("VarNums", func(b *testing.B) {
+		benchmarkAppendDecimalToFloat(b, testVA)
+	})
+	b.Run("Zeros", func(b *testing.B) {
+		benchmarkAppendDecimalToFloat(b, testZeros)
+	})
+	b.Run("Ones", func(b *testing.B) {
+		benchmarkAppendDecimalToFloat(b, testOnes)
+	})
+}
+
+func benchmarkAppendDecimalToFloat(b *testing.B, a []int64) {
 	b.ReportAllocs()
-	b.SetBytes(int64(len(testVA)))
+	b.SetBytes(int64(len(a)))
 	b.RunParallel(func(pb *testing.PB) {
 		var fa []float64
 		for pb.Next() {
-			fa = AppendDecimalToFloat(fa[:0], testVA, 0)
+			fa = AppendDecimalToFloat(fa[:0], a, 0)
 			atomic.AddUint64(&Sink, uint64(len(fa)))
 		}
 	})
 }
+
+var testZeros = make([]int64, 8*1024)
+var testOnes = func() []int64 {
+	a := make([]int64, 8*1024)
+	for i := 0; i < len(a); i++ {
+		a[i] = 1
+	}
+	return a
+}()
 
 func BenchmarkAppendFloatToDecimal(b *testing.B) {
 	b.Run("RealFloat", func(b *testing.B) {
@@ -26,7 +47,22 @@ func BenchmarkAppendFloatToDecimal(b *testing.B) {
 	b.Run("Integers", func(b *testing.B) {
 		benchmarkAppendFloatToDecimal(b, testFAInteger)
 	})
+	b.Run("Zeros", func(b *testing.B) {
+		benchmarkAppendFloatToDecimal(b, testFZeros)
+	})
+	b.Run("Ones", func(b *testing.B) {
+		benchmarkAppendFloatToDecimal(b, testFOnes)
+	})
 }
+
+var testFZeros = make([]float64, 8*1024)
+var testFOnes = func() []float64 {
+	a := make([]float64, 8*1024)
+	for i := 0; i < len(a); i++ {
+		a[i] = 1
+	}
+	return a
+}()
 
 func benchmarkAppendFloatToDecimal(b *testing.B, fa []float64) {
 	b.ReportAllocs()
