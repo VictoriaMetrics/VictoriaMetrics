@@ -31,7 +31,8 @@ func (s *bucket32Sorter) Swap(i, j int) {
 // Clone returns an independent copy of s.
 func (s *Set) Clone() *Set {
 	if s == nil {
-		return nil
+		// Return an empty set, so data could be added into it later.
+		return &Set{}
 	}
 	var dst Set
 	dst.itemsCount = s.itemsCount
