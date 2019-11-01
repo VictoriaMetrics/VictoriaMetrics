@@ -48,6 +48,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"integrate":           newRollupFuncOneArg(rollupIntegrate),
 	"ideriv":              newRollupFuncOneArg(rollupIderiv),
 	"lifetime":            newRollupFuncOneArg(rollupLifetime),
+	"lag":                 newRollupFuncOneArg(rollupLag),
 	"scrape_interval":     newRollupFuncOneArg(rollupScrapeInterval),
 	"rollup":              newRollupFuncOneArg(rollupFake),
 	"rollup_rate":         newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
@@ -113,8 +114,9 @@ type rollupFuncArg struct {
 	values        []float64
 	timestamps    []int64
 
-	idx  int
-	step int64
+	currTimestamp int64
+	idx           int
+	step          int64
 }
 
 func (rfa *rollupFuncArg) reset() {
@@ -122,6 +124,7 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.prevTimestamp = 0
 	rfa.values = nil
 	rfa.timestamps = nil
+	rfa.currTimestamp = 0
 	rfa.idx = 0
 	rfa.step = 0
 }
@@ -226,6 +229,7 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		rfa.currTimestamp = tEnd
 		value := rc.Func(rfa)
 		rfa.idx++
 		dstValues = append(dstValues, value)
@@ -797,6 +801,18 @@ func rollupLifetime(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3
+}
+
+func rollupLag(rfa *rollupFuncArg) float64 {
+	// Calculate the duration between the current timestamp and the last data point.
+	timestamps := rfa.timestamps
+	if len(timestamps) == 0 {
+		if math.IsNaN(rfa.prevValue) {
+			return nan
+		}
+		return float64(rfa.currTimestamp-rfa.prevTimestamp) * 1e-3
+	}
+	return float64(rfa.currTimestamp-timestamps[len(timestamps)-1]) * 1e-3
 }
 
 func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
