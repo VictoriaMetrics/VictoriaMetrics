@@ -3,6 +3,8 @@ package decimal
 import (
 	"math"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 )
 
 // CalibrateScale calibrates a and b with the corresponding exponents ae, be
@@ -81,6 +83,13 @@ func ExtendInt64sCapacity(dst []int64, additionalItems int) []int64 {
 // AppendDecimalToFloat converts each item in va to f=v*10^e, appends it
 // to dst and returns the resulting dst.
 func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
+	if fastnum.IsInt64Zeros(va) {
+		return fastnum.AppendFloat64Zeros(dst, len(va))
+	}
+	if e == 0 && fastnum.IsInt64Ones(va) {
+		return fastnum.AppendFloat64Ones(dst, len(va))
+	}
+
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = ExtendFloat64sCapacity(dst, len(va))
 
@@ -106,6 +115,14 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 // It tries minimizing each item in dst.
 func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 	if len(src) == 0 {
+		return dst, 0
+	}
+	if fastnum.IsFloat64Zeros(src) {
+		dst = fastnum.AppendInt64Zeros(dst, len(src))
+		return dst, 0
+	}
+	if fastnum.IsFloat64Ones(src) {
+		dst = fastnum.AppendInt64Ones(dst, len(src))
 		return dst, 0
 	}
 
