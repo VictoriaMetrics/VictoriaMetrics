@@ -911,7 +911,10 @@ var mergeWorkersCount = func() int {
 }()
 
 func openParts(path string) ([]*partWrapper, error) {
-	// Verify that the directory for the parts exists.
+	// The path can be missing after restoring from backup, so create it if needed.
+	if err := fs.MkdirAllIfNotExist(path); err != nil {
+		return nil, err
+	}
 	d, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open difrectory: %s", err)
