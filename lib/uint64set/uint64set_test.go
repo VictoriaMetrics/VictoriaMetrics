@@ -88,6 +88,22 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		}
 	}
 
+	// Verify union
+	const unionOffset = 12345
+	var s1, s2 Set
+	for i := 0; i < itemsCount; i++ {
+		s1.Add(uint64(i) + offset)
+		s2.Add(uint64(i) + offset + unionOffset)
+	}
+	s1.Union(&s2)
+	expectedLen := 2 * itemsCount
+	if itemsCount > unionOffset {
+		expectedLen = itemsCount + unionOffset
+	}
+	if n := s1.Len(); n != expectedLen {
+		t.Fatalf("unexpected s1.Len() after union; got %d; want %d", n, expectedLen)
+	}
+
 	// Verify Del
 	for i := itemsCount / 2; i < itemsCount-itemsCount/4; i++ {
 		s.Del(uint64(i) + offset)

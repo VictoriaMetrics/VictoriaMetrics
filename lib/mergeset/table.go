@@ -633,7 +633,7 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 }
 
 func (tb *Table) startPartMergers() {
-	for i := 0; i < mergeWorkers; i++ {
+	for i := 0; i < mergeWorkersCount; i++ {
 		tb.partMergersWG.Add(1)
 		go func() {
 			if err := tb.partMerger(); err != nil {
@@ -683,7 +683,7 @@ func (tb *Table) partMerger() error {
 		if err != errNothingToMerge {
 			return err
 		}
-		if time.Since(lastMergeTime) > 10*time.Second {
+		if time.Since(lastMergeTime) > 30*time.Second {
 			// We have free time for merging into bigger parts.
 			// This should improve select performance.
 			lastMergeTime = time.Now()
@@ -901,17 +901,20 @@ func (tb *Table) maxOutPartItemsSlow() uint64 {
 
 	// Calculate the maximum number of items in the output merge part
 	// by dividing the freeSpace by 4 and by the number of concurrent
-	// mergeWorkers.
+	// mergeWorkersCount.
 	// This assumes each item is compressed into 4 bytes.
-	return freeSpace / uint64(mergeWorkers) / 4
+	return freeSpace / uint64(mergeWorkersCount) / 4
 }
 
-var mergeWorkers = func() int {
+var mergeWorkersCount = func() int {
 	return runtime.GOMAXPROCS(-1)
 }()
 
 func openParts(path string) ([]*partWrapper, error) {
-	// Verify that the directory for the parts exists.
+	// The path can be missing after restoring from backup, so create it if needed.
+	if err := fs.MkdirAllIfNotExist(path); err != nil {
+		return nil, err
+	}
 	d, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open difrectory: %s", err)
@@ -1246,30 +1249,31 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 	for i := 2; i <= n; i++ {
 		for j := 0; j <= len(src)-i; j++ {
 			itemsSum := uint64(0)
-			for _, pw := range src[j : j+i] {
+			a := src[j : j+i]
+			for _, pw := range a {
 				itemsSum += pw.p.ph.itemsCount
 			}
 			if itemsSum > maxItems {
-				continue
+				// There is no sense in checking the remaining bigger parts.
+				break
 			}
-			m := float64(itemsSum) / float64(src[j+i-1].p.ph.itemsCount)
+			m := float64(itemsSum) / float64(a[len(a)-1].p.ph.itemsCount)
 			if m < maxM {
 				continue
 			}
 			maxM = m
-			pws = src[j : j+i]
+			pws = a
 		}
 	}
 
-	minM := float64(maxPartsToMerge / 2)
-	if minM < 2 {
-		minM = 2
+	minM := float64(maxPartsToMerge) / 2
+	if minM < 1.7 {
+		minM = 1.7
 	}
 	if maxM < minM {
 		// There is no sense in merging parts with too small m.
 		return dst
 	}
-
 	return append(dst, pws...)
 }
 

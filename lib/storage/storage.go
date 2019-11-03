@@ -69,12 +69,23 @@ type Storage struct {
 
 	// Pending MetricID values to be added to currHourMetricIDs.
 	pendingHourMetricIDsLock sync.Mutex
-	pendingHourMetricIDs     *uint64set.Set
+	pendingHourMetricIDs     []pendingHourMetricIDEntry
 
 	stop chan struct{}
 
 	currHourMetricIDsUpdaterWG sync.WaitGroup
 	retentionWatcherWG         sync.WaitGroup
+}
+
+type pendingHourMetricIDEntry struct {
+	AccountID uint32
+	ProjectID uint32
+	MetricID  uint64
+}
+
+type accountProjectKey struct {
+	AccountID uint32
+	ProjectID uint32
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.
@@ -125,7 +136,6 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
-	s.pendingHourMetricIDs = &uint64set.Set{}
 
 	// Load indexdb
 	idbPath := path + "/indexdb"
@@ -497,6 +507,8 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 24)
 		return &hourMetricIDs{}
 	}
+
+	// Unmarshal header
 	isFull := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	hourLoaded := encoding.UnmarshalUint64(src)
@@ -505,10 +517,12 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		logger.Infof("discarding %s, since it is outdated", name)
 		return &hourMetricIDs{}
 	}
+
+	// Unmarshal hm.m
 	hmLen := encoding.UnmarshalUint64(src)
 	src = src[8:]
-	if uint64(len(src)) != 8*hmLen {
-		logger.Errorf("discarding %s, since it has broken body; got %d bytes; want %d bytes", path, len(src), 8*hmLen)
+	if uint64(len(src)) < 8*hmLen {
+		logger.Errorf("discarding %s, since it has broken hm.m data; got %d bytes; want %d bytes", path, len(src), 8*hmLen)
 		return &hourMetricIDs{}
 	}
 	m := &uint64set.Set{}
@@ -517,11 +531,49 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		src = src[8:]
 		m.Add(metricID)
 	}
+
+	// Unmarshal hm.byTenant
+	if len(src) < 8 {
+		logger.Errorf("discarding %s, since it has broken hm.byTenant header; got %d bytes; want %d bytes", path, len(src), 8)
+		return &hourMetricIDs{}
+	}
+	byTenantLen := encoding.UnmarshalUint64(src)
+	src = src[8:]
+	byTenant := make(map[accountProjectKey]*uint64set.Set, byTenantLen)
+	for i := uint64(0); i < byTenantLen; i++ {
+		if len(src) < 16 {
+			logger.Errorf("discarding %s, since it has broken accountID:projectID prefix; got %d bytes; want %d bytes", path, len(src), 16)
+			return &hourMetricIDs{}
+		}
+		accountID := encoding.UnmarshalUint32(src)
+		src = src[4:]
+		projectID := encoding.UnmarshalUint32(src)
+		src = src[4:]
+		mLen := encoding.UnmarshalUint64(src)
+		src = src[8:]
+		if uint64(len(src)) < 8*mLen {
+			logger.Errorf("discarding %s, since it has borken accountID:projectID entry; got %d bytes; want %d bytes", path, len(src), 8*mLen)
+			return &hourMetricIDs{}
+		}
+		m := &uint64set.Set{}
+		for j := uint64(0); j < mLen; j++ {
+			metricID := encoding.UnmarshalUint64(src)
+			src = src[8:]
+			m.Add(metricID)
+		}
+		k := accountProjectKey{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+		byTenant[k] = m
+	}
+
 	logger.Infof("loaded %s from %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hmLen, srcOrigLen)
 	return &hourMetricIDs{
-		m:      m,
-		hour:   hourLoaded,
-		isFull: isFull != 0,
+		m:        m,
+		byTenant: byTenant,
+		hour:     hourLoaded,
+		isFull:   isFull != 0,
 	}
 }
 
@@ -534,11 +586,28 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	if hm.isFull {
 		isFull = 1
 	}
+
+	// Marshal header
 	dst = encoding.MarshalUint64(dst, isFull)
 	dst = encoding.MarshalUint64(dst, hm.hour)
+
+	// Marshal hm.m
 	dst = encoding.MarshalUint64(dst, uint64(hm.m.Len()))
 	for _, metricID := range hm.m.AppendTo(nil) {
 		dst = encoding.MarshalUint64(dst, metricID)
+	}
+
+	// Marshal hm.byTenant
+	var metricIDs []uint64
+	dst = encoding.MarshalUint64(dst, uint64(len(hm.byTenant)))
+	for k, e := range hm.byTenant {
+		dst = encoding.MarshalUint32(dst, k.AccountID)
+		dst = encoding.MarshalUint32(dst, k.ProjectID)
+		dst = encoding.MarshalUint64(dst, uint64(e.Len()))
+		metricIDs = e.AppendTo(metricIDs[:0])
+		for _, metricID := range metricIDs {
+			dst = encoding.MarshalUint64(dst, metricID)
+		}
 	}
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
@@ -777,7 +846,6 @@ var (
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	// Return only the last error, since it has no sense in returning all errors.
-	var lastError error
 	var lastWarn error
 
 	var is *indexSearch
@@ -818,10 +886,6 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
-			if dmis.Len() == 0 {
-				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
-				continue
-			}
 			if !dmis.Has(r.TSID.MetricID) {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 				continue
@@ -854,6 +918,9 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 		s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
 	}
+	if lastWarn != nil {
+		logger.Errorf("warn occurred during rows addition: %s", lastWarn)
+	}
 	if is != nil {
 		kbPool.Put(kb)
 		PutMetricName(mn)
@@ -861,15 +928,15 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	}
 	rows = rows[:rowsLen+j]
 
+	var lastError error
 	if err := s.tb.AddRows(rows); err != nil {
 		lastError = fmt.Errorf("cannot add rows to table: %s", err)
 	}
-	lastError = s.updateDateMetricIDCache(rows, lastError)
-	if lastError != nil {
-		return rows, fmt.Errorf("errors occurred during rows addition: %s", lastError)
+	if err := s.updateDateMetricIDCache(rows, lastError); err != nil {
+		lastError = err
 	}
-	if lastWarn != nil {
-		logger.Errorf("warns occurred during rows addition: %s", lastWarn)
+	if lastError != nil {
+		return rows, fmt.Errorf("error occurred during rows addition: %s", lastError)
 	}
 	return rows, nil
 }
@@ -900,7 +967,12 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 				continue
 			}
 			s.pendingHourMetricIDsLock.Lock()
-			s.pendingHourMetricIDs.Add(metricID)
+			e := pendingHourMetricIDEntry{
+				AccountID: r.TSID.AccountID,
+				ProjectID: r.TSID.ProjectID,
+				MetricID:  metricID,
+			}
+			s.pendingHourMetricIDs = append(s.pendingHourMetricIDs, e)
 			s.pendingHourMetricIDsLock.Unlock()
 		}
 
@@ -926,7 +998,7 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 func (s *Storage) updateCurrHourMetricIDs() {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDsLen := s.pendingHourMetricIDs.Len()
+	newMetricIDsLen := len(s.pendingHourMetricIDs)
 	s.pendingHourMetricIDsLock.Unlock()
 	hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 	if newMetricIDsLen == 0 && hm.hour == hour {
@@ -936,25 +1008,44 @@ func (s *Storage) updateCurrHourMetricIDs() {
 
 	// Slow path: hm.m must be updated with non-empty s.pendingHourMetricIDs.
 	var m *uint64set.Set
+	var byTenant map[accountProjectKey]*uint64set.Set
 	isFull := hm.isFull
 	if hm.hour == hour {
 		m = hm.m.Clone()
+		byTenant = make(map[accountProjectKey]*uint64set.Set, len(hm.byTenant))
+		for k, e := range hm.byTenant {
+			byTenant[k] = e.Clone()
+		}
 	} else {
 		m = &uint64set.Set{}
+		byTenant = make(map[accountProjectKey]*uint64set.Set)
 		isFull = true
 	}
+
 	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDs := s.pendingHourMetricIDs.AppendTo(nil)
-	s.pendingHourMetricIDs = &uint64set.Set{}
+	a := append([]pendingHourMetricIDEntry{}, s.pendingHourMetricIDs...)
+	s.pendingHourMetricIDs = s.pendingHourMetricIDs[:0]
 	s.pendingHourMetricIDsLock.Unlock()
-	for _, metricID := range newMetricIDs {
-		m.Add(metricID)
+
+	for _, x := range a {
+		m.Add(x.MetricID)
+		k := accountProjectKey{
+			AccountID: x.AccountID,
+			ProjectID: x.ProjectID,
+		}
+		e := byTenant[k]
+		if e == nil {
+			e = &uint64set.Set{}
+			byTenant[k] = e
+		}
+		e.Add(x.MetricID)
 	}
 
 	hmNew := &hourMetricIDs{
-		m:      m,
-		hour:   hour,
-		isFull: isFull,
+		m:        m,
+		byTenant: byTenant,
+		hour:     hour,
+		isFull:   isFull,
 	}
 	s.currHourMetricIDs.Store(hmNew)
 	if hm.hour != hour {
@@ -963,9 +1054,10 @@ func (s *Storage) updateCurrHourMetricIDs() {
 }
 
 type hourMetricIDs struct {
-	m      *uint64set.Set
-	hour   uint64
-	isFull bool
+	m        *uint64set.Set
+	byTenant map[accountProjectKey]*uint64set.Set
+	hour     uint64
+	isFull   bool
 }
 
 func (s *Storage) getTSIDFromCache(dst *TSID, metricName []byte) bool {

@@ -32,7 +32,7 @@ func BenchmarkUnmarshalGaugeArray(b *testing.B) {
 		var dst []int64
 		var err error
 		for pb.Next() {
-			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledGaugeArray, MarshalTypeZSTDNearestDelta, 0, len(benchGaugeArray))
+			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledGaugeArray, MarshalTypeZSTDNearestDelta, benchGaugeArray[0], len(benchGaugeArray))
 			if err != nil {
 				panic(fmt.Errorf("cannot unmarshal gauge array: %s", err))
 			}
@@ -79,7 +79,7 @@ func BenchmarkUnmarshalDeltaConstArray(b *testing.B) {
 		var dst []int64
 		var err error
 		for pb.Next() {
-			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledDeltaConstArray, MarshalTypeDeltaConst, 0, len(benchDeltaConstArray))
+			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledDeltaConstArray, MarshalTypeDeltaConst, benchDeltaConstArray[0], len(benchDeltaConstArray))
 			if err != nil {
 				panic(fmt.Errorf("cannot unmarshal delta const array: %s", err))
 			}
@@ -126,7 +126,7 @@ func BenchmarkUnmarshalConstArray(b *testing.B) {
 		var dst []int64
 		var err error
 		for pb.Next() {
-			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledConstArray, MarshalTypeConst, 0, len(benchConstArray))
+			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledConstArray, MarshalTypeConst, benchConstArray[0], len(benchConstArray))
 			if err != nil {
 				panic(fmt.Errorf("cannot unmarshal const array: %s", err))
 			}
@@ -171,7 +171,7 @@ func BenchmarkUnmarshalZeroConstArray(b *testing.B) {
 		var dst []int64
 		var err error
 		for pb.Next() {
-			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledZeroConstArray, MarshalTypeConst, 0, len(benchZeroConstArray))
+			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledZeroConstArray, MarshalTypeConst, benchZeroConstArray[0], len(benchZeroConstArray))
 			if err != nil {
 				panic(fmt.Errorf("cannot unmarshal zero const array: %s", err))
 			}
@@ -210,7 +210,7 @@ func BenchmarkUnmarshalInt64Array(b *testing.B) {
 		var dst []int64
 		var err error
 		for pb.Next() {
-			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledInt64Array, benchMarshalType, 0, len(benchInt64Array))
+			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledInt64Array, benchMarshalType, benchInt64Array[0], len(benchInt64Array))
 			if err != nil {
 				panic(fmt.Errorf("cannot unmarshal int64 array: %s", err))
 			}

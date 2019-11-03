@@ -312,6 +312,9 @@ func (b *bucket) Save(w io.Writer) error {
 }
 
 func (b *bucket) Load(r io.Reader, maxChunks uint64) error {
+	if maxChunks == 0 {
+		return fmt.Errorf("the number of chunks per bucket cannot be zero")
+	}
 	bIdx, err := readUint64(r)
 	if err != nil {
 		return fmt.Errorf("cannot read b.idx: %s", err)

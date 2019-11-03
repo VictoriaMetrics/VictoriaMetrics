@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -201,6 +202,14 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		if len(src) > 0 {
 			return nil, fmt.Errorf("unexpected data left in const encoding: %d bytes", len(src))
 		}
+		if firstValue == 0 {
+			dst = fastnum.AppendInt64Zeros(dst, itemsCount)
+			return dst, nil
+		}
+		if firstValue == 1 {
+			dst = fastnum.AppendInt64Ones(dst, itemsCount)
+			return dst, nil
+		}
 		for itemsCount > 0 {
 			dst = append(dst, firstValue)
 			itemsCount--
@@ -266,6 +275,14 @@ func EnsureNonDecreasingSequence(a []int64, vMin, vMax int64) {
 func isConst(a []int64) bool {
 	if len(a) == 0 {
 		return false
+	}
+	if fastnum.IsInt64Zeros(a) {
+		// Fast path for array containing only zeros.
+		return true
+	}
+	if fastnum.IsInt64Ones(a) {
+		// Fast path for array containing only ones.
+		return true
 	}
 	v1 := a[0]
 	for _, v := range a {

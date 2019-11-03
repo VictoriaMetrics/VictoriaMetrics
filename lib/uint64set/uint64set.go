@@ -31,7 +31,8 @@ func (s *bucket32Sorter) Swap(i, j int) {
 // Clone returns an independent copy of s.
 func (s *Set) Clone() *Set {
 	if s == nil {
-		return nil
+		// Return an empty set, so data could be added into it later.
+		return &Set{}
 	}
 	var dst Set
 	dst.itemsCount = s.itemsCount
@@ -123,6 +124,14 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 		dst = b32.appendTo(dst)
 	}
 	return dst
+}
+
+// Union adds all the items from a to s.
+func (s *Set) Union(a *Set) {
+	// TODO: optimize it
+	for _, x := range a.AppendTo(nil) {
+		s.Add(x)
+	}
 }
 
 type bucket32 struct {

@@ -3720,6 +3720,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`lag()`, func(t *testing.T) {
+		t.Parallel()
+		q := `lag(time()[60s:17s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{14, 10, 6, 2, 15, 11},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`()`, func(t *testing.T) {
 		t.Parallel()
 		q := `()`
@@ -4189,6 +4200,8 @@ func TestExecError(t *testing.T) {
 	f(`alias()`)
 	f(`alias(1)`)
 	f(`alias(1, "foo", "bar")`)
+	f(`lifetime()`)
+	f(`lag()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

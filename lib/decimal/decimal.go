@@ -3,6 +3,8 @@ package decimal
 import (
 	"math"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fastnum"
 )
 
 // CalibrateScale calibrates a and b with the corresponding exponents ae, be
@@ -81,6 +83,13 @@ func ExtendInt64sCapacity(dst []int64, additionalItems int) []int64 {
 // AppendDecimalToFloat converts each item in va to f=v*10^e, appends it
 // to dst and returns the resulting dst.
 func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
+	if fastnum.IsInt64Zeros(va) {
+		return fastnum.AppendFloat64Zeros(dst, len(va))
+	}
+	if e == 0 && fastnum.IsInt64Ones(va) {
+		return fastnum.AppendFloat64Ones(dst, len(va))
+	}
+
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = ExtendFloat64sCapacity(dst, len(va))
 
@@ -106,6 +115,14 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 // It tries minimizing each item in dst.
 func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 	if len(src) == 0 {
+		return dst, 0
+	}
+	if fastnum.IsFloat64Zeros(src) {
+		dst = fastnum.AppendInt64Zeros(dst, len(src))
+		return dst, 0
+	}
+	if fastnum.IsFloat64Ones(src) {
+		dst = fastnum.AppendInt64Ones(dst, len(src))
 		return dst, 0
 	}
 
@@ -265,61 +282,83 @@ var (
 // For instance, for f = -1.234 it returns v = -1234, e = -3.
 //
 // FromFloat doesn't work properly with NaN values, so don't pass them here.
-func FromFloat(f float64) (v int64, e int16) {
-	if math.IsInf(f, 0) {
-		// Special case for Inf
-		if math.IsInf(f, 1) {
-			return vInfPos, 0
-		}
-		return vInfNeg, 0
-	}
-
-	minus := false
-	if f < 0 {
-		f = -f
-		minus = true
-	}
+func FromFloat(f float64) (int64, int16) {
 	if f == 0 {
-		// Special case for 0.0 and -0.0
 		return 0, 0
 	}
-	v, e = positiveFloatToDecimal(f)
-	if minus {
-		v = -v
+	if math.IsInf(f, 0) {
+		return fromFloatInf(f)
 	}
-	if v == 0 {
-		e = 0
-	} else if v > vMax {
-		v = vMax
-	} else if v < vMin {
+	if f > 0 {
+		v, e := positiveFloatToDecimal(f)
+		if v > vMax {
+			v = vMax
+		}
+		return v, e
+	}
+	v, e := positiveFloatToDecimal(-f)
+	v = -v
+	if v < vMin {
 		v = vMin
 	}
 	return v, e
 }
 
+func fromFloatInf(f float64) (int64, int16) {
+	// Special case for Inf
+	if math.IsInf(f, 1) {
+		return vInfPos, 0
+	}
+	return vInfNeg, 0
+}
+
 func positiveFloatToDecimal(f float64) (int64, int16) {
+	// There is no need in checking for f == 0, since it should be already checked by the caller.
+	u := uint64(f)
+	if float64(u) != f {
+		return positiveFloatToDecimalSlow(f)
+	}
+	// Fast path for integers.
+	if u < 1<<55 && u%10 != 0 {
+		return int64(u), 0
+	}
+	return getDecimalAndScale(u)
+}
+
+func getDecimalAndScale(u uint64) (int64, int16) {
 	var scale int16
-	v := int64(f)
-	if f == float64(v) {
-		// Fast path for integers.
-		u := uint64(v)
-		if u%10 != 0 {
-			return v, 0
-		}
-		// Minimize v by converting trailing zeros to scale.
+	for u >= 1<<55 {
+		// Remove trailing garbage bits left after float64->uint64 conversion,
+		// since float64 contains only 53 significant bits.
+		// See https://en.wikipedia.org/wiki/Double-precision_floating-point_format
 		u /= 10
 		scale++
-		for u != 0 && u%10 == 0 {
-			u /= 10
-			scale++
-		}
+	}
+	if u%10 != 0 {
 		return int64(u), scale
 	}
+	// Minimize v by converting trailing zeros to scale.
+	u /= 10
+	scale++
+	for u != 0 && u%10 == 0 {
+		u /= 10
+		scale++
+	}
+	return int64(u), scale
+}
 
+func positiveFloatToDecimalSlow(f float64) (int64, int16) {
 	// Slow path for floating point numbers.
+	var scale int16
+	prec := conversionPrecision
 	if f > 1e6 || f < 1e-6 {
 		// Normalize f, so it is in the small range suitable
 		// for the next loop.
+		if f > 1e6 {
+			// Increase conversion precision for big numbers.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/213
+			prec = 1e15
+		}
 		_, exp := math.Frexp(f)
 		scale = int16(float64(exp) * math.Ln2 / math.Ln10)
 		f *= math.Pow10(-int(scale))
@@ -327,13 +366,13 @@ func positiveFloatToDecimal(f float64) (int64, int16) {
 
 	// Multiply f by 100 until the fractional part becomes
 	// too small comparing to integer part.
-	for f < conversionPrecision {
+	for f < prec {
 		x, frac := math.Modf(f)
-		if frac*conversionPrecision < x {
+		if frac*prec < x {
 			f = x
 			break
 		}
-		if (1-frac)*conversionPrecision < x {
+		if (1-frac)*prec < x {
 			f = x + 1
 			break
 		}

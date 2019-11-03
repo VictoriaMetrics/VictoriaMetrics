@@ -264,8 +264,7 @@ func (db *indexDB) SetExtDB(extDB *indexDB) {
 	// Add deleted metricIDs from extDB to db.
 	if extDB != nil {
 		dmisExt := extDB.getDeletedMetricIDs()
-		metricIDs := dmisExt.AppendTo(nil)
-		db.updateDeletedMetricIDs(metricIDs)
+		db.updateDeletedMetricIDs(dmisExt)
 	}
 
 	db.extDBLock.Lock()
@@ -900,7 +899,11 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	deletedCount := len(metricIDs)
 
 	// atomically add deleted metricIDs to an inmemory map.
-	db.updateDeletedMetricIDs(metricIDs)
+	dmis := &uint64set.Set{}
+	for _, metricID := range metricIDs {
+		dmis.Add(metricID)
+	}
+	db.updateDeletedMetricIDs(dmis)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	invalidateTagCache()
@@ -929,13 +932,11 @@ func (db *indexDB) setDeletedMetricIDs(dmis *uint64set.Set) {
 	db.deletedMetricIDs.Store(dmis)
 }
 
-func (db *indexDB) updateDeletedMetricIDs(metricIDs []uint64) {
+func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	db.deletedMetricIDsUpdateLock.Lock()
 	dmisOld := db.getDeletedMetricIDs()
 	dmisNew := dmisOld.Clone()
-	for _, metricID := range metricIDs {
-		dmisNew.Add(metricID)
-	}
+	dmisNew.Union(metricIDs)
 	db.setDeletedMetricIDs(dmisNew)
 	db.deletedMetricIDsUpdateLock.Unlock()
 }
@@ -1316,10 +1317,10 @@ func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) in
 		return maxMetrics
 	}
 	hourMetrics := hmPrev.m.Len()
-	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
+	if maxMetrics > hourMetrics {
 		// It is cheaper to filter on the hour or day metrics if the minimum
-		// number of matching metrics across tfs exceeds hourMetrics / 4.
-		return hourMetrics / 4
+		// number of matching metrics across tfs exceeds hourMetrics.
+		return hourMetrics
 	}
 	return maxMetrics
 }
@@ -1601,9 +1602,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		}
 		minMetricIDs = mIDs
 	}
-	for _, metricID := range minMetricIDs.AppendTo(nil) {
-		metricIDs.Add(metricID)
-	}
+	metricIDs.Union(minMetricIDs)
 	return nil
 }
 
@@ -1873,10 +1872,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 		return nil, errMissingMetricIDsForDate
 	}
 	atomic.AddUint64(&is.db.recentHourMetricIDsSearchCalls, 1)
-	metricIDs, ok, err := is.getMetricIDsForRecentHours(tr, maxMetrics, accountID, projectID)
-	if err != nil {
-		return nil, err
-	}
+	metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics, accountID, projectID)
 	if ok {
 		// Fast path: tr covers the current and / or the previous hour.
 		// Return the full list of metric ids for this time range.
@@ -1903,38 +1899,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 	return metricIDs, nil
 }
 
-func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, accountID, projectID uint32) (*uint64set.Set, bool, error) {
-	metricIDs, ok := is.getMetricIDsForRecentHoursAll(tr, maxMetrics)
-	if !ok {
-		return nil, false, nil
-	}
-
-	// Filter out metricIDs for non-matching (accountID, projectID).
-	// Sort metricIDs for faster lookups below.
-	sortedMetricIDs := metricIDs.AppendTo(nil)
-	ts := &is.ts
-	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID, accountID, projectID)
-	prefixLen := len(kb.B)
-	kb.B = encoding.MarshalUint64(kb.B, 0)
-	prefix := kb.B[:prefixLen]
-	for _, metricID := range sortedMetricIDs {
-		kb.B = encoding.MarshalUint64(prefix, metricID)
-		ts.Seek(kb.B)
-		if !ts.NextItem() {
-			break
-		}
-		if !bytes.HasPrefix(ts.Item, kb.B) {
-			metricIDs.Del(metricID)
-		}
-	}
-	if err := ts.Error(); err != nil {
-		return nil, false, fmt.Errorf("cannot filter out metricIDs by (accountID=%d, projectID=%d): %s", accountID, projectID, err)
-	}
-	return metricIDs, true, nil
-}
-
-func (is *indexSearch) getMetricIDsForRecentHoursAll(tr TimeRange, maxMetrics int) (*uint64set.Set, bool) {
+func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, accountID, projectID uint32) (*uint64set.Set, bool) {
 	// Return all the metricIDs for all the (AccountID, ProjectID) entries.
 	// The caller is responsible for proper filtering later.
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
@@ -1944,30 +1909,44 @@ func (is *indexSearch) getMetricIDsForRecentHoursAll(tr TimeRange, maxMetrics in
 		// The tr fits the current hour.
 		// Return a copy of hmCurr.m, because the caller may modify
 		// the returned map.
-		if hmCurr.m.Len() > maxMetrics {
+		k := accountProjectKey{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+		m := hmCurr.byTenant[k]
+		if m.Len() > maxMetrics {
 			return nil, false
 		}
-		return hmCurr.m.Clone(), true
+		return m.Clone(), true
 	}
 	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
 		// The tr fits the previous hour.
 		// Return a copy of hmPrev.m, because the caller may modify
 		// the returned map.
-		if hmPrev.m.Len() > maxMetrics {
+		k := accountProjectKey{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+		m := hmPrev.byTenant[k]
+		if m.Len() > maxMetrics {
 			return nil, false
 		}
-		return hmPrev.m.Clone(), true
+		return m.Clone(), true
 	}
 	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
 		// The tr spans the previous and the current hours.
-		if hmCurr.m.Len()+hmPrev.m.Len() > maxMetrics {
+		k := accountProjectKey{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+		mCurr := hmCurr.byTenant[k]
+		mPrev := hmPrev.byTenant[k]
+		if mCurr.Len()+mPrev.Len() > maxMetrics {
 			return nil, false
 		}
-		metricIDs := hmCurr.m.Clone()
-		for _, metricID := range hmPrev.m.AppendTo(nil) {
-			metricIDs.Add(metricID)
-		}
+		metricIDs := mCurr.Clone()
+		metricIDs.Union(mPrev)
 		return metricIDs, true
 	}
 	return nil, false

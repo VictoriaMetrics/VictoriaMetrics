@@ -58,7 +58,7 @@ const defaultPartsToMerge = 15
 // It must be smaller than defaultPartsToMerge.
 // Lower value improves select performance at the cost of increased
 // write amplification.
-const finalPartsToMerge = 3
+const finalPartsToMerge = 2
 
 // getMaxRowsPerPartition returns the maximum number of rows that haven't been converted into parts yet.
 func getMaxRawRowsPerPartition() int {
@@ -734,7 +734,7 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
 	return nil
 }
 
-var mergeWorkers = func() int {
+var mergeWorkersCount = func() int {
 	n := runtime.GOMAXPROCS(-1) / 2
 	if n <= 0 {
 		n = 1
@@ -742,16 +742,47 @@ var mergeWorkers = func() int {
 	return n
 }()
 
+var (
+	bigMergeWorkersCount   = uint64(mergeWorkersCount)
+	smallMergeWorkersCount = uint64(mergeWorkersCount)
+)
+
+var (
+	bigMergeConcurrencyLimitCh   = make(chan struct{}, bigMergeWorkersCount)
+	smallMergeConcurrencyLimitCh = make(chan struct{}, smallMergeWorkersCount)
+)
+
+// SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.
+//
+// The function must be called before opening or creating any storage.
+func SetBigMergeWorkersCount(n int) {
+	if n <= 0 {
+		// Do nothing
+		return
+	}
+	atomic.StoreUint64(&bigMergeWorkersCount, uint64(n))
+}
+
+// SetSmallMergeWorkersCount sets the maximum number of concurrent mergers for small blocks.
+//
+// The function must be called before opening or creating any storage.
+func SetSmallMergeWorkersCount(n int) {
+	if n <= 0 {
+		// Do nothing
+		return
+	}
+	atomic.StoreUint64(&smallMergeWorkersCount, uint64(n))
+}
+
 func (pt *partition) startMergeWorkers() {
-	for i := 0; i < mergeWorkers; i++ {
+	for i := 0; i < mergeWorkersCount; i++ {
 		pt.smallPartsMergerWG.Add(1)
 		go func() {
 			pt.smallPartsMerger()
 			pt.smallPartsMergerWG.Done()
 		}()
 	}
-
-	for i := 0; i < mergeWorkers; i++ {
+	for i := 0; i < mergeWorkersCount; i++ {
 		pt.bigPartsMergerWG.Add(1)
 		go func() {
 			pt.bigPartsMerger()
@@ -798,7 +829,7 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 		if err != errNothingToMerge {
 			return err
 		}
-		if time.Since(lastMergeTime) > 10*time.Second {
+		if time.Since(lastMergeTime) > 30*time.Second {
 			// We have free time for merging into bigger parts.
 			// This should improve select performance.
 			lastMergeTime = time.Now()
@@ -825,11 +856,11 @@ func maxRowsByPath(path string) uint64 {
 
 	// Calculate the maximum number of rows in the output merge part
 	// by dividing the freeSpace by the number of concurrent
-	// mergeWorkers for big parts.
+	// mergeWorkersCount for big parts.
 	// This assumes each row is compressed into 1 byte. Production
 	// simulation shows that each row usually occupies up to 0.5 bytes,
 	// so this is quite safe assumption.
-	maxRows := freeSpace / uint64(mergeWorkers)
+	maxRows := freeSpace / uint64(mergeWorkersCount)
 	if maxRows > maxRowsPerBigPart {
 		maxRows = maxRowsPerBigPart
 	}
@@ -866,6 +897,11 @@ type freeSpaceEntry struct {
 }
 
 func (pt *partition) mergeBigParts(isFinal bool) error {
+	bigMergeConcurrencyLimitCh <- struct{}{}
+	defer func() {
+		<-bigMergeConcurrencyLimitCh
+	}()
+
 	maxRows := maxRowsByPath(pt.bigPartsPath)
 
 	pt.partsLock.Lock()
@@ -885,6 +921,11 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 }
 
 func (pt *partition) mergeSmallParts(isFinal bool) error {
+	smallMergeConcurrencyLimitCh <- struct{}{}
+	defer func() {
+		<-smallMergeConcurrencyLimitCh
+	}()
+
 	maxRows := maxRowsByPath(pt.smallPartsPath)
 	if maxRows > maxRowsPerSmallPart() {
 		// The output part may go to big part,
@@ -1165,13 +1206,10 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	sort.Slice(src, func(i, j int) bool {
 		a := &src[i].p.ph
 		b := &src[j].p.ph
-		if a.RowsCount < b.RowsCount {
-			return true
+		if a.RowsCount == b.RowsCount {
+			return a.MinTimestamp > b.MinTimestamp
 		}
-		if a.RowsCount > b.RowsCount {
-			return false
-		}
-		return a.MinTimestamp > b.MinTimestamp
+		return a.RowsCount < b.RowsCount
 	})
 
 	n := maxPartsToMerge
@@ -1185,36 +1223,40 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	maxM := float64(0)
 	for i := 2; i <= n; i++ {
 		for j := 0; j <= len(src)-i; j++ {
+			a := src[j : j+i]
 			rowsSum := uint64(0)
-			for _, pw := range src[j : j+i] {
+			for _, pw := range a {
 				rowsSum += pw.p.ph.RowsCount
 			}
 			if rowsSum > maxRows {
-				continue
+				// There is no need in verifying remaining parts with higher number of rows
+				break
 			}
-			m := float64(rowsSum) / float64(src[j+i-1].p.ph.RowsCount)
+			m := float64(rowsSum) / float64(a[len(a)-1].p.ph.RowsCount)
 			if m < maxM {
 				continue
 			}
 			maxM = m
-			pws = src[j : j+i]
+			pws = a
 		}
 	}
 
-	minM := float64(maxPartsToMerge / 2)
-	if minM < 2 {
-		minM = 2
+	minM := float64(maxPartsToMerge) / 2
+	if minM < 1.7 {
+		minM = 1.7
 	}
 	if maxM < minM {
 		// There is no sense in merging parts with too small m.
 		return dst
 	}
-
 	return append(dst, pws...)
 }
 
 func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
-	// Verify that the directory for the parts exists.
+	// The path can be missing after restoring from backup, so create it if needed.
+	if err := fs.MkdirAllIfNotExist(path); err != nil {
+		return nil, err
+	}
 	d, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open directory %q: %s", path, err)
