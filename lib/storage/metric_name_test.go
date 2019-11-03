@@ -142,3 +142,82 @@ func TestMetricNameMarshalUnmarshalRaw(t *testing.T) {
 		}
 	}
 }
+
+func TestMetricNameCopyFrom(t *testing.T) {
+	var from MetricName
+	from.MetricGroup = []byte("group")
+	from.AddTag("key", "value")
+
+	var to MetricName
+	to.CopyFrom(&from)
+
+	var expected MetricName
+	expected.MetricGroup = []byte("group")
+	expected.AddTag("key", "value")
+
+	if !reflect.DeepEqual(expected, to) {
+		t.Fatalf("expecting equal metics exp: %s, got %s", expected, to)
+	}
+}
+
+func TestMetricNameRemoveTagsOn(t *testing.T) {
+	var emptyMN MetricName
+	emptyMN.MetricGroup = []byte("name")
+	emptyMN.AddTag("key", "value")
+	emptyMN.RemoveTagsOn(nil)
+	if len(emptyMN.MetricGroup) != 0 || len(emptyMN.Tags) != 0 {
+		t.Fatalf("expecitng empty metric name got %s", emptyMN)
+	}
+
+	var asIsMN MetricName
+	asIsMN.MetricGroup = []byte("name")
+	asIsMN.AddTag("key", "value")
+	asIsMN.RemoveTagsOn([]string{"__name__", "key"})
+	var expAsIsMN MetricName
+	expAsIsMN.MetricGroup = []byte("name")
+	expAsIsMN.AddTag("key", "value")
+	if !reflect.DeepEqual(expAsIsMN, asIsMN) {
+		t.Fatalf("expecitng %s got %s", expAsIsMN, asIsMN)
+	}
+
+	var mn MetricName
+	mn.MetricGroup = []byte("name")
+	mn.AddTag("foo", "bar")
+	mn.AddTag("baz", "qux")
+	mn.RemoveTagsOn([]string{"baz"})
+	var expMN MetricName
+	expMN.AddTag("baz", "qux")
+	if !reflect.DeepEqual(expMN.Tags, mn.Tags) || len(mn.MetricGroup) != len(expMN.MetricGroup) {
+		t.Fatalf("expecitng %s got %s", expMN, mn)
+	}
+}
+
+func TestMetricNameRemoveTag(t *testing.T) {
+	var mn MetricName
+	mn.MetricGroup = []byte("name")
+	mn.AddTag("foo", "bar")
+	mn.AddTag("baz", "qux")
+	mn.RemoveTag("__name__")
+	if len(mn.MetricGroup) != 0 {
+		t.Fatalf("expecting empty metric group got %s", mn)
+	}
+	mn.RemoveTag("foo")
+	var expMN MetricName
+	expMN.AddTag("baz", "qux")
+	if !reflect.DeepEqual(expMN.Tags, mn.Tags) || len(mn.MetricGroup) != len(expMN.MetricGroup) {
+		t.Fatalf("expecitng %s got %s", expMN, mn)
+	}
+}
+
+func TestMetricNameRemoveTagsIgnoring(t *testing.T) {
+	var mn MetricName
+	mn.MetricGroup = []byte("name")
+	mn.AddTag("foo", "bar")
+	mn.AddTag("baz", "qux")
+	mn.RemoveTagsIgnoring([]string{"__name__", "foo"})
+	var expMN MetricName
+	expMN.AddTag("baz", "qux")
+	if !reflect.DeepEqual(expMN.Tags, mn.Tags) || len(mn.MetricGroup) != len(expMN.MetricGroup) {
+		t.Fatalf("expecitng %s got %s", expMN, mn)
+	}
+}
