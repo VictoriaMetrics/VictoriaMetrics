@@ -1299,10 +1299,10 @@ func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) in
 		return maxMetrics
 	}
 	hourMetrics := hmPrev.m.Len()
-	if hourMetrics >= 256 && maxMetrics > hourMetrics/4 {
+	if maxMetrics > hourMetrics {
 		// It is cheaper to filter on the hour or day metrics if the minimum
-		// number of matching metrics across tfs exceeds hourMetrics / 4.
-		return hourMetrics / 4
+		// number of matching metrics across tfs exceeds hourMetrics.
+		return hourMetrics
 	}
 	return maxMetrics
 }
