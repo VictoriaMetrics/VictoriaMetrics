@@ -126,6 +126,14 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 	return dst
 }
 
+// Union adds all the items from a to s.
+func (s *Set) Union(a *Set) {
+	// TODO: optimize it
+	for _, x := range a.AppendTo(nil) {
+		s.Add(x)
+	}
+}
+
 type bucket32 struct {
 	hi      uint32
 	b16his  []uint16

@@ -938,12 +938,10 @@ func (s *Storage) updateCurrHourMetricIDs() {
 		isFull = true
 	}
 	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDs := s.pendingHourMetricIDs.AppendTo(nil)
+	newMetricIDs := s.pendingHourMetricIDs
 	s.pendingHourMetricIDs = &uint64set.Set{}
 	s.pendingHourMetricIDsLock.Unlock()
-	for _, metricID := range newMetricIDs {
-		m.Add(metricID)
-	}
+	m.Union(newMetricIDs)
 
 	hmNew := &hourMetricIDs{
 		m:      m,

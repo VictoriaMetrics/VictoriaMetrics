@@ -264,8 +264,7 @@ func (db *indexDB) SetExtDB(extDB *indexDB) {
 	// Add deleted metricIDs from extDB to db.
 	if extDB != nil {
 		dmisExt := extDB.getDeletedMetricIDs()
-		metricIDs := dmisExt.AppendTo(nil)
-		db.updateDeletedMetricIDs(metricIDs)
+		db.updateDeletedMetricIDs(dmisExt)
 	}
 
 	db.extDBLock.Lock()
@@ -885,7 +884,11 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	deletedCount := len(metricIDs)
 
 	// atomically add deleted metricIDs to an inmemory map.
-	db.updateDeletedMetricIDs(metricIDs)
+	dmis := &uint64set.Set{}
+	for _, metricID := range metricIDs {
+		dmis.Add(metricID)
+	}
+	db.updateDeletedMetricIDs(dmis)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	invalidateTagCache()
@@ -914,13 +917,11 @@ func (db *indexDB) setDeletedMetricIDs(dmis *uint64set.Set) {
 	db.deletedMetricIDs.Store(dmis)
 }
 
-func (db *indexDB) updateDeletedMetricIDs(metricIDs []uint64) {
+func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	db.deletedMetricIDsUpdateLock.Lock()
 	dmisOld := db.getDeletedMetricIDs()
 	dmisNew := dmisOld.Clone()
-	for _, metricID := range metricIDs {
-		dmisNew.Add(metricID)
-	}
+	dmisNew.Union(metricIDs)
 	db.setDeletedMetricIDs(dmisNew)
 	db.deletedMetricIDsUpdateLock.Unlock()
 }
@@ -1584,9 +1585,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		}
 		minMetricIDs = mIDs
 	}
-	for _, metricID := range minMetricIDs.AppendTo(nil) {
-		metricIDs.Add(metricID)
-	}
+	metricIDs.Union(minMetricIDs)
 	return nil
 }
 
@@ -1911,9 +1910,7 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) 
 			return nil, false
 		}
 		metricIDs := hmCurr.m.Clone()
-		for _, metricID := range hmPrev.m.AppendTo(nil) {
-			metricIDs.Add(metricID)
-		}
+		metricIDs.Union(hmPrev.m)
 		return metricIDs, true
 	}
 	return nil, false
