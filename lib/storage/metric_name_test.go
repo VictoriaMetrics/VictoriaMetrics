@@ -156,7 +156,7 @@ func TestMetricNameCopyFrom(t *testing.T) {
 	expected.AddTag("key", "value")
 
 	if !reflect.DeepEqual(expected, to) {
-		t.Fatalf("expecting equal metics exp: %s, got %s", expected, to)
+		t.Fatalf("expecting equal metics exp: %s, got %s", &expected, &to)
 	}
 }
 
@@ -166,7 +166,7 @@ func TestMetricNameRemoveTagsOn(t *testing.T) {
 	emptyMN.AddTag("key", "value")
 	emptyMN.RemoveTagsOn(nil)
 	if len(emptyMN.MetricGroup) != 0 || len(emptyMN.Tags) != 0 {
-		t.Fatalf("expecitng empty metric name got %s", emptyMN)
+		t.Fatalf("expecitng empty metric name got %s", &emptyMN)
 	}
 
 	var asIsMN MetricName
@@ -177,7 +177,7 @@ func TestMetricNameRemoveTagsOn(t *testing.T) {
 	expAsIsMN.MetricGroup = []byte("name")
 	expAsIsMN.AddTag("key", "value")
 	if !reflect.DeepEqual(expAsIsMN, asIsMN) {
-		t.Fatalf("expecitng %s got %s", expAsIsMN, asIsMN)
+		t.Fatalf("expecitng %s got %s", &expAsIsMN, &asIsMN)
 	}
 
 	var mn MetricName
@@ -188,7 +188,7 @@ func TestMetricNameRemoveTagsOn(t *testing.T) {
 	var expMN MetricName
 	expMN.AddTag("baz", "qux")
 	if !reflect.DeepEqual(expMN.Tags, mn.Tags) || len(mn.MetricGroup) != len(expMN.MetricGroup) {
-		t.Fatalf("expecitng %s got %s", expMN, mn)
+		t.Fatalf("expecitng %s got %s", &expMN, &mn)
 	}
 }
 
@@ -199,13 +199,13 @@ func TestMetricNameRemoveTag(t *testing.T) {
 	mn.AddTag("baz", "qux")
 	mn.RemoveTag("__name__")
 	if len(mn.MetricGroup) != 0 {
-		t.Fatalf("expecting empty metric group got %s", mn)
+		t.Fatalf("expecting empty metric group got %s", &mn)
 	}
 	mn.RemoveTag("foo")
 	var expMN MetricName
 	expMN.AddTag("baz", "qux")
 	if !reflect.DeepEqual(expMN.Tags, mn.Tags) || len(mn.MetricGroup) != len(expMN.MetricGroup) {
-		t.Fatalf("expecitng %s got %s", expMN, mn)
+		t.Fatalf("expecitng %s got %s", &expMN, &mn)
 	}
 }
 
@@ -218,6 +218,6 @@ func TestMetricNameRemoveTagsIgnoring(t *testing.T) {
 	var expMN MetricName
 	expMN.AddTag("baz", "qux")
 	if !reflect.DeepEqual(expMN.Tags, mn.Tags) || len(mn.MetricGroup) != len(expMN.MetricGroup) {
-		t.Fatalf("expecitng %s got %s", expMN, mn)
+		t.Fatalf("expecitng %s got %s", &expMN, &mn)
 	}
 }
