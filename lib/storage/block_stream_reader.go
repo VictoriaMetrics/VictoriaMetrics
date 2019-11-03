@@ -25,9 +25,13 @@ type blockStreamReader struct {
 
 	ph partHeader
 
-	timestampsReader filestream.ReadCloser
-	valuesReader     filestream.ReadCloser
-	indexReader      filestream.ReadCloser
+	// Use io.Reader type for timestampsReader and valuesReader
+	// in order to remove I2I conversion in readBlock
+	// when passing them to fs.ReadFullData
+	timestampsReader io.Reader
+	valuesReader     io.Reader
+
+	indexReader filestream.ReadCloser
 
 	mrs []metaindexRow
 
@@ -54,6 +58,11 @@ type blockStreamReader struct {
 	indexCursor []byte
 
 	err error
+}
+
+func (bsr *blockStreamReader) assertWriteClosers() {
+	_ = bsr.timestampsReader.(filestream.ReadCloser)
+	_ = bsr.valuesReader.(filestream.ReadCloser)
 }
 
 func (bsr *blockStreamReader) reset() {
@@ -108,6 +117,8 @@ func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal metaindex rows from inmemoryPart: %s", err)
 	}
+
+	bsr.assertWriteClosers()
 }
 
 // InitFromFilePart initializes bsr from a file-based part on the given path.
@@ -167,6 +178,8 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	bsr.indexReader = indexFile
 	bsr.mrs = mrs
 
+	bsr.assertWriteClosers()
+
 	return nil
 }
 
@@ -174,8 +187,8 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 //
 // It closes *Reader files passed to Init.
 func (bsr *blockStreamReader) MustClose() {
-	bsr.timestampsReader.MustClose()
-	bsr.valuesReader.MustClose()
+	bsr.timestampsReader.(filestream.ReadCloser).MustClose()
+	bsr.valuesReader.(filestream.ReadCloser).MustClose()
 	bsr.indexReader.MustClose()
 
 	bsr.reset()
