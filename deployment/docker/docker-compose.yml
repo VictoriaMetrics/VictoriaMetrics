@@ -14,25 +14,41 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    networks:
-      - docker_net
     restart: always
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:6.3.5
+    entrypoint: >
+      /bin/sh -c "
+      cd /var/lib/grafana &&
+      mkdir -p dashboards &&
+      sed 's/$${DS_PROMETHEUS}/Prometheus/g' vm.json > dashboards/vm.json &&
+      /run.sh"
+    depends_on:
+      - "prometheus"
+    ports:
+      - 3000:3000
+    restart: always
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./provisioning/:/etc/grafana/provisioning/
+      - ./provisioning/dashboards/:/var/lib/grafana/dashboards
+      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/vm.json
+
   vmstorage:
     container_name: vmstorage
     image: victoriametrics/vmstorage:v1.28.0-cluster
     ports:
-      - 8482:8482
-      - 8400:8400
-      - 8401:8401
+      - 8482
+      - 8400
+      - 8401
     volumes:
       - strgdata:/storage
     command:
       - '--storageDataPath=/storage'
-    networks:
-    - docker_net
     restart: always
+
   vminsert:
     container_name: vminsert
     image: victoriametrics/vminsert:v1.28.0-cluster
@@ -41,10 +57,9 @@ services:
     command:
       - '--storageNode=vmstorage:8400'
     ports:
-      - 8480:8480
-    networks:
-      - docker_net
+      - 8480
     restart: always
+
   vmselect:
     container_name: vmselect
     image: victoriametrics/vmselect:v1.28.0-cluster
@@ -54,12 +69,9 @@ services:
       - '--storageNode=vmstorage:8401'
     ports:
       - 8481:8481
-    networks:
-      - docker_net
     restart: always
+
 volumes:
   promdata: {}
   strgdata: {}
-networks:
-  docker_net:
-    driver: bridge
+  grafanadata: {}
