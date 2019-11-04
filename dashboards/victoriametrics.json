@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1572822446345,
+  "iteration": 1572853922293,
   "links": [],
   "panels": [
     {
@@ -96,7 +96,7 @@
         {
           "expr": "sum(vm_rows{job=\"$job_storage\", type=\"indexdb\"})",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "intervalFactor": 1,
           "refId": "A"
         }
@@ -181,7 +181,7 @@
         {
           "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "intervalFactor": 1,
           "refId": "A"
         }
@@ -266,7 +266,7 @@
         {
           "expr": "sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"})",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "intervalFactor": 1,
           "refId": "A"
         }
@@ -360,7 +360,7 @@
       ],
       "targets": [
         {
-          "expr": "sort((time() - vm_app_start_timestamp{job=~\"$job\"}) or (up{job=~\"$job\"}))",
+          "expr": "sort((time() - vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}) or (up{job=~\"$job\", instance=~\"$instance\"}))",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -421,7 +421,7 @@
       "steppedLine": true,
       "targets": [
         {
-          "expr": "sort(sum(up{job=~\"$job\"}) by (job, instance))",
+          "expr": "sort(sum(up{job=~\"$job\", instance=~\"$instance\"}) by (job, instance))",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{instance}}({{job}})",
@@ -1097,7 +1097,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m]) + \nrate(process_cpu_seconds_system_total{job=~\"$job\", instance=~\"$instance\"}[5m])",
+              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -3913,8 +3913,6 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "tags": [],
           "text": "Prometheus",
           "value": "Prometheus"
         },
@@ -4008,7 +4006,6 @@
       {
         "allValue": null,
         "current": {
-          "tags": [],
           "text": "All",
           "value": [
             "$__all"
