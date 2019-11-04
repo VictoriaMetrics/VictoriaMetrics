@@ -26,6 +26,9 @@ package: package-victoria-metrics
 release: victoria-metrics-prod
 	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz victoria-metrics-prod
 
+pprof-cpu:
+	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
+
 fmt:
 	GO111MODULE=on gofmt -l -w -s ./lib
 	GO111MODULE=on gofmt -l -w -s ./app
