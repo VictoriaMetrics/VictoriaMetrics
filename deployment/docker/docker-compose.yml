@@ -18,7 +18,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:6.3.5
+    image: grafana/grafana:6.4.3
     entrypoint: >
       /bin/sh -c "
       cd /var/lib/grafana &&

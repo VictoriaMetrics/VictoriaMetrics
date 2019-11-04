@@ -15,11 +15,12 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1572853922293,
+  "iteration": 1572907618684,
   "links": [],
   "panels": [
     {
       "collapsed": false,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -179,7 +180,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})",
+          "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"})",
           "format": "time_series",
           "instant": true,
           "intervalFactor": 1,
@@ -1048,6 +1049,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1068,7 +1070,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2
+            "y": 35
           },
           "id": 64,
           "legend": {
@@ -1158,7 +1160,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2
+            "y": 35
           },
           "id": 66,
           "legend": {
@@ -1187,7 +1189,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum({job=~\"$job\", instance=~\"$instance\", __name__=~\"go_memstats_(sys|heap_inuse)_bytes\"}) by (instance)",
+              "expr": "sum({job=~\"$job\", instance=~\"$instance\", __name__=~\"go_memstats_(sys|heap_inuse)_bytes\"}) by (instance) + \nsum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "legendFormat": "{{instance}}",
               "refId": "A"
             }
@@ -1245,7 +1247,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 10
+            "y": 43
           },
           "id": 68,
           "legend": {
@@ -1335,7 +1337,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 10
+            "y": 43
           },
           "id": 70,
           "legend": {
@@ -1425,7 +1427,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 18
+            "y": 51
           },
           "id": 72,
           "legend": {
@@ -1454,7 +1456,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(go_gc_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"1\"}) by(instance)",
+              "expr": "max(go_gc_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"1\"}) by(instance)",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "{{instance}}",
@@ -1508,6 +1510,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2187,6 +2190,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2398,6 +2402,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3170,6 +3175,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3191,7 +3197,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 39
           },
           "id": 92,
           "legend": {
@@ -3284,7 +3290,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 39
           },
           "id": 95,
           "legend": {
@@ -3393,7 +3399,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 14
+            "y": 47
           },
           "id": 93,
           "legend": {
@@ -3492,6 +3498,7 @@
     },
     {
       "collapsed": true,
+      "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3513,7 +3520,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 40
           },
           "id": 97,
           "legend": {
@@ -3606,7 +3613,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 40
           },
           "id": 99,
           "legend": {
@@ -3715,7 +3722,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 48
           },
           "id": 90,
           "legend": {
@@ -3821,7 +3828,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 48
           },
           "id": 88,
           "legend": {
@@ -3906,7 +3913,7 @@
       "type": "row"
     }
   ],
-  "schemaVersion": 19,
+  "schemaVersion": 20,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -4085,5 +4092,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 1
+  "version": 2
 }
