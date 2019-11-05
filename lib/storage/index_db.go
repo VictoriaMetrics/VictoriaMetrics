@@ -2359,7 +2359,7 @@ func checkItemsSorted(items [][]byte) error {
 	prevItem := items[0]
 	for _, currItem := range items[1:] {
 		if string(prevItem) > string(currItem) {
-			return fmt.Errorf("items aren't sorted: prevItem > currItem\nprevItem=%X\ncurrItem=%X\nitems=%X", prevItem, currItem, items)
+			return fmt.Errorf("items aren't sorted: prevItem > currItem; prevItem=%X; currItem=%X; items=%X", prevItem, currItem, items)
 		}
 		prevItem = currItem
 	}
