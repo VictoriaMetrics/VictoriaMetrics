@@ -1630,7 +1630,7 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (
 	}
 
 	// Slow path - scan for all the rows with the given prefix.
-	maxLoops := maxMetrics * maxIndexScanLoopsPerMetric
+	maxLoops := maxMetrics * maxIndexScanSlowLoopsPerMetric
 	err := is.getMetricIDsForTagFilterSlow(tf, maxLoops, func(metricID uint64) bool {
 		metricIDs.Add(metricID)
 		return metricIDs.Len() < maxMetrics
@@ -2053,10 +2053,15 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, maxMetrics i
 	return nil
 }
 
-// The maximum number of index scan loops per already found metric.
+// The maximum number of index scan loops.
 // Bigger number of loops is slower than updateMetricIDsByMetricNameMatch
 // over the found metrics.
 const maxIndexScanLoopsPerMetric = 100
+
+// The maximum number of slow index scan loops per.
+// Bigger number of loops is slower than updateMetricIDsByMetricNameMatch
+// over the found metrics.
+const maxIndexScanSlowLoopsPerMetric = 20
 
 func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	if filter.Len() == 0 {
@@ -2087,7 +2092,6 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *ui
 }
 
 func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
-
 	metricIDs := filter
 	if !tf.isNegative {
 		metricIDs = &uint64set.Set{}
@@ -2104,7 +2108,7 @@ func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, fil
 	}
 
 	// Slow path - scan for all the rows with the given prefix.
-	maxLoops := filter.Len() * maxIndexScanLoopsPerMetric
+	maxLoops := filter.Len() * maxIndexScanSlowLoopsPerMetric
 	err := is.getMetricIDsForTagFilterSlow(tf, maxLoops, func(metricID uint64) bool {
 		if tf.isNegative {
 			// filter must be equal to metricIDs
