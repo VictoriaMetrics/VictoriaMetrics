@@ -58,7 +58,7 @@ const defaultPartsToMerge = 15
 // It must be smaller than defaultPartsToMerge.
 // Lower value improves select performance at the cost of increased
 // write amplification.
-const finalPartsToMerge = 2
+const finalPartsToMerge = 3
 
 // getMaxRowsPerPartition returns the maximum number of rows that haven't been converted into parts yet.
 func getMaxRawRowsPerPartition() int {
