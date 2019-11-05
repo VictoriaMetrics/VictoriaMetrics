@@ -1591,7 +1591,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		if tf == minTf {
 			continue
 		}
-		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
+		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs, tfs.accountID, tfs.projectID)
 		if err == errFallbackToMetricNameMatch {
 			// The tag filter requires too many index scans. Postpone it,
 			// so tag filters with lower number of index scans may be applied.
@@ -1608,7 +1608,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed, tfs.accountID, tfs.projectID)
 	}
 	for i, tf := range tfsPostponed {
-		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
+		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs, tfs.accountID, tfs.projectID)
 		if err == errFallbackToMetricNameMatch {
 			return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed[i:], tfs.accountID, tfs.projectID)
 		}
@@ -1625,6 +1625,7 @@ const (
 	uselessSingleTagFilterKeyPrefix   = 0
 	uselessMultiTagFiltersKeyPrefix   = 1
 	uselessNegativeTagFilterKeyPrefix = 2
+	uselessTagIntersectKeyPrefix      = 3
 )
 
 var uselessTagFilterCacheValue = []byte("1")
@@ -2093,10 +2094,36 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, accountID, p
 // over the found metrics.
 const maxIndexScanLoopsPerMetric = 100
 
-func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
+func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set, accountID, projectID uint32) (*uint64set.Set, error) {
 	if filter.Len() == 0 {
 		return nil, nil
 	}
+	kb := &is.kb
+	filterLenRounded := (uint64(filter.Len()) / 1024) * 1024
+	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
+	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
+	kb.B = tf.Marshal(kb.B, accountID, projectID)
+	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
+		// Skip useless work, since the intersection will return
+		// errFallbackToMetricNameMatc for the given filter.
+		return nil, errFallbackToMetricNameMatch
+	}
+	metricIDs, err := is.intersectMetricIDsWithTagFilterNocache(tf, filter)
+	if err == nil {
+		return metricIDs, err
+	}
+	if err != errFallbackToMetricNameMatch {
+		return nil, err
+	}
+	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
+	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
+	kb.B = tf.Marshal(kb.B, accountID, projectID)
+	is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
+	return nil, errFallbackToMetricNameMatch
+}
+
+func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
+
 	metricIDs := filter
 	if !tf.isNegative {
 		metricIDs = &uint64set.Set{}
