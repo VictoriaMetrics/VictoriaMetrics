@@ -2055,7 +2055,7 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, maxMetrics i
 // The maximum number of index scan loops per already found metric.
 // Bigger number of loops is slower than updateMetricIDsByMetricNameMatch
 // over the found metrics.
-const maxIndexScanLoopsPerMetric = 400
+const maxIndexScanLoopsPerMetric = 100
 
 func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	if filter.Len() == 0 {
