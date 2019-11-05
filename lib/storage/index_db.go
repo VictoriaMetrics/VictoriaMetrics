@@ -1561,7 +1561,22 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 
 func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	// Sort tag filters for faster ts.Seek below.
-	sort.Slice(tfs.tfs, func(i, j int) bool { return bytes.Compare(tfs.tfs[i].prefix, tfs.tfs[j].prefix) < 0 })
+	sort.Slice(tfs.tfs, func(i, j int) bool {
+		// Move regexp and negative filters to the end, since they require scanning
+		// all the entries for the given label.
+		a := &tfs.tfs[i]
+		b := &tfs.tfs[j]
+		if a.isRegexp != b.isRegexp {
+			return !a.isRegexp
+		}
+		if a.isNegative != b.isNegative {
+			return !a.isNegative
+		}
+		if len(a.orSuffixes) != len(b.orSuffixes) {
+			return len(a.orSuffixes) < len(b.orSuffixes)
+		}
+		return bytes.Compare(a.prefix, b.prefix) < 0
+	})
 
 	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
 	if err != nil {
