@@ -1608,6 +1608,7 @@ const (
 	uselessSingleTagFilterKeyPrefix   = 0
 	uselessMultiTagFiltersKeyPrefix   = 1
 	uselessNegativeTagFilterKeyPrefix = 2
+	uselessTagIntersectKeyPrefix      = 3
 )
 
 var uselessTagFilterCacheValue = []byte("1")
@@ -2061,6 +2062,32 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *ui
 	if filter.Len() == 0 {
 		return nil, nil
 	}
+	kb := &is.kb
+	filterLenRounded := (uint64(filter.Len()) / 1024) * 1024
+	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
+	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
+	kb.B = tf.Marshal(kb.B)
+	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
+		// Skip useless work, since the intersection will return
+		// errFallbackToMetricNameMatc for the given filter.
+		return nil, errFallbackToMetricNameMatch
+	}
+	metricIDs, err := is.intersectMetricIDsWithTagFilterNocache(tf, filter)
+	if err == nil {
+		return metricIDs, err
+	}
+	if err != errFallbackToMetricNameMatch {
+		return nil, err
+	}
+	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
+	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
+	kb.B = tf.Marshal(kb.B)
+	is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
+	return nil, errFallbackToMetricNameMatch
+}
+
+func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
+
 	metricIDs := filter
 	if !tf.isNegative {
 		metricIDs = &uint64set.Set{}
