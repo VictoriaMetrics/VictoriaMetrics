@@ -392,12 +392,17 @@ func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
 	db.metricNameCache.Set(key[:], metricName)
 }
 
-func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, versioned bool) []byte {
+func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {
 	prefix := ^uint64(0)
 	if versioned {
 		prefix = atomic.LoadUint64(&tagFiltersKeyGen)
 	}
+	const cacheGranularityMs = 1000 * 60 * 5
+	startTime := (uint64(tr.MinTimestamp) / cacheGranularityMs) * cacheGranularityMs
+	endTime := (uint64(tr.MaxTimestamp) / cacheGranularityMs) * cacheGranularityMs
 	dst = encoding.MarshalUint64(dst, prefix)
+	dst = encoding.MarshalUint64(dst, startTime)
+	dst = encoding.MarshalUint64(dst, endTime)
 	if len(tfss) == 0 {
 		return dst
 	}
@@ -974,7 +979,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 
-	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, true)
+	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, tr, true)
 	tsids, ok := db.getFromTagCache(tfKeyBuf.B)
 	if ok {
 		// Fast path - tsids found in the cache.
@@ -995,7 +1000,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 		defer tagFiltersKeyBufPool.Put(tfKeyExtBuf)
 
 		// Data in extDB cannot be changed, so use unversioned keys for tag cache.
-		tfKeyExtBuf.B = marshalTagFiltersKey(tfKeyExtBuf.B[:0], tfss, false)
+		tfKeyExtBuf.B = marshalTagFiltersKey(tfKeyExtBuf.B[:0], tfss, tr, false)
 		tsids, ok := extDB.getFromTagCache(tfKeyExtBuf.B)
 		if ok {
 			extTSIDs = tsids
@@ -1272,7 +1277,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	maxTimeRangeMetrics := 20 * maxMetrics
 	metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1, tfs.accountID, tfs.projectID)
 	if err == errMissingMetricIDsForDate {
-		// Slow path: try to select find the tag filter without maxMetrics adjustement.
+		// Slow path: try to find the tag filter without maxMetrics adjustement.
 		minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
 		if err == nil {
 			return minTf, minMetricIDs, nil
