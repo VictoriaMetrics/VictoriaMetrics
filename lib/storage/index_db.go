@@ -201,6 +201,9 @@ type IndexDBMetrics struct {
 	DateMetricIDsSearchCalls       uint64
 	DateMetricIDsSearchHits        uint64
 
+	IndexBlocksWithMetricIDsProcessed      uint64
+	IndexBlocksWithMetricIDsIncorrectOrder uint64
+
 	mergeset.TableMetrics
 }
 
@@ -234,6 +237,9 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.RecentHourMetricIDsSearchHits += atomic.LoadUint64(&db.recentHourMetricIDsSearchHits)
 	m.DateMetricIDsSearchCalls += atomic.LoadUint64(&db.dateMetricIDsSearchCalls)
 	m.DateMetricIDsSearchHits += atomic.LoadUint64(&db.dateMetricIDsSearchHits)
+
+	m.IndexBlocksWithMetricIDsProcessed = atomic.LoadUint64(&indexBlocksWithMetricIDsProcessed)
+	m.IndexBlocksWithMetricIDsIncorrectOrder = atomic.LoadUint64(&indexBlocksWithMetricIDsIncorrectOrder)
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
@@ -2338,8 +2344,23 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	if len(tmm.pendingMetricIDs) > 0 {
 		logger.Panicf("BUG: tmm.pendingMetricIDs must be empty at this point; got %d items: %d", len(tmm.pendingMetricIDs), tmm.pendingMetricIDs)
 	}
-	if err := checkItemsSorted(dstItems); err != nil {
-		logger.Errorf("please report this error at https://github.com/VictoriaMetrics/VictoriaMetrics/issues : %s", err)
+	if !checkItemsSorted(dstItems) {
+		// Items could become unsorted if initial items contain duplicate metricIDs:
+		//
+		//   item1: 1, 1, 5
+		//   item2: 1, 4
+		//
+		// Items could become the following after the merge:
+		//
+		//   item1: 1, 5
+		//   item2: 1, 4
+		//
+		// i.e. item1 > item2
+		//
+		// Leave the original items unmerged, so they can be merged next time.
+		// This case should be quite rare - if multiple data points are simultaneously inserted
+		// into the same new time series from multiple concurrent goroutines.
+		atomic.AddUint64(&indexBlocksWithMetricIDsIncorrectOrder, 1)
 		dstData = append(dstData[:0], tmm.dataCopy...)
 		dstItems = dstItems[:0]
 		// tmm.itemsCopy can point to overwritten data, so it must be updated
@@ -2349,26 +2370,30 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 			dstItems = append(dstItems, buf[:len(item)])
 			buf = buf[len(item):]
 		}
-		if err := checkItemsSorted(dstItems); err != nil {
-			logger.Panicf("BUG: the original items weren't sorted: %s", err)
+		if !checkItemsSorted(dstItems) {
+			logger.Panicf("BUG: the original items weren't sorted; items=%q", dstItems)
 		}
 	}
 	putTagToMetricIDsRowsMerger(tmm)
+	atomic.AddUint64(&indexBlocksWithMetricIDsProcessed, 1)
 	return dstData, dstItems
 }
 
-func checkItemsSorted(items [][]byte) error {
+var indexBlocksWithMetricIDsIncorrectOrder uint64
+var indexBlocksWithMetricIDsProcessed uint64
+
+func checkItemsSorted(items [][]byte) bool {
 	if len(items) == 0 {
-		return nil
+		return true
 	}
 	prevItem := items[0]
 	for _, currItem := range items[1:] {
 		if string(prevItem) > string(currItem) {
-			return fmt.Errorf("items aren't sorted: prevItem > currItem; prevItem=%X; currItem=%X; items=%X", prevItem, currItem, items)
+			return false
 		}
 		prevItem = currItem
 	}
-	return nil
+	return true
 }
 
 // maxMetricIDsPerRow limits the number of metricIDs in tag->metricIDs row.

@@ -25,15 +25,15 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 			data = append(data, item...)
 			itemsB = append(itemsB, data[len(data)-len(item):])
 		}
-		if err := checkItemsSorted(itemsB); err != nil {
-			t.Fatalf("source items aren't sorted: %s", err)
+		if !checkItemsSorted(itemsB) {
+			t.Fatalf("source items aren't sorted; items:\n%q", itemsB)
 		}
 		resultData, resultItemsB := mergeTagToMetricIDsRows(data, itemsB)
 		if len(resultItemsB) != len(expectedItems) {
 			t.Fatalf("unexpected len(resultItemsB); got %d; want %d", len(resultItemsB), len(expectedItems))
 		}
-		if err := checkItemsSorted(resultItemsB); err != nil {
-			t.Fatalf("result items aren't sorted: %s", err)
+		if !checkItemsSorted(resultItemsB) {
+			t.Fatalf("result items aren't sorted; items:\n%q", resultItemsB)
 		}
 		for i, item := range resultItemsB {
 			if !bytes.HasPrefix(resultData, item) {
