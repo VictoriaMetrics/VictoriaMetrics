@@ -265,6 +265,12 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_date_metric_ids_search_hits_total`, func() float64 {
 		return float64(idbm().DateMetricIDsSearchHits)
 	})
+	metrics.NewGauge(`vm_index_blocks_with_metric_ids_processed_total`, func() float64 {
+		return float64(idbm().IndexBlocksWithMetricIDsProcessed)
+	})
+	metrics.NewGauge(`vm_index_blocks_with_metric_ids_incorrect_order_total`, func() float64 {
+		return float64(idbm().IndexBlocksWithMetricIDsIncorrectOrder)
+	})
 
 	metrics.NewGauge(`vm_assisted_merges_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallAssistedMerges)
