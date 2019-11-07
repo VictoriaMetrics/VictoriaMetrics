@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1573112898957,
+  "iteration": 1573115583191,
   "links": [],
   "panels": [
     {
@@ -126,7 +126,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "Prometheus",
+      "datasource": "$ds",
       "description": "Total amount of used disk space",
       "format": "bytes",
       "gauge": {
@@ -882,28 +882,28 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_rpc_connection_errors_total{job=\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Connection",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(vm_rpc_dial_errors_total{job=\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Dial",
           "refId": "B"
         },
         {
-          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Handshake",
           "refId": "E"
         },
         {
-          "expr": "sum(rate(vm_rpc_reroute_errors_total{job=\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_rpc_reroute_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Reroute",
@@ -3427,7 +3427,7 @@
           "renderer": "flot",
           "seriesOverrides": [
             {
-              "alias": "/write.*/",
+              "alias": "/read.*/",
               "transform": "negative-Y"
             }
           ],
@@ -3920,7 +3920,6 @@
     "list": [
       {
         "current": {
-          "tags": [],
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },
@@ -4092,5 +4091,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 1
+  "version": 2
 }
