@@ -238,9 +238,8 @@ for protecting from user errors such as accidental data deletion.
 The following steps must be performed for each `vmstorage` node for creating a backup:
 
 1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
-2. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using any suitable tool that follows symlinks. For instance,
-   `cp -L`, `rsync -L` or `scp -r`. The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
-   Incremental backups are possible with `rsync --delete`, which should [remove extraneous files from backup dir](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
+2. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/app/vmbackup/README.md).
+   The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
 3. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
 
 There is no need in synchronizing backups among all the `vmstorage` nodes.
@@ -249,7 +248,7 @@ Restoring from backup:
 
 1. Stop `vmstorage` node with `kill -INT`.
 2. Delete all the contents of the directory pointed by `-storageDataPath` command-line flag.
-3. Copy all the contents of the backup directory to `-storageDataPath` directory.
+3. Restore data from backup using [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/app/vmrestore/README.md) into `-storageDataPath` directory.
 4. Start `vmstorage` node.
 
 

@@ -29,18 +29,35 @@ clean:
 publish: \
 	publish-vmstorage \
 	publish-vmselect \
-	publish-vminsert
+	publish-vminsert \
+	publish-vmbackup \
+	publish-vmrestore
 
 package: \
 	package-vmstorage \
 	package-vmselect \
-	package-vminsert
+	package-vminsert \
+	package-vmbackup \
+	package-vmrestore
+
+vmutils: \
+	vmbackup \
+	vmrestore
 
 release: \
+	release-vmcluster \
+	release-vmutils
+
+release-vmcluster: \
 	vminsert-prod \
 	vmselect-prod \
 	vmstorage-prod
 	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vminsert-prod vmselect-prod vmstorage-prod
+
+release-vmutils: \
+	vmbackup-prod \
+	vmrestore-prod
+	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmbackup-prod vmrestore-prod
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -58,13 +75,15 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go get -u github.com/golang/lint/golint
+	which golint || GO111MODULE=off go get -u golang.org/x/lint/golint
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vminsert/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
 
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck

@@ -32,6 +32,7 @@ jobs:
             make test-full-386
             make vminsert vmselect vmstorage
             make vminsert-pure vmselect-pure vmstorage-pure
+            make vmutils
             GOOS=freebsd go build -mod=vendor ./app/vminsert
             GOOS=freebsd go build -mod=vendor ./app/vmselect
             GOOS=freebsd go build -mod=vendor ./app/vmstorage
