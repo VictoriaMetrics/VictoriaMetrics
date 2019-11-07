@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1572907618684,
+  "iteration": 1573112898957,
   "links": [],
   "panels": [
     {
@@ -1099,7 +1099,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(instance)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -1153,7 +1153,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Amount of used memory: requested from system + heap",
+          "description": "Amount of used memory (resident)",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -1189,7 +1189,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum({job=~\"$job\", instance=~\"$instance\", __name__=~\"go_memstats_(sys|heap_inuse)_bytes\"}) by (instance) + \nsum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "legendFormat": "{{instance}}",
               "refId": "A"
             }
@@ -2212,7 +2212,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 37
           },
           "id": 57,
           "legend": {
@@ -2318,7 +2318,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 37
           },
           "id": 58,
           "legend": {
@@ -3920,8 +3920,9 @@
     "list": [
       {
         "current": {
-          "text": "Prometheus",
-          "value": "Prometheus"
+          "tags": [],
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
@@ -4040,7 +4041,6 @@
       {
         "allValue": ".*",
         "current": {
-          "tags": [],
           "text": "All",
           "value": [
             "$__all"
@@ -4061,9 +4061,9 @@
         "sort": 0,
         "tagValuesQuery": "label_values(vm_app_version{job=\"$tag\"}, instance)",
         "tags": [
-          "vminsert",
           "vmselect",
-          "vmstorage"
+          "vmstorage",
+          "vminsert"
         ],
         "tagsQuery": "label_values(vm_app_version, job)",
         "type": "query",
@@ -4092,5 +4092,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 2
+  "version": 1
 }
