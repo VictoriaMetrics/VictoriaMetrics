@@ -1,6 +1,6 @@
 global:
-  scrape_interval:     10s
-  evaluation_interval: 10s
+  scrape_interval:     1s
+  evaluation_interval: 1s
 
 remote_write:
   - url: "http://vminsert:8480/insert/0/prometheus/"
