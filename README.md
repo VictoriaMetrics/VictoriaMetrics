@@ -36,7 +36,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * VictoriaMetrics consists of a single executable without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory pointed by `-storageDataPath` flag.
-  * Easy backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+  * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+  with [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md) / [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md).
 * Storage is protected from corruption on unclean shutdown (i.e. hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * Supports metrics' ingestion and [backfilling](#backfilling) via the following protocols:
   * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
@@ -461,8 +462,8 @@ The page will return the following JSON response:
 ```
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
-is the command-line flag value. Snapshots can be archived to backup storage via `cp -L`, `rsync -L`, `scp -r`
-or any similar tool that follows symlinks during copying.
+is the command-line flag value. Snapshots can be archived to backup storage at any time
+with [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md).
 
 The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
 
@@ -474,7 +475,8 @@ Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to
 Steps for restoring from a snapshot:
 1. Stop VictoriaMetrics with `kill -INT`.
 2. Remove the entire contents of the directory pointed by `-storageDataPath` command-line flag.
-3. Copy snapshot contents to the directory pointed by `-storageDataPath`.
+3. Restore snapshot contents from backup with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md)
+   to the directory pointed by `-storageDataPath`.
 4. Start VictoriaMetrics.
 
 

@@ -34,6 +34,7 @@ jobs:
             make victoria-metrics-pure
             make victoria-metrics-arm
             make victoria-metrics-arm64
+            make vmutils
             GOOS=freebsd go build -mod=vendor ./app/victoria-metrics
             GOOS=darwin go build -mod=vendor ./app/victoria-metrics
       - name: Publish coverage

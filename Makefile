@@ -19,12 +19,31 @@ include deployment/*/Makefile
 clean:
 	rm -rf bin/*
 
-publish: publish-victoria-metrics
+publish: \
+	publish-victoria-metrics \
+	publish-vmbackup \
+	publish-vmrestore
 
-package: package-victoria-metrics
+package: \
+	package-victoria-metrics \
+	package-vmbackup \
+	package-vmrestore
 
-release: victoria-metrics-prod
+vmutils: \
+	vmbackup \
+	vmrestore
+
+release: \
+	release-victoria-metrics \
+	release-vmutils
+
+release-victoria-metrics: victoria-metrics-prod
 	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz victoria-metrics-prod
+
+release-vmutils: \
+	vmbackup-prod \
+	vmrestore-prod
+	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmbackup-prod vmrestore-prod
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -42,13 +61,15 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go get -u github.com/golang/lint/golint
+	which golint || GO111MODULE=off go get -u golang.org/x/lint/golint
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vminsert/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
 
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck

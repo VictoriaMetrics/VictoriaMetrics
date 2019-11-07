@@ -3,6 +3,7 @@ package filestream
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -49,6 +50,26 @@ type Reader struct {
 	f  *os.File
 	br *bufio.Reader
 	st streamTracker
+}
+
+// OpenReaderAt opens the file at the given path in nocache mode at the given offset.
+//
+// If nocache is set, then the reader doesn't pollute OS page cache.
+func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
+	r, err := Open(path, nocache)
+	if err != nil {
+		return nil, err
+	}
+	n, err := r.f.Seek(offset, io.SeekStart)
+	if err != nil {
+		r.MustClose()
+		return nil, fmt.Errorf("cannot seek to offset=%d for %q: %s", offset, path, err)
+	}
+	if n != offset {
+		r.MustClose()
+		return nil, fmt.Errorf("invalid seek offset for %q; got %d; want %d", path, n, offset)
+	}
+	return r, nil
 }
 
 // Open opens the file from the given path in nocache mode.
@@ -143,6 +164,28 @@ type Writer struct {
 	st streamTracker
 }
 
+// OpenWriterAt opens the file at path in nocache mode for writing at the given offset.
+//
+// The file at path is created if it is missing.
+//
+// If nocache is set, the writer doesn't pollute OS page cache.
+func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open %q: %s", path, err)
+	}
+	n, err := f.Seek(offset, io.SeekStart)
+	if err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("cannot seek to offset=%d in %q: %s", offset, path, err)
+	}
+	if n != offset {
+		_ = f.Close()
+		return nil, fmt.Errorf("invalid seek offset for %q; got %d; want %d", path, n, offset)
+	}
+	return newWriter(f, nocache), nil
+}
+
 // Create creates the file for the given path in nocache mode.
 //
 // If nocache is set, the writer doesn't pollute OS page cache.
@@ -151,6 +194,10 @@ func Create(path string, nocache bool) (*Writer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create file %q: %s", path, err)
 	}
+	return newWriter(f, nocache), nil
+}
+
+func newWriter(f *os.File, nocache bool) *Writer {
 	w := &Writer{
 		f:  f,
 		bw: getBufioWriter(f),
@@ -159,7 +206,7 @@ func Create(path string, nocache bool) (*Writer, error) {
 		w.st.fd = f.Fd()
 	}
 	writersCount.Inc()
-	return w, nil
+	return w
 }
 
 // MustClose syncs the underlying file to storage and then closes it.
