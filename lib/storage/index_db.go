@@ -89,6 +89,12 @@ type indexDB struct {
 	// The number of successful searches for metric ids by days.
 	dateMetricIDsSearchHits uint64
 
+	// The number of calls for recent hour serches over inverted index.
+	recentHourInvertedIndexSearchCalls uint64
+
+	// The number of hits for recent hour searches over inverted index.
+	recentHourInvertedIndexSearchHits uint64
+
 	mustDrop uint64
 
 	name string
@@ -201,6 +207,9 @@ type IndexDBMetrics struct {
 	DateMetricIDsSearchCalls       uint64
 	DateMetricIDsSearchHits        uint64
 
+	RecentHourInvertedIndexSearchCalls uint64
+	RecentHourInvertedIndexSearchHits  uint64
+
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
 
@@ -226,7 +235,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	db.uselessTagFiltersCache.UpdateStats(&cs)
 	m.UselessTagFiltersCacheSize += cs.EntriesCount
 	m.UselessTagFiltersCacheSizeBytes += cs.BytesSize
-	m.UselessTagFiltersCacheRequests += cs.GetBigCalls
+	m.UselessTagFiltersCacheRequests += cs.GetCalls
 	m.UselessTagFiltersCacheMisses += cs.Misses
 
 	m.DeletedMetricsCount += uint64(db.getDeletedMetricIDs().Len())
@@ -237,6 +246,9 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.RecentHourMetricIDsSearchHits += atomic.LoadUint64(&db.recentHourMetricIDsSearchHits)
 	m.DateMetricIDsSearchCalls += atomic.LoadUint64(&db.dateMetricIDsSearchCalls)
 	m.DateMetricIDsSearchHits += atomic.LoadUint64(&db.dateMetricIDsSearchHits)
+
+	m.RecentHourInvertedIndexSearchCalls += atomic.LoadUint64(&db.recentHourInvertedIndexSearchCalls)
+	m.RecentHourInvertedIndexSearchHits += atomic.LoadUint64(&db.recentHourInvertedIndexSearchHits)
 
 	m.IndexBlocksWithMetricIDsProcessed = atomic.LoadUint64(&indexBlocksWithMetricIDsProcessed)
 	m.IndexBlocksWithMetricIDsIncorrectOrder = atomic.LoadUint64(&indexBlocksWithMetricIDsIncorrectOrder)
@@ -403,7 +415,7 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	if versioned {
 		prefix = atomic.LoadUint64(&tagFiltersKeyGen)
 	}
-	const cacheGranularityMs = 1000 * 60 * 5
+	const cacheGranularityMs = 1000 * 10
 	startTime := (uint64(tr.MinTimestamp) / cacheGranularityMs) * cacheGranularityMs
 	endTime := (uint64(tr.MaxTimestamp) / cacheGranularityMs) * cacheGranularityMs
 	dst = encoding.MarshalUint64(dst, prefix)
@@ -561,6 +573,7 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	if err := db.generateTSID(dst, metricName, mn); err != nil {
 		return fmt.Errorf("cannot generate TSID: %s", err)
 	}
+	db.putMetricNameToCache(dst.MetricID, metricName)
 	if err := db.createIndexes(dst, mn); err != nil {
 		return fmt.Errorf("cannot create indexes: %s", err)
 	}
@@ -1589,6 +1602,13 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		return bytes.Compare(a.prefix, b.prefix) < 0
 	})
 
+	atomic.AddUint64(&is.db.recentHourInvertedIndexSearchCalls, 1)
+	if is.tryUpdatingMetricIDsForLastHourTimeRange(metricIDs, tfs, tr) {
+		// Fast path: found metricIDs in the inmemoryInvertedIndex for the last hour.
+		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
+		return nil
+	}
+
 	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
 	if err != nil {
 		return err
@@ -1929,17 +1949,18 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, accountID, projectID uint32) (*uint64set.Set, bool) {
 	// Return all the metricIDs for all the (AccountID, ProjectID) entries.
 	// The caller is responsible for proper filtering later.
+	k := accountProjectKey{
+		AccountID: accountID,
+		ProjectID: projectID,
+	}
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
 	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
+
 	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
 		// The tr fits the current hour.
 		// Return a copy of hmCurr.m, because the caller may modify
 		// the returned map.
-		k := accountProjectKey{
-			AccountID: accountID,
-			ProjectID: projectID,
-		}
 		m := hmCurr.byTenant[k]
 		if m.Len() > maxMetrics {
 			return nil, false
@@ -1951,10 +1972,6 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 		// The tr fits the previous hour.
 		// Return a copy of hmPrev.m, because the caller may modify
 		// the returned map.
-		k := accountProjectKey{
-			AccountID: accountID,
-			ProjectID: projectID,
-		}
 		m := hmPrev.byTenant[k]
 		if m.Len() > maxMetrics {
 			return nil, false
@@ -1963,10 +1980,6 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 	}
 	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
 		// The tr spans the previous and the current hours.
-		k := accountProjectKey{
-			AccountID: accountID,
-			ProjectID: projectID,
-		}
 		mCurr := hmCurr.byTenant[k]
 		mPrev := hmPrev.byTenant[k]
 		if mCurr.Len()+mPrev.Len() > maxMetrics {
@@ -1977,6 +1990,35 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 		return metricIDs, true
 	}
 	return nil, false
+}
+
+func (is *indexSearch) tryUpdatingMetricIDsForLastHourTimeRange(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange) bool {
+	k := accountProjectKey{
+		AccountID: tfs.accountID,
+		ProjectID: tfs.projectID,
+	}
+	minHour := uint64(tr.MinTimestamp) / msecPerHour
+	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
+
+	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
+	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
+		// The tr fits the current hour.
+		hmCurr.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmCurr.byTenant[k], tfs)
+		return true
+	}
+	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
+	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
+		// The tr fits the previous hour.
+		hmPrev.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmPrev.byTenant[k], tfs)
+		return true
+	}
+	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
+		// The tr spans the previous and the current hours.
+		hmPrev.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmPrev.byTenant[k], tfs)
+		hmCurr.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmCurr.byTenant[k], tfs)
+		return true
+	}
+	return false
 }
 
 func (db *indexDB) storeDateMetricID(date, metricID uint64, accountID, projectID uint32) error {

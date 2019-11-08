@@ -102,7 +102,7 @@ func TestSearch(t *testing.T) {
 		{[]byte("instance"), []byte("8.8.8.8:1234")},
 	}
 	startTimestamp := timestampFromTime(time.Now())
-	startTimestamp -= startTimestamp % (1e3 * 3600 * 24)
+	startTimestamp -= startTimestamp % (1e3 * 60 * 30)
 	blockRowsCount := 0
 	for i := 0; i < rowsCount; i++ {
 		mn.AccountID = uint32(i % accountsCount)

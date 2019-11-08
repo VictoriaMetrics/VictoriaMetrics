@@ -25,6 +25,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: 123,
 		}
 		hmOrig.m.Add(12)
@@ -51,8 +52,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if len(s.pendingHourEntries) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourEntries); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
@@ -60,6 +61,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 		hmOrig.m.Add(12)
@@ -88,23 +90,23 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if len(s.pendingHourEntries) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourEntries); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		s.pendingHourMetricIDs = []pendingHourMetricIDEntry{
+		s.pendingHourEntries = []pendingHourMetricIDEntry{
 			{AccountID: 123, ProjectID: 431, MetricID: 343},
 			{AccountID: 123, ProjectID: 431, MetricID: 32424},
 			{AccountID: 1, ProjectID: 2, MetricID: 8293432},
 		}
 		mExpected := &uint64set.Set{}
-		for _, e := range s.pendingHourMetricIDs {
+		for _, e := range s.pendingHourEntries {
 			mExpected.Add(e.MetricID)
 		}
 		byTenantExpected := make(map[accountProjectKey]*uint64set.Set)
-		for _, e := range s.pendingHourMetricIDs {
+		for _, e := range s.pendingHourEntries {
 			k := accountProjectKey{
 				AccountID: e.AccountID,
 				ProjectID: e.ProjectID,
@@ -120,6 +122,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: 123,
 		}
 		hmOrig.m.Add(12)
@@ -134,7 +137,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 			}
 		}
-		if !reflect.DeepEqual(hmCurr.m, mExpected) {
+		if !hmCurr.m.Equal(mExpected) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, mExpected)
 		}
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
@@ -148,23 +151,23 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected len(s.pendingHourMetricIDs); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if len(s.pendingHourEntries) != 0 {
+			t.Fatalf("unexpected len(s.pendingHourEntries); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		s.pendingHourMetricIDs = []pendingHourMetricIDEntry{
+		s.pendingHourEntries = []pendingHourMetricIDEntry{
 			{AccountID: 123, ProjectID: 431, MetricID: 343},
 			{AccountID: 123, ProjectID: 431, MetricID: 32424},
 			{AccountID: 1, ProjectID: 2, MetricID: 8293432},
 		}
 		mExpected := &uint64set.Set{}
-		for _, e := range s.pendingHourMetricIDs {
+		for _, e := range s.pendingHourEntries {
 			mExpected.Add(e.MetricID)
 		}
 		byTenantExpected := make(map[accountProjectKey]*uint64set.Set)
-		for _, e := range s.pendingHourMetricIDs {
+		for _, e := range s.pendingHourEntries {
 			k := accountProjectKey{
 				AccountID: e.AccountID,
 				ProjectID: e.ProjectID,
@@ -180,6 +183,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 		hmOrig.m.Add(12)
@@ -201,7 +205,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		for _, metricID := range origMetricIDs {
 			m.Add(metricID)
 		}
-		if !reflect.DeepEqual(hmCurr.m, m) {
+		if !hmCurr.m.Equal(m) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
@@ -216,8 +220,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if !reflect.DeepEqual(hmPrev, hmEmpty) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
-		if len(s.pendingHourMetricIDs) != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", len(s.pendingHourMetricIDs), 0)
+		if len(s.pendingHourEntries) != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", len(s.pendingHourEntries), 0)
 		}
 	})
 }
