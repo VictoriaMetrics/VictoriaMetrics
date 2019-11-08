@@ -73,6 +73,9 @@ type indexDB struct {
 
 	refCount uint64
 
+	// The counter for newly created time series. It can be used for determining time series churn rate.
+	newTimeseriesCreated uint64
+
 	// The number of missing MetricID -> TSID entries.
 	// High rate for this value means corrupted indexDB.
 	missingTSIDsForMetricID uint64
@@ -200,6 +203,7 @@ type IndexDBMetrics struct {
 
 	IndexDBRefCount uint64
 
+	NewTimeseriesCreated    uint64
 	MissingTSIDsForMetricID uint64
 
 	RecentHourMetricIDsSearchCalls uint64
@@ -241,6 +245,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.DeletedMetricsCount += uint64(db.getDeletedMetricIDs().Len())
 
 	m.IndexDBRefCount += atomic.LoadUint64(&db.refCount)
+	m.NewTimeseriesCreated += atomic.LoadUint64(&db.newTimeseriesCreated)
 	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
 	m.RecentHourMetricIDsSearchCalls += atomic.LoadUint64(&db.recentHourMetricIDsSearchCalls)
 	m.RecentHourMetricIDsSearchHits += atomic.LoadUint64(&db.recentHourMetricIDsSearchHits)
@@ -568,6 +573,7 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	// There is no need in invalidating tag cache, since it is invalidated
 	// on db.tb flush via invalidateTagCache flushCallback passed to OpenTable.
 
+	atomic.AddUint64(&db.newTimeseriesCreated, 1)
 	return nil
 }
 

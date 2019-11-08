@@ -675,6 +675,7 @@ The most interesting metrics are:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
   aka active time series.
+* `rate(vm_new_timeseries_created_total[5m])` - time series churn rate.
 * `vm_rows{type="indexdb"}` - the number of rows in inverted index. High value for this number usually mean high churn rate for time series.
 * Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
   in the database.
