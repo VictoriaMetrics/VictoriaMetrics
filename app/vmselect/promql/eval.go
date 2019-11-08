@@ -606,7 +606,18 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	// Verify timeseries fit available memory after the rollup.
 	// Take into account points from tssCached.
 	pointsPerTimeseries := 1 + (ec.End-ec.Start)/ec.Step
-	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(rssLen*len(rcs)))
+	timeseriesLen := rssLen
+	if iafc != nil {
+		// Incremental aggregates require hold only GOMAXPROCS timeseries in memory.
+		timeseriesLen = runtime.GOMAXPROCS(-1)
+		if iafc.ae.Modifier.Op != "" {
+			// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
+			// since each group can have own set of time series in memory.
+			// Estimate the number of such groups is lower than 100 :)
+			timeseriesLen *= 100
+		}
+	}
+	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
 	rollupMemorySize := mulNoOverflow(rollupPoints, 16)
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
