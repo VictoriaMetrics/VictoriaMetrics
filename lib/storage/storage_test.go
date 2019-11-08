@@ -26,6 +26,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: 123,
 		}
 		hmOrig.m.Add(12)
@@ -61,6 +62,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 		hmOrig.m.Add(12)
@@ -105,6 +107,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: 123,
 		}
 		hmOrig.m.Add(12)
@@ -119,8 +122,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 			}
 		}
-		if !reflect.DeepEqual(hmCurr.m, pendingHourMetricIDs) {
-			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, pendingHourMetricIDs)
+		if !hmCurr.m.Equal(pendingHourMetricIDs) {
+			t.Fatalf("unexpected hmCurr.m; got %v; want %v", hmCurr.m, pendingHourMetricIDs)
 		}
 		if !hmCurr.isFull {
 			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
@@ -146,6 +149,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 		hmOrig.m.Add(12)
@@ -167,7 +171,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		for _, metricID := range origMetricIDs {
 			m.Add(metricID)
 		}
-		if !reflect.DeepEqual(hmCurr.m, m) {
+		if !hmCurr.m.Equal(m) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}
 		if hmCurr.isFull {

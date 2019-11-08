@@ -140,6 +140,11 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
 
+	// Initialize iidx. hmCurr shouldn't be used till now,
+	// so it should be safe initializing it inplace.
+	hmCurr.iidx = newInmemoryInvertedIndex()
+	hmCurr.iidx.MustUpdate(s.idb(), hmCurr.m)
+
 	// Load data
 	tablePath := path + "/data"
 	tb, err := openTable(tablePath, retentionMonths, s.getDeletedMetricIDs)
@@ -313,6 +318,10 @@ type Metrics struct {
 
 	HourMetricIDCacheSize uint64
 
+	RecentHourInvertedIndexSize                 uint64
+	RecentHourInvertedIndexUniqueTagPairsSize   uint64
+	RecentHourInvertedIndexPendingMetricIDsSize uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -373,6 +382,15 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	}
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 
+	m.RecentHourInvertedIndexSize += uint64(hmPrev.iidx.GetEntriesCount())
+	m.RecentHourInvertedIndexSize += uint64(hmCurr.iidx.GetEntriesCount())
+
+	m.RecentHourInvertedIndexUniqueTagPairsSize += uint64(hmPrev.iidx.GetUniqueTagPairsLen())
+	m.RecentHourInvertedIndexUniqueTagPairsSize += uint64(hmCurr.iidx.GetUniqueTagPairsLen())
+
+	m.RecentHourInvertedIndexPendingMetricIDsSize += uint64(hmPrev.iidx.GetPendingMetricIDsLen())
+	m.RecentHourInvertedIndexPendingMetricIDsSize += uint64(hmCurr.iidx.GetPendingMetricIDsLen())
+
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
 }
@@ -412,6 +430,7 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stop:
+			s.updateCurrHourMetricIDs()
 			return
 		case <-t.C:
 			s.updateCurrHourMetricIDs()
@@ -486,7 +505,9 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	startTime := time.Now()
 	if !fs.IsPathExist(path) {
 		logger.Infof("nothing to load from %q", path)
-		return &hourMetricIDs{}
+		return &hourMetricIDs{
+			hour: hour,
+		}
 	}
 	src, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -495,21 +516,27 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	srcOrigLen := len(src)
 	if len(src) < 24 {
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 24)
-		return &hourMetricIDs{}
+		return &hourMetricIDs{
+			hour: hour,
+		}
 	}
 	isFull := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	hourLoaded := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	if hourLoaded != hour {
-		logger.Infof("discarding %s, since it is outdated", name)
-		return &hourMetricIDs{}
+		logger.Infof("discarding %s, since it contains outdated hour; got %d; want %d", name, hourLoaded, hour)
+		return &hourMetricIDs{
+			hour: hour,
+		}
 	}
 	hmLen := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	if uint64(len(src)) != 8*hmLen {
 		logger.Errorf("discarding %s, since it has broken body; got %d bytes; want %d bytes", path, len(src), 8*hmLen)
-		return &hourMetricIDs{}
+		return &hourMetricIDs{
+			hour: hour,
+		}
 	}
 	m := &uint64set.Set{}
 	for i := uint64(0); i < hmLen; i++ {
@@ -772,9 +799,6 @@ var (
 )
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
-	// Return only the last error, since it has no sense in returning all errors.
-	var lastWarn error
-
 	var is *indexSearch
 	var mn *MetricName
 	var kb *bytesutil.ByteBuffer
@@ -788,6 +812,8 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	rows = rows[:rowsLen+len(mrs)]
 	j := 0
 	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
+	// Return only the last error, since it has no sense in returning all errors.
+	var lastWarn error
 	for i := range mrs {
 		mr := &mrs[i]
 		if math.IsNaN(mr.Value) {
@@ -878,6 +904,7 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 	keyBuf := kb.B
 	a := (*[2]uint64)(unsafe.Pointer(&keyBuf[0]))
 	idb := s.idb()
+	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -886,7 +913,6 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 			prevTimestamp = r.Timestamp
 		}
 		metricID := r.TSID.MetricID
-		hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 		if hour == hm.hour {
 			// The r belongs to the current hour. Check for the current hour cache.
 			if hm.m.Has(metricID) {
@@ -896,6 +922,7 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 			s.pendingHourMetricIDsLock.Lock()
 			s.pendingHourMetricIDs.Add(metricID)
 			s.pendingHourMetricIDsLock.Unlock()
+			hm.iidx.AddMetricID(idb, metricID)
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
@@ -920,31 +947,31 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 func (s *Storage) updateCurrHourMetricIDs() {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDsLen := s.pendingHourMetricIDs.Len()
+	newMetricIDs := s.pendingHourMetricIDs
+	s.pendingHourMetricIDs = &uint64set.Set{}
 	s.pendingHourMetricIDsLock.Unlock()
 	hour := uint64(timestampFromTime(time.Now())) / msecPerHour
-	if newMetricIDsLen == 0 && hm.hour == hour {
+	if newMetricIDs.Len() == 0 && hm.hour == hour {
 		// Fast path: nothing to update.
 		return
 	}
 
 	// Slow path: hm.m must be updated with non-empty s.pendingHourMetricIDs.
 	var m *uint64set.Set
+	var iidx *inmemoryInvertedIndex
 	isFull := hm.isFull
 	if hm.hour == hour {
 		m = hm.m.Clone()
+		iidx = hm.iidx.Clone()
 	} else {
 		m = &uint64set.Set{}
+		iidx = newInmemoryInvertedIndex()
 		isFull = true
 	}
-	s.pendingHourMetricIDsLock.Lock()
-	newMetricIDs := s.pendingHourMetricIDs
-	s.pendingHourMetricIDs = &uint64set.Set{}
-	s.pendingHourMetricIDsLock.Unlock()
 	m.Union(newMetricIDs)
-
 	hmNew := &hourMetricIDs{
 		m:      m,
+		iidx:   iidx,
 		hour:   hour,
 		isFull: isFull,
 	}
@@ -956,6 +983,7 @@ func (s *Storage) updateCurrHourMetricIDs() {
 
 type hourMetricIDs struct {
 	m      *uint64set.Set
+	iidx   *inmemoryInvertedIndex
 	hour   uint64
 	isFull bool
 }
