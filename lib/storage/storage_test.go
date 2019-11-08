@@ -18,7 +18,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		var s Storage
 		s.currHourMetricIDs.Store(&hourMetricIDs{})
 		s.prevHourMetricIDs.Store(&hourMetricIDs{})
-		s.pendingHourMetricIDs = &uint64set.Set{}
+		s.pendingHourEntries = &uint64set.Set{}
 		return &s
 	}
 	t.Run("empty_pedning_metric_ids_stale_curr_hour", func(t *testing.T) {
@@ -53,8 +53,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("empty_pedning_metric_ids_valid_curr_hour", func(t *testing.T) {
@@ -92,17 +92,17 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		pendingHourMetricIDs := &uint64set.Set{}
-		pendingHourMetricIDs.Add(343)
-		pendingHourMetricIDs.Add(32424)
-		pendingHourMetricIDs.Add(8293432)
-		s.pendingHourMetricIDs = pendingHourMetricIDs
+		pendingHourEntries := &uint64set.Set{}
+		pendingHourEntries.Add(343)
+		pendingHourEntries.Add(32424)
+		pendingHourEntries.Add(8293432)
+		s.pendingHourEntries = pendingHourEntries
 
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
@@ -122,8 +122,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 			}
 		}
-		if !hmCurr.m.Equal(pendingHourMetricIDs) {
-			t.Fatalf("unexpected hmCurr.m; got %v; want %v", hmCurr.m, pendingHourMetricIDs)
+		if !hmCurr.m.Equal(pendingHourEntries) {
+			t.Fatalf("unexpected hmCurr.m; got %v; want %v", hmCurr.m, pendingHourEntries)
 		}
 		if !hmCurr.isFull {
 			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
@@ -134,17 +134,17 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
 
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		pendingHourMetricIDs := &uint64set.Set{}
-		pendingHourMetricIDs.Add(343)
-		pendingHourMetricIDs.Add(32424)
-		pendingHourMetricIDs.Add(8293432)
-		s.pendingHourMetricIDs = pendingHourMetricIDs
+		pendingHourEntries := &uint64set.Set{}
+		pendingHourEntries.Add(343)
+		pendingHourEntries.Add(32424)
+		pendingHourEntries.Add(8293432)
+		s.pendingHourEntries = pendingHourEntries
 
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
@@ -166,7 +166,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			// Do not run other checks, since they may fail.
 			return
 		}
-		m := pendingHourMetricIDs.Clone()
+		m := pendingHourEntries.Clone()
 		origMetricIDs := hmOrig.m.AppendTo(nil)
 		for _, metricID := range origMetricIDs {
 			m.Add(metricID)
@@ -184,8 +184,8 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
 		}
 
-		if s.pendingHourMetricIDs.Len() != 0 {
-			t.Fatalf("unexpected s.pendingHourMetricIDs.Len(); got %d; want %d", s.pendingHourMetricIDs.Len(), 0)
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
 }
