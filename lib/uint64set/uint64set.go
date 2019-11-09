@@ -230,9 +230,7 @@ func (s *Set) Subtract(a *Set) {
 	aCopy := a.Clone()
 	// TODO: optimize it
 	for _, x := range aCopy.AppendTo(nil) {
-		if s.Has(x) {
-			s.Del(x)
-		}
+		s.Del(x)
 	}
 }
 
