@@ -88,7 +88,7 @@ func (iidx *inmemoryInvertedIndex) MustUpdate(idb *indexDB, byTenant map[account
 
 	iidx.mu.Lock()
 	iidx.pendingEntries = append(iidx.pendingEntries, entries...)
-	if err := iidx.updateLocked(idb); err != nil {
+	if err := iidx.addPendingEntriesLocked(idb); err != nil {
 		logger.Panicf("FATAL: cannot update inmemoryInvertedIndex with pendingEntries: %s", err)
 	}
 	iidx.mu.Unlock()
@@ -97,7 +97,7 @@ func (iidx *inmemoryInvertedIndex) MustUpdate(idb *indexDB, byTenant map[account
 func (iidx *inmemoryInvertedIndex) AddMetricID(idb *indexDB, e pendingHourMetricIDEntry) {
 	iidx.mu.Lock()
 	iidx.pendingEntries = append(iidx.pendingEntries, e)
-	if err := iidx.updateLocked(idb); err != nil {
+	if err := iidx.addPendingEntriesLocked(idb); err != nil {
 		logger.Panicf("FATAL: cannot update inmemoryInvertedIndex with pendingEntries: %s", err)
 	}
 	iidx.mu.Unlock()
@@ -114,6 +114,7 @@ func (iidx *inmemoryInvertedIndex) UpdateMetricIDsForTagFilters(metricIDs, allMe
 			continue
 		}
 		tfFirst = &tfs.tfs[i]
+		break
 	}
 
 	iidx.mu.RLock()
@@ -168,14 +169,15 @@ func (iidx *inmemoryInvertedIndex) getMetricIDsForTagFilterLocked(tf *tagFilter,
 	return &m
 }
 
-func (iidx *inmemoryInvertedIndex) updateLocked(idb *indexDB) error {
+func (iidx *inmemoryInvertedIndex) addPendingEntriesLocked(idb *indexDB) error {
 	entries := iidx.pendingEntries
 	iidx.pendingEntries = iidx.pendingEntries[:0]
 
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
 
-	var mn MetricName
+	mn := GetMetricName()
+	defer PutMetricName(mn)
 	for _, e := range entries {
 		var err error
 		metricID := e.MetricID
