@@ -385,7 +385,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err = testStorageDeleteMetrics(s, 0); err != nil {
-				t.Fatalf("unexpected error: %s", err)
+				t.Fatalf("unexpected error on iteration %d: %s", i, err)
 			}
 
 			// Re-open the storage in order to check how deleted metricIDs
@@ -393,7 +393,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 			s.MustClose()
 			s, err = OpenStorage(path, 0)
 			if err != nil {
-				t.Fatalf("cannot open storage after closing: %s", err)
+				t.Fatalf("cannot open storage after closing on iteration %d: %s", i, err)
 			}
 		}
 	})
