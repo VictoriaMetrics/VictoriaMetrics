@@ -31,10 +31,6 @@ func (tr *TimeRange) String() string {
 	return fmt.Sprintf("[%s - %s]", minTime, maxTime)
 }
 
-func (tr *TimeRange) isZero() bool {
-	return tr.MinTimestamp == 0 && tr.MaxTimestamp == 0
-}
-
 // timestampToPartitionName returns partition name for the given timestamp.
 func timestampToPartitionName(timestamp int64) string {
 	t := timestampToTime(timestamp)
