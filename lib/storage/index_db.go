@@ -993,10 +993,12 @@ func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
 	kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	prefix := kb.B
 	ts.Seek(kb.B)
-	for ts.NextItem() {
+	if ts.NextItem() {
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
-			break
+			// The databse doesn't contain per-day inverted index yet.
+			// Return the next date, since the current date may contain unindexed data.
+			return minDate + 1, nil
 		}
 		suffix := item[len(prefix):]
 
@@ -1005,13 +1007,13 @@ func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
 			return 0, fmt.Errorf("unexpected (date, tag)->metricIDs row len; must be at least 8 bytes; got %d bytes", len(suffix))
 		}
 		minDate = encoding.UnmarshalUint64(suffix)
-		break
+		// The minDate can contain incomplete inverted index, so increment it.
+		return minDate + 1, nil
 	}
 	if err := ts.Error(); err != nil {
 		return 0, err
 	}
-	// The minDate can contain incomplete inverted index, so increment it.
-	minDate++
+	// The database is empty. Return the current date.
 	return minDate, nil
 }
 
