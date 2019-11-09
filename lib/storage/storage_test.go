@@ -581,7 +581,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 			return fmt.Errorf("cannot delete metrics: %s", err)
 		}
 		if deletedCount == 0 {
-			return fmt.Errorf("expecting non-zero number of deleted metrics")
+			return fmt.Errorf("expecting non-zero number of deleted metrics on iteration %d", i)
 		}
 		if n := metricBlocksCount(tfs); n != 0 {
 			return fmt.Errorf("expecting zero metric blocks after DeleteMetrics call for tfs=%s; got %d blocks", tfs, n)

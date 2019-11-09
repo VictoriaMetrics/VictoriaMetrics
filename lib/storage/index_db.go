@@ -903,8 +903,12 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 	}
 
 	// Obtain metricIDs to delete.
+	tr := TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: (1<<63)-1,
+	}
 	is := db.getIndexSearch()
-	metricIDs, err := is.searchMetricIDs(tfss, TimeRange{}, 1e9)
+	metricIDs, err := is.searchMetricIDs(tfss, tr, 1e12)
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
