@@ -92,7 +92,7 @@ type indexDB struct {
 	// The number of successful searches for metric ids by days.
 	dateMetricIDsSearchHits uint64
 
-	// The number of calls for recent hour serches over inverted index.
+	// The number of calls for recent hour searches over inverted index.
 	recentHourInvertedIndexSearchCalls uint64
 
 	// The number of hits for recent hour searches over inverted index.
@@ -1591,10 +1591,8 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		return bytes.Compare(a.prefix, b.prefix) < 0
 	})
 
-	atomic.AddUint64(&is.db.recentHourInvertedIndexSearchCalls, 1)
-	if is.tryUpdatingMetricIDsForLastHourTimeRange(metricIDs, tfs, tr) {
+	if is.tryUpdatingMetricIDsForRecentHour(metricIDs, tfs, tr) {
 		// Fast path: found metricIDs in the inmemoryInvertedIndex for the last hour.
-		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
 		return nil
 	}
 
@@ -1969,7 +1967,7 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) 
 	return nil, false
 }
 
-func (is *indexSearch) tryUpdatingMetricIDsForLastHourTimeRange(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange) bool {
+func (is *indexSearch) tryUpdatingMetricIDsForRecentHour(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange) bool {
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
 	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
 
@@ -1977,18 +1975,21 @@ func (is *indexSearch) tryUpdatingMetricIDsForLastHourTimeRange(metricIDs *uint6
 	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
 		// The tr fits the current hour.
 		hmCurr.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmCurr.m, tfs)
+		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
 		return true
 	}
 	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
 		// The tr fits the previous hour.
 		hmPrev.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmPrev.m, tfs)
+		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
 		return true
 	}
 	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
 		// The tr spans the previous and the current hours.
 		hmPrev.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmPrev.m, tfs)
 		hmCurr.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmCurr.m, tfs)
+		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
 		return true
 	}
 	return false
