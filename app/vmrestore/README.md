@@ -1,7 +1,7 @@
 ## vmrestore
 
 `vmrestore` restores data from backups created by [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md).
-VictoriaMetrics `v1.28.4` and newer versions must be used for working with the restored data.
+VictoriaMetrics `v1.29.0` and newer versions must be used for working with the restored data.
 
 Restore process can be interrupted at any time. It is automatically resumed from the inerruption point
 when restarting `vmrestore` with the same args.
