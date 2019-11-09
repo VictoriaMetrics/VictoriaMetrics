@@ -1921,9 +1921,6 @@ var errFallbackToMetricNameMatch = errors.New("fall back to updateMetricIDsByMet
 var errMissingMetricIDsForDate = errors.New("missing metricIDs for date")
 
 func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
-	if tr.isZero() {
-		return nil, errMissingMetricIDsForDate
-	}
 	atomic.AddUint64(&is.db.recentHourMetricIDsSearchCalls, 1)
 	if metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics); ok {
 		// Fast path: tr covers the current and / or the previous hour.
