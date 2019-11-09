@@ -949,7 +949,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	if err := s.tb.AddRows(rows); err != nil {
 		lastError = fmt.Errorf("cannot add rows to table: %s", err)
 	}
-	if err := s.updateDateMetricIDCache(rows, lastError); err != nil {
+	if err := s.updatePerDateData(rows, lastError); err != nil {
 		lastError = err
 	}
 	if lastError != nil {
@@ -958,7 +958,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	return rows, nil
 }
 
-func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error {
+func (s *Storage) updatePerDateData(rows []rawRow, lastError error) error {
 	var date uint64
 	var hour uint64
 	var prevTimestamp int64
@@ -976,6 +976,7 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 			// The r belongs to the current hour. Check for the current hour cache.
 			if hm.m.Has(metricID) {
 				// Fast path: the metricID is in the current hour cache.
+				// This means the metricID has been already added to per-day inverted index.
 				continue
 			}
 			s.pendingHourEntriesLock.Lock()
@@ -991,17 +992,20 @@ func (s *Storage) updateDateMetricIDCache(rows []rawRow, lastError error) error 
 
 		// Slower path: check global cache for (date, metricID) entry.
 		if s.dateMetricIDCache.Has(date, metricID) {
+			// The metricID has been already added to per-day inverted index.
 			continue
 		}
 
-		// Slow path: store the entry in the (date, metricID) cache and in the indexDB.
+		// Slow path: store the entry (date, metricID) entry in the indexDB.
 		// It is OK if the (date, metricID) entry is added multiple times to db
 		// by concurrent goroutines.
-		s.dateMetricIDCache.Set(date, metricID)
 		if err := idb.storeDateMetricID(date, metricID, r.TSID.AccountID, r.TSID.ProjectID); err != nil {
 			lastError = err
 			continue
 		}
+
+		// The metric must be added to cache only after it has been successfully added to indexDB.
+		s.dateMetricIDCache.Set(date, metricID)
 	}
 	return lastError
 }
@@ -1283,6 +1287,11 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *workingsetca
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %s", prevPath, err)
+	}
+
+	// Adjust startDateForPerDayInvertedIndex for the previous index.
+	if prev.startDateForPerDayInvertedIndex > curr.startDateForPerDayInvertedIndex {
+		prev.startDateForPerDayInvertedIndex = curr.startDateForPerDayInvertedIndex
 	}
 
 	return curr, prev, nil

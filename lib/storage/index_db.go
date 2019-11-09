@@ -42,6 +42,9 @@ const (
 
 	// Prefix for Date->MetricID entries.
 	nsPrefixDateToMetricID = 5
+
+	// Prefix for (Date,Tag)->MetricID entries.
+	nsPrefixDateTagToMetricIDs = 6
 )
 
 func shouldCacheBlock(item []byte) bool {
@@ -50,8 +53,8 @@ func shouldCacheBlock(item []byte) bool {
 	}
 	// Do not cache items starting from
 	switch item[0] {
-	case nsPrefixTagToMetricIDs:
-		// Do not cache blocks with tag->metricIDs items, since:
+	case nsPrefixTagToMetricIDs, nsPrefixDateTagToMetricIDs:
+		// Do not cache blocks with tag->metricIDs and (date,tag)->metricIDs items, since:
 		// - these blocks are scanned sequentially, so the overhead
 		//   on their unmarshaling is amortized by the sequential scan.
 		// - these blocks can occupy high amounts of RAM in cache
@@ -98,7 +101,16 @@ type indexDB struct {
 	// The number of hits for recent hour searches over inverted index.
 	recentHourInvertedIndexSearchHits uint64
 
+	// The number of calls for date range searches.
+	dateRangeSearchCalls uint64
+
+	// The number of hits for date range searches.
+	dateRangeSearchHits uint64
+
 	mustDrop uint64
+
+	// Start date fully covered by per-day inverted index.
+	startDateForPerDayInvertedIndex uint64
 
 	name string
 	tb   *mergeset.Table
@@ -184,6 +196,14 @@ func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Ca
 	}
 	db.setDeletedMetricIDs(dmis)
 
+	is = db.getIndexSearch()
+	date, err := is.getStartDateForPerDayInvertedIndex()
+	db.putIndexSearch(is)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain start date for per-day inverted index: %s", err)
+	}
+	db.startDateForPerDayInvertedIndex = date
+
 	return db, nil
 }
 
@@ -213,6 +233,9 @@ type IndexDBMetrics struct {
 
 	RecentHourInvertedIndexSearchCalls uint64
 	RecentHourInvertedIndexSearchHits  uint64
+
+	DateRangeSearchCalls uint64
+	DateRangeSearchHits  uint64
 
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
@@ -254,6 +277,9 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.RecentHourInvertedIndexSearchCalls += atomic.LoadUint64(&db.recentHourInvertedIndexSearchCalls)
 	m.RecentHourInvertedIndexSearchHits += atomic.LoadUint64(&db.recentHourInvertedIndexSearchHits)
+
+	m.DateRangeSearchCalls += atomic.LoadUint64(&db.dateRangeSearchCalls)
+	m.DateRangeSearchHits += atomic.LoadUint64(&db.dateRangeSearchHits)
 
 	m.IndexBlocksWithMetricIDsProcessed = atomic.LoadUint64(&indexBlocksWithMetricIDsProcessed)
 	m.IndexBlocksWithMetricIDsIncorrectOrder = atomic.LoadUint64(&indexBlocksWithMetricIDsIncorrectOrder)
@@ -749,7 +775,7 @@ func (is *indexSearch) searchTagKeys(accountID, projectID uint32, tks map[string
 		if !bytes.HasPrefix(item, prefix) {
 			break
 		}
-		if err := mp.Init(item); err != nil {
+		if err := mp.Init(item, nsPrefixTagToMetricIDs); err != nil {
 			return err
 		}
 		if mp.IsDeletedTag(dmis) {
@@ -817,7 +843,7 @@ func (is *indexSearch) searchTagValues(accountID, projectID uint32, tvs map[stri
 		if !bytes.HasPrefix(item, prefix) {
 			break
 		}
-		if err := mp.Init(item); err != nil {
+		if err := mp.Init(item, nsPrefixTagToMetricIDs); err != nil {
 			return err
 		}
 		if mp.IsDeletedTag(dmis) {
@@ -973,6 +999,46 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	dmisNew.Union(metricIDs)
 	db.setDeletedMetricIDs(dmisNew)
 	db.deletedMetricIDsUpdateLock.Unlock()
+}
+
+func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
+	minDate := uint64(timestampFromTime(time.Now())) / msecPerDay
+	kb := &is.kb
+	ts := &is.ts
+	kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	prefix := kb.B
+	ts.Seek(kb.B)
+	for ts.NextItem() {
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			break
+		}
+		suffix := item[len(prefix):]
+
+		// Suffix must contain encoded 32-bit (accountID, projectID) plus 64-bit date.
+		// Summary 16 bytes.
+		if len(suffix) < 16 {
+			return 0, fmt.Errorf("unexpected (date, tag)->metricIDs row len; must be at least 16 bytes; got %d bytes", len(suffix))
+		}
+		apNum := encoding.UnmarshalUint64(suffix[:8])
+		date := encoding.UnmarshalUint64(suffix[8:])
+		if date < minDate {
+			minDate = date
+		}
+		// Seek for the next (accountID, projectID) in order to obtain min date there.
+		apNumNext := apNum + 1
+		if apNumNext > apNum {
+			kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
+			kb.B = encoding.MarshalUint64(kb.B, apNumNext)
+			ts.Seek(kb.B)
+		}
+	}
+	if err := ts.Error(); err != nil {
+		return 0, err
+	}
+	// The minDate can contain incomplete inverted index, so increment it.
+	minDate++
+	return minDate, nil
 }
 
 func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
@@ -1631,7 +1697,16 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		// Fast path: found metricIDs in the inmemoryInvertedIndex for the last hour.
 		return nil
 	}
+	ok, err := is.tryUpdatingMetricIDsForDateRange(metricIDs, tfs, tr, maxMetrics)
+	if err != nil {
+		return err
+	}
+	if ok {
+		// Fast path: found metricIDs by date range.
+		return nil
+	}
 
+	// Slow path - try searching over the whole inverted index.
 	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
 	if err != nil {
 		return err
@@ -1955,15 +2030,158 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 		// Too much dates must be covered. Give up.
 		return nil, errMissingMetricIDsForDate
 	}
+
+	// Search for metricIDs for each day in parallel.
 	metricIDs = &uint64set.Set{}
+	var wg sync.WaitGroup
+	var errGlobal error
+	var mu sync.Mutex // protects metricIDs + errGlobal from concurrent access below.
 	for minDate <= maxDate {
-		if err := is.getMetricIDsForDate(minDate, metricIDs, maxMetrics, accountID, projectID); err != nil {
-			return nil, err
-		}
+		date := minDate
+		isLocal := is.db.getIndexSearch()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer is.db.putIndexSearch(isLocal)
+			var result uint64set.Set
+			err := isLocal.getMetricIDsForDate(date, &result, maxMetrics, accountID, projectID)
+			mu.Lock()
+			if metricIDs.Len() < maxMetrics {
+				metricIDs.Union(&result)
+			}
+			if err != nil {
+				errGlobal = err
+			}
+			mu.Unlock()
+		}()
 		minDate++
+	}
+	wg.Wait()
+	if errGlobal != nil {
+		return nil, errGlobal
 	}
 	atomic.AddUint64(&is.db.dateMetricIDsSearchHits, 1)
 	return metricIDs, nil
+}
+
+func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) (bool, error) {
+	atomic.AddUint64(&is.db.dateRangeSearchCalls, 1)
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if minDate < is.db.startDateForPerDayInvertedIndex || maxDate < minDate {
+		// Per-day inverted index doesn't cover the selected date range.
+		return false, nil
+	}
+	if maxDate-minDate > maxDaysForDateMetricIDs {
+		// Too much dates must be covered. Give up, since it may be slow.
+		return false, nil
+	}
+
+	// Search for metricIDs for each day in parallel.
+	var wg sync.WaitGroup
+	var errGlobal error
+	okGlobal := true
+	var mu sync.Mutex // protects metricIDs + *Global vars from concurrent access below
+	for minDate <= maxDate {
+		date := minDate
+		isLocal := is.db.getIndexSearch()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer is.db.putIndexSearch(isLocal)
+			var result uint64set.Set
+			ok, err := isLocal.tryUpdatingMetricIDsForDate(date, &result, tfs, maxMetrics)
+			mu.Lock()
+			if metricIDs.Len() < maxMetrics {
+				metricIDs.Union(&result)
+			}
+			if !ok {
+				okGlobal = ok
+			}
+			if err != nil {
+				errGlobal = fmt.Errorf("cannot search for metricIDs on date %d: %s", date, err)
+			}
+			mu.Unlock()
+		}()
+		minDate++
+	}
+	wg.Wait()
+	if errGlobal != nil {
+		return false, errGlobal
+	}
+	atomic.AddUint64(&is.db.dateRangeSearchHits, 1)
+	return okGlobal, nil
+}
+
+func (is *indexSearch) tryUpdatingMetricIDsForDate(date uint64, metricIDs *uint64set.Set, tfs *TagFilters, maxMetrics int) (bool, error) {
+	var tfFirst *tagFilter
+	for i := range tfs.tfs {
+		tf := &tfs.tfs[i]
+		if tf.isNegative {
+			continue
+		}
+		tfFirst = tf
+		break
+	}
+
+	var result *uint64set.Set
+	maxDateMetrics := maxMetrics * 20
+	if tfFirst == nil {
+		result = &uint64set.Set{}
+		if err := is.updateMetricIDsForDateAll(result, date, tfs.accountID, tfs.projectID, maxDateMetrics); err != nil {
+			if err == errMissingMetricIDsForDate {
+				// Zero data points were written on the given date.
+				// It is OK, since (date, metricID) entries must exist for the given date
+				// according to startDateForPerDayInvertedIndex.
+				return true, nil
+			}
+			return false, fmt.Errorf("cannot obtain all the metricIDs for date %d: %s", date, err)
+		}
+	} else {
+		m, err := is.getMetricIDsForDateTagFilter(tfFirst, date, tfs.commonPrefix, tfs.accountID, tfs.projectID, maxDateMetrics)
+		if err != nil {
+			if err == errFallbackToMetricNameMatch {
+				// The per-date search is too expensive. Probably it is better to perform global search
+				// using metric name match.
+				return false, nil
+			}
+			return false, err
+		}
+		result = m
+	}
+	if result.Len() >= maxDateMetrics {
+		return false, fmt.Errorf("more than %d time series found; narrow down the query or increase `-search.maxUniqueTimeseries`", maxDateMetrics)
+	}
+
+	for i := range tfs.tfs {
+		tf := &tfs.tfs[i]
+		if tf == tfFirst {
+			continue
+		}
+		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, tfs.accountID, tfs.projectID, maxDateMetrics)
+		if err != nil {
+			if err == errFallbackToMetricNameMatch {
+				// The per-date search is too expensive. Probably it is better to perform global search
+				// using metric name match.
+				return false, nil
+			}
+			return false, err
+		}
+		if m.Len() >= maxDateMetrics {
+			return false, fmt.Errorf("more than %d time series found for tag filter %s; narrow down the query or increase `-search.maxUniqueTimeseries`",
+				maxDateMetrics, tf)
+		}
+		if tf.isNegative {
+			result.Subtract(m)
+		} else {
+			result.Intersect(m)
+		}
+		if result.Len() == 0 {
+			return true, nil
+		}
+	}
+	metricIDs.Union(result)
+	return true, nil
 }
 
 func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, accountID, projectID uint32) (*uint64set.Set, bool) {
@@ -2057,15 +2275,47 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64, accountID, projectID
 		return nil
 	}
 
-	// Slow path: create (date, metricID) entry.
+	// Slow path: create (date, metricID) entries.
 	items := getIndexItems()
-	items.B = marshalCommonPrefix(items.B[:0], nsPrefixDateToMetricID, accountID, projectID)
+	defer putIndexItems(items)
+
+	items.B = marshalCommonPrefix(items.B, nsPrefixDateToMetricID, accountID, projectID)
 	items.B = encoding.MarshalUint64(items.B, date)
 	items.B = encoding.MarshalUint64(items.B, metricID)
 	items.Next()
-	err = db.tb.AddItems(items.Items)
-	putIndexItems(items)
-	return err
+
+	// Create per-day inverted index entries for metricID.
+	kb := kbPool.Get()
+	defer kbPool.Put(kb)
+	mn := GetMetricName()
+	defer PutMetricName(mn)
+	kb.B, err = db.searchMetricName(kb.B[:0], metricID, accountID, projectID)
+	if err != nil {
+		return fmt.Errorf("cannot find metricName by metricID %d: %s", metricID, err)
+	}
+	if err = mn.Unmarshal(kb.B); err != nil {
+		return fmt.Errorf("cannot unmarshal metricName %q obtained by metricID %d: %s", metricID, kb.B, err)
+	}
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+
+	items.B = append(items.B, kb.B...)
+	items.B = marshalTagValue(items.B, nil)
+	items.B = marshalTagValue(items.B, mn.MetricGroup)
+	items.B = encoding.MarshalUint64(items.B, metricID)
+	items.Next()
+	for i := range mn.Tags {
+		tag := &mn.Tags[i]
+		items.B = append(items.B, kb.B...)
+		items.B = tag.Marshal(items.B)
+		items.B = encoding.MarshalUint64(items.B, metricID)
+		items.Next()
+	}
+
+	if err = db.tb.AddItems(items.Items); err != nil {
+		return fmt.Errorf("cannot add per-day entires for metricID %d: %s", metricID, err)
+	}
+	return nil
 }
 
 func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, projectID uint32) (bool, error) {
@@ -2084,6 +2334,23 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, project
 		return false, fmt.Errorf("unexpected entry for (date=%d, metricID=%d); got %q; want %q", date, metricID, ts.Item, kb.B)
 	}
 	return true, nil
+}
+
+func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, commonPrefix []byte, accountID, projectID uint32, maxMetrics int) (*uint64set.Set, error) {
+	// Augument tag filter prefix for per-date search instead of global search.
+	if !bytes.HasPrefix(tf.prefix, commonPrefix) {
+		logger.Panicf("BUG: unexpected tf.prefix %q; must start with commonPrefix %q", tf.prefix, commonPrefix)
+	}
+	kb := kbPool.Get()
+	defer kbPool.Put(kb)
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	kb.B = append(kb.B, tf.prefix[len(commonPrefix):]...)
+
+	tfNew := *tf
+	tfNew.isNegative = false // isNegative for the original tf is handled by the caller.
+	tfNew.prefix = kb.B
+	return is.getMetricIDsForTagFilter(&tfNew, maxMetrics)
 }
 
 func (is *indexSearch) getMetricIDsForDate(date uint64, metricIDs *uint64set.Set, maxMetrics int, accountID, projectID uint32) error {
@@ -2139,15 +2406,28 @@ func (is *indexSearch) containsTimeRange(tr TimeRange, accountID, projectID uint
 	return true, nil
 }
 
-func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, accountID, projectID uint32, maxMetrics int) error {
-	ts := &is.ts
-	kb := &is.kb
-	mp := &is.mp
+func (is *indexSearch) updateMetricIDsForDateAll(metricIDs *uint64set.Set, date uint64, accountID, projectID uint32, maxMetrics int) error {
+	// Extract all the metricIDs from (date, __name__=value)->metricIDs entries.
+	kb := kbPool.Get()
+	defer kbPool.Put(kb)
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	kb.B = marshalTagValue(kb.B, nil)
+	return is.updateMetricIDsForPrefix(kb.B, metricIDs, maxMetrics)
+}
 
-	// Extract all the mtricIDs from (__name__=value) metricIDs.
+func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, accountID, projectID uint32, maxMetrics int) error {
+	kb := kbPool.Get()
+	defer kbPool.Put(kb)
+	// Extract all the metricIDs from (__name__=value)->metricIDs entries.
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
 	kb.B = marshalTagValue(kb.B, nil)
-	prefix := kb.B
+	return is.updateMetricIDsForPrefix(kb.B, metricIDs, maxMetrics)
+}
+
+func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64set.Set, maxMetrics int) error {
+	ts := &is.ts
+	mp := &is.mp
 	ts.Seek(prefix)
 	for ts.NextItem() {
 		item := ts.Item
@@ -2286,11 +2566,18 @@ func unmarshalCommonPrefix(src []byte) ([]byte, byte, uint32, uint32, error) {
 const commonPrefixLen = 9
 
 type tagToMetricIDsRowParser struct {
+	// NSPrefix contains the first byte parsed from the row after Init call.
+	// This is either nsPrefixTagToMetricIDs or nsPrefixDateTagToMetricIDs.
+	NSPrefix byte
+
 	// AccountID contains parsed value after Init call
 	AccountID uint32
 
 	// ProjectID contains parsed value after Init call
 	ProjectID uint32
+
+	// Date contains parsed date for nsPrefixDateTagToMetricIDs rows after Init call
+	Date uint64
 
 	// MetricIDs contains parsed MetricIDs after ParseMetricIDs call
 	MetricIDs []uint64
@@ -2303,8 +2590,10 @@ type tagToMetricIDsRowParser struct {
 }
 
 func (mp *tagToMetricIDsRowParser) Reset() {
+	mp.NSPrefix = 0
 	mp.AccountID = 0
 	mp.ProjectID = 0
+	mp.Date = 0
 	mp.MetricIDs = mp.MetricIDs[:0]
 	mp.Tag.Reset()
 	mp.tail = nil
@@ -2313,14 +2602,23 @@ func (mp *tagToMetricIDsRowParser) Reset() {
 // Init initializes mp from b, which should contain encoded tag->metricIDs row.
 //
 // b cannot be re-used until Reset call.
-func (mp *tagToMetricIDsRowParser) Init(b []byte) error {
-	tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(b)
+func (mp *tagToMetricIDsRowParser) Init(b []byte, nsPrefixExpected byte) error {
+	tail, nsPrefix, accountID, projectID, err := unmarshalCommonPrefix(b)
 	if err != nil {
 		return fmt.Errorf("invalid tag->metricIDs row %q: %s", b, err)
 	}
-	if prefix != nsPrefixTagToMetricIDs {
-		return fmt.Errorf("invalid prefix for tag->metricIDs row %q; got %d; want %d", b, prefix, nsPrefixTagToMetricIDs)
+	if nsPrefix != nsPrefixExpected {
+		return fmt.Errorf("invalid prefix for tag->metricIDs row %q; got %d; want %d", b, nsPrefix, nsPrefixExpected)
 	}
+	if nsPrefix == nsPrefixDateTagToMetricIDs {
+		// unmarshal date.
+		if len(tail) < 8 {
+			return fmt.Errorf("cannot unmarshal date from (date, tag)->metricIDs row %q from %d bytes; want at least 8 bytes", b, len(tail))
+		}
+		mp.Date = encoding.UnmarshalUint64(tail)
+		tail = tail[8:]
+	}
+	mp.NSPrefix = nsPrefix
 	mp.AccountID = accountID
 	mp.ProjectID = projectID
 	tail, err = mp.Tag.Unmarshal(tail)
@@ -2328,6 +2626,16 @@ func (mp *tagToMetricIDsRowParser) Init(b []byte) error {
 		return fmt.Errorf("cannot unmarshal tag from tag->metricIDs row %q: %s", b, err)
 	}
 	return mp.InitOnlyTail(b, tail)
+}
+
+// MarshalPrefix marshals row prefix without tail to dst.
+func (mp *tagToMetricIDsRowParser) MarshalPrefix(dst []byte) []byte {
+	dst = marshalCommonPrefix(dst, mp.NSPrefix, mp.AccountID, mp.ProjectID)
+	if mp.NSPrefix == nsPrefixDateTagToMetricIDs {
+		dst = encoding.MarshalUint64(dst, mp.Date)
+	}
+	dst = mp.Tag.Marshal(dst)
+	return dst
 }
 
 // InitOnlyTail initializes mp.tail from tail.
@@ -2352,7 +2660,7 @@ func (mp *tagToMetricIDsRowParser) EqualPrefix(x *tagToMetricIDsRowParser) bool 
 	if !mp.Tag.Equal(&x.Tag) {
 		return false
 	}
-	return mp.ProjectID == x.ProjectID && mp.AccountID == x.AccountID
+	return mp.ProjectID == x.ProjectID && mp.AccountID == x.AccountID && mp.Date == x.Date && mp.NSPrefix == x.NSPrefix
 }
 
 // FirstAndLastMetricIDs returns the first and the last metricIDs in the mp.tail.
@@ -2415,22 +2723,28 @@ func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis *uint64set.Set) bool {
 }
 
 func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
-	// Perform quick checks whether items contain tag->metricIDs rows
+	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixTagToMetricIDs)
+	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixDateTagToMetricIDs)
+	return data, items
+}
+
+func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte) ([]byte, [][]byte) {
+	// Perform quick checks whether items contain rows starting from nsPrefix
 	// based on the fact that items are sorted.
 	if len(items) <= 2 {
 		// The first and the last row must remain unchanged.
 		return data, items
 	}
 	firstItem := items[0]
-	if len(firstItem) > 0 && firstItem[0] > nsPrefixTagToMetricIDs {
+	if len(firstItem) > 0 && firstItem[0] > nsPrefix {
 		return data, items
 	}
 	lastItem := items[len(items)-1]
-	if len(lastItem) > 0 && lastItem[0] < nsPrefixTagToMetricIDs {
+	if len(lastItem) > 0 && lastItem[0] < nsPrefix {
 		return data, items
 	}
 
-	// items contain at least one tag->metricIDs row. Merge rows with common tag.
+	// items contain at least one row starting from nsPrefix. Merge rows with common tag.
 	tmm := getTagToMetricIDsRowsMerger()
 	tmm.dataCopy = append(tmm.dataCopy[:0], data...)
 	tmm.itemsCopy = append(tmm.itemsCopy[:0], items...)
@@ -2439,29 +2753,25 @@ func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
 	dstData := data[:0]
 	dstItems := items[:0]
 	for i, item := range items {
-		if len(item) == 0 || item[0] != nsPrefixTagToMetricIDs || i == 0 || i == len(items)-1 {
-			// Write rows other than tag->metricIDs as-is.
+		if len(item) == 0 || item[0] != nsPrefix || i == 0 || i == len(items)-1 {
+			// Write rows not starting with nsPrefix as-is.
 			// Additionally write the first and the last row as-is in order to preserve
 			// sort order for adjancent blocks.
-			if len(tmm.pendingMetricIDs) > 0 {
-				dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
-			}
+			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 			dstData = append(dstData, item...)
 			dstItems = append(dstItems, dstData[len(dstData)-len(item):])
 			continue
 		}
-		if err := mp.Init(item); err != nil {
-			logger.Panicf("FATAL: cannot parse tag->metricIDs row during merge: %s", err)
+		if err := mp.Init(item, nsPrefix); err != nil {
+			logger.Panicf("FATAL: cannot parse row starting with nsPrefix %d during merge: %s", nsPrefix, err)
 		}
 		if mp.MetricIDsLen() >= maxMetricIDsPerRow {
-			if len(tmm.pendingMetricIDs) > 0 {
-				dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
-			}
+			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 			dstData = append(dstData, item...)
 			dstItems = append(dstItems, dstData[len(dstData)-len(item):])
 			continue
 		}
-		if len(tmm.pendingMetricIDs) > 0 && !mp.EqualPrefix(mpPrev) {
+		if !mp.EqualPrefix(mpPrev) {
 			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 		}
 		mp.ParseMetricIDs()
@@ -2561,7 +2871,8 @@ func (tmm *tagToMetricIDsRowsMerger) Reset() {
 
 func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstItems [][]byte, mp *tagToMetricIDsRowParser) ([]byte, [][]byte) {
 	if len(tmm.pendingMetricIDs) == 0 {
-		logger.Panicf("BUG: pendingMetricIDs must be non-empty")
+		// Nothing to flush
+		return dstData, dstItems
 	}
 	// Use sort.Sort instead of sort.Slice in order to reduce memory allocations.
 	sort.Sort(&tmm.pendingMetricIDs)
@@ -2569,8 +2880,7 @@ func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstIt
 
 	// Marshal pendingMetricIDs
 	dstDataLen := len(dstData)
-	dstData = marshalCommonPrefix(dstData, nsPrefixTagToMetricIDs, mp.AccountID, mp.ProjectID)
-	dstData = mp.Tag.Marshal(dstData)
+	dstData = mp.MarshalPrefix(dstData)
 	for _, metricID := range tmm.pendingMetricIDs {
 		dstData = encoding.MarshalUint64(dstData, metricID)
 	}

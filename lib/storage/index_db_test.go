@@ -52,8 +52,11 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 			t.Fatalf("unexpected items;\ngot\n%X\nwant\n%X", resultItems, expectedItems)
 		}
 	}
-	x := func(accountID, projectID uint32, key, value string, metricIDs []uint64) string {
-		dst := marshalCommonPrefix(nil, nsPrefixTagToMetricIDs, accountID, projectID)
+	xy := func(nsPrefix byte, accountID, projectID uint32, key, value string, metricIDs []uint64) string {
+		dst := marshalCommonPrefix(nil, nsPrefix, accountID, projectID)
+		if nsPrefix == nsPrefixDateTagToMetricIDs {
+			dst = encoding.MarshalUint64(dst, 1234567901233)
+		}
 		t := &Tag{
 			Key:   []byte(key),
 			Value: []byte(value),
@@ -63,6 +66,12 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 			dst = encoding.MarshalUint64(dst, metricID)
 		}
 		return string(dst)
+	}
+	x := func(accountID, projectID uint32, key, value string, metricIDs []uint64) string {
+		return xy(nsPrefixTagToMetricIDs, accountID, projectID, key, value, metricIDs)
+	}
+	y := func(accountID, projectID uint32, key, value string, metricIDs []uint64) string {
+		return xy(nsPrefixDateTagToMetricIDs, accountID, projectID, key, value, metricIDs)
 	}
 
 	f(nil, nil)
@@ -81,6 +90,19 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 		x(0, 0, "", "", []uint64{0}),
 	})
 	f([]string{
+		x(0, 0, "", "", []uint64{0}),
+		x(0, 0, "", "", []uint64{0}),
+		x(0, 0, "", "", []uint64{0}),
+		y(0, 0, "", "", []uint64{0}),
+		y(0, 0, "", "", []uint64{0}),
+		y(0, 0, "", "", []uint64{0}),
+	}, []string{
+		x(0, 0, "", "", []uint64{0}),
+		x(0, 0, "", "", []uint64{0}),
+		y(0, 0, "", "", []uint64{0}),
+		y(0, 0, "", "", []uint64{0}),
+	})
+	f([]string{
 		x(1, 2, "", "", []uint64{0}),
 		x(1, 2, "", "", []uint64{0}),
 		x(1, 2, "", "", []uint64{0}),
@@ -104,6 +126,17 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 	f([]string{
 		"\x00asdf",
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+	}, []string{
+		"\x00asdf",
+		y(1, 2, "", "", []uint64{0}),
+		y(1, 2, "", "", []uint64{0}),
+	})
+	f([]string{
+		"\x00asdf",
 		x(3, 1, "", "", []uint64{0}),
 		x(3, 1, "", "", []uint64{0}),
 		x(3, 1, "", "", []uint64{0}),
@@ -112,6 +145,19 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	}, []string{
 		"\x00asdf",
 		x(3, 1, "", "", []uint64{0}),
+		"xyz",
+	})
+	f([]string{
+		"\x00asdf",
+		x(3, 1, "", "", []uint64{0}),
+		x(3, 1, "", "", []uint64{0}),
+		y(3, 1, "", "", []uint64{0}),
+		y(3, 1, "", "", []uint64{0}),
+		"xyz",
+	}, []string{
+		"\x00asdf",
+		x(3, 1, "", "", []uint64{0}),
+		y(3, 1, "", "", []uint64{0}),
 		"xyz",
 	})
 	f([]string{
@@ -226,10 +272,13 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 		"\x00aa",
 		x(3, 2, "foo", "bar", metricIDs),
 		x(3, 2, "foo", "bar", metricIDs),
+		y(2, 3, "foo", "bar", metricIDs),
+		y(2, 3, "foo", "bar", metricIDs),
 		"x",
 	}, []string{
 		"\x00aa",
 		x(3, 2, "foo", "bar", metricIDs),
+		y(2, 3, "foo", "bar", metricIDs),
 		"x",
 	})
 
@@ -287,10 +336,12 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 		"\x00aa",
 		x(1, 2, "foo", "bar", metricIDs),
 		x(1, 2, "foo", "bar", metricIDs),
+		y(1, 1, "foo", "bar", metricIDs),
 		"x",
 	}, []string{
 		"\x00aa",
 		x(1, 2, "foo", "bar", []uint64{123}),
+		y(1, 1, "foo", "bar", []uint64{123}),
 		"x",
 	})
 
@@ -317,11 +368,13 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 		x(1, 2, "foo", "bar", metricIDs),
 		x(1, 2, "foo", "bar", []uint64{123, 123, 125}),
 		x(1, 2, "foo", "bar", []uint64{123, 124}),
+		y(1, 2, "foo", "bar", []uint64{123, 124}),
 	}, []string{
 		"\x00aa",
 		x(1, 2, "foo", "bar", metricIDs),
 		x(1, 2, "foo", "bar", []uint64{123, 123, 125}),
 		x(1, 2, "foo", "bar", []uint64{123, 124}),
+		y(1, 2, "foo", "bar", []uint64{123, 124}),
 	})
 	f([]string{
 		x(1, 2, "foo", "bar", metricIDs),
