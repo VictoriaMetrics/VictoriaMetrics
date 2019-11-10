@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/transport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -82,8 +81,6 @@ func main() {
 	startTime = time.Now()
 	strg.MustClose()
 	logger.Infof("successfully closed the storage in %s", time.Since(startTime))
-
-	fs.MustStopDirRemover()
 
 	logger.Infof("the vmstorage has been stopped")
 }
