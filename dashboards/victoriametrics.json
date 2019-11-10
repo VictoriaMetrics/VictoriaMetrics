@@ -12,10 +12,11 @@
       }
     ]
   },
+  "description": "Overview for VictoriaMetrics cluster v1.28.4 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1573115583191,
+  "iteration": 1573170250010,
   "links": [],
   "panels": [
     {
@@ -514,7 +515,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) > 0",
+          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) > 0 ",
           "legendFormat": "{{type}}",
           "refId": "A"
         }
@@ -659,7 +660,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -668,23 +669,19 @@
         "x": 0,
         "y": 18
       },
-      "id": 52,
+      "id": 102,
       "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
+        "avg": false,
+        "current": false,
         "max": false,
         "min": false,
         "show": true,
-        "sort": "current",
-        "sortDesc": true,
         "total": false,
-        "values": true
+        "values": false
       },
       "lines": true,
       "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null as zero",
+      "nullPointMode": "null",
       "options": {
         "dataLinks": []
       },
@@ -698,10 +695,8 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[5m])) by (path) > 0",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{path}}",
+          "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m]))",
+          "legendFormat": "churn rate",
           "refId": "A"
         }
       ],
@@ -709,10 +704,10 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Requests error rate ($instance)",
+      "title": "Churn rate ($instance)",
       "tooltip": {
         "shared": true,
-        "sort": 2,
+        "sort": 0,
         "value_type": "individual"
       },
       "type": "graph",
@@ -845,7 +840,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
+      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -854,7 +849,7 @@
         "x": 0,
         "y": 26
       },
-      "id": 44,
+      "id": 52,
       "legend": {
         "alignAsTable": true,
         "avg": true,
@@ -862,18 +857,20 @@
         "max": false,
         "min": false,
         "show": true,
+        "sort": "current",
+        "sortDesc": true,
         "total": false,
         "values": true
       },
       "lines": true,
       "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
+      "nullPointMode": "null as zero",
       "options": {
         "dataLinks": []
       },
       "percentage": false,
-      "pointradius": 1,
+      "pointradius": 2,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
@@ -882,42 +879,21 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[5m])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "Connection",
+          "legendFormat": "{{path}}",
           "refId": "A"
-        },
-        {
-          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Dial",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Handshake",
-          "refId": "E"
-        },
-        {
-          "expr": "sum(rate(vm_rpc_reroute_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Reroute",
-          "refId": "C"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "RPC errors ($instance)",
+      "title": "Requests error rate ($instance)",
       "tooltip": {
         "shared": true,
-        "sort": 0,
+        "sort": 2,
         "value_type": "individual"
       },
       "type": "graph",
@@ -930,7 +906,7 @@
       },
       "yaxes": [
         {
-          "format": "rps",
+          "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1048,13 +1024,125 @@
       }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "$ds",
+      "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      },
+      "id": 44,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 1,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Connection",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Dial",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Handshake",
+          "refId": "E"
+        },
+        {
+          "expr": "sum(rate(vm_rpc_reroute_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Reroute",
+          "refId": "C"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "RPC errors ($instance)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "rps",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
       "collapsed": true,
       "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 42
       },
       "id": 46,
       "panels": [
@@ -1515,7 +1603,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "id": 48,
       "panels": [
@@ -1532,7 +1620,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 44
           },
           "id": 76,
           "legend": {
@@ -1630,7 +1718,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 44
           },
           "id": 86,
           "legend": {
@@ -1742,7 +1830,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 53
           },
           "id": 80,
           "legend": {
@@ -1833,7 +1921,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 53
           },
           "id": 78,
           "legend": {
@@ -1924,7 +2012,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 61
           },
           "id": 82,
           "legend": {
@@ -2022,7 +2110,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 61
           },
           "id": 84,
           "legend": {
@@ -2110,7 +2198,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 69
           },
           "id": 74,
           "legend": {
@@ -2195,7 +2283,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 44
       },
       "id": 60,
       "panels": [
@@ -2407,7 +2495,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 45
       },
       "id": 24,
       "panels": [
@@ -2424,7 +2512,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5
+            "y": 46
           },
           "id": 16,
           "legend": {
@@ -2458,14 +2546,6 @@
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
               "refId": "A"
-            },
-            {
-              "expr": "sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type != \"indexdb\"})",
-              "format": "time_series",
-              "hide": true,
-              "intervalFactor": 1,
-              "legendFormat": "sum",
-              "refId": "B"
             }
           ],
           "thresholds": [],
@@ -2515,16 +2595,16 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows amount of on-disk space occupied by data points.",
+          "description": "Shows how many rows per second every storage node accepts. This metric doesn't show all stored rows since some of them may be dropped because of wrong timestamps or decode errors.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5
+            "y": 46
           },
-          "id": 18,
+          "id": 100,
           "legend": {
             "avg": false,
             "current": false,
@@ -2551,7 +2631,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
+              "expr": "sum(rate(vm_vminsert_metrics_read_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
@@ -2562,10 +2642,10 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Disk space usage (datapoints) ($instance)",
+          "title": "Ingestion rate ($instance)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -2578,7 +2658,7 @@
           },
           "yaxes": [
             {
-              "format": "bytes",
+              "format": "short",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -2612,7 +2692,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 13
+            "y": 54
           },
           "id": 20,
           "legend": {
@@ -2695,6 +2775,184 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
+          "description": "Shows amount of on-disk space occupied by data points.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 54
+          },
+          "id": 18,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": true,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Disk space usage (datapoints) ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 62
+          },
+          "id": 54,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(vm_active_merges{job=\"$job_storage\", instance=~\"$instance\"}) by(type)",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Active merges ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The less is better.",
           "fill": 1,
           "fillGradient": 0,
@@ -2702,15 +2960,17 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 13
+            "y": 62
           },
           "id": 14,
           "legend": {
+            "alignAsTable": true,
             "avg": false,
             "current": false,
             "max": false,
             "min": false,
-            "show": false,
+            "rightSide": false,
+            "show": true,
             "total": false,
             "values": false
           },
@@ -2800,182 +3060,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 21
-          },
-          "id": 54,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
-          "percentage": false,
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "sum(vm_active_merges{job=\"$job_storage\", instance=~\"$instance\"}) by(type)",
-              "legendFormat": "{{type}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Active merges ($instance)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "decimals": 0,
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$ds",
-          "description": "The number of rows merged per second by storage nodes.",
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 21
-          },
-          "id": 55,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
-          "percentage": false,
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "sum(rate(vm_rows_merged_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(type)",
-              "legendFormat": "{{type}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Merge speed",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "decimals": 0,
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$ds",
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
           "fill": 1,
           "fillGradient": 0,
@@ -2983,7 +3067,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 29
+            "y": 70
           },
           "id": 22,
           "legend": {
@@ -3066,6 +3150,94 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
+          "description": "The number of rows merged per second by storage nodes.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 70
+          },
+          "id": 55,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(rate(vm_rows_merged_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(type)",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Merge speed",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2\n* `current` - current number of goroutines busy with inserting rows into storage\n\nWhen `current` hits `max` constantly, it means storage is overloaded and require more CPU.",
           "fill": 1,
           "fillGradient": 0,
@@ -3073,7 +3245,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 29
+            "y": 78
           },
           "id": 4,
           "legend": {
@@ -3180,7 +3352,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "id": 42,
       "panels": [
@@ -3503,7 +3675,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "id": 40,
       "panels": [
@@ -3920,8 +4092,9 @@
     "list": [
       {
         "current": {
-          "text": "VictoriaMetrics",
-          "value": "VictoriaMetrics"
+          "tags": [],
+          "text": "Prometheus",
+          "value": "Prometheus"
         },
         "hide": 0,
         "includeAll": false,
@@ -4060,9 +4233,9 @@
         "sort": 0,
         "tagValuesQuery": "label_values(vm_app_version{job=\"$tag\"}, instance)",
         "tags": [
+          "vminsert",
           "vmselect",
-          "vmstorage",
-          "vminsert"
+          "vmstorage"
         ],
         "tagsQuery": "label_values(vm_app_version, job)",
         "type": "query",
@@ -4091,5 +4264,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 2
+  "version": 3
 }
