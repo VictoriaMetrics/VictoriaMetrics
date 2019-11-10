@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics cluster v1.28.4 or higher",
+  "description": "Overview for VictoriaMetrics cluster v1.29.0 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
