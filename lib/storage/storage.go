@@ -1020,7 +1020,7 @@ type dateMetricIDCache struct {
 	// Contains mutable map protected by mu
 	byDateMutable *byDateMetricIDMap
 	lastSyncTime  time.Time
-	mu            sync.RWMutex
+	mu            sync.Mutex
 }
 
 func newDateMetricIDCache() *dateMetricIDCache {
@@ -1057,7 +1057,7 @@ func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
 	// Slow path. Check mutable map.
 	currentTime := time.Now()
 
-	dmc.mu.RLock()
+	dmc.mu.Lock()
 	v = dmc.byDateMutable.get(date)
 	ok := v.Has(metricID)
 	mustSync := false
@@ -1065,7 +1065,7 @@ func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
 		mustSync = true
 		dmc.lastSyncTime = currentTime
 	}
-	dmc.mu.RUnlock()
+	dmc.mu.Unlock()
 
 	if mustSync {
 		dmc.sync()
