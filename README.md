@@ -229,6 +229,8 @@ HDD-based persistent disks should be enough for the majority of use cases.
 
 It is recommended using durable replicated persistent volumes in Kubernetes.
 
+Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883).
+
 
 ### Backups
 
