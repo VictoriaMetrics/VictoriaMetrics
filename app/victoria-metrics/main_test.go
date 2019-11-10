@@ -186,7 +186,6 @@ func tearDown() {
 	vmstorage.Stop()
 	vmselect.Stop()
 	fs.MustRemoveAll(storagePath)
-	fs.MustStopDirRemover()
 }
 
 func TestWriteRead(t *testing.T) {
