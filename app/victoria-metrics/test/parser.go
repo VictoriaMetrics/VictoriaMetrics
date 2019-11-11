@@ -41,7 +41,7 @@ func PopulateTimeTpl(b []byte, tGlobal time.Time) []byte {
 		case `TIME_NS`:
 			return []byte(fmt.Sprintf("%d", t.UnixNano()))
 		default:
-			log.Fatalf("unkown time pattern %s in %s", parts[0], repl)
+			log.Fatalf("unknown time pattern %s in %s", parts[0], repl)
 		}
 		return repl
 	})

@@ -14,7 +14,7 @@ func AppendInt64Zeros(dst []int64, items int) []int64 {
 
 // AppendInt64Ones appends items ones to dst and returns the result.
 //
-// It is faster than the correponding loop.
+// It is faster than the corresponding loop.
 func AppendInt64Ones(dst []int64, items int) []int64 {
 	return appendInt64Data(dst, items, int64Ones[:])
 }
