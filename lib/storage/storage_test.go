@@ -13,6 +13,88 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
+func TestDateMetricIDCacheSerial(t *testing.T) {
+	c := newDateMetricIDCache()
+	if err := testDateMetricIDCache(c, false); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+}
+
+func TestDateMetricIDCacheConcurrent(t *testing.T) {
+	c := newDateMetricIDCache()
+	ch := make(chan error, 5)
+	for i := 0; i < 5; i++ {
+		go func() {
+			ch <- testDateMetricIDCache(c, true)
+		}()
+	}
+	for i := 0; i < 5; i++ {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		case <-time.After(time.Second * 5):
+			t.Fatalf("timeout")
+		}
+	}
+}
+
+func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
+	type dmk struct {
+		date     uint64
+		metricID uint64
+	}
+	m := make(map[dmk]bool)
+	for i := 0; i < 1e5; i++ {
+		date := uint64(i) % 3
+		metricID := uint64(i) % 1237
+		if !concurrent && c.Has(date, metricID) {
+			if !m[dmk{date, metricID}] {
+				return fmt.Errorf("c.Has(%d, %d) must return false, but returned true", date, metricID)
+			}
+			continue
+		}
+		c.Set(date, metricID)
+		m[dmk{date, metricID}] = true
+		if !concurrent && !c.Has(date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d) must return true, but returned false", date, metricID)
+		}
+		if i%11234 == 0 {
+			c.sync()
+		}
+		if i%34323 == 0 {
+			c.Reset()
+			m = make(map[dmk]bool)
+		}
+	}
+
+	// Verify fast path after sync.
+	for i := 0; i < 1e5; i++ {
+		date := uint64(i) % 3
+		metricID := uint64(i) % 123
+		c.Set(date, metricID)
+	}
+	c.sync()
+	for i := 0; i < 1e5; i++ {
+		date := uint64(i) % 3
+		metricID := uint64(i) % 123
+		if !concurrent && !c.Has(date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d) must return true after sync", date, metricID)
+		}
+	}
+
+	// Verify c.Reset
+	if n := c.EntriesCount(); !concurrent && n < 123 {
+		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
+	}
+	c.Reset()
+	if n := c.EntriesCount(); !concurrent && n > 0 {
+		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
+	}
+	return nil
+}
+
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	newStorage := func() *Storage {
 		var s Storage
