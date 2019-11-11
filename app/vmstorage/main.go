@@ -372,6 +372,13 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().DateRangeSearchHits)
 	})
 
+	metrics.NewGauge(`vm_date_metric_id_cache_syncs_total`, func() float64 {
+		return float64(m().DateMetricIDCacheSyncsCount)
+	})
+	metrics.NewGauge(`vm_date_metric_id_cache_resets_total`, func() float64 {
+		return float64(m().DateMetricIDCacheResetsCount)
+	})
+
 	metrics.NewGauge(`vm_cache_entries{type="storage/tsid"}`, func() float64 {
 		return float64(m().TSIDCacheSize)
 	})

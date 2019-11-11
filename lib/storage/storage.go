@@ -322,7 +322,9 @@ type Metrics struct {
 	MetricNameCacheMisses     uint64
 	MetricNameCacheCollisions uint64
 
-	DateMetricIDCacheSize uint64
+	DateMetricIDCacheSize        uint64
+	DateMetricIDCacheSyncsCount  uint64
+	DateMetricIDCacheResetsCount uint64
 
 	HourMetricIDCacheSize uint64
 
@@ -375,6 +377,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNameCacheCollisions += cs.Collisions
 
 	m.DateMetricIDCacheSize += uint64(s.dateMetricIDCache.EntriesCount())
+	m.DateMetricIDCacheSyncsCount += atomic.LoadUint64(&s.dateMetricIDCache.syncsCount)
+	m.DateMetricIDCacheResetsCount += atomic.LoadUint64(&s.dateMetricIDCache.resetsCount)
 
 	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
@@ -1014,6 +1018,10 @@ func (s *Storage) updatePerDateData(rows []rawRow, lastError error) error {
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
 type dateMetricIDCache struct {
+	// 64-bit counters must be at the top of the structure to be properly aligned on 32-bit arches.
+	syncsCount  uint64
+	resetsCount uint64
+
 	// Contains immutable map
 	byDate atomic.Value
 
@@ -1031,9 +1039,13 @@ func newDateMetricIDCache() *dateMetricIDCache {
 
 func (dmc *dateMetricIDCache) Reset() {
 	dmc.mu.Lock()
+	// Do not reset syncsCount and resetsCount
 	dmc.byDate.Store(newByDateMetricIDMap())
 	dmc.byDateMutable = newByDateMetricIDMap()
+	dmc.lastSyncTime = time.Now()
 	dmc.mu.Unlock()
+
+	atomic.AddUint64(&dmc.resetsCount, 1)
 }
 
 func (dmc *dateMetricIDCache) EntriesCount() int {
@@ -1088,9 +1100,10 @@ func (dmc *dateMetricIDCache) sync() {
 		e.v.Union(v)
 	}
 	dmc.byDate.Store(dmc.byDateMutable)
-	byDateMutable := newByDateMetricIDMap()
-	dmc.byDateMutable = byDateMutable
+	dmc.byDateMutable = newByDateMetricIDMap()
 	dmc.mu.Unlock()
+
+	atomic.AddUint64(&dmc.syncsCount, 1)
 
 	if dmc.EntriesCount() > memory.Allowed()/128 {
 		dmc.Reset()
