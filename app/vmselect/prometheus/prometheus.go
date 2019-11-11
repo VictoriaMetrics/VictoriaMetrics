@@ -26,7 +26,7 @@ var (
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
 	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
 	maxLookback      = flag.Duration("search.maxLookback", 0, "Synonim to `-search.lookback-delta` from Prometheus. "+
-		"The value is dynamically detected from interval between time series datapoints if not set. It can be overriden on per-query basis via `max_lookback` arg")
+		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via `max_lookback` arg")
 )
 
 // Default step used if not set.

@@ -61,10 +61,10 @@ type Storage struct {
 	// dateMetricIDCache is (Date, MetricID) cache.
 	dateMetricIDCache *dateMetricIDCache
 
-	// Fast cache for MetricID values occured during the current hour.
+	// Fast cache for MetricID values occurred during the current hour.
 	currHourMetricIDs atomic.Value
 
-	// Fast cache for MetricID values occured during the previous hour.
+	// Fast cache for MetricID values occurred during the previous hour.
 	prevHourMetricIDs atomic.Value
 
 	// Pending MetricID values to be added to currHourMetricIDs.
