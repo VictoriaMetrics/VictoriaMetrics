@@ -267,7 +267,7 @@ again:
 	//
 	// Do not postpone directory removal, since it breaks in the following case:
 	// - Remove the directory (the removal is postponed)
-	// - Scan for exsiting directories and open them. The scan finds
+	// - Scan for existing directories and open them. The scan finds
 	//   the `removed` directory, but its contents may be already broken.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/162 .
 	nfsDirRemoveFailedAttempts.Inc()

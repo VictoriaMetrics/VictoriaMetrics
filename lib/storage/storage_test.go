@@ -116,7 +116,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 		if hmCurr.hour != hour {
-			// It is possible new hour occured. Update the hour and verify it again.
+			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
 			if hmCurr.hour != hour {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
@@ -152,7 +152,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 		if hmCurr.hour != hour {
-			// It is possible new hour occured. Update the hour and verify it again.
+			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
 			if hmCurr.hour != hour {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
@@ -213,7 +213,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 		if hmCurr.hour != hour {
-			// It is possible new hour occured. Update the hour and verify it again.
+			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
 			if hmCurr.hour != hour {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
@@ -274,7 +274,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		s.updateCurrHourMetricIDs()
 		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
 		if hmCurr.hour != hour {
-			// It is possible new hour occured. Update the hour and verify it again.
+			// It is possible new hour occurred. Update the hour and verify it again.
 			hour = uint64(timestampFromTime(time.Now())) / msecPerHour
 			if hmCurr.hour != hour {
 				t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)

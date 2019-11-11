@@ -86,7 +86,7 @@ func (p *Part) ParseFromRemotePath(remotePath string) bool {
 // MaxPartSize is the maximum size for each part.
 //
 // The MaxPartSize reduces bandwidth usage during retires on network errors
-// when transfering multi-TB files.
+// when transferring multi-TB files.
 const MaxPartSize = 128 * 1024 * 1024
 
 // SortParts sorts parts by (Path, Offset)
