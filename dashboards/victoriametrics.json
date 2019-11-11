@@ -60,12 +60,12 @@
       }
     ]
   },
-  "description": "Overview for single node VictoriaMetrics v1.28.0 or higher",
+  "description": "Overview for single node VictoriaMetrics v1.29.0 or higher",
   "editable": true,
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1573078001588,
+  "iteration": 1573509727687,
   "links": [
     {
       "icon": "doc",
@@ -876,13 +876,100 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_PROMETHEUS}",
-      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
+        "y": 27
+      },
+      "id": 66,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(rate(vm_new_timeseries_created_total{job=\"$job\"}[5m]))",
+          "legendFormat": "churn rate",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Churn rate",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS}",
+      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
         "y": 27
       },
       "id": 35,
@@ -969,6 +1056,98 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_PROMETHEUS}",
+      "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "id": 60,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(rate(vm_slow_queries_total{job=\"$job\"}[5m]))",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "slow queries rate",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Slow queries",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS}",
       "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2\n* `current` - current number of goroutines busy with inserting rows into storage\n\nWhen `current` hits `max` constantly, it means storage is overloaded and require more CPU.",
       "fill": 1,
       "fillGradient": 0,
@@ -976,7 +1155,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 35
       },
       "id": 59,
       "legend": {
@@ -1085,7 +1264,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "id": 37,
       "legend": {
@@ -1177,7 +1356,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 43
       },
       "id": 49,
       "legend": {
@@ -1219,98 +1398,6 @@
       "timeRegions": [],
       "timeShift": null,
       "title": "TCP connections rate",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": null,
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
-      "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 43
-      },
-      "id": 60,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "sum(rate(vm_slow_queries_total{job=\"$job\"}[5m]))",
-          "format": "time_series",
-          "hide": false,
-          "intervalFactor": 1,
-          "legendFormat": "slow queries rate",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Slow queries",
       "tooltip": {
         "shared": true,
         "sort": 0,
