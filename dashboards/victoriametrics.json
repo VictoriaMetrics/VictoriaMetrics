@@ -1,4 +1,46 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "6.4.3"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "singlestat",
+      "name": "Singlestat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -16,12 +58,13 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1573170250010,
+  "id": null,
+  "iteration": 1573510630900,
   "links": [],
   "panels": [
     {
       "collapsed": false,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1137,7 +1180,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1598,7 +1641,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2278,7 +2321,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2490,7 +2533,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3347,7 +3390,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3670,7 +3713,7 @@
     },
     {
       "collapsed": true,
-      "datasource": null,
+      "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -4092,7 +4135,6 @@
     "list": [
       {
         "current": {
-          "tags": [],
           "text": "Prometheus",
           "value": "Prometheus"
         },
@@ -4110,10 +4152,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "vminsert",
-          "value": "vminsert"
-        },
+        "current": {},
         "datasource": "$ds",
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
         "hide": 2,
@@ -4135,10 +4174,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "vmselect",
-          "value": "vmselect"
-        },
+        "current": {},
         "datasource": "$ds",
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
         "hide": 2,
@@ -4160,10 +4196,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "vmstorage",
-          "value": "vmstorage"
-        },
+        "current": {},
         "datasource": "$ds",
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
         "hide": 2,
@@ -4185,12 +4218,7 @@
       },
       {
         "allValue": null,
-        "current": {
-          "text": "All",
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "datasource": "$ds",
         "definition": "label_values(vm_app_version{version=~\"^vm.*\"}, job)",
         "hide": 0,
@@ -4212,12 +4240,7 @@
       },
       {
         "allValue": ".*",
-        "current": {
-          "text": "All",
-          "value": [
-            "$__all"
-          ]
-        },
+        "current": {},
         "datasource": "$ds",
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
@@ -4264,5 +4287,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "version": 3
+  "version": 1
 }
