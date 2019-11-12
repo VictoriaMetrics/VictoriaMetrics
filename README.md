@@ -34,7 +34,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
   and [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
 * Easy operation:
-  * VictoriaMetrics consists of a single executable without external dependencies.
+  * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d) without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory pointed by `-storageDataPath` flag.
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
