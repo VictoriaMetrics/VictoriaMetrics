@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.4.3"
+      "version": "6.4.4"
     },
     {
       "type": "panel",
@@ -59,8 +59,33 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1573510630900,
-  "links": [],
+  "iteration": 1573547018225,
+  "links": [
+    {
+      "icon": "doc",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Cluster Wiki",
+      "type": "link",
+      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Cluster-VictoriaMetrics"
+    },
+    {
+      "icon": "external link",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Found a bug?",
+      "type": "link",
+      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues"
+    },
+    {
+      "icon": "external link",
+      "tags": [],
+      "targetBlank": true,
+      "title": "New releases",
+      "type": "link",
+      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -2343,7 +2368,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 57,
           "legend": {
@@ -2449,7 +2474,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 58,
           "legend": {
@@ -2478,7 +2503,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "1 - (sum(rate(vm_cache_miss_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) / sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type))",
+              "expr": "1 - (sum(rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) / sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
