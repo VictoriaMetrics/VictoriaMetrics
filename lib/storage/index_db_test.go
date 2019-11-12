@@ -1398,8 +1398,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var tsid TSID
 			if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf); err != nil {
-				t.Fatal(fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err))
-				return
+				t.Fatalf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err)
 			}
 			tsids = append(tsids, tsid)
 		}
@@ -1409,8 +1408,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for i := range tsids {
 			tsid := &tsids[i]
 			if err := db.storeDateMetricID(date, tsid.MetricID); err != nil {
-				t.Fatal(fmt.Errorf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err))
-				return
+				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
 			}
 		}
 
@@ -1431,8 +1429,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	db.tb.DebugFlush()
 
 	// Create a filter that will match series that occur across multiple days
-	var tfs TagFilters
-	tfs.Reset()
+	tfs := NewTagFilters()
 	if err := tfs.Add([]byte("constant"), []byte("const"), false, false); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
@@ -1443,7 +1440,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MinTimestamp: int64(now - msecPerHour + 1),
 		MaxTimestamp: int64(now),
 	}
-	matchedTSIDs, err := db.searchTSIDs([]*TagFilters{&tfs}, tr, 10000)
+	matchedTSIDs, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 10000)
+	if err != nil {
+		t.Fatalf("error searching tsids: %v", err)
+	}
 	if len(matchedTSIDs) != 256 {
 		t.Fatal("Expected time series for current hour, got", len(matchedTSIDs))
 	}
@@ -1451,10 +1451,13 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	// Perform a search within a day that falls out out of the hour metrics cache.
 	// This should return the metrics for the day
 	tr = TimeRange{
-		MinTimestamp: int64(now - msecPerHour - 60001),
+		MinTimestamp: int64(now - 2*msecPerHour - 1),
 		MaxTimestamp: int64(now),
 	}
-	matchedTSIDs, err = db.searchTSIDs([]*TagFilters{&tfs}, tr, 10000)
+	matchedTSIDs, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 10000)
+	if err != nil {
+		t.Fatalf("error searching tsids: %v", err)
+	}
 	if len(matchedTSIDs) != metricsPerDay {
 		t.Fatal("Expected time series for current day, got", len(matchedTSIDs))
 	}
@@ -1465,7 +1468,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MaxTimestamp: int64(now),
 	}
 
-	matchedTSIDs, err = db.searchTSIDs([]*TagFilters{&tfs}, tr, 10000)
+	matchedTSIDs, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 10000)
+	if err != nil {
+		t.Fatalf("error searching tsids: %v", err)
+	}
 	if len(matchedTSIDs) != metricsPerDay*days {
 		t.Fatal("Expected time series for all days, got", len(matchedTSIDs))
 	}
