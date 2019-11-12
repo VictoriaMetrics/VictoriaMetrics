@@ -16,6 +16,8 @@ Backup process can be interrupted at any time. It is automatically resumed from 
 
 Backed up data can be restored with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md).
 
+See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
+
 
 ### Use cases
 
@@ -106,6 +108,7 @@ Such splitting minimizes the amounts of data to re-transfer after temporary erro
 - Consecutive snapshots share many identical files.
 
 These properties allow performing fast and cheap incremental backups and server-side copying from `-origin` paths.
+See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 `vmbackup` can work improperly or slowly when these properties are violated.
 
 
