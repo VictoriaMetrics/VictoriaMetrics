@@ -6,9 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -248,46 +246,7 @@ func mustSyncParentDirIfExists(path string) {
 //
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 func MustRemoveAll(path string) {
-	startTime := time.Now()
-	sleepTime := 100 * time.Millisecond
-again:
-	err := os.RemoveAll(path)
-	if err == nil {
-		// Make sure the parent directory doesn't contain references
-		// to the current directory.
-		mustSyncParentDirIfExists(path)
-		return
-	}
-	if !isTemporaryNFSError(err) {
-		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
-	}
-	// NFS prevents from removing directories with open files.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-	// Continuously try removing the directory for up to a minute before giving up.
-	//
-	// Do not postpone directory removal, since it breaks in the following case:
-	// - Remove the directory (the removal is postponed)
-	// - Scan for existing directories and open them. The scan finds
-	//   the `removed` directory, but its contents may be already broken.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/162 .
-	nfsDirRemoveFailedAttempts.Inc()
-	if time.Since(startTime) > time.Minute {
-		logger.Panicf("FATAL: couldn't remove NFS directory %q in %s", path, time.Minute)
-	}
-	time.Sleep(sleepTime)
-	sleepTime *= 2
-	if sleepTime > time.Second {
-		sleepTime = time.Second
-	}
-	goto again
-}
-
-var nfsDirRemoveFailedAttempts = metrics.NewCounter(`vm_nfs_dir_remove_failed_attempts_total`)
-
-func isTemporaryNFSError(err error) bool {
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 for details.
-	errStr := err.Error()
-	return strings.Contains(errStr, "directory not empty") || strings.Contains(errStr, "device or resource busy")
+	_ = mustRemoveAll(path)
 }
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.
