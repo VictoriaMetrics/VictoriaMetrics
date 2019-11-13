@@ -1500,17 +1500,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 				ProjectID: projectID,
 			}
 			prevMetricIDs.byTenant = map[accountProjectKey]*uint64set.Set{k: prevMetricIDs.m}
-			prevMetricIDs.iidx = newInmemoryInvertedIndex()
-			prevMetricIDs.iidx.MustUpdate(db, prevMetricIDs.byTenant)
-			if len(prevMetricIDs.iidx.pendingEntries) > 0 {
-				t.Fatalf("couldn't add %d metricIDs to inmemory inverted index for the previous hour", len(prevMetricIDs.iidx.pendingEntries))
-			}
 			currMetricIDs.byTenant = map[accountProjectKey]*uint64set.Set{k: currMetricIDs.m}
-			currMetricIDs.iidx = newInmemoryInvertedIndex()
-			currMetricIDs.iidx.MustUpdate(db, currMetricIDs.byTenant)
-			if len(currMetricIDs.iidx.pendingEntries) > 0 {
-				t.Fatalf("couldn't add %d metricIDs to inmemory inverted index for the current hour", len(currMetricIDs.iidx.pendingEntries))
-			}
 		}
 	}
 
