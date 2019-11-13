@@ -986,6 +986,8 @@ func rollupIntegrate(rfa *rollupFuncArg) float64 {
 		timestamp := timestamps[i]
 		dt := float64(timestamp-prevTimestamp) * 1e-3
 		sum += 0.5 * (v + prevValue) * dt
+		prevTimestamp = timestamp
+		prevValue = v
 	}
 	return sum
 }
