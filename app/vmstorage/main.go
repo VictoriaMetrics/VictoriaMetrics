@@ -25,8 +25,6 @@ var (
 	// DataPath is a path to storage data.
 	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
 
-	disableRecentHourIndex = flag.Bool("disableRecentHourIndex", false, "Whether to disable inmemory inverted index for recent hour. "+
-		"This may be useful in order to reduce memory usage when working with high number of time series")
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
 )
@@ -45,9 +43,6 @@ func InitWithoutMetrics() {
 		logger.Fatalf("invalid `-precisionBits`: %s", err)
 	}
 
-	if *disableRecentHourIndex {
-		storage.DisableRecentHourIndex()
-	}
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 
@@ -412,25 +407,6 @@ func registerStorageMetrics() {
 		return float64(idbm().ItemsCount)
 	})
 
-	metrics.NewGauge(`vm_recent_hour_inverted_index_entries`, func() float64 {
-		return float64(m().RecentHourInvertedIndexSize)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_size_bytes`, func() float64 {
-		return float64(m().RecentHourInvertedIndexSizeBytes)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_unique_tag_pairs`, func() float64 {
-		return float64(m().RecentHourInvertedIndexUniqueTagPairsSize)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_pending_metric_ids`, func() float64 {
-		return float64(m().RecentHourInvertedIndexPendingMetricIDsSize)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_search_calls_total`, func() float64 {
-		return float64(idbm().RecentHourInvertedIndexSearchCalls)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_search_hits_total`, func() float64 {
-		return float64(idbm().RecentHourInvertedIndexSearchHits)
-	})
-
 	metrics.NewGauge(`vm_date_range_search_calls_total`, func() float64 {
 		return float64(idbm().DateRangeSearchCalls)
 	})
@@ -490,6 +466,9 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/date_metricID"}`, func() float64 {
+		return float64(m().DateMetricIDCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagCacheSizeBytes)

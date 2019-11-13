@@ -95,12 +95,6 @@ type indexDB struct {
 	// The number of successful searches for metric ids by days.
 	dateMetricIDsSearchHits uint64
 
-	// The number of calls for recent hour searches over inverted index.
-	recentHourInvertedIndexSearchCalls uint64
-
-	// The number of hits for recent hour searches over inverted index.
-	recentHourInvertedIndexSearchHits uint64
-
 	// The number of calls for date range searches.
 	dateRangeSearchCalls uint64
 
@@ -231,9 +225,6 @@ type IndexDBMetrics struct {
 	DateMetricIDsSearchCalls       uint64
 	DateMetricIDsSearchHits        uint64
 
-	RecentHourInvertedIndexSearchCalls uint64
-	RecentHourInvertedIndexSearchHits  uint64
-
 	DateRangeSearchCalls uint64
 	DateRangeSearchHits  uint64
 
@@ -274,9 +265,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.RecentHourMetricIDsSearchHits += atomic.LoadUint64(&db.recentHourMetricIDsSearchHits)
 	m.DateMetricIDsSearchCalls += atomic.LoadUint64(&db.dateMetricIDsSearchCalls)
 	m.DateMetricIDsSearchHits += atomic.LoadUint64(&db.dateMetricIDsSearchHits)
-
-	m.RecentHourInvertedIndexSearchCalls += atomic.LoadUint64(&db.recentHourInvertedIndexSearchCalls)
-	m.RecentHourInvertedIndexSearchHits += atomic.LoadUint64(&db.recentHourInvertedIndexSearchHits)
 
 	m.DateRangeSearchCalls += atomic.LoadUint64(&db.dateRangeSearchCalls)
 	m.DateRangeSearchHits += atomic.LoadUint64(&db.dateRangeSearchHits)
@@ -1667,10 +1655,6 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		return bytes.Compare(a.prefix, b.prefix) < 0
 	})
 
-	if is.tryUpdatingMetricIDsForRecentHour(metricIDs, tfs, tr) {
-		// Fast path: found metricIDs in the inmemoryInvertedIndex for the last hour.
-		return nil
-	}
 	ok, err := is.tryUpdatingMetricIDsForDateRange(metricIDs, tfs, tr, maxMetrics)
 	if err != nil {
 		return err
@@ -2191,38 +2175,6 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) 
 		return metricIDs, true
 	}
 	return nil, false
-}
-
-func (is *indexSearch) tryUpdatingMetricIDsForRecentHour(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange) bool {
-	if disableRecentHourIndex {
-		return false
-	}
-
-	atomic.AddUint64(&is.db.recentHourInvertedIndexSearchCalls, 1)
-	minHour := uint64(tr.MinTimestamp) / msecPerHour
-	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
-	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
-	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
-		// The tr fits the current hour.
-		hmCurr.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmCurr.m, tfs)
-		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
-		return true
-	}
-	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
-	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
-		// The tr fits the previous hour.
-		hmPrev.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmPrev.m, tfs)
-		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
-		return true
-	}
-	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
-		// The tr spans the previous and the current hours.
-		hmPrev.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmPrev.m, tfs)
-		hmCurr.iidx.UpdateMetricIDsForTagFilters(metricIDs, hmCurr.m, tfs)
-		atomic.AddUint64(&is.db.recentHourInvertedIndexSearchHits, 1)
-		return true
-	}
-	return false
 }
 
 func (db *indexDB) storeDateMetricID(date, metricID uint64) error {

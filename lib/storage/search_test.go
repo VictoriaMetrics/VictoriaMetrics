@@ -72,21 +72,15 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	t.Run("global_inverted_index", func(t *testing.T) {
-		testSearchGeneric(t, false, false)
+		testSearchGeneric(t, false)
 	})
 	t.Run("perday_inverted_index", func(t *testing.T) {
-		testSearchGeneric(t, false, true)
-	})
-	t.Run("recent_hour_global_inverted_index", func(t *testing.T) {
-		testSearchGeneric(t, true, false)
-	})
-	t.Run("recent_hour_perday_inverted_index", func(t *testing.T) {
-		testSearchGeneric(t, true, true)
+		testSearchGeneric(t, true)
 	})
 }
 
-func testSearchGeneric(t *testing.T, forceRecentHourInvertedIndex, forcePerDayInvertedIndex bool) {
-	path := fmt.Sprintf("TestSearch_%v_%v", forceRecentHourInvertedIndex, forcePerDayInvertedIndex)
+func testSearchGeneric(t *testing.T, forcePerDayInvertedIndex bool) {
+	path := fmt.Sprintf("TestSearch_%v", forcePerDayInvertedIndex)
 	st, err := OpenStorage(path, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage %q: %s", path, err)
@@ -146,10 +140,6 @@ func testSearchGeneric(t *testing.T, forceRecentHourInvertedIndex, forcePerDayIn
 		idb.doExtDB(func(extDB *indexDB) {
 			extDB.startDateForPerDayInvertedIndex = 0
 		})
-	}
-	if forceRecentHourInvertedIndex {
-		hm := st.currHourMetricIDs.Load().(*hourMetricIDs)
-		hm.isFull = true
 	}
 
 	// Run search.
