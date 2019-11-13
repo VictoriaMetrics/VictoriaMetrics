@@ -1418,10 +1418,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 				prevMetricIDs.m.Add(tsids[i].MetricID)
 				currMetricIDs.m.Add(tsids[i].MetricID)
 			}
-			prevMetricIDs.iidx = newInmemoryInvertedIndex()
-			prevMetricIDs.iidx.MustUpdate(db, prevMetricIDs.m)
-			currMetricIDs.iidx = newInmemoryInvertedIndex()
-			currMetricIDs.iidx.MustUpdate(db, currMetricIDs.m)
 		}
 	}
 

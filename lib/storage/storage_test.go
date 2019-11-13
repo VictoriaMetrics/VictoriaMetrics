@@ -108,7 +108,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			iidx: newInmemoryInvertedIndex(),
 			hour: 123,
 		}
 		hmOrig.m.Add(12)
@@ -144,7 +143,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 		hmOrig.m.Add(12)
@@ -189,7 +187,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			iidx: newInmemoryInvertedIndex(),
 			hour: 123,
 		}
 		hmOrig.m.Add(12)
@@ -231,7 +228,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 		hmOrig.m.Add(12)

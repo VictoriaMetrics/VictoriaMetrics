@@ -407,22 +407,6 @@ func registerStorageMetrics() {
 		return float64(idbm().ItemsCount)
 	})
 
-	metrics.NewGauge(`vm_recent_hour_inverted_index_entries`, func() float64 {
-		return float64(m().RecentHourInvertedIndexSize)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_unique_tag_pairs`, func() float64 {
-		return float64(m().RecentHourInvertedIndexUniqueTagPairsSize)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_pending_metric_ids`, func() float64 {
-		return float64(m().RecentHourInvertedIndexPendingMetricIDsSize)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_search_calls_total`, func() float64 {
-		return float64(idbm().RecentHourInvertedIndexSearchCalls)
-	})
-	metrics.NewGauge(`vm_recent_hour_inverted_index_search_hits_total`, func() float64 {
-		return float64(idbm().RecentHourInvertedIndexSearchHits)
-	})
-
 	metrics.NewGauge(`vm_date_range_search_calls_total`, func() float64 {
 		return float64(idbm().DateRangeSearchCalls)
 	})

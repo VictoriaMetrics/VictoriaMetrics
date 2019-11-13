@@ -140,13 +140,6 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
 
-	// Initialize iidx. hmCurr and hmPrev shouldn't be used till now,
-	// so it should be safe initializing it inplace.
-	hmPrev.iidx = newInmemoryInvertedIndex()
-	hmPrev.iidx.MustUpdate(s.idb(), hmPrev.m)
-	hmCurr.iidx = newInmemoryInvertedIndex()
-	hmCurr.iidx.MustUpdate(s.idb(), hmCurr.m)
-
 	// Load data
 	tablePath := path + "/data"
 	tb, err := openTable(tablePath, retentionMonths, s.getDeletedMetricIDs)
@@ -318,10 +311,6 @@ type Metrics struct {
 
 	HourMetricIDCacheSize uint64
 
-	RecentHourInvertedIndexSize                 uint64
-	RecentHourInvertedIndexUniqueTagPairsSize   uint64
-	RecentHourInvertedIndexPendingMetricIDsSize uint64
-
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -377,15 +366,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 		hourMetricIDsLen = hmCurr.m.Len()
 	}
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
-
-	m.RecentHourInvertedIndexSize += uint64(hmPrev.iidx.GetEntriesCount())
-	m.RecentHourInvertedIndexSize += uint64(hmCurr.iidx.GetEntriesCount())
-
-	m.RecentHourInvertedIndexUniqueTagPairsSize += uint64(hmPrev.iidx.GetUniqueTagPairsLen())
-	m.RecentHourInvertedIndexUniqueTagPairsSize += uint64(hmCurr.iidx.GetUniqueTagPairsLen())
-
-	m.RecentHourInvertedIndexPendingMetricIDsSize += uint64(hmPrev.iidx.GetPendingMetricIDsLen())
-	m.RecentHourInvertedIndexPendingMetricIDsSize += uint64(hmCurr.iidx.GetPendingMetricIDsLen())
 
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
@@ -920,7 +900,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, lastError error) error {
 			s.pendingHourEntriesLock.Lock()
 			s.pendingHourEntries.Add(metricID)
 			s.pendingHourEntriesLock.Unlock()
-			hm.iidx.AddMetricID(idb, metricID)
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
@@ -1098,20 +1077,16 @@ func (s *Storage) updateCurrHourMetricIDs() {
 
 	// Slow path: hm.m must be updated with non-empty s.pendingHourEntries.
 	var m *uint64set.Set
-	var iidx *inmemoryInvertedIndex
 	isFull := hm.isFull
 	if hm.hour == hour {
 		m = hm.m.Clone()
-		iidx = hm.iidx.Clone()
 	} else {
 		m = &uint64set.Set{}
-		iidx = newInmemoryInvertedIndex()
 		isFull = true
 	}
 	m.Union(newMetricIDs)
 	hmNew := &hourMetricIDs{
 		m:      m,
-		iidx:   iidx,
 		hour:   hour,
 		isFull: isFull,
 	}
@@ -1123,7 +1098,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 
 type hourMetricIDs struct {
 	m      *uint64set.Set
-	iidx   *inmemoryInvertedIndex
 	hour   uint64
 	isFull bool
 }
