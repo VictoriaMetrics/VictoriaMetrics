@@ -470,6 +470,9 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/date_metricID"}`, func() float64 {
 		return float64(m().DateMetricIDCacheSizeBytes)
 	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/hour_metric_ids"}`, func() float64 {
+		return float64(m().HourMetricIDCacheSizeBytes)
+	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagCacheSizeBytes)
 	})

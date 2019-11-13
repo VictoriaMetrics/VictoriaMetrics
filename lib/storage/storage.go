@@ -310,7 +310,8 @@ type Metrics struct {
 	DateMetricIDCacheSyncsCount  uint64
 	DateMetricIDCacheResetsCount uint64
 
-	HourMetricIDCacheSize uint64
+	HourMetricIDCacheSize      uint64
+	HourMetricIDCacheSizeBytes uint64
 
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
@@ -368,6 +369,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 		hourMetricIDsLen = hmCurr.m.Len()
 	}
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
+	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
+	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
 
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
