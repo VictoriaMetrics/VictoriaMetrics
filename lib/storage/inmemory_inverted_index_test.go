@@ -14,6 +14,10 @@ func TestInmemoryInvertedIndexMarshalUnmarshal(t *testing.T) {
 		k := fmt.Sprintf("key %d", i%keysCount)
 		iidx.addMetricIDLocked([]byte(k), uint64(i))
 	}
+	for i := 0; i < 10; i++ {
+		metricID := uint64(i * 43)
+		iidx.pendingMetricIDs = append(iidx.pendingMetricIDs, metricID)
+	}
 
 	data := iidx.Marshal(nil)
 
