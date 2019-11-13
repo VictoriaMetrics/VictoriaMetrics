@@ -355,6 +355,9 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_recent_hour_inverted_index_entries`, func() float64 {
 		return float64(m().RecentHourInvertedIndexSize)
 	})
+	metrics.NewGauge(`vm_recent_hour_inverted_index_size_bytes`, func() float64 {
+		return float64(m().RecentHourInvertedIndexSizeBytes)
+	})
 	metrics.NewGauge(`vm_recent_hour_inverted_index_unique_tag_pairs`, func() float64 {
 		return float64(m().RecentHourInvertedIndexUniqueTagPairsSize)
 	})

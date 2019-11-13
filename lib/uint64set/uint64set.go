@@ -3,6 +3,7 @@ package uint64set
 import (
 	"math/bits"
 	"sort"
+	"unsafe"
 )
 
 // Set is a fast set for uint64.
@@ -45,6 +46,19 @@ func (s *Set) Clone() *Set {
 		dst.buckets[i] = b32.clone()
 	}
 	return &dst
+}
+
+// SizeBytes returns an estimate size of s in RAM.
+func (s *Set) SizeBytes() uint64 {
+	if s == nil {
+		return 0
+	}
+	n := uint64(unsafe.Sizeof(*s))
+	for _, b := range s.buckets {
+		n += uint64(unsafe.Sizeof(b))
+		n += b.sizeBytes()
+	}
+	return n
 }
 
 // Len returns the number of distinct uint64 values in s.
@@ -259,6 +273,16 @@ type bucket32 struct {
 	smallPool     [14]uint32
 }
 
+func (b *bucket32) sizeBytes() uint64 {
+	n := uint64(unsafe.Sizeof(*b))
+	n += 2 * uint64(len(b.b16his))
+	for _, b := range b.buckets {
+		n += uint64(unsafe.Sizeof(b))
+		n += b.sizeBytes()
+	}
+	return n
+}
+
 func (b *bucket32) clone() *bucket32 {
 	var dst bucket32
 	dst.skipSmallPool = b.skipSmallPool
@@ -461,6 +485,10 @@ const (
 
 type bucket16 struct {
 	bits [wordsPerBucket]uint64
+}
+
+func (b *bucket16) sizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*b))
 }
 
 func (b *bucket16) clone() *bucket16 {

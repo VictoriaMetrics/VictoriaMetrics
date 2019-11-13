@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -14,6 +16,121 @@ type inmemoryInvertedIndex struct {
 	mu             sync.RWMutex
 	m              map[string]*uint64set.Set
 	pendingEntries []pendingHourMetricIDEntry
+}
+
+func (iidx *inmemoryInvertedIndex) Marshal(dst []byte) []byte {
+	iidx.mu.RLock()
+	defer iidx.mu.RUnlock()
+
+	// Marshal iidx.m
+	var metricIDs []uint64
+	dst = encoding.MarshalUint64(dst, uint64(len(iidx.m)))
+	for k, v := range iidx.m {
+		dst = encoding.MarshalBytes(dst, []byte(k))
+		metricIDs = v.AppendTo(metricIDs[:0])
+		dst = marshalMetricIDs(dst, metricIDs)
+	}
+
+	// Marshal iidx.pendingEntries
+	dst = encoding.MarshalUint64(dst, uint64(len(iidx.pendingEntries)))
+	for _, e := range iidx.pendingEntries {
+		dst = encoding.MarshalUint32(dst, e.AccountID)
+		dst = encoding.MarshalUint32(dst, e.ProjectID)
+		dst = encoding.MarshalUint64(dst, e.MetricID)
+	}
+
+	return dst
+}
+
+func (iidx *inmemoryInvertedIndex) Unmarshal(src []byte) ([]byte, error) {
+	iidx.mu.Lock()
+	defer iidx.mu.Unlock()
+
+	// Unmarshal iidx.m
+	if len(src) < 8 {
+		return src, fmt.Errorf("cannot read len(iidx.m) from %d bytes; want at least 8 bytes", len(src))
+	}
+	mLen := int(encoding.UnmarshalUint64(src))
+	src = src[8:]
+	m := make(map[string]*uint64set.Set, mLen)
+	var metricIDs []uint64
+	for i := 0; i < mLen; i++ {
+		tail, k, err := encoding.UnmarshalBytes(src)
+		if err != nil {
+			return tail, fmt.Errorf("cannot unmarshal key #%d for iidx.m: %s", i, err)
+		}
+		src = tail
+		tail, metricIDs, err = unmarshalMetricIDs(metricIDs[:0], src)
+		if err != nil {
+			return tail, fmt.Errorf("cannot unmarshal value #%d for iidx.m: %s", i, err)
+		}
+		src = tail
+		var v uint64set.Set
+		for _, metricID := range metricIDs {
+			v.Add(metricID)
+		}
+		m[string(k)] = &v
+	}
+	iidx.m = m
+
+	// Unmarshal iidx.pendingEntries
+	if len(src) < 8 {
+		return src, fmt.Errorf("cannot unmarshal pendingEntriesLen from %d bytes; want at least %d bytes", len(src), 8)
+	}
+	pendingEntriesLen := int(encoding.UnmarshalUint64(src))
+	src = src[8:]
+	if len(src) < pendingEntriesLen*16 {
+		return src, fmt.Errorf("cannot unmarshal %d pending entries from %d bytes; want at least %d bytes", pendingEntriesLen, len(src), pendingEntriesLen*16)
+	}
+	for i := 0; i < pendingEntriesLen; i++ {
+		var e pendingHourMetricIDEntry
+		e.AccountID = encoding.UnmarshalUint32(src)
+		src = src[4:]
+		e.ProjectID = encoding.UnmarshalUint32(src)
+		src = src[4:]
+		e.MetricID = encoding.UnmarshalUint64(src)
+		src = src[8:]
+		iidx.pendingEntries = append(iidx.pendingEntries, e)
+	}
+
+	return src, nil
+}
+
+func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
+	dst = encoding.MarshalUint64(dst, uint64(len(metricIDs)))
+	for _, metricID := range metricIDs {
+		dst = encoding.MarshalUint64(dst, metricID)
+	}
+	return dst
+}
+
+func unmarshalMetricIDs(dst []uint64, src []byte) ([]byte, []uint64, error) {
+	if len(src) < 8 {
+		return src, dst, fmt.Errorf("cannot unmarshal metricIDs len from %d bytes; want at least 8 bytes", len(src))
+	}
+	metricIDsLen := int(encoding.UnmarshalUint64(src))
+	src = src[8:]
+	if len(src) < 8*metricIDsLen {
+		return src, dst, fmt.Errorf("not enough bytes for unmarshaling %d metricIDs; want %d bytes; got %d bytes", metricIDsLen, 8*metricIDsLen, len(src))
+	}
+	for i := 0; i < metricIDsLen; i++ {
+		metricID := encoding.UnmarshalUint64(src)
+		src = src[8:]
+		dst = append(dst, metricID)
+	}
+	return src, dst, nil
+}
+
+func (iidx *inmemoryInvertedIndex) SizeBytes() uint64 {
+	n := uint64(0)
+	iidx.mu.RLock()
+	for k, v := range iidx.m {
+		n += uint64(len(k))
+		n += v.SizeBytes()
+	}
+	n += uint64(len(iidx.pendingEntries)) * uint64(unsafe.Sizeof(pendingHourMetricIDEntry{}))
+	iidx.mu.RUnlock()
+	return n
 }
 
 func (iidx *inmemoryInvertedIndex) GetUniqueTagPairsLen() int {
@@ -52,23 +169,6 @@ func (iidx *inmemoryInvertedIndex) GetPendingMetricIDsLen() int {
 func newInmemoryInvertedIndex() *inmemoryInvertedIndex {
 	return &inmemoryInvertedIndex{
 		m: make(map[string]*uint64set.Set),
-	}
-}
-
-func (iidx *inmemoryInvertedIndex) Clone() *inmemoryInvertedIndex {
-	if iidx == nil {
-		return newInmemoryInvertedIndex()
-	}
-	iidx.mu.RLock()
-	mCopy := make(map[string]*uint64set.Set, len(iidx.m))
-	for k, v := range iidx.m {
-		mCopy[k] = v.Clone()
-	}
-	pendingEntries := append([]pendingHourMetricIDEntry{}, iidx.pendingEntries...)
-	iidx.mu.RUnlock()
-	return &inmemoryInvertedIndex{
-		m:              mCopy,
-		pendingEntries: pendingEntries,
 	}
 }
 

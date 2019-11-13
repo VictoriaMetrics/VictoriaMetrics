@@ -25,6 +25,9 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	// Verify operations on nil set
 	{
 		var sNil *Set
+		if n := sNil.SizeBytes(); n != 0 {
+			t.Fatalf("sNil.SizeBytes must return 0; got %d", n)
+		}
 		if sNil.Has(123) {
 			t.Fatalf("sNil shouldn't contain any item; found 123")
 		}
@@ -72,6 +75,9 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 	if n := s.Len(); n != itemsCount/2 {
 		t.Fatalf("unexpected s.Len() after forward Add; got %d; want %d", n, itemsCount/2)
+	}
+	if n := s.SizeBytes(); n == 0 {
+		t.Fatalf("s.SizeBytes() must be greater than 0")
 	}
 
 	// Verify backward Add
@@ -306,6 +312,9 @@ func testSetSparseItems(t *testing.T, itemsCount int) {
 	}
 	if n := s.Len(); n != len(m) {
 		t.Fatalf("unexpected Len(); got %d; want %d", n, len(m))
+	}
+	if n := s.SizeBytes(); n == 0 {
+		t.Fatalf("SizeBytes() must return value greater than 0")
 	}
 
 	// Check Has
