@@ -2198,9 +2198,9 @@ func (is *indexSearch) tryUpdatingMetricIDsForRecentHour(metricIDs *uint64set.Se
 		return false
 	}
 
+	atomic.AddUint64(&is.db.recentHourInvertedIndexSearchCalls, 1)
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
 	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
-
 	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
 	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
 		// The tr fits the current hour.
