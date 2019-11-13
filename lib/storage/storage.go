@@ -311,6 +311,11 @@ type Metrics struct {
 
 	HourMetricIDCacheSize uint64
 
+	RecentHourInvertedIndexSize                 uint64
+	RecentHourInvertedIndexSizeBytes            uint64
+	RecentHourInvertedIndexUniqueTagPairsSize   uint64
+	RecentHourInvertedIndexPendingMetricIDsSize uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -366,6 +371,18 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 		hourMetricIDsLen = hmCurr.m.Len()
 	}
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
+
+	m.RecentHourInvertedIndexSize += uint64(hmPrev.iidx.GetEntriesCount())
+	m.RecentHourInvertedIndexSize += uint64(hmCurr.iidx.GetEntriesCount())
+
+	m.RecentHourInvertedIndexSizeBytes += hmPrev.iidx.SizeBytes()
+	m.RecentHourInvertedIndexSizeBytes += hmCurr.iidx.SizeBytes()
+
+	m.RecentHourInvertedIndexUniqueTagPairsSize += uint64(hmPrev.iidx.GetUniqueTagPairsLen())
+	m.RecentHourInvertedIndexUniqueTagPairsSize += uint64(hmCurr.iidx.GetUniqueTagPairsLen())
+
+	m.RecentHourInvertedIndexPendingMetricIDsSize += uint64(hmPrev.iidx.GetPendingMetricIDsLen())
+	m.RecentHourInvertedIndexPendingMetricIDsSize += uint64(hmCurr.iidx.GetPendingMetricIDsLen())
 
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
@@ -481,6 +498,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	if !fs.IsPathExist(path) {
 		logger.Infof("nothing to load from %q", path)
 		return &hourMetricIDs{
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 	}
@@ -492,6 +510,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	if len(src) < 24 {
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 24)
 		return &hourMetricIDs{
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 	}
@@ -504,6 +523,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	if hourLoaded != hour {
 		logger.Infof("discarding %s, since it contains outdated hour; got %d; want %d", name, hourLoaded, hour)
 		return &hourMetricIDs{
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 	}
@@ -511,9 +531,10 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	// Unmarshal hm.m
 	hmLen := encoding.UnmarshalUint64(src)
 	src = src[8:]
-	if uint64(len(src)) != 8*hmLen {
-		logger.Errorf("discarding %s, since it has broken hm.m data; got %d bytes; want %d bytes", path, len(src), 8*hmLen)
+	if uint64(len(src)) < 8*hmLen {
+		logger.Errorf("discarding %s, since it has broken hm.m data; got %d bytes; want at least %d bytes", path, len(src), 8*hmLen)
 		return &hourMetricIDs{
+			iidx: newInmemoryInvertedIndex(),
 			hour: hour,
 		}
 	}
@@ -523,9 +544,29 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		src = src[8:]
 		m.Add(metricID)
 	}
+
+	// Unmarshal hm.iidx
+	iidx := newInmemoryInvertedIndex()
+	tail, err := iidx.Unmarshal(src)
+	if err != nil {
+		logger.Errorf("discarding %s, since it has broken hm.iidx data: %s", path, err)
+		return &hourMetricIDs{
+			iidx: newInmemoryInvertedIndex(),
+			hour: hour,
+		}
+	}
+	if len(tail) > 0 {
+		logger.Errorf("discarding %s, since it contains superflouos %d bytes of data", path, len(tail))
+		return &hourMetricIDs{
+			iidx: newInmemoryInvertedIndex(),
+			hour: hour,
+		}
+	}
+
 	logger.Infof("loaded %s from %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hmLen, srcOrigLen)
 	return &hourMetricIDs{
 		m:      m,
+		iidx:   iidx,
 		hour:   hourLoaded,
 		isFull: isFull != 0,
 	}
@@ -550,6 +591,10 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	for _, metricID := range hm.m.AppendTo(nil) {
 		dst = encoding.MarshalUint64(dst, metricID)
 	}
+
+	// Marshal hm.iidx
+	dst = hm.iidx.Marshal(dst)
+
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
@@ -900,6 +945,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, lastError error) error {
 			s.pendingHourEntriesLock.Lock()
 			s.pendingHourEntries.Add(metricID)
 			s.pendingHourEntriesLock.Unlock()
+			hm.iidx.AddMetricID(idb, metricID)
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
@@ -908,7 +954,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, lastError error) error {
 			continue
 		}
 
-		// Slow path: store the entry (date, metricID) entry in the indexDB.
+		// Slow path: store the (date, metricID) entry in the indexDB.
 		// It is OK if the (date, metricID) entry is added multiple times to db
 		// by concurrent goroutines.
 		if err := idb.storeDateMetricID(date, metricID); err != nil {
@@ -1077,16 +1123,20 @@ func (s *Storage) updateCurrHourMetricIDs() {
 
 	// Slow path: hm.m must be updated with non-empty s.pendingHourEntries.
 	var m *uint64set.Set
+	var iidx *inmemoryInvertedIndex
 	isFull := hm.isFull
 	if hm.hour == hour {
 		m = hm.m.Clone()
+		iidx = hm.iidx
 	} else {
 		m = &uint64set.Set{}
+		iidx = newInmemoryInvertedIndex()
 		isFull = true
 	}
 	m.Union(newMetricIDs)
 	hmNew := &hourMetricIDs{
 		m:      m,
+		iidx:   iidx,
 		hour:   hour,
 		isFull: isFull,
 	}
@@ -1098,6 +1148,7 @@ func (s *Storage) updateCurrHourMetricIDs() {
 
 type hourMetricIDs struct {
 	m      *uint64set.Set
+	iidx   *inmemoryInvertedIndex
 	hour   uint64
 	isFull bool
 }
