@@ -27,6 +27,17 @@ import (
 
 const maxRetentionMonths = 12 * 100
 
+var disableRecentHourIndex = false
+
+// DisableRecentHourIndex disables in-memory inverted index for recent hour.
+//
+// This may be useful in order to save RAM for high cardinality data.
+//
+// This function must be called before OpenStorage.
+func DisableRecentHourIndex() {
+	disableRecentHourIndex = true
+}
+
 // Storage represents TSDB storage.
 type Storage struct {
 	// Atomic counters must go at the top of the structure in order to properly align by 8 bytes on 32-bit archs.
@@ -593,19 +604,21 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 
 	// Unmarshal hm.iidx
 	iidx := newInmemoryInvertedIndex()
-	tail, err := iidx.Unmarshal(src)
-	if err != nil {
-		logger.Errorf("discarding %s, since it has broken hm.iidx data: %s", path, err)
-		return &hourMetricIDs{
-			iidx: newInmemoryInvertedIndex(),
-			hour: hour,
+	if !disableRecentHourIndex {
+		tail, err := iidx.Unmarshal(src)
+		if err != nil {
+			logger.Errorf("discarding %s, since it has broken hm.iidx data: %s", path, err)
+			return &hourMetricIDs{
+				iidx: newInmemoryInvertedIndex(),
+				hour: hour,
+			}
 		}
-	}
-	if len(tail) > 0 {
-		logger.Errorf("discarding %s, since it contains superflouos %d bytes of data", path, len(tail))
-		return &hourMetricIDs{
-			iidx: newInmemoryInvertedIndex(),
-			hour: hour,
+		if len(tail) > 0 {
+			logger.Errorf("discarding %s, since it contains superflouos %d bytes of data", path, len(tail))
+			return &hourMetricIDs{
+				iidx: newInmemoryInvertedIndex(),
+				hour: hour,
+			}
 		}
 	}
 
@@ -652,8 +665,10 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 		}
 	}
 
-	// Marshal hm.iidx
-	dst = hm.iidx.Marshal(dst)
+	if !disableRecentHourIndex {
+		// Marshal hm.iidx
+		dst = hm.iidx.Marshal(dst)
+	}
 
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
@@ -1015,7 +1030,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, lastError error) error {
 			}
 			s.pendingHourEntries = append(s.pendingHourEntries, e)
 			s.pendingHourEntriesLock.Unlock()
-			hm.iidx.AddMetricID(idb, e)
+			if !disableRecentHourIndex {
+				hm.iidx.AddMetricID(idb, e)
+			}
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.

@@ -2231,6 +2231,10 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 }
 
 func (is *indexSearch) tryUpdatingMetricIDsForRecentHour(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange) bool {
+	if disableRecentHourIndex {
+		return false
+	}
+
 	atomic.AddUint64(&is.db.recentHourInvertedIndexSearchCalls, 1)
 	k := accountProjectKey{
 		AccountID: tfs.accountID,
