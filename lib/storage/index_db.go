@@ -1001,8 +1001,9 @@ func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
 	if err := ts.Error(); err != nil {
 		return 0, err
 	}
-	// The database is empty. Return the current date.
-	return minDate, nil
+	// There are no (date,tag)->metricIDs entries in the database yet.
+	// Return the next date, since the current date may contain unindexed data.
+	return minDate + 1, nil
 }
 
 func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
