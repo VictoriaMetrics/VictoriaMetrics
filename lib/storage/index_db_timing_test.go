@@ -108,6 +108,185 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 	}
 }
 
+func BenchmarkHeadPostingForMatchers(b *testing.B) {
+	// This benchmark is equivalent to https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L52
+	// See https://www.robustperception.io/evaluating-performance-and-correctness for more details.
+	metricIDCache := workingsetcache.New(1234, time.Hour)
+	metricNameCache := workingsetcache.New(1234, time.Hour)
+	defer metricIDCache.Stop()
+	defer metricNameCache.Stop()
+
+	var hmCurr atomic.Value
+	hmCurr.Store(&hourMetricIDs{})
+	var hmPrev atomic.Value
+	hmPrev.Store(&hourMetricIDs{})
+
+	const dbName = "bench-head-posting-for-matchers"
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
+	if err != nil {
+		b.Fatalf("cannot open indexDB: %s", err)
+	}
+	defer func() {
+		db.MustClose()
+		if err := os.RemoveAll(dbName); err != nil {
+			b.Fatalf("cannot remove indexDB: %s", err)
+		}
+	}()
+
+	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
+	var mn MetricName
+	var metricName []byte
+	var tsid TSID
+	addSeries := func(kvs ...string) {
+		mn.Reset()
+		for i := 0; i < len(kvs); i += 2 {
+			mn.AddTag(kvs[i], kvs[i+1])
+		}
+		mn.sortTags()
+		metricName = mn.Marshal(metricName[:0])
+		if err := db.createTSIDByName(&tsid, metricName); err != nil {
+			b.Fatalf("cannot insert record: %s", err)
+		}
+	}
+	for n := 0; n < 10; n++ {
+		for i := 0; i < 10000; i++ {
+			addSeries("i", strconv.Itoa(i), "n", strconv.Itoa(n), "j", "foo")
+			// Have some series that won't be matched, to properly test inverted matches.
+			addSeries("i", strconv.Itoa(i), "n", strconv.Itoa(n), "j", "bar")
+			addSeries("i", strconv.Itoa(i), "n", "0_"+strconv.Itoa(n), "j", "bar")
+			addSeries("i", strconv.Itoa(i), "n", "1_"+strconv.Itoa(n), "j", "bar")
+			addSeries("i", strconv.Itoa(i), "n", "2_"+strconv.Itoa(n), "j", "foo")
+		}
+	}
+
+	// Make sure all the items can be searched.
+	db.tb.DebugFlush()
+	b.ResetTimer()
+
+	benchSearch := func(b *testing.B, tfs *TagFilters) {
+		is := db.getIndexSearch()
+		defer db.putIndexSearch(is)
+		tfss := []*TagFilters{tfs}
+		tr := TimeRange{
+			MinTimestamp: 0,
+			MaxTimestamp: timestampFromTime(time.Now()),
+		}
+		for i := 0; i < b.N; i++ {
+			_, err := is.searchMetricIDs(tfss, tr, 2e9)
+			if err != nil {
+				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
+			}
+		}
+	}
+	addTagFilter := func(tfs *TagFilters, key, value string, isNegative, isRegexp bool) {
+		if err := tfs.Add([]byte(key), []byte(value), isNegative, isRegexp); err != nil {
+			b.Fatalf("cannot add tag filter %q=%q, isNegative=%v, isRegexp=%v", key, value, isNegative, isRegexp)
+		}
+	}
+
+	b.Run(`n="1"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`j="foo",n="1"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "j", "foo", false, false)
+		addTagFilter(tfs, "n", "1", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",j!="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "j", "foo", true, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`i=~".*"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "i", ".*", false, true)
+		benchSearch(b, tfs)
+	})
+	b.Run(`i=~".+"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "i", ".+", false, true)
+		benchSearch(b, tfs)
+	})
+	b.Run(`i=~""`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "i", "", false, true)
+		benchSearch(b, tfs)
+	})
+	b.Run(`i!=""`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "i", "", true, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i=~".*",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", ".*", false, true)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i=~".*",i!="2",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", ".*", false, true)
+		addTagFilter(tfs, "i", "2", true, false)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i!=""`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", "", true, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i!="",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", "", true, false)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i=~".+",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", ".+", false, true)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i=~"1.+",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", "1.+", false, true)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i=~".+",i!="2",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", ".+", false, true)
+		addTagFilter(tfs, "i", "2", true, false)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+	b.Run(`n="1",i=~".+",i!~"2.*",j="foo"`, func(b *testing.B) {
+		tfs := NewTagFilters()
+		addTagFilter(tfs, "n", "1", false, false)
+		addTagFilter(tfs, "i", ".+", false, true)
+		addTagFilter(tfs, "i", "2.*", true, true)
+		addTagFilter(tfs, "j", "foo", false, false)
+		benchSearch(b, tfs)
+	})
+}
+
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	metricIDCache := workingsetcache.New(1234, time.Hour)
 	metricNameCache := workingsetcache.New(1234, time.Hour)
