@@ -156,7 +156,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 	}
 	for n := 0; n < 10; n++ {
-		for i := 0; i < 10000; i++ {
+		for i := 0; i < 100000; i++ {
 			addSeries("i", strconv.Itoa(i), "n", strconv.Itoa(n), "j", "foo")
 			// Have some series that won't be matched, to properly test inverted matches.
 			addSeries("i", strconv.Itoa(i), "n", strconv.Itoa(n), "j", "bar")
