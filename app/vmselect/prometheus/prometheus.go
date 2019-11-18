@@ -555,7 +555,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
 	}
 	if ct-start < queryOffset {
-		start -= queryOffset
+		start = ct - queryOffset
 	}
 	if childQuery, windowStr, offsetStr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
 		var window int64
