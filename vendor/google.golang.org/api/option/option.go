@@ -223,3 +223,16 @@ type withRequestReason string
 func (w withRequestReason) Apply(o *internal.DialSettings) {
 	o.RequestReason = string(w)
 }
+
+// WithTelemetryDisabled returns a ClientOption that disables default telemetry (OpenCensus)
+// settings on gRPC and HTTP clients.
+// An example reason would be to bind custom telemetry that overrides the defaults.
+func WithTelemetryDisabled() ClientOption {
+	return withTelemetryDisabledOption{}
+}
+
+type withTelemetryDisabledOption struct{}
+
+func (w withTelemetryDisabledOption) Apply(o *internal.DialSettings) {
+	o.TelemetryDisabled = true
+}

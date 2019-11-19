@@ -310,6 +310,25 @@ There are other useful tags supported by quicktemplate:
     or is used</div></div>
     ```
 
+  * It is possible removing whitespace before and after the tag by adding `-` after `{%` or prepending `%}` with `-`. For example:
+
+    ```qtpl
+    var sum int
+    {%- for i := 1; i <= 3; i++ -%}
+    sum += {%d i %}
+    {%- endfor -%}
+    return sum
+    ```
+
+    Is converted into:
+    ```
+    var sum int
+    sum += 1
+    sum += 2
+    sum += 3
+    return sum
+    ```
+
   * `{% switch %}`, `{% case %}` and `{% default %}`:
 
 

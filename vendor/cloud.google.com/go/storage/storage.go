@@ -94,11 +94,20 @@ type Client struct {
 // NewClient creates a new Google Cloud Storage client.
 // The default scope is ScopeFullControl. To use a different scope, like ScopeReadOnly, use option.WithScopes.
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
-	o := []option.ClientOption{
-		option.WithScopes(ScopeFullControl),
-		option.WithUserAgent(userAgent),
+	var host, readHost, scheme string
+
+	if host = os.Getenv("STORAGE_EMULATOR_HOST"); host == "" {
+		scheme = "https"
+		readHost = "storage.googleapis.com"
+
+		opts = append(opts, option.WithScopes(ScopeFullControl), option.WithUserAgent(userAgent))
+	} else {
+		scheme = "http"
+		readHost = host
+
+		opts = append(opts, option.WithoutAuthentication())
 	}
-	opts = append(o, opts...)
+
 	hc, ep, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing: %v", err)
@@ -107,17 +116,14 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 	if err != nil {
 		return nil, fmt.Errorf("storage client: %v", err)
 	}
-	if ep != "" {
+	if ep == "" {
+		// Override the default value for BasePath from the raw client.
+		// TODO: remove when the raw client uses this endpoint as its default (~end of 2020)
+		rawService.BasePath = "https://storage.googleapis.com/storage/v1/"
+	} else {
 		rawService.BasePath = ep
 	}
-	scheme := "https"
-	var host, readHost string
-	if host = os.Getenv("STORAGE_EMULATOR_HOST"); host != "" {
-		scheme = "http"
-		readHost = host
-	} else {
-		readHost = "storage.googleapis.com"
-	}
+
 	return &Client{
 		hc:       hc,
 		raw:      rawService,
@@ -1125,6 +1131,78 @@ type Query struct {
 	// Versions indicates whether multiple versions of the same
 	// object will be included in the results.
 	Versions bool
+
+	// fieldSelection is used to select only specific fields to be returned by
+	// the query. It's used internally and is populated for the user by
+	// calling Query.SetAttrSelection
+	fieldSelection string
+}
+
+// attrToFieldMap maps the field names of ObjectAttrs to the underlying field
+// names in the API call. Only the ObjectAttrs field names are visible to users
+// because they are already part of the public API of the package.
+var attrToFieldMap = map[string]string{
+	"Bucket":                  "bucket",
+	"Name":                    "name",
+	"ContentType":             "contentType",
+	"ContentLanguage":         "contentLanguage",
+	"CacheControl":            "cacheControl",
+	"EventBasedHold":          "eventBasedHold",
+	"TemporaryHold":           "temporaryHold",
+	"RetentionExpirationTime": "retentionExpirationTime",
+	"ACL":                     "acl",
+	"Owner":                   "owner",
+	"ContentEncoding":         "contentEncoding",
+	"ContentDisposition":      "contentDisposition",
+	"Size":                    "size",
+	"MD5":                     "md5hash",
+	"CRC32C":                  "crc32c",
+	"MediaLink":               "mediaLink",
+	"Metadata":                "metadata",
+	"Generation":              "generation",
+	"Metageneration":          "metageneration",
+	"StorageClass":            "storageClass",
+	"CustomerKeySHA256":       "customerEncryption",
+	"KMSKeyName":              "kmsKeyName",
+	"Created":                 "timeCreated",
+	"Deleted":                 "timeDeleted",
+	"Updated":                 "timeUpdated",
+	"Etag":                    "etag",
+}
+
+// SetAttrSelection makes the query populate only specific attributes of
+// objects. When iterating over objects, if you only need each object's name
+// and size, pass []string{"Name", "Size"} to this method. Only these fields
+// will be fetched for each object across the network; the other fields of
+// ObjectAttr will remain at their default values. This is a performance
+// optimization; for more information, see
+// https://cloud.google.com/storage/docs/json_api/v1/how-tos/performance
+func (q *Query) SetAttrSelection(attrs []string) error {
+	fieldSet := make(map[string]bool)
+
+	for _, attr := range attrs {
+		field, ok := attrToFieldMap[attr]
+		if !ok {
+			return fmt.Errorf("storage: attr %v is not valid", attr)
+		}
+		fieldSet[field] = true
+	}
+
+	if len(fieldSet) > 0 {
+		var b strings.Builder
+		b.WriteString("items(")
+		first := true
+		for field := range fieldSet {
+			if !first {
+				b.WriteString(",")
+			}
+			first = false
+			b.WriteString(field)
+		}
+		b.WriteString(")")
+		q.fieldSelection = b.String()
+	}
+	return nil
 }
 
 // Conditions constrain methods to act on specific generations of

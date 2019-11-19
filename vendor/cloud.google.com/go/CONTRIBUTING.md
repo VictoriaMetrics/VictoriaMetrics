@@ -10,8 +10,8 @@
 1. Sign one of the
 [contributor license agreements](#contributor-license-agreements) below.
 
-1. Run `GO111MODULE=off go get golang.org/x/review/git-codereview` to install
-the code reviewing tool.
+1. Run `go get golang.org/x/review/git-codereview && go install golang.org/x/review/git-codereview`
+to install the code reviewing tool.
 
     1. Ensure it's working by running `git codereview` (check your `PATH` if
     not).
@@ -23,7 +23,7 @@ the code reviewing tool.
         * Should you run into issues with the `git-codereview` tool, please note
         that all error messages will assume that you have set up these aliases.
 
-1. Change to a directory of your choosing and clone the repo.b
+1. Change to a directory of your choosing and clone the repo.
 
     ```
     cd ~/code

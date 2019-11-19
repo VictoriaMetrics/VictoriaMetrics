@@ -77,7 +77,7 @@ Google API                                      | Status       | Package
 > **Stable status**: the API is mature and ready for production use. We will
 > continue addressing bugs and feature requests.
 
-Documentation and examples are available at [godoc.org/cloud.google.com/go](godoc.org/cloud.google.com/go)
+Documentation and examples are available at [godoc.org/cloud.google.com/go](https://godoc.org/cloud.google.com/go)
 
 ## Go Versions Supported
 
