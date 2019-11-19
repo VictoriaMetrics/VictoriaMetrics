@@ -93,16 +93,25 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = ExtendFloat64sCapacity(dst, len(va))
 
+	// increase conversion precision for negative exponents by dividing by e10
+	isMul := true
+	if e < 0 {
+		e = -e
+		isMul = false
+	}
 	e10 := math.Pow10(int(e))
 	for _, v := range va {
 		// Manually inline ToFloat here for better performance
-		var f float64
+		f := float64(v)
+		if isMul {
+			f *= e10
+		} else {
+			f /= e10
+		}
 		if v == vInfPos {
 			f = infPos
 		} else if v == vInfNeg {
 			f = infNeg
-		} else {
-			f = float64(v) * e10
 		}
 		dst = append(dst, f)
 	}
@@ -254,13 +263,26 @@ func maxUpExponent(v int64) int16 {
 
 // ToFloat returns f=v*10^e.
 func ToFloat(v int64, e int16) float64 {
+	// increase conversion precision for negative exponents by dividing by e10
+	isMul := true
+	if e < 0 {
+		e = -e
+		isMul = false
+	}
+	e10 := math.Pow10(int(e))
+	f := float64(v)
+	if isMul {
+		f *= e10
+	} else {
+		f /= e10
+	}
 	if v == vInfPos {
 		return infPos
 	}
 	if v == vInfNeg {
 		return infNeg
 	}
-	return float64(v) * math.Pow10(int(e))
+	return f
 }
 
 const (

@@ -43,6 +43,9 @@ func TestPositiveFloatToDecimal(t *testing.T) {
 	f(1234567890123456789e-14, 1234567890123, -8)
 	f(1234567890123456789e-17, 12345678901234, -12)
 	f(1234567890123456789e-20, 1234567890123, -14)
+
+	f(0.000874957, 874957, -9)
+	f(0.001130435, 1130435, -9)
 }
 
 func TestAppendDecimalToFloat(t *testing.T) {
@@ -52,6 +55,7 @@ func TestAppendDecimalToFloat(t *testing.T) {
 	testAppendDecimalToFloat(t, []int64{0}, -10, []float64{0})
 	testAppendDecimalToFloat(t, []int64{-1, -10, 0, 100}, 2, []float64{-1e2, -1e3, 0, 1e4})
 	testAppendDecimalToFloat(t, []int64{-1, -10, 0, 100}, -2, []float64{-1e-2, -1e-1, 0, 1})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -9, []float64{0.000874957, 0.001130435})
 }
 
 func testAppendDecimalToFloat(t *testing.T, va []int64, e int16, fExpected []float64) {
@@ -323,6 +327,8 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 	f(12.34567890125)
 	f(-1234567.8901256789)
 	f(15e18)
+	f(0.000874957)
+	f(0.001130435)
 
 	f(math.Inf(1))
 	f(math.Inf(-1))
