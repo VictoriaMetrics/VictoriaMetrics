@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.48.0
+# cloud.google.com/go v0.49.0
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
