@@ -20,6 +20,19 @@ import (
 type FS struct {
 	// Dir is a path to local directory to work with.
 	Dir string
+
+	// MaxBytesPerSecond is the maximum bandwidth usage during backups or restores.
+	MaxBytesPerSecond int
+
+	bl *bandwidthLimiter
+}
+
+// Init initializes fs
+func (fs *FS) Init() error {
+	if fs.MaxBytesPerSecond > 0 {
+		fs.bl = newBandwidthLimiter(fs.MaxBytesPerSecond)
+	}
+	return nil
 }
 
 // String returns user-readable representation for the fs.
@@ -93,7 +106,11 @@ func (fs *FS) NewReadCloser(p common.Part) (io.ReadCloser, error) {
 		r: r,
 		n: p.Size,
 	}
-	return lrc, nil
+	if fs.bl == nil {
+		return lrc, nil
+	}
+	blrc := fs.bl.NewReadCloser(lrc)
+	return blrc, nil
 }
 
 // NewWriteCloser returns io.WriteCloser for the given part p located in fs.
@@ -108,9 +125,14 @@ func (fs *FS) NewWriteCloser(p common.Part) (io.WriteCloser, error) {
 	}
 	wc := &writeCloser{
 		w:    w,
+		n:    p.Size,
 		path: path,
 	}
-	return wc, nil
+	if fs.bl == nil {
+		return wc, nil
+	}
+	blwc := fs.bl.NewWriteCloser(wc)
+	return blwc, nil
 }
 
 // DeletePath deletes the given path from fs and returns the size
@@ -188,14 +210,23 @@ func (lrc *limitedReadCloser) Close() error {
 
 type writeCloser struct {
 	w    *filestream.Writer
+	n    uint64
 	path string
 }
 
 func (wc *writeCloser) Write(p []byte) (int, error) {
-	return wc.w.Write(p)
+	n, err := wc.w.Write(p)
+	if uint64(n) > wc.n {
+		return n, fmt.Errorf("too much data written; got %d bytes; want %d bytes", n, wc.n)
+	}
+	wc.n -= uint64(n)
+	return n, err
 }
 
 func (wc *writeCloser) Close() error {
 	wc.w.MustClose()
+	if wc.n != 0 {
+		return fmt.Errorf("missing data writes for %d bytes", wc.n)
+	}
 	return fscommon.FsyncFile(wc.path)
 }

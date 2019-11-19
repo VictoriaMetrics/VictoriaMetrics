@@ -16,7 +16,8 @@ var (
 		"Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir")
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Destination path where backup must be restored. "+
 		"VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case only missing data is downloaded from backup")
-	concurrency = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
+	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
+	maxBytesPerSecond = flag.Int("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 )
 
 func main() {
@@ -59,7 +60,11 @@ func newDstFS() (*fslocal.FS, error) {
 		return nil, fmt.Errorf("`-storageDataPath` cannot be empty")
 	}
 	fs := &fslocal.FS{
-		Dir: *storageDataPath,
+		Dir:               *storageDataPath,
+		MaxBytesPerSecond: *maxBytesPerSecond,
+	}
+	if err := fs.Init(); err != nil {
+		return nil, fmt.Errorf("cannot initialize local fs: %s", err)
 	}
 	return fs, nil
 }

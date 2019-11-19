@@ -24,15 +24,17 @@ vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/r
 The original `-storageDataPath` directory may contain old files. They will be susbstituted by the files from backup.
 
 
+### Troubleshooting
+
+* If `vmrestore` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
+* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
+
+
 ### Advanced usage
 
 Run `vmrestore -help` in order to see all the available options:
 
 ```
-vmrestore restores VictoriaMetrics data from backups made by vmbackup.
-
-See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md .
-
   -concurrency int
     	The number of concurrent workers. Higher concurrency may reduce restore duration (default 10)
   -configFilePath string
@@ -43,6 +45,8 @@ See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/a
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -loggerLevel string
     	Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC (default "INFO")
+  -maxBytesPerSecond int
+    	The maximum download speed. There is no limit if it is set to 0
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy (default 60)
   -src string

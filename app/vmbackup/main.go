@@ -18,8 +18,9 @@ var (
 	dst             = flag.String("dst", "", "Where to put the backup on the remote storage. "+
 		"Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir\n"+
 		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded")
-	origin      = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
-	concurrency = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
+	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
+	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
+	maxBytesPerSecond = flag.Int("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
 )
 
 func main() {
@@ -84,7 +85,11 @@ func newSrcFS() (*fslocal.FS, error) {
 	}
 
 	fs := &fslocal.FS{
-		Dir: snapshotPath,
+		Dir:               snapshotPath,
+		MaxBytesPerSecond: *maxBytesPerSecond,
+	}
+	if err := fs.Init(); err != nil {
+		return nil, fmt.Errorf("cannot initialize fs: %s", err)
 	}
 	return fs, nil
 }

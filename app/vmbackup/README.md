@@ -112,7 +112,7 @@ These properties allow performing fast and cheap incremental backups and server-
 ### Troubleshooting
 
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
-* If `vmbackup` eats all the network bandwidth, then set `-concurrency` to 1. This should reduce network bandwidth usage.
+* If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
 
 
@@ -134,6 +134,8 @@ Run `vmbackup -help` in order to see all the available options:
     	-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
   -loggerLevel string
     	Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC (default "INFO")
+  -maxBytesPerSecond int
+    	The maximum upload speed. There is no limit if it is set to 0
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy (default 60)
   -origin string
