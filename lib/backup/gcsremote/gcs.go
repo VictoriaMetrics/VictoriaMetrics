@@ -67,12 +67,21 @@ func (fs *FS) String() string {
 	return fmt.Sprintf("GCS{bucket: %q, dir: %q}", fs.Bucket, fs.Dir)
 }
 
+// selectAttrs contains object attributes to select in ListParts.
+var selectAttrs = []string{
+	"Name",
+	"Size",
+}
+
 // ListParts returns all the parts for fs.
 func (fs *FS) ListParts() ([]common.Part, error) {
 	dir := fs.Dir
 	ctx := context.Background()
 	q := &storage.Query{
 		Prefix: dir,
+	}
+	if err := q.SetAttrSelection(selectAttrs); err != nil {
+		return nil, fmt.Errorf("error in SetAttrSelection: %s", err)
 	}
 	it := fs.bkt.Objects(ctx, q)
 	var parts []common.Part
