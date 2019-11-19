@@ -194,14 +194,14 @@ func (d *frameDec) reset(br byteBuffer) error {
 			// When FCS_Field_Size is 2, the offset of 256 is added.
 			d.FrameContentSize = uint64(b[0]) | (uint64(b[1]) << 8) + 256
 		case 4:
-			d.FrameContentSize = uint64(b[0]) | (uint64(b[1]) << 8) | (uint64(b[2]) << 16) | (uint64(b[3] << 24))
+			d.FrameContentSize = uint64(b[0]) | (uint64(b[1]) << 8) | (uint64(b[2]) << 16) | (uint64(b[3]) << 24)
 		case 8:
 			d1 := uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 			d2 := uint32(b[4]) | (uint32(b[5]) << 8) | (uint32(b[6]) << 16) | (uint32(b[7]) << 24)
 			d.FrameContentSize = uint64(d1) | (uint64(d2) << 32)
 		}
 		if debug {
-			println("field size bits:", v, "fcsSize:", fcsSize, "FrameContentSize:", d.FrameContentSize, hex.EncodeToString(b[:fcsSize]))
+			println("field size bits:", v, "fcsSize:", fcsSize, "FrameContentSize:", d.FrameContentSize, hex.EncodeToString(b[:fcsSize]), "singleseg:", d.SingleSegment, "window:", d.WindowSize)
 		}
 	}
 	// Move this to shared.
@@ -414,6 +414,7 @@ func (d *frameDec) startDecoder(output chan decodeOutput) {
 		}
 		written += int64(len(r.b))
 		if d.SingleSegment && uint64(written) > d.FrameContentSize {
+			println("runDecoder: single segment and", uint64(written), ">", d.FrameContentSize)
 			r.err = ErrFrameSizeExceeded
 			output <- r
 			return
@@ -464,6 +465,7 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 			break
 		}
 		if d.SingleSegment && uint64(len(d.history.b)) > d.o.maxDecodedSize {
+			println("runDecoder: single segment and", uint64(len(d.history.b)), ">", d.o.maxDecodedSize)
 			err = ErrFrameSizeExceeded
 			break
 		}

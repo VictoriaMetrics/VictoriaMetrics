@@ -161,7 +161,8 @@ func (b *blockDec) reset(br byteBuffer, windowSize uint64) error {
 	b.data, err = br.readBig(cSize, b.dataStorage)
 	if err != nil {
 		if debug {
-			println("Reading block:", err)
+			println("Reading block:", err, "(", cSize, ")", len(b.data))
+			printf("%T", br)
 		}
 		return err
 	}

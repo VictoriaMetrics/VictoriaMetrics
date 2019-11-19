@@ -1150,6 +1150,9 @@ func (it *ObjectIterator) fetch(pageSize int, pageToken string) (string, error) 
 	req.Delimiter(it.query.Delimiter)
 	req.Prefix(it.query.Prefix)
 	req.Versions(it.query.Versions)
+	if len(it.query.fieldSelection) > 0 {
+		req.Fields("nextPageToken", googleapi.Field(it.query.fieldSelection))
+	}
 	req.PageToken(pageToken)
 	if it.bucket.userProject != "" {
 		req.UserProject(it.bucket.userProject)

@@ -18,6 +18,11 @@
 go mod tidy
 for i in `find . -name go.mod`; do
 pushd `dirname $i`;
+    # Update genproto and api to latest for every module (latest version is
+    # always correct version). tidy will remove the dependencies if they're not
+    # actually used by the client.
+    go get -u google.golang.org/api
+    go get -u google.golang.org/genproto
     go mod tidy;
 popd;
 done
