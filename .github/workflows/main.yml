@@ -38,7 +38,7 @@ jobs:
             GOOS=freebsd go build -mod=vendor ./app/victoria-metrics
             GOOS=darwin go build -mod=vendor ./app/victoria-metrics
       - name: Publish coverage
-        uses: codecov/codecov-action@v1.0.0
+        uses: codecov/codecov-action@v1.0.4
         with:
           token: ${{secrets.CODECOV_TOKEN}}
           file: ./coverage.txt
