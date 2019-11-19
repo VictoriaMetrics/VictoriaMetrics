@@ -72,6 +72,11 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 		if name == "." || name == ".." {
 			continue
 		}
+		if name == "flock.lock" {
+			// Do not take into account flock.lock files, since they are used
+			// for preventing from concurrent access.
+			continue
+		}
 		path := dir + "/" + name
 		if fi.IsDir() {
 			// Process directory

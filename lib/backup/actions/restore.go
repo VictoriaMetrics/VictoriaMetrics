@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -33,6 +34,16 @@ type Restore struct {
 // Run runs r with the provided settings.
 func (r *Restore) Run() error {
 	startTime := time.Now()
+
+	// Make sure VictoriaMetrics doesn't run during the restore process.
+	if err := fs.MkdirAllIfNotExist(r.Dst.Dir); err != nil {
+		return fmt.Errorf("cannot create dir %q: %s", r.Dst.Dir, err)
+	}
+	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
+	if err != nil {
+		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %s", r.Dst.Dir, err)
+	}
+	defer fs.MustClose(flockF)
 
 	concurrency := r.Concurrency
 	src := r.Src
