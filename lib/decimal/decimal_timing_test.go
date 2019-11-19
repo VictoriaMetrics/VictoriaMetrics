@@ -8,8 +8,11 @@ import (
 )
 
 func BenchmarkAppendDecimalToFloat(b *testing.B) {
-	b.Run("VarNums", func(b *testing.B) {
+	b.Run("RealFloat", func(b *testing.B) {
 		benchmarkAppendDecimalToFloat(b, testVA)
+	})
+	b.Run("Integers", func(b *testing.B) {
+		benchmarkAppendDecimalToFloat(b, testIntegers)
 	})
 	b.Run("Zeros", func(b *testing.B) {
 		benchmarkAppendDecimalToFloat(b, testZeros)
@@ -83,7 +86,7 @@ func benchmarkAppendFloatToDecimal(b *testing.B, fa []float64) {
 var testFAReal = func() []float64 {
 	fa := make([]float64, 8*1024)
 	for i := 0; i < len(fa); i++ {
-		fa[i] = rand.NormFloat64() * 1e6
+		fa[i] = rand.NormFloat64() * 1e-6
 	}
 	return fa
 }()
@@ -98,6 +101,11 @@ var testFAInteger = func() []float64 {
 
 var testVA = func() []int64 {
 	va, _ := AppendFloatToDecimal(nil, testFAReal)
+	return va
+}()
+
+var testIntegers = func() []int64 {
+	va, _ := AppendFloatToDecimal(nil, testFAInteger)
 	return va
 }()
 
