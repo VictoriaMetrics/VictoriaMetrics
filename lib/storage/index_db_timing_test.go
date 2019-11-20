@@ -156,13 +156,15 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 	}
 	for n := 0; n < 10; n++ {
+		ns := strconv.Itoa(n)
 		for i := 0; i < 100000; i++ {
-			addSeries("i", strconv.Itoa(i), "n", strconv.Itoa(n), "j", "foo")
+			is := strconv.Itoa(i)
+			addSeries("i", is, "n", ns, "j", "foo")
 			// Have some series that won't be matched, to properly test inverted matches.
-			addSeries("i", strconv.Itoa(i), "n", strconv.Itoa(n), "j", "bar")
-			addSeries("i", strconv.Itoa(i), "n", "0_"+strconv.Itoa(n), "j", "bar")
-			addSeries("i", strconv.Itoa(i), "n", "1_"+strconv.Itoa(n), "j", "bar")
-			addSeries("i", strconv.Itoa(i), "n", "2_"+strconv.Itoa(n), "j", "foo")
+			addSeries("i", is, "n", ns, "j", "bar")
+			addSeries("i", is, "n", "0_"+ns, "j", "bar")
+			addSeries("i", is, "n", "1_"+ns, "j", "bar")
+			addSeries("i", is, "n", "2_"+ns, "j", "foo")
 		}
 	}
 
@@ -170,7 +172,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	db.tb.DebugFlush()
 	b.ResetTimer()
 
-	benchSearch := func(b *testing.B, tfs *TagFilters) {
+	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
 		is := db.getIndexSearch()
 		defer db.putIndexSearch(is)
 		tfss := []*TagFilters{tfs}
@@ -179,9 +181,12 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 			MaxTimestamp: timestampFromTime(time.Now()),
 		}
 		for i := 0; i < b.N; i++ {
-			_, err := is.searchMetricIDs(tfss, tr, 2e9)
+			metricIDs, err := is.searchMetricIDs(tfss, tr, 2e9)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
+			}
+			if len(metricIDs) != expectedMetricIDs {
+				b.Fatalf("unexpected metricIDs found; got %d; want %d", len(metricIDs), expectedMetricIDs)
 			}
 		}
 	}
@@ -194,52 +199,52 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	b.Run(`n="1"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 2e5)
 	})
 	b.Run(`n="1",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5)
 	})
 	b.Run(`j="foo",n="1"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "j", "foo", false, false)
 		addTagFilter(tfs, "n", "1", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5)
 	})
 	b.Run(`n="1",j!="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "j", "foo", true, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5)
 	})
 	b.Run(`i=~".*"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "i", ".*", false, true)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 5e6)
 	})
 	b.Run(`i=~".+"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "i", ".+", false, true)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 5e6)
 	})
 	b.Run(`i=~""`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "i", "", false, true)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 0)
 	})
 	b.Run(`i!=""`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "i", "", true, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 5e6)
 	})
 	b.Run(`n="1",i=~".*",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "i", ".*", false, true)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5)
 	})
 	b.Run(`n="1",i=~".*",i!="2",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
@@ -247,34 +252,34 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		addTagFilter(tfs, "i", ".*", false, true)
 		addTagFilter(tfs, "i", "2", true, false)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5-1)
 	})
 	b.Run(`n="1",i!=""`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "i", "", true, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 2e5)
 	})
 	b.Run(`n="1",i!="",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "i", "", true, false)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5)
 	})
 	b.Run(`n="1",i=~".+",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "i", ".+", false, true)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5)
 	})
 	b.Run(`n="1",i=~"1.+",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
 		addTagFilter(tfs, "n", "1", false, false)
 		addTagFilter(tfs, "i", "1.+", false, true)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 11110)
 	})
 	b.Run(`n="1",i=~".+",i!="2",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
@@ -282,7 +287,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		addTagFilter(tfs, "i", ".+", false, true)
 		addTagFilter(tfs, "i", "2", true, false)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 1e5-1)
 	})
 	b.Run(`n="1",i=~".+",i!~"2.*",j="foo"`, func(b *testing.B) {
 		tfs := NewTagFilters(accountID, projectID)
@@ -290,7 +295,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		addTagFilter(tfs, "i", ".+", false, true)
 		addTagFilter(tfs, "i", "2.*", true, true)
 		addTagFilter(tfs, "j", "foo", false, false)
-		benchSearch(b, tfs)
+		benchSearch(b, tfs, 88889)
 	})
 }
 
