@@ -45,10 +45,6 @@ func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
 	}
 	if downExp > 0 {
 		for i, v := range b {
-			if v == vInfPos || v == vInfNeg {
-				// Special case for these values - do not touch them.
-				continue
-			}
 			adjExp := downExp
 			for adjExp > 0 {
 				v /= 10
@@ -83,36 +79,35 @@ func ExtendInt64sCapacity(dst []int64, additionalItems int) []int64 {
 // AppendDecimalToFloat converts each item in va to f=v*10^e, appends it
 // to dst and returns the resulting dst.
 func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
-	if fastnum.IsInt64Zeros(va) {
-		return fastnum.AppendFloat64Zeros(dst, len(va))
-	}
-	if e == 0 && fastnum.IsInt64Ones(va) {
-		return fastnum.AppendFloat64Ones(dst, len(va))
-	}
-
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = ExtendFloat64sCapacity(dst, len(va))
 
+	if fastnum.IsInt64Zeros(va) {
+		return fastnum.AppendFloat64Zeros(dst, len(va))
+	}
+	if e == 0 {
+		if fastnum.IsInt64Ones(va) {
+			return fastnum.AppendFloat64Ones(dst, len(va))
+		}
+		for _, v := range va {
+			f := float64(v)
+			dst = append(dst, f)
+		}
+		return dst
+	}
+
 	// increase conversion precision for negative exponents by dividing by e10
-	isMul := true
 	if e < 0 {
-		e = -e
-		isMul = false
+		e10 := math.Pow10(int(-e))
+		for _, v := range va {
+			f := float64(v) / e10
+			dst = append(dst, f)
+		}
+		return dst
 	}
 	e10 := math.Pow10(int(e))
 	for _, v := range va {
-		// Manually inline ToFloat here for better performance
-		f := float64(v)
-		if isMul {
-			f *= e10
-		} else {
-			f /= e10
-		}
-		if v == vInfPos {
-			f = infPos
-		} else if v == vInfNeg {
-			f = infNeg
-		}
+		f := float64(v) * e10
 		dst = append(dst, f)
 	}
 	return dst
@@ -263,26 +258,12 @@ func maxUpExponent(v int64) int16 {
 
 // ToFloat returns f=v*10^e.
 func ToFloat(v int64, e int16) float64 {
-	// increase conversion precision for negative exponents by dividing by e10
-	isMul := true
-	if e < 0 {
-		e = -e
-		isMul = false
-	}
-	e10 := math.Pow10(int(e))
 	f := float64(v)
-	if isMul {
-		f *= e10
-	} else {
-		f /= e10
+	// increase conversion precision for negative exponents by dividing by e10
+	if e < 0 {
+		return f / math.Pow10(int(-e))
 	}
-	if v == vInfPos {
-		return infPos
-	}
-	if v == vInfNeg {
-		return infNeg
-	}
-	return f
+	return f * math.Pow10(int(e))
 }
 
 const (
@@ -291,11 +272,6 @@ const (
 
 	vMax = 1<<63 - 3
 	vMin = -1<<63 + 1
-)
-
-var (
-	infPos = math.Inf(1)
-	infNeg = math.Inf(-1)
 )
 
 // FromFloat converts f to v*10^e.
@@ -327,7 +303,7 @@ func FromFloat(f float64) (int64, int16) {
 }
 
 func fromFloatInf(f float64) (int64, int16) {
-	// Special case for Inf
+	// Limit infs by max and min values for int64
 	if math.IsInf(f, 1) {
 		return vInfPos, 0
 	}

@@ -9,26 +9,26 @@ import (
 
 func BenchmarkAppendDecimalToFloat(b *testing.B) {
 	b.Run("RealFloat", func(b *testing.B) {
-		benchmarkAppendDecimalToFloat(b, testVA)
+		benchmarkAppendDecimalToFloat(b, testVA, vaScale)
 	})
 	b.Run("Integers", func(b *testing.B) {
-		benchmarkAppendDecimalToFloat(b, testIntegers)
+		benchmarkAppendDecimalToFloat(b, testIntegers, integersScale)
 	})
 	b.Run("Zeros", func(b *testing.B) {
-		benchmarkAppendDecimalToFloat(b, testZeros)
+		benchmarkAppendDecimalToFloat(b, testZeros, 0)
 	})
 	b.Run("Ones", func(b *testing.B) {
-		benchmarkAppendDecimalToFloat(b, testOnes)
+		benchmarkAppendDecimalToFloat(b, testOnes, 0)
 	})
 }
 
-func benchmarkAppendDecimalToFloat(b *testing.B, a []int64) {
+func benchmarkAppendDecimalToFloat(b *testing.B, a []int64, scale int16) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(a)))
 	b.RunParallel(func(pb *testing.PB) {
 		var fa []float64
 		for pb.Next() {
-			fa = AppendDecimalToFloat(fa[:0], a, 0)
+			fa = AppendDecimalToFloat(fa[:0], a, scale)
 			atomic.AddUint64(&Sink, uint64(len(fa)))
 		}
 	})
@@ -99,15 +99,8 @@ var testFAInteger = func() []float64 {
 	return fa
 }()
 
-var testVA = func() []int64 {
-	va, _ := AppendFloatToDecimal(nil, testFAReal)
-	return va
-}()
-
-var testIntegers = func() []int64 {
-	va, _ := AppendFloatToDecimal(nil, testFAInteger)
-	return va
-}()
+var testVA, vaScale = AppendFloatToDecimal(nil, testFAReal)
+var testIntegers, integersScale = AppendFloatToDecimal(nil, testFAInteger)
 
 func BenchmarkFromFloat(b *testing.B) {
 	for _, f := range []float64{0, 1234, 12334345, 12343.4344, 123.45678901e12, 12.3454435e30} {

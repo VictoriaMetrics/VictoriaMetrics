@@ -55,7 +55,16 @@ func TestAppendDecimalToFloat(t *testing.T) {
 	testAppendDecimalToFloat(t, []int64{0}, -10, []float64{0})
 	testAppendDecimalToFloat(t, []int64{-1, -10, 0, 100}, 2, []float64{-1e2, -1e3, 0, 1e4})
 	testAppendDecimalToFloat(t, []int64{-1, -10, 0, 100}, -2, []float64{-1e-2, -1e-1, 0, 1})
-	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -9, []float64{0.000874957, 0.001130435})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -5, []float64{8.74957, 1.130435e1})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -6, []float64{8.74957e-1, 1.130435})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -7, []float64{8.74957e-2, 1.130435e-1})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -8, []float64{8.74957e-3, 1.130435e-2})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -9, []float64{8.74957e-4, 1.130435e-3})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -10, []float64{8.74957e-5, 1.130435e-4})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -11, []float64{8.74957e-6, 1.130435e-5})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -12, []float64{8.74957e-7, 1.130435e-6})
+	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -13, []float64{8.74957e-8, 1.130435e-7})
+	testAppendDecimalToFloat(t, []int64{vInfPos, vInfNeg, 1, 2}, 0, []float64{9.223372036854776e+18, -9.223372036854776e+18, 1, 2})
 }
 
 func testAppendDecimalToFloat(t *testing.T, va []int64, e int16, fExpected []float64) {
@@ -97,7 +106,7 @@ func TestCalibrateScale(t *testing.T) {
 	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{500, 100}, 0, 2, []int64{vInfPos, 1200}, []int64{500e2, 100e2}, 0)
 	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{500, 100}, 0, -2, []int64{vInfPos, 1200}, []int64{5, 1}, 0)
 	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{3500, 100}, 0, -3, []int64{vInfPos, 1200}, []int64{3, 0}, 0)
-	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 0, 40, []int64{vInfPos, 0}, []int64{35e17, 1e17}, 23)
+	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 0, 40, []int64{0, 0}, []int64{35e17, 1e17}, 23)
 	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 40, 0, []int64{vInfPos, 1200}, []int64{0, 0}, 40)
 	testCalibrateScale(t, []int64{vInfNeg, 1200}, []int64{35, 1}, 35, -5, []int64{vInfNeg, 1200}, []int64{0, 0}, 35)
 	testCalibrateScale(t, []int64{vMax, vMin, 123}, []int64{100}, 0, 3, []int64{vMax, vMin, 123}, []int64{100e3}, 0)
@@ -163,6 +172,8 @@ func TestMaxUpExponent(t *testing.T) {
 		}
 	}
 
+	f(vInfPos, 0)
+	f(vInfNeg, 0)
 	f(0, 1024)
 	f(-1<<63, 0)
 	f((-1<<63)+1, 0)
@@ -210,6 +221,9 @@ func TestAppendFloatToDecimal(t *testing.T) {
 	// no-op
 	testAppendFloatToDecimal(t, []float64{}, nil, 0)
 	testAppendFloatToDecimal(t, []float64{0}, []int64{0}, 0)
+	testAppendFloatToDecimal(t, []float64{infPos, infNeg, 123}, []int64{vInfPos, vInfNeg, 123}, 0)
+	testAppendFloatToDecimal(t, []float64{infPos, infNeg, 123, 1e-4, 1e32}, []int64{92233, -92233, 0, 0, 1000000000000000000}, 14)
+	testAppendFloatToDecimal(t, []float64{float64(vInfPos), float64(vInfNeg), 123}, []int64{9223372036854775000, -9223372036854775000, 123}, 0)
 	testAppendFloatToDecimal(t, []float64{0, -0, 1, -1, 12345678, -123456789}, []int64{0, 0, 1, -1, 12345678, -123456789}, 0)
 
 	// upExp
@@ -330,10 +344,12 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 	f(0.000874957)
 	f(0.001130435)
 
-	f(math.Inf(1))
-	f(math.Inf(-1))
-	f(1<<63 - 1)
-	f(-1 << 63)
+	f(2933434554455e245)
+	f(3439234258934e-245)
+	f(float64(vInfPos))
+	f(float64(vInfNeg))
+	f(infPos)
+	f(infNeg)
 
 	for i := 0; i < 1e4; i++ {
 		v := rand.NormFloat64()
@@ -357,9 +373,26 @@ func roundFloat(f float64, exp int) float64 {
 }
 
 func equalFloat(f1, f2 float64) bool {
+	f1 = adjustInf(f1)
+	f2 = adjustInf(f2)
 	if math.IsInf(f1, 0) {
 		return math.IsInf(f1, 1) == math.IsInf(f2, 1) || math.IsInf(f1, -1) == math.IsInf(f2, -1)
 	}
 	eps := math.Abs(f1 - f2)
 	return eps == 0 || eps*conversionPrecision < math.Abs(f1)+math.Abs(f2)
 }
+
+func adjustInf(f float64) float64 {
+	if f == float64(vInfPos) {
+		return infPos
+	}
+	if f == float64(vInfNeg) {
+		return infNeg
+	}
+	return f
+}
+
+var (
+	infPos = math.Inf(1)
+	infNeg = math.Inf(-1)
+)
