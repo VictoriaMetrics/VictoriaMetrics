@@ -743,6 +743,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
   See [this example](/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+* [Ansible role for installing VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 
 
 ## Roadmap
