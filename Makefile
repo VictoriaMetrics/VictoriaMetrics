@@ -52,12 +52,14 @@ release-vmcluster: \
 	vminsert-prod \
 	vmselect-prod \
 	vmstorage-prod
-	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vminsert-prod vmselect-prod vmstorage-prod
+	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vminsert-prod vmselect-prod vmstorage-prod && \
+		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
 	vmbackup-prod \
 	vmrestore-prod
-	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmbackup-prod vmrestore-prod
+	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmbackup-prod vmrestore-prod && \
+		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
