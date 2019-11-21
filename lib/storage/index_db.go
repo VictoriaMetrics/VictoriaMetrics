@@ -1967,9 +1967,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 				break
 			}
 			if metricID > sf[0] {
-				n := sort.Search(len(sf), func(i int) bool {
-					return i >= 0 && i < len(sf) && sf[i] >= metricID
-				})
+				n := uint64BinarySearch(sf, metricID)
 				sf = sf[n:]
 				if len(sf) == 0 {
 					break
@@ -1990,6 +1988,20 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 		return fmt.Errorf("error when searching for tag filter prefix %q: %s", prefix, err)
 	}
 	return nil
+}
+
+func uint64BinarySearch(a []uint64, v uint64) uint {
+	// Copy-pasted sort.Search from https://golang.org/src/sort/search.go?s=2246:2286#L49
+	i, j := uint(0), uint(len(a))
+	for i < j {
+		h := (i + j) >> 1
+		if h < uint(len(a)) && a[h] < v {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
 }
 
 var errFallbackToMetricNameMatch = errors.New("fall back to updateMetricIDsByMetricNameMatch because of too many index scan loops")
