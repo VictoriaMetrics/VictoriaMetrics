@@ -1535,7 +1535,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 
-	for _, tf := range tfs {
+	for i, tf := range tfs {
 		if len(tf.key) == 0 {
 			// Match against mn.MetricGroup.
 			b := marshalTagValue(kb.B, nil)
@@ -1546,6 +1546,11 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 				return false, fmt.Errorf("cannot match MetricGroup %q with tagFilter %s: %s", mn.MetricGroup, tf, err)
 			}
 			if !ok {
+				// Move failed tf to start.
+				// This should reduce the amount of useless work for the next mn.
+				if i > 0 {
+					tfs[0], tfs[i] = tfs[i], tfs[0]
+				}
 				return false, nil
 			}
 			continue
@@ -1567,6 +1572,11 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 				return false, fmt.Errorf("cannot match tag %q with tagFilter %s: %s", tag, tf, err)
 			}
 			if !ok {
+				// Move failed tf to start.
+				// This should reduce the amount of useless work for the next mn.
+				if i > 0 {
+					tfs[0], tfs[i] = tfs[i], tfs[0]
+				}
 				return false, nil
 			}
 			tagMatched = true
@@ -1574,6 +1584,11 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 		}
 		if !tagMatched && !tf.isNegative {
 			// Matching tag name wasn't found.
+			// Move failed tf to start.
+			// This should reduce the amount of useless work for the next mn.
+			if i > 0 {
+				tfs[0], tfs[i] = tfs[i], tfs[0]
+			}
 			return false, nil
 		}
 	}
