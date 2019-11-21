@@ -456,8 +456,6 @@ func TestIndexDBOpenClose(t *testing.T) {
 }
 
 func TestIndexDB(t *testing.T) {
-	const accountsCount = 3
-	const projectsCount = 2
 	const metricGroups = 10
 
 	t.Run("serial", func(t *testing.T) {
@@ -486,7 +484,7 @@ func TestIndexDB(t *testing.T) {
 		if err := testIndexDBBigMetricName(db); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups)
+		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -547,7 +545,7 @@ func TestIndexDB(t *testing.T) {
 					ch <- err
 					return
 				}
-				mns, tsid, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups)
+				mns, tsid, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
 				if err != nil {
 					ch <- err
 					return
@@ -648,7 +646,7 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	return nil
 }
 
-func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount, metricGroups int) ([]MetricName, []TSID, error) {
+func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricName, []TSID, error) {
 	// Create tsids.
 	var mns []MetricName
 	var tsids []TSID

@@ -288,7 +288,6 @@ func marshalMetricTagsFast(dst []byte, tags []storage.Tag) []byte {
 }
 
 func marshalMetricNameSorted(dst []byte, mn *storage.MetricName) []byte {
-	// Do not marshal AccountID and ProjectID, since they are unused.
 	dst = marshalBytesFast(dst, mn.MetricGroup)
 	sortMetricTags(mn.Tags)
 	dst = marshalMetricTagsFast(dst, mn.Tags)

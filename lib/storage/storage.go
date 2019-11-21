@@ -643,7 +643,7 @@ func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int) ([]string, er
 	return s.idb().SearchTagValues(tagKey, maxTagValues)
 }
 
-// SearchTagEntries returns a list of (tagName -> tagValues) for (accountID, projectID).
+// SearchTagEntries returns a list of (tagName -> tagValues)
 func (s *Storage) SearchTagEntries(maxTagKeys, maxTagValues int) ([]TagEntry, error) {
 	idb := s.idb()
 	keys, err := idb.SearchTagKeys(maxTagKeys)

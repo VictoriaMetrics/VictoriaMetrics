@@ -14,7 +14,7 @@ import (
 // grouping of related metrics.
 // It is OK if their meaning differ from their naming.
 type TSID struct {
-	// MetricGroupID is the id of metric group inside the given project.
+	// MetricGroupID is the id of metric group.
 	//
 	// MetricGroupID must be unique.
 	//
@@ -29,8 +29,7 @@ type TSID struct {
 	//   memory_usage{datacenter="foo2", job="bar1", instance="baz2:1234"}
 	MetricGroupID uint64
 
-	// JobID is the id of an individual job (aka service)
-	// for the given project.
+	// JobID is the id of an individual job (aka service).
 	//
 	// JobID must be unique.
 	//
@@ -38,8 +37,7 @@ type TSID struct {
 	// See https://prometheus.io/docs/concepts/jobs_instances/ for details.
 	JobID uint32
 
-	// InstanceID is the id of an instance (aka process)
-	// for the given project.
+	// InstanceID is the id of an instance (aka process).
 	//
 	// InstanceID must be unique.
 	//
