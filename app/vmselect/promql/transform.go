@@ -91,6 +91,7 @@ var transformFuncs = map[string]transformFunc{
 	"cos":                newTransformFuncOneArg(transformCos),
 	"asin":               newTransformFuncOneArg(transformAsin),
 	"acos":               newTransformFuncOneArg(transformAcos),
+	"prometheus_buckets": transformPrometheusBuckets,
 }
 
 func getTransformFunc(s string) transformFunc {
@@ -270,6 +271,67 @@ func transformExp(v float64) float64 {
 
 func transformFloor(v float64) float64 {
 	return math.Floor(v)
+}
+
+func transformPrometheusBuckets(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+
+	// Group timeseries by MetricGroup+tags excluding `vmrange` tag.
+	type x struct {
+		leStr string
+		le    float64
+		ts    *timeseries
+	}
+	m := make(map[string][]x)
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+	for _, ts := range args[0] {
+		vmrange := ts.MetricName.GetTagValue("vmrange")
+		if len(vmrange) == 0 {
+			continue
+		}
+		n := strings.Index(bytesutil.ToUnsafeString(vmrange), "...")
+		if n < 0 {
+			continue
+		}
+		leStr := string(vmrange[n+len("..."):])
+		le, err := strconv.ParseFloat(leStr, 64)
+		if err != nil {
+			continue
+		}
+		ts.MetricName.RemoveTag("vmrange")
+		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+		m[string(bb.B)] = append(m[string(bb.B)], x{
+			leStr: leStr,
+			le:    le,
+			ts:    ts,
+		})
+	}
+
+	rvs := make([]*timeseries, 0, len(args[0]))
+	for _, xss := range m {
+		sort.Slice(xss, func(i, j int) bool { return xss[i].le < xss[j].le })
+		for i := range xss[0].ts.Values {
+			count := float64(0)
+			for _, xs := range xss {
+				ts := xs.ts
+				v := ts.Values[i]
+				if !math.IsNaN(v) {
+					count += v
+				}
+				ts.MetricName.RemoveTag("le")
+				ts.MetricName.AddTag("le", xs.leStr)
+				ts.Values[i] = count
+			}
+		}
+		for i := range xss {
+			rvs = append(rvs, xss[i].ts)
+		}
+	}
+	return rvs, nil
 }
 
 func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {

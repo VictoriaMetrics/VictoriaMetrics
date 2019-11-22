@@ -2417,6 +2417,143 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`prometheus_buckets(missing-vmrange)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(prometheus_buckets((
+			alias(label_set(90, "foo", "bar", "le", "0"), "xxx"),
+			alias(label_set(time()/20, "foo", "bar", "le", "0.2"), "xxx"),
+			alias(label_set(time()/100, "foo", "bar", "vmrange", "foobar"), "xxx"),
+			alias(label_set(time()/100, "foo", "bar", "vmrange", "30...foobar"), "xxx"),
+			alias(label_set(time()/100, "foo", "bar", "vmrange", "30...40"), "xxx"),
+			alias(label_set(time()/40, "foo", "bar", "vmrange", "900...1000", "le", "2343"), "yyy"),
+			alias(label_set(time()/10, "foo", "bar", "vmrange", "1000...Inf", "le", "2343"), "yyy"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 12, 14, 16, 18, 20},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("xxx")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("40"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{25, 30, 35, 40, 45, 50},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("yyy")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("1000"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{125, 150, 175, 200, 225, 250},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("yyy")
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("Inf"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`prometheus_buckets(valid)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(prometheus_buckets((
+			alias(label_set(90, "foo", "bar", "vmrange", "0...0"), "xxx"),
+			alias(label_set(time()/20, "foo", "bar", "vmrange", "0.1...0.2"), "xxx"),
+			alias(label_set(time()/100, "foo", "bar", "vmrange", "30...40"), "xxx"),
+			alias(label_set(time()/10, "foo", "bar", "vmrange", "1000...Inf"), "xxx"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{90, 90, 90, 90, 90, 90},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("xxx")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("0"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{140, 150, 160, 170, 180, 190},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("xxx")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("0.2"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{150, 162, 174, 186, 198, 210},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("xxx")
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("40"),
+			},
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{250, 282, 314, 346, 378, 410},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.MetricGroup = []byte("xxx")
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("Inf"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
 	t.Run(`median_over_time()`, func(t *testing.T) {
 		t.Parallel()
 		q := `median_over_time({})`
