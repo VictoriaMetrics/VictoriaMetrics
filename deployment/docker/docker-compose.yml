@@ -38,7 +38,7 @@ services:
 
   vmstorage:
     container_name: vmstorage
-    image: victoriametrics/vmstorage:v1.29.3-cluster
+    image: victoriametrics/vmstorage:v1.29.5-cluster
     ports:
       - 8482
       - 8400
@@ -51,7 +51,7 @@ services:
 
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.29.3-cluster
+    image: victoriametrics/vminsert:v1.29.5-cluster
     depends_on:
       - "vmstorage"
     command:
@@ -62,7 +62,7 @@ services:
 
   vmselect:
     container_name: vmselect
-    image: victoriametrics/vmselect:v1.29.3-cluster
+    image: victoriametrics/vmselect:v1.29.5-cluster
     depends_on:
       - "vmstorage"
     command:
