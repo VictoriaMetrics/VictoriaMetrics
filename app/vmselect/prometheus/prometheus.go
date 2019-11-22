@@ -131,7 +131,7 @@ func ExportHandler(w http.ResponseWriter, r *http.Request) error {
 	format := r.FormValue("format")
 	deadline := getDeadline(r)
 	if start >= end {
-		start = end - defaultStep
+		end = start + defaultStep
 	}
 	if err := exportHandler(w, matches, start, end, format, deadline); err != nil {
 		return err
@@ -286,7 +286,7 @@ func labelValuesWithMatches(labelName string, matches []string, start, end int64
 		return nil, err
 	}
 	if start >= end {
-		start = end - defaultStep
+		end = start + defaultStep
 	}
 	sq := &storage.SearchQuery{
 		MinTimestamp: start,
@@ -409,7 +409,7 @@ func SeriesHandler(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if start >= end {
-		start = end - defaultStep
+		end = start + defaultStep
 	}
 	sq := &storage.SearchQuery{
 		MinTimestamp: start,
@@ -565,7 +565,7 @@ func QueryRangeHandler(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
 	}
 	if start > end {
-		start = end
+		end = start + defaultStep
 	}
 	if err := promql.ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
 		return err
