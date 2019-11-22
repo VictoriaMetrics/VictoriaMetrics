@@ -12,7 +12,7 @@ cloud.google.com/go/storage
 github.com/BurntSushi/toml
 # github.com/VictoriaMetrics/fastcache v1.5.2
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/metrics v1.8.0
+# github.com/VictoriaMetrics/metrics v1.8.1
 github.com/VictoriaMetrics/metrics
 # github.com/aws/aws-sdk-go v1.25.37
 github.com/aws/aws-sdk-go/aws

@@ -132,12 +132,12 @@ func (h *Histogram) marshalBucket(prefix string, w io.Writer, idx int) {
 	if v == 0 {
 		return
 	}
-	start := float64(0)
+	start := "0"
 	if idx > 0 {
 		start = getRangeEndFromBucketIdx(uint(idx - 1))
 	}
 	end := getRangeEndFromBucketIdx(uint(idx))
-	tag := fmt.Sprintf(`vmrange="%g...%g"`, start, end)
+	tag := fmt.Sprintf(`vmrange="%s...%s"`, start, end)
 	prefix = addTag(prefix, tag)
 	name, filters := splitMetricName(prefix)
 	fmt.Fprintf(w, "%s_vmbucket%s %d\n", name, filters, v)
@@ -180,20 +180,27 @@ func getBucketIdx(v float64) uint {
 	return 1 + m + uint(e10-e10Min)*9
 }
 
-func getRangeEndFromBucketIdx(idx uint) float64 {
+func getRangeEndFromBucketIdx(idx uint) string {
 	if idx == 0 {
-		return 0
+		return "0"
 	}
 	if idx == 1 {
-		return math.Pow10(e10Min)
+		return fmt.Sprintf("1e%d", e10Min)
 	}
 	if idx >= bucketsCount-1 {
-		return math.Inf(1)
+		return "+Inf"
 	}
 	idx -= 2
 	e10 := e10Min + int(idx/9)
 	m := 2 + (idx % 9)
-	return math.Pow10(e10) * float64(m)
+	if m == 10 {
+		e10++
+		m = 1
+	}
+	if e10 == 0 {
+		return fmt.Sprintf("%d", m)
+	}
+	return fmt.Sprintf("%de%d", m, e10)
 }
 
 // Each range (10^n..10^(n+1)] for e10Min<=n<=e10Max is split into 9 equal sub-ranges, plus 3 additional buckets:
