@@ -45,6 +45,64 @@ func (s *Set) WritePrometheus(w io.Writer) {
 	s.mu.Unlock()
 }
 
+// NewHistogram creates and returns new histogram in s with the given name.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//     * foo
+//     * foo{bar="baz"}
+//     * foo{bar="baz",aaa="b"}
+//
+// The returned histogram is safe to use from concurrent goroutines.
+func (s *Set) NewHistogram(name string) *Histogram {
+	h := &Histogram{}
+	s.registerMetric(name, h)
+	return h
+}
+
+// GetOrCreateHistogram returns registered histogram in s with the given name
+// or creates new histogram if s doesn't contain histogram with the given name.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//     * foo
+//     * foo{bar="baz"}
+//     * foo{bar="baz",aaa="b"}
+//
+// The returned histogram is safe to use from concurrent goroutines.
+//
+// Performance tip: prefer NewHistogram instead of GetOrCreateHistogram.
+func (s *Set) GetOrCreateHistogram(name string) *Histogram {
+	s.mu.Lock()
+	nm := s.m[name]
+	s.mu.Unlock()
+	if nm == nil {
+		// Slow path - create and register missing histogram.
+		if err := validateMetric(name); err != nil {
+			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
+		}
+		nmNew := &namedMetric{
+			name:   name,
+			metric: &Histogram{},
+		}
+		s.mu.Lock()
+		nm = s.m[name]
+		if nm == nil {
+			nm = nmNew
+			s.m[name] = nm
+			s.a = append(s.a, nm)
+		}
+		s.mu.Unlock()
+	}
+	h, ok := nm.metric.(*Histogram)
+	if !ok {
+		panic(fmt.Errorf("BUG: metric %q isn't a Histogram. It is %T", name, nm.metric))
+	}
+	return h
+}
+
 // NewCounter registers and returns new counter with the given name in the s.
 //
 // name must be valid Prometheus-compatible metric with possible labels.

@@ -124,7 +124,7 @@ func gzipHandler(rh RequestHandler) http.HandlerFunc {
 	return http.HandlerFunc(hf)
 }
 
-var metricsHandlerDuration = metrics.NewSummary(`vm_http_request_duration_seconds{path="/metrics"}`)
+var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
 
 func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
