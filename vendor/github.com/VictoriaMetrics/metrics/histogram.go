@@ -28,7 +28,7 @@ import (
 // Each bucket contains a counter for values in the given range.
 // Each non-zero bucket is exposed with the following name:
 //
-//     <metric_name>_vmbucket{<optional_tags>,vmrange="<start>...<end>"} <counter>
+//     <metric_name>_bucket{<optional_tags>,vmrange="<start>...<end>"} <counter>
 //
 // Where:
 //
@@ -40,9 +40,9 @@ import (
 // Only non-zero buckets are exposed.
 //
 // Histogram buckets can be converted to Prometheus-like buckets in VictoriaMetrics
-// with `prometheus_buckets(<metric_name>_vmbucket)`:
+// with `prometheus_buckets(<metric_name>_bucket)`:
 //
-//     histogram_quantile(0.95, prometheus_buckets(rate(request_duration_vmbucket[5m])))
+//     prometheus_buckets(rate(request_duration_bucket[5m]))
 //
 // Histogram cannot be used for negative values.
 type Histogram struct {
@@ -140,7 +140,7 @@ func (h *Histogram) marshalBucket(prefix string, w io.Writer, idx int) {
 	tag := fmt.Sprintf(`vmrange="%s...%s"`, start, end)
 	prefix = addTag(prefix, tag)
 	name, filters := splitMetricName(prefix)
-	fmt.Fprintf(w, "%s_vmbucket%s %d\n", name, filters, v)
+	fmt.Fprintf(w, "%s_bucket%s %d\n", name, filters, v)
 }
 
 func getBucketIdx(v float64) uint {
