@@ -362,7 +362,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			for _, xs := range xss {
 				ts := xs.ts
 				v := ts.Values[i]
-				if !math.IsNaN(v) {
+				if !math.IsNaN(v) && v > 0 {
 					count += v
 				}
 				ts.Values[i] = count
