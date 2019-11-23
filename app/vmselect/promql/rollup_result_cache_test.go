@@ -388,7 +388,7 @@ func testTimeseriesEqual(t *testing.T, tss, tssExpected []*timeseries) {
 	}
 	for i, ts := range tss {
 		tsExpected := tssExpected[i]
-		testMetricNamesEqual(t, &ts.MetricName, &tsExpected.MetricName)
+		testMetricNamesEqual(t, &ts.MetricName, &tsExpected.MetricName, i)
 		testRowsEqual(t, ts.Values, ts.Timestamps, tsExpected.Values, tsExpected.Timestamps)
 	}
 }

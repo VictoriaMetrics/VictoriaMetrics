@@ -278,42 +278,85 @@ func transformPrometheusBuckets(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 1); err != nil {
 		return nil, err
 	}
+	rvs := vmrangeBucketsToLE(args[0])
+	return rvs, nil
+}
+
+func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
+	rvs := make([]*timeseries, 0, len(tss))
 
 	// Group timeseries by MetricGroup+tags excluding `vmrange` tag.
 	type x struct {
-		leStr string
-		le    float64
-		ts    *timeseries
+		startStr string
+		endStr   string
+		start    float64
+		end      float64
+		ts       *timeseries
 	}
 	m := make(map[string][]x)
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-	for _, ts := range args[0] {
+	for _, ts := range tss {
 		vmrange := ts.MetricName.GetTagValue("vmrange")
 		if len(vmrange) == 0 {
+			if le := ts.MetricName.GetTagValue("le"); len(le) > 0 {
+				// Keep Prometheus-compatible buckets.
+				rvs = append(rvs, ts)
+			}
 			continue
 		}
 		n := strings.Index(bytesutil.ToUnsafeString(vmrange), "...")
 		if n < 0 {
 			continue
 		}
-		leStr := string(vmrange[n+len("..."):])
-		le, err := strconv.ParseFloat(leStr, 64)
+		startStr := string(vmrange[:n])
+		start, err := strconv.ParseFloat(startStr, 64)
 		if err != nil {
 			continue
 		}
+		endStr := string(vmrange[n+len("..."):])
+		end, err := strconv.ParseFloat(endStr, 64)
+		if err != nil {
+			continue
+		}
+		ts.MetricName.RemoveTag("le")
 		ts.MetricName.RemoveTag("vmrange")
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 		m[string(bb.B)] = append(m[string(bb.B)], x{
-			leStr: leStr,
-			le:    le,
-			ts:    ts,
+			startStr: startStr,
+			endStr:   endStr,
+			start:    start,
+			end:      end,
+			ts:       ts,
 		})
 	}
 
-	rvs := make([]*timeseries, 0, len(args[0]))
+	// Convert `vmrange` label in each group of time series to `le` label.
 	for _, xss := range m {
-		sort.Slice(xss, func(i, j int) bool { return xss[i].le < xss[j].le })
+		sort.Slice(xss, func(i, j int) bool { return xss[i].end < xss[j].end })
+		xssNew := make([]x, 0, len(xss))
+		endStrPrev := "0"
+		for _, xs := range xss {
+			ts := xs.ts
+			if xs.startStr != endStrPrev {
+				var tsDummy timeseries
+				tsDummy.CopyFromShallowTimestamps(ts)
+				values := tsDummy.Values
+				for i := range values {
+					values[i] = 0
+				}
+				tsDummy.MetricName.AddTag("le", xs.startStr)
+				xssNew = append(xssNew, x{
+					endStr: xs.startStr,
+					end:    xs.start,
+					ts:     &tsDummy,
+				})
+			}
+			ts.MetricName.AddTag("le", xs.endStr)
+			xssNew = append(xssNew, xs)
+			endStrPrev = xs.endStr
+		}
+		xss = xssNew
 		for i := range xss[0].ts.Values {
 			count := float64(0)
 			for _, xs := range xss {
@@ -322,16 +365,14 @@ func transformPrometheusBuckets(tfa *transformFuncArg) ([]*timeseries, error) {
 				if !math.IsNaN(v) {
 					count += v
 				}
-				ts.MetricName.RemoveTag("le")
-				ts.MetricName.AddTag("le", xs.leStr)
 				ts.Values[i] = count
 			}
 		}
-		for i := range xss {
-			rvs = append(rvs, xss[i].ts)
+		for _, xs := range xss {
+			rvs = append(rvs, xs.ts)
 		}
 	}
-	return rvs, nil
+	return rvs
 }
 
 func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
@@ -344,6 +385,9 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 
+	// Convert buckets with `vmrange` labels to buckets with `le` labels.
+	tss := vmrangeBucketsToLE(args[1])
+
 	// Group metrics by all tags excluding "le"
 	type x struct {
 		le float64
@@ -351,7 +395,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	m := make(map[string][]x)
 	bb := bbPool.Get()
-	for _, ts := range args[1] {
+	for _, ts := range tss {
 		tagValue := ts.MetricName.GetTagValue("le")
 		if len(tagValue) == 0 {
 			continue
@@ -375,18 +419,16 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	lastNonInf := func(i int, xss []x) float64 {
 		for len(xss) > 0 {
 			xsLast := xss[len(xss)-1]
-			if xsLast.ts.Values[i] == 0 {
+			v := xsLast.ts.Values[i]
+			if v == 0 {
 				return nan
 			}
-			if !math.IsInf(xsLast.le, 0) {
-				break
+			if !math.IsNaN(v) && !math.IsInf(xsLast.le, 0) {
+				return xsLast.le
 			}
 			xss = xss[:len(xss)-1]
 		}
-		if len(xss) == 0 {
-			return nan
-		}
-		return xss[len(xss)-1].le
+		return nan
 	}
 	quantile := func(i int, phis []float64, xss []x) float64 {
 		phi := phis[i]
@@ -399,9 +441,9 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		vPrev := float64(0)
 		for _, xs := range xss {
 			v := xs.ts.Values[i]
-			if math.IsNaN(v) || v < vPrev {
+			if v < vPrev {
 				xs.ts.Values[i] = vPrev
-			} else {
+			} else if !math.IsNaN(v) {
 				vPrev = v
 			}
 		}
@@ -423,6 +465,11 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		lePrev := float64(0)
 		for _, xs := range xss {
 			v := xs.ts.Values[i]
+			if math.IsNaN(v) {
+				// Skip NaNs - they may appear if the selected time range
+				// contains multiple different bucket sets.
+				continue
+			}
 			le := xs.le
 			if v < vReq {
 				vPrev = v
@@ -450,7 +497,6 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 		rvs = append(rvs, dst)
 	}
-
 	return rvs, nil
 }
 
