@@ -2299,6 +2299,45 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantile(single-value-valid-le-max-phi)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(1, (
+			label_set(100, "le", "200"),
+			label_set(0, "le", "55"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(single-value-valid-le-min-phi)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0, (
+			label_set(100, "le", "200"),
+			label_set(0, "le", "55"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{55, 55, 55, 55, 55, 55},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(single-value-valid-le-min-phi-no-zero-bucket)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0, label_set(100, "le", "200"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_quantile(scalar-phi)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(time() / 2 / 1e3, label_set(100, "le", "200"))`

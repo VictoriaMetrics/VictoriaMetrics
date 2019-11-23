@@ -447,7 +447,15 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 				vPrev = v
 			}
 		}
-		if len(xss) == 0 {
+		vLast := nan
+		for len(xss) > 0 {
+			vLast = xss[len(xss)-1].ts.Values[i]
+			if !math.IsNaN(vLast) {
+				break
+			}
+			xss = xss[:len(xss)-1]
+		}
+		if vLast == 0 || math.IsNaN(vLast) {
 			return nan
 		}
 		if phi < 0 {
@@ -455,10 +463,6 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 		if phi > 1 {
 			return inf
-		}
-		vLast := xss[len(xss)-1].ts.Values[i]
-		if vLast == 0 {
-			return nan
 		}
 		vReq := vLast * phi
 		vPrev = 0
@@ -471,6 +475,11 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			le := xs.le
+			if v <= 0 {
+				// Skip zero buckets.
+				lePrev = le
+				continue
+			}
 			if v < vReq {
 				vPrev = v
 				lePrev = le
