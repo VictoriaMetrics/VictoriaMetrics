@@ -2359,7 +2359,7 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
+	t.Run(`histogram_quantile(nan-bucket-count-some)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(0.6,
 			label_set(90, "foo", "bar", "le", "10")
@@ -2368,7 +2368,7 @@ func TestExecSuccess(t *testing.T) {
 		)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{30, 30, 30, 30, 30, 30},
+			Values:     []float64{10, 10, 10, 10, 10, 10},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{
@@ -2378,7 +2378,7 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
+	t.Run(`histogram_quantile(normal-bucket-count)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(0.2,
 			label_set(0, "foo", "bar", "le", "10")
@@ -2407,7 +2407,7 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
-	t.Run(`histogram_quantile(nan-bucket-count)`, func(t *testing.T) {
+	t.Run(`histogram_quantile(nan-bucket-count-all)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(0.6,
 			label_set(nan, "foo", "bar", "le", "10")
@@ -2420,17 +2420,16 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`prometheus_buckets(missing-vmrange)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(prometheus_buckets((
-			alias(label_set(90, "foo", "bar", "le", "0"), "xxx"),
 			alias(label_set(time()/20, "foo", "bar", "le", "0.2"), "xxx"),
 			alias(label_set(time()/100, "foo", "bar", "vmrange", "foobar"), "xxx"),
 			alias(label_set(time()/100, "foo", "bar", "vmrange", "30...foobar"), "xxx"),
 			alias(label_set(time()/100, "foo", "bar", "vmrange", "30...40"), "xxx"),
+			alias(label_set(time()/80, "foo", "bar", "vmrange", "0...900", "le", "54"), "yyy"),
 			alias(label_set(time()/40, "foo", "bar", "vmrange", "900...1000", "le", "2343"), "yyy"),
-			alias(label_set(time()/10, "foo", "bar", "vmrange", "1000...Inf", "le", "2343"), "yyy"),
 		)))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{10, 12, 14, 16, 18, 20},
+			Values:     []float64{0, 0, 0, 0, 0, 0},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.MetricGroup = []byte("xxx")
@@ -2441,15 +2440,15 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("le"),
-				Value: []byte("40"),
+				Value: []byte("30"),
 			},
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{25, 30, 35, 40, 45, 50},
+			Values:     []float64{10, 12, 14, 16, 18, 20},
 			Timestamps: timestampsExpected,
 		}
-		r2.MetricName.MetricGroup = []byte("yyy")
+		r2.MetricName.MetricGroup = []byte("xxx")
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("foo"),
@@ -2457,12 +2456,12 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("le"),
-				Value: []byte("1000"),
+				Value: []byte("40"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{125, 150, 175, 200, 225, 250},
+			Values:     []float64{12.5, 15, 17.5, 20, 22.5, 25},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.MetricGroup = []byte("yyy")
@@ -2473,19 +2472,51 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("le"),
-				Value: []byte("Inf"),
+				Value: []byte("900"),
 			},
 		}
-		resultExpected := []netstorage.Result{r1, r2, r3}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{37.5, 45, 52.5, 60, 67.5, 75},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.MetricGroup = []byte("yyy")
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("1000"),
+			},
+		}
+		r5 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{50, 60, 70, 80, 90, 100},
+			Timestamps: timestampsExpected,
+		}
+		r5.MetricName.MetricGroup = []byte("xxx")
+		r5.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("le"),
+				Value: []byte("0.2"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
 		f(q, resultExpected)
 	})
 	t.Run(`prometheus_buckets(valid)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(prometheus_buckets((
 			alias(label_set(90, "foo", "bar", "vmrange", "0...0"), "xxx"),
-			alias(label_set(time()/20, "foo", "bar", "vmrange", "0.1...0.2"), "xxx"),
-			alias(label_set(time()/100, "foo", "bar", "vmrange", "30...40"), "xxx"),
-			alias(label_set(time()/10, "foo", "bar", "vmrange", "1000...Inf"), "xxx"),
+			alias(label_set(time()/20, "foo", "bar", "vmrange", "0...0.2"), "xxx"),
+			alias(label_set(time()/100, "foo", "bar", "vmrange", "0.2...40"), "xxx"),
+			alias(label_set(time()/10, "foo", "bar", "vmrange", "40...Inf"), "xxx"),
 		)))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
@@ -4424,12 +4455,12 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 	for i := range result {
 		r := &result[i]
 		rExpected := &resultExpected[i]
-		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName)
+		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
 		testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
 	}
 }
 
-func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName) {
+func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName, pos int) {
 	t.Helper()
 	if mn.AccountID != mnExpected.AccountID {
 		t.Fatalf(`unexpected accountID; got %d; want %d`, mn.AccountID, mnExpected.AccountID)
@@ -4438,19 +4469,19 @@ func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName) {
 		t.Fatalf(`unexpected projectID; got %d; want %d`, mn.ProjectID, mnExpected.ProjectID)
 	}
 	if string(mn.MetricGroup) != string(mnExpected.MetricGroup) {
-		t.Fatalf(`unexpected MetricGroup; got %q; want %q`, mn.MetricGroup, mnExpected.MetricGroup)
+		t.Fatalf(`unexpected MetricGroup at #%d; got %q; want %q`, pos, mn.MetricGroup, mnExpected.MetricGroup)
 	}
 	if len(mn.Tags) != len(mnExpected.Tags) {
-		t.Fatalf(`unexpected tags count; got %d; want %d`, len(mn.Tags), len(mnExpected.Tags))
+		t.Fatalf(`unexpected tags count at #%d; got %d; want %d`, pos, len(mn.Tags), len(mnExpected.Tags))
 	}
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		tagExpected := &mnExpected.Tags[i]
 		if string(tag.Key) != string(tagExpected.Key) {
-			t.Fatalf(`unexpected tag key; got %q; want %q`, tag.Key, tagExpected.Key)
+			t.Fatalf(`unexpected tag key at #%d,%d; got %q; want %q`, pos, i, tag.Key, tagExpected.Key)
 		}
 		if string(tag.Value) != string(tagExpected.Value) {
-			t.Fatalf(`unexpected tag value; got %q; want %q`, tag.Value, tagExpected.Value)
+			t.Fatalf(`unexpected tag value at #%d,%d; got %q; want %q`, pos, i, tag.Value, tagExpected.Value)
 		}
 	}
 }
