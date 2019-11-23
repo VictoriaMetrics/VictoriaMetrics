@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -26,11 +27,12 @@ var aggrFuncs = map[string]aggrFunc{
 	"quantile":     aggrFuncQuantile,
 
 	// Extended PromQL funcs
-	"median":   aggrFuncMedian,
-	"limitk":   aggrFuncLimitK,
-	"distinct": newAggrFunc(aggrFuncDistinct),
-	"sum2":     newAggrFunc(aggrFuncSum2),
-	"geomean":  newAggrFunc(aggrFuncGeomean),
+	"median":    aggrFuncMedian,
+	"limitk":    aggrFuncLimitK,
+	"distinct":  newAggrFunc(aggrFuncDistinct),
+	"sum2":      newAggrFunc(aggrFuncSum2),
+	"geomean":   newAggrFunc(aggrFuncGeomean),
+	"histogram": newAggrFunc(aggrFuncHistogram),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -182,6 +184,37 @@ func aggrFuncGeomean(tss []*timeseries) []*timeseries {
 		dst.Values[i] = math.Pow(p, 1/float64(count))
 	}
 	return tss[:1]
+}
+
+func aggrFuncHistogram(tss []*timeseries) []*timeseries {
+	m := make(map[string]*timeseries)
+	for i := range tss[0].Values {
+		var h metrics.Histogram
+		for _, ts := range tss {
+			v := ts.Values[i]
+			h.Update(v)
+		}
+		h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+			ts := m[vmrange]
+			if ts == nil {
+				ts = &timeseries{}
+				ts.CopyFromShallowTimestamps(tss[0])
+				ts.MetricName.RemoveTag("vmrange")
+				ts.MetricName.AddTag("vmrange", vmrange)
+				values := ts.Values
+				for k := range values {
+					values[k] = 0
+				}
+				m[vmrange] = ts
+			}
+			ts.Values[i] = float64(count)
+		})
+	}
+	rvs := make([]*timeseries, 0, len(m))
+	for _, ts := range m {
+		rvs = append(rvs, ts)
+	}
+	return vmrangeBucketsToLE(rvs)
 }
 
 func aggrFuncMin(tss []*timeseries) []*timeseries {

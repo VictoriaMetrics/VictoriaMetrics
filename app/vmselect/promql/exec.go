@@ -110,7 +110,7 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 	for i, ts := range tss {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 		if _, ok := m[string(bb.B)]; ok {
-			return nil, fmt.Errorf(`duplicate output timeseries: %s%s`, ts.MetricName.MetricGroup, stringMetricName(&ts.MetricName))
+			return nil, fmt.Errorf(`duplicate output timeseries: %s`, stringMetricName(&ts.MetricName))
 		}
 		m[string(bb.B)] = struct{}{}
 

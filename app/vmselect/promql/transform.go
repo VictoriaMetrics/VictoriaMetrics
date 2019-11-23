@@ -332,29 +332,40 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 	}
 
 	// Convert `vmrange` label in each group of time series to `le` label.
+	copyTS := func(src *timeseries, leStr string) *timeseries {
+		var ts timeseries
+		ts.CopyFromShallowTimestamps(src)
+		values := ts.Values
+		for i := range values {
+			values[i] = 0
+		}
+		ts.MetricName.RemoveTag("le")
+		ts.MetricName.AddTag("le", leStr)
+		return &ts
+	}
 	for _, xss := range m {
 		sort.Slice(xss, func(i, j int) bool { return xss[i].end < xss[j].end })
-		xssNew := make([]x, 0, len(xss))
-		endStrPrev := "0"
+		xssNew := make([]x, 0, len(xss)+2)
+		var xsPrev x
 		for _, xs := range xss {
 			ts := xs.ts
-			if xs.startStr != endStrPrev {
-				var tsDummy timeseries
-				tsDummy.CopyFromShallowTimestamps(ts)
-				values := tsDummy.Values
-				for i := range values {
-					values[i] = 0
-				}
-				tsDummy.MetricName.AddTag("le", xs.startStr)
+			if xs.start != xsPrev.end {
 				xssNew = append(xssNew, x{
 					endStr: xs.startStr,
 					end:    xs.start,
-					ts:     &tsDummy,
+					ts:     copyTS(ts, xs.startStr),
 				})
 			}
 			ts.MetricName.AddTag("le", xs.endStr)
 			xssNew = append(xssNew, xs)
-			endStrPrev = xs.endStr
+			xsPrev = xs
+		}
+		if !math.IsInf(xsPrev.end, 1) {
+			xssNew = append(xssNew, x{
+				endStr: "+Inf",
+				end:    math.Inf(1),
+				ts:     copyTS(xsPrev.ts, "+Inf"),
+			})
 		}
 		xss = xssNew
 		for i := range xss[0].ts.Values {
