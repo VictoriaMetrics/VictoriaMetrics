@@ -14,6 +14,7 @@
 * Easy to use. See the [API docs](http://godoc.org/github.com/VictoriaMetrics/metrics).
 * Fast.
 * Allows exporting distinct metric sets via distinct endpoints. See [Set](http://godoc.org/github.com/VictoriaMetrics/metrics#Set).
+* Supports [easy-to-use histograms](http://godoc.org/github.com/VictoriaMetrics/metrics#Histogram), which just work without any tuning.
 
 
 ### Limitations
@@ -39,6 +40,9 @@ var (
 	queueSize = metrics.NewGauge(`queue_size{queue="foobar",topic="baz"}`, func() float64 {
 		return float64(foobarQueue.Len())
 	})
+
+	// Register histogram with a single label.
+	responseSize = metrics.NewHistogram(`response_size{path="/foo/bar"}`)
 )
 
 // ...
@@ -50,6 +54,9 @@ func requestHandler() {
 	processRequest()
 	// Update requestDuration summary.
 	requestDuration.UpdateDuration(startTime)
+
+	// Update responseSize histogram.
+	responseSize.Update(responseSize)
 }
 
 // Expose the registered metrics at `/metrics` path.
@@ -86,3 +93,11 @@ exposed from your application.
 
 Just use [GetOrCreateCounter](http://godoc.org/github.com/VictoriaMetrics/metrics#GetOrCreateCounter)
 instead of `CounterVec.With`. See [this example](https://godoc.org/github.com/VictoriaMetrics/metrics#example-Counter--Vec) for details.
+
+
+#### Why [Histogram](http://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) buckets contain `vmrange` labels instead of `le` labels like in Prometheus histograms?
+
+Buckets with `vmrange` labels occupy less disk space comparing to Promethes-style buckets with `le` labels,
+because `vmrange` buckets don't include counters for the previous ranges. [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) provides `prometheus_buckets`
+function, which converts `vmrange` buckets to Prometheus-style buckets with `le` labels. This is useful for building heatmaps in Grafana.
+Additionally, its' `histogram_quantile` function transparently handles histogram buckets with `vmrange` labels.
