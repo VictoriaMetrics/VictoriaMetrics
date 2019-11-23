@@ -358,7 +358,7 @@ func positiveFloatToDecimalSlow(f float64) (int64, int16) {
 			prec = 1e15
 		}
 		_, exp := math.Frexp(f)
-		scale = int16(float64(exp) * math.Ln2 / math.Ln10)
+		scale = int16(float64(exp) * (math.Ln2 / math.Ln10))
 		f *= math.Pow10(-int(scale))
 	}
 
