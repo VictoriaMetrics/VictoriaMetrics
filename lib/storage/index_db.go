@@ -1957,7 +1957,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 				break
 			}
 			if metricID > sf[0] {
-				n := uint64BinarySearch(sf, metricID)
+				n := binarySearchUint64(sf, metricID)
 				sf = sf[n:]
 				if len(sf) == 0 {
 					break
@@ -1980,7 +1980,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 	return nil
 }
 
-func uint64BinarySearch(a []uint64, v uint64) uint {
+func binarySearchUint64(a []uint64, v uint64) uint {
 	// Copy-pasted sort.Search from https://golang.org/src/sort/search.go?s=2246:2286#L49
 	i, j := uint(0), uint(len(a))
 	for i < j {

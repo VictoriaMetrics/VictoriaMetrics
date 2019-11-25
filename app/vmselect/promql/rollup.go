@@ -3,7 +3,6 @@ package promql
 import (
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"sync"
 
@@ -273,10 +272,22 @@ func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint i
 		return startIdx + len(timestamps)
 	}
 	// Slow path: too big len(timestamps), so use binary search.
-	i := sort.Search(len(timestamps), func(n int) bool {
-		return n >= 0 && n < len(timestamps) && timestamps[n] > seekTimestamp
-	})
-	return startIdx + i
+	i := binarySearchInt64(timestamps, seekTimestamp+1)
+	return startIdx + int(i)
+}
+
+func binarySearchInt64(a []int64, v int64) uint {
+	// Copy-pasted sort.Search from https://golang.org/src/sort/search.go?s=2246:2286#L49
+	i, j := uint(0), uint(len(a))
+	for i < j {
+		h := (i + j) >> 1
+		if h < uint(len(a)) && a[h] < v {
+			i = h + 1
+		} else {
+			j = h
+		}
+	}
+	return i
 }
 
 func getMaxPrevInterval(timestamps []int64) int64 {
