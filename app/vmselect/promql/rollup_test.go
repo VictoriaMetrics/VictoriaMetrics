@@ -844,6 +844,27 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 	})
 }
 
+func TestRollupBigNumberOfValues(t *testing.T) {
+	const srcValuesCount = 1e4
+	rc := rollupConfig{
+		Func: rollupDefault,
+		End: srcValuesCount,
+		Step: srcValuesCount / 5,
+		Window: srcValuesCount / 4,
+	}
+	rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+	srcValues := make([]float64, srcValuesCount)
+	srcTimestamps := make([]int64, srcValuesCount)
+	for i := 0; i < srcValuesCount; i++ {
+		srcValues[i] = float64(i)
+		srcTimestamps[i] = int64(i/2)
+	}
+	values := rc.Do(nil, srcValues, srcTimestamps)
+	valuesExpected := []float64{1, 4001, 8001, 9999, nan, nan}
+	timestampsExpected := []int64{0, 2000, 4000, 6000, 8000, 10000}
+	testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+}
+
 func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExpected []float64, timestampsExpected []int64) {
 	t.Helper()
 	if len(values) != len(valuesExpected) {
