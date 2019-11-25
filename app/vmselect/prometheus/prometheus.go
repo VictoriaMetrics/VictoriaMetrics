@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	latencyOffset = flag.Duration("search.latencyOffset", time.Second*60, "The time when data points become visible in query results after the colection. "+
+	latencyOffset = flag.Duration("search.latencyOffset", time.Second*30, "The time when data points become visible in query results after the colection. "+
 		"Too small value can result in incomplete last points for query results")
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
 	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
