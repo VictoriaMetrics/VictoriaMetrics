@@ -5,28 +5,22 @@ import (
 	"io"
 	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-// Histogram is a histogram that covers values with the following buckets:
-//
-//     0
-//     (0...1e-9]
-//     (1e-9...2e-9]
-//     (2e-9...3e-9]
-//     ...
-//     (9e-9...1e-8]
-//     (1e-8...2e-8]
-//     ...
-//     (1e11...2e11]
-//     (2e11...3e11]
-//     ...
-//     (9e11...1e12]
-//     (1e12...Inf]
+const (
+	e10Min            = -9
+	e10Max            = 18
+	decimalMultiplier = 5
+	bucketSize        = 9 * decimalMultiplier
+	bucketsCount      = e10Max - e10Min
+	decimalPrecision  = 0.01 / decimalMultiplier
+)
+
+// Histogram is a histogram for non-negative values with automatically created buckets.
 //
 // Each bucket contains a counter for values in the given range.
-// Each non-zero bucket is exposed with the following name:
+// Each non-empty bucket is exposed via the following metric:
 //
 //     <metric_name>_bucket{<optional_tags>,vmrange="<start>...<end>"} <counter>
 //
@@ -35,24 +29,127 @@ import (
 //     - <metric_name> is the metric name passed to NewHistogram
 //     - <optional_tags> is optional tags for the <metric_name>, which are passed to NewHistogram
 //     - <start> and <end> - start and end values for the given bucket
-//     - <counter> - the number of hits to the given bucket during Update* calls.
+//     - <counter> - the number of hits to the given bucket during Update* calls
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
 // with `prometheus_buckets(<metric_name>_bucket)` function in VictoriaMetrics:
 //
 //     prometheus_buckets(request_duration_bucket)
 //
-// Histogram cannot be used for negative values.
-//
 // Time series produced by the Histogram have better compression ratio comparing to
 // Prometheus histogram buckets with `le` labels, since they don't include counters
 // for all the previous buckets.
+//
+// Zero histogram is usable.
 type Histogram struct {
-	buckets [bucketsCount]uint64
+	// Mu gurantees synchronous update for all the counters and sum.
+	mu sync.Mutex
 
-	sumMu sync.Mutex
-	sum   float64
-	count uint64
+	buckets [bucketsCount]*histogramBucket
+
+	zeros uint64
+	lower uint64
+	upper uint64
+
+	sum float64
+}
+
+// Reset resets the given histogram.
+func (h *Histogram) Reset() {
+	h.mu.Lock()
+	h.resetLocked()
+	h.mu.Unlock()
+}
+
+func (h *Histogram) resetLocked() {
+	for _, hb := range h.buckets[:] {
+		if hb == nil {
+			continue
+		}
+		for offset := range hb.counts[:] {
+			hb.counts[offset] = 0
+		}
+	}
+	h.zeros = 0
+	h.lower = 0
+	h.upper = 0
+}
+
+// Update updates h with v.
+//
+// Negative values and NaNs are ignored.
+func (h *Histogram) Update(v float64) {
+	if math.IsNaN(v) || v < 0 {
+		// Skip NaNs and negative values.
+		return
+	}
+	bucketIdx, offset := getBucketIdxAndOffset(v)
+	h.mu.Lock()
+	h.updateLocked(v, bucketIdx, offset)
+	h.mu.Unlock()
+}
+
+func (h *Histogram) updateLocked(v float64, bucketIdx int, offset uint) {
+	h.sum += v
+	if bucketIdx < 0 {
+		// Special cases for zero, too small or too big value
+		if offset == 0 {
+			h.zeros++
+		} else if offset == 1 {
+			h.lower++
+		} else {
+			h.upper++
+		}
+		return
+	}
+	hb := h.buckets[bucketIdx]
+	if hb == nil {
+		hb = &histogramBucket{}
+		h.buckets[bucketIdx] = hb
+	}
+	hb.counts[offset]++
+}
+
+// VisitNonZeroBuckets calls f for all buckets with non-zero counters.
+//
+// vmrange contains "<start>...<end>" string with bucket bounds. The lower bound
+// isn't included in the bucket, while the upper bound is included.
+// This is required to be compatible with Prometheus-style histogram buckets
+// with `le` (less or equal) labels.
+func (h *Histogram) VisitNonZeroBuckets(f func(vmrange string, count uint64)) {
+	h.mu.Lock()
+	h.visitNonZeroBucketsLocked(f)
+	h.mu.Unlock()
+}
+
+func (h *Histogram) visitNonZeroBucketsLocked(f func(vmrange string, count uint64)) {
+	if h.zeros > 0 {
+		vmrange := getVMRange(-1, 0)
+		f(vmrange, h.zeros)
+	}
+	if h.lower > 0 {
+		vmrange := getVMRange(-1, 1)
+		f(vmrange, h.lower)
+	}
+	for bucketIdx, hb := range h.buckets[:] {
+		if hb == nil {
+			continue
+		}
+		for offset, count := range hb.counts[:] {
+			if count > 0 {
+				vmrange := getVMRange(bucketIdx, uint(offset))
+				f(vmrange, count)
+			}
+		}
+	}
+	if h.upper > 0 {
+		vmrange := getVMRange(-1, 2)
+		f(vmrange, h.upper)
+	}
+}
+
+type histogramBucket struct {
+	counts [bucketSize]uint64
 }
 
 // NewHistogram creates and returns new histogram with the given name.
@@ -87,175 +184,112 @@ func GetOrCreateHistogram(name string) *Histogram {
 	return defaultSet.GetOrCreateHistogram(name)
 }
 
-// Update updates h with v.
-//
-// v cannot be negative.
-func (h *Histogram) Update(v float64) {
-	if math.IsNaN(v) || v < 0 {
-		// Skip NaNs and negative values.
-		return
-	}
-	idx := getBucketIdx(v)
-	if idx >= uint(len(h.buckets)) {
-		panic(fmt.Errorf("BUG: idx cannot exceed %d; got %d", len(h.buckets), idx))
-	}
-	atomic.AddUint64(&h.buckets[idx], 1)
-	atomic.AddUint64(&h.count, 1)
-	h.sumMu.Lock()
-	h.sum += v
-	h.sumMu.Unlock()
-}
-
 // UpdateDuration updates request duration based on the given startTime.
 func (h *Histogram) UpdateDuration(startTime time.Time) {
 	d := time.Since(startTime).Seconds()
 	h.Update(d)
 }
 
-// VisitNonZeroBuckets calls f for all buckets with non-zero counters.
-func (h *Histogram) VisitNonZeroBuckets(f func(vmrange string, count uint64)) {
-	for i, v := range h.buckets[:] {
-		if v == 0 {
-			continue
-		}
-		vmrange := getRangeForBucketIdx(uint(i))
-		f(vmrange, v)
-	}
-}
-
-func getRangeForBucketIdx(idx uint) string {
+func getVMRange(bucketIdx int, offset uint) string {
 	bucketRangesOnce.Do(initBucketRanges)
+	if bucketIdx < 0 {
+		if offset > 2 {
+			panic(fmt.Errorf("BUG: offset must be in range [0...2] for negative bucketIdx; got %d", offset))
+		}
+		return bucketRanges[offset]
+	}
+	idx := 3 + uint(bucketIdx)*bucketSize + offset
 	return bucketRanges[idx]
 }
 
 func initBucketRanges() {
-	start := "0"
-	for i := 0; i < bucketsCount; i++ {
-		end := getRangeEndFromBucketIdx(uint(i))
-		bucketRanges[i] = start + "..." + end
-		start = end
+	bucketRanges[0] = "0...0"
+	bucketRanges[1] = fmt.Sprintf("0...%.1fe%d", 1.0, e10Min)
+	bucketRanges[2] = fmt.Sprintf("%.1fe%d...+Inf", 1.0, e10Max)
+	idx := 3
+	start := fmt.Sprintf("%.1fe%d", 1.0, e10Min)
+	for bucketIdx := 0; bucketIdx < bucketsCount; bucketIdx++ {
+		for offset := 0; offset < bucketSize; offset++ {
+			e10 := e10Min + bucketIdx
+			m := 1 + float64(offset+1)/decimalMultiplier
+			if math.Abs(m-10) < decimalPrecision {
+				m = 1
+				e10++
+			}
+			end := fmt.Sprintf("%.1fe%d", m, e10)
+			bucketRanges[idx] = start + "..." + end
+			idx++
+			start = end
+		}
 	}
 }
 
 var (
-	bucketRanges     [bucketsCount]string
+	// 3 additional buckets for zero, lower and upper.
+	bucketRanges     [3 + bucketsCount*bucketSize]string
 	bucketRangesOnce sync.Once
 )
 
-func getTagForBucketIdx(idx uint) string {
-	bucketTagsOnce.Do(initBucketTags)
-	return bucketTags[idx]
-}
-
-func initBucketTags() {
-	for i := 0; i < bucketsCount; i++ {
-		vmrange := getRangeForBucketIdx(uint(i))
-		bucketTags[i] = fmt.Sprintf(`vmrange=%q`, vmrange)
-	}
-}
-
-var (
-	bucketTags     [bucketsCount]string
-	bucketTagsOnce sync.Once
-)
-
 func (h *Histogram) marshalTo(prefix string, w io.Writer) {
-	count := atomic.LoadUint64(&h.count)
-	if count == 0 {
+	countTotal := uint64(0)
+	h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+		tag := fmt.Sprintf("vmrange=%q", vmrange)
+		metricName := addTag(prefix, tag)
+		name, filters := splitMetricName(metricName)
+		fmt.Fprintf(w, "%s_bucket%s %d\n", name, filters, count)
+		countTotal += count
+	})
+	if countTotal == 0 {
 		return
 	}
-	for i := range h.buckets[:] {
-		h.marshalBucket(prefix, w, uint(i))
-	}
-	// Marshal `_sum` and `_count` metrics.
 	name, filters := splitMetricName(prefix)
-	h.sumMu.Lock()
-	sum := h.sum
-	h.sumMu.Unlock()
-	if float64(int64(sum)) == sum {
-		fmt.Fprintf(w, "%s_sum%s %d\n", name, filters, int64(sum))
+	if float64(int64(h.sum)) == h.sum {
+		fmt.Fprintf(w, "%s_sum%s %d\n", name, filters, int64(h.sum))
 	} else {
-		fmt.Fprintf(w, "%s_sum%s %g\n", name, filters, sum)
+		fmt.Fprintf(w, "%s_sum%s %g\n", name, filters, h.sum)
 	}
-	fmt.Fprintf(w, "%s_count%s %d\n", name, filters, count)
+	fmt.Fprintf(w, "%s_count%s %d\n", name, filters, countTotal)
 }
 
-func (h *Histogram) marshalBucket(prefix string, w io.Writer, idx uint) {
-	v := h.buckets[idx]
-	if v == 0 {
-		return
-	}
-	tag := getTagForBucketIdx(idx)
-	prefix = addTag(prefix, tag)
-	name, filters := splitMetricName(prefix)
-	fmt.Fprintf(w, "%s_bucket%s %d\n", name, filters, v)
-}
-
-func getBucketIdx(v float64) uint {
+func getBucketIdxAndOffset(v float64) (int, uint) {
 	if v < 0 {
-		panic(fmt.Errorf("BUG: v cannot be negative; got %v", v))
+		panic(fmt.Errorf("BUG: v must be positive; got %g", v))
 	}
 	if v == 0 {
-		// Fast path for zero.
-		return 0
+		return -1, 0
 	}
 	if math.IsInf(v, 1) {
-		return bucketsCount - 1
+		return -1, 2
 	}
 	e10 := int(math.Floor(math.Log10(v)))
-	if e10 < e10Min {
-		return 1
+	bucketIdx := e10 - e10Min
+	if bucketIdx < 0 {
+		return -1, 1
 	}
-	if e10 > e10Max {
-		if e10 == e10Max+1 && math.Pow10(e10) == v {
+	if bucketIdx >= bucketsCount {
+		if bucketIdx == bucketsCount && math.Abs(math.Pow10(e10)-v) < decimalPrecision {
 			// Adjust m to be on par with Prometheus 'le' buckets (aka 'less or equal')
-			return bucketsCount - 2
+			return bucketsCount - 1, bucketSize - 1
 		}
-		return bucketsCount - 1
+		return -1, 2
 	}
-	mf := v / math.Pow10(e10)
-	m := uint(mf)
-	// Handle possible rounding errors
-	if m < 1 {
-		m = 1
-	} else if m > 9 {
-		m = 9
+	m := ((v / math.Pow10(e10)) - 1) * decimalMultiplier
+	offset := int(m)
+	if offset < 0 {
+		offset = 0
+	} else if offset >= bucketSize {
+		offset = bucketSize - 1
 	}
-	if float64(m) == mf {
-		// Adjust m to be on par with Prometheus 'le' buckets (aka 'less or equal')
-		m--
+	if math.Abs(float64(offset)-m) < decimalPrecision {
+		// Adjust offset to be on par with Prometheus 'le' buckets (aka 'less or equal')
+		offset--
+		if offset < 0 {
+			bucketIdx--
+			offset = bucketSize - 1
+			if bucketIdx < 0 {
+				return -1, 1
+			}
+		}
 	}
-	return 1 + m + uint(e10-e10Min)*9
+	return bucketIdx, uint(offset)
 }
-
-func getRangeEndFromBucketIdx(idx uint) string {
-	if idx == 0 {
-		return "0"
-	}
-	if idx == 1 {
-		return fmt.Sprintf("1e%d", e10Min)
-	}
-	if idx >= bucketsCount-1 {
-		return "+Inf"
-	}
-	idx -= 2
-	e10 := e10Min + int(idx/9)
-	m := 2 + (idx % 9)
-	if m == 10 {
-		e10++
-		m = 1
-	}
-	if e10 == 0 {
-		return fmt.Sprintf("%d", m)
-	}
-	return fmt.Sprintf("%de%d", m, e10)
-}
-
-// Each range (10^n..10^(n+1)] for e10Min<=n<=e10Max is split into 9 equal sub-ranges, plus 3 additional buckets:
-// - a bucket for zeros
-// - a bucket for the range (0..10^e10Min]
-// - a bucket for the range (10^(e10Max+1)..Inf]
-const bucketsCount = 3 + 9*(1+e10Max-e10Min)
-
-const e10Min = -9
-const e10Max = 11
