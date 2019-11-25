@@ -11,7 +11,7 @@ import (
 const (
 	e10Min            = -9
 	e10Max            = 18
-	decimalMultiplier = 5
+	decimalMultiplier = 2
 	bucketSize        = 9 * decimalMultiplier
 	bucketsCount      = e10Max - e10Min
 	decimalPrecision  = 0.01 / decimalMultiplier

@@ -2683,8 +2683,8 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`histogram(scalar)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(histogram(123)+(
-			label_set(0, "le", "1.2e2"),
-			label_set(0, "le", "1.4e2"),
+			label_set(0, "le", "1.0e2"),
+			label_set(0, "le", "1.5e2"),
 			label_set(1, "le", "+Inf"),
 		))`
 		r1 := netstorage.Result{
@@ -2695,7 +2695,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.2e2"),
+				Value: []byte("1.0e2"),
 			},
 		}
 		r2 := netstorage.Result{
@@ -2706,7 +2706,7 @@ func TestExecSuccess(t *testing.T) {
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.4e2"),
+				Value: []byte("1.5e2"),
 			},
 		}
 		r3 := netstorage.Result{
@@ -2730,9 +2730,9 @@ func TestExecSuccess(t *testing.T) {
 			label_set(1.1, "xx", "yy"),
 			alias(1.15, "foobar"),
 		))+(
-			label_set(0, "le", "9.8e-1"),
+			label_set(0, "le", "9.5e-1"),
 			label_set(0, "le", "1.0e0"),
-			label_set(0, "le", "1.2e0"),
+			label_set(0, "le", "1.5e0"),
 			label_set(1, "le", "+Inf"),
 		))`
 		r1 := netstorage.Result{
@@ -2743,7 +2743,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("9.8e-1"),
+				Value: []byte("9.5e-1"),
 			},
 		}
 		r2 := netstorage.Result{
@@ -2765,7 +2765,7 @@ func TestExecSuccess(t *testing.T) {
 		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.2e0"),
+				Value: []byte("1.5e0"),
 			},
 		}
 		r4 := netstorage.Result{
