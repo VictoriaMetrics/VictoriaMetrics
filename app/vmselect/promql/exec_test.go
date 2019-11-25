@@ -2692,7 +2692,11 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`histogram(scalar)`, func(t *testing.T) {
 		t.Parallel()
-		q := `histogram(123)`
+		q := `sort(histogram(123)+(
+			label_set(0, "le", "1.2e2"),
+			label_set(0, "le", "1.4e2"),
+			label_set(1, "le", "+Inf"),
+		))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
@@ -2701,7 +2705,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1e2"),
+				Value: []byte("1.2e2"),
 			},
 		}
 		r2 := netstorage.Result{
@@ -2712,12 +2716,12 @@ func TestExecSuccess(t *testing.T) {
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("2e2"),
+				Value: []byte("1.4e2"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Values:     []float64{2, 2, 2, 2, 2, 2},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{
@@ -2733,9 +2737,14 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort(histogram((
 			label_set(1, "foo", "bar"),
-			label_set(1.5, "xx", "yy"),
-			alias(1.9, "foobar"),
-		)))`
+			label_set(1.1, "xx", "yy"),
+			alias(1.15, "foobar"),
+		))+(
+			label_set(0, "le", "9.8e-1"),
+			label_set(0, "le", "1.0e0"),
+			label_set(0, "le", "1.2e0"),
+			label_set(1, "le", "+Inf"),
+		))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{0, 0, 0, 0, 0, 0},
@@ -2744,7 +2753,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("9e-1"),
+				Value: []byte("9.8e-1"),
 			},
 		}
 		r2 := netstorage.Result{
@@ -2755,7 +2764,7 @@ func TestExecSuccess(t *testing.T) {
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1"),
+				Value: []byte("1.0e0"),
 			},
 		}
 		r3 := netstorage.Result{
@@ -2766,12 +2775,12 @@ func TestExecSuccess(t *testing.T) {
 		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("2"),
+				Value: []byte("1.2e0"),
 			},
 		}
 		r4 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Values:     []float64{4, 4, 4, 4, 4, 4},
 			Timestamps: timestampsExpected,
 		}
 		r4.MetricName.Tags = []storage.Tag{
