@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -29,6 +30,8 @@ func NewSet() *Set {
 
 // WritePrometheus writes all the metrics from s to w in Prometheus format.
 func (s *Set) WritePrometheus(w io.Writer) {
+	// Collect all the metrics in in-memory buffer in order to prevent from long locking due to slow w.
+	var bb bytes.Buffer
 	lessFunc := func(i, j int) bool {
 		return s.a[i].name < s.a[j].name
 	}
@@ -40,9 +43,10 @@ func (s *Set) WritePrometheus(w io.Writer) {
 		sort.Slice(s.a, lessFunc)
 	}
 	for _, nm := range s.a {
-		nm.metric.marshalTo(nm.name, w)
+		nm.metric.marshalTo(nm.name, &bb)
 	}
 	s.mu.Unlock()
+	w.Write(bb.Bytes())
 }
 
 // NewHistogram creates and returns new histogram in s with the given name.
