@@ -252,6 +252,8 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`(-foo + ((bar) / (baz))) + ((23))`, `((0 - foo) + (bar / baz)) + 23`)
 	another(`(FOO + ((Bar) / (baZ))) + ((23))`, `(FOO + (Bar / baZ)) + 23`)
 	same(`(foo, bar)`)
+	another(`((foo, bar),(baz))`, `((foo, bar), baz)`)
+	same(`(foo, (bar, baz), ((x, y), (z, y), xx))`)
 	another(`1+(foo, bar,)`, `1 + (foo, bar)`)
 	another(`((foo(bar,baz)), (1+(2)+(3,4)+()))`, `(foo(bar, baz), (3 + (3, 4)) + ())`)
 	same(`()`)

@@ -116,13 +116,17 @@ func removeParensExpr(e expr) expr {
 		return fe
 	}
 	if pe, ok := e.(*parensExpr); ok {
+		args := *pe
+		for i, arg := range args {
+			args[i] = removeParensExpr(arg)
+		}
 		if len(*pe) == 1 {
-			return removeParensExpr((*pe)[0])
+			return args[0]
 		}
 		// Treat parensExpr as a function with empty name, i.e. union()
 		fe := &funcExpr{
 			Name: "",
-			Args: *pe,
+			Args: args,
 		}
 		return fe
 	}
