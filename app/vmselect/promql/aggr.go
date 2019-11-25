@@ -187,9 +187,10 @@ func aggrFuncGeomean(tss []*timeseries) []*timeseries {
 }
 
 func aggrFuncHistogram(tss []*timeseries) []*timeseries {
+	var h metrics.Histogram
 	m := make(map[string]*timeseries)
 	for i := range tss[0].Values {
-		var h metrics.Histogram
+		h.Reset()
 		for _, ts := range tss {
 			v := ts.Values[i]
 			h.Update(v)
