@@ -480,7 +480,9 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) error {
 	if len(query) > *maxQueryLen {
 		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
 	}
-	if ct-start < queryOffset {
+	if !getBool(r, "nocache") && ct-start < queryOffset {
+		// Adjust start time only if `nocache` arg isn't set.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
 		start = ct - queryOffset
 	}
 	if childQuery, windowStr, offsetStr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
