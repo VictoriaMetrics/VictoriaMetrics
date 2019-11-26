@@ -154,7 +154,7 @@ var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, start, end int64, format string, deadline netstorage.Deadline) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := WriteExportJSONLine
-	contentType := "application/json"
+	contentType := "application/stream+json"
 	if format == "prometheus" {
 		contentType = "text/plain"
 		writeLineFunc = WriteExportPrometheusLine
