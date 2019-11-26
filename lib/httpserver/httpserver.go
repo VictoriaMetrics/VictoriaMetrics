@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	tlsEnable   = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. tlsCertFile and tlsKeyFile must be set if tls=true")
-	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if tls=true. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow")
-	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if tls=true")
+	tlsEnable   = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. `-tlsCertFile` and `-tlsKeyFile` must be set if `-tls` is set")
+	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if `-tls` is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow")
+	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if `-tls` is set")
 
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
 	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty")
