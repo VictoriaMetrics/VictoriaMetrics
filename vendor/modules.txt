@@ -10,7 +10,7 @@ cloud.google.com/go/internal/version
 cloud.google.com/go/storage
 # github.com/BurntSushi/toml v0.3.1
 github.com/BurntSushi/toml
-# github.com/VictoriaMetrics/fastcache v1.5.2
+# github.com/VictoriaMetrics/fastcache v1.5.4
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/metrics v1.9.1
 github.com/VictoriaMetrics/metrics
