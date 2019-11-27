@@ -476,10 +476,9 @@ Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to
 
 Steps for restoring from a snapshot:
 1. Stop VictoriaMetrics with `kill -INT`.
-2. Remove the entire contents of the directory pointed by `-storageDataPath` command-line flag.
-3. Restore snapshot contents from backup with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md)
+2. Restore snapshot contents from backup with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md)
    to the directory pointed by `-storageDataPath`.
-4. Start VictoriaMetrics.
+3. Start VictoriaMetrics.
 
 
 ### How to delete time series?
