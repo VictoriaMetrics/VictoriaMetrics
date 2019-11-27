@@ -162,6 +162,15 @@ func (c *Cache) Get(dst, k []byte) []byte {
 	return dst
 }
 
+// HasGet works identically to Get, but also returns whether the given key
+// exists in the cache. This method makes it possible to differentiate between a
+// stored nil/empty value versus and non-existing value.
+func (c *Cache) HasGet(dst, k []byte) ([]byte, bool) {
+	h := xxhash.Sum64(k)
+	idx := h % bucketsCount
+	return c.buckets[idx].Get(nil, k, h, true)
+}
+
 // Has returns true if entry for the given key k exists in the cache.
 func (c *Cache) Has(k []byte) bool {
 	h := xxhash.Sum64(k)
