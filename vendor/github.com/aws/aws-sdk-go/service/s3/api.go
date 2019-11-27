@@ -14095,6 +14095,16 @@ type Destination struct {
 	// is specified, you must specify this element.
 	EncryptionConfiguration *EncryptionConfiguration `type:"structure"`
 
+	// A container specifying replication metrics-related information, including
+	// whether emitting metrics and Amazon S3 events for replication are enabled.
+	// In addition, contains configurations related to specific metrics or events.
+	// Must be specified together with a ReplicationTime block.
+	Metrics *Metrics `type:"structure"`
+
+	// A container specifying the time when all objects and operations on objects
+	// are replicated. Must be specified together with a Metrics block.
+	ReplicationTime *ReplicationTime `type:"structure"`
+
 	// The storage class to use when replicating objects, such as standard or reduced
 	// redundancy. By default, Amazon S3 uses the storage class of the source object
 	// to create the object replica.
@@ -14124,6 +14134,16 @@ func (s *Destination) Validate() error {
 	if s.AccessControlTranslation != nil {
 		if err := s.AccessControlTranslation.Validate(); err != nil {
 			invalidParams.AddNested("AccessControlTranslation", err.(request.ErrInvalidParams))
+		}
+	}
+	if s.Metrics != nil {
+		if err := s.Metrics.Validate(); err != nil {
+			invalidParams.AddNested("Metrics", err.(request.ErrInvalidParams))
+		}
+	}
+	if s.ReplicationTime != nil {
+		if err := s.ReplicationTime.Validate(); err != nil {
+			invalidParams.AddNested("ReplicationTime", err.(request.ErrInvalidParams))
 		}
 	}
 
@@ -14161,6 +14181,18 @@ func (s *Destination) getBucket() (v string) {
 // SetEncryptionConfiguration sets the EncryptionConfiguration field's value.
 func (s *Destination) SetEncryptionConfiguration(v *EncryptionConfiguration) *Destination {
 	s.EncryptionConfiguration = v
+	return s
+}
+
+// SetMetrics sets the Metrics field's value.
+func (s *Destination) SetMetrics(v *Metrics) *Destination {
+	s.Metrics = v
+	return s
+}
+
+// SetReplicationTime sets the ReplicationTime field's value.
+func (s *Destination) SetReplicationTime(v *ReplicationTime) *Destination {
+	s.ReplicationTime = v
 	return s
 }
 
@@ -21262,6 +21294,63 @@ func (s *MetadataEntry) SetValue(v string) *MetadataEntry {
 	return s
 }
 
+// A container specifying replication metrics-related information, including
+// whether emitting metrics and Amazon S3 events for replication are enabled.
+// In addition, contains configurations related to specific metrics or events.
+// Must be specified together with a ReplicationTime block.
+type Metrics struct {
+	_ struct{} `type:"structure"`
+
+	// A container specifying the time threshold for emitting the s3:Replication:OperationMissedThreshold
+	// event.
+	//
+	// EventThreshold is a required field
+	EventThreshold *ReplicationTimeValue `type:"structure" required:"true"`
+
+	// Specifies whether the replication metrics are enabled.
+	//
+	// Status is a required field
+	Status *string `type:"string" required:"true" enum:"MetricsStatus"`
+}
+
+// String returns the string representation
+func (s Metrics) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s Metrics) GoString() string {
+	return s.String()
+}
+
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *Metrics) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "Metrics"}
+	if s.EventThreshold == nil {
+		invalidParams.Add(request.NewErrParamRequired("EventThreshold"))
+	}
+	if s.Status == nil {
+		invalidParams.Add(request.NewErrParamRequired("Status"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
+// SetEventThreshold sets the EventThreshold field's value.
+func (s *Metrics) SetEventThreshold(v *ReplicationTimeValue) *Metrics {
+	s.EventThreshold = v
+	return s
+}
+
+// SetStatus sets the Status field's value.
+func (s *Metrics) SetStatus(v string) *Metrics {
+	s.Status = &v
+	return s
+}
+
 // A conjunction (logical AND) of predicates, which is used in evaluating a
 // metrics filter. The operator must have at least two predicates, and an object
 // must match all of the predicates in order for the filter to apply.
@@ -25874,6 +25963,85 @@ func (s *ReplicationRuleFilter) SetTag(v *Tag) *ReplicationRuleFilter {
 	return s
 }
 
+// A container specifying the time when all objects and operations on objects
+// are replicated. Must be specified together with a Metrics block.
+type ReplicationTime struct {
+	_ struct{} `type:"structure"`
+
+	// Specifies whether the replication time is enabled.
+	//
+	// Status is a required field
+	Status *string `type:"string" required:"true" enum:"ReplicationTimeStatus"`
+
+	// A container specifying the time by which replication should complete for
+	// all objects and operations on objects.
+	//
+	// Time is a required field
+	Time *ReplicationTimeValue `type:"structure" required:"true"`
+}
+
+// String returns the string representation
+func (s ReplicationTime) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s ReplicationTime) GoString() string {
+	return s.String()
+}
+
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *ReplicationTime) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "ReplicationTime"}
+	if s.Status == nil {
+		invalidParams.Add(request.NewErrParamRequired("Status"))
+	}
+	if s.Time == nil {
+		invalidParams.Add(request.NewErrParamRequired("Time"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
+// SetStatus sets the Status field's value.
+func (s *ReplicationTime) SetStatus(v string) *ReplicationTime {
+	s.Status = &v
+	return s
+}
+
+// SetTime sets the Time field's value.
+func (s *ReplicationTime) SetTime(v *ReplicationTimeValue) *ReplicationTime {
+	s.Time = v
+	return s
+}
+
+// A container specifying the time value.
+type ReplicationTimeValue struct {
+	_ struct{} `type:"structure"`
+
+	// Contains an integer specifying time in minutes.
+	Minutes *int64 `type:"integer"`
+}
+
+// String returns the string representation
+func (s ReplicationTimeValue) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s ReplicationTimeValue) GoString() string {
+	return s.String()
+}
+
+// SetMinutes sets the Minutes field's value.
+func (s *ReplicationTimeValue) SetMinutes(v int64) *ReplicationTimeValue {
+	s.Minutes = &v
+	return s
+}
+
 // Container for Payer.
 type RequestPaymentConfiguration struct {
 	_ struct{} `type:"structure"`
@@ -28590,11 +28758,29 @@ const (
 	// EventS3ObjectRemovedDeleteMarkerCreated is a Event enum value
 	EventS3ObjectRemovedDeleteMarkerCreated = "s3:ObjectRemoved:DeleteMarkerCreated"
 
+	// EventS3ObjectRestore is a Event enum value
+	EventS3ObjectRestore = "s3:ObjectRestore:*"
+
 	// EventS3ObjectRestorePost is a Event enum value
 	EventS3ObjectRestorePost = "s3:ObjectRestore:Post"
 
 	// EventS3ObjectRestoreCompleted is a Event enum value
 	EventS3ObjectRestoreCompleted = "s3:ObjectRestore:Completed"
+
+	// EventS3Replication is a Event enum value
+	EventS3Replication = "s3:Replication:*"
+
+	// EventS3ReplicationOperationFailedReplication is a Event enum value
+	EventS3ReplicationOperationFailedReplication = "s3:Replication:OperationFailedReplication"
+
+	// EventS3ReplicationOperationNotTracked is a Event enum value
+	EventS3ReplicationOperationNotTracked = "s3:Replication:OperationNotTracked"
+
+	// EventS3ReplicationOperationMissedThreshold is a Event enum value
+	EventS3ReplicationOperationMissedThreshold = "s3:Replication:OperationMissedThreshold"
+
+	// EventS3ReplicationOperationReplicatedAfterThreshold is a Event enum value
+	EventS3ReplicationOperationReplicatedAfterThreshold = "s3:Replication:OperationReplicatedAfterThreshold"
 )
 
 const (
@@ -28729,6 +28915,14 @@ const (
 
 	// MetadataDirectiveReplace is a MetadataDirective enum value
 	MetadataDirectiveReplace = "REPLACE"
+)
+
+const (
+	// MetricsStatusEnabled is a MetricsStatus enum value
+	MetricsStatusEnabled = "Enabled"
+
+	// MetricsStatusDisabled is a MetricsStatus enum value
+	MetricsStatusDisabled = "Disabled"
 )
 
 const (
@@ -28877,6 +29071,14 @@ const (
 
 	// ReplicationStatusReplica is a ReplicationStatus enum value
 	ReplicationStatusReplica = "REPLICA"
+)
+
+const (
+	// ReplicationTimeStatusEnabled is a ReplicationTimeStatus enum value
+	ReplicationTimeStatusEnabled = "Enabled"
+
+	// ReplicationTimeStatusDisabled is a ReplicationTimeStatus enum value
+	ReplicationTimeStatusDisabled = "Disabled"
 )
 
 // If present, indicates that the requester was successfully charged for the
