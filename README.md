@@ -249,9 +249,8 @@ There is no need in synchronizing backups among all the `vmstorage` nodes.
 Restoring from backup:
 
 1. Stop `vmstorage` node with `kill -INT`.
-2. Delete all the contents of the directory pointed by `-storageDataPath` command-line flag.
-3. Restore data from backup using [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/app/vmrestore/README.md) into `-storageDataPath` directory.
-4. Start `vmstorage` node.
+2. Restore data from backup using [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/app/vmrestore/README.md) into `-storageDataPath` directory.
+3. Start `vmstorage` node.
 
 
 ## Community and contributions
