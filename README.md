@@ -110,6 +110,20 @@ An http load balancer must be put in front of `vminsert` and `vmselect` nodes:
 
 Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 
+It is recommended setting up [monitoring](#monitoring) for the cluster.
+
+
+### Monitoring
+
+All the cluster components expose various metrics in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
+By default the following TCP ports are used:
+- `vminsert` - 8480
+- `vmselect` - 8481
+- `vmstorage` - 8482
+
+It is recommended setting up Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
+with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
+
 
 ### URL format
 
