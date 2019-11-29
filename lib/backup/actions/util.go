@@ -18,6 +18,8 @@ var (
 		"See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html")
 	configFilePath = flag.String("configFilePath", "", "Path to file with S3 configs. Configs are loaded from default location if not set.\n"+
 		"See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html")
+	configProfile    = flag.String("configProfile", "default", "Profile name for S3 configs. ")
+	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO)")
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -218,6 +220,8 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		fs := &s3remote.FS{
 			CredsFilePath:  *credsFilePath,
 			ConfigFilePath: *configFilePath,
+			CustomEndpoint: *customS3Endpoint,
+			ProfileName:    *configProfile,
 			Bucket:         bucket,
 			Dir:            dir,
 		}

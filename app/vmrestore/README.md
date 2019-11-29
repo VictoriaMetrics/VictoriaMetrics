@@ -43,6 +43,10 @@ Run `vmrestore -help` in order to see all the available options:
   -credsFilePath string
     	Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
+  -configProfile string
+    	Profile name for S3 configs.  (default "default")
+  -customS3Endpoint string
+    	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO)
   -loggerLevel string
     	Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC (default "INFO")
   -maxBytesPerSecond int
