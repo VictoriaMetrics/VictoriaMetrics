@@ -1,6 +1,6 @@
 DOCKER_NAMESPACE := victoriametrics
 BUILDER_IMAGE := local/builder:go1.13.4
-CERTS_IMAGE := local/certs:1.0.2
+CERTS_IMAGE := local/certs:1.0.3
 
 package-certs:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(CERTS_IMAGE)') \
