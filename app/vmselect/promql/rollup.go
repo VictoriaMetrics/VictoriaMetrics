@@ -22,8 +22,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"deriv_fast":         newRollupFuncOneArg(rollupDerivFast),
 	"holt_winters":       newRollupHoltWinters,
 	"idelta":             newRollupFuncOneArg(rollupIdelta),
-	"increase":           newRollupFuncOneArg(rollupDelta),  // + rollupFuncsRemoveCounterResets
-	"irate":              newRollupFuncOneArg(rollupIderiv), // + rollupFuncsRemoveCounterResets
+	"increase":           newRollupFuncOneArg(rollupIncrease), // + rollupFuncsRemoveCounterResets
+	"irate":              newRollupFuncOneArg(rollupIderiv),   // + rollupFuncsRemoveCounterResets
 	"predict_linear":     newRollupPredictLinear,
 	"rate":               newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
 	"resets":             newRollupFuncOneArg(rollupResets),
@@ -116,6 +116,7 @@ type rollupFuncArg struct {
 	currTimestamp int64
 	idx           int
 	step          int64
+	realPrevValue float64
 }
 
 func (rfa *rollupFuncArg) reset() {
@@ -126,6 +127,7 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.currTimestamp = 0
 	rfa.idx = 0
 	rfa.step = 0
+	rfa.realPrevValue = nan
 }
 
 // rollupFunc must return rollup value for the given rfa.
@@ -204,6 +206,7 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 	rfa := getRollupFuncArg()
 	rfa.idx = 0
 	rfa.step = rc.Step
+	rfa.realPrevValue = nan
 
 	i := 0
 	j := 0
@@ -229,6 +232,9 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
 		rfa.currTimestamp = tEnd
+		if i > 0 {
+			rfa.realPrevValue = values[i-1]
+		}
 		value := rc.Func(rfa)
 		rfa.idx++
 		dstValues = append(dstValues, value)
@@ -681,6 +687,14 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 }
 
 func rollupDelta(rfa *rollupFuncArg) float64 {
+	return rollupDeltaInternal(rfa, false)
+}
+
+func rollupIncrease(rfa *rollupFuncArg) float64 {
+	return rollupDeltaInternal(rfa, true)
+}
+
+func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
@@ -690,6 +704,10 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 			return nan
 		}
 		if len(values) == 1 {
+			if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
+				// Fix against removeCounterResets.
+				return values[0] - rfa.realPrevValue
+			}
 			// Assume that the previous non-existing value was 0.
 			return values[0]
 		}
