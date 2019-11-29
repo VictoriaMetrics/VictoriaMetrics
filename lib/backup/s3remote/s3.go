@@ -30,8 +30,10 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
-	s3       *s3.S3
-	uploader *s3manager.Uploader
+	s3             *s3.S3
+	uploader       *s3manager.Uploader
+	CustomEndpoint string
+	ProfileName    string
 }
 
 // Init initializes fs.
@@ -47,6 +49,7 @@ func (fs *FS) Init() error {
 	}
 	opts := session.Options{
 		SharedConfigState: session.SharedConfigEnable,
+		Profile:           fs.ProfileName,
 	}
 	if len(fs.CredsFilePath) > 0 {
 		opts.SharedConfigFiles = []string{
@@ -59,14 +62,25 @@ func (fs *FS) Init() error {
 		return fmt.Errorf("cannot create S3 session: %s", err)
 	}
 
-	// Determine bucket region.
-	ctx := context.Background()
-	region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "")
-	if err != nil {
-		return fmt.Errorf("cannot determine region for bucket %q: %s", fs.Bucket, err)
+	if len(fs.CustomEndpoint) > 0 {
+
+		// Use provided custom endpoint for S3
+		logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
+		sess.Config.WithEndpoint(fs.CustomEndpoint)
+
+		// Disable prefixing endpoint with bucket name
+		sess.Config.WithS3ForcePathStyle(true)
+	} else {
+
+		// Determine bucket region.
+		ctx := context.Background()
+		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "")
+		if err != nil {
+			return fmt.Errorf("cannot determine region for bucket %q: %s", fs.Bucket, err)
+		}
+		sess.Config.WithRegion(region)
+		logger.Infof("bucket %q is stored at region %q; switching to this region", fs.Bucket, region)
 	}
-	sess.Config.WithRegion(region)
-	logger.Infof("bucket %q is stored at region %q; switching to this region", fs.Bucket, region)
 
 	fs.s3 = s3.New(sess)
 	fs.uploader = s3manager.NewUploader(sess, func(u *s3manager.Uploader) {
