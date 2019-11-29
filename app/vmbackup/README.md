@@ -6,6 +6,7 @@ Supported storage systems for backups:
 
 * [GCS](https://cloud.google.com/storage/). Example: `gcs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
+* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio). See `-customS3Endpoint` command-line flag.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`
 
 Incremental backups and full backups are supported. Incremental backups are created automatically if the destination path already contains data from the previous backup.
@@ -126,13 +127,13 @@ Run `vmbackup -help` in order to see all the available options:
   -configFilePath string
     	Path to file with S3 configs. Configs are loaded from default location if not set.
     	See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
+  -configProfile string
+    	Profile name for S3 configs (default "default")
   -credsFilePath string
     	Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
-  -configProfile string
-    	Profile name for S3 configs.  (default "default")
   -customS3Endpoint string
-    	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO)
+    	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -dst string
     	Where to put the backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
     	-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
