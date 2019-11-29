@@ -30,10 +30,10 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
-	s3       *s3.S3
-	uploader *s3manager.Uploader
+	s3             *s3.S3
+	uploader       *s3manager.Uploader
 	CustomEndpoint string
-	ProfileName string
+	ProfileName    string
 }
 
 // Init initializes fs.
@@ -49,7 +49,7 @@ func (fs *FS) Init() error {
 	}
 	opts := session.Options{
 		SharedConfigState: session.SharedConfigEnable,
-		Profile: fs.ProfileName,
+		Profile:           fs.ProfileName,
 	}
 	if len(fs.CredsFilePath) > 0 {
 		opts.SharedConfigFiles = []string{
@@ -72,7 +72,7 @@ func (fs *FS) Init() error {
 		sess.Config.WithS3ForcePathStyle(true)
 	} else {
 
-		// Determine bucket region. 
+		// Determine bucket region.
 		ctx := context.Background()
 		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "")
 		if err != nil {
