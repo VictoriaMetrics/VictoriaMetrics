@@ -33,7 +33,6 @@ services:
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
-      - ./provisioning/dashboards/:/var/lib/grafana/dashboards
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/vm.json
 
   vmstorage:
