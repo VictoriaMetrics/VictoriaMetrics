@@ -21,7 +21,7 @@ type FS struct {
 	// Path to S3 credentials file.
 	CredsFilePath string
 
-	// Pat to S3 configs file.
+	// Path to S3 configs file.
 	ConfigFilePath string
 
 	// GCS bucket to use.
@@ -30,10 +30,14 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
-	s3             *s3.S3
-	uploader       *s3manager.Uploader
+	// Set for using S3-compatible enpoint such as MinIO etc.
 	CustomEndpoint string
-	ProfileName    string
+
+	// The name of S3 config profile to use.
+	ProfileName string
+
+	s3       *s3.S3
+	uploader *s3manager.Uploader
 }
 
 // Init initializes fs.
@@ -63,7 +67,6 @@ func (fs *FS) Init() error {
 	}
 
 	if len(fs.CustomEndpoint) > 0 {
-
 		// Use provided custom endpoint for S3
 		logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
 		sess.Config.WithEndpoint(fs.CustomEndpoint)
@@ -71,7 +74,6 @@ func (fs *FS) Init() error {
 		// Disable prefixing endpoint with bucket name
 		sess.Config.WithS3ForcePathStyle(true)
 	} else {
-
 		// Determine bucket region.
 		ctx := context.Background()
 		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "")
