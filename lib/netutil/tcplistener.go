@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"time"
@@ -8,12 +9,19 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable listening for IPv6 TCP ports. By default only IPv4 TCP ports are listened")
+
 // NewTCPListener returns new TCP listener for the given addr.
 //
 // name is used for exported metrics. Each listener in the program must have
 // distinct name.
 func NewTCPListener(name, addr string) (*TCPListener, error) {
-	ln, err := net.Listen("tcp4", addr)
+	network := "tcp4"
+	if *enableTCP6 {
+		// Enable listening on both tcp4 and tcp6
+		network = "tcp"
+	}
+	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
 	}
