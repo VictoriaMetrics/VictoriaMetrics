@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - 'docs/*.md'
+    branches:
+      - master
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,8 +15,8 @@ jobs:
         env:
           TOKEN: ${{secrets.CI_TOKEN}}
         run: |
-          cd doc
-          git clone https://vika:${TOKEN}github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
+          cd docs
+          git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
           find ./ -name '*.md' -exec cp -prv '{}' 'wiki' ';'
           cd wiki
           git config --local user.email "info@victoriametrics.com"
