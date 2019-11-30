@@ -13,7 +13,7 @@ jobs:
         env:
           TOKEN: ${{secrets.CI_TOKEN}}
         run: |
-          cd doc
+          cd docs
           git clone https://vika:${TOKEN}github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
           find ./ -name '*.md' -exec cp -prv '{}' 'wiki' ';'
           cd wiki
