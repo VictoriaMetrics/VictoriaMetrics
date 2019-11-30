@@ -29,3 +29,11 @@ In that case, don't need to bump the helm chart version
 1. Update chart version in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/Chart.yaml)
 2. Update [README.md](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/README.md) file, reflect changes in the documentation.
 3. Repeat the procedure from step _4_ previous section.
+
+
+### Wiki pages
+
+All changes from `docs` folder and `.md` extension automatically push to Wiki
+
+**_Note_**: no vice versa 
+     
