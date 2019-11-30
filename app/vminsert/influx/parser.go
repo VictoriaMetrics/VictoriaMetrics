@@ -85,9 +85,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 		measurementTags = measurementTags[:n]
 	}
 	r.Measurement = unescapeTagValue(measurementTags, noEscapeChars)
-	if len(r.Measurement) == 0 {
-		return tagsPool, fieldsPool, fmt.Errorf("measurement cannot be empty. measurementTags=%q", s)
-	}
+	// Allow empty r.Measurement. In this case metric name is constructed directly from field keys.
 
 	// Parse fields
 	fieldsStart := len(fieldsPool)

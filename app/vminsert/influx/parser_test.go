@@ -86,9 +86,6 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 		}
 	}
 
-	// Missing measurement
-	f(",foo=bar baz=123")
-
 	// No fields
 	f("foo")
 	f("foo,bar=baz 1234")
@@ -146,6 +143,30 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f("\n# foobar\n", &Rows{})
 	f("#foobar baz", &Rows{})
 	f("#foobar baz\n#sss", &Rows{})
+
+	// Missing measurement
+	f(" baz=123", &Rows{
+		Rows: []Row{{
+			Measurement: "",
+			Fields: []Field{{
+				Key:   "baz",
+				Value: 123,
+			}},
+		}},
+	})
+	f(",foo=bar baz=123", &Rows{
+		Rows: []Row{{
+			Measurement: "",
+			Tags: []Tag{{
+				Key:   "foo",
+				Value: "bar",
+			}},
+			Fields: []Field{{
+				Key:   "baz",
+				Value: 123,
+			}},
+		}},
+	})
 
 	// Minimal line without tags and timestamp
 	f("foo bar=123", &Rows{

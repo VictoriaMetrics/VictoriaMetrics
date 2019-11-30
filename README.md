@@ -223,7 +223,7 @@ VictoriaMetrics maps Influx data using the following rules:
   unless `db` tag exists in the Influx line.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value,
   where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag.
-  See also `-influxSkipSingleField` command-line flag.
+  See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
 
@@ -251,7 +251,7 @@ An arbitrary number of lines delimited by '\n' may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
@@ -289,7 +289,7 @@ An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
@@ -334,7 +334,7 @@ An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__!=""}'
+curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
 The `/api/v1/export` endpoint should return the following response:

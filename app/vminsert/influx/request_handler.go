@@ -104,7 +104,7 @@ func (ctx *pushCtx) InsertRows(db string) error {
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
 		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
-		if !skipFieldKey {
+		if len(ctx.metricGroupBuf) > 0 && !skipFieldKey {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		}
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
