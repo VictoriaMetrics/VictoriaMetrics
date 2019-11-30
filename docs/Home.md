@@ -8,4 +8,3 @@
 * [Single-node version](Single-server-VictoriaMetrics)
 * [Cluster version](Cluster-VictoriaMetrics)
 * [Articles](Articles)
-
