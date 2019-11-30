@@ -31,9 +31,9 @@ In that case, don't need to bump the helm chart version
 3. Repeat the procedure from step _4_ previous section.
 
 
-### Wiki pages
+## Wiki pages
 
 All changes from `docs` folder and `.md` extension automatically push to Wiki
 
-**_Note_**: no vice versa 
+**_Note_**: no vice versa, direct changes on Wiki will be overitten after any changes in `docs/*.md` 
      
