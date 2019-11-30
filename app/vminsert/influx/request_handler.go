@@ -104,7 +104,7 @@ func (ctx *pushCtx) InsertRows(at *auth.Token, db string) error {
 		metricNameBufLen := len(ic.MetricNameBuf)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
 		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
-		if !skipFieldKey {
+		if len(ctx.metricGroupBuf) > 0 && !skipFieldKey {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		}
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
