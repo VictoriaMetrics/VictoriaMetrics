@@ -1,7 +1,13 @@
 name: main
 on:
-  - push
-  - pull_request
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
 jobs:
   build:
     name: Build
@@ -24,19 +30,19 @@ jobs:
         env:
           GO111MODULE: on
         run: |
-            export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
-            make check-all
-            git diff --exit-code
-            make test-full
-            make test-pure
-            make test-full-386
-            make victoria-metrics
-            make victoria-metrics-pure
-            make victoria-metrics-arm
-            make victoria-metrics-arm64
-            make vmutils
-            GOOS=freebsd go build -mod=vendor ./app/victoria-metrics
-            GOOS=darwin go build -mod=vendor ./app/victoria-metrics
+          export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
+          make check-all
+          git diff --exit-code
+          make test-full
+          make test-pure
+          make test-full-386
+          make victoria-metrics
+          make victoria-metrics-pure
+          make victoria-metrics-arm
+          make victoria-metrics-arm64
+          make vmutils
+          GOOS=freebsd go build -mod=vendor ./app/victoria-metrics
+          GOOS=darwin go build -mod=vendor ./app/victoria-metrics
       - name: Publish coverage
         uses: codecov/codecov-action@v1.0.4
         with:
