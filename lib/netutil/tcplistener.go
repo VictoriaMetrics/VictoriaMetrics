@@ -9,18 +9,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable listening for IPv6 TCP ports. By default only IPv4 TCP ports are listened")
+var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used")
 
 // NewTCPListener returns new TCP listener for the given addr.
 //
 // name is used for exported metrics. Each listener in the program must have
 // distinct name.
 func NewTCPListener(name, addr string) (*TCPListener, error) {
-	network := "tcp4"
-	if *enableTCP6 {
-		// Enable listening on both tcp4 and tcp6
-		network = "tcp"
-	}
+	network := getNetwork()
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
@@ -33,6 +29,14 @@ func NewTCPListener(name, addr string) (*TCPListener, error) {
 	}
 	tln.connMetrics.init("vm_tcplistener", name, addr)
 	return tln, err
+}
+
+func getNetwork() string {
+	if *enableTCP6 {
+		// Enable both tcp4 and tcp6
+		return "tcp"
+	}
+	return "tcp4"
 }
 
 // TCPListener listens for the addr passed to NewTCPListener.
