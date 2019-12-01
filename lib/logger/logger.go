@@ -122,8 +122,8 @@ func logMessage(level, msg string, skipframes int) {
 	fmt.Fprint(os.Stderr, logMsg)
 	mu.Unlock()
 
-	// Increment vm_log_messages_count
-	counterName := fmt.Sprintf(`vm_log_messages_count{app_version=%q, level=%q, file=%q, line="%d"}`, buildinfo.Version, levelLowercase, file, line)
+	// Increment vm_log_messages_total
+	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, file=%q, line="%d"}`, buildinfo.Version, levelLowercase, file, line)
 	metrics.GetOrCreateCounter(counterName).Inc()
 
 	switch level {
