@@ -850,9 +850,15 @@ func (is *indexSearch) searchTagValues(accountID, projectID uint32, tvs map[stri
 		// Store tag value
 		tvs[string(mp.Tag.Value)] = struct{}{}
 
+		if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
+			// There is no need in searching for the next tag value,
+			// since it is likely it is located in the next row,
+			// because the current row contains incomplete metricIDs set.
+			continue
+		}
 		// Search for the next tag value.
 		// The last char in kb.B must be tagSeparatorChar.
-		// Just increment it in order to jump to the next tag key.
+		// Just increment it in order to jump to the next tag value.
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
@@ -1867,6 +1873,12 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 		}
 		if !ok {
 			prevMatch = false
+			if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
+				// If the current row contains non-full metricIDs list,
+				// then it is likely the next row contains the next tag value.
+				// So skip seeking for the next tag value, since it will be slower than just ts.NextItem call.
+				continue
+			}
 			// Optimization: skip all the metricIDs for the given tag value
 			kb.B = append(kb.B[:0], item[:len(item)-len(tail)]...)
 			// The last char in kb.B must be tagSeparatorChar. Just increment it
