@@ -306,10 +306,9 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 
 func TestNextRetentionDuration(t *testing.T) {
 	for retentionMonths := 1; retentionMonths < 360; retentionMonths++ {
-		currTime := time.Now().UTC()
-
 		d := nextRetentionDuration(retentionMonths)
-		if d < 0 {
+		if d <= 0 {
+			currTime := time.Now().UTC()
 			nextTime := time.Now().UTC().Add(d)
 			t.Fatalf("unexected retention duration for retentionMonths=%d; got %s; must be %s + %d months", retentionMonths, nextTime, currTime, retentionMonths)
 		}
