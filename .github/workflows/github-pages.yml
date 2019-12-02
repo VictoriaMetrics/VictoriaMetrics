@@ -1,0 +1,30 @@
+name: github-pages
+on:
+  push:
+    paths:
+      - 'docs/*.md'
+      - 'README.md'
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: publish
+        shell: bash
+        env:
+          TOKEN: ${{secrets.CI_TOKEN}}
+        run: |
+          git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.github.io.git gpages
+          cp docs/*.md gpages
+          cp README.md gpages
+          cd gpages
+          git config --local user.email "info@victoriametrics.com"
+          git config --local user.name "Vika"
+          git add "*.md"
+          git commit -m "update github pages"
+          remote_repo="https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.github.io.git"
+          git push "${remote_repo}"
+          cd ..
+          rm -rf gpages
