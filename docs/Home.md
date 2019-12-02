@@ -1,4 +1,4 @@
-# Docs 
+# Docs
 
 * [Quick start](Quick-Start)
 * [`WITH` templates playground](https://play.victoriametrics.com/promql/expand-with-exprs)

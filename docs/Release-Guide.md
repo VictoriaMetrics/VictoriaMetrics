@@ -39,6 +39,6 @@ All changes from `docs` folder and `.md` extension automatically push to Wiki
 
 **_Note_**: no vice versa, direct changes on Wiki will be overitten after any changes in `docs/*.md` 
 
-## Githab pages      
+## Github pages
 
 All changes in `README.md`, `docs` folder and `.md` extension automatically push to Wiki
