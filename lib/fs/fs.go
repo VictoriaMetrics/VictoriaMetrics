@@ -174,7 +174,7 @@ func mkdirSync(path string) error {
 	return nil
 }
 
-// RemoveDirContents removes all the contents of the given dir it it exists.
+// RemoveDirContents removes all the contents of the given dir if it exists.
 //
 // It doesn't remove the dir itself, so the dir may be mounted
 // to a separate partition.
@@ -246,7 +246,17 @@ func mustSyncParentDirIfExists(path string) {
 //
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 func MustRemoveAll(path string) {
-	_ = mustRemoveAll(path)
+	_ = mustRemoveAll(path, func() {})
+}
+
+// MustRemoveAllWithDoneCallback removes path with all the contents.
+//
+// done is called after the path is successfully removed.
+//
+// done may be called after the function returns for NFS path.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61.
+func MustRemoveAllWithDoneCallback(path string, done func()) {
+	_ = mustRemoveAll(path, done)
 }
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.

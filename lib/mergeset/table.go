@@ -1121,12 +1121,14 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	}
 
 	// Remove old paths. It is OK if certain paths don't exist.
+	var removeWG sync.WaitGroup
 	for _, path := range rmPaths {
 		path, err := validatePath(pathPrefix, path)
 		if err != nil {
 			return fmt.Errorf("invalid path to remove: %s", err)
 		}
-		fs.MustRemoveAll(path)
+		removeWG.Add(1)
+		fs.MustRemoveAllWithDoneCallback(path, removeWG.Done)
 	}
 
 	// Move the new part to new directory.
@@ -1154,10 +1156,14 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	// Flush pathPrefix directory metadata to the underying storage.
 	fs.MustSyncPath(pathPrefix)
 
-	// Remove the transaction file.
-	if err := os.Remove(txnPath); err != nil {
-		return fmt.Errorf("cannot remove transaction file %q: %s", txnPath, err)
-	}
+	go func() {
+		// Remove the transaction file only after all the source paths are deleted.
+		// This is required for NFS mounts. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
+		removeWG.Wait()
+		if err := os.Remove(txnPath); err != nil {
+			logger.Errorf("cannot remove transaction file %q: %s", txnPath, err)
+		}
+	}()
 
 	return nil
 }
