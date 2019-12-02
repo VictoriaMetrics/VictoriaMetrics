@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"io"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -89,11 +88,6 @@ type Search struct {
 	err error
 
 	needClosing bool
-
-	// MissingMetricNamesForMetricID is a counter of missing MetricID -> MetricName
-	// entries during the search.
-	// High rate may mean corrupted indexDB.
-	MissingMetricNamesForMetricID uint64
 }
 
 func (s *Search) reset() {
@@ -104,7 +98,6 @@ func (s *Search) reset() {
 	s.ts.reset()
 	s.err = nil
 	s.needClosing = false
-	s.MissingMetricNamesForMetricID = 0
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -161,8 +154,8 @@ func (s *Search) NextMetricBlock() bool {
 		s.MetricBlock.MetricName, err = s.storage.searchMetricName(s.MetricBlock.MetricName[:0], tsid.MetricID)
 		if err != nil {
 			if err == io.EOF {
-				// Missing metricName for tsid.MetricID. Increment error counter and skip it.
-				atomic.AddUint64(&s.MissingMetricNamesForMetricID, 1)
+				// Skip missing metricName for tsid.MetricID.
+				// It should be automatically fixed. See indexDB.searchMetricName for details.
 				continue
 			}
 			s.err = err

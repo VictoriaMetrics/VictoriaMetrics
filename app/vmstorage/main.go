@@ -414,6 +414,10 @@ func registerStorageMetrics() {
 		return float64(idbm().DateRangeSearchHits)
 	})
 
+	metrics.NewGauge(`vm_missing_metric_names_for_metric_id_total`, func() float64 {
+		return float64(idbm().MissingMetricNamesForMetricID)
+	})
+
 	metrics.NewGauge(`vm_date_metric_id_cache_syncs_total`, func() float64 {
 		return float64(m().DateMetricIDCacheSyncsCount)
 	})

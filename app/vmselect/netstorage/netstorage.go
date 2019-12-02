@@ -462,15 +462,11 @@ func getStorageSearch() *storage.Search {
 }
 
 func putStorageSearch(sr *storage.Search) {
-	n := atomic.LoadUint64(&sr.MissingMetricNamesForMetricID)
-	missingMetricNamesForMetricID.Add(int(n))
 	sr.MustClose()
 	ssPool.Put(sr)
 }
 
 var ssPool sync.Pool
-
-var missingMetricNamesForMetricID = metrics.NewCounter(`vm_missing_metric_names_for_metric_id_total`)
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
 func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadline) (*Results, error) {
