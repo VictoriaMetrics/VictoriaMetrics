@@ -42,10 +42,14 @@ func (s *Set) WritePrometheus(w io.Writer) {
 	if !sort.SliceIsSorted(s.a, lessFunc) {
 		sort.Slice(s.a, lessFunc)
 	}
-	for _, nm := range s.a {
+	sa := append([]*namedMetric(nil), s.a...)
+	s.mu.Unlock()
+
+	// Call marshalTo without the global lock, since certain metric types such as Gauge
+	// can call a callback, which, in turn, can try calling s.mu.Lock again.
+	for _, nm := range sa {
 		nm.metric.marshalTo(nm.name, &bb)
 	}
-	s.mu.Unlock()
 	w.Write(bb.Bytes())
 }
 
