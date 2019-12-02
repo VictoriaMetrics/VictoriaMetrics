@@ -300,7 +300,20 @@ func getMaxPrevInterval(timestamps []int64) int64 {
 	if len(timestamps) < 2 {
 		return int64(maxSilenceInterval)
 	}
-	d := (timestamps[len(timestamps)-1] - timestamps[0]) / int64(len(timestamps)-1)
+
+	// Estimate scrape interval as 0.6 quantile for the first 100 intervals.
+	h := histogram.GetFast()
+	tsPrev := timestamps[0]
+	timestamps = timestamps[1:]
+	if len(timestamps) > 100 {
+		timestamps = timestamps[:100]
+	}
+	for _, ts := range timestamps {
+		h.Update(float64(ts - tsPrev))
+		tsPrev = ts
+	}
+	d := int64(h.Quantile(0.6))
+	histogram.PutFast(h)
 	if d <= 0 {
 		return int64(maxSilenceInterval)
 	}
