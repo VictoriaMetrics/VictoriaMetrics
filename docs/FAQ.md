@@ -1,3 +1,5 @@
+# FAQ
+
 ### What is the main purpose of VictoriaMetrics?
 
 To provide the best long-term [remote storage](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) solution for [Prometheus](https://prometheus.io/).

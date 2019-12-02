@@ -1,3 +1,5 @@
+# Extended PromQL
+
 VictoriaMetrics supports [standard PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 including [subqueries](https://prometheus.io/blog/2019/01/28/subquery-support/).
 Additionally it supports useful extensions mentioned below.
