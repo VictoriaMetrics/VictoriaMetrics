@@ -330,10 +330,7 @@ func (s *Server) processVMSelectConn(bc *handshake.BufferedConn) error {
 		sizeBuf: make([]byte, 8),
 	}
 	for {
-		err := s.processVMSelectRequest(ctx)
-		n := atomic.LoadUint64(&ctx.sr.MissingMetricNamesForMetricID)
-		missingMetricNamesForMetricID.Add(int(n))
-		if err != nil {
+		if err := s.processVMSelectRequest(ctx); err != nil {
 			if err == io.EOF {
 				// Remote client gracefully closed the connection.
 				return nil
@@ -345,8 +342,6 @@ func (s *Server) processVMSelectConn(bc *handshake.BufferedConn) error {
 		}
 	}
 }
-
-var missingMetricNamesForMetricID = metrics.NewCounter(`vm_missing_metric_names_for_metric_id_total`)
 
 type vmselectRequestCtx struct {
 	bc      *handshake.BufferedConn
