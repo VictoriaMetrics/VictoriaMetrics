@@ -1,3 +1,5 @@
+# Quick Start
+
 1. Download the latest VictoriaMetrics release from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
    from [Docker hub](https://hub.docker.com/r/valyala/victoria-metrics/)
    or [build it from sources](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics#how-to-build-from-sources).

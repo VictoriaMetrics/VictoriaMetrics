@@ -1,4 +1,4 @@
-## Release version and Docker images
+# Release version and Docker images
 
 1. Create release tag with `git tag v1.xx.y`.
 2. Run `make release` for creating `*.tar.gz` release archive with the corresponding `_checksums.txt` inside `bin` directory.
