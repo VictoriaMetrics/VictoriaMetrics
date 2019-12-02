@@ -655,7 +655,10 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 	n -= n % retentionMonths
 	y := n / 12
 	m := time.Month((n % 12) + 1)
-	deadline := time.Date(y, m, 1, 0, 0, 0, 0, time.UTC)
+	// Schedule the deadline to +4 hours from the next retention period start.
+	// This should prevent from possible double deletion of indexdb
+	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
+	deadline := time.Date(y, m, 1, 4, 0, 0, 0, time.UTC)
 	return deadline.Sub(t)
 }
 
