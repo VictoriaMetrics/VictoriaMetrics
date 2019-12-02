@@ -19,6 +19,8 @@ const (
 
 // Histogram is a histogram for non-negative values with automatically created buckets.
 //
+// See https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350
+//
 // Each bucket contains a counter for values in the given range.
 // Each non-empty bucket is exposed via the following metric:
 //
@@ -32,7 +34,8 @@ const (
 //     - <counter> - the number of hits to the given bucket during Update* calls
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
-// with `prometheus_buckets(<metric_name>_bucket)` function in VictoriaMetrics:
+// with `prometheus_buckets(<metric_name>_bucket)` function from Extended PromQL in VictoriaMetrics.
+// (see https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL ):
 //
 //     prometheus_buckets(request_duration_bucket)
 //
