@@ -68,10 +68,15 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 
 // String returns human-readable value for tfs.
 func (tfs *TagFilters) String() string {
+	if len(tfs.tfs) == 0 {
+		return "{}"
+	}
 	var bb bytes.Buffer
-	for i := range tfs.tfs {
+	fmt.Fprintf(&bb, "{%s", tfs.tfs[0].String())
+	for i := range tfs.tfs[1:] {
 		fmt.Fprintf(&bb, ", %s", tfs.tfs[i].String())
 	}
+	fmt.Fprintf(&bb, "}")
 	return bb.String()
 }
 
@@ -110,11 +115,16 @@ type tagFilter struct {
 
 // String returns human-readable tf value.
 func (tf *tagFilter) String() string {
-	var bb bytes.Buffer
-	fmt.Fprintf(&bb, "[isNegative=%v, isRegexp=%v, prefix=%q", tf.isNegative, tf.isRegexp, tf.prefix)
-	fmt.Fprintf(&bb, ", orSuffixes=%v, reSuffixMatch=%p", tf.orSuffixes, tf.reSuffixMatch)
-	fmt.Fprintf(&bb, "]")
-	return bb.String()
+	op := "="
+	if tf.isNegative {
+		op = "!="
+		if tf.isRegexp {
+			op = "!~"
+		}
+	} else if tf.isRegexp {
+		op = "=~"
+	}
+	return fmt.Sprintf("%s%s%q", tf.key, op, tf.value)
 }
 
 // Marshal appends marshaled tf to dst
