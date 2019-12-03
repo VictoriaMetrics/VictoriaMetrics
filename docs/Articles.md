@@ -19,3 +19,4 @@
 * [Speeding up backups for big time series databases](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://medium.com/@valyala/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
 * [Improving histogram usability for Prometheus and Grafana](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
+* [Prometheus storage: tech terms for humans](https://medium.com/@valyala/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
