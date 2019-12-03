@@ -74,7 +74,7 @@ func (tfs *TagFilters) String() string {
 	var bb bytes.Buffer
 	fmt.Fprintf(&bb, "{%s", tfs.tfs[0].String())
 	for i := range tfs.tfs[1:] {
-		fmt.Fprintf(&bb, ", %s", tfs.tfs[i].String())
+		fmt.Fprintf(&bb, ", %s", tfs.tfs[i+1].String())
 	}
 	fmt.Fprintf(&bb, "}")
 	return bb.String()
