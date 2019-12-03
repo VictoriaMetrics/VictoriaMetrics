@@ -234,6 +234,18 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 			return true
 		}
 		return true
+	case "prometheus/api/v1/rules":
+		// Return dumb placeholder
+		rulesRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
+		return true
+	case "prometheus/api/v1/alerts":
+		// Return dumb placehloder
+		alertsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
+		return true
 	default:
 		return false
 	}
@@ -297,4 +309,7 @@ var (
 
 	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/federate"}`)
 	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/federate"}`)
+
+	rulesRequests  = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
+	alertsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
 )
