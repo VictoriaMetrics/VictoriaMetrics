@@ -2146,7 +2146,8 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 				okGlobal = ok
 			}
 			if err != nil {
-				errGlobal = fmt.Errorf("cannot search for metricIDs on date %d: %s", date, err)
+				dateStr := time.Unix(int64(date*24*3600), 0)
+				errGlobal = fmt.Errorf("cannot search for metricIDs for %s: %s", dateStr, err)
 			}
 			mu.Unlock()
 		}()
@@ -2172,7 +2173,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDate(date uint64, metricIDs *uint6
 	}
 
 	var result *uint64set.Set
-	maxDateMetrics := maxMetrics * 20
+	maxDateMetrics := maxMetrics * 50
 	if tfFirst == nil {
 		result = &uint64set.Set{}
 		if err := is.updateMetricIDsForDateAll(result, date, tfs.accountID, tfs.projectID, maxDateMetrics); err != nil {
@@ -2182,7 +2183,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDate(date uint64, metricIDs *uint6
 				// according to startDateForPerDayInvertedIndex.
 				return true, nil
 			}
-			return false, fmt.Errorf("cannot obtain all the metricIDs for date %d: %s", date, err)
+			return false, fmt.Errorf("cannot obtain all the metricIDs: %s", err)
 		}
 	} else {
 		m, err := is.getMetricIDsForDateTagFilter(tfFirst, date, tfs.commonPrefix, tfs.accountID, tfs.projectID, maxDateMetrics)
@@ -2197,7 +2198,8 @@ func (is *indexSearch) tryUpdatingMetricIDsForDate(date uint64, metricIDs *uint6
 		result = m
 	}
 	if result.Len() >= maxDateMetrics {
-		return false, fmt.Errorf("more than %d time series found; narrow down the query or increase `-search.maxUniqueTimeseries`", maxDateMetrics)
+		// Too many time series found by a single tag filter. Fall back to global search.
+		return false, nil
 	}
 
 	for i := range tfs.tfs {
@@ -2215,8 +2217,8 @@ func (is *indexSearch) tryUpdatingMetricIDsForDate(date uint64, metricIDs *uint6
 			return false, err
 		}
 		if m.Len() >= maxDateMetrics {
-			return false, fmt.Errorf("more than %d time series found for tag filter %s; narrow down the query or increase `-search.maxUniqueTimeseries`",
-				maxDateMetrics, tf)
+			// Too many time series found by a single tag filter. Fall back to global search.
+			return false, nil
 		}
 		if tf.isNegative {
 			result.Subtract(m)
