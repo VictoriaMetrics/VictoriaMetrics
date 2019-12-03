@@ -136,7 +136,11 @@ func (tf *tagFilter) String() string {
 	} else if tf.isRegexp {
 		op = "=~"
 	}
-	return fmt.Sprintf("%s%s%q", tf.key, op, tf.value)
+	key := tf.key
+	if len(key) == 0 {
+		key = []byte("__name__")
+	}
+	return fmt.Sprintf("%s%s%q", key, op, tf.value)
 }
 
 func (tf *tagFilter) Marshal(dst []byte, accountID, projectID uint32) []byte {
