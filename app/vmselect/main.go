@@ -167,6 +167,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/api/v1/rules":
+		// Return dumb placeholder
+		rulesRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
+		return true
+	case "/api/v1/alerts":
+		// Return dumb placehloder
+		alertsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
+		return true
 	case "/api/v1/admin/tsdb/delete_series":
 		deleteRequests.Inc()
 		authKey := r.FormValue("authKey")
@@ -228,4 +240,7 @@ var (
 
 	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/federate"}`)
 	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/federate"}`)
+
+	rulesRequests  = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
+	alertsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
 )
