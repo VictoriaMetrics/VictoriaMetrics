@@ -163,6 +163,15 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte("OK"))
 		return
+	case "/ping":
+		// This is needed for compatibility with Influx agents.
+		// See https://docs.influxdata.com/influxdb/v1.7/tools/api/#ping-http-endpoint
+		status := http.StatusNoContent
+		if verbose := r.FormValue("verbose"); verbose == "true" {
+			status = http.StatusOK
+		}
+		w.WriteHeader(status)
+		return
 	case "/metrics":
 		startTime := time.Now()
 		metricsRequests.Inc()
