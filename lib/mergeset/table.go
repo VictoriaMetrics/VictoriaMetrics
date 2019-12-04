@@ -1062,6 +1062,12 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 }
 
 func runTransactions(txnLock *sync.RWMutex, path string) error {
+	// Wait until all the previous pending transaction deletions are finished.
+	pendingTxnDeletionsWG.Wait()
+
+	// Make sure all the current transaction deletions are finished before exiting.
+	defer pendingTxnDeletionsWG.Wait()
+
 	txnDir := path + "/txn"
 	d, err := os.Open(txnDir)
 	if err != nil {
@@ -1156,7 +1162,9 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	// Flush pathPrefix directory metadata to the underying storage.
 	fs.MustSyncPath(pathPrefix)
 
+	pendingTxnDeletionsWG.Add(1)
 	go func() {
+		defer pendingTxnDeletionsWG.Done()
 		// Remove the transaction file only after all the source paths are deleted.
 		// This is required for NFS mounts. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 		removeWG.Wait()
@@ -1167,6 +1175,8 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 
 	return nil
 }
+
+var pendingTxnDeletionsWG syncwg.WaitGroup
 
 func validatePath(pathPrefix, path string) (string, error) {
 	var err error
