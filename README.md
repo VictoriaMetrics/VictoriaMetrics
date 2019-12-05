@@ -1,6 +1,6 @@
 <img alt="Victoria Metrics" src="logo.png">
 
-# Cluster version of VictoriaMetrics
+# Cluster version
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -29,6 +29,9 @@ VictoriaMetrics cluster consists of the following services:
 - `vmselect` - performs incoming queries using the data from `vmstorage`
 
 Each service may scale independently and may run on the most suitable hardware.
+`vmstorage` nodes don't know about each other, don't communicate with each other and don't share any data.
+This is [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
+It increases cluster availability, simplifies cluster maintenance and cluster scaling.
 
 <img src="https://docs.google.com/drawings/d/e/2PACX-1vTvk2raU9kFgZ84oF-OKolrGwHaePhHRsZEcfQ1I_EC5AB_XPWwB392XshxPramLJ8E4bqptTnFn5LL/pub?w=1104&amp;h=746">
 
