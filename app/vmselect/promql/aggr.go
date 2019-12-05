@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/histogram"
 )
 
 var aggrFuncs = map[string]aggrFunc{
@@ -27,12 +28,20 @@ var aggrFuncs = map[string]aggrFunc{
 	"quantile":     aggrFuncQuantile,
 
 	// Extended PromQL funcs
-	"median":    aggrFuncMedian,
-	"limitk":    aggrFuncLimitK,
-	"distinct":  newAggrFunc(aggrFuncDistinct),
-	"sum2":      newAggrFunc(aggrFuncSum2),
-	"geomean":   newAggrFunc(aggrFuncGeomean),
-	"histogram": newAggrFunc(aggrFuncHistogram),
+	"median":         aggrFuncMedian,
+	"limitk":         aggrFuncLimitK,
+	"distinct":       newAggrFunc(aggrFuncDistinct),
+	"sum2":           newAggrFunc(aggrFuncSum2),
+	"geomean":        newAggrFunc(aggrFuncGeomean),
+	"histogram":      newAggrFunc(aggrFuncHistogram),
+	"topk_min":       newAggrFuncRangeTopK(minValue, false),
+	"topk_max":       newAggrFuncRangeTopK(maxValue, false),
+	"topk_avg":       newAggrFuncRangeTopK(avgValue, false),
+	"topk_median":    newAggrFuncRangeTopK(medianValue, false),
+	"bottomk_min":    newAggrFuncRangeTopK(minValue, true),
+	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
+	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
+	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -459,35 +468,136 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 			return nil, err
 		}
 		afe := func(tss []*timeseries) []*timeseries {
-			rvs := tss
-			for n := range rvs[0].Values {
-				sort.Slice(rvs, func(i, j int) bool {
-					a := rvs[i].Values[n]
-					b := rvs[j].Values[n]
-					cmp := lessWithNaNs(a, b)
+			for n := range tss[0].Values {
+				sort.Slice(tss, func(i, j int) bool {
+					a := tss[i].Values[n]
+					b := tss[j].Values[n]
 					if isReverse {
-						cmp = !cmp
+						a, b = b, a
 					}
-					return cmp
+					return lessWithNaNs(a, b)
 				})
-				if math.IsNaN(ks[n]) {
-					ks[n] = 0
-				}
-				k := int(ks[n])
-				if k < 0 {
-					k = 0
-				}
-				if k > len(rvs) {
-					k = len(rvs)
-				}
-				for _, ts := range rvs[:len(rvs)-k] {
-					ts.Values[n] = nan
-				}
+				fillNaNsAtIdx(n, ks[n], tss)
 			}
-			return removeNaNs(rvs)
+			return removeNaNs(tss)
 		}
 		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
 	}
+}
+
+type tsWithValue struct {
+	ts    *timeseries
+	value float64
+}
+
+func newAggrFuncRangeTopK(f func(values []float64) float64, isReverse bool) aggrFunc {
+	return func(afa *aggrFuncArg) ([]*timeseries, error) {
+		args := afa.args
+		if err := expectTransformArgsNum(args, 2); err != nil {
+			return nil, err
+		}
+		ks, err := getScalar(args[0], 0)
+		if err != nil {
+			return nil, err
+		}
+		afe := func(tss []*timeseries) []*timeseries {
+			maxs := make([]tsWithValue, len(tss))
+			for i, ts := range tss {
+				value := f(ts.Values)
+				maxs[i] = tsWithValue{
+					ts:    ts,
+					value: value,
+				}
+			}
+			sort.Slice(maxs, func(i, j int) bool {
+				a := maxs[i].value
+				b := maxs[j].value
+				if isReverse {
+					a, b = b, a
+				}
+				return lessWithNaNs(a, b)
+			})
+			for i := range maxs {
+				tss[i] = maxs[i].ts
+			}
+			for i, k := range ks {
+				fillNaNsAtIdx(i, k, tss)
+			}
+			return removeNaNs(tss)
+		}
+		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+	}
+}
+
+func fillNaNsAtIdx(idx int, k float64, tss []*timeseries) {
+	if math.IsNaN(k) {
+		k = 0
+	}
+	kn := int(k)
+	if kn < 0 {
+		kn = 0
+	}
+	if kn > len(tss) {
+		kn = len(tss)
+	}
+	for _, ts := range tss[:len(tss)-kn] {
+		ts.Values[idx] = nan
+	}
+}
+
+func minValue(values []float64) float64 {
+	if len(values) == 0 {
+		return nan
+	}
+	min := values[0]
+	for _, v := range values[1:] {
+		if v < min {
+			min = v
+		}
+	}
+	return min
+}
+
+func maxValue(values []float64) float64 {
+	if len(values) == 0 {
+		return nan
+	}
+	max := values[0]
+	for _, v := range values[1:] {
+		if v > max {
+			max = v
+		}
+	}
+	return max
+}
+
+func avgValue(values []float64) float64 {
+	sum := float64(0)
+	count := 0
+	for _, v := range values {
+		if math.IsNaN(v) {
+			continue
+		}
+		count++
+		sum += v
+	}
+	if count == 0 {
+		return nan
+	}
+	return sum / float64(count)
+}
+
+func medianValue(values []float64) float64 {
+	h := histogram.GetFast()
+	for _, v := range values {
+		if math.IsNaN(v) {
+			continue
+		}
+		h.Update(v)
+	}
+	value := h.Quantile(0.5)
+	histogram.PutFast(h)
+	return value
 }
 
 func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
