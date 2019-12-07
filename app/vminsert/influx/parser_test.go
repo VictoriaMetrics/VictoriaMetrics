@@ -348,6 +348,36 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 		}},
 	})
+	// Test case from https://community.librenms.org/t/integration-with-victoriametrics/9689
+	f("ports,foo=a,bar=et\\ +\\ V,baz=ype INDISCARDS=245333676,OUTDISCARDS=1798680", &Rows{
+		Rows: []Row{{
+			Measurement: "ports",
+			Tags: []Tag{
+				{
+					Key: "foo",
+					Value: "a",
+				},
+				{
+					Key: "bar",
+					Value: "et + V",
+				},
+				{
+					Key: "baz",
+					Value: "ype",
+				},
+			},
+			Fields: []Field{
+				{
+					Key: "INDISCARDS",
+					Value: 245333676,
+				},
+				{
+					Key: "OUTDISCARDS",
+					Value: 1798680,
+				},
+			},
+		}},
+	})
 
 	// Multiple lines
 	f("foo,tag=xyz field=1.23 48934\n"+
