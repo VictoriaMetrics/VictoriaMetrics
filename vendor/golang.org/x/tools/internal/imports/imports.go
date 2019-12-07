@@ -83,23 +83,35 @@ func FixImports(filename string, src []byte, opt *Options) (fixes []*ImportFix, 
 	return getFixes(fileSet, file, filename, opt.Env)
 }
 
-// ApplyFix will apply all of the fixes to the file and format it.
-func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (formatted []byte, err error) {
+// ApplyFixes applies all of the fixes to the file and formats it. extraMode
+// is added in when parsing the file.
+func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options, extraMode parser.Mode) (formatted []byte, err error) {
 	src, opt, err = initialize(filename, src, opt)
 	if err != nil {
 		return nil, err
 	}
 
+	// Don't use parse() -- we don't care about fragments or statement lists
+	// here, and we need to work with unparseable files.
 	fileSet := token.NewFileSet()
-	file, adjust, err := parse(fileSet, filename, src, opt)
-	if err != nil {
+	parserMode := parser.Mode(0)
+	if opt.Comments {
+		parserMode |= parser.ParseComments
+	}
+	if opt.AllErrors {
+		parserMode |= parser.AllErrors
+	}
+	parserMode |= extraMode
+
+	file, err := parser.ParseFile(fileSet, filename, src, parserMode)
+	if file == nil {
 		return nil, err
 	}
 
 	// Apply the fixes to the file.
 	apply(fileSet, file, fixes)
 
-	return formatFile(fileSet, file, src, adjust, opt)
+	return formatFile(fileSet, file, src, nil, opt)
 }
 
 // GetAllCandidates gets all of the standard library candidate packages to import in

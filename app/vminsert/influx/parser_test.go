@@ -354,25 +354,25 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Measurement: "ports",
 			Tags: []Tag{
 				{
-					Key: "foo",
+					Key:   "foo",
 					Value: "a",
 				},
 				{
-					Key: "bar",
+					Key:   "bar",
 					Value: "et + V",
 				},
 				{
-					Key: "baz",
+					Key:   "baz",
 					Value: "ype",
 				},
 			},
 			Fields: []Field{
 				{
-					Key: "INDISCARDS",
+					Key:   "INDISCARDS",
 					Value: 245333676,
 				},
 				{
-					Key: "OUTDISCARDS",
+					Key:   "OUTDISCARDS",
 					Value: 1798680,
 				},
 			},

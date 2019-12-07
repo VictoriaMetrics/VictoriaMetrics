@@ -21,7 +21,14 @@ type UploadInput struct {
 	// The readable body payload to send to S3.
 	Body io.Reader
 
-	// Name of the bucket to which the PUT operation was initiated.
+	// Bucket name to which the PUT operation was initiated.
+	//
+	// When using this API with an access point, you must direct requests to the
+	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this operation using an access point through the AWS SDKs, you
+	// provide the access point ARN in place of the bucket name. For more information
+	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
@@ -92,23 +99,25 @@ type UploadInput struct {
 
 	// Confirms that the requester knows that she or he will be charged for the
 	// request. Bucket owners need not specify this parameter in their requests.
-	// Documentation on downloading objects from requester pays buckets can be found
-	// at http://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html
+	// For information about downloading objects from Requester Pays buckets, see
+	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
-	// Specifies the algorithm to use to when encrypting the object (e.g., AES256).
+	// Specifies the algorithm to use to when encrypting the object (for example,
+	// AES256).
 	SSECustomerAlgorithm *string `location:"header" locationName:"x-amz-server-side-encryption-customer-algorithm" type:"string"`
 
 	// Specifies the customer-provided encryption key for Amazon S3 to use in encrypting
 	// data. This value is used to store the object and then it is discarded; Amazon
-	// does not store the encryption key. The key must be appropriate for use with
-	// the algorithm specified in the x-amz-server-side​-encryption​-customer-algorithm
+	// S3 does not store the encryption key. The key must be appropriate for use
+	// with the algorithm specified in the x-amz-server-side​-encryption​-customer-algorithm
 	// header.
 	SSECustomerKey *string `marshal-as:"blob" location:"header" locationName:"x-amz-server-side-encryption-customer-key" type:"string" sensitive:"true"`
 
 	// Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321.
-	// Amazon S3 uses this header for a message integrity check to ensure the encryption
-	// key was transmitted without error.
+	// Amazon S3 uses this header for a message integrity check to ensure that the
+	// encryption key was transmitted without error.
 	SSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-server-side-encryption-customer-key-MD5" type:"string"`
 
 	// Specifies the AWS KMS Encryption Context to use for object encryption. The
@@ -116,18 +125,18 @@ type UploadInput struct {
 	// encryption context key-value pairs.
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
-	// If the x-amz-server-side-encryption is present and has the value of aws:kms,
+	// If x-amz-server-side-encryption is present and has the value of aws:kms,
 	// this header specifies the ID of the AWS Key Management Service (AWS KMS)
 	// customer master key (CMK) that was used for the object.
 	//
 	// If the value of x-amz-server-side-encryption is aws:kms, this header specifies
 	// the ID of the AWS KMS CMK that will be used for the object. If you specify
-	// x-amz-server-side-encryption:aws:kms, but do not provide x-amz-server-side-encryption-aws-kms-key-id,
+	// x-amz-server-side-encryption:aws:kms, but do not providex-amz-server-side-encryption-aws-kms-key-id,
 	// Amazon S3 uses the AWS managed CMK in AWS to protect the data.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
-	// The Server-side encryption algorithm used when storing this object in S3
-	// (e.g., AES256, aws:kms).
+	// The server-side encryption algorithm used when storing this object in Amazon
+	// S3 (for example, AES256, aws:kms).
 	ServerSideEncryption *string `location:"header" locationName:"x-amz-server-side-encryption" type:"string" enum:"ServerSideEncryption"`
 
 	// If you don't specify, Standard is the default storage class. Amazon S3 supports
@@ -141,7 +150,7 @@ type UploadInput struct {
 	// If the bucket is configured as a website, redirects requests for this object
 	// to another object in the same bucket or to an external URL. Amazon S3 stores
 	// the value of this header in the object metadata. For information about object
-	// metadata, see .
+	// metadata, see Object Key and Metadata (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html).
 	//
 	// In the following example, the request header sets the redirect to an object
 	// (anotherPage.html) in the same bucket:
