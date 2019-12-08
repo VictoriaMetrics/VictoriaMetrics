@@ -1,5 +1,9 @@
 ## Case studies
 
+Below are approved public case studies from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
+and feel free asking for references, reviews and additional case studies from real VictoriaMetrics users there.
+
+
 ### Wix.com
 
 [Wix.com](https://en.wikipedia.org/wiki/Wix.com) is the leading web development platform.
