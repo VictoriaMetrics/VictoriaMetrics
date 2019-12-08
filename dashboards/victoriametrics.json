@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.4.4"
+      "version": "6.5.0"
     },
     {
       "type": "panel",
@@ -54,12 +54,12 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics cluster v1.29.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.30.3 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1573547018225,
+  "iteration": 1575826250599,
   "links": [
     {
       "icon": "doc",
@@ -458,6 +458,7 @@
         "x": 8,
         "y": 3
       },
+      "hiddenSeries": false,
       "id": 62,
       "legend": {
         "alignAsTable": true,
@@ -556,6 +557,7 @@
         "x": 0,
         "y": 10
       },
+      "hiddenSeries": false,
       "id": 2,
       "legend": {
         "alignAsTable": true,
@@ -644,6 +646,7 @@
         "x": 12,
         "y": 10
       },
+      "hiddenSeries": false,
       "id": 6,
       "legend": {
         "alignAsTable": true,
@@ -737,6 +740,7 @@
         "x": 0,
         "y": 18
       },
+      "hiddenSeries": false,
       "id": 102,
       "legend": {
         "avg": false,
@@ -824,6 +828,7 @@
         "x": 12,
         "y": 18
       },
+      "hiddenSeries": false,
       "id": 8,
       "legend": {
         "alignAsTable": true,
@@ -917,6 +922,7 @@
         "x": 0,
         "y": 26
       },
+      "hiddenSeries": false,
       "id": 52,
       "legend": {
         "alignAsTable": true,
@@ -1010,6 +1016,7 @@
         "x": 12,
         "y": 26
       },
+      "hiddenSeries": false,
       "id": 12,
       "legend": {
         "avg": false,
@@ -1106,6 +1113,7 @@
         "x": 0,
         "y": 34
       },
+      "hiddenSeries": false,
       "id": 44,
       "legend": {
         "alignAsTable": true,
@@ -1183,6 +1191,99 @@
       "yaxes": [
         {
           "format": "rps",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "$ds",
+      "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 34
+      },
+      "hiddenSeries": false,
+      "id": 104,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance.*\"}[5m])) by (job, level) ",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "legendFormat": "{{job}} - {{level}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Logging rate",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -4153,7 +4254,7 @@
       "type": "row"
     }
   ],
-  "schemaVersion": 20,
+  "schemaVersion": 21,
   "style": "dark",
   "tags": [],
   "templating": {
