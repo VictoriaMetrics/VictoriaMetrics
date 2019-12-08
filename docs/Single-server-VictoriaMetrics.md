@@ -1,11 +1,17 @@
-# Single-node
+## VictoriaMetrics
 
 VictoriaMetrics is fast, cost-effective and scalable time-series database. It can be used as long-term remote storage for Prometheus.
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
-in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
+in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+
+## Case studies
+
+* [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
+* [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
 
 
 ## Prominent features
