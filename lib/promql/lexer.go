@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type lexer struct {
@@ -222,7 +220,7 @@ func scanIdent(s string) string {
 		}
 	}
 	if i == 0 {
-		logger.Panicf("BUG: scanIdent couldn't find a single ident char; make sure isIdentPrefix called before scanIdent")
+		Panicf("BUG: scanIdent couldn't find a single ident char; make sure isIdentPrefix called before scanIdent")
 	}
 	return s[:i]
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/valyala/histogram"
 )
@@ -99,13 +100,9 @@ func getTransformFunc(s string) transformFunc {
 	return transformFuncs[s]
 }
 
-func isTransformFunc(s string) bool {
-	return getTransformFunc(s) != nil
-}
-
 type transformFuncArg struct {
 	ec   *EvalConfig
-	fe   *funcExpr
+	fe   *promql.FuncExpr
 	args [][]*timeseries
 }
 
@@ -126,7 +123,7 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 	}
 }
 
-func doTransformValues(arg []*timeseries, tf func(values []float64), fe *funcExpr) ([]*timeseries, error) {
+func doTransformValues(arg []*timeseries, tf func(values []float64), fe *promql.FuncExpr) ([]*timeseries, error) {
 	name := strings.ToLower(fe.Name)
 	keepMetricGroup := transformFuncsKeepMetricGroup[name]
 	for _, ts := range arg {
@@ -154,7 +151,7 @@ func transformAbsent(tfa *transformFuncArg) ([]*timeseries, error) {
 		// Copy tags from arg
 		rvs := evalNumber(tfa.ec, 1)
 		rv := rvs[0]
-		me, ok := tfa.fe.Args[0].(*metricExpr)
+		me, ok := tfa.fe.Args[0].(*promql.MetricExpr)
 		if !ok {
 			return rvs, nil
 		}
@@ -1130,7 +1127,7 @@ func transformScalar(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	// Verify whether the arg is a string.
 	// Then try converting the string to number.
-	if se, ok := tfa.fe.Args[0].(*stringExpr); ok {
+	if se, ok := tfa.fe.Args[0].(*promql.StringExpr); ok {
 		n, err := strconv.ParseFloat(se.S, 64)
 		if err != nil {
 			n = nan
