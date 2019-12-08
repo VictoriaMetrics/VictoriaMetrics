@@ -40,4 +40,4 @@ Numbers:
 * Ingestion rate: 170K data points per second.
 * Query duration: median is ~2ms, 99th percentile is ~50ms.
 
-> We like configuration simplicity and zero maintenance for VictoriaMetrics - once installed and forgot about it. It works without any issues.
+> We like configuration simplicity and zero maintenance for VictoriaMetrics - once installed and forgot about it. It works out of the box without any issues.
