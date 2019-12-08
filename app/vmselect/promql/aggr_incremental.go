@@ -4,6 +4,8 @@ import (
 	"math"
 	"strings"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions
@@ -49,7 +51,7 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 }
 
 type incrementalAggrFuncContext struct {
-	ae *aggrFuncExpr
+	ae *promql.AggrFuncExpr
 
 	mLock sync.Mutex
 	m     map[uint]map[string]*incrementalAggrContext
@@ -57,7 +59,7 @@ type incrementalAggrFuncContext struct {
 	callbacks *incrementalAggrFuncCallbacks
 }
 
-func newIncrementalAggrFuncContext(ae *aggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
+func newIncrementalAggrFuncContext(ae *promql.AggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
 	return &incrementalAggrFuncContext{
 		ae:        ae,
 		m:         make(map[uint]map[string]*incrementalAggrContext),

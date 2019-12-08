@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 )
 
 func TestIncrementalAggr(t *testing.T) {
@@ -42,7 +44,7 @@ func TestIncrementalAggr(t *testing.T) {
 	f := func(name string, valuesExpected []float64) {
 		t.Helper()
 		callbacks := getIncrementalAggrFuncCallbacks(name)
-		ae := &aggrFuncExpr{
+		ae := &promql.AggrFuncExpr{
 			Name: name,
 		}
 		tssExpected := []*timeseries{{

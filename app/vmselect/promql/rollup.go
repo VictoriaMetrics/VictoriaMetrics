@@ -103,10 +103,6 @@ func getRollupFunc(funcName string) newRollupFunc {
 	return rollupFuncs[funcName]
 }
 
-func isRollupFunc(funcName string) bool {
-	return getRollupFunc(funcName) != nil
-}
-
 type rollupFuncArg struct {
 	prevValue     float64
 	prevTimestamp int64
