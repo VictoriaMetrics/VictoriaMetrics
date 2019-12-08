@@ -3,6 +3,7 @@ package promql
 import (
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -17,14 +18,14 @@ func TestRollupResultCache(t *testing.T) {
 
 		MayCache: true,
 	}
-	me := &metricExpr{
-		TagFilters: []storage.TagFilter{{
+	me := &promql.MetricExpr{
+		TagFilters: []promql.TagFilter{{
 			Key:   []byte("aaa"),
 			Value: []byte("xxx"),
 		}},
 	}
 	iafc := &incrementalAggrFuncContext{
-		ae: &aggrFuncExpr{
+		ae: &promql.AggrFuncExpr{
 			Name: "foobar",
 		},
 	}

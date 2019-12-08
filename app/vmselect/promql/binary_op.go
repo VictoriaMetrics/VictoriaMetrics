@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -36,107 +37,14 @@ var binaryOpFuncs = map[string]binaryOpFunc{
 	"default": newBinaryOpArithFunc(binaryOpDefault),
 }
 
-var binaryOpPriorities = map[string]int{
-	"default": -1,
-
-	"if":    0,
-	"ifnot": 0,
-
-	// See https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operator-precedence
-	"or": 1,
-
-	"and":    2,
-	"unless": 2,
-
-	"==": 3,
-	"!=": 3,
-	"<":  3,
-	">":  3,
-	"<=": 3,
-	">=": 3,
-
-	"+": 4,
-	"-": 4,
-
-	"*": 5,
-	"/": 5,
-	"%": 5,
-
-	"^": 6,
-}
-
 func getBinaryOpFunc(op string) binaryOpFunc {
 	op = strings.ToLower(op)
 	return binaryOpFuncs[op]
 }
 
-func isBinaryOp(op string) bool {
-	return getBinaryOpFunc(op) != nil
-}
-
-func binaryOpPriority(op string) int {
-	op = strings.ToLower(op)
-	return binaryOpPriorities[op]
-}
-
-func scanBinaryOpPrefix(s string) int {
-	n := 0
-	for op := range binaryOpFuncs {
-		if len(s) < len(op) {
-			continue
-		}
-		ss := strings.ToLower(s[:len(op)])
-		if ss == op && len(op) > n {
-			n = len(op)
-		}
-	}
-	return n
-}
-
-func isRightAssociativeBinaryOp(op string) bool {
-	// See https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operator-precedence
-	return op == "^"
-}
-
-func isBinaryOpGroupModifier(s string) bool {
-	s = strings.ToLower(s)
-	switch s {
-	// See https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching
-	case "on", "ignoring":
-		return true
-	default:
-		return false
-	}
-}
-
-func isBinaryOpJoinModifier(s string) bool {
-	s = strings.ToLower(s)
-	switch s {
-	case "group_left", "group_right":
-		return true
-	default:
-		return false
-	}
-}
-
-func isBinaryOpBoolModifier(s string) bool {
-	s = strings.ToLower(s)
-	return s == "bool"
-}
-
 func isBinaryOpCmp(op string) bool {
 	switch op {
 	case "==", "!=", ">", "<", ">=", "<=":
-		return true
-	default:
-		return false
-	}
-}
-
-func isBinaryOpLogicalSet(op string) bool {
-	op = strings.ToLower(op)
-	switch op {
-	case "and", "or", "unless":
 		return true
 	default:
 		return false
@@ -207,7 +115,7 @@ func binaryOpConstants(op string, left, right float64, isBool bool) float64 {
 }
 
 type binaryOpFuncArg struct {
-	be    *binaryOpExpr
+	be    *promql.BinaryOpExpr
 	left  []*timeseries
 	right []*timeseries
 }
@@ -267,7 +175,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 	}
 }
 
-func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
+func adjustBinaryOpTags(be *promql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
 		if isScalar(left) {
 			// Fast path: `scalar op vector`
@@ -348,7 +256,7 @@ func adjustBinaryOpTags(be *binaryOpExpr, left, right []*timeseries) ([]*timeser
 	return rvsLeft, rvsRight, dst, nil
 }
 
-func ensureSingleTimeseries(side string, be *binaryOpExpr, tss []*timeseries) error {
+func ensureSingleTimeseries(side string, be *promql.BinaryOpExpr, tss []*timeseries) error {
 	if len(tss) == 0 {
 		logger.Panicf("BUG: tss must contain at least one value")
 	}
@@ -362,7 +270,7 @@ func ensureSingleTimeseries(side string, be *binaryOpExpr, tss []*timeseries) er
 	return nil
 }
 
-func groupJoin(singleTimeseriesSide string, be *binaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
+func groupJoin(singleTimeseriesSide string, be *promql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
 	joinTags := be.JoinModifier.Args
 	var m map[string]*timeseries
 	for _, tsLeft := range tssLeft {
@@ -432,7 +340,7 @@ func mergeNonOverlappingTimeseries(dst, src *timeseries) bool {
 	return true
 }
 
-func resetMetricGroupIfRequired(be *binaryOpExpr, ts *timeseries) {
+func resetMetricGroupIfRequired(be *promql.BinaryOpExpr, ts *timeseries) {
 	if isBinaryOpCmp(be.Op) && !be.Bool {
 		// Do not reset MetricGroup for non-boolean `compare` binary ops like Prometheus does.
 		return
@@ -565,7 +473,7 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
-func createTimeseriesMapByTagSet(be *binaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
+func createTimeseriesMapByTagSet(be *promql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
 	groupTags := be.GroupModifier.Args
 	groupOp := strings.ToLower(be.GroupModifier.Op)
 	if len(groupOp) == 0 {

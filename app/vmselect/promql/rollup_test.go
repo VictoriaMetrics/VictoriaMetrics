@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 	"math"
 	"testing"
 )
@@ -157,7 +158,7 @@ func TestDerivValues(t *testing.T) {
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 }
 
-func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpected *metricExpr, vExpected float64) {
+func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpected *promql.MetricExpr, vExpected float64) {
 	t.Helper()
 	nrf := getRollupFunc(funcName)
 	if nrf == nil {
@@ -197,8 +198,8 @@ func TestRollupQuantileOverTime(t *testing.T) {
 			Values:     []float64{phi},
 			Timestamps: []int64{123},
 		}}
-		var me metricExpr
-		args := []interface{}{phis, &rollupExpr{Expr: &me}}
+		var me promql.MetricExpr
+		args := []interface{}{phis, &promql.RollupExpr{Expr: &me}}
 		testRollupFunc(t, "quantile_over_time", args, &me, vExpected)
 	}
 
@@ -219,8 +220,8 @@ func TestRollupPredictLinear(t *testing.T) {
 			Values:     []float64{sec},
 			Timestamps: []int64{123},
 		}}
-		var me metricExpr
-		args := []interface{}{&rollupExpr{Expr: &me}, secs}
+		var me promql.MetricExpr
+		args := []interface{}{&promql.RollupExpr{Expr: &me}, secs}
 		testRollupFunc(t, "predict_linear", args, &me, vExpected)
 	}
 
@@ -241,8 +242,8 @@ func TestRollupHoltWinters(t *testing.T) {
 			Values:     []float64{tf},
 			Timestamps: []int64{123},
 		}}
-		var me metricExpr
-		args := []interface{}{&rollupExpr{Expr: &me}, sfs, tfs}
+		var me promql.MetricExpr
+		args := []interface{}{&promql.RollupExpr{Expr: &me}, sfs, tfs}
 		testRollupFunc(t, "holt_winters", args, &me, vExpected)
 	}
 
@@ -265,8 +266,8 @@ func TestRollupHoltWinters(t *testing.T) {
 func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f := func(funcName string, vExpected float64) {
 		t.Helper()
-		var me metricExpr
-		args := []interface{}{&rollupExpr{Expr: &me}}
+		var me promql.MetricExpr
+		args := []interface{}{&promql.RollupExpr{Expr: &me}}
 		testRollupFunc(t, funcName, args, &me, vExpected)
 	}
 
@@ -327,7 +328,7 @@ func TestRollupNewRollupFuncError(t *testing.T) {
 		Values:     []float64{321},
 		Timestamps: []int64{123},
 	}}
-	me := &metricExpr{}
+	me := &promql.MetricExpr{}
 	f("holt_winters", []interface{}{123, 123, 321})
 	f("holt_winters", []interface{}{me, 123, 321})
 	f("holt_winters", []interface{}{me, scalarTs, 321})

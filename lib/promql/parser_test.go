@@ -1,58 +1,24 @@
 package promql
 
 import (
+	"regexp"
 	"testing"
 )
 
-func TestParseMetricSelectorSuccess(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-		tfs, err := ParseMetricSelector(s)
-		if err != nil {
-			t.Fatalf("unexpected error when parsing %q: %s", s, err)
-		}
-		if tfs == nil {
-			t.Fatalf("expecting non-nil tfs when parsing %q", s)
-		}
-	}
-	f("foo")
-	f(":foo")
-	f("  :fo:bar.baz")
-	f(`a{}`)
-	f(`{foo="bar"}`)
-	f(`{:f:oo=~"bar.+"}`)
-	f(`foo {bar != "baz"}`)
-	f(` foo { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
-	f(`(foo)`)
+var testParser = &Parser{
+	compileRegexpAnchored: compileRegexpAnchored,
 }
 
-func TestParseMetricSelectorError(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-		tfs, err := ParseMetricSelector(s)
-		if err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
-		}
-		if tfs != nil {
-			t.Fatalf("expecting nil tfs when parsing %q", s)
-		}
-	}
-	f("")
-	f(`{}`)
-	f(`foo bar`)
-	f(`foo+bar`)
-	f(`sum(bar)`)
-	f(`x{y}`)
-	f(`x{y+z}`)
-	f(`foo[5m]`)
-	f(`foo offset 5m`)
+func compileRegexpAnchored(re string) (*regexp.Regexp, error) {
+	reAnchored := "^(?:" + re + ")$"
+	return regexp.Compile(reAnchored)
 }
 
 func TestParsePromQLSuccess(t *testing.T) {
 	another := func(s string, sExpected string) {
 		t.Helper()
 
-		e, err := parsePromQL(s)
+		e, err := testParser.ParsePromQL(s)
 		if err != nil {
 			t.Fatalf("unexpected error when parsing %q: %s", s, err)
 		}
@@ -184,72 +150,24 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`-inF`, `-Inf`)
 
 	// binaryOpExpr
-	another(`nan == nan`, `NaN`)
-	another(`nan ==bool nan`, `1`)
-	another(`nan !=bool nan`, `0`)
-	another(`nan !=bool 2`, `1`)
-	another(`2 !=bool nan`, `1`)
-	another(`nan >bool nan`, `0`)
-	another(`nan <bool nan`, `0`)
-	another(`1 ==bool nan`, `0`)
-	another(`NaN !=bool 1`, `1`)
-	another(`inf >=bool 2`, `1`)
-	another(`-1 >bool -inf`, `1`)
-	another(`-1 <bool -inf`, `0`)
-	another(`nan + 2 *3 * inf`, `NaN`)
-	another(`INF - Inf`, `NaN`)
-	another(`Inf + inf`, `+Inf`)
-	another(`1/0`, `+Inf`)
-	another(`0/0`, `NaN`)
 	another(`-m`, `0 - m`)
 	same(`m + ignoring () n[5m]`)
 	another(`M + IGNORING () N[5m]`, `M + ignoring () N[5m]`)
 	same(`m + on (foo) n[5m]`)
 	another(`m + ON (Foo) n[5m]`, `m + on (Foo) n[5m]`)
 	same(`m + ignoring (a, b) n[5m]`)
-	another(`1 or 2`, `1`)
-	another(`1 and 2`, `1`)
-	another(`1 unless 2`, `NaN`)
-	another(`1 default 2`, `1`)
-	another(`1 default NaN`, `1`)
-	another(`NaN default 2`, `2`)
-	another(`1 > 2`, `NaN`)
-	another(`1 > bool 2`, `0`)
-	another(`3 >= 2`, `3`)
-	another(`3 <= bool 2`, `0`)
-	another(`1 + -2 - 3`, `-4`)
-	another(`1 / 0 + 2`, `+Inf`)
-	another(`2 + -1 / 0`, `-Inf`)
-	another(`-1 ^ 0.5`, `NaN`)
-	another(`512.5 - (1 + 3) * (2 ^ 2) ^ 3`, `256.5`)
-	another(`1 == bool 1 != bool 24 < bool 4 > bool -1`, `1`)
-	another(`1 == bOOl 1 != BOOL 24 < Bool 4 > booL -1`, `1`)
 	another(`m1+on(foo)group_left m2`, `m1 + on (foo) group_left () m2`)
 	another(`M1+ON(FOO)GROUP_left M2`, `M1 + on (FOO) group_left () M2`)
 	same(`m1 + on (foo) group_right () m2`)
 	same(`m1 + on (foo, bar) group_right (x, y) m2`)
 	another(`m1 + on (foo, bar,) group_right (x, y,) m2`, `m1 + on (foo, bar) group_right (x, y) m2`)
 	same(`m1 == bool on (foo, bar) group_right (x, y) m2`)
-	another(`5 - 1 + 3 * 2 ^ 2 ^ 3 - 2  OR Metric {Bar= "Baz", aaa!="bb",cc=~"dd" ,zz !~"ff" } `,
-		`770 or Metric{Bar="Baz", aaa!="bb", cc=~"dd", zz!~"ff"}`)
 	same(`"foo" + bar()`)
 	same(`"foo" + bar{x="y"}`)
 	same(`("foo"[3s] + bar{x="y"})[5m:3s] offset 10s`)
 	same(`("foo"[3s] + bar{x="y"})[5i:3i] offset 10i`)
 	same(`bar + "foo" offset 3s`)
 	same(`bar + "foo" offset 3i`)
-	another(`1+2 if 2>3`, `NaN`)
-	another(`1+4 if 2<3`, `5`)
-	another(`2+6 default 3 if 2>3`, `8`)
-	another(`2+6 if 2>3 default NaN`, `NaN`)
-	another(`42 if 3>2 if 2+2<5`, `42`)
-	another(`42 if 3>2 if 2+2>=5`, `NaN`)
-	another(`1+2 ifnot 2>3`, `3`)
-	another(`1+4 ifnot 2<3`, `NaN`)
-	another(`2+6 default 3 ifnot 2>3`, `8`)
-	another(`2+6 ifnot 2>3 default NaN`, `8`)
-	another(`42 if 3>2 ifnot 2+2<5`, `NaN`)
-	another(`42 if 3>2 ifnot 2+2>=5`, `42`)
 
 	// parensExpr
 	another(`(-foo + ((bar) / (baz))) + ((23))`, `((0 - foo) + (bar / baz)) + 23`)
@@ -258,7 +176,6 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`((foo, bar),(baz))`, `((foo, bar), baz)`)
 	same(`(foo, (bar, baz), ((x, y), (z, y), xx))`)
 	another(`1+(foo, bar,)`, `1 + (foo, bar)`)
-	another(`((foo(bar,baz)), (1+(2)+(3,4)+()))`, `(foo(bar, baz), (3 + (3, 4)) + ())`)
 	same(`()`)
 
 	// funcExpr
@@ -275,7 +192,7 @@ func TestParsePromQLSuccess(t *testing.T) {
 	same(`F(HttpServerRequest)`)
 	same(`f(job, foo)`)
 	same(`F(Job, Foo)`)
-	another(` FOO (bar) + f  (  m  (  ),ff(1 + (  2.5)) ,M[5m ]  , "ff"  )`, `FOO(bar) + f(m(), ff(3.5), M[5m], "ff")`)
+
 	// funcName matching keywords
 	same(`by(2)`)
 	same(`BY(2)`)
@@ -298,8 +215,6 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`sum by () (xx)`, `sum(xx) by ()`)
 	another(`sum by (s) (xx)[5s]`, `(sum(xx) by (s))[5s]`)
 	another(`SUM BY (ZZ, aa) (XX)`, `sum(XX) by (ZZ, aa)`)
-	another(`sum without (a, b) (xx,2+2)`, `sum(xx, 4) without (a, b)`)
-	another(`Sum WIthout (a, B) (XX,2+2)`, `sum(XX, 4) without (a, B)`)
 	same(`sum(a) or sum(b)`)
 	same(`sum(a) by () or sum(b) without (x, y)`)
 	same(`sum(a) + sum(b)`)
@@ -322,7 +237,7 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`with (foo = bar{x="x"}) "x"`, `"x"`)
 	another(`with (f="x") f`, `"x"`)
 	another(`with (foo = bar{x="x"}) x{x="y"}`, `x{x="y"}`)
-	another(`with (foo = bar{x="x"}) 1+1`, `2`)
+	another(`with (foo = bar{x="x"}) 2`, `2`)
 	another(`with (foo = bar{x="x"}) f()`, `f()`)
 	another(`with (foo = bar{x="x"}) sum(x)`, `sum(x)`)
 	another(`with (foo = bar{x="x"}) baz{foo="bar"}`, `baz{foo="bar"}`)
@@ -355,7 +270,6 @@ func TestParsePromQLSuccess(t *testing.T) {
 	another(`with (x() = y+1) x`, `y + 1`)
 	another(`with (x(foo) = foo+1) x(a)`, `a + 1`)
 	another(`with (x(a, b) = a + b) x(foo, bar)`, `foo + bar`)
-	another(`with (x(a, b) = a + b) x(foo, x(1, 2))`, `foo + 3`)
 	another(`with (x(a) = sum(a) by (b)) x(xx) / x(y)`, `sum(xx) by (b) / sum(y) by (b)`)
 	another(`with (f(a,f,x)=ff(x,f,a)) f(f(x,y,z),1,2)`, `ff(2, 1, ff(z, y, x))`)
 	another(`with (f(x)=1+f(x)) f(foo{bar="baz"})`, `1 + f(foo{bar="baz"})`)
@@ -415,18 +329,6 @@ func TestParsePromQLSuccess(t *testing.T) {
 	hitRatio < treshold`,
 		`(sum(rate(cache{type="hit", job="cacher", instance=~"1.2.3.4"}[5m])) by (instance) / sum(rate(cache{type="hit", job="cacher", instance=~"1.2.3.4"}[5m]) + rate(cache{type="miss", job="cacher", instance=~"1.2.3.4"}[5m])) by (instance)) < 0.9`)
 	another(`WITH (
-		x2(x) = x^2,
-		f(x, y) = x2(x) + x*y + x2(y)
-	)
-	f(a, 3)
-	`, `((a ^ 2) + (a * 3)) + 9`)
-	another(`WITH (
-		x2(x) = x^2,
-		f(x, y) = x2(x) + x*y + x2(y)
-	)
-	f(2, 3)
-	`, `19`)
-	another(`WITH (
 		commonFilters = {instance="foo"},
 		timeToFuckup(currv, maxv) = (maxv - currv) / rate(currv)
 	)
@@ -439,16 +341,15 @@ func TestParsePromQLSuccess(t *testing.T) {
 	   )
 	   hitRate(cacheHits, cacheMisses)`,
 		`sum(rate(cacheHits{job="foo", instance="bar"})) by (job, instance) / (sum(rate(cacheHits{job="foo", instance="bar"})) by (job, instance) + sum(rate(cacheMisses{job="foo", instance="bar"})) by (job, instance))`)
-	another(`with(y=123,z=5) union(with(y=3,f(x)=x*y) f(2) + f(3), with(x=5,y=2) x*y*z)`, `union(15, 50)`)
 }
 
 func TestParsePromQLError(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
-		e, err := parsePromQL(s)
+		e, err := testParser.ParsePromQL(s)
 		if err == nil {
-			t.Fatalf("expecting non-nil error when parsing %q", s)
+			t.Fatalf("expecting non-nil error when parsing %q (expr=%v)", s, e)
 		}
 		if e != nil {
 			t.Fatalf("expecting nil expr when parsing %q", s)

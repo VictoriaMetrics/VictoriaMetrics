@@ -6,11 +6,13 @@ import (
 	"math"
 	"runtime"
 	"sync"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -152,9 +154,9 @@ func getTimestamps(start, end, step int64) []int64 {
 	return timestamps
 }
 
-func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
-	if me, ok := e.(*metricExpr); ok {
-		re := &rollupExpr{
+func evalExpr(ec *EvalConfig, e promql.Expr) ([]*timeseries, error) {
+	if me, ok := e.(*promql.MetricExpr); ok {
+		re := &promql.RollupExpr{
 			Expr: me,
 		}
 		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re, nil)
@@ -163,14 +165,14 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		}
 		return rv, nil
 	}
-	if re, ok := e.(*rollupExpr); ok {
+	if re, ok := e.(*promql.RollupExpr); ok {
 		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, re.AppendString(nil), err)
 		}
 		return rv, nil
 	}
-	if fe, ok := e.(*funcExpr); ok {
+	if fe, ok := e.(*promql.FuncExpr); ok {
 		nrf := getRollupFunc(fe.Name)
 		if nrf == nil {
 			args, err := evalExprs(ec, fe.Args)
@@ -206,7 +208,7 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		}
 		return rv, nil
 	}
-	if ae, ok := e.(*aggrFuncExpr); ok {
+	if ae, ok := e.(*promql.AggrFuncExpr); ok {
 		if callbacks := getIncrementalAggrFuncCallbacks(ae.Name); callbacks != nil {
 			fe, nrf := tryGetArgRollupFuncWithMetricExpr(ae)
 			if fe != nil {
@@ -243,7 +245,7 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		}
 		return rv, nil
 	}
-	if be, ok := e.(*binaryOpExpr); ok {
+	if be, ok := e.(*promql.BinaryOpExpr); ok {
 		left, err := evalExpr(ec, be.Left)
 		if err != nil {
 			return nil, err
@@ -267,18 +269,18 @@ func evalExpr(ec *EvalConfig, e expr) ([]*timeseries, error) {
 		}
 		return rv, nil
 	}
-	if ne, ok := e.(*numberExpr); ok {
+	if ne, ok := e.(*promql.NumberExpr); ok {
 		rv := evalNumber(ec, ne.N)
 		return rv, nil
 	}
-	if se, ok := e.(*stringExpr); ok {
+	if se, ok := e.(*promql.StringExpr); ok {
 		rv := evalString(ec, se.S)
 		return rv, nil
 	}
 	return nil, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
 }
 
-func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFunc) {
+func tryGetArgRollupFuncWithMetricExpr(ae *promql.AggrFuncExpr) (*promql.FuncExpr, newRollupFunc) {
 	if len(ae.Args) != 1 {
 		return nil, nil
 	}
@@ -289,31 +291,31 @@ func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFu
 	// - rollupFunc(metricExpr)
 	// - rollupFunc(metricExpr[d])
 
-	if me, ok := e.(*metricExpr); ok {
+	if me, ok := e.(*promql.MetricExpr); ok {
 		// e = metricExpr
 		if me.IsEmpty() {
 			return nil, nil
 		}
-		fe := &funcExpr{
+		fe := &promql.FuncExpr{
 			Name: "default_rollup",
-			Args: []expr{me},
+			Args: []promql.Expr{me},
 		}
 		nrf := getRollupFunc(fe.Name)
 		return fe, nrf
 	}
-	if re, ok := e.(*rollupExpr); ok {
-		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
+	if re, ok := e.(*promql.RollupExpr); ok {
+		if me, ok := re.Expr.(*promql.MetricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
 			return nil, nil
 		}
 		// e = metricExpr[d]
-		fe := &funcExpr{
+		fe := &promql.FuncExpr{
 			Name: "default_rollup",
-			Args: []expr{re},
+			Args: []promql.Expr{re},
 		}
 		nrf := getRollupFunc(fe.Name)
 		return fe, nrf
 	}
-	fe, ok := e.(*funcExpr)
+	fe, ok := e.(*promql.FuncExpr)
 	if !ok {
 		return nil, nil
 	}
@@ -323,18 +325,18 @@ func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFu
 	}
 	rollupArgIdx := getRollupArgIdx(fe.Name)
 	arg := fe.Args[rollupArgIdx]
-	if me, ok := arg.(*metricExpr); ok {
+	if me, ok := arg.(*promql.MetricExpr); ok {
 		if me.IsEmpty() {
 			return nil, nil
 		}
 		// e = rollupFunc(metricExpr)
-		return &funcExpr{
+		return &promql.FuncExpr{
 			Name: fe.Name,
-			Args: []expr{me},
+			Args: []promql.Expr{me},
 		}, nrf
 	}
-	if re, ok := arg.(*rollupExpr); ok {
-		if me, ok := re.Expr.(*metricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
+	if re, ok := arg.(*promql.RollupExpr); ok {
+		if me, ok := re.Expr.(*promql.MetricExpr); !ok || me.IsEmpty() || re.ForSubquery() {
 			return nil, nil
 		}
 		// e = rollupFunc(metricExpr[d])
@@ -343,7 +345,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *aggrFuncExpr) (*funcExpr, newRollupFu
 	return nil, nil
 }
 
-func evalExprs(ec *EvalConfig, es []expr) ([][]*timeseries, error) {
+func evalExprs(ec *EvalConfig, es []promql.Expr) ([][]*timeseries, error) {
 	var rvs [][]*timeseries
 	for _, e := range es {
 		rv, err := evalExpr(ec, e)
@@ -355,8 +357,8 @@ func evalExprs(ec *EvalConfig, es []expr) ([][]*timeseries, error) {
 	return rvs, nil
 }
 
-func evalRollupFuncArgs(ec *EvalConfig, fe *funcExpr) ([]interface{}, *rollupExpr, error) {
-	var re *rollupExpr
+func evalRollupFuncArgs(ec *EvalConfig, fe *promql.FuncExpr) ([]interface{}, *promql.RollupExpr, error) {
+	var re *promql.RollupExpr
 	rollupArgIdx := getRollupArgIdx(fe.Name)
 	args := make([]interface{}, len(fe.Args))
 	for i, arg := range fe.Args {
@@ -374,11 +376,11 @@ func evalRollupFuncArgs(ec *EvalConfig, fe *funcExpr) ([]interface{}, *rollupExp
 	return args, re, nil
 }
 
-func getRollupExprArg(arg expr) *rollupExpr {
-	re, ok := arg.(*rollupExpr)
+func getRollupExprArg(arg promql.Expr) *promql.RollupExpr {
+	re, ok := arg.(*promql.RollupExpr)
 	if !ok {
 		// Wrap non-rollup arg into rollupExpr.
-		return &rollupExpr{
+		return &promql.RollupExpr{
 			Expr: arg,
 		}
 	}
@@ -386,28 +388,28 @@ func getRollupExprArg(arg expr) *rollupExpr {
 		// Return standard rollup if it doesn't contain subquery.
 		return re
 	}
-	me, ok := re.Expr.(*metricExpr)
+	me, ok := re.Expr.(*promql.MetricExpr)
 	if !ok {
 		// arg contains subquery.
 		return re
 	}
 	// Convert me[w:step] -> default_rollup(me)[w:step]
 	reNew := *re
-	reNew.Expr = &funcExpr{
+	reNew.Expr = &promql.FuncExpr{
 		Name: "default_rollup",
-		Args: []expr{
-			&rollupExpr{Expr: me},
+		Args: []promql.Expr{
+			&promql.RollupExpr{Expr: me},
 		},
 	}
 	return &reNew
 }
 
-func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *promql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	ecNew := ec
 	var offset int64
 	if len(re.Offset) > 0 {
 		var err error
-		offset, err = DurationValue(re.Offset, ec.Step)
+		offset, err = promql.DurationValue(re.Offset, ec.Step)
 		if err != nil {
 			return nil, err
 		}
@@ -423,7 +425,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr, 
 	}
 	var rvs []*timeseries
 	var err error
-	if me, ok := re.Expr.(*metricExpr); ok {
+	if me, ok := re.Expr.(*promql.MetricExpr); ok {
 		rvs, err = evalRollupFuncWithMetricExpr(ecNew, name, rf, me, iafc, re.Window)
 	} else {
 		if iafc != nil {
@@ -448,12 +450,12 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr, 
 	return rvs, nil
 }
 
-func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr) ([]*timeseries, error) {
+func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *promql.RollupExpr) ([]*timeseries, error) {
 	// Do not use rollupResultCacheV here, since it works only with metricExpr.
 	var step int64
 	if len(re.Step) > 0 {
 		var err error
-		step, err = PositiveDurationValue(re.Step, ec.Step)
+		step, err = promql.DurationValue(re.Step, ec.Step)
 		if err != nil {
 			return nil, err
 		}
@@ -463,7 +465,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	var window int64
 	if len(re.Window) > 0 {
 		var err error
-		window, err = PositiveDurationValue(re.Window, ec.Step)
+		window, err = promql.DurationValue(re.Window, ec.Step)
 		if err != nil {
 			return nil, err
 		}
@@ -557,14 +559,14 @@ var (
 	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
 )
 
-func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me *metricExpr, iafc *incrementalAggrFuncContext, windowStr string) ([]*timeseries, error) {
+func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me *promql.MetricExpr, iafc *incrementalAggrFuncContext, windowStr string) ([]*timeseries, error) {
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
 	}
 	var window int64
 	if len(windowStr) > 0 {
 		var err error
-		window, err = PositiveDurationValue(windowStr, ec.Step)
+		window, err = promql.DurationValue(windowStr, ec.Step)
 		if err != nil {
 			return nil, err
 		}
@@ -587,7 +589,9 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	sq := &storage.SearchQuery{
 		MinTimestamp: start - window - maxSilenceInterval,
 		MaxTimestamp: ec.End + ec.Step,
-		TagFilterss:  [][]storage.TagFilter{me.TagFilters},
+		TagFilterss: [][]storage.TagFilter{
+			*(*[]storage.TagFilter)(unsafe.Pointer(&me.TagFilters)),
+		},
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, true, ec.Deadline)
 	if err != nil {
