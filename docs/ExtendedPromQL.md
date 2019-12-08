@@ -60,7 +60,7 @@ Try these extensions on [an editable Grafana dashboard](http://play-grafana.vict
 - `rand()`, `rand_normal()` and `rand_exponential()` functions - for generating pseudo-random series with even, normal and exponential distribution.
 - `increases_over_time(m[d])` and `decreases_over_time(m[d])` - returns the number of `m` increases or decreases over the given duration `d`.
 - `prometheus_buckets(q)` - converts [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) buckets to Prometheus buckets with `le` labels.
-- `histogram(q)` - calculates aggregate histogram over `q` time series for each point on the graph.
+- `histogram(q)` - calculates aggregate histogram over `q` time series for each point on the graph. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
 - `topk_*` and `bottomk_*` aggregate functions, which return up to K time series. Note that the standard `topk` function may return more than K time series -
    see [this article](https://www.robustperception.io/graph-top-n-time-series-in-grafana) for details.
    - `topk_min(k, q)` - returns top K time series with the max minimums on the given time range
