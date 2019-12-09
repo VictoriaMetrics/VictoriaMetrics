@@ -19,9 +19,9 @@ var (
 	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdb-http"}`)
 	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="opentsdb-http"}`)
 
-	opentsdbReadCalls       = metrics.NewCounter(`vm_read_calls_total{name="opentsdb-http"}`)
-	opentsdbReadErrors      = metrics.NewCounter(`vm_read_errors_total{name="opentsdb-http"}`)
-	opentsdbUnmarshalErrors = metrics.NewCounter(`vm_unmarshal_errors_total{name="opentsdb-http"}`)
+	readCalls       = metrics.NewCounter(`vm_read_calls_total{name="opentsdb-http"}`)
+	readErrors      = metrics.NewCounter(`vm_read_errors_total{name="opentsdb-http"}`)
+	unmarshalErrors = metrics.NewCounter(`vm_unmarshal_errors_total{name="opentsdb-http"}`)
 )
 
 // insertHandler processes HTTP OpenTSDB put requests.
@@ -33,13 +33,13 @@ func insertHandler(req *http.Request, maxSize int64) error {
 }
 
 func insertHandlerInternal(req *http.Request, maxSize int64) error {
-	opentsdbReadCalls.Inc()
+	readCalls.Inc()
 
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
-			opentsdbReadErrors.Inc()
+			readErrors.Inc()
 			return fmt.Errorf("cannot read gzipped http protocol data: %s", err)
 		}
 		defer common.PutGzipReader(zr)
@@ -53,11 +53,11 @@ func insertHandlerInternal(req *http.Request, maxSize int64) error {
 	lr := io.LimitReader(r, maxSize+1)
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
-		opentsdbReadErrors.Inc()
+		readErrors.Inc()
 		return fmt.Errorf("cannot read HTTP OpenTSDB request: %s", err)
 	}
 	if reqLen > maxSize {
-		opentsdbReadErrors.Inc()
+		readErrors.Inc()
 		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed %d bytes", maxSize)
 	}
 
@@ -66,7 +66,7 @@ func insertHandlerInternal(req *http.Request, maxSize int64) error {
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
-		opentsdbUnmarshalErrors.Inc()
+		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %s", err)
 	}
 	ctx.Rows.Unmarshal(v)

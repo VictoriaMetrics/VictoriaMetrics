@@ -36,7 +36,7 @@ func InsertHandler(req *http.Request) error {
 }
 
 func insertHandlerInternal(req *http.Request) error {
-	influxReadCalls.Inc()
+	readCalls.Inc()
 
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
@@ -132,7 +132,7 @@ func (ctx *pushCtx) Read(r io.Reader, tsMultiplier int64) bool {
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
-			influxReadErrors.Inc()
+			readErrors.Inc()
 			ctx.err = fmt.Errorf("cannot read influx line protocol data: %s", ctx.err)
 		}
 		return false
@@ -166,8 +166,8 @@ func (ctx *pushCtx) Read(r io.Reader, tsMultiplier int64) bool {
 }
 
 var (
-	influxReadCalls  = metrics.NewCounter(`vm_read_calls_total{name="influx"}`)
-	influxReadErrors = metrics.NewCounter(`vm_read_errors_total{name="influx"}`)
+	readCalls  = metrics.NewCounter(`vm_read_calls_total{name="influx"}`)
+	readErrors = metrics.NewCounter(`vm_read_errors_total{name="influx"}`)
 )
 
 type pushCtx struct {
