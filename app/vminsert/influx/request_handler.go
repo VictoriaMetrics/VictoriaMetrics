@@ -82,7 +82,7 @@ func (ctx *pushCtx) InsertRows(db string) error {
 	rows := ctx.Rows.Rows
 	rowsLen := 0
 	for i := range rows {
-		rowsLen += len(rows[i].Tags)
+		rowsLen += len(rows[i].Fields)
 	}
 	ic := &ctx.Common
 	ic.Reset(rowsLen)
