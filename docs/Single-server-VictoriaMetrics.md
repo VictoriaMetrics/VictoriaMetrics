@@ -64,7 +64,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   - [Querying Graphite data](#querying-graphite-data)
   - [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
-  - [Prometheus querying API usage](prometheus-querying-api-usage)
+  - [Prometheus querying API usage](#prometheus-querying-api-usage)
   - [How to build from sources](#how-to-build-from-sources)
     - [Development build](#development-build)
     - [Production build](#production-build)
@@ -302,7 +302,7 @@ The `/api/v1/export` endpoint should return the following response:
 ### Querying Graphite data
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read either via
-[Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/)
+[Prometheus querying API](#prometheus-querying-api-usage)
 or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 
 
@@ -392,7 +392,7 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 
-These handlers can be queried from Prometheus-compatible clients such as Grafana.
+These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 
 
 ### How to build from sources
