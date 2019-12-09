@@ -1486,11 +1486,12 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 			if err := os.Rename(srcPath, dstPath); err != nil {
 				return fmt.Errorf("cannot rename %q to %q: %s", srcPath, dstPath, err)
 			}
-		} else {
-			// Verify dstPath exists.
-			if !fs.IsPathExist(dstPath) {
-				return fmt.Errorf("cannot find both source and destination paths: %q -> %q", srcPath, dstPath)
-			}
+		} else if !fs.IsPathExist(dstPath) {
+			// Emit info message for the expected condition after unclean shutdown on NFS disk.
+			// The dstPath part may be missing because it could be already merged into bigger part
+			// while old source parts for the current txn weren't still deleted due to NFS locks.
+			logger.Infof("cannot find both source and destination paths: %q -> %q; this may be the case after unclean shutdown (OOM, `kill -9`, hard reset) on NFS disk",
+				srcPath, dstPath)
 		}
 	} else {
 		// Just remove srcPath.
