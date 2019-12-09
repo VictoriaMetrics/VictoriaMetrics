@@ -1,4 +1,4 @@
-<img alt="Victoria Metrics" src="logo.png">
+<img alt="Victoria Metrics" src="logo.png" height="200px">
 
 # Cluster version
 
