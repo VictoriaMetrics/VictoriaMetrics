@@ -79,13 +79,13 @@ func (ctx *pushCtx) InsertRows(at *auth.Token) error {
 const flushTimeout = 3 * time.Second
 
 func (ctx *pushCtx) Read(r io.Reader) bool {
-	graphiteReadCalls.Inc()
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
 	if c, ok := r.(net.Conn); ok {
 		if err := c.SetReadDeadline(time.Now().Add(flushTimeout)); err != nil {
-			graphiteReadErrors.Inc()
+			readErrors.Inc()
 			ctx.err = fmt.Errorf("cannot set read deadline: %s", err)
 			return false
 		}
@@ -97,7 +97,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 			ctx.err = nil
 		} else {
 			if ctx.err != io.EOF {
-				graphiteReadErrors.Inc()
+				readErrors.Inc()
 				ctx.err = fmt.Errorf("cannot read graphite plaintext protocol data: %s", ctx.err)
 			}
 			return false
@@ -150,8 +150,8 @@ func (ctx *pushCtx) reset() {
 }
 
 var (
-	graphiteReadCalls  = metrics.NewCounter(`vm_read_calls_total{name="graphite"}`)
-	graphiteReadErrors = metrics.NewCounter(`vm_read_errors_total{name="graphite"}`)
+	readCalls  = metrics.NewCounter(`vm_read_calls_total{name="graphite"}`)
+	readErrors = metrics.NewCounter(`vm_read_errors_total{name="graphite"}`)
 )
 
 func getPushCtx() *pushCtx {

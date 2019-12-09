@@ -79,13 +79,13 @@ func (ctx *pushCtx) InsertRows(at *auth.Token) error {
 const flushTimeout = 3 * time.Second
 
 func (ctx *pushCtx) Read(r io.Reader) bool {
-	opentsdbReadCalls.Inc()
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
 	if c, ok := r.(net.Conn); ok {
 		if err := c.SetReadDeadline(time.Now().Add(flushTimeout)); err != nil {
-			opentsdbReadErrors.Inc()
+			readErrors.Inc()
 			ctx.err = fmt.Errorf("cannot set read deadline: %s", err)
 			return false
 		}
@@ -97,7 +97,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 			ctx.err = nil
 		} else {
 			if ctx.err != io.EOF {
-				opentsdbReadErrors.Inc()
+				readErrors.Inc()
 				ctx.err = fmt.Errorf("cannot read OpenTSDB put protocol data: %s", ctx.err)
 			}
 			return false
@@ -149,8 +149,8 @@ func (ctx *pushCtx) reset() {
 }
 
 var (
-	opentsdbReadCalls  = metrics.NewCounter(`vm_read_calls_total{name="opentsdb"}`)
-	opentsdbReadErrors = metrics.NewCounter(`vm_read_errors_total{name="opentsdb"}`)
+	readCalls  = metrics.NewCounter(`vm_read_calls_total{name="opentsdb"}`)
+	readErrors = metrics.NewCounter(`vm_read_errors_total{name="opentsdb"}`)
 )
 
 func getPushCtx() *pushCtx {
