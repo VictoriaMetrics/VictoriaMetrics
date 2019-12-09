@@ -40,11 +40,11 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * Supports metrics' ingestion and [backfilling](#backfilling) via the following protocols:
   * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-  * [InfluxDB line protocol](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-  * [Graphite plaintext protocol](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
+  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+  * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
     if `-graphiteListenAddr` is set.
-  * [OpenTSDB put message](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#sending-data-via-telnet-put-protocol) if `-opentsdbListenAddr` is set.
-  * [HTTP OpenTSDB /api/put requests](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
+  * [OpenTSDB put message](#sending-data-via-telnet-put-protocol) if `-opentsdbListenAddr` is set.
+  * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
   * [/api/v1/import](#how-to-import-time-series-data)
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
@@ -506,7 +506,7 @@ Each JSON line would contain data for a single time series. An example output:
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 
-Exported data can be imported via POST'ing it to [/api/v1/import](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data).
+Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-time-series-data).
 
 
 ### How to import time series data?
@@ -514,11 +514,11 @@ Exported data can be imported via POST'ing it to [/api/v1/import](https://github
 Time series data can be imported via any supported ingestion protocol:
 
 * [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-* [Influx line protocol](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-* [Graphite plaintext protocol](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
-* [OpenTSDB telnet put protocol](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#sending-data-via-telnet-put-protocol)
-* [OpenTSDB http /api/put](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#sending-opentsdb-data-via-http-apiput-requests)
-* `/api/v1/import` http POST handler, which accepts data from [/api/v1/export](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-export-time-series).
+* [Influx line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+* [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [OpenTSDB telnet put protocol](#sending-data-via-telnet-put-protocol)
+* [OpenTSDB http /api/put](#sending-opentsdb-data-via-http-apiput-requests)
+* `/api/v1/import` http POST handler, which accepts data from [/api/v1/export](#how-to-export-time-series).
 
 The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import`. Example for importing data obtained via `/api/v1/export`:
 
