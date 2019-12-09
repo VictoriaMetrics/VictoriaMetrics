@@ -73,6 +73,26 @@ func (ctx *InsertCtx) Reset() {
 	}
 }
 
+// AddLabelBytes adds (name, value) label to ctx.Labels.
+//
+// name and value must exist until ctx.Labels is used.
+func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
+	labels := ctx.Labels
+	if cap(labels) > len(labels) {
+		labels = labels[:len(labels)+1]
+	} else {
+		labels = append(labels, prompb.Label{})
+	}
+	label := &labels[len(labels)-1]
+
+	// Do not copy name and value contents for performance reasons.
+	// This reduces GC overhead on the number of objects and allocations.
+	label.Name = name
+	label.Value = value
+
+	ctx.Labels = labels
+}
+
 // AddLabel adds (name, value) label to ctx.Labels.
 //
 // name and value must exist until ctx.Labels is used.

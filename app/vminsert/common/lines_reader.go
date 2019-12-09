@@ -20,6 +20,17 @@ const defaultBlockSize = 64 * 1024
 //
 // Returns (dstBuf, tailBuf).
 func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error) {
+	return ReadLinesBlockExt(r, dstBuf, tailBuf, maxLineSize)
+}
+
+// ReadLinesBlockExt reads a block of lines delimited by '\n' from tailBuf and r into dstBuf.
+//
+// Trailing chars after the last newline are put into tailBuf.
+//
+// Returns (dstBuf, tailBuf).
+//
+// maxLineLen limits the maximum length of a single line.
+func ReadLinesBlockExt(r io.Reader, dstBuf, tailBuf []byte, maxLineLen int) ([]byte, []byte, error) {
 	if cap(dstBuf) < defaultBlockSize {
 		dstBuf = bytesutil.Resize(dstBuf, defaultBlockSize)
 	}
@@ -48,8 +59,8 @@ again:
 	nn := bytes.LastIndexByte(dstBuf[len(dstBuf)-n:], '\n')
 	if nn < 0 {
 		// Didn't found at least a single line.
-		if len(dstBuf) > maxLineSize {
-			return dstBuf, tailBuf, fmt.Errorf("too long line: more than %d bytes", maxLineSize)
+		if len(dstBuf) > maxLineLen {
+			return dstBuf, tailBuf, fmt.Errorf("too long line: more than %d bytes", maxLineLen)
 		}
 		if cap(dstBuf) < 2*len(dstBuf) {
 			// Increase dsbBuf capacity, so more data could be read into it.

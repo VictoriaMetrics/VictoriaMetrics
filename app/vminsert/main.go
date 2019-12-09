@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -120,6 +121,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "prometheus/api/v1/import":
+		vmimportRequests.Inc()
+		if err := vmimport.InsertHandler(at, r); err != nil {
+			vmimportErrors.Inc()
+			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "influx/write", "influx/api/v2/write":
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandler(at, r); err != nil {
@@ -144,6 +153,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 var (
 	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/prometheus/", protocol="prometheus"}`)
 	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/prometheus/", protocol="prometheus"}`)
+
+	vmimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/prometheus/api/v1/import", protocol="vm"}`)
+	vmimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/prometheus/api/v1/import", protocol="vm"}`)
 
 	influxWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/", protocol="influx"}`)
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/influx/", protocol="influx"}`)
