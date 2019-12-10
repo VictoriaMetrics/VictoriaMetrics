@@ -1290,6 +1290,22 @@ func (p *parser) parseIdentExpr() (expr, error) {
 	}
 }
 
+// IsRollup verifies whether s is a rollup with non-empty window.
+//
+// It returns the wrapped query with the corresponding window, step and offset.
+func IsRollup(s string) (childQuery string, window, step, offset string) {
+	expr, err := parsePromQLWithCache(s)
+	if err != nil {
+		return
+	}
+	re, ok := expr.(*rollupExpr)
+	if !ok || len(re.Window) == 0 {
+		return
+	}
+	wrappedQuery := re.Expr.AppendString(nil)
+	return string(wrappedQuery), re.Window, re.Step, re.Offset
+}
+
 // IsMetricSelectorWithRollup verifies whether s contains PromQL metric selector
 // wrapped into rollup.
 //

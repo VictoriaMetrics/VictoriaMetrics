@@ -560,26 +560,43 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		start = ct - queryOffset
 	}
 	if childQuery, windowStr, offsetStr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
-		var window int64
-		if len(windowStr) > 0 {
-			var err error
-			window, err = promql.PositiveDurationValue(windowStr, step)
-			if err != nil {
-				return err
-			}
+		window, err := parsePositiveDuration(windowStr, step)
+		if err != nil {
+			return fmt.Errorf("cannot parse window: %s", err)
 		}
-		var offset int64
-		if len(offsetStr) > 0 {
-			var err error
-			offset, err = promql.DurationValue(offsetStr, step)
-			if err != nil {
-				return err
-			}
+		offset, err := parseDuration(offsetStr, step)
+		if err != nil {
+			return fmt.Errorf("cannot parse offset: %s", err)
 		}
 		start -= offset
 		end := start
 		start = end - window
 		if err := exportHandler(at, w, []string{childQuery}, start, end, "promapi", deadline); err != nil {
+			return err
+		}
+		queryDuration.UpdateDuration(startTime)
+		return nil
+	}
+	if childQuery, windowStr, stepStr, offsetStr := promql.IsRollup(query); childQuery != "" {
+		newStep, err := parsePositiveDuration(stepStr, step)
+		if err != nil {
+			return fmt.Errorf("cannot parse step: %s", err)
+		}
+		if newStep > 0 {
+			step = newStep
+		}
+		window, err := parsePositiveDuration(windowStr, step)
+		if err != nil {
+			return fmt.Errorf("cannot parse window: %s", err)
+		}
+		offset, err := parseDuration(offsetStr, step)
+		if err != nil {
+			return fmt.Errorf("cannot parse offset: %s", err)
+		}
+		start -= offset
+		end := start
+		start = end - window
+		if err := queryRangeHandler(at, w, childQuery, start, end, step, r, ct); err != nil {
 			return err
 		}
 		queryDuration.UpdateDuration(startTime)
@@ -609,6 +626,20 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 
 var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/query"}`)
 
+func parseDuration(s string, step int64) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	return promql.DurationValue(s, step)
+}
+
+func parsePositiveDuration(s string, step int64) (int64, error) {
+	if len(s) == 0 {
+		return 0, nil
+	}
+	return promql.PositiveDurationValue(s, step)
+}
+
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
@@ -632,6 +663,14 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return err
 	}
+	if err := queryRangeHandler(at, w, query, start, end, step, r, ct); err != nil {
+		return err
+	}
+	queryRangeDuration.UpdateDuration(startTime)
+	return nil
+}
+
+func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64) error {
 	deadline := getDeadline(r)
 	mayCache := !getBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
@@ -679,7 +718,6 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 
 	w.Header().Set("Content-Type", "application/json")
 	WriteQueryRangeResponse(w, result)
-	queryRangeDuration.UpdateDuration(startTime)
 	return nil
 }
 
