@@ -13,7 +13,7 @@ import (
 type partSearch struct {
 	// Item contains the last item found after the call to NextItem.
 	//
-	// The Item content is valud intil the next call to NextItem.
+	// The Item content is valid until the next call to NextItem.
 	Item []byte
 
 	// p is a part to search.

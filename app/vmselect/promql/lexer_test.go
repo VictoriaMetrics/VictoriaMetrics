@@ -286,61 +286,116 @@ func testLexerError(t *testing.T, s string) {
 	}
 }
 
-func TestDurationSuccess(t *testing.T) {
+func TestPositiveDurationSuccess(t *testing.T) {
+	f := func(s string, step, expectedD int64) {
+		t.Helper()
+		d, err := PositiveDurationValue(s, step)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if d != expectedD {
+			t.Fatalf("unexpected duration; got %d; want %d", d, expectedD)
+		}
+	}
+
 	// Integer durations
-	testDurationSuccess(t, "123s", 42, 123*1000)
-	testDurationSuccess(t, "123m", 42, 123*60*1000)
-	testDurationSuccess(t, "1h", 42, 1*60*60*1000)
-	testDurationSuccess(t, "2d", 42, 2*24*60*60*1000)
-	testDurationSuccess(t, "3w", 42, 3*7*24*60*60*1000)
-	testDurationSuccess(t, "4y", 42, 4*365*24*60*60*1000)
-	testDurationSuccess(t, "1i", 42*1000, 42*1000)
-	testDurationSuccess(t, "3i", 42, 3*42)
+	f("123s", 42, 123*1000)
+	f("123m", 42, 123*60*1000)
+	f("1h", 42, 1*60*60*1000)
+	f("2d", 42, 2*24*60*60*1000)
+	f("3w", 42, 3*7*24*60*60*1000)
+	f("4y", 42, 4*365*24*60*60*1000)
+	f("1i", 42*1000, 42*1000)
+	f("3i", 42, 3*42)
 
 	// Float durations
-	testDurationSuccess(t, "0.234s", 42, 234)
-	testDurationSuccess(t, "1.5s", 42, 1.5*1000)
-	testDurationSuccess(t, "1.5m", 42, 1.5*60*1000)
-	testDurationSuccess(t, "1.2h", 42, 1.2*60*60*1000)
-	testDurationSuccess(t, "1.1d", 42, 1.1*24*60*60*1000)
-	testDurationSuccess(t, "1.1w", 42, 1.1*7*24*60*60*1000)
-	testDurationSuccess(t, "1.3y", 42, 1.3*365*24*60*60*1000)
-	testDurationSuccess(t, "0.1i", 12340, 0.1*12340)
+	f("0.234s", 42, 234)
+	f("1.5s", 42, 1.5*1000)
+	f("1.5m", 42, 1.5*60*1000)
+	f("1.2h", 42, 1.2*60*60*1000)
+	f("1.1d", 42, 1.1*24*60*60*1000)
+	f("1.1w", 42, 1.1*7*24*60*60*1000)
+	f("1.3y", 42, 1.3*365*24*60*60*1000)
+	f("0.1i", 12340, 0.1*12340)
 }
 
-func testDurationSuccess(t *testing.T, s string, step, expectedD int64) {
-	t.Helper()
-	d, err := DurationValue(s, step)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+func TestPositiveDurationError(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		if isPositiveDuration(s) {
+			t.Fatalf("unexpected valid duration %q", s)
+		}
+		d, err := PositiveDurationValue(s, 42)
+		if err == nil {
+			t.Fatalf("expecting non-nil error for duration %q", s)
+		}
+		if d != 0 {
+			t.Fatalf("expecting zero duration; got %d", d)
+		}
 	}
-	if d != expectedD {
-		t.Fatalf("unexpected duration; got %d; want %d", d, expectedD)
+	f("")
+	f("foo")
+	f("m")
+	f("12")
+	f("1.23")
+	f("1.23mm")
+	f("123q")
+	f("-123s")
+}
+
+func TestDurationSuccess(t *testing.T) {
+	f := func(s string, step, expectedD int64) {
+		t.Helper()
+		d, err := DurationValue(s, step)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if d != expectedD {
+			t.Fatalf("unexpected duration; got %d; want %d", d, expectedD)
+		}
 	}
+
+	// Integer durations
+	f("123s", 42, 123*1000)
+	f("-123s", 42, -123*1000)
+	f("123m", 42, 123*60*1000)
+	f("1h", 42, 1*60*60*1000)
+	f("2d", 42, 2*24*60*60*1000)
+	f("3w", 42, 3*7*24*60*60*1000)
+	f("4y", 42, 4*365*24*60*60*1000)
+	f("1i", 42*1000, 42*1000)
+	f("3i", 42, 3*42)
+	f("-3i", 42, -3*42)
+
+	// Float durations
+	f("0.234s", 42, 234)
+	f("-0.234s", 42, -234)
+	f("1.5s", 42, 1.5*1000)
+	f("1.5m", 42, 1.5*60*1000)
+	f("1.2h", 42, 1.2*60*60*1000)
+	f("1.1d", 42, 1.1*24*60*60*1000)
+	f("1.1w", 42, 1.1*7*24*60*60*1000)
+	f("1.3y", 42, 1.3*365*24*60*60*1000)
+	f("-1.3y", 42, -1.3*365*24*60*60*1000)
+	f("0.1i", 12340, 0.1*12340)
 }
 
 func TestDurationError(t *testing.T) {
-	testDurationError(t, "")
-	testDurationError(t, "foo")
-	testDurationError(t, "m")
-	testDurationError(t, "12")
-	testDurationError(t, "1.23")
-	testDurationError(t, "1.23mm")
-	testDurationError(t, "123q")
-}
-
-func testDurationError(t *testing.T, s string) {
-	t.Helper()
-
-	if isDuration(s) {
-		t.Fatalf("unexpected valud duration %q", s)
+	f := func(s string) {
+		t.Helper()
+		d, err := DurationValue(s, 42)
+		if err == nil {
+			t.Fatalf("expecting non-nil error for duration %q", s)
+		}
+		if d != 0 {
+			t.Fatalf("expecting zero duration; got %d", d)
+		}
 	}
-
-	d, err := DurationValue(s, 42)
-	if err == nil {
-		t.Fatalf("expecting non-nil error for duration %q", s)
-	}
-	if d != 0 {
-		t.Fatalf("expecting zero duration; got %d", d)
-	}
+	f("")
+	f("foo")
+	f("m")
+	f("12")
+	f("1.23")
+	f("1.23mm")
+	f("123q")
 }

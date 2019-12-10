@@ -105,7 +105,7 @@ again:
 		token = s[:n]
 		goto tokenFoundLabel
 	}
-	if n := scanDuration(s); n > 0 {
+	if n := scanDuration(s, false); n > 0 {
 		token = s[:n]
 		goto tokenFoundLabel
 	}
@@ -368,15 +368,30 @@ func isPositiveNumberPrefix(s string) bool {
 	return isDecimalChar(s[1])
 }
 
-func isDuration(s string) bool {
-	n := scanDuration(s)
+func isPositiveDuration(s string) bool {
+	n := scanDuration(s, false)
 	return n == len(s)
+}
+
+// PositiveDurationValue returns the duration in milliseconds for the given s
+// and the given step.
+func PositiveDurationValue(s string, step int64) (int64, error) {
+	d, err := DurationValue(s, step)
+	if err != nil {
+		return 0, err
+	}
+	if d < 0 {
+		return 0, fmt.Errorf("duration cannot be negative; got %q", s)
+	}
+	return d, nil
 }
 
 // DurationValue returns the duration in milliseconds for the given s
 // and the given step.
+//
+// The returned duration value can be negative.
 func DurationValue(s string, step int64) (int64, error) {
-	n := scanDuration(s)
+	n := scanDuration(s, true)
 	if n != len(s) {
 		return 0, fmt.Errorf("cannot parse duration %q", s)
 	}
@@ -408,8 +423,14 @@ func DurationValue(s string, step int64) (int64, error) {
 	return int64(mp * f * 1e3), nil
 }
 
-func scanDuration(s string) int {
+func scanDuration(s string, canBeNegative bool) int {
+	if len(s) == 0 {
+		return -1
+	}
 	i := 0
+	if s[0] == '-' && canBeNegative {
+		i++
+	}
 	for i < len(s) && isDecimalChar(s[i]) {
 		i++
 	}

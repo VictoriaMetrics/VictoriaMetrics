@@ -1173,7 +1173,7 @@ func (p *parser) parseWindowAndStep() (string, string, bool, error) {
 	}
 	var window string
 	if !strings.HasPrefix(p.lex.Token, ":") {
-		window, err = p.parseDuration()
+		window, err = p.parsePositiveDuration()
 		if err != nil {
 			return "", "", false, err
 		}
@@ -1192,7 +1192,7 @@ func (p *parser) parseWindowAndStep() (string, string, bool, error) {
 			}
 		}
 		if p.lex.Token != "]" {
-			step, err = p.parseDuration()
+			step, err = p.parsePositiveDuration()
 			if err != nil {
 				return "", "", false, err
 			}
@@ -1222,12 +1222,33 @@ func (p *parser) parseOffset() (string, error) {
 }
 
 func (p *parser) parseDuration() (string, error) {
-	if !isDuration(p.lex.Token) {
+	isNegative := false
+	if p.lex.Token == "-" {
+		isNegative = true
+		if err := p.lex.Next(); err != nil {
+			return "", err
+		}
+	}
+	if !isPositiveDuration(p.lex.Token) {
 		return "", fmt.Errorf(`duration: unexpected token %q; want "duration"`, p.lex.Token)
 	}
 	d := p.lex.Token
 	if err := p.lex.Next(); err != nil {
 		return "", err
+	}
+	if isNegative {
+		d = "-" + d
+	}
+	return d, nil
+}
+
+func (p *parser) parsePositiveDuration() (string, error) {
+	d, err := p.parseDuration()
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(d, "-") {
+		return "", fmt.Errorf("positiveDuration: expecting positive duration; got %q", d)
 	}
 	return d, nil
 }

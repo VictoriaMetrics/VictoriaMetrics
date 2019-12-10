@@ -563,7 +563,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		var window int64
 		if len(windowStr) > 0 {
 			var err error
-			window, err = promql.DurationValue(windowStr, step)
+			window, err = promql.PositiveDurationValue(windowStr, step)
 			if err != nil {
 				return err
 			}
