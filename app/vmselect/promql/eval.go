@@ -440,7 +440,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	var step int64
 	if len(re.Step) > 0 {
 		var err error
-		step, err = DurationValue(re.Step, ec.Step)
+		step, err = PositiveDurationValue(re.Step, ec.Step)
 		if err != nil {
 			return nil, err
 		}
@@ -450,7 +450,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	var window int64
 	if len(re.Window) > 0 {
 		var err error
-		window, err = DurationValue(re.Window, ec.Step)
+		window, err = PositiveDurationValue(re.Window, ec.Step)
 		if err != nil {
 			return nil, err
 		}
@@ -551,7 +551,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	var window int64
 	if len(windowStr) > 0 {
 		var err error
-		window, err = DurationValue(windowStr, ec.Step)
+		window, err = PositiveDurationValue(windowStr, ec.Step)
 		if err != nil {
 			return nil, err
 		}
