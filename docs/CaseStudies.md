@@ -18,6 +18,7 @@ Numbers:
 * The average time series churn rate is ~3M per day.
 * The average query rate is ~1K per minute (mostly alert queries).
 * Query duration: median is ~70ms, 99th percentile is ~2sec.
+* Retention: 6 months.
 
 > Alternatives that we’ve played with before choosing VictoriaMetrics are: federated Prometheus, Cortex, IronDB and Thanos.
 > Points that were critical to us when we were choosing a central tsdb, in order of importance:
@@ -45,3 +46,19 @@ Numbers:
 * Query duration: median is ~2ms, 99th percentile is ~50ms.
 
 > We like configuration simplicity and zero maintenance for VictoriaMetrics - once installed and forgot about it. It works out of the box without any issues.
+
+
+### Dreamteam
+
+[Dreamteam](https://dreamteam.gg/) successfully uses single-node VictoriaMetrics in multiple environments.
+
+Numbers:
+
+* Active time series: from 350K to 725K.
+* Total number of time series: from 100M to 320M.
+* Total number of datapoints: from 120 billions to 155 billions.
+* Retention: 3 months.
+
+VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
+2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
+as load balancer for reads.
