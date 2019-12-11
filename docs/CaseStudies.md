@@ -26,7 +26,7 @@ Numbers:
 * Raw data, no aggregation, no sampling.
 * High query speed.
 * Clean fail state for HA (multi-node clusters may return partial data resulting in false alerts).
-* Enough head room/scaling capacity for future growth, up to 100M metrics.
+* Enough head room/scaling capacity for future growth, up to 100M active time series.
 * Ability to split DB replicas per workload. Alert queries go to one replica, user queries go to another (speed for users, effective cache).
 
 > Optimizing for those points and our specific workload VictoriaMetrics proved to be the best option. As an icing on a cake we’ve got an extended PromQL - `default 0` and `histogram` are my favorite ones, for example. What we specially like is having a lot of tsdb params easily available via config options, that makes tsdb easy to tune for specific use case. Also worth noting is a great community in [Slack channel](http://slack.victoriametrics.com/) and of course maintainer support.
