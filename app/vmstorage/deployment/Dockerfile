@@ -1,6 +1,9 @@
+ARG certs_image
+FROM $certs_image AS certs
 FROM scratch
-COPY --from=local/certs:1.0.3 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY bin/vmstorage-prod .
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ARG src_binary
+COPY $src_binary ./vmstorage-prod
 EXPOSE 8482
 EXPOSE 8400
 EXPOSE 8401

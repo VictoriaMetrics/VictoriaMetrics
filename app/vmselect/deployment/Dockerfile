@@ -1,5 +1,8 @@
+ARG certs_image
+FROM $certs_image AS certs
 FROM scratch
-COPY --from=local/certs:1.0.3 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY bin/vmselect-prod .
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ARG src_binary
+COPY $src_binary ./vmselect-prod
 EXPOSE 8481
 ENTRYPOINT ["/vmselect-prod"]
