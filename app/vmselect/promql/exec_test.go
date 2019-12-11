@@ -2324,6 +2324,35 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantile(single-value-valid-le, boundsLabel)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(histogram_quantile(0.6, label_set(100, "le", "200"), "foobar"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foobar"),
+			Value: []byte("lower"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{120, 120, 120, 120, 120, 120},
+			Timestamps: timestampsExpected,
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foobar"),
+			Value: []byte("upper"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_quantile(single-value-valid-le-max-phi)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(1, (
@@ -2459,6 +2488,56 @@ func TestExecSuccess(t *testing.T) {
 			Value: []byte("bar"),
 		}}
 		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(normal-bucket-count, boundsLabel)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(histogram_quantile(0.2,
+			label_set(0, "foo", "bar", "le", "10")
+			or label_set(100, "foo", "bar", "le", "30")
+			or label_set(300, "foo", "bar", "le", "+Inf"),
+			"xxx"
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("lower"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{22, 22, 22, 22, 22, 22},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{30, 30, 30, 30, 30, 30},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("upper"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)
 	})
 	t.Run(`histogram_quantile(zero-bucket-count)`, func(t *testing.T) {

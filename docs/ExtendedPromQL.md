@@ -12,6 +12,7 @@ Try these extensions on [an editable Grafana dashboard](http://play-grafana.vict
 - `offset` may be put anywere in the query. For instance, `sum(foo) offset 24h`.
 - `offset` may be negative. For example, `q offset -1h`.
 - `default` binary operator. `q1 default q2` substitutes `NaN` values from `q1` with the corresponding values from `q2`.
+- `histogram_quantile` accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile. See [this issue for details](https://github.com/prometheus/prometheus/issues/5706).
 - `if` binary operator. `q1 if q2` removes values from `q1` for `NaN` values from `q2`.
 - `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for non-`NaN` values from `q2`.
 - Trailing commas on all the lists are allowed - label filters, function args and with expressions. For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`. This simplifies maintenance of multi-line queries.
