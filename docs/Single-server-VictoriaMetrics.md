@@ -1,11 +1,17 @@
-# Single-node
+## VictoriaMetrics
 
 VictoriaMetrics is fast, cost-effective and scalable time-series database. It can be used as long-term remote storage for Prometheus.
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
-in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
+in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+
+## Case studies
+
+* [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
+* [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
 
 
 ## Prominent features
@@ -58,6 +64,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   - [Querying Graphite data](#querying-graphite-data)
   - [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
+  - [Prometheus querying API usage](#prometheus-querying-api-usage)
   - [How to build from sources](#how-to-build-from-sources)
     - [Development build](#development-build)
     - [Production build](#production-build)
@@ -295,7 +302,7 @@ The `/api/v1/export` endpoint should return the following response:
 ### Querying Graphite data
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read either via
-[Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/)
+[Prometheus querying API](#prometheus-querying-api-usage)
 or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 
 
@@ -373,6 +380,19 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
 {"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
 ```
+
+
+### Prometheus querying API usage
+
+VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
+
+* [/api/v1/query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
+* [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
+* [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
+* [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
+* [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+
+These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 
 
 ### How to build from sources
