@@ -400,16 +400,26 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 
 func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
-	if err := expectTransformArgsNum(args, 2); err != nil {
-		return nil, err
+	if len(args) < 2 || len(args) > 3 {
+		return nil, fmt.Errorf("unexpected number of args; got %d; want 2...3", len(args))
 	}
 	phis, err := getScalar(args[0], 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot parse phi: %s", err)
 	}
 
 	// Convert buckets with `vmrange` labels to buckets with `le` labels.
 	tss := vmrangeBucketsToLE(args[1])
+
+	// Parse boundsLabel. See https://github.com/prometheus/prometheus/issues/5706 for details.
+	var boundsLabel string
+	if len(args) > 2 {
+		s, err := getString(args[2], 2)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse boundsLabel (arg #3): %s", err)
+		}
+		boundsLabel = s
+	}
 
 	// Group metrics by all tags excluding "le"
 	type x struct {
@@ -453,10 +463,10 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 		return nan
 	}
-	quantile := func(i int, phis []float64, xss []x) float64 {
+	quantile := func(i int, phis []float64, xss []x) (q, lower, upper float64) {
 		phi := phis[i]
 		if math.IsNaN(phi) {
-			return nan
+			return nan, nan, nan
 		}
 		// Fix broken buckets.
 		// They are already sorted by le, so their values must be in ascending order,
@@ -479,13 +489,13 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 			xss = xss[:len(xss)-1]
 		}
 		if vLast == 0 || math.IsNaN(vLast) {
-			return nan
+			return nan, nan, nan
 		}
 		if phi < 0 {
-			return -inf
+			return -inf, -inf, xss[0].ts.Values[i]
 		}
 		if phi > 1 {
-			return inf
+			return inf, vLast, inf
 		}
 		vReq := vLast * phi
 		vPrev = 0
@@ -509,14 +519,17 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			if math.IsInf(le, 0) {
-				return lastNonInf(i, xss)
+				vv := lastNonInf(i, xss)
+				return vv, vv, inf
 			}
 			if v == vPrev {
-				return lePrev
+				return lePrev, lePrev, v
 			}
-			return lePrev + (le-lePrev)*(vReq-vPrev)/(v-vPrev)
+			vv := lePrev + (le-lePrev)*(vReq-vPrev)/(v-vPrev)
+			return vv, lePrev, le
 		}
-		return lastNonInf(i, xss)
+		vv := lastNonInf(i, xss)
+		return vv, vv, inf
 	}
 	rvs := make([]*timeseries, 0, len(m))
 	for _, xss := range m {
@@ -524,10 +537,30 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 			return xss[i].le < xss[j].le
 		})
 		dst := xss[0].ts
+		var tsLower, tsUpper *timeseries
+		if len(boundsLabel) > 0 {
+			tsLower = &timeseries{}
+			tsLower.CopyFromShallowTimestamps(dst)
+			tsLower.MetricName.RemoveTag(boundsLabel)
+			tsLower.MetricName.AddTag(boundsLabel, "lower")
+			tsUpper = &timeseries{}
+			tsUpper.CopyFromShallowTimestamps(dst)
+			tsUpper.MetricName.RemoveTag(boundsLabel)
+			tsUpper.MetricName.AddTag(boundsLabel, "upper")
+		}
 		for i := range dst.Values {
-			dst.Values[i] = quantile(i, phis, xss)
+			v, lower, upper := quantile(i, phis, xss)
+			dst.Values[i] = v
+			if len(boundsLabel) > 0 {
+				tsLower.Values[i] = lower
+				tsUpper.Values[i] = upper
+			}
 		}
 		rvs = append(rvs, dst)
+		if len(boundsLabel) > 0 {
+			rvs = append(rvs, tsLower)
+			rvs = append(rvs, tsUpper)
+		}
 	}
 	return rvs, nil
 }
