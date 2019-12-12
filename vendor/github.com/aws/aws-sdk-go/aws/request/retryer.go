@@ -83,6 +83,7 @@ var retryableCodes = map[string]struct{}{
 
 var throttleCodes = map[string]struct{}{
 	"ProvisionedThroughputExceededException": {},
+	"ThrottledException":                     {}, // SNS, XRay, ResourceGroupsTagging API
 	"Throttling":                             {},
 	"ThrottlingException":                    {},
 	"RequestLimitExceeded":                   {},
