@@ -520,7 +520,8 @@ before actually deleting the metrics.
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
-for metrics to export. The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
+for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
+The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
 Each JSON line would contain data for a single time series. An example output:
 
 ```
