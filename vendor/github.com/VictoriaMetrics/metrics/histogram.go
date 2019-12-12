@@ -34,7 +34,7 @@ const (
 //     - <counter> - the number of hits to the given bucket during Update* calls
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
-// with `prometheus_buckets(<metric_name>_bucket)` function from Extended PromQL in VictoriaMetrics.
+// with `prometheus_buckets(<metric_name>_bucket)` function from PromQL extensions in VictoriaMetrics.
 // (see https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL ):
 //
 //     prometheus_buckets(request_duration_bucket)
