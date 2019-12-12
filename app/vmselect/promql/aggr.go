@@ -27,7 +27,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"topk":         newAggrFuncTopK(false),
 	"quantile":     aggrFuncQuantile,
 
-	// Extended PromQL funcs
+	// PromQL extension funcs
 	"median":         aggrFuncMedian,
 	"limitk":         aggrFuncLimitK,
 	"distinct":       newAggrFunc(aggrFuncDistinct),
