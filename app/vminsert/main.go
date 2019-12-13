@@ -19,11 +19,19 @@ import (
 )
 
 var (
-	graphiteListenAddr     = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
-	opentsdbListenAddr     = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB put messages. Usually :4242 must be set. Doesn't work if empty")
+	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
+	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB metrics. "+
+		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
+		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
 	maxInsertRequestSize   = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superflouos labels are dropped")
+)
+
+var (
+	graphiteServer     *graphite.Server
+	opentsdbServer     *opentsdb.Server
+	opentsdbhttpServer *opentsdbhttp.Server
 )
 
 // Init initializes vminsert.
@@ -32,26 +40,26 @@ func Init() {
 
 	concurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
-		go graphite.Serve(*graphiteListenAddr)
+		graphiteServer = graphite.MustStart(*graphiteListenAddr)
 	}
 	if len(*opentsdbListenAddr) > 0 {
-		go opentsdb.Serve(*opentsdbListenAddr)
+		opentsdbServer = opentsdb.MustStart(*opentsdbListenAddr, int64(*maxInsertRequestSize))
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
-		go opentsdbhttp.Serve(*opentsdbHTTPListenAddr, int64(*maxInsertRequestSize))
+		opentsdbhttpServer = opentsdbhttp.MustStart(*opentsdbHTTPListenAddr, int64(*maxInsertRequestSize))
 	}
 }
 
 // Stop stops vminsert.
 func Stop() {
 	if len(*graphiteListenAddr) > 0 {
-		graphite.Stop()
+		graphiteServer.MustStop()
 	}
 	if len(*opentsdbListenAddr) > 0 {
-		opentsdb.Stop()
+		opentsdbServer.MustStop()
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
-		opentsdbhttp.Stop()
+		opentsdbhttpServer.MustStop()
 	}
 }
 

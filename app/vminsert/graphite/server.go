@@ -21,36 +21,62 @@ var (
 	writeErrorsUDP   = metrics.NewCounter(`vm_graphite_request_errors_total{name="write", net="udp"}`)
 )
 
-// Serve starts graphite server on the given addr.
-func Serve(addr string) {
+// Server accepts Graphite plaintext lines over TCP and UDP.
+type Server struct {
+	addr  string
+	lnTCP net.Listener
+	lnUDP net.PacketConn
+	wg    sync.WaitGroup
+}
+
+// MustStart starts graphite server on the given addr.
+//
+// MustStop must be called on the returned server when it is no longer needed.
+func MustStart(addr string) *Server {
 	logger.Infof("starting TCP Graphite server at %q", addr)
 	lnTCP, err := netutil.NewTCPListener("graphite", addr)
 	if err != nil {
 		logger.Fatalf("cannot start TCP Graphite server at %q: %s", addr, err)
 	}
-	listenerTCP = lnTCP
 
 	logger.Infof("starting UDP Graphite server at %q", addr)
 	lnUDP, err := net.ListenPacket("udp4", addr)
 	if err != nil {
 		logger.Fatalf("cannot start UDP Graphite server at %q: %s", addr, err)
 	}
-	listenerUDP = lnUDP
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	s := &Server{
+		addr:  addr,
+		lnTCP: lnTCP,
+		lnUDP: lnUDP,
+	}
+	s.wg.Add(1)
 	go func() {
-		defer wg.Done()
-		serveTCP(listenerTCP)
+		defer s.wg.Done()
+		serveTCP(lnTCP)
 		logger.Infof("stopped TCP Graphite server at %q", addr)
 	}()
-	wg.Add(1)
+	s.wg.Add(1)
 	go func() {
-		defer wg.Done()
-		serveUDP(listenerUDP)
+		defer s.wg.Done()
+		serveUDP(lnUDP)
 		logger.Infof("stopped UDP Graphite server at %q", addr)
 	}()
-	wg.Wait()
+	return s
+}
+
+// MustStop stops the server.
+func (s *Server) MustStop() {
+	logger.Infof("stopping TCP Graphite server at %q...", s.addr)
+	if err := s.lnTCP.Close(); err != nil {
+		logger.Errorf("cannot close TCP Graphite server: %s", err)
+	}
+	logger.Infof("stopping UDP Graphite server at %q...", s.addr)
+	if err := s.lnUDP.Close(); err != nil {
+		logger.Errorf("cannot close UDP Graphite server: %s", err)
+	}
+	s.wg.Wait()
+	logger.Infof("TCP and UDP Graphite servers at %q have been stopped", s.addr)
 }
 
 func serveTCP(ln net.Listener) {
@@ -59,6 +85,7 @@ func serveTCP(ln net.Listener) {
 		if err != nil {
 			if ne, ok := err.(net.Error); ok {
 				if ne.Temporary() {
+					logger.Errorf("graphite: temporary error when listening for TCP addr %q: %s", ln.Addr(), err)
 					time.Sleep(time.Second)
 					continue
 				}
@@ -97,6 +124,7 @@ func serveUDP(ln net.PacketConn) {
 					writeErrorsUDP.Inc()
 					if ne, ok := err.(net.Error); ok {
 						if ne.Temporary() {
+							logger.Errorf("graphite: temporary error when listening for UDP addr %q: %s", ln.LocalAddr(), err)
 							time.Sleep(time.Second)
 							continue
 						}
@@ -118,21 +146,4 @@ func serveUDP(ln net.PacketConn) {
 		}()
 	}
 	wg.Wait()
-}
-
-var (
-	listenerTCP net.Listener
-	listenerUDP net.PacketConn
-)
-
-// Stop stops the server.
-func Stop() {
-	logger.Infof("stopping TCP Graphite server at %q...", listenerTCP.Addr())
-	if err := listenerTCP.Close(); err != nil {
-		logger.Errorf("cannot close TCP Graphite server: %s", err)
-	}
-	logger.Infof("stopping UDP Graphite server at %q...", listenerUDP.LocalAddr())
-	if err := listenerUDP.Close(); err != nil {
-		logger.Errorf("cannot close UDP Graphite server: %s", err)
-	}
 }
