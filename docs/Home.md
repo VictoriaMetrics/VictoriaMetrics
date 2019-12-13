@@ -8,4 +8,5 @@
 * [FAQ](FAQ)
 * [Cluster version](Cluster-VictoriaMetrics)
 * [Articles](Articles)
-
+* [vmbackup](vmbackup)
+* [vmrestore](vmrestore)
