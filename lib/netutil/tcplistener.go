@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -72,6 +73,8 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 		ln.accepts.Inc()
 		if err != nil {
 			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+				logger.Errorf("temporary error when listening for TCP addr %q: %s", ln.Addr(), err)
+				time.Sleep(time.Second)
 				continue
 			}
 			ln.acceptErrors.Inc()

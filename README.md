@@ -135,6 +135,7 @@ with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafan
   - `<suffix>` may have the following values:
      - `prometheus` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
      - `influx/write` or `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
+     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html).
      - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` on `vmselect` (see below).
 
 * URLs for querying: `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
