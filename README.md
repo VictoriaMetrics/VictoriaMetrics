@@ -405,6 +405,18 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 
+VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
+See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
+
+* Any number [time series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) via `match[]` query arg.
+* Optional `start` and `end` query args for limiting the time range for the selected labels or label values.
+
+Additionally VictoriaMetrics provides the following handlers:
+
+* `/api/v1/series/count` - it returns the total number of time series in the database. Note that this handler scans all the inverted index,
+  so it can be slow if the database contains tens of millions of time series.
+* `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
+
 
 ### How to build from sources
 

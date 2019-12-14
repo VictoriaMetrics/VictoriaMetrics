@@ -432,13 +432,10 @@ func GetLabelEntries(deadline Deadline) ([]storage.TagEntry, error) {
 	// Sort labelEntries by the number of label values in each entry.
 	sort.Slice(labelEntries, func(i, j int) bool {
 		a, b := labelEntries[i].Values, labelEntries[j].Values
-		if len(a) < len(b) {
-			return true
+		if len(a) != len(b) {
+			return len(a) > len(b)
 		}
-		if len(a) > len(b) {
-			return false
-		}
-		return labelEntries[i].Key < labelEntries[j].Key
+		return labelEntries[i].Key > labelEntries[j].Key
 	})
 
 	return labelEntries, nil
