@@ -18,7 +18,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ## Prominent features
 
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-  Additionally, VictoriaMetrics extends PromQL with opt-in [useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL).
+  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL) query language, which is inspired by PromQL.
 * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
 * High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
   and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
@@ -394,6 +394,18 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
+
+VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
+See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
+
+* Any number [time series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) via `match[]` query arg.
+* Optional `start` and `end` query args for limiting the time range for the selected labels or label values.
+
+Additionally VictoriaMetrics provides the following handlers:
+
+* `/api/v1/series/count` - it returns the total number of time series in the database. Note that this handler scans all the inverted index,
+  so it can be slow if the database contains tens of millions of time series.
+* `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
 
 
 ### How to build from sources
