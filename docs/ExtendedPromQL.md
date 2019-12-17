@@ -1,9 +1,24 @@
-# PromQL extensions
+# MetricsQL
 
-VictoriaMetrics supports [standard PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-including [subqueries](https://prometheus.io/blog/2019/01/28/subquery-support/).
-Additionally it supports useful extensions mentioned below.
-Try these extensions on [an editable Grafana dashboard](http://play-grafana.victoriametrics.com:3000/d/4ome8yJmz/node-exporter-on-victoriametrics-demo).
+VictoriaMetrics implements MetricsQL - query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+It is backwards compatible with PromQL, so Grafana dashboards backed by Prometheus datasource should work the same after switching from Prometheus to VictoriaMetrics.
+
+The following functionality is implemented differently in MetricsQL comparing to PromQL in order to improve user experience:
+* MetricsQL takes into account the previous point before the window in square brackets for range functions such as `rate` and `increase`.
+  It also doesn't extrapolate range function results. This addresses [this issue from Prometheus](https://github.com/prometheus/prometheus/issues/3746).
+* MetricsQL returns the expected non-empty responses for requests with `step` values smaller than scrape interval. This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451).
+* MetricsQL treats `scalar` type the same as `instant vector` without labels, since users usually don't feel the difference between these types.
+  See [the corresponding Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) for details.
+
+Other PromQL functionality should work the same in MetricsQL. [File an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
+if you notice discrepancies between PromQL and MetricsQL results other than mentioned above.
+
+MetricsQL provides additional functionality mentioned below, which is aimed towards solving practical cases.
+Feel free [filing a feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you think MetricsQL misses certain useful functionality.
+
+*Note that the functionality mentioned below doesn't work in PromQL, so it is impossible switching back to Prometheus after you start using it.*
+
+This functionality can be tried at [an editable Grafana dashboard](http://play-grafana.victoriametrics.com:3000/d/4ome8yJmz/node-exporter-on-victoriametrics-demo).
 
 - [`WITH` templates](https://play.victoriametrics.com/promql/expand-with-exprs). This feature simplifies writing and managing complex queries. Go to [`WITH` templates playground](https://victoriametrics.com/promql/expand-with-exprs) and try it.
 - Metric names and metric labels may contain escaped chars. For instance, `foo\-bar{baz\=aa="b"}` is valid expression. It returns time series with name `foo-bar` containing label `baz=aa` with value `b`. Additionally, `\xXX` escape sequence is supported, where `XX` is hexadecimal representation of escaped char.
