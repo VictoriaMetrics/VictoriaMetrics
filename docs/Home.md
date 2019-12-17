@@ -8,6 +8,6 @@
 * [FAQ](FAQ)
 * [Cluster version](Cluster-VictoriaMetrics)
 * [Articles](Articles)
-* [CaseStudies](Case studies)
+* [Case Studies](CaseStudies)
 * [vmbackup](vmbackup)
 * [vmrestore](vmrestore)
