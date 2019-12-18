@@ -142,16 +142,16 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		}
 		w.WriteHeader(status)
 		return
-	case "/metrics":
-		startTime := time.Now()
-		metricsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain")
-		writePrometheusMetrics(w)
-		metricsHandlerDuration.UpdateDuration(startTime)
-		return
 	case "/favicon.ico":
 		faviconRequests.Inc()
 		w.WriteHeader(http.StatusNoContent)
+		return
+	case "/metrics":
+		metricsRequests.Inc()
+		startTime := time.Now()
+		w.Header().Set("Content-Type", "text/plain")
+		writePrometheusMetrics(w)
+		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
