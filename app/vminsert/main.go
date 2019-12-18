@@ -83,6 +83,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
