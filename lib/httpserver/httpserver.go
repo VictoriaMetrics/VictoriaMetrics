@@ -203,6 +203,9 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 
 func checkAuth(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+	if path == "/health" {
+		return true
+	}
 	if path == "/metrics" && len(*metricsAuthKey) > 0 {
 		authKey := r.FormValue("authKey")
 		if *metricsAuthKey == authKey {
