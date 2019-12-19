@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	logger.Infof("starting VictoraMetrics at %q...", *httpListenAddr)
+	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
 	vmstorage.Init()
 	vmselect.Init()
