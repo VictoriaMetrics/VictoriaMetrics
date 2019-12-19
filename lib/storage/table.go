@@ -220,7 +220,7 @@ func (tb *table) flushRawRows() {
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
-		ptw.pt.flushRawRows(nil, true)
+		ptw.pt.flushRawRows(true)
 	}
 }
 
