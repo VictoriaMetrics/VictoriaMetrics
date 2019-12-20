@@ -25,9 +25,10 @@ import (
 var (
 	latencyOffset = flag.Duration("search.latencyOffset", time.Second*30, "The time when data points become visible in query results after the colection. "+
 		"Too small value can result in incomplete last points for query results")
-	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum time for search query execution")
-	maxQueryLen      = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
-	maxLookback      = flag.Duration("search.maxLookback", 0, "Synonim to `-search.lookback-delta` from Prometheus. "+
+	maxExportDuration = flag.Duration("search.maxExportDuration", 10*time.Minute, "The maximum duration for `/api/v1/export` call")
+	maxQueryDuration  = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for search query execution")
+	maxQueryLen       = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+	maxLookback       = flag.Duration("search.maxLookback", 0, "Synonim to `-search.lookback-delta` from Prometheus. "+
 		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via `max_lookback` arg")
 	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses when some of vmstorage nodes are unavailable. This trades consistency over availability")
 	selectNodes         = flagutil.NewArray("selectNode", "Addresses of vmselect nodes; usage: -selectNode=vmselect-host1:8481 -selectNode=vmselect-host2:8481")
@@ -62,7 +63,7 @@ func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		return err
 	}
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 	if start >= end {
 		start = end - defaultStep
 	}
@@ -138,7 +139,7 @@ func ExportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 	format := r.FormValue("format")
-	deadline := getDeadline(r)
+	deadline := getDeadlineForExport(r)
 	if start >= end {
 		end = start + defaultStep
 	}
@@ -225,7 +226,7 @@ func DeleteHandler(at *auth.Token, r *http.Request) error {
 	if len(matches) == 0 {
 		return fmt.Errorf("missing `match[]` arg")
 	}
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return err
@@ -288,7 +289,7 @@ var httpClient = &http.Client{
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
 func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %s", err)
@@ -392,7 +393,7 @@ var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // LabelsCountHandler processes /api/v1/labels/count request.
 func LabelsCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 	labelEntries, isPartial, err := netstorage.GetLabelEntries(at, deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %s`, err)
@@ -414,7 +415,7 @@ var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
 func LabelsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %s", err)
@@ -510,7 +511,7 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // SeriesCountHandler processes /api/v1/series/count request.
 func SeriesCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	startTime := time.Now()
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 	n, isPartial, err := netstorage.GetSeriesCount(at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %s", err)
@@ -554,7 +555,7 @@ func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
@@ -628,7 +629,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 	if err != nil {
 		return err
 	}
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
@@ -754,7 +755,7 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 }
 
 func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64) error {
-	deadline := getDeadline(r)
+	deadline := getDeadlineForQuery(r)
 	mayCache := !getBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
@@ -949,12 +950,21 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	return getDuration(r, "max_lookback", d)
 }
 
-func getDeadline(r *http.Request) netstorage.Deadline {
+func getDeadlineForQuery(r *http.Request) netstorage.Deadline {
+	dMax := int64(maxQueryDuration.Seconds() * 1e3)
+	return getDeadlineWithMaxDuration(r, dMax)
+}
+
+func getDeadlineForExport(r *http.Request) netstorage.Deadline {
+	dMax := int64(maxExportDuration.Seconds() * 1e3)
+	return getDeadlineWithMaxDuration(r, dMax)
+}
+
+func getDeadlineWithMaxDuration(r *http.Request, dMax int64) netstorage.Deadline {
 	d, err := getDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
 	}
-	dMax := int64(maxQueryDuration.Seconds() * 1e3)
 	if d <= 0 || d > dMax {
 		d = dMax
 	}
