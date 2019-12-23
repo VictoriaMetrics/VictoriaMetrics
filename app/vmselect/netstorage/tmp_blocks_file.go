@@ -128,7 +128,7 @@ func (tbf *tmpBlocksFile) Finalize() error {
 	// Hint the OS that the file is read almost sequentiallly.
 	// This should reduce the number of disk seeks, which is important
 	// for HDDs.
-	mustFadviseSequentialRead(tbf.f)
+	fs.MustFadviseSequentialRead(tbf.f, true)
 	return nil
 }
 
