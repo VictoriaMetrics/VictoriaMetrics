@@ -32,7 +32,7 @@ func (r *Reader) Read(p []byte) (int, error) {
 
 // Release releases r.
 func (r *Reader) Release() {
-	r.d.Reset(nil)
+	r.d.Close(nil)
 	r.d = nil
 }
 
