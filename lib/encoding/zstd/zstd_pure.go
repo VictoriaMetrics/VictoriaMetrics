@@ -53,14 +53,16 @@ func getEncoder(compressionLevel int) *zstd.Encoder {
 	mu.Lock()
 	// Create the encoder under lock in order to prevent from wasted work
 	// when concurrent goroutines create encoder for the same compressionLevel.
-	e = newEncoder(compressionLevel)
 	r1 := av.Load().(registry)
-	r2 := make(registry)
-	for k, v := range r1 {
-		r2[k] = v
+	if e = r1[compressionLevel]; e == nil {
+		e = newEncoder(compressionLevel)
+		r2 := make(registry)
+		for k, v := range r1 {
+			r2[k] = v
+		}
+		r2[compressionLevel] = e
+		av.Store(r2)
 	}
-	r2[compressionLevel] = e
-	av.Store(r2)
 	mu.Unlock()
 
 	return e
