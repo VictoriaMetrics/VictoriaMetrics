@@ -126,14 +126,13 @@ It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
 ### Prometheus setup
 
-Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`):
+Prometheus must be configured with [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) 
+in order to send data to VictoriaMetrics. Add the following lines 
+to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`):
 
 ```yml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
-    queue_config:
-      max_samples_per_send: 10000
-      max_shards: 30
 ```
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
@@ -160,6 +159,22 @@ This instructs Prometheus to add `datacenter=dc-123` label to each time series s
 The label name may be arbitrary - `datacenter` is just an example. The label value must be unique
 across Prometheus instances, so those time series may be filtered and grouped by this label.
 
+For highly loaded Prometheus instances (400k+ samples per second)
+the following tuning may be applied:
+```
+remote_write:
+  - url: http://<victoriametrics-addr>:8428/api/v1/write
+    queue_config:
+      max_samples_per_send: 10000
+      capacity: 20000
+      max_shards: 30
+```
+
+Using remote write increases memory usage for Prometheus up to ~25%
+and depends on the shape of data. If you are experiencing issues with
+too high memory consumption try to lower `max_samples_per_send` 
+and `capacity` params (keep in mind that these two params are tightly connected).
+Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer,
 since the previous versions may have issues with `remote_write`.
