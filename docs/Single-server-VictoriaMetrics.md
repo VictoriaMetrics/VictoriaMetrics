@@ -534,6 +534,15 @@ Each JSON line would contain data for a single time series. An example output:
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 
+Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
+of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
+
+```
+curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
+```
+
+The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
+
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-time-series-data).
 
 
@@ -552,10 +561,20 @@ The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/
 
 ```
 # Export the data from <source-victoriametrics>:
-curl -s 'http://source-victoriametrics:8428/api/v1/export' -d 'match={__name__!=""}' > exported_data.jsonl
+curl http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl
 
 # Import the data to <destination-victoriametrics>:
-curl -X POST 'http://destination-victoriametrics:8428/api/v1/import' -T exported_data.jsonl
+curl -X POST http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl
+```
+
+Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import` for importing gzipped data:
+
+```
+# Export gzipped data from <source-victoriametrics>:
+curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl.gz
+
+# Import gzipped data to <destination-victoriametrics>:
+curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl.gz
 ```
 
 Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
