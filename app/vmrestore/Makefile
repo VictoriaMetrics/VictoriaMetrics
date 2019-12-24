@@ -9,7 +9,10 @@ vmrestore-prod:
 vmrestore-pure-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-pure
 
-vmrestore--arm-prod:
+vmrestore-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-amd64
+
+vmrestore-arm-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-arm
 
 vmrestore-arm64-prod:
@@ -26,6 +29,9 @@ package-vmrestore:
 
 package-vmrestore-pure:
 	APP_NAME=vmrestore $(MAKE) package-via-docker-pure
+
+package-vmrestore-amd64:
+	APP_NAME=vmrestore $(MAKE) package-via-docker-amd64
 
 package-vmrestore-arm:
 	APP_NAME=vmrestore $(MAKE) package-via-docker-arm
@@ -44,6 +50,9 @@ publish-vmrestore:
 
 vmrestore-pure:
 	APP_NAME=vmrestore $(MAKE) app-local-pure
+
+vmrestore-amd64:
+	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-amd64 ./app/vmrestore
 
 vmrestore-arm:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-arm ./app/vmrestore
