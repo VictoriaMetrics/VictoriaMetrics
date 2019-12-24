@@ -116,13 +116,11 @@ type rollupFuncArg struct {
 	currTimestamp int64
 	idx           int
 	step          int64
+	window        int64
 
 	// Real previous value even if it is located too far from the current window.
 	// It matches prevValue if prevValue is not nan.
 	realPrevValue float64
-
-	// Global scrape interval across all the data points in [Start...End] time range.
-	scrapeInterval int64
 }
 
 func (rfa *rollupFuncArg) reset() {
@@ -133,8 +131,8 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.currTimestamp = 0
 	rfa.idx = 0
 	rfa.step = 0
+	rfa.window = 0
 	rfa.realPrevValue = nan
-	rfa.scrapeInterval = 0
 }
 
 // rollupFunc must return rollup value for the given rfa.
@@ -214,8 +212,8 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 	rfa := getRollupFuncArg()
 	rfa.idx = 0
 	rfa.step = rc.Step
+	rfa.window = window
 	rfa.realPrevValue = nan
-	rfa.scrapeInterval = scrapeInterval
 
 	i := 0
 	j := 0
@@ -729,16 +727,13 @@ func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 		if len(values) == 0 {
 			return nan
 		}
-		if len(values) == 1 {
-			if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
-				// Fix against removeCounterResets.
-				return values[0] - rfa.realPrevValue
-			}
-			// Assume that the previous non-existing value was 0.
-			return values[0]
+		// Assume that the previous non-existing value was 0.
+		if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
+			// Fix against removeCounterResets.
+			prevValue = rfa.realPrevValue
+		} else {
+			prevValue = 0
 		}
-		prevValue = values[0]
-		values = values[1:]
 	}
 	if len(values) == 0 {
 		// Assume that the value didn't change on the given interval.
@@ -797,19 +792,14 @@ func rollupDerivFastInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float
 		if len(values) == 0 {
 			return nan
 		}
-		if len(values) == 1 {
-			// Assume that the value changed from 0 to the current value during rfa.scrapeInterval.
-			delta := values[0]
-			if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
-				// Fix against removeCounterResets.
-				delta -= rfa.realPrevValue
-			}
-			return float64(delta) / float64(rfa.scrapeInterval)
+		// Assume that the value changed from 0 to the current value during rfa.window
+		if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
+			// Fix against removeCounterResets.
+			prevValue = rfa.realPrevValue
+		} else {
+			prevValue = 0
 		}
-		prevValue = values[0]
-		prevTimestamp = timestamps[0]
-		values = values[1:]
-		timestamps = timestamps[1:]
+		prevTimestamp = timestamps[0] - rfa.window
 	}
 	if len(values) == 0 {
 		// Assume that the value didn't change on the given interval.
