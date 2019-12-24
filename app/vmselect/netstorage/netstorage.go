@@ -1305,8 +1305,8 @@ func writeBool(bc *handshake.BufferedConn, b bool) error {
 
 func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, error) {
 	buf = bytesutil.Resize(buf, 8)
-	if _, err := io.ReadFull(bc, buf); err != nil {
-		return buf, fmt.Errorf("error read data size: %s", err)
+	if n, err := io.ReadFull(bc, buf); err != nil {
+		return buf, fmt.Errorf("cannot read %d bytes with data size: %s; read only %d bytes", len(buf), err, n)
 	}
 	dataSize := encoding.UnmarshalUint64(buf)
 	if dataSize > uint64(maxDataSize) {
