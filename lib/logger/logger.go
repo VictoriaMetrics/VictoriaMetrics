@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -29,7 +30,6 @@ func Init() {
 	validateLoggerLevel()
 	validateLoggerFormat()
 	go errorsLoggedCleaner()
-	go logMessageWriter()
 	logAllFlags()
 }
 
@@ -137,13 +137,10 @@ func logMessage(level, msg string, skipframes int) {
 		logMsg = fmt.Sprintf("%s\t%s\t%s:%d\t%s\n", timestamp, levelLowercase, file, line, msg)
 	}
 
-	select {
-	case logMessageCh <- logMsg:
-	default:
-		// Writing to log can stuck if the log output isn't consumed in timely manner.
-		// Handle this case via `vm_log_messages_dropped_total`
-		logMessagesDropped.Inc()
-	}
+	// Serialize writes to log.
+	mu.Lock()
+	fmt.Fprint(os.Stderr, logMsg)
+	mu.Unlock()
 
 	// Increment vm_log_messages_total
 	location := fmt.Sprintf("%s:%d", file, line)
@@ -158,15 +155,7 @@ func logMessage(level, msg string, skipframes int) {
 	}
 }
 
-var logMessagesDropped = metrics.NewCounter(`vm_log_messages_dropped_total`)
-
-func logMessageWriter() {
-	for msg := range logMessageCh {
-		fmt.Fprint(os.Stderr, msg)
-	}
-}
-
-var logMessageCh = make(chan string, 100)
+var mu sync.Mutex
 
 func shouldSkipLog(level string) bool {
 	switch *loggerLevel {
