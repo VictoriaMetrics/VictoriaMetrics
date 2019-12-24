@@ -772,6 +772,20 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
+	t.Run("deriv_fast", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupDerivFast,
+			Start:  0,
+			End:    20,
+			Step:   4,
+			Window: 0,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, nan, 10.25, 0, -8900, 0}
+		timestampsExpected := []int64{0, 4, 8, 12, 16, 20}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
 	t.Run("ideriv", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:   rollupIderiv,
