@@ -1,4 +1,4 @@
-// +buid linux freebsd
+// +build linux freebsd
 
 package fs
 
