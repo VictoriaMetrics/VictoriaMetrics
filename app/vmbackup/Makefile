@@ -9,7 +9,10 @@ vmbackup-prod:
 vmbackup-pure-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-pure
 
-vmbackup--arm-prod:
+vmbackup-amd64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-amd64
+
+vmbackup-arm-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-arm
 
 vmbackup-arm64-prod:
@@ -26,6 +29,9 @@ package-vmbackup:
 
 package-vmbackup-pure:
 	APP_NAME=vmbackup $(MAKE) package-via-docker-pure
+
+package-vmbackup-amd64:
+	APP_NAME=vmbackup $(MAKE) package-via-docker-amd64
 
 package-vmbackup-arm:
 	APP_NAME=vmbackup $(MAKE) package-via-docker-arm
@@ -44,6 +50,9 @@ publish-vmbackup:
 
 vmbackup-pure:
 	APP_NAME=vmbackup $(MAKE) app-local-pure
+
+vmbackup-amd64:
+	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-amd64 ./app/vmbackup
 
 vmbackup-arm:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-arm ./app/vmbackup

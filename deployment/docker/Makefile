@@ -84,49 +84,61 @@ run-via-docker: package-via-docker
 
 app-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
-	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=linux --env GOARCH=$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
 	$(MAKE) app-via-docker
+
+app-via-docker-goarch-cgo:
+	CGO_ENABLED=1 $(MAKE) app-via-docker-goarch
+
+app-via-docker-goarch-nocgo:
+	CGO_ENABLED=0 $(MAKE) app-via-docker-goarch
 
 app-via-docker-pure:
 	APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) app-via-docker
 
 app-via-docker-amd64:
-	GOARCH=amd64 $(MAKE) app-via-docker-goarch
+	GOARCH=amd64 $(MAKE) app-via-docker-goarch-cgo
 
 app-via-docker-arm:
-	GOARCH=arm $(MAKE) app-via-docker-goarch
+	GOARCH=arm $(MAKE) app-via-docker-goarch-nocgo
 
 app-via-docker-arm64:
-	GOARCH=arm64 $(MAKE) app-via-docker-goarch
+	GOARCH=arm64 $(MAKE) app-via-docker-goarch-nocgo
 
 app-via-docker-ppc64le:
-	GOARCH=ppc64le $(MAKE) app-via-docker-goarch
+	GOARCH=ppc64le $(MAKE) app-via-docker-goarch-nocgo
 
 app-via-docker-386:
-	GOARCH=386 $(MAKE) app-via-docker-goarch
+	GOARCH=386 $(MAKE) app-via-docker-goarch-nocgo
 
 package-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \
-	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=linux --env GOARCH=$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
 	$(MAKE) package-via-docker
+
+package-via-docker-goarch-cgo:
+	CGO_ENABLED=1 $(MAKE) package-via-docker-goarch
+
+package-via-docker-goarch-nocgo:
+	CGO_ENABLED=0 $(MAKE) package-via-docker-goarch
 
 package-via-docker-pure:
 	APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) package-via-docker
 
 package-via-docker-amd64:
-	GOARCH=amd64 $(MAKE) package-via-docker-goarch
+	GOARCH=amd64 $(MAKE) package-via-docker-goarch-cgo
 
 package-via-docker-arm:
-	GOARCH=arm $(MAKE) package-via-docker-goarch
+	GOARCH=arm $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-arm64:
-	GOARCH=arm64 $(MAKE) package-via-docker-goarch
+	GOARCH=arm64 $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-ppc64le:
-	GOARCH=ppc64le $(MAKE) package-via-docker-goarch
+	GOARCH=ppc64le $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-386:
-	GOARCH=386 $(MAKE) package-via-docker-goarch
+	GOARCH=386 $(MAKE) package-via-docker-goarch-nocgo
 
 remove-docker-images:
 	docker image ls --format '{{.Repository}}\t{{.ID}}' | grep $(DOCKER_NAMESPACE)/ | grep -v /builder | awk '{print $$2}' | xargs docker image rm -f

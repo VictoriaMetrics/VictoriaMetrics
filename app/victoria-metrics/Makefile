@@ -9,6 +9,9 @@ victoria-metrics-prod:
 victoria-metrics-pure-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-pure
 
+victoria-metrics-amd64-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-amd64
+
 victoria-metrics-arm-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-arm
 
@@ -26,6 +29,9 @@ package-victoria-metrics:
 
 package-victoria-metrics-pure:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker-pure
+
+package-victoria-metrics-amd64:
+	APP_NAME=victoria-metrics $(MAKE) package-via-docker-amd64
 
 package-victoria-metrics-arm:
 	APP_NAME=victoria-metrics $(MAKE) package-via-docker-arm
@@ -48,6 +54,9 @@ run-victoria-metrics:
 	APP_NAME=victoria-metrics \
 	ARGS='-graphiteListenAddr=:2003 -opentsdbListenAddr=:4242 -retentionPeriod=12 -search.maxUniqueTimeseries=1000000 -search.maxQueryDuration=10m' \
 	$(MAKE) run-via-docker
+
+victoria-metrics-amd64:
+	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-amd64 ./app/victoria-metrics
 
 victoria-metrics-arm:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/victoria-metrics-arm ./app/victoria-metrics
