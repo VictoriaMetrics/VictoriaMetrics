@@ -57,6 +57,14 @@ func AdjustStartEnd(start, end, step int64) (int64, int64) {
 	if adjust > 0 {
 		end += step - adjust
 	}
+
+	// Make sure that the new number of points is the same as the initial number of points.
+	newPoints := (end-start)/step + 1
+	for newPoints > points {
+		end -= step
+		newPoints--
+	}
+
 	return start, end
 }
 
@@ -406,7 +414,12 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *rollupExpr, 
 		ecNew = newEvalConfig(ec)
 		ecNew.Start -= offset
 		ecNew.End -= offset
-		ecNew.Start, ecNew.End = AdjustStartEnd(ecNew.Start, ecNew.End, ecNew.Step)
+		if ecNew.MayCache {
+			start, end := AdjustStartEnd(ecNew.Start, ecNew.End, ecNew.Step)
+			offset += ecNew.Start - start
+			ecNew.Start = start
+			ecNew.End = end
+		}
 	}
 	var rvs []*timeseries
 	var err error
