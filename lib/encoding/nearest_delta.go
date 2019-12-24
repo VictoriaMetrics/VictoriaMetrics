@@ -60,10 +60,10 @@ func unmarshalInt64NearestDelta(dst []int64, src []byte, firstValue int64, items
 
 	tail, err := UnmarshalVarInt64s(is.A, src)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal nearest delta: %s", err)
+		return nil, fmt.Errorf("cannot unmarshal nearest delta from %d bytes: %s", len(src), err)
 	}
 	if len(tail) > 0 {
-		return nil, fmt.Errorf("unexpected tail left after unmarshaling %d items; tail size=%d, value=%X", itemsCount, len(tail), tail)
+		return nil, fmt.Errorf("unexpected tail left after unmarshaling %d items from %d bytes; tail size=%d, value=%X", itemsCount, len(src), len(tail), tail)
 	}
 
 	v := firstValue
