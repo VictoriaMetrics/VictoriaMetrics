@@ -1,4 +1,4 @@
-package promql
+package metricsql
 
 import (
 	"regexp"
@@ -8,12 +8,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func compileRegexpAnchored(re string) (*regexp.Regexp, error) {
+// CompileRegexpAnchored returns compiled regexp `^re$`.
+func CompileRegexpAnchored(re string) (*regexp.Regexp, error) {
 	reAnchored := "^(?:" + re + ")$"
-	return compileRegexp(reAnchored)
+	return CompileRegexp(reAnchored)
 }
 
-func compileRegexp(re string) (*regexp.Regexp, error) {
+// CompileRegexp returns compile regexp re.
+func CompileRegexp(re string) (*regexp.Regexp, error) {
 	rcv := regexpCacheV.Get(re)
 	if rcv != nil {
 		return rcv.r, rcv.err

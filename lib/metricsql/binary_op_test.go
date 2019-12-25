@@ -1,4 +1,4 @@
-package promql
+package metricsql
 
 import (
 	"testing"

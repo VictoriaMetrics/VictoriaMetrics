@@ -1,4 +1,4 @@
-package promql
+package metricsql
 
 import (
 	"strings"
@@ -18,7 +18,7 @@ var aggrFuncs = map[string]bool{
 	"topk":         true,
 	"quantile":     true,
 
-	// Extended PromQL funcs
+	// MetricsQL extension funcs
 	"median":         true,
 	"limitk":         true,
 	"distinct":       true,

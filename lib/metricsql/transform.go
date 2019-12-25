@@ -1,4 +1,4 @@
-package promql
+package metricsql
 
 import (
 	"strings"
@@ -36,7 +36,7 @@ var transformFuncs = map[string]bool{
 	"vector":             true,
 	"year":               true,
 
-	// New funcs
+	// New funcs from MetricsQL
 	"label_set":          true,
 	"label_del":          true,
 	"label_keep":         true,
@@ -45,7 +45,7 @@ var transformFuncs = map[string]bool{
 	"label_transform":    true,
 	"label_value":        true,
 	"union":              true,
-	"":                   true,
+	"":                   true, // empty func is a synonim to union
 	"keep_last_value":    true,
 	"start":              true,
 	"end":                true,

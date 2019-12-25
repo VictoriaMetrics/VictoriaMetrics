@@ -6,25 +6,26 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql/binaryop"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var binaryOpFuncs = map[string]binaryOpFunc{
-	"+": newBinaryOpArithFunc(binaryOpPlus),
-	"-": newBinaryOpArithFunc(binaryOpMinus),
-	"*": newBinaryOpArithFunc(binaryOpMul),
-	"/": newBinaryOpArithFunc(binaryOpDiv),
-	"%": newBinaryOpArithFunc(binaryOpMod),
-	"^": newBinaryOpArithFunc(binaryOpPow),
+	"+": newBinaryOpArithFunc(binaryop.Plus),
+	"-": newBinaryOpArithFunc(binaryop.Minus),
+	"*": newBinaryOpArithFunc(binaryop.Mul),
+	"/": newBinaryOpArithFunc(binaryop.Div),
+	"%": newBinaryOpArithFunc(binaryop.Mod),
+	"^": newBinaryOpArithFunc(binaryop.Pow),
 
 	// cmp ops
-	"==": newBinaryOpCmpFunc(binaryOpEq),
-	"!=": newBinaryOpCmpFunc(binaryOpNeq),
-	">":  newBinaryOpCmpFunc(binaryOpGt),
-	"<":  newBinaryOpCmpFunc(binaryOpLt),
-	">=": newBinaryOpCmpFunc(binaryOpGte),
-	"<=": newBinaryOpCmpFunc(binaryOpLte),
+	"==": newBinaryOpCmpFunc(binaryop.Eq),
+	"!=": newBinaryOpCmpFunc(binaryop.Neq),
+	">":  newBinaryOpCmpFunc(binaryop.Gt),
+	"<":  newBinaryOpCmpFunc(binaryop.Lt),
+	">=": newBinaryOpCmpFunc(binaryop.Gte),
+	"<=": newBinaryOpCmpFunc(binaryop.Lte),
 
 	// logical set ops
 	"and":    binaryOpAnd,
@@ -32,9 +33,9 @@ var binaryOpFuncs = map[string]binaryOpFunc{
 	"unless": binaryOpUnless,
 
 	// New op
-	"if":      newBinaryOpArithFunc(binaryOpIf),
-	"ifnot":   newBinaryOpArithFunc(binaryOpIfnot),
-	"default": newBinaryOpArithFunc(binaryOpDefault),
+	"if":      newBinaryOpArithFunc(binaryop.If),
+	"ifnot":   newBinaryOpArithFunc(binaryop.Ifnot),
+	"default": newBinaryOpArithFunc(binaryop.Default),
 }
 
 func getBinaryOpFunc(op string) binaryOpFunc {
@@ -42,80 +43,8 @@ func getBinaryOpFunc(op string) binaryOpFunc {
 	return binaryOpFuncs[op]
 }
 
-func isBinaryOpCmp(op string) bool {
-	switch op {
-	case "==", "!=", ">", "<", ">=", "<=":
-		return true
-	default:
-		return false
-	}
-}
-
-func binaryOpConstants(op string, left, right float64, isBool bool) float64 {
-	if isBinaryOpCmp(op) {
-		evalCmp := func(cf func(left, right float64) bool) float64 {
-			if isBool {
-				if cf(left, right) {
-					return 1
-				}
-				return 0
-			}
-			if cf(left, right) {
-				return left
-			}
-			return nan
-		}
-		switch op {
-		case "==":
-			left = evalCmp(binaryOpEq)
-		case "!=":
-			left = evalCmp(binaryOpNeq)
-		case ">":
-			left = evalCmp(binaryOpGt)
-		case "<":
-			left = evalCmp(binaryOpLt)
-		case ">=":
-			left = evalCmp(binaryOpGte)
-		case "<=":
-			left = evalCmp(binaryOpLte)
-		default:
-			logger.Panicf("BUG: unexpected comparison binaryOp: %q", op)
-		}
-	} else {
-		switch op {
-		case "+":
-			left = binaryOpPlus(left, right)
-		case "-":
-			left = binaryOpMinus(left, right)
-		case "*":
-			left = binaryOpMul(left, right)
-		case "/":
-			left = binaryOpDiv(left, right)
-		case "%":
-			left = binaryOpMod(left, right)
-		case "^":
-			left = binaryOpPow(left, right)
-		case "and":
-			// Nothing to do
-		case "or":
-			// Nothing to do
-		case "unless":
-			left = nan
-		case "default":
-			left = binaryOpDefault(left, right)
-		case "if":
-			left = binaryOpIf(left, right)
-		case "ifnot":
-			left = binaryOpIfnot(left, right)
-		default:
-			logger.Panicf("BUG: unexpected non-comparison binaryOp: %q", op)
-		}
-	}
-	return left
-}
-
 type binaryOpFuncArg struct {
-	be    *promql.BinaryOpExpr
+	be    *metricsql.BinaryOpExpr
 	left  []*timeseries
 	right []*timeseries
 }
@@ -175,7 +104,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 	}
 }
 
-func adjustBinaryOpTags(be *promql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
+func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) ([]*timeseries, []*timeseries, []*timeseries, error) {
 	if len(be.GroupModifier.Op) == 0 && len(be.JoinModifier.Op) == 0 {
 		if isScalar(left) {
 			// Fast path: `scalar op vector`
@@ -256,7 +185,7 @@ func adjustBinaryOpTags(be *promql.BinaryOpExpr, left, right []*timeseries) ([]*
 	return rvsLeft, rvsRight, dst, nil
 }
 
-func ensureSingleTimeseries(side string, be *promql.BinaryOpExpr, tss []*timeseries) error {
+func ensureSingleTimeseries(side string, be *metricsql.BinaryOpExpr, tss []*timeseries) error {
 	if len(tss) == 0 {
 		logger.Panicf("BUG: tss must contain at least one value")
 	}
@@ -270,7 +199,7 @@ func ensureSingleTimeseries(side string, be *promql.BinaryOpExpr, tss []*timeser
 	return nil
 }
 
-func groupJoin(singleTimeseriesSide string, be *promql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
+func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft, rvsRight, tssLeft, tssRight []*timeseries) ([]*timeseries, []*timeseries, error) {
 	joinTags := be.JoinModifier.Args
 	var m map[string]*timeseries
 	for _, tsLeft := range tssLeft {
@@ -340,8 +269,8 @@ func mergeNonOverlappingTimeseries(dst, src *timeseries) bool {
 	return true
 }
 
-func resetMetricGroupIfRequired(be *promql.BinaryOpExpr, ts *timeseries) {
-	if isBinaryOpCmp(be.Op) && !be.Bool {
+func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
+	if metricsql.IsBinaryOpCmp(be.Op) && !be.Bool {
 		// Do not reset MetricGroup for non-boolean `compare` binary ops like Prometheus does.
 		return
 	}
@@ -351,90 +280,6 @@ func resetMetricGroupIfRequired(be *promql.BinaryOpExpr, ts *timeseries) {
 		return
 	}
 	ts.MetricName.ResetMetricGroup()
-}
-
-func binaryOpPlus(left, right float64) float64 {
-	return left + right
-}
-
-func binaryOpMinus(left, right float64) float64 {
-	return left - right
-}
-
-func binaryOpMul(left, right float64) float64 {
-	return left * right
-}
-
-func binaryOpDiv(left, right float64) float64 {
-	return left / right
-}
-
-func binaryOpMod(left, right float64) float64 {
-	return math.Mod(left, right)
-}
-
-func binaryOpPow(left, right float64) float64 {
-	return math.Pow(left, right)
-}
-
-func binaryOpDefault(left, right float64) float64 {
-	if math.IsNaN(left) {
-		return right
-	}
-	return left
-}
-
-func binaryOpIf(left, right float64) float64 {
-	if math.IsNaN(right) {
-		return nan
-	}
-	return left
-}
-
-func binaryOpIfnot(left, right float64) float64 {
-	if math.IsNaN(right) {
-		return left
-	}
-	return nan
-}
-
-func binaryOpEq(left, right float64) bool {
-	// Special handling for nan == nan.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150 .
-	if math.IsNaN(left) {
-		return math.IsNaN(right)
-	}
-
-	return left == right
-}
-
-func binaryOpNeq(left, right float64) bool {
-	// Special handling for comparison with nan.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/150 .
-	if math.IsNaN(left) {
-		return !math.IsNaN(right)
-	}
-	if math.IsNaN(right) {
-		return true
-	}
-
-	return left != right
-}
-
-func binaryOpGt(left, right float64) bool {
-	return left > right
-}
-
-func binaryOpLt(left, right float64) bool {
-	return left < right
-}
-
-func binaryOpGte(left, right float64) bool {
-	return left >= right
-}
-
-func binaryOpLte(left, right float64) bool {
-	return left <= right
 }
 
 func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
@@ -473,7 +318,7 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
-func createTimeseriesMapByTagSet(be *promql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
+func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
 	groupTags := be.GroupModifier.Args
 	groupOp := strings.ToLower(be.GroupModifier.Op)
 	if len(groupOp) == 0 {

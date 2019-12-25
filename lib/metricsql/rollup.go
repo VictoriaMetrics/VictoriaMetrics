@@ -1,12 +1,10 @@
-package promql
+package metricsql
 
 import (
 	"strings"
 )
 
 var rollupFuncs = map[string]bool{
-	"default_rollup": true, // default rollup func
-
 	// Standard rollup funcs from PromQL.
 	// See funcs accepting range-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
 	"changes":            true,
@@ -30,6 +28,7 @@ var rollupFuncs = map[string]bool{
 	"stdvar_over_time":   true,
 
 	// Additional rollup funcs.
+	"default_rollup":      true,
 	"sum2_over_time":      true,
 	"geomean_over_time":   true,
 	"first_over_time":     true,

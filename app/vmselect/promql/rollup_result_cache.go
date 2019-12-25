@@ -12,8 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
@@ -130,7 +129,7 @@ func ResetRollupResultCache() {
 	rollupResultCacheV.c.Reset()
 }
 
-func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *promql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) (tss []*timeseries, newStart int64) {
+func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) (tss []*timeseries, newStart int64) {
 	if *disableCache || !ec.mayCache() {
 		return nil, ec.Start
 	}
@@ -211,7 +210,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *promql.Me
 
 var resultBufPool bytesutil.ByteBufferPool
 
-func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *promql.MetricExpr, iafc *incrementalAggrFuncContext, window int64, tss []*timeseries) {
+func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64, tss []*timeseries) {
 	if *disableCache || len(tss) == 0 || !ec.mayCache() {
 		return
 	}
@@ -292,7 +291,7 @@ var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 // Increment this value every time the format of the cache changes.
 const rollupResultCacheVersion = 6
 
-func marshalRollupResultCacheKey(dst []byte, funcName string, me *promql.MetricExpr, iafc *incrementalAggrFuncContext, window, step int64) []byte {
+func marshalRollupResultCacheKey(dst []byte, funcName string, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, step int64) []byte {
 	dst = append(dst, rollupResultCacheVersion)
 	if iafc == nil {
 		dst = append(dst, 0)
@@ -304,9 +303,9 @@ func marshalRollupResultCacheKey(dst []byte, funcName string, me *promql.MetricE
 	dst = append(dst, funcName...)
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
-	for i := range me.TagFilters {
-		stf := storage.TagFilter(me.TagFilters[i])
-		dst = stf.Marshal(dst)
+	tfs := toTagFilters(me.LabelFilters)
+	for i := range tfs {
+		dst = tfs[i].Marshal(dst)
 	}
 	return dst
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/quicktemplate"
@@ -634,14 +635,14 @@ func parseDuration(s string, step int64) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
-	return promql.DurationValue(s, step)
+	return metricsql.DurationValue(s, step)
 }
 
 func parsePositiveDuration(s string, step int64) (int64, error) {
 	if len(s) == 0 {
 		return 0, nil
 	}
-	return promql.PositiveDurationValue(s, step)
+	return metricsql.PositiveDurationValue(s, step)
 }
 
 // QueryRangeHandler processes /api/v1/query_range request.

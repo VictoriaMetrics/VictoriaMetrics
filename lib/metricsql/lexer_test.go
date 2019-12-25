@@ -1,4 +1,4 @@
-package promql
+package metricsql
 
 import (
 	"reflect"
@@ -28,7 +28,7 @@ func TestUnescapeIdent(t *testing.T) {
 func TestAppendEscapedIdent(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
-		result := appendEscapedIdent(nil, []byte(s))
+		result := appendEscapedIdent(nil, s)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result for appendEscapedIdent(%q); got %q; want %q", s, result, resultExpected)
 		}

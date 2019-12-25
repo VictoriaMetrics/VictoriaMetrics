@@ -5,11 +5,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions
-// over rollups over metricExpr.
+// over rollups over metricsql.MetricExpr.
 //
 // These calculations save RAM for aggregates over big number of time series.
 var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
@@ -51,7 +51,7 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 }
 
 type incrementalAggrFuncContext struct {
-	ae *promql.AggrFuncExpr
+	ae *metricsql.AggrFuncExpr
 
 	mLock sync.Mutex
 	m     map[uint]map[string]*incrementalAggrContext
@@ -59,7 +59,7 @@ type incrementalAggrFuncContext struct {
 	callbacks *incrementalAggrFuncCallbacks
 }
 
-func newIncrementalAggrFuncContext(ae *promql.AggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
+func newIncrementalAggrFuncContext(ae *metricsql.AggrFuncExpr, callbacks *incrementalAggrFuncCallbacks) *incrementalAggrFuncContext {
 	return &incrementalAggrFuncContext{
 		ae:        ae,
 		m:         make(map[uint]map[string]*incrementalAggrContext),

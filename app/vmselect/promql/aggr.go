@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
@@ -49,7 +49,7 @@ type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
 
 type aggrFuncArg struct {
 	args [][]*timeseries
-	ae   *promql.AggrFuncExpr
+	ae   *metricsql.AggrFuncExpr
 	ec   *EvalConfig
 }
 
@@ -68,7 +68,7 @@ func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 	}
 }
 
-func removeGroupTags(metricName *storage.MetricName, modifier *promql.ModifierExpr) {
+func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.ModifierExpr) {
 	groupOp := strings.ToLower(modifier.Op)
 	switch groupOp {
 	case "", "by":
@@ -80,7 +80,7 @@ func removeGroupTags(metricName *storage.MetricName, modifier *promql.ModifierEx
 	}
 }
 
-func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *promql.ModifierExpr, keepOriginal bool) ([]*timeseries, error) {
+func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, keepOriginal bool) ([]*timeseries, error) {
 	arg := copyTimeseriesMetricNames(argOrig)
 
 	// Perform grouping.
