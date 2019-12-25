@@ -11,7 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -86,12 +86,12 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	return result, err
 }
 
-func maySortResults(e promql.Expr, tss []*timeseries) bool {
+func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 	if len(tss) > 100 {
 		// There is no sense in sorting a lot of results
 		return false
 	}
-	fe, ok := e.(*promql.FuncExpr)
+	fe, ok := e.(*metricsql.FuncExpr)
 	if !ok {
 		return true
 	}
@@ -155,19 +155,10 @@ func removeNaNs(tss []*timeseries) []*timeseries {
 	return rvs
 }
 
-func parsePromQL(q string) (promql.Expr, error) {
-	e, err := parser.ParsePromQL(q)
-	if err != nil {
-		return nil, err
-	}
-
-	return simplifyConstants(e), nil
-}
-
-func parsePromQLWithCache(q string) (promql.Expr, error) {
+func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 	pcv := parseCacheV.Get(q)
 	if pcv == nil {
-		e, err := parsePromQL(q)
+		e, err := metricsql.Parse(q)
 		pcv = &parseCacheValue{
 			e:   e,
 			err: err,
@@ -179,8 +170,6 @@ func parsePromQLWithCache(q string) (promql.Expr, error) {
 	}
 	return pcv.e, nil
 }
-
-var parser = promql.NewParser(compileRegexpAnchored)
 
 var parseCacheV = func() *parseCache {
 	pc := &parseCache{
@@ -201,7 +190,7 @@ var parseCacheV = func() *parseCache {
 const parseCacheMaxLen = 10e3
 
 type parseCacheValue struct {
-	e   promql.Expr
+	e   metricsql.Expr
 	err error
 }
 
@@ -260,8 +249,4 @@ func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
 	}
 	pc.m[q] = pcv
 	pc.mu.Unlock()
-}
-
-func init() {
-	promql.Panicf = logger.Panicf
 }

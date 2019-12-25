@@ -12,7 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/valyala/histogram"
 )
@@ -102,7 +102,7 @@ func getTransformFunc(s string) transformFunc {
 
 type transformFuncArg struct {
 	ec   *EvalConfig
-	fe   *promql.FuncExpr
+	fe   *metricsql.FuncExpr
 	args [][]*timeseries
 }
 
@@ -123,7 +123,7 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 	}
 }
 
-func doTransformValues(arg []*timeseries, tf func(values []float64), fe *promql.FuncExpr) ([]*timeseries, error) {
+func doTransformValues(arg []*timeseries, tf func(values []float64), fe *metricsql.FuncExpr) ([]*timeseries, error) {
 	name := strings.ToLower(fe.Name)
 	keepMetricGroup := transformFuncsKeepMetricGroup[name]
 	for _, ts := range arg {
@@ -151,12 +151,13 @@ func transformAbsent(tfa *transformFuncArg) ([]*timeseries, error) {
 		// Copy tags from arg
 		rvs := evalNumber(tfa.ec, 1)
 		rv := rvs[0]
-		me, ok := tfa.fe.Args[0].(*promql.MetricExpr)
+		me, ok := tfa.fe.Args[0].(*metricsql.MetricExpr)
 		if !ok {
 			return rvs, nil
 		}
-		for i := range me.TagFilters {
-			tf := &me.TagFilters[i]
+		tfs := toTagFilters(me.LabelFilters)
+		for i := range tfs {
+			tf := &tfs[i]
 			if len(tf.Key) == 0 {
 				continue
 			}
@@ -1020,7 +1021,7 @@ func transformLabelTransform(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 
-	r, err := compileRegexp(regex)
+	r, err := metricsql.CompileRegexp(regex)
 	if err != nil {
 		return nil, fmt.Errorf(`cannot compile regex %q: %s`, regex, err)
 	}
@@ -1049,7 +1050,7 @@ func transformLabelReplace(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 
-	r, err := compileRegexpAnchored(regex)
+	r, err := metricsql.CompileRegexpAnchored(regex)
 	if err != nil {
 		return nil, fmt.Errorf(`cannot compile regex %q: %s`, regex, err)
 	}
@@ -1160,7 +1161,7 @@ func transformScalar(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	// Verify whether the arg is a string.
 	// Then try converting the string to number.
-	if se, ok := tfa.fe.Args[0].(*promql.StringExpr); ok {
+	if se, ok := tfa.fe.Args[0].(*metricsql.StringExpr); ok {
 		n, err := strconv.ParseFloat(se.S, 64)
 		if err != nil {
 			n = nan
