@@ -19,17 +19,6 @@ var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.S
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
-// ExpandWithExprs expands WITH expressions inside q and returns the resulting
-// PromQL without WITH expressions.
-func ExpandWithExprs(q string) (string, error) {
-	e, err := parsePromQLWithCache(q)
-	if err != nil {
-		return "", err
-	}
-	buf := e.AppendString(nil)
-	return string(buf), nil
-}
-
 // Exec executes q for the given ec.
 func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if *logSlowQueryDuration > 0 {
