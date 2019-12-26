@@ -122,9 +122,7 @@ func compress(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressi
 	dstLen := len(dst)
 	if cap(dst) > dstLen {
 		// Fast path - try compressing without dst resize.
-		dst = dst[:cap(dst)]
-
-		result := compressInternal(cctx, cctxDict, dst[dstLen:], src, cd, compressionLevel, false)
+		result := compressInternal(cctx, cctxDict, dst[dstLen:cap(dst)], src, cd, compressionLevel, false)
 		compressedSize := int(result)
 		if compressedSize >= 0 {
 			// All OK.
@@ -143,9 +141,8 @@ func compress(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressi
 		// This should be optimized since go 1.11 - see https://golang.org/doc/go1.11#performance-compiler.
 		dst = append(dst[:cap(dst)], make([]byte, n)...)
 	}
-	dst = dst[:dstLen+compressBound]
 
-	result := compressInternal(cctx, cctxDict, dst[dstLen:], src, cd, compressionLevel, true)
+	result := compressInternal(cctx, cctxDict, dst[dstLen:dstLen+compressBound], src, cd, compressionLevel, true)
 	compressedSize := int(result)
 	return dst[:dstLen+compressedSize]
 }
@@ -247,9 +244,7 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	dstLen := len(dst)
 	if cap(dst) > dstLen {
 		// Fast path - try decompressing without dst resize.
-		dst = dst[:cap(dst)]
-
-		result := decompressInternal(dctx, dctxDict, dst[dstLen:], src, dd)
+		result := decompressInternal(dctx, dctxDict, dst[dstLen:cap(dst)], src, dd)
 		decompressedSize := int(result)
 		if decompressedSize >= 0 {
 			// All OK.
@@ -279,9 +274,8 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 		// This should be optimized since go 1.11 - see https://golang.org/doc/go1.11#performance-compiler.
 		dst = append(dst[:cap(dst)], make([]byte, n)...)
 	}
-	dst = dst[:dstLen+decompressBound]
 
-	result := decompressInternal(dctx, dctxDict, dst[dstLen:], src, dd)
+	result := decompressInternal(dctx, dctxDict, dst[dstLen:dstLen+decompressBound], src, dd)
 	decompressedSize := int(result)
 	if decompressedSize >= 0 {
 		// All OK.
