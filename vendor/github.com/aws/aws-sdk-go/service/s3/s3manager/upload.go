@@ -397,14 +397,18 @@ func (u *uploader) init() error {
 		u.cfg.MaxUploadParts = MaxUploadParts
 	}
 
+	// Try to get the total size for some optimizations
+	if err := u.initSize(); err != nil {
+		return err
+	}
+
 	// If PartSize was changed or partPool was never setup then we need to allocated a new pool
 	// so that we return []byte slices of the correct size
 	if u.cfg.partPool == nil || u.cfg.partPool.partSize != u.cfg.PartSize {
 		u.cfg.partPool = newPartPool(u.cfg.PartSize)
 	}
 
-	// Try to get the total size for some optimizations
-	return u.initSize()
+	return nil
 }
 
 // initSize tries to detect the total stream size, setting u.totalSize. If

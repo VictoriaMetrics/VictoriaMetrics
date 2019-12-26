@@ -333,6 +333,8 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) error {
  * Wrapped
  */
 
+//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+
 //sys	kill(pid int, signum int, posix int) (err error)
 
 func Kill(pid int, signum syscall.Signal) (err error) { return kill(pid, int(signum), 1) }

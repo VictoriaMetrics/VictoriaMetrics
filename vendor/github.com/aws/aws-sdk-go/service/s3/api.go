@@ -347,7 +347,7 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 // encryption key. You can do this regardless of the form of server-side encryption
 // that was used to encrypt the source, or even if the source object was not
 // encrypted. For more information about server-side encryption, see Using Server-Side
-// Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html).
+// Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html).
 //
 // A copy request might return an error when Amazon S3 receives the copy request
 // or while Amazon S3 is copying the files. If the error occurs before the copy
@@ -429,13 +429,18 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 //    * To encrypt the target object using server-side encryption with an AWS
 //    managed encryption key, provide the following request headers, as appropriate.
 //    x-amz-server-side​-encryption x-amz-server-side-encryption-aws-kms-key-id
-//    x-amz-server-side-encryption-context If you specify x-amz-server-side-encryption:aws:kms
-//    but don't provide x-amz-server-side- encryption-aws-kms-key-id, Amazon
-//    S3 uses the AWS managed customer master key (CMK) in AWS KMS to protect
-//    the data. All GET and PUT requests for an object protected by AWS KMS
-//    fail if you don't make them with SSL or by using SigV4. For more information
-//    about server-side encryption with CMKs stored in AWS KMS (SSE-KMS), see
-//    Protecting Data Using Server-Side Encryption with CMKs stored in KMS (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html).
+//    x-amz-server-side-encryption-context If you specify x-amz-server-side-encryption:aws:kms,
+//    but don't provide x-amz-server-side-encryption-aws-kms-key-id, Amazon
+//    S3 uses the AWS managed CMK in AWS KMS to protect the data. If you want
+//    to use a customer managed AWS KMS CMK, you must provide the x-amz-server-side-encryption-aws-kms-key-id
+//    of the symmetric customer managed CMK. Amazon S3 only supports symmetric
+//    CMKs and not asymmetric CMKs. For more information, see Using Symmetric
+//    and Asymmetric Keys (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+//    in the AWS Key Management Service Developer Guide. All GET and PUT requests
+//    for an object protected by AWS KMS fail if you don't make them with SSL
+//    or by using SigV4. For more information about server-side encryption with
+//    CMKs stored in AWS KMS (SSE-KMS), see Protecting Data Using Server-Side
+//    Encryption with CMKs stored in KMS (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html).
 //
 //    * To encrypt the target object using server-side encryption with an encryption
 //    key that you provide, use the following headers. x-amz-server-side​-encryption​-customer-algorithm
@@ -790,7 +795,7 @@ func (c *S3) CreateMultipartUploadRequest(input *CreateMultipartUploadInput) (re
 //    manage the keys used to encrypt data, specify the following headers in
 //    the request. x-amz-server-side​-encryption x-amz-server-side-encryption-aws-kms-key-id
 //    x-amz-server-side-encryption-context If you specify x-amz-server-side-encryption:aws:kms,
-//    but don't provide x-amz-server-side- encryption-aws-kms-key-id, Amazon
+//    but don't provide x-amz-server-side-encryption-aws-kms-key-id, Amazon
 //    S3 uses the AWS managed CMK in AWS KMS to protect the data. All GET and
 //    PUT requests for an object protected by AWS KMS fail if you don't make
 //    them with SSL or by using SigV4. For more information about server-side
@@ -2026,7 +2031,7 @@ func (c *S3) DeleteObjectTaggingRequest(input *DeleteObjectTaggingInput) (req *r
 // DeleteObjectTagging API operation for Amazon Simple Storage Service.
 //
 // Removes the entire tag set from the specified object. For more information
-// about managing object tags, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html#MultiFactorAuthenticationDelete).
+// about managing object tags, see Object Tagging (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html).
 //
 // To use this operation, you must have permission to perform the s3:DeleteObjectTagging
 // action.
@@ -6818,9 +6823,9 @@ func (c *S3) PutBucketEncryptionRequest(input *PutBucketEncryptionInput) (req *r
 // This implementation of the PUT operation uses the encryption subresource
 // to set the default encryption state of an existing bucket.
 //
-// This implementation of the PUT operation sets default encryption for a buckets
+// This implementation of the PUT operation sets default encryption for a bucket
 // using server-side encryption with Amazon S3-managed keys SSE-S3 or AWS KMS
-// customer master keys (CMKs) (SSE-KMS) bucket.
+// customer master keys (CMKs) (SSE-KMS).
 //
 // This operation requires AWS Signature Version 4. For more information, see
 // Authenticating Requests (AWS Signature Version 4) (sig-v4-authenticating-requests.html).
@@ -8454,19 +8459,24 @@ func (c *S3) PutObjectRequest(input *PutObjectInput) (req *request.Request, outp
 //    manage the keys used to encrypt data, specify the following headers in
 //    the request. x-amz-server-side​-encryption x-amz-server-side-encryption-aws-kms-key-id
 //    x-amz-server-side-encryption-context If you specify x-amz-server-side-encryption:aws:kms,
-//    but don't provide x-amz-server-side- encryption-aws-kms-key-id, Amazon
-//    S3 uses the AWS managed CMK in AWS KMS to protect the data. All GET and
-//    PUT requests for an object protected by AWS KMS fail if you don't make
-//    them with SSL or by using SigV4. For more information about server-side
-//    encryption with CMKs stored in AWS KMS (SSE-KMS), see Protecting Data
-//    Using Server-Side Encryption with CMKs stored in AWS (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html).
+//    but don't provide x-amz-server-side-encryption-aws-kms-key-id, Amazon
+//    S3 uses the AWS managed CMK in AWS KMS to protect the data. If you want
+//    to use a customer managed AWS KMS CMK, you must provide the x-amz-server-side-encryption-aws-kms-key-id
+//    of the symmetric customer managed CMK. Amazon S3 only supports symmetric
+//    CMKs and not asymmetric CMKs. For more information, see Using Symmetric
+//    and Asymmetric Keys (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+//    in the AWS Key Management Service Developer Guide. All GET and PUT requests
+//    for an object protected by AWS KMS fail if you don't make them with SSL
+//    or by using SigV4. For more information about server-side encryption with
+//    CMKs stored in AWS KMS (SSE-KMS), see Protecting Data Using Server-Side
+//    Encryption with CMKs stored in AWS (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html).
 //
 //    * Use customer-provided encryption keys – If you want to manage your
 //    own encryption keys, provide all the following headers in the request.
 //    x-amz-server-side​-encryption​-customer-algorithm x-amz-server-side​-encryption​-customer-key
 //    x-amz-server-side​-encryption​-customer-key-MD5 For more information
 //    about server-side encryption with CMKs stored in KMS (SSE-KMS), see Protecting
-//    Data Using Server-Side Encryption with CMKs stored in AWS KMS (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html).
+//    Data Using Server-Side Encryption with CMKs stored in AWS (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html).
 //
 // Access-Control-List (ACL)-Specific Request Headers
 //
@@ -8517,8 +8527,13 @@ func (c *S3) PutObjectRequest(input *PutObjectInput) (req *request.Request, outp
 //    manage the keys used to encrypt data, specify the following headers in
 //    the request. x-amz-server-side​-encryption x-amz-server-side-encryption-aws-kms-key-id
 //    x-amz-server-side-encryption-context If you specify x-amz-server-side-encryption:aws:kms,
-//    but don't provide x-amz-server-side- encryption-aws-kms-key-id, Amazon
-//    S3 uses the default AWS KMS CMK to protect the data. All GET and PUT requests
+//    but don't provide x-amz-server-side-encryption-aws-kms-key-id, Amazon
+//    S3 uses the AWS managed CMK in AWS KMS to protect the data. If you want
+//    to use a customer managed AWS KMS CMK, you must provide the x-amz-server-side-encryption-aws-kms-key-id
+//    of the symmetric customer managed CMK. Amazon S3 only supports symmetric
+//    CMKs and not asymmetric CMKs. For more information, see Using Symmetric
+//    and Asymmetric Keys (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+//    in the AWS Key Management Service Developer Guide. All GET and PUT requests
 //    for an object protected by AWS KMS fail if you don't make them with SSL
 //    or by using SigV4. For more information about server-side encryption with
 //    CMKs stored in AWS KMS (SSE-KMS), see Protecting Data Using Server-Side
@@ -9967,10 +9982,10 @@ type AbortMultipartUploadInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -11073,10 +11088,10 @@ type CompleteMultipartUploadInput struct {
 	// The container for the multipart upload request information.
 	MultipartUpload *CompletedMultipartUpload `locationName:"CompleteMultipartUpload" type:"structure" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -11201,7 +11216,8 @@ type CompleteMultipartUploadOutput struct {
 	RequestCharged *string `location:"header" locationName:"x-amz-request-charged" type:"string" enum:"RequestCharged"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// If you specified server-side encryption either with an Amazon S3-managed
@@ -11513,10 +11529,10 @@ type CopyObjectInput struct {
 	// The date and time when you want the copied object's Object Lock to expire.
 	ObjectLockRetainUntilDate *time.Time `location:"header" locationName:"x-amz-object-lock-retain-until-date" type:"timestamp" timestampFormat:"iso8601"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -11545,7 +11561,7 @@ type CopyObjectInput struct {
 	// requests for an object protected by AWS KMS will fail if not made via SSL
 	// or using SigV4. For information about configuring using any of the officially
 	// supported AWS SDKs and AWS CLI, see Specifying the Signature Version in Request
-	// Authentication (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
+	// Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
 	// in the Amazon S3 Developer Guide.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
@@ -11895,7 +11911,8 @@ type CopyObjectOutput struct {
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
@@ -12275,10 +12292,10 @@ type CreateMultipartUploadInput struct {
 	// Specifies the date and time when you want the Object Lock to expire.
 	ObjectLockRetainUntilDate *time.Time `location:"header" locationName:"x-amz-object-lock-retain-until-date" type:"timestamp" timestampFormat:"iso8601"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -12303,11 +12320,11 @@ type CreateMultipartUploadInput struct {
 	// encryption context key-value pairs.
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
-	// Specifies the AWS KMS key ID to use for object encryption. All GET and PUT
-	// requests for an object protected by AWS KMS will fail if not made via SSL
-	// or using SigV4. For information about configuring using any of the officially
-	// supported AWS SDKs and AWS CLI, see Specifying the Signature Version in Request
-	// Authentication (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
+	// Specifies the ID of the symmetric customer managed AWS KMS CMK to use for
+	// object encryption. All GET and PUT requests for an object protected by AWS
+	// KMS will fail if not made via SSL or using SigV4. For information about configuring
+	// using any of the officially supported AWS SDKs and AWS CLI, see Specifying
+	// the Signature Version in Request Authentication (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
 	// in the Amazon S3 Developer Guide.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
@@ -12601,7 +12618,8 @@ type CreateMultipartUploadOutput struct {
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
@@ -13805,10 +13823,10 @@ type DeleteObjectInput struct {
 	// delete enabled.
 	MFA *string `location:"header" locationName:"x-amz-mfa" type:"string"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -14098,10 +14116,10 @@ type DeleteObjectsInput struct {
 	// delete enabled.
 	MFA *string `location:"header" locationName:"x-amz-mfa" type:"string"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 }
@@ -14517,8 +14535,11 @@ type Encryption struct {
 	// the encryption context for the restore results.
 	KMSContext *string `type:"string"`
 
-	// If the encryption type is aws:kms, this optional value specifies the AWS
-	// KMS key ID to use for encryption of job results.
+	// If the encryption type is aws:kms, this optional value specifies the ID of
+	// the symmetric customer managed AWS KMS CMK to use for encryption of job results.
+	// Amazon S3 only supports symmetric CMKs. For more information, see Using Symmetric
+	// and Asymmetric Keys (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+	// in the AWS Key Management Service Developer Guide.
 	KMSKeyId *string `type:"string" sensitive:"true"`
 }
 
@@ -14568,8 +14589,12 @@ func (s *Encryption) SetKMSKeyId(v string) *Encryption {
 type EncryptionConfiguration struct {
 	_ struct{} `type:"structure"`
 
-	// Specifies the AWS KMS Key ID (Key ARN or Alias ARN) for the destination bucket.
-	// Amazon S3 uses this key to encrypt replica objects.
+	// Specifies the ID (Key ARN or Alias ARN) of the customer managed customer
+	// master key (CMK) stored in AWS Key Management Service (KMS) for the destination
+	// bucket. Amazon S3 uses this key to encrypt replica objects. Amazon S3 only
+	// supports symmetric customer managed CMKs. For more information, see Using
+	// Symmetric and Asymmetric Keys (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+	// in the AWS Key Management Service Developer Guide.
 	ReplicaKmsKeyID *string `type:"string"`
 }
 
@@ -16854,10 +16879,10 @@ type GetObjectAclInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -17029,10 +17054,10 @@ type GetObjectInput struct {
 	// the HTTP Range header, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
 	Range *string `location:"header" locationName:"Range" type:"string"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -17269,10 +17294,10 @@ type GetObjectLegalHoldInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -17562,7 +17587,8 @@ type GetObjectOutput struct {
 	SSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-server-side-encryption-customer-key-MD5" type:"string"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
@@ -17802,10 +17828,10 @@ type GetObjectRetentionInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -18056,10 +18082,10 @@ type GetObjectTorrentInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 }
@@ -18532,10 +18558,10 @@ type HeadObjectInput struct {
 	// the HTTP Range header, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35.
 	Range *string `location:"header" locationName:"Range" type:"string"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -18828,7 +18854,8 @@ type HeadObjectOutput struct {
 	SSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-server-side-encryption-customer-key-MD5" type:"string"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// If the object is stored using server-side encryption either with an AWS KMS
@@ -21676,10 +21703,10 @@ type ListPartsInput struct {
 	// part numbers will be listed.
 	PartNumberMarker *int64 `location:"querystring" locationName:"part-number-marker" type:"integer"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -25272,10 +25299,10 @@ type PutObjectAclInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -25522,10 +25549,10 @@ type PutObjectInput struct {
 	// The date and time when you want this object's Object Lock to expire.
 	ObjectLockRetainUntilDate *time.Time `location:"header" locationName:"x-amz-object-lock-retain-until-date" type:"timestamp" timestampFormat:"iso8601"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -25552,12 +25579,14 @@ type PutObjectInput struct {
 
 	// If x-amz-server-side-encryption is present and has the value of aws:kms,
 	// this header specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetrical customer managed customer master key (CMK) that was used for
+	// the object.
 	//
 	// If the value of x-amz-server-side-encryption is aws:kms, this header specifies
-	// the ID of the AWS KMS CMK that will be used for the object. If you specify
-	// x-amz-server-side-encryption:aws:kms, but do not providex-amz-server-side-encryption-aws-kms-key-id,
-	// Amazon S3 uses the AWS managed CMK in AWS to protect the data.
+	// the ID of the symmetric customer managed AWS KMS CMK that will be used for
+	// the object. If you specify x-amz-server-side-encryption:aws:kms, but do not
+	// providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3 uses the AWS
+	// managed CMK in AWS to protect the data.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
@@ -25858,10 +25887,10 @@ type PutObjectLegalHoldInput struct {
 	// specified object.
 	LegalHold *ObjectLockLegalHold `locationName:"LegalHold" type:"structure" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -25987,10 +26016,10 @@ type PutObjectLockConfigurationInput struct {
 	// The Object Lock configuration that you want to apply to the specified bucket.
 	ObjectLockConfiguration *ObjectLockConfiguration `locationName:"ObjectLockConfiguration" type:"structure" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -26126,7 +26155,8 @@ type PutObjectOutput struct {
 
 	// If x-amz-server-side-encryption is present and has the value of aws:kms,
 	// this header specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// If you specified server-side encryption either with an AWS KMS customer master
@@ -26228,10 +26258,10 @@ type PutObjectRetentionInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -27426,10 +27456,10 @@ type RestoreObjectInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -27849,8 +27879,8 @@ func (s *Rule) SetTransition(v *Transition) *Rule {
 type SSEKMS struct {
 	_ struct{} `locationName:"SSE-KMS" type:"structure"`
 
-	// Specifies the ID of the AWS Key Management Service (AWS KMS) customer master
-	// key (CMK) to use for encrypting inventory reports.
+	// Specifies the ID of the AWS Key Management Service (AWS KMS) symmetric customer
+	// managed customer master key (CMK) to use for encrypting inventory reports.
 	//
 	// KeyId is a required field
 	KeyId *string `type:"string" required:"true" sensitive:"true"`
@@ -29305,10 +29335,10 @@ type UploadPartCopyInput struct {
 	// PartNumber is a required field
 	PartNumber *int64 `location:"querystring" locationName:"partNumber" type:"integer" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -29538,7 +29568,8 @@ type UploadPartCopyOutput struct {
 	SSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-server-side-encryption-customer-key-MD5" type:"string"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) that was used for the object.
+	// symmetric customer managed customer master key (CMK) that was used for the
+	// object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
@@ -29629,10 +29660,10 @@ type UploadPartInput struct {
 	// PartNumber is a required field
 	PartNumber *int64 `location:"querystring" locationName:"partNumber" type:"integer" required:"true"`
 
-	// Confirms that the requester knows that she or he will be charged for the
-	// request. Bucket owners need not specify this parameter in their requests.
-	// For information about downloading objects from Requester Pays buckets, see
-	// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 Developer Guide.
 	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
 
@@ -29812,7 +29843,7 @@ type UploadPartOutput struct {
 	SSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-server-side-encryption-customer-key-MD5" type:"string"`
 
 	// If present, specifies the ID of the AWS Key Management Service (AWS KMS)
-	// customer master key (CMK) was used for the object.
+	// symmetric customer managed customer master key (CMK) was used for the object.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
 	// The server-side encryption algorithm used when storing this object in Amazon
@@ -30461,10 +30492,10 @@ const (
 	RequestChargedRequester = "requester"
 )
 
-// Confirms that the requester knows that she or he will be charged for the
-// request. Bucket owners need not specify this parameter in their requests.
-// For information about downloading objects from Requester Pays buckets, see
-// Downloading Objects in Requestor Pays Buckets (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+// Confirms that the requester knows that they will be charged for the request.
+// Bucket owners need not specify this parameter in their requests. For information
+// about downloading objects from requester pays buckets, see Downloading Objects
+// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 // in the Amazon S3 Developer Guide.
 const (
 	// RequestPayerRequester is a RequestPayer enum value
