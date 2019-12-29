@@ -168,7 +168,7 @@ func (c *Cache) Get(dst, k []byte) []byte {
 func (c *Cache) HasGet(dst, k []byte) ([]byte, bool) {
 	h := xxhash.Sum64(k)
 	idx := h % bucketsCount
-	return c.buckets[idx].Get(nil, k, h, true)
+	return c.buckets[idx].Get(dst, k, h, true)
 }
 
 // Has returns true if entry for the given key k exists in the cache.
