@@ -20,8 +20,8 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/VictoriaMetrics/fastcache v1.5.4 h1:0BaXbRH01RycJk79OOBwMCXlNryko9z4yEf6RqbP+Xo=
-github.com/VictoriaMetrics/fastcache v1.5.4/go.mod h1:ptDBkNMQI4RtmVo8VS/XwRY6RoTu1dAWCbrk+6WsEM8=
+github.com/VictoriaMetrics/fastcache v1.5.5 h1:HsBlzPgzKG0566YOl1mmfyz8SCU0zLKfbl9RDLsiLD8=
+github.com/VictoriaMetrics/fastcache v1.5.5/go.mod h1:ptDBkNMQI4RtmVo8VS/XwRY6RoTu1dAWCbrk+6WsEM8=
 github.com/VictoriaMetrics/metrics v1.9.3 h1:+1kZnOIb8RY825Nb9q9yMrPcOYuPE2GrZWxUh59XnHI=
 github.com/VictoriaMetrics/metrics v1.9.3/go.mod h1:LU2j9qq7xqZYXz8tF3/RQnB2z2MbZms5TDiIg9/NHiQ=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156 h1:eMwmnE/GDgah4HI848JfFxHt+iPb26b4zyfspmqY0/8=

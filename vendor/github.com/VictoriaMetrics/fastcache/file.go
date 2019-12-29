@@ -205,6 +205,9 @@ func loadMetadata(dir string) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cannot read maxBucketChunks from %q: %s", metadataPath, err)
 	}
+	if maxBucketChunks == 0 {
+		return 0, fmt.Errorf("invalid maxBucketChunks=0 read from %q", metadataPath)
+	}
 	return maxBucketChunks, nil
 }
 
@@ -359,10 +362,16 @@ func (b *bucket) Load(r io.Reader, maxChunks uint64) error {
 	}
 	for chunkIdx := uint64(0); chunkIdx < chunksLen; chunkIdx++ {
 		chunk := getChunk()
+		chunks[chunkIdx] = chunk
 		if _, err := io.ReadFull(r, chunk); err != nil {
+			// Free up allocated chunks before returning the error.
+			for _, chunk := range chunks {
+				if chunk != nil {
+					putChunk(chunk)
+				}
+			}
 			return fmt.Errorf("cannot read b.chunks[%d]: %s", chunkIdx, err)
 		}
-		chunks[chunkIdx] = chunk
 	}
 	// Adjust len for the chunk pointed by currChunkIdx.
 	if chunksLen > 0 {
