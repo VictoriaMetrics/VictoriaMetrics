@@ -617,8 +617,8 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 		if iafc.ae.Modifier.Op != "" {
 			// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
 			// since each group can have own set of time series in memory.
-			// Estimate the number of such groups is lower than 100 :)
-			timeseriesLen *= 100
+			// Estimate the number of such groups is lower than 1000 :)
+			timeseriesLen *= 1000
 		}
 	}
 	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
