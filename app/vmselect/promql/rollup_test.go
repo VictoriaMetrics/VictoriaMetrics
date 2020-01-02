@@ -192,6 +192,52 @@ func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpecte
 	}
 }
 
+func TestRollupShareLEOverTime(t *testing.T) {
+	f := func(le, vExpected float64) {
+		t.Helper()
+		les := []*timeseries{{
+			Values:     []float64{le},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
+		testRollupFunc(t, "share_le_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 0)
+	f(0, 0)
+	f(10, 0)
+	f(12, 0.08333333333333333)
+	f(30, 0.16666666666666666)
+	f(50, 0.75)
+	f(100, 0.9166666666666666)
+	f(123, 1)
+	f(1000, 1)
+}
+
+func TestRollupShareGTOverTime(t *testing.T) {
+	f := func(gt, vExpected float64) {
+		t.Helper()
+		gts := []*timeseries{{
+			Values:     []float64{gt},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
+		testRollupFunc(t, "share_gt_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 1)
+	f(0, 1)
+	f(10, 1)
+	f(12, 0.9166666666666666)
+	f(30, 0.8333333333333334)
+	f(50, 0.25)
+	f(100, 0.08333333333333333)
+	f(123, 0)
+	f(1000, 0)
+}
+
 func TestRollupQuantileOverTime(t *testing.T) {
 	f := func(phi, vExpected float64) {
 		t.Helper()

@@ -41,6 +41,8 @@ var rollupFuncs = map[string]bool{
 	"lifetime":            true,
 	"lag":                 true,
 	"scrape_interval":     true,
+	"share_le_over_time":  true,
+	"share_gt_over_time":  true,
 	"rollup":              true,
 	"rollup_rate":         true,
 	"rollup_deriv":        true,

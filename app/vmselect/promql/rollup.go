@@ -49,6 +49,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"lifetime":            newRollupFuncOneArg(rollupLifetime),
 	"lag":                 newRollupFuncOneArg(rollupLag),
 	"scrape_interval":     newRollupFuncOneArg(rollupScrapeInterval),
+	"share_le_over_time":  newRollupShareLE,
+	"share_gt_over_time":  newRollupShareGT,
 	"rollup":              newRollupFuncOneArg(rollupFake),
 	"rollup_rate":         newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
 	"rollup_deriv":        newRollupFuncOneArg(rollupFake),
@@ -527,6 +529,56 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	// Adjust v to the last timestamp on the given time range.
 	v += k * (float64(timestamps[len(timestamps)-1]-tFirst) * 1e-3)
 	return v, k
+}
+
+func newRollupShareLE(args []interface{}) (rollupFunc, error) {
+	return newRollupShareFilter(args, countFilterLE)
+}
+
+func countFilterLE(values []float64, le float64) int {
+	n := 0
+	for _, v := range values {
+		if v <= le {
+			n++
+		}
+	}
+	return n
+}
+
+func newRollupShareGT(args []interface{}) (rollupFunc, error) {
+	return newRollupShareFilter(args, countFilterGT)
+}
+
+func countFilterGT(values []float64, gt float64) int {
+	n := 0
+	for _, v := range values {
+		if v > gt {
+			n++
+		}
+	}
+	return n
+}
+
+func newRollupShareFilter(args []interface{}, countFilter func(values []float64, limit float64) int) (rollupFunc, error) {
+	if err := expectRollupArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	limits, err := getScalar(args[1], 1)
+	if err != nil {
+		return nil, err
+	}
+	rf := func(rfa *rollupFuncArg) float64 {
+		// There is no need in handling NaNs here, since they must be cleaned up
+		// before calling rollup funcs.
+		values := rfa.values
+		if len(values) == 0 {
+			return nan
+		}
+		limit := limits[rfa.idx]
+		n := countFilter(values, limit)
+		return float64(n) / float64(len(values))
+	}
+	return rf, nil
 }
 
 func newRollupQuantile(args []interface{}) (rollupFunc, error) {
