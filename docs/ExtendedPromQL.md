@@ -2,6 +2,7 @@
 
 VictoriaMetrics implements MetricsQL - query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 It is backwards compatible with PromQL, so Grafana dashboards backed by Prometheus datasource should work the same after switching from Prometheus to VictoriaMetrics.
+[Standalone MetricsQL package](https://godoc.org/github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql) can be used for parsing MetricsQL in external apps.
 
 The following functionality is implemented differently in MetricsQL comparing to PromQL in order to improve user experience:
 * MetricsQL takes into account the previous point before the window in square brackets for range functions such as `rate` and `increase`.

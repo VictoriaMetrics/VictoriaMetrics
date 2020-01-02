@@ -9,6 +9,8 @@ import (
 
 // Parse parses MetricsQL query s.
 //
+// All the `WITH` expressions are expanded in the returned Expr.
+//
 // MetricsQL is backwards-compatible with PromQL.
 func Parse(s string) (Expr, error) {
 	var p parser
