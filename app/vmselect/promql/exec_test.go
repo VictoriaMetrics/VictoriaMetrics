@@ -3083,6 +3083,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`share_gt_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `share_gt_over_time(rand(0)[200s:10s], 0.7)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.35, 0.3, 0.5, 0.3, 0.3, 0.25},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`share_le_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `share_le_over_time(rand(0)[200s:10s], 0.7)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.65, 0.7, 0.5, 0.7, 0.7, 0.75},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`increases_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `increases_over_time(rand(0)[200s:10s])`

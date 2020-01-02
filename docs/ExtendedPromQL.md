@@ -89,3 +89,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
    - `bottomk_max(k, q)` - returns bottom K time series with the min maximums on the given time range
    - `bottomk_avg(k, q)` - returns bottom K time series with the min averages on the given time range
    - `bottomk_median(k, q)` - returns bottom K time series with the min medians on the given time range
+- `share_le_over_time(m[d], le)` - returns share (in the range 0..1) of values in `m` over `d`, which are smaller or equal to `le`. Useful for calculating SLI and SLO.
+  Example: `share_le_over_time(memory_usage_bytes[24h], 100*1024*1024)` returns the share of time series values for the last 24 hours when memory usage was below or equal to 100MB.
+- `share_gt_over_time(m[d], gt)` - returns share (in the range 0..1) of values in `m` over `d`, which are bigger than `gt`. Useful for calculating SLI and SLO.
+  Example: `share_gt_over_time(up[24h], 0)` - returns service availability for the last 24 hours.
