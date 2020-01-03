@@ -542,6 +542,12 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run("absent_over_time(time())", func(t *testing.T) {
+		t.Parallel()
+		q := `absent_over_time(time())`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run("absent(123)", func(t *testing.T) {
 		t.Parallel()
 		q := `absent(123)`
@@ -565,6 +571,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("absent_over_time(nan[200s:10s])", func(t *testing.T) {
+		t.Parallel()
+		q := `absent_over_time(nan[200s:10s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`absent(scalar(multi-timeseries))`, func(t *testing.T) {
 		t.Parallel()
 		q := `
@@ -578,6 +595,34 @@ func TestExecSuccess(t *testing.T) {
 			Key:   []byte("yy"),
 			Value: []byte("foo"),
 		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`absent_over_time(scalar(multi-timeseries))`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		absent_over_time(label_set(scalar(1 or label_set(2, "xx", "foo")), "yy", "foo"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("yy"),
+			Value: []byte("foo"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`absent(time() > 1500)`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		absent(time() > 1500)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -3187,11 +3232,11 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`topk_min(histogram_over_time)`, func(t *testing.T) {
+	t.Run(`topk_max(histogram_over_time)`, func(t *testing.T) {
 		t.Parallel()
-		q := `topk_min(1, histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
+		q := `topk_max(1, histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
 		r := netstorage.Result{
-			Values:     []float64{14, 15, 12, 13, 15, 11},
+			Values:     []float64{13, 11, 16, 19, 13, 16},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{
@@ -3201,7 +3246,7 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("vmrange"),
-				Value: []byte("2.0e0...2.5e0"),
+				Value: []byte("1.5e0...2.0e0"),
 			},
 		}
 		resultExpected := []netstorage.Result{r}
