@@ -13,13 +13,11 @@ import (
 //
 // It is unsafe calling Set methods from concurrent goroutines.
 type Set struct {
-	skipSmallPool bool
-	itemsCount    int
-	buckets       bucket32Sorter
-	smallPool     [5]uint64
+	itemsCount int
+	buckets    bucket32Sorter
 }
 
-type bucket32Sorter []*bucket32
+type bucket32Sorter []bucket32
 
 func (s *bucket32Sorter) Len() int { return len(*s) }
 func (s *bucket32Sorter) Less(i, j int) bool {
@@ -38,12 +36,12 @@ func (s *Set) Clone() *Set {
 		return &Set{}
 	}
 	var dst Set
-	dst.skipSmallPool = s.skipSmallPool
 	dst.itemsCount = s.itemsCount
-	dst.buckets = make([]*bucket32, len(s.buckets))
-	dst.smallPool = s.smallPool
-	for i, b32 := range s.buckets {
-		dst.buckets[i] = b32.clone()
+	if len(s.buckets) > 0 {
+		dst.buckets = make([]bucket32, len(s.buckets))
+		for i := range s.buckets {
+			s.buckets[i].copyTo(&dst.buckets[i])
+		}
 	}
 	return &dst
 }
@@ -54,9 +52,10 @@ func (s *Set) SizeBytes() uint64 {
 		return 0
 	}
 	n := uint64(unsafe.Sizeof(*s))
-	for _, b := range s.buckets {
-		n += uint64(unsafe.Sizeof(b))
-		n += b.sizeBytes()
+	for i := range s.buckets {
+		b32 := &s.buckets[i]
+		n += uint64(unsafe.Sizeof(b32))
+		n += b32.sizeBytes()
 	}
 	return n
 }
@@ -71,13 +70,10 @@ func (s *Set) Len() int {
 
 // Add adds x to s.
 func (s *Set) Add(x uint64) {
-	if !s.skipSmallPool {
-		s.addToSmallPool(x)
-		return
-	}
 	hi := uint32(x >> 32)
 	lo := uint32(x)
-	for _, b32 := range s.buckets {
+	for i := range s.buckets {
+		b32 := &s.buckets[i]
 		if b32.hi == hi {
 			if b32.add(lo) {
 				s.itemsCount++
@@ -88,29 +84,16 @@ func (s *Set) Add(x uint64) {
 	s.addAlloc(hi, lo)
 }
 
-func (s *Set) addToSmallPool(x uint64) {
-	if s.hasInSmallPool(x) {
-		return
-	}
-	if s.itemsCount < len(s.smallPool) {
-		s.smallPool[s.itemsCount] = x
-		s.itemsCount++
-		return
-	}
-	s.skipSmallPool = true
-	s.itemsCount = 0
-	for _, v := range s.smallPool[:] {
-		s.Add(v)
-	}
-	s.Add(x)
-}
-
 func (s *Set) addAlloc(hi, lo uint32) {
-	var b32 bucket32
+	b32 := s.addBucket32()
 	b32.hi = hi
 	_ = b32.add(lo)
 	s.itemsCount++
-	s.buckets = append(s.buckets, &b32)
+}
+
+func (s *Set) addBucket32() *bucket32 {
+	s.buckets = append(s.buckets, bucket32{})
+	return &s.buckets[len(s.buckets)-1]
 }
 
 // Has verifies whether x exists in s.
@@ -118,12 +101,10 @@ func (s *Set) Has(x uint64) bool {
 	if s == nil {
 		return false
 	}
-	if !s.skipSmallPool {
-		return s.hasInSmallPool(x)
-	}
 	hi := uint32(x >> 32)
 	lo := uint32(x)
-	for _, b32 := range s.buckets {
+	for i := range s.buckets {
+		b32 := &s.buckets[i]
 		if b32.hi == hi {
 			return b32.has(lo)
 		}
@@ -131,24 +112,12 @@ func (s *Set) Has(x uint64) bool {
 	return false
 }
 
-func (s *Set) hasInSmallPool(x uint64) bool {
-	for _, v := range s.smallPool[:s.itemsCount] {
-		if v == x {
-			return true
-		}
-	}
-	return false
-}
-
 // Del deletes x from s.
 func (s *Set) Del(x uint64) {
-	if !s.skipSmallPool {
-		s.delFromSmallPool(x)
-		return
-	}
 	hi := uint32(x >> 32)
 	lo := uint32(x)
-	for _, b32 := range s.buckets {
+	for i := range s.buckets {
+		b32 := &s.buckets[i]
 		if b32.hi == hi {
 			if b32.del(lo) {
 				s.itemsCount--
@@ -156,20 +125,6 @@ func (s *Set) Del(x uint64) {
 			return
 		}
 	}
-}
-
-func (s *Set) delFromSmallPool(x uint64) {
-	idx := -1
-	for i, v := range s.smallPool[:s.itemsCount] {
-		if v == x {
-			idx = i
-		}
-	}
-	if idx < 0 {
-		return
-	}
-	copy(s.smallPool[idx:], s.smallPool[idx+1:])
-	s.itemsCount--
 }
 
 // AppendTo appends all the items from the set to dst and returns the result.
@@ -180,13 +135,6 @@ func (s *Set) delFromSmallPool(x uint64) {
 func (s *Set) AppendTo(dst []uint64) []uint64 {
 	if s == nil {
 		return dst
-	}
-	if !s.skipSmallPool {
-		a := s.smallPool[:s.itemsCount]
-		if len(a) > 1 {
-			sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
-		}
-		return append(dst, a...)
 	}
 
 	// pre-allocate memory for dst
@@ -199,8 +147,8 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 	if !sort.IsSorted(&s.buckets) {
 		sort.Sort(&s.buckets)
 	}
-	for _, b32 := range s.buckets {
-		dst = b32.appendTo(dst)
+	for i := range s.buckets {
+		dst = s.buckets[i].appendTo(dst)
 	}
 	return dst
 }
@@ -265,36 +213,33 @@ func (s *Set) Equal(a *Set) bool {
 }
 
 type bucket32 struct {
-	skipSmallPool bool
-	smallPoolLen  int
-	hi            uint32
-	b16his        []uint16
-	buckets       []*bucket16
-	smallPool     [14]uint32
+	hi      uint32
+	b16his  []uint16
+	buckets []bucket16
 }
 
 func (b *bucket32) sizeBytes() uint64 {
 	n := uint64(unsafe.Sizeof(*b))
 	n += 2 * uint64(len(b.b16his))
-	for _, b := range b.buckets {
-		n += uint64(unsafe.Sizeof(b))
-		n += b.sizeBytes()
+	for i := range b.buckets {
+		b16 := &b.buckets[i]
+		n += uint64(unsafe.Sizeof(b16))
+		n += b16.sizeBytes()
 	}
 	return n
 }
 
-func (b *bucket32) clone() *bucket32 {
-	var dst bucket32
-	dst.skipSmallPool = b.skipSmallPool
-	dst.smallPoolLen = b.smallPoolLen
+func (b *bucket32) copyTo(dst *bucket32) {
 	dst.hi = b.hi
 	dst.b16his = append(dst.b16his[:0], b.b16his...)
-	dst.buckets = make([]*bucket16, len(b.buckets))
-	dst.smallPool = b.smallPool
-	for i, b16 := range b.buckets {
-		dst.buckets[i] = b16.clone()
+	// Do not reuse dst.buckets, since it may be used in other places.
+	dst.buckets = nil
+	if len(b.buckets) > 0 {
+		dst.buckets = make([]bucket16, len(b.buckets))
+		for i := range b.buckets {
+			b.buckets[i].copyTo(&dst.buckets[i])
+		}
 	}
-	return &dst
 }
 
 // This is for sort.Interface
@@ -310,9 +255,6 @@ func (b *bucket32) Swap(i, j int) {
 const maxUnsortedBuckets = 32
 
 func (b *bucket32) add(x uint32) bool {
-	if !b.skipSmallPool {
-		return b.addToSmallPool(x)
-	}
 	hi := uint16(x >> 16)
 	lo := uint16(x)
 	if len(b.buckets) > maxUnsortedBuckets {
@@ -327,31 +269,18 @@ func (b *bucket32) add(x uint32) bool {
 	return true
 }
 
-func (b *bucket32) addToSmallPool(x uint32) bool {
-	if b.hasInSmallPool(x) {
-		return false
-	}
-	if b.smallPoolLen < len(b.smallPool) {
-		b.smallPool[b.smallPoolLen] = x
-		b.smallPoolLen++
-		return true
-	}
-	b.skipSmallPool = true
-	b.smallPoolLen = 0
-	for _, v := range b.smallPool[:] {
-		b.add(v)
-	}
-	return b.add(x)
-}
-
 func (b *bucket32) addAllocSmall(hi, lo uint16) {
-	var b16 bucket16
-	_ = b16.add(lo)
 	b.b16his = append(b.b16his, hi)
-	b.buckets = append(b.buckets, &b16)
+	b16 := b.addBucket16()
+	_ = b16.add(lo)
 	if len(b.buckets) > maxUnsortedBuckets {
 		sort.Sort(b)
 	}
+}
+
+func (b *bucket32) addBucket16() *bucket16 {
+	b.buckets = append(b.buckets, bucket16{})
+	return &b.buckets[len(b.buckets)-1]
 }
 
 func (b *bucket32) addSlow(hi, lo uint16) bool {
@@ -368,23 +297,21 @@ func (b *bucket32) addAllocBig(hi, lo uint16, n int) {
 		// This is a hint to Go compiler to remove automatic bounds checks below.
 		return
 	}
-	var b16 bucket16
-	_ = b16.add(lo)
 	if n >= len(b.b16his) {
 		b.b16his = append(b.b16his, hi)
-		b.buckets = append(b.buckets, &b16)
+		b16 := b.addBucket16()
+		_ = b16.add(lo)
 		return
 	}
 	b.b16his = append(b.b16his[:n+1], b.b16his[n:]...)
 	b.b16his[n] = hi
 	b.buckets = append(b.buckets[:n+1], b.buckets[n:]...)
-	b.buckets[n] = &b16
+	b16 := &b.buckets[n]
+	*b16 = bucket16{}
+	_ = b16.add(lo)
 }
 
 func (b *bucket32) has(x uint32) bool {
-	if !b.skipSmallPool {
-		return b.hasInSmallPool(x)
-	}
 	hi := uint16(x >> 16)
 	lo := uint16(x)
 	if len(b.buckets) > maxUnsortedBuckets {
@@ -393,15 +320,6 @@ func (b *bucket32) has(x uint32) bool {
 	for i, hi16 := range b.b16his {
 		if hi16 == hi {
 			return i < len(b.buckets) && b.buckets[i].has(lo)
-		}
-	}
-	return false
-}
-
-func (b *bucket32) hasInSmallPool(x uint32) bool {
-	for _, v := range b.smallPool[:b.smallPoolLen] {
-		if v == x {
-			return true
 		}
 	}
 	return false
@@ -416,9 +334,6 @@ func (b *bucket32) hasSlow(hi, lo uint16) bool {
 }
 
 func (b *bucket32) del(x uint32) bool {
-	if !b.skipSmallPool {
-		return b.delFromSmallPool(x)
-	}
 	hi := uint16(x >> 16)
 	lo := uint16(x)
 	if len(b.buckets) > maxUnsortedBuckets {
@@ -432,21 +347,6 @@ func (b *bucket32) del(x uint32) bool {
 	return false
 }
 
-func (b *bucket32) delFromSmallPool(x uint32) bool {
-	idx := -1
-	for i, v := range b.smallPool[:b.smallPoolLen] {
-		if v == x {
-			idx = i
-		}
-	}
-	if idx < 0 {
-		return false
-	}
-	copy(b.smallPool[idx:], b.smallPool[idx+1:])
-	b.smallPoolLen--
-	return true
-}
-
 func (b *bucket32) delSlow(hi, lo uint16) bool {
 	n := binarySearch16(b.b16his, hi)
 	if n < 0 || n >= len(b.b16his) || b.b16his[n] != hi {
@@ -456,24 +356,12 @@ func (b *bucket32) delSlow(hi, lo uint16) bool {
 }
 
 func (b *bucket32) appendTo(dst []uint64) []uint64 {
-	if !b.skipSmallPool {
-		a := b.smallPool[:b.smallPoolLen]
-		if len(a) > 1 {
-			sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
-		}
-		hi := uint64(b.hi) << 32
-		for _, lo32 := range a {
-			v := hi | uint64(lo32)
-			dst = append(dst, v)
-		}
-		return dst
-	}
 	if len(b.buckets) <= maxUnsortedBuckets && !sort.IsSorted(b) {
 		sort.Sort(b)
 	}
-	for i, b16 := range b.buckets {
+	for i := range b.buckets {
 		hi16 := b.b16his[i]
-		dst = b16.appendTo(dst, b.hi, hi16)
+		dst = b.buckets[i].appendTo(dst, b.hi, hi16)
 	}
 	return dst
 }
@@ -484,20 +372,30 @@ const (
 )
 
 type bucket16 struct {
-	bits [wordsPerBucket]uint64
+	bits         *[wordsPerBucket]uint64
+	smallPoolLen int
+	smallPool    [56]uint16
 }
 
 func (b *bucket16) sizeBytes() uint64 {
-	return uint64(unsafe.Sizeof(*b))
+	return uint64(unsafe.Sizeof(*b)) + uint64(unsafe.Sizeof(*b.bits))
 }
 
-func (b *bucket16) clone() *bucket16 {
-	var dst bucket16
-	copy(dst.bits[:], b.bits[:])
-	return &dst
+func (b *bucket16) copyTo(dst *bucket16) {
+	// Do not reuse dst.bits, since it may be used in other places.
+	dst.bits = nil
+	if b.bits != nil {
+		bits := *b.bits
+		dst.bits = &bits
+	}
+	dst.smallPoolLen = b.smallPoolLen
+	dst.smallPool = b.smallPool
 }
 
 func (b *bucket16) add(x uint16) bool {
+	if b.bits == nil {
+		return b.addToSmallPool(x)
+	}
 	wordNum, bitMask := getWordNumBitMask(x)
 	word := &b.bits[wordNum]
 	ok := *word&bitMask == 0
@@ -505,12 +403,46 @@ func (b *bucket16) add(x uint16) bool {
 	return ok
 }
 
+func (b *bucket16) addToSmallPool(x uint16) bool {
+	if b.hasInSmallPool(x) {
+		return false
+	}
+	if b.smallPoolLen < len(b.smallPool) {
+		b.smallPool[b.smallPoolLen] = x
+		b.smallPoolLen++
+		return true
+	}
+	b.smallPoolLen = 0
+	var bits [wordsPerBucket]uint64
+	b.bits = &bits
+	for _, v := range b.smallPool[:] {
+		b.add(v)
+	}
+	b.add(x)
+	return true
+}
+
 func (b *bucket16) has(x uint16) bool {
+	if b.bits == nil {
+		return b.hasInSmallPool(x)
+	}
 	wordNum, bitMask := getWordNumBitMask(x)
 	return b.bits[wordNum]&bitMask != 0
 }
 
+func (b *bucket16) hasInSmallPool(x uint16) bool {
+	for _, v := range b.smallPool[:b.smallPoolLen] {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *bucket16) del(x uint16) bool {
+	if b.bits == nil {
+		return b.delFromSmallPool(x)
+	}
 	wordNum, bitMask := getWordNumBitMask(x)
 	word := &b.bits[wordNum]
 	ok := *word&bitMask != 0
@@ -518,8 +450,30 @@ func (b *bucket16) del(x uint16) bool {
 	return ok
 }
 
+func (b *bucket16) delFromSmallPool(x uint16) bool {
+	for i, v := range b.smallPool[:b.smallPoolLen] {
+		if v == x {
+			copy(b.smallPool[i:], b.smallPool[i+1:])
+			b.smallPoolLen--
+			return true
+		}
+	}
+	return false
+}
+
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
+	if b.bits == nil {
+		a := b.smallPool[:b.smallPoolLen]
+		if len(a) > 1 {
+			sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
+		}
+		for _, v := range a {
+			x := hi64 | uint64(v)
+			dst = append(dst, x)
+		}
+		return dst
+	}
 	var wordNum uint64
 	for _, word := range b.bits {
 		if word == 0 {
