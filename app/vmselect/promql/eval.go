@@ -481,6 +481,13 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	if err != nil {
 		return nil, err
 	}
+	if len(tssSQ) == 0 {
+		if name == "absent_over_time" {
+			tss := evalNumber(ec, 1)
+			return tss, nil
+		}
+		return nil, nil
+	}
 
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
 	preFunc, rcs := getRollupConfigs(name, rf, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
@@ -606,10 +613,14 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()
+		var tss []*timeseries
+		if name == "absent_over_time" {
+			tss = getAbsentTimeseries(ec, me)
+		}
 		// Add missing points until ec.End.
 		// Do not cache the result, since missing points
 		// may be backfilled in the future.
-		tss := mergeTimeseries(tssCached, nil, start, ec)
+		tss = mergeTimeseries(tssCached, tss, start, ec)
 		return tss, nil
 	}
 	sharedTimestamps := getTimestamps(start, ec.End, ec.Step)

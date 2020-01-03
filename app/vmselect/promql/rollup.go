@@ -37,6 +37,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"quantile_over_time": newRollupQuantile,
 	"stddev_over_time":   newRollupFuncOneArg(rollupStddev),
 	"stdvar_over_time":   newRollupFuncOneArg(rollupStdvar),
+	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
 
 	// Additional rollup funcs.
 	"sum2_over_time":      newRollupFuncOneArg(rollupSum2),
@@ -791,6 +792,13 @@ func rollupGeomean(rfa *rollupFuncArg) float64 {
 		p *= v
 	}
 	return math.Pow(p, 1/float64(len(values)))
+}
+
+func rollupAbsent(rfa *rollupFuncArg) float64 {
+	if len(rfa.values) == 0 {
+		return 1
+	}
+	return nan
 }
 
 func rollupCount(rfa *rollupFuncArg) float64 {

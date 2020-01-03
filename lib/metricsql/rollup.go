@@ -26,6 +26,7 @@ var rollupFuncs = map[string]bool{
 	"quantile_over_time": true,
 	"stddev_over_time":   true,
 	"stdvar_over_time":   true,
+	"absent_over_time":   true,
 
 	// Additional rollup funcs.
 	"default_rollup":      true,

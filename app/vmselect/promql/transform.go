@@ -146,29 +146,10 @@ func transformAbsent(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	arg := args[0]
-
 	if len(arg) == 0 {
-		// Copy tags from arg
-		rvs := evalNumber(tfa.ec, 1)
-		rv := rvs[0]
-		me, ok := tfa.fe.Args[0].(*metricsql.MetricExpr)
-		if !ok {
-			return rvs, nil
-		}
-		tfs := toTagFilters(me.LabelFilters)
-		for i := range tfs {
-			tf := &tfs[i]
-			if len(tf.Key) == 0 {
-				continue
-			}
-			if tf.IsRegexp || tf.IsNegative {
-				continue
-			}
-			rv.MetricName.AddTagBytes(tf.Key, tf.Value)
-		}
+		rvs := getAbsentTimeseries(tfa.ec, tfa.fe.Args[0])
 		return rvs, nil
 	}
-
 	for _, ts := range arg {
 		ts.MetricName.ResetMetricGroup()
 		for i, v := range ts.Values {
@@ -181,6 +162,28 @@ func transformAbsent(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 	}
 	return arg, nil
+}
+
+func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
+	// Copy tags from arg
+	rvs := evalNumber(ec, 1)
+	rv := rvs[0]
+	me, ok := arg.(*metricsql.MetricExpr)
+	if !ok {
+		return rvs
+	}
+	tfs := toTagFilters(me.LabelFilters)
+	for i := range tfs {
+		tf := &tfs[i]
+		if len(tf.Key) == 0 {
+			continue
+		}
+		if tf.IsRegexp || tf.IsNegative {
+			continue
+		}
+		rv.MetricName.AddTagBytes(tf.Key, tf.Value)
+	}
+	return rvs
 }
 
 func transformCeil(v float64) float64 {
