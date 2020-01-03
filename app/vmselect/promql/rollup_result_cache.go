@@ -129,7 +129,7 @@ func ResetRollupResultCache() {
 	rollupResultCacheV.c.Reset()
 }
 
-func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) (tss []*timeseries, newStart int64) {
+func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
 	if *disableCache || !ec.mayCache() {
 		return nil, ec.Start
 	}
@@ -138,7 +138,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricsql
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, iafc, window, ec.Step)
+	bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		return nil, ec.Start
@@ -158,7 +158,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricsql
 	if len(compressedResultBuf.B) == 0 {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, iafc, window, ec.Step)
+		bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -210,7 +210,7 @@ func (rrc *rollupResultCache) Get(funcName string, ec *EvalConfig, me *metricsql
 
 var resultBufPool bytesutil.ByteBufferPool
 
-func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64, tss []*timeseries) {
+func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
 	if *disableCache || len(tss) == 0 || !ec.mayCache() {
 		return
 	}
@@ -261,7 +261,7 @@ func (rrc *rollupResultCache) Put(funcName string, ec *EvalConfig, me *metricsql
 	bb.B = key.Marshal(bb.B[:0])
 	rrc.c.SetBig(bb.B, compressedResultBuf.B)
 
-	bb.B = marshalRollupResultCacheKey(bb.B[:0], funcName, me, iafc, window, ec.Step)
+	bb.B = marshalRollupResultCacheKey(bb.B[:0], expr, window, ec.Step)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf) > 0 {
@@ -289,24 +289,13 @@ var (
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 6
+const rollupResultCacheVersion = 7
 
-func marshalRollupResultCacheKey(dst []byte, funcName string, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, step int64) []byte {
+func marshalRollupResultCacheKey(dst []byte, expr metricsql.Expr, window, step int64) []byte {
 	dst = append(dst, rollupResultCacheVersion)
-	if iafc == nil {
-		dst = append(dst, 0)
-	} else {
-		dst = append(dst, 1)
-		dst = iafc.ae.AppendString(dst)
-	}
-	dst = encoding.MarshalUint64(dst, uint64(len(funcName)))
-	dst = append(dst, funcName...)
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
-	tfs := toTagFilters(me.LabelFilters)
-	for i := range tfs {
-		dst = tfs[i].Marshal(dst)
-	}
+	dst = expr.AppendString(dst)
 	return dst
 }
 
