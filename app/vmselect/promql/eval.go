@@ -164,14 +164,14 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		re := &metricsql.RollupExpr{
 			Expr: me,
 		}
-		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re, nil)
+		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, me.AppendString(nil), err)
 		}
 		return rv, nil
 	}
 	if re, ok := e.(*metricsql.RollupExpr); ok {
-		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, re, nil)
+		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, re.AppendString(nil), err)
 		}
@@ -207,7 +207,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		if err != nil {
 			return nil, err
 		}
-		rv, err := evalRollupFunc(ec, fe.Name, rf, re, nil)
+		rv, err := evalRollupFunc(ec, fe.Name, rf, e, re, nil)
 		if err != nil {
 			return nil, fmt.Errorf(`cannot evaluate %q: %s`, fe.AppendString(nil), err)
 		}
@@ -228,7 +228,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 					return nil, err
 				}
 				iafc := newIncrementalAggrFuncContext(ae, callbacks)
-				return evalRollupFunc(ec, fe.Name, rf, re, iafc)
+				return evalRollupFunc(ec, fe.Name, rf, e, re, iafc)
 			}
 		}
 		args, err := evalExprs(ec, ae.Args)
@@ -409,7 +409,7 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 	return &reNew
 }
 
-func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	ecNew := ec
 	var offset int64
 	if len(re.Offset) > 0 {
@@ -431,7 +431,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *metricsql.Ro
 	var rvs []*timeseries
 	var err error
 	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
-		rvs, err = evalRollupFuncWithMetricExpr(ecNew, name, rf, me, iafc, re.Window)
+		rvs, err = evalRollupFuncWithMetricExpr(ecNew, name, rf, expr, me, iafc, re.Window)
 	} else {
 		if iafc != nil {
 			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", name, re.AppendString(nil))
@@ -456,7 +456,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, re *metricsql.Ro
 }
 
 func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *metricsql.RollupExpr) ([]*timeseries, error) {
-	// Do not use rollupResultCacheV here, since it works only with metricsql.MetricExpr.
+	// TODO: determine whether to use rollupResultCacheV here.
 	var step int64
 	if len(re.Step) > 0 {
 		var err error
@@ -564,7 +564,8 @@ var (
 	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
 )
 
-func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowStr string) ([]*timeseries, error) {
+func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowStr string) ([]*timeseries, error) {
 	if me.IsEmpty() {
 		return evalNumber(ec, nan), nil
 	}
@@ -578,7 +579,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	}
 
 	// Search for partial results in cache.
-	tssCached, start := rollupResultCacheV.Get(name, ec, me, iafc, window)
+	tssCached, start := rollupResultCacheV.Get(ec, expr, window)
 	if start > ec.End {
 		// The result is fully cached.
 		rollupResultCacheFullHits.Inc()
@@ -657,7 +658,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc, me
 	}
 	tss = mergeTimeseries(tssCached, tss, start, ec)
 	if !isPartial {
-		rollupResultCacheV.Put(name, ec, me, iafc, window, tss)
+		rollupResultCacheV.Put(ec, expr, window, tss)
 	}
 	return tss, nil
 }
