@@ -491,6 +491,13 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
 		preFunc(values, timestamps)
 		for _, rc := range rcs {
+			if tsm := newTimeseriesMap(name, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
+				rc.DoTimeseriesMap(tsm, values, timestamps)
+				tssLock.Lock()
+				tss = tsm.AppendTimeseriesTo(tss)
+				tssLock.Unlock()
+				continue
+			}
 			var ts timeseries
 			doRollupForTimeseries(rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps, removeMetricGroup)
 			tssLock.Lock()
@@ -638,9 +645,9 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	removeMetricGroup := !rollupFuncsKeepMetricGroup[name]
 	var tss []*timeseries
 	if iafc != nil {
-		tss, err = evalRollupWithIncrementalAggregate(iafc, rss, rcs, preFunc, sharedTimestamps, removeMetricGroup)
+		tss, err = evalRollupWithIncrementalAggregate(name, iafc, rss, rcs, preFunc, sharedTimestamps, removeMetricGroup)
 	} else {
-		tss, err = evalRollupNoIncrementalAggregate(rss, rcs, preFunc, sharedTimestamps, removeMetricGroup)
+		tss, err = evalRollupNoIncrementalAggregate(name, rss, rcs, preFunc, sharedTimestamps, removeMetricGroup)
 	}
 	if err != nil {
 		return nil, err
@@ -662,13 +669,20 @@ func getRollupMemoryLimiter() *memoryLimiter {
 	return &rollupMemoryLimiter
 }
 
-func evalRollupWithIncrementalAggregate(iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
 		defer putTimeseries(ts)
 		for _, rc := range rcs {
+			if tsm := newTimeseriesMap(name, sharedTimestamps, &rs.MetricName); tsm != nil {
+				rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
+				for _, ts := range tsm.m {
+					iafc.updateTimeseries(ts, workerID)
+				}
+				continue
+			}
 			ts.Reset()
 			doRollupForTimeseries(rc, ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps, removeMetricGroup)
 			iafc.updateTimeseries(ts, workerID)
@@ -685,13 +699,20 @@ func evalRollupWithIncrementalAggregate(iafc *incrementalAggrFuncContext, rss *n
 	return tss, nil
 }
 
-func evalRollupNoIncrementalAggregate(rss *netstorage.Results, rcs []*rollupConfig,
+func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
 	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
+			if tsm := newTimeseriesMap(name, sharedTimestamps, &rs.MetricName); tsm != nil {
+				rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
+				tssLock.Lock()
+				tss = tsm.AppendTimeseriesTo(tss)
+				tssLock.Unlock()
+				continue
+			}
 			var ts timeseries
 			doRollupForTimeseries(rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps, removeMetricGroup)
 			tssLock.Lock()

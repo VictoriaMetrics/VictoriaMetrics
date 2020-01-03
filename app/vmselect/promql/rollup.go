@@ -8,6 +8,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
 )
 
@@ -51,6 +53,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"scrape_interval":     newRollupFuncOneArg(rollupScrapeInterval),
 	"share_le_over_time":  newRollupShareLE,
 	"share_gt_over_time":  newRollupShareGT,
+	"histogram_over_time": newRollupFuncOneArg(rollupHistogram),
 	"rollup":              newRollupFuncOneArg(rollupFake),
 	"rollup_rate":         newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
 	"rollup_deriv":        newRollupFuncOneArg(rollupFake),
@@ -119,6 +122,8 @@ type rollupFuncArg struct {
 	// Real previous value even if it is located too far from the current window.
 	// It matches prevValue if prevValue is not nan.
 	realPrevValue float64
+
+	tsm *timeseriesMap
 }
 
 func (rfa *rollupFuncArg) reset() {
@@ -131,6 +136,7 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.step = 0
 	rfa.scrapeInterval = 0
 	rfa.realPrevValue = nan
+	rfa.tsm = nil
 }
 
 // rollupFunc must return rollup value for the given rfa.
@@ -169,6 +175,54 @@ var (
 // The maximum interval without previous rows.
 const maxSilenceInterval = 5 * 60 * 1000
 
+type timeseriesMap struct {
+	origin    *timeseries
+	labelName string
+	h         metrics.Histogram
+	m         map[string]*timeseries
+}
+
+func newTimeseriesMap(funcName string, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
+	if funcName != "histogram_over_time" {
+		return nil
+	}
+
+	values := make([]float64, len(sharedTimestamps))
+	for i := range values {
+		values[i] = nan
+	}
+	var origin timeseries
+	origin.MetricName.CopyFrom(mnSrc)
+	origin.MetricName.ResetMetricGroup()
+	origin.Timestamps = sharedTimestamps
+	origin.Values = values
+	return &timeseriesMap{
+		origin:    &origin,
+		labelName: "vmrange",
+		m:         make(map[string]*timeseries),
+	}
+}
+
+func (tsm *timeseriesMap) AppendTimeseriesTo(dst []*timeseries) []*timeseries {
+	for _, ts := range tsm.m {
+		dst = append(dst, ts)
+	}
+	return dst
+}
+
+func (tsm *timeseriesMap) GetOrCreateTimeseries(labelValue string) *timeseries {
+	ts := tsm.m[labelValue]
+	if ts != nil {
+		return ts
+	}
+	ts = &timeseries{}
+	ts.CopyFromShallowTimestamps(tsm.origin)
+	ts.MetricName.RemoveTag(tsm.labelName)
+	ts.MetricName.AddTag(tsm.labelName, labelValue)
+	tsm.m[labelValue] = ts
+	return ts
+}
+
 // Do calculates rollups for the given timestamps and values, appends
 // them to dstValues and returns results.
 //
@@ -176,8 +230,19 @@ const maxSilenceInterval = 5 * 60 * 1000
 //
 // timestamps must cover time range [rc.Start - rc.Window - maxSilenceInterval ... rc.End + rc.Step].
 //
-// Cannot be called from concurrent goroutines.
+// Do cannot be called from concurrent goroutines.
 func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []int64) []float64 {
+	return rc.doInternal(dstValues, nil, values, timestamps)
+}
+
+// DoTimeseriesMap calculates rollups for the given timestamps and values and puts them to tsm.
+func (rc *rollupConfig) DoTimeseriesMap(tsm *timeseriesMap, values []float64, timestamps []int64) {
+	ts := getTimeseries()
+	ts.Values = rc.doInternal(ts.Values[:0], tsm, values, timestamps)
+	putTimeseries(ts)
+}
+
+func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, values []float64, timestamps []int64) []float64 {
 	// Sanity checks.
 	if rc.Step <= 0 {
 		logger.Panicf("BUG: Step must be bigger than 0; got %d", rc.Step)
@@ -212,6 +277,7 @@ func (rc *rollupConfig) Do(dstValues []float64, values []float64, timestamps []i
 	rfa.step = rc.Step
 	rfa.scrapeInterval = scrapeInterval
 	rfa.realPrevValue = nan
+	rfa.tsm = tsm
 
 	i := 0
 	j := 0
@@ -610,6 +676,21 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		return qv
 	}
 	return rf, nil
+}
+
+func rollupHistogram(rfa *rollupFuncArg) float64 {
+	values := rfa.values
+	tsm := rfa.tsm
+	tsm.h.Reset()
+	for _, v := range values {
+		tsm.h.Update(v)
+	}
+	idx := rfa.idx
+	tsm.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
+		ts := tsm.GetOrCreateTimeseries(vmrange)
+		ts.Values[idx] = float64(count)
+	})
+	return nan
 }
 
 func rollupAvg(rfa *rollupFuncArg) float64 {
