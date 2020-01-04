@@ -2676,14 +2676,14 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`histogram_share(normal-bucket-count)`, func(t *testing.T) {
 		t.Parallel()
-		q := `histogram_share(22,
+		q := `histogram_share(35,
 			label_set(0, "foo", "bar", "le", "10")
 			or label_set(100, "foo", "bar", "le", "30")
 			or label_set(300, "foo", "bar", "le", "+Inf")
 		)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0.2, 0.2, 0.2, 0.2, 0.2, 0.2},
+			Values:     []float64{0.3333333333333333, 0.3333333333333333, 0.3333333333333333, 0.3333333333333333, 0.3333333333333333, 0.3333333333333333},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{{
