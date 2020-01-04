@@ -72,6 +72,7 @@ var transformFuncs = map[string]bool{
 	"asin":               true,
 	"acos":               true,
 	"prometheus_buckets": true,
+	"histogram_share":    true,
 }
 
 func isTransformFunc(s string) bool {
