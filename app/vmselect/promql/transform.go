@@ -440,29 +440,30 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 		if math.IsInf(leReq, 1) {
 			return 1, 1, 1
 		}
-		for j, xs := range xss {
+		var vPrev, lePrev float64
+		for _, xs := range xss {
 			v := xs.ts.Values[i]
 			le := xs.le
-			if leReq < le {
+			if leReq >= le {
+				vPrev = v
+				lePrev = le
 				continue
 			}
-			// precondition: leReq >= le
-			if j+1 >= len(xss) {
-				return 1, 1, 1
-			}
-			vNext := xss[j+1].ts.Values[i]
-			leNext := xss[j+1].le
-			if math.IsInf(leNext, 1) {
-				return v / vNext, v / vNext, 1
-			}
+			// precondition: lePrev <= leReq < le
 			vLast := xss[len(xss)-1].ts.Values[i]
-			lower = v / vLast
-			upper = vNext / vLast
-			q = lower + (vNext-v)/vLast*(leReq-le)/(leNext-le)
+			lower = vPrev / vLast
+			if math.IsInf(le, 1) {
+				return lower, lower, 1
+			}
+			if lePrev == leReq {
+				return lower, lower, lower
+			}
+			upper = v / vLast
+			q = lower + (v-vPrev)/vLast*(leReq-lePrev)/(le-lePrev)
 			return q, lower, upper
 		}
-		leLast := xss[len(xss)-1].le
-		return leReq / leLast, 0, 1
+		// precondition: leReq > leLast
+		return 1, 1, 1
 	}
 	rvs := make([]*timeseries, 0, len(m))
 	for _, xss := range m {
