@@ -53,7 +53,8 @@ var rollupFuncs = map[string]bool{
 	"rollup_candlestick":  true,
 }
 
-func isRollupFunc(funcName string) bool {
-	funcName = strings.ToLower(funcName)
-	return rollupFuncs[funcName]
+// IsRollupFunc returns whether funcName is known rollup function.
+func IsRollupFunc(funcName string) bool {
+	s := strings.ToLower(funcName)
+	return rollupFuncs[s]
 }

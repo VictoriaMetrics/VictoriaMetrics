@@ -75,7 +75,9 @@ var transformFuncs = map[string]bool{
 	"histogram_share":    true,
 }
 
-func isTransformFunc(s string) bool {
-	s = strings.ToLower(s)
+// IsTransformFunc returns whether funcName is known transform function.
+func IsTransformFunc(funcName string) bool {
+	s := strings.ToLower(funcName)
 	return transformFuncs[s]
+
 }
