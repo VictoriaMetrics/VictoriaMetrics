@@ -1,7 +1,13 @@
-## Case studies
+## Case studies and talks
 
-Below are approved public case studies from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
+Below are approved public case studies and talks from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
 and feel free asking for references, reviews and additional case studies from real VictoriaMetrics users there.
+
+### Adidas
+
+See [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
+from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk at [PromCon 2019](https://promcon.io/2019-munich/).
+VictoriaMetrics is compared to Thanos, Corex and M3DB in the talk.
 
 
 ### Wix.com
