@@ -76,7 +76,7 @@ func getMaxRawRowsPerPartition() int {
 		if n > 500e3 {
 			n = 500e3
 		}
-		maxRawRowsPerPartition = n / rawRowsShardsPerPartition
+		maxRawRowsPerPartition = n
 	})
 	return maxRawRowsPerPartition
 }
