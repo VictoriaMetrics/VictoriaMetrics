@@ -16,7 +16,7 @@ To provide the best long-term [remote storage](https://prometheus.io/docs/operat
 * High data compression, so [up to 70x more data points](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
   may be crammed into a limited storage comparing to TimescaleDB.
 * Optimized for storage with high-latency IO and low iops (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc). See [graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
-* A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, Uber M3, Cortex, InfluxDB or TimescaleDB.
+* A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, M3DB, Cortex, InfluxDB or TimescaleDB.
   See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
   and [comparing Thanos to VictoriaMetrics](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
 * Easy operation:
@@ -56,12 +56,15 @@ and new data is available for querying via Prometheus as usual.
 
 ### How does VictoriaMetrics compare to other clustered TSDBs on top of Prometheus such as [M3 from Uber](https://eng.uber.com/m3/), [Thanos](https://github.com/improbable-eng/thanos), [Cortex](https://github.com/cortexproject/cortex), etc.?
 
-VictoriaMetrics is simpler, faster, more cost-effective and it provides [useful extensions for PromQL](ExtendedPromQL). The simplicity is twofold:
+VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL with useful extensions for PromQL](ExtendedPromQL). The simplicity is twofold:
 - It is simpler to configure and operate. There is no need in configuring third-party [sidecars](https://github.com/improbable-eng/thanos/blob/master/docs/components/sidecar.md)
   or fighting with [gossip protocol](https://github.com/improbable-eng/thanos/blob/master/docs/proposals/completed/201809_gossip-removal.md).
-- VictoriaMetrics has simpler architecture, which means less bugs and more useful features in a long run comparing to competing TSDBs.
+- VictoriaMetrics has simpler architecture, which means less bugs and more useful features in the long run comparing to competing TSDBs.
 
-See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
+See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
+and [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
+
+VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/thanos-io/thanos/issues/448).
 
 
 ### How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
