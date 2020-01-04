@@ -2410,6 +2410,7 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{200, 200, 200, 200, 200, 200},
 			Timestamps: timestampsExpected,
 		}
@@ -2438,6 +2439,7 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{1, 1, 1, 1, 1, 1},
 			Timestamps: timestampsExpected,
 		}
@@ -3386,6 +3388,7 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
 		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{13, 14, 12, 8, 12, 13},
 			Timestamps: timestampsExpected,
 		}
@@ -3400,6 +3403,7 @@ func TestExecSuccess(t *testing.T) {
 			},
 		}
 		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{14, 15, 12, 13, 15, 11},
 			Timestamps: timestampsExpected,
 		}
@@ -3414,6 +3418,7 @@ func TestExecSuccess(t *testing.T) {
 			},
 		}
 		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{13, 11, 16, 19, 13, 16},
 			Timestamps: timestampsExpected,
 		}
@@ -3434,6 +3439,7 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort(sum(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s])) by (vmrange))`
 		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{13, 14, 12, 8, 12, 13},
 			Timestamps: timestampsExpected,
 		}
@@ -3444,6 +3450,7 @@ func TestExecSuccess(t *testing.T) {
 			},
 		}
 		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{14, 15, 12, 13, 15, 11},
 			Timestamps: timestampsExpected,
 		}
@@ -3454,6 +3461,7 @@ func TestExecSuccess(t *testing.T) {
 			},
 		}
 		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{13, 11, 16, 19, 13, 16},
 			Timestamps: timestampsExpected,
 		}
@@ -3470,6 +3478,7 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sum(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
 		r := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{40, 40, 40, 40, 40, 40},
 			Timestamps: timestampsExpected,
 		}
@@ -3480,6 +3489,7 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `topk_max(1, histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
 		r := netstorage.Result{
+			MetricName: metricNameExpected,
 			Values:     []float64{13, 11, 16, 19, 13, 16},
 			Timestamps: timestampsExpected,
 		}
