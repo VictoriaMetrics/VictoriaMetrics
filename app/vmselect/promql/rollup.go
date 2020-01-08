@@ -25,9 +25,9 @@ var rollupFuncs = map[string]newRollupFunc{
 	"holt_winters":       newRollupHoltWinters,
 	"idelta":             newRollupFuncOneArg(rollupIdelta),
 	"increase":           newRollupFuncOneArg(rollupIncrease), // + rollupFuncsRemoveCounterResets
-	"irate":              newRollupFuncOneArg(rollupIrate),    // + rollupFuncsRemoveCounterResets
+	"irate":              newRollupFuncOneArg(rollupIderiv),   // + rollupFuncsRemoveCounterResets
 	"predict_linear":     newRollupPredictLinear,
-	"rate":               newRollupFuncOneArg(rollupRate), // + rollupFuncsRemoveCounterResets
+	"rate":               newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
 	"resets":             newRollupFuncOneArg(rollupResets),
 	"avg_over_time":      newRollupFuncOneArg(rollupAvg),
 	"min_over_time":      newRollupFuncOneArg(rollupMin),
@@ -115,10 +115,9 @@ type rollupFuncArg struct {
 	values        []float64
 	timestamps    []int64
 
-	currTimestamp  int64
-	idx            int
-	step           int64
-	scrapeInterval int64
+	currTimestamp int64
+	idx           int
+	step          int64
 
 	// Real previous value even if it is located too far from the current window.
 	// It matches prevValue if prevValue is not nan.
@@ -135,7 +134,6 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.currTimestamp = 0
 	rfa.idx = 0
 	rfa.step = 0
-	rfa.scrapeInterval = 0
 	rfa.realPrevValue = nan
 	rfa.tsm = nil
 }
@@ -276,7 +274,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	rfa := getRollupFuncArg()
 	rfa.idx = 0
 	rfa.step = rc.Step
-	rfa.scrapeInterval = scrapeInterval
 	rfa.realPrevValue = nan
 	rfa.tsm = tsm
 
@@ -865,7 +862,10 @@ func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 			return nan
 		}
 		// Assume that the previous non-existing value was 0.
-		prevValue = getPrevValue(rfa, canUseRealPrevValue)
+		prevValue = 0
+		if canUseRealPrevValue && !math.IsNaN(rfa.prevValue) {
+			prevValue = rfa.prevValue
+		}
 	}
 	if len(values) == 0 {
 		// Assume that the value didn't change on the given interval.
@@ -906,14 +906,6 @@ func rollupDerivSlow(rfa *rollupFuncArg) float64 {
 }
 
 func rollupDerivFast(rfa *rollupFuncArg) float64 {
-	return rollupDerivFastInternal(rfa, false)
-}
-
-func rollupRate(rfa *rollupFuncArg) float64 {
-	return rollupDerivFastInternal(rfa, true)
-}
-
-func rollupDerivFastInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
@@ -924,9 +916,21 @@ func rollupDerivFastInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float
 		if len(values) == 0 {
 			return nan
 		}
-		// Assume that the value changed from 0 to the current value during rfa.scrapeInterval
-		prevValue = getPrevValue(rfa, canUseRealPrevValue)
-		prevTimestamp = timestamps[0] - rfa.scrapeInterval
+		if len(values) == 1 {
+			// It is impossible to determine the duration during which the value changed
+			// from 0 to the current value.
+			// The following attempts didn't work well:
+			// - using scrape interval as the duration. It fails on Prometheus restarts when it
+			//   skips scraping for the counter. This results in too high rate() value for the first point
+			//   after Prometheus restarts.
+			// - using window or step as the duration. It results in too small rate() values for the first
+			//   points of time series.
+			//
+			// So just return nan
+			return nan
+		}
+		prevValue = values[0]
+		prevTimestamp = timestamps[0]
 	} else if len(values) == 0 {
 		// Assume that the value didn't change on the given interval.
 		return 0
@@ -939,14 +943,6 @@ func rollupDerivFastInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float
 }
 
 func rollupIderiv(rfa *rollupFuncArg) float64 {
-	return rollupIderivInternal(rfa, false)
-}
-
-func rollupIrate(rfa *rollupFuncArg) float64 {
-	return rollupIderivInternal(rfa, true)
-}
-
-func rollupIderivInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
@@ -955,14 +951,20 @@ func rollupIderivInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 
 		if len(values) == 0 {
 			return nan
 		}
-		prevValue := rfa.prevValue
-		prevTimestamp := rfa.prevTimestamp
-		if math.IsNaN(prevValue) {
-			// Assume that the value changed from 0 to the current value during rfa.scrapeInterval.
-			prevValue = getPrevValue(rfa, canUseRealPrevValue)
-			prevTimestamp = timestamps[0] - rfa.scrapeInterval
+		if math.IsNaN(rfa.prevValue) {
+			// It is impossible to determine the duration during which the value changed
+			// from 0 to the current value.
+			// The following attempts didn't work well:
+			// - using scrape interval as the duration. It fails on Prometheus restarts when it
+			//   skips scraping for the counter. This results in too high rate() value for the first point
+			//   after Prometheus restarts.
+			// - using window or step as the duration. It results in too small rate() values for the first
+			//   points of time series.
+			//
+			// So just return nan
+			return nan
 		}
-		return (values[0] - prevValue) / (float64(timestamps[0]-prevTimestamp) * 1e-3)
+		return (values[0] - rfa.prevValue) / (float64(timestamps[0]-rfa.prevTimestamp) * 1e-3)
 	}
 	vEnd := values[len(values)-1]
 	tEnd := timestamps[len(timestamps)-1]
@@ -987,14 +989,6 @@ func rollupIderivInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 
 	dv := vEnd - vStart
 	dt := tEnd - tStart
 	return dv / (float64(dt) * 1e-3)
-}
-
-func getPrevValue(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
-	prevValue := rfa.realPrevValue
-	if !canUseRealPrevValue || math.IsNaN(prevValue) {
-		return 0
-	}
-	return prevValue
 }
 
 func rollupLifetime(rfa *rollupFuncArg) float64 {
