@@ -102,6 +102,21 @@ See also [examples](https://godoc.org/github.com/valyala/fastjson#pkg-examples).
   * Prefer iterating over array returned from [Value.GetArray](https://godoc.org/github.com/valyala/fastjson#Object.Visit)
     with a range loop instead of calling `Value.Get*` for each array item.
 
+## Fuzzing
+Install [go-fuzz](https://github.com/dvyukov/go-fuzz) & optionally the go-fuzz-corpus.
+
+```bash
+go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
+```
+
+Build using `go-fuzz-build` and run `go-fuzz` with an optional corpus.
+
+```bash
+mkdir -p workdir/corpus
+cp $GOPATH/src/github.com/dvyukov/go-fuzz-corpus/json/corpus/* workdir/corpus
+go-fuzz-build github.com/valyala/fastjson
+go-fuzz -bin=fastjson-fuzz.zip -workdir=workdir
+```
 
 ## Benchmarks
 
