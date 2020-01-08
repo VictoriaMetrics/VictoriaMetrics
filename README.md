@@ -6,7 +6,7 @@
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<img alt="Victoria Metrics" src="logo.png" height="200px">
+<img alt="Victoria Metrics" src="logo.png">
 
 ## VictoriaMetrics
 
