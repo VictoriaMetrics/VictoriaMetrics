@@ -42,14 +42,13 @@ func TestRollupIderivDuplicateTimestamps(t *testing.T) {
 	}
 
 	rfa = &rollupFuncArg{
-		prevValue:      nan,
-		values:         []float64{15},
-		timestamps:     []int64{100},
-		scrapeInterval: 200,
+		prevValue:  nan,
+		values:     []float64{15},
+		timestamps: []int64{100},
 	}
 	n = rollupIderiv(rfa)
-	if n != 75 {
-		t.Fatalf("unexpected value; got %v; want %v", n, 75)
+	if !math.IsNaN(n) {
+		t.Fatalf("unexpected value; got %v; want %v", n, nan)
 	}
 
 	rfa = &rollupFuncArg{
@@ -323,11 +322,11 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("changes", 11)
 	f("delta", 34)
 	f("deriv", -266.85860231406065)
-	f("deriv_fast", 272)
+	f("deriv_fast", -712)
 	f("idelta", 0)
 	f("increase", 398)
 	f("irate", 0)
-	f("rate", 3184)
+	f("rate", 2200)
 	f("resets", 5)
 	f("avg_over_time", 47.083333333333336)
 	f("min_over_time", 12)
@@ -831,7 +830,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, nan, 10250, 0, -8900, 0}
+		valuesExpected := []float64{nan, nan, nan, 0, -8900, 0}
 		timestampsExpected := []int64{0, 4, 8, 12, 16, 20}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
