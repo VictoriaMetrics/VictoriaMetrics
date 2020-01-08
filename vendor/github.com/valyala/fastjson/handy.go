@@ -159,7 +159,7 @@ func ParseBytes(b []byte) (*Value, error) {
 
 // MustParseBytes parses b containing json.
 //
-// The function banics if b cannot be parsed.
+// The function panics if b cannot be parsed.
 // The function is slower than the Parser.ParseBytes for re-used Parser.
 func MustParseBytes(b []byte) *Value {
 	v, err := ParseBytes(b)

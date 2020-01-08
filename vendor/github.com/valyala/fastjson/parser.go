@@ -484,8 +484,9 @@ func (o *Object) unescapeKeys() {
 	if o.keysUnescaped {
 		return
 	}
-	for i := range o.kvs {
-		kv := &o.kvs[i]
+	kvs := o.kvs
+	for i := range kvs {
+		kv := &kvs[i]
 		kv.k = unescapeStringBestEffort(kv.k)
 	}
 	o.keysUnescaped = true

@@ -2,6 +2,7 @@ package fastfloat
 
 import (
 	"math"
+	"strings"
 	"strconv"
 )
 
@@ -132,6 +133,15 @@ func ParseBestEffort(s string) float64 {
 		break
 	}
 	if i <= j {
+		if strings.EqualFold(s[i:], "inf") {
+			if minus {
+				return -inf
+			}
+			return inf
+		}
+		if strings.EqualFold(s[i:], "nan") {
+			return nan
+		}
 		return 0
 	}
 	f := float64(d)
@@ -229,3 +239,6 @@ func ParseBestEffort(s string) float64 {
 	}
 	return 0
 }
+
+var inf = math.Inf(1)
+var nan = math.NaN()
