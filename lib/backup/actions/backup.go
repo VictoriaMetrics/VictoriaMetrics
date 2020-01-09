@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -41,16 +42,32 @@ type Backup struct {
 
 // Run runs b with the provided settings.
 func (b *Backup) Run() error {
-	startTime := time.Now()
-
 	concurrency := b.Concurrency
 	src := b.Src
 	dst := b.Dst
 	origin := b.Origin
 
+	if origin != nil && origin.String() == dst.String() {
+		origin = nil
+	}
 	if origin == nil {
 		origin = &fsnil.FS{}
 	}
+
+	if err := dst.DeleteFile(fscommon.BackupCompleteFilename); err != nil {
+		return fmt.Errorf("cannot delete `backup complete` file at %s: %s", dst, err)
+	}
+	if err := runBackup(src, dst, origin, concurrency); err != nil {
+		return err
+	}
+	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte("ok")); err != nil {
+		return fmt.Errorf("cannot create `backup complete` file at %s: %s", dst, err)
+	}
+	return nil
+}
+
+func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, concurrency int) error {
+	startTime := time.Now()
 
 	logger.Infof("starting backup from %s to %s using origin %s", src, dst, origin)
 

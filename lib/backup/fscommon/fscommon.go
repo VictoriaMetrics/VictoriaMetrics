@@ -260,3 +260,11 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	}
 	return true, nil
 }
+
+// IgnorePath returns true if the given path must be ignored.
+func IgnorePath(path string) bool {
+	return strings.HasSuffix(path, ".ignore")
+}
+
+// BackupCompleteFilename is a filename, which is created in the destination fs when backup is complete.
+const BackupCompleteFilename = "backup_complete.ignore"

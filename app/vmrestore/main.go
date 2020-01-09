@@ -16,8 +16,9 @@ var (
 		"Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir")
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Destination path where backup must be restored. "+
 		"VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case only missing data is downloaded from backup")
-	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
-	maxBytesPerSecond = flag.Int("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
+	concurrency             = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
+	maxBytesPerSecond       = flag.Int("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
+	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for `backup complete` file in `-src`. This may be useful for restoring from old backups, which were created without `backup complete` file")
 )
 
 func main() {
@@ -34,9 +35,10 @@ func main() {
 		logger.Fatalf("%s", err)
 	}
 	a := &actions.Restore{
-		Concurrency: *concurrency,
-		Src:         srcFS,
-		Dst:         dstFS,
+		Concurrency:             *concurrency,
+		Src:                     srcFS,
+		Dst:                     dstFS,
+		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
 	}
 	if err := a.Run(); err != nil {
 		logger.Fatalf("cannot restore from backup: %s", err)
