@@ -230,16 +230,25 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 //
 // The function does nothing if the file doesn't exist.
 func (fs *FS) DeleteFile(filePath string) error {
+	// It looks like s3 may return `AccessDenied: Access Denied` instead of `s3.ErrCodeNoSuchKey`
+	// on an attempt to delete non-existing file.
+	// so just check whether the filePath exists before deleting it.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/284 for details.
+	ok, err := fs.HasFile(filePath)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		// Missing file - nothing to delete.
+		return nil
+	}
+
 	path := fs.Dir + filePath
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	_, err := fs.s3.DeleteObject(input)
-	if err != nil {
-		if ae, ok := err.(awserr.Error); ok && ae.Code() == s3.ErrCodeNoSuchKey {
-			return nil
-		}
+	if _, err := fs.s3.DeleteObject(input); err != nil {
 		return fmt.Errorf("cannot delete %q at %s (remote path %q): %s", filePath, fs, path, err)
 	}
 	return nil
