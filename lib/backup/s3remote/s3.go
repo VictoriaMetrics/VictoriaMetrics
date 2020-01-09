@@ -1,14 +1,17 @@
 package s3remote
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -112,6 +115,9 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			if !strings.HasPrefix(file, dir) {
 				errOuter = fmt.Errorf("unexpected prefix for s3 key %q; want %q", file, dir)
 				return false
+			}
+			if fscommon.IgnorePath(file) {
+				continue
 			}
 			var p common.Part
 			if !p.ParseFromRemotePath(file[len(dir):]) {
@@ -218,6 +224,69 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, sr.size, p.Size)
 	}
 	return nil
+}
+
+// DeleteFile deletes filePath from fs if it exists.
+//
+// The function does nothing if the file doesn't exist.
+func (fs *FS) DeleteFile(filePath string) error {
+	path := fs.Dir + filePath
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(fs.Bucket),
+		Key:    aws.String(path),
+	}
+	_, err := fs.s3.DeleteObject(input)
+	if err != nil {
+		if ae, ok := err.(awserr.Error); ok && ae.Code() == s3.ErrCodeNoSuchKey {
+			return nil
+		}
+		return fmt.Errorf("cannot delete %q at %s (remote path %q): %s", filePath, fs, path, err)
+	}
+	return nil
+}
+
+// CreateFile creates filePath at fs and puts data into it.
+//
+// The file is overwritten if it already exists.
+func (fs *FS) CreateFile(filePath string, data []byte) error {
+	path := fs.Dir + filePath
+	sr := &statReader{
+		r: bytes.NewReader(data),
+	}
+	input := &s3manager.UploadInput{
+		Bucket: aws.String(fs.Bucket),
+		Key:    aws.String(path),
+		Body:   sr,
+	}
+	_, err := fs.uploader.Upload(input)
+	if err != nil {
+		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %s", filePath, fs, path, err)
+	}
+	l := int64(len(data))
+	if sr.size != l {
+		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", filePath, fs, sr.size, l)
+	}
+	return nil
+}
+
+// HasFile returns true if filePath exists at fs.
+func (fs *FS) HasFile(filePath string) (bool, error) {
+	path := fs.Dir + filePath
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(fs.Bucket),
+		Key:    aws.String(path),
+	}
+	o, err := fs.s3.GetObject(input)
+	if err != nil {
+		if ae, ok := err.(awserr.Error); ok && ae.Code() == s3.ErrCodeNoSuchKey {
+			return false, nil
+		}
+		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %s", filePath, fs, path, err)
+	}
+	if err := o.Body.Close(); err != nil {
+		return false, fmt.Errorf("cannot close %q at %s (remote path %q): %s", filePath, fs, path, err)
+	}
+	return true, nil
 }
 
 func (fs *FS) path(p common.Part) string {

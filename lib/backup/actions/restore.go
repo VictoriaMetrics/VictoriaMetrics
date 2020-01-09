@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -29,6 +30,11 @@ type Restore struct {
 	// If dst points to existing directory, then incremental restore is performed,
 	// i.e. only new data is downloaded from src.
 	Dst *fslocal.FS
+
+	// SkipBackupCompleteCheck may be set in order to skip for `backup complete` file in Src.
+	//
+	// This may be needed for restoring from old backups with missing `backup complete` file.
+	SkipBackupCompleteCheck bool
 }
 
 // Run runs r with the provided settings.
@@ -48,6 +54,18 @@ func (r *Restore) Run() error {
 	concurrency := r.Concurrency
 	src := r.Src
 	dst := r.Dst
+
+	if !r.SkipBackupCompleteCheck {
+		ok, err := src.HasFile(fscommon.BackupCompleteFilename)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("cannot find %s file in %s; this means either incomplete backup or old backup; "+
+				"pass `-skipBackupCompleteCheck` command-line flag if you still need restoring from this backup", fscommon.BackupCompleteFilename, src)
+		}
+	}
+
 	logger.Infof("starting restore from %s to %s", src, dst)
 
 	logger.Infof("obtaining list of parts at %s", src)

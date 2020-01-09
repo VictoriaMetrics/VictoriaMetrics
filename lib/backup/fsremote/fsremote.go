@@ -3,6 +3,7 @@ package fsremote
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,6 +48,9 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	for _, file := range files {
 		if !strings.HasPrefix(file, dir) {
 			logger.Panicf("BUG: unexpected prefix for file %q; want %q", file, dir)
+		}
+		if fscommon.IgnorePath(file) {
+			continue
 		}
 		var p common.Part
 		if !p.ParseFromRemotePath(file[len(dir):]) {
@@ -187,4 +191,43 @@ func (fs *FS) mkdirAll(filePath string) error {
 
 func (fs *FS) path(p common.Part) string {
 	return p.RemotePath(fs.Dir)
+}
+
+// DeleteFile deletes filePath at fs.
+//
+// The function does nothing if the filePath doesn't exist.
+func (fs *FS) DeleteFile(filePath string) error {
+	path := filepath.Join(fs.Dir, filePath)
+	err := os.Remove(path)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("cannot remove %q: %s", path, err)
+	}
+	return nil
+}
+
+// CreateFile creates filePath at fs and puts data into it.
+//
+// The file is overwritten if it exists.
+func (fs *FS) CreateFile(filePath string, data []byte) error {
+	path := filepath.Join(fs.Dir, filePath)
+	if err := ioutil.WriteFile(path, data, 0600); err != nil {
+		return fmt.Errorf("cannot write %d bytes to %q: %s", len(data), path, err)
+	}
+	return nil
+}
+
+// HasFile returns true if filePath exists at fs.
+func (fs *FS) HasFile(filePath string) (bool, error) {
+	path := filepath.Join(fs.Dir, filePath)
+	fi, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("cannot stat %q: %s", path, err)
+	}
+	if fi.IsDir() {
+		return false, fmt.Errorf("%q is directory, while file is needed", path)
+	}
+	return true, nil
 }

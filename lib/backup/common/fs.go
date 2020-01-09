@@ -38,4 +38,13 @@ type RemoteFS interface {
 
 	// UploadPart must upload part p from r to RemoteFS.
 	UploadPart(p Part, r io.Reader) error
+
+	// DeleteFile deletes filePath at RemoteFS
+	DeleteFile(filePath string) error
+
+	// CreateFile creates filePath at RemoteFS and puts data into it.
+	CreateFile(filePath string, data []byte) error
+
+	// HasFile returns true if filePath exists at RemoteFS.
+	HasFile(filePath string) (bool, error)
 }
