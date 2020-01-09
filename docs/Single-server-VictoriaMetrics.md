@@ -617,7 +617,7 @@ A rough estimation of the required resources for ingestion path:
 * RAM size: less than 1KB per active time series. So, ~1GB of RAM is required for 1M active time series.
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
   The number of active time series may be obtained from `vm_cache_entries{type="storage/hour_metric_ids"}` metric
-  exproted on the `/metrics` page.
+  exported on the `/metrics` page.
   VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited by `-memory.allowedPercent` flag.
 
 * CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
@@ -698,7 +698,7 @@ There is no downsampling support at the moment, but:
 - VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
 
-These properties reduce the need in downsampling. We plan to implement downsampling in the future.
+These properties reduce the need of downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
 
@@ -743,14 +743,14 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
 
 ### Tuning
 
-* There is no need in VictoriaMetrics tuning since it uses reasonable defaults for command-line flags,
+* There is no need for VictoriaMetrics tuning since it uses reasonable defaults for command-line flags,
   which are automatically adjusted for the available CPU and RAM resources.
-* There is no need in Operating System tuning since VictoriaMetrics is optimized for default OS settings.
+* There is no need for Operating System tuning since VictoriaMetrics is optimized for default OS settings.
   The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a),
   so Prometheus instances could establish more connections to VictoriaMetrics.
 * The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
   since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
-  If you plan storing more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
+  If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
   then the following options are recommended to pass to `mkfs.ext4`:
 
 ```
@@ -781,7 +781,7 @@ The most interesting metrics are:
 ### Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
-  in tweaking these flag values arises.
+  of tweaking these flag values arises.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
@@ -795,7 +795,7 @@ The most interesting metrics are:
   has at least 20% of free space comparing to disk size.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
-  then just remove directoreis with broken parts. This will recover VictoriaMetrics at the cost
+  then just remove directories with broken parts. This will recover VictoriaMetrics at the cost
   of data loss stored in the broken parts. In the future, `vmrecover` tool will be created
   for automatic recovering from such errors.
 
@@ -846,7 +846,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 - [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
 
 
-The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment any item or add own one.
+The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
 
 
 ## Contacts
@@ -889,7 +889,7 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 
 ## Victoria Metrics Logo
 
-[Zip](VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
+[Zip](VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
 
 Files included in each folder:
 
