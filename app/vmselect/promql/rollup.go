@@ -114,6 +114,7 @@ var rollupFuncsMayAdjustWindow = map[string]bool{
 	"irate":           true,
 	"rate":            true,
 	"lifetime":        true,
+	"lag":             true,
 	"scrape_interval": true,
 }
 
@@ -884,14 +885,14 @@ func rollupAvg(rfa *rollupFuncArg) float64 {
 func rollupMin(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	minValue := rfa.prevValue
 	values := rfa.values
-	if math.IsNaN(minValue) {
-		if len(values) == 0 {
-			return nan
-		}
-		minValue = values[0]
+	if len(values) == 0 {
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
 	}
+	minValue := values[0]
 	for _, v := range values {
 		if v < minValue {
 			minValue = v
@@ -903,14 +904,14 @@ func rollupMin(rfa *rollupFuncArg) float64 {
 func rollupMax(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	maxValue := rfa.prevValue
 	values := rfa.values
-	if math.IsNaN(maxValue) {
-		if len(values) == 0 {
-			return nan
-		}
-		maxValue = values[0]
+	if len(values) == 0 {
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
 	}
+	maxValue := values[0]
 	for _, v := range values {
 		if v > maxValue {
 			maxValue = v
@@ -922,17 +923,13 @@ func rollupMax(rfa *rollupFuncArg) float64 {
 func rollupTmin(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	minValue := rfa.prevValue
-	minTimestamp := rfa.prevTimestamp
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if math.IsNaN(minValue) {
-		if len(values) == 0 {
-			return nan
-		}
-		minValue = values[0]
-		minTimestamp = timestamps[0]
+	if len(values) == 0 {
+		return nan
 	}
+	minValue := values[0]
+	minTimestamp := timestamps[0]
 	for i, v := range values {
 		if v < minValue {
 			minValue = v
@@ -945,17 +942,13 @@ func rollupTmin(rfa *rollupFuncArg) float64 {
 func rollupTmax(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	maxValue := rfa.prevValue
-	maxTimestamp := rfa.prevTimestamp
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if math.IsNaN(maxValue) {
-		if len(values) == 0 {
-			return nan
-		}
-		maxValue = values[0]
-		maxTimestamp = timestamps[0]
+	if len(values) == 0 {
+		return nan
 	}
+	maxValue := values[0]
+	maxTimestamp := timestamps[0]
 	for i, v := range values {
 		if v > maxValue {
 			maxValue = v
@@ -1335,16 +1328,13 @@ func rollupResets(rfa *rollupFuncArg) float64 {
 }
 
 func rollupFirst(rfa *rollupFuncArg) float64 {
-	// See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness
-	v := rfa.prevValue
-	if !math.IsNaN(v) {
-		return v
-	}
-
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
 		return nan
 	}
 	return values[0]
@@ -1357,7 +1347,10 @@ func rollupLast(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
 	}
 	return values[len(values)-1]
 }
