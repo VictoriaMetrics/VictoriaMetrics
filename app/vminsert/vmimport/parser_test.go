@@ -1,6 +1,7 @@
 package vmimport
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -98,6 +99,18 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 			Values:     []float64{1.23},
 			Timestamps: []int64{456},
+		}},
+	})
+
+	// Inf and nan values
+	f(`{"metric":{"foo":"bar"},"values":[Inf, -Inf],"timestamps":[456, 789]}`, &Rows{
+		Rows: []Row{{
+			Tags: []Tag{{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			}},
+			Values:     []float64{math.Inf(1), math.Inf(-1)},
+			Timestamps: []int64{456, 789},
 		}},
 	})
 

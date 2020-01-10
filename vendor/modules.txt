@@ -92,7 +92,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 github.com/lithammer/go-jump-consistent-hash
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/valyala/fastjson v1.4.2
+# github.com/valyala/fastjson v1.4.5
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
 # github.com/valyala/fastrand v1.0.0

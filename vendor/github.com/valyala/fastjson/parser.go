@@ -138,6 +138,13 @@ func parseValue(s string, c *cache) (*Value, string, error) {
 	}
 	if s[0] == 'n' {
 		if len(s) < len("null") || s[:len("null")] != "null" {
+			// Try parsing NaN
+			if len(s) >= 3 && strings.EqualFold(s[:3], "nan") {
+				v := c.getValue()
+				v.t = TypeNumber
+				v.s = s[:3]
+				return v, s[3:], nil
+			}
 			return nil, s, fmt.Errorf("unexpected value found: %q", s)
 		}
 		return valueNull, s[len("null"):], nil
@@ -415,7 +422,13 @@ func parseRawNumber(s string) (string, string, error) {
 		if (ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == 'e' || ch == 'E' || ch == '+' {
 			continue
 		}
-		if i == 0 {
+		if i == 0 || i == 1 && (s[0] == '-' || s[0] == '+') {
+			if len(s[i:]) >= 3 {
+				xs := s[i : i+3]
+				if strings.EqualFold(xs, "inf") || strings.EqualFold(xs, "nan") {
+					return s[:i+3], s[i+3:], nil
+				}
+			}
 			return "", s, fmt.Errorf("unexpected char: %q", s[:1])
 		}
 		ns := s[:i]
