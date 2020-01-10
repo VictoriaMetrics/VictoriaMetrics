@@ -11,7 +11,7 @@ require (
 	github.com/golang/snappy v0.0.1
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/klauspost/compress v1.9.4
-	github.com/valyala/fastjson v1.4.2
+	github.com/valyala/fastjson v1.4.5
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.6.4
 	github.com/valyala/histogram v1.0.1
