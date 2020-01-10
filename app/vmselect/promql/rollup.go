@@ -52,6 +52,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"lifetime":            newRollupFuncOneArg(rollupLifetime),
 	"lag":                 newRollupFuncOneArg(rollupLag),
 	"scrape_interval":     newRollupFuncOneArg(rollupScrapeInterval),
+	"tmin_over_time":      newRollupFuncOneArg(rollupTmin),
+	"tmax_over_time":      newRollupFuncOneArg(rollupTmax),
 	"share_le_over_time":  newRollupShareLE,
 	"share_gt_over_time":  newRollupShareGT,
 	"histogram_over_time": newRollupFuncOneArg(rollupHistogram),
@@ -744,6 +746,52 @@ func rollupMax(rfa *rollupFuncArg) float64 {
 		}
 	}
 	return maxValue
+}
+
+func rollupTmin(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	minValue := rfa.prevValue
+	minTimestamp := rfa.prevTimestamp
+	values := rfa.values
+	timestamps := rfa.timestamps
+	if math.IsNaN(minValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		minValue = values[0]
+		minTimestamp = timestamps[0]
+	}
+	for i, v := range values {
+		if v < minValue {
+			minValue = v
+			minTimestamp = timestamps[i]
+		}
+	}
+	return float64(minTimestamp) * 1e-3
+}
+
+func rollupTmax(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	maxValue := rfa.prevValue
+	maxTimestamp := rfa.prevTimestamp
+	values := rfa.values
+	timestamps := rfa.timestamps
+	if math.IsNaN(maxValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		maxValue = values[0]
+		maxTimestamp = timestamps[0]
+	}
+	for i, v := range values {
+		if v > maxValue {
+			maxValue = v
+			maxTimestamp = timestamps[i]
+		}
+	}
+	return float64(maxTimestamp) * 1e-3
 }
 
 func rollupSum(rfa *rollupFuncArg) float64 {
