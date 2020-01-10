@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
@@ -63,6 +64,45 @@ var rollupFuncs = map[string]newRollupFunc{
 	"rollup_delta":        newRollupFuncOneArg(rollupFake),
 	"rollup_increase":     newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
 	"rollup_candlestick":  newRollupFuncOneArg(rollupFake),
+	"aggr_over_time":      newRollupFuncTwoArgs(rollupFake),
+}
+
+// rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
+var rollupAggrFuncs = map[string]rollupFunc{
+	// Standard rollup funcs from PromQL.
+	"changes":          rollupChanges,
+	"delta":            rollupDelta,
+	"deriv":            rollupDerivSlow,
+	"deriv_fast":       rollupDerivFast,
+	"idelta":           rollupIdelta,
+	"increase":         rollupIncrease,  // + rollupFuncsRemoveCounterResets
+	"irate":            rollupIderiv,    // + rollupFuncsRemoveCounterResets
+	"rate":             rollupDerivFast, // + rollupFuncsRemoveCounterResets
+	"resets":           rollupResets,
+	"avg_over_time":    rollupAvg,
+	"min_over_time":    rollupMin,
+	"max_over_time":    rollupMax,
+	"sum_over_time":    rollupSum,
+	"count_over_time":  rollupCount,
+	"stddev_over_time": rollupStddev,
+	"stdvar_over_time": rollupStdvar,
+	"absent_over_time": rollupAbsent,
+
+	// Additional rollup funcs.
+	"sum2_over_time":      rollupSum2,
+	"geomean_over_time":   rollupGeomean,
+	"first_over_time":     rollupFirst,
+	"last_over_time":      rollupLast,
+	"distinct_over_time":  rollupDistinct,
+	"increases_over_time": rollupIncreases,
+	"decreases_over_time": rollupDecreases,
+	"integrate":           rollupIntegrate,
+	"ideriv":              rollupIderiv,
+	"lifetime":            rollupLifetime,
+	"lag":                 rollupLag,
+	"scrape_interval":     rollupScrapeInterval,
+	"tmin_over_time":      rollupTmin,
+	"tmax_over_time":      rollupTmax,
 }
 
 var rollupFuncsMayAdjustWindow = map[string]bool{
@@ -95,15 +135,128 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"geomean_over_time":  true,
 }
 
+func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
+	fe, ok := expr.(*metricsql.FuncExpr)
+	if !ok {
+		logger.Panicf("BUG: unexpected expression; want metricsql.FuncExpr; got %T; value: %s", expr, expr.AppendString(nil))
+	}
+	if fe.Name != "aggr_over_time" {
+		logger.Panicf("BUG: unexpected function name: %q; want `aggr_over_time`", fe.Name)
+	}
+	if len(fe.Args) != 2 {
+		return nil, fmt.Errorf("unexpected number of args to aggr_over_time(); got %d; want %d", len(fe.Args), 2)
+	}
+	arg := fe.Args[0]
+	var aggrFuncNames []string
+	if se, ok := arg.(*metricsql.StringExpr); ok {
+		aggrFuncNames = append(aggrFuncNames, se.S)
+	} else {
+		fe, ok := arg.(*metricsql.FuncExpr)
+		if !ok || fe.Name != "" {
+			return nil, fmt.Errorf("%s cannot be passed to aggr_over_time(); expecting quoted aggregate function name or a list of quoted aggregate function names",
+				arg.AppendString(nil))
+		}
+		for _, e := range fe.Args {
+			se, ok := e.(*metricsql.StringExpr)
+			if !ok {
+				return nil, fmt.Errorf("%s cannot be passed here; expecting quoted aggregate function name", e.AppendString(nil))
+			}
+			aggrFuncNames = append(aggrFuncNames, se.S)
+		}
+	}
+	if len(aggrFuncNames) == 0 {
+		return nil, fmt.Errorf("aggr_over_time() must contain at least a single aggregate function name")
+	}
+	for _, s := range aggrFuncNames {
+		if rollupAggrFuncs[s] == nil {
+			return nil, fmt.Errorf("%q cannot be used in `aggr_over_time` function; expecting quoted aggregate function name", s)
+		}
+	}
+	return aggrFuncNames, nil
+}
+
 func getRollupArgIdx(funcName string) int {
 	funcName = strings.ToLower(funcName)
 	if rollupFuncs[funcName] == nil {
 		logger.Panicf("BUG: getRollupArgIdx is called for non-rollup func %q", funcName)
 	}
-	if funcName == "quantile_over_time" {
+	switch funcName {
+	case "quantile_over_time", "aggr_over_time":
 		return 1
+	default:
+		return 0
 	}
-	return 0
+}
+
+func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
+	func(values []float64, timestamps []int64), []*rollupConfig, error) {
+	preFunc := func(values []float64, timestamps []int64) {}
+	if rollupFuncsRemoveCounterResets[name] {
+		preFunc = func(values []float64, timestamps []int64) {
+			removeCounterResets(values)
+		}
+	}
+	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
+		return &rollupConfig{
+			TagValue:        tagValue,
+			Func:            rf,
+			Start:           start,
+			End:             end,
+			Step:            step,
+			Window:          window,
+			MayAdjustWindow: rollupFuncsMayAdjustWindow[name],
+			LookbackDelta:   lookbackDelta,
+			Timestamps:      sharedTimestamps,
+		}
+	}
+	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
+		dst = append(dst, newRollupConfig(rollupMin, "min"))
+		dst = append(dst, newRollupConfig(rollupMax, "max"))
+		dst = append(dst, newRollupConfig(rollupAvg, "avg"))
+		return dst
+	}
+	var rcs []*rollupConfig
+	switch name {
+	case "rollup":
+		rcs = appendRollupConfigs(rcs)
+	case "rollup_rate", "rollup_deriv":
+		preFuncPrev := preFunc
+		preFunc = func(values []float64, timestamps []int64) {
+			preFuncPrev(values, timestamps)
+			derivValues(values, timestamps)
+		}
+		rcs = appendRollupConfigs(rcs)
+	case "rollup_increase", "rollup_delta":
+		preFuncPrev := preFunc
+		preFunc = func(values []float64, timestamps []int64) {
+			preFuncPrev(values, timestamps)
+			deltaValues(values)
+		}
+		rcs = appendRollupConfigs(rcs)
+	case "rollup_candlestick":
+		rcs = append(rcs, newRollupConfig(rollupFirst, "open"))
+		rcs = append(rcs, newRollupConfig(rollupLast, "close"))
+		rcs = append(rcs, newRollupConfig(rollupMin, "low"))
+		rcs = append(rcs, newRollupConfig(rollupMax, "high"))
+	case "aggr_over_time":
+		aggrFuncNames, err := getRollupAggrFuncNames(expr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid args to %s: %s", expr.AppendString(nil), err)
+		}
+		for _, aggrFuncName := range aggrFuncNames {
+			if rollupFuncsRemoveCounterResets[aggrFuncName] {
+				// There is no need to save the previous preFunc, since it is either empty or the same.
+				preFunc = func(values []float64, timestamps []int64) {
+					removeCounterResets(values)
+				}
+			}
+			rf := rollupAggrFuncs[aggrFuncName]
+			rcs = append(rcs, newRollupConfig(rf, aggrFuncName))
+		}
+	default:
+		rcs = append(rcs, newRollupConfig(rf, ""))
+	}
+	return preFunc, rcs, nil
 }
 
 func getRollupFunc(funcName string) newRollupFunc {
@@ -483,6 +636,15 @@ type newRollupFunc func(args []interface{}) (rollupFunc, error)
 func newRollupFuncOneArg(rf rollupFunc) newRollupFunc {
 	return func(args []interface{}) (rollupFunc, error) {
 		if err := expectRollupArgsNum(args, 1); err != nil {
+			return nil, err
+		}
+		return rf, nil
+	}
+}
+
+func newRollupFuncTwoArgs(rf rollupFunc) newRollupFunc {
+	return func(args []interface{}) (rollupFunc, error) {
+		if err := expectRollupArgsNum(args, 2); err != nil {
 			return nil, err
 		}
 		return rf, nil

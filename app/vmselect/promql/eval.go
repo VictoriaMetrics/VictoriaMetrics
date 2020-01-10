@@ -359,6 +359,9 @@ func evalExprs(ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
 func evalRollupFuncArgs(ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, *metricsql.RollupExpr, error) {
 	var re *metricsql.RollupExpr
 	rollupArgIdx := getRollupArgIdx(fe.Name)
+	if len(fe.Args) <= rollupArgIdx {
+		return nil, nil, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx, fe.Name, len(fe.Args), fe.AppendString(nil))
+	}
 	args := make([]interface{}, len(fe.Args))
 	for i, arg := range fe.Args {
 		if i == rollupArgIdx {
@@ -430,7 +433,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 		if iafc != nil {
 			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", name, re.AppendString(nil))
 		}
-		rvs, err = evalRollupFuncWithSubquery(ecNew, name, rf, re)
+		rvs, err = evalRollupFuncWithSubquery(ecNew, name, rf, expr, re)
 	}
 	if err != nil {
 		return nil, err
@@ -449,7 +452,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 	return rvs, nil
 }
 
-func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *metricsql.RollupExpr) ([]*timeseries, error) {
+func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
 	var step int64
 	if len(re.Step) > 0 {
@@ -490,7 +493,10 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, re *
 	}
 
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
-	preFunc, rcs := getRollupConfigs(name, rf, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(name, rf, expr, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	if err != nil {
+		return nil, err
+	}
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	var tssLock sync.Mutex
 	removeMetricGroup := !rollupFuncsKeepMetricGroup[name]
@@ -624,7 +630,11 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		return tss, nil
 	}
 	sharedTimestamps := getTimestamps(start, ec.End, ec.Step)
-	preFunc, rcs := getRollupConfigs(name, rf, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(name, rf, expr, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	if err != nil {
+		rss.Cancel()
+		return nil, err
+	}
 
 	// Verify timeseries fit available memory after the rollup.
 	// Take into account points from tssCached.
@@ -749,62 +759,6 @@ func doRollupForTimeseries(rc *rollupConfig, tsDst *timeseries, mnSrc *storage.M
 	tsDst.Values = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)
 	tsDst.Timestamps = sharedTimestamps
 	tsDst.denyReuse = true
-}
-
-func getRollupConfigs(name string, rf rollupFunc, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
-	func(values []float64, timestamps []int64), []*rollupConfig) {
-	preFunc := func(values []float64, timestamps []int64) {}
-	if rollupFuncsRemoveCounterResets[name] {
-		preFunc = func(values []float64, timestamps []int64) {
-			removeCounterResets(values)
-		}
-	}
-	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
-		return &rollupConfig{
-			TagValue:        tagValue,
-			Func:            rf,
-			Start:           start,
-			End:             end,
-			Step:            step,
-			Window:          window,
-			MayAdjustWindow: rollupFuncsMayAdjustWindow[name],
-			LookbackDelta:   lookbackDelta,
-			Timestamps:      sharedTimestamps,
-		}
-	}
-	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
-		dst = append(dst, newRollupConfig(rollupMin, "min"))
-		dst = append(dst, newRollupConfig(rollupMax, "max"))
-		dst = append(dst, newRollupConfig(rollupAvg, "avg"))
-		return dst
-	}
-	var rcs []*rollupConfig
-	switch name {
-	case "rollup":
-		rcs = appendRollupConfigs(rcs)
-	case "rollup_rate", "rollup_deriv":
-		preFuncPrev := preFunc
-		preFunc = func(values []float64, timestamps []int64) {
-			preFuncPrev(values, timestamps)
-			derivValues(values, timestamps)
-		}
-		rcs = appendRollupConfigs(rcs)
-	case "rollup_increase", "rollup_delta":
-		preFuncPrev := preFunc
-		preFunc = func(values []float64, timestamps []int64) {
-			preFuncPrev(values, timestamps)
-			deltaValues(values)
-		}
-		rcs = appendRollupConfigs(rcs)
-	case "rollup_candlestick":
-		rcs = append(rcs, newRollupConfig(rollupFirst, "open"))
-		rcs = append(rcs, newRollupConfig(rollupLast, "close"))
-		rcs = append(rcs, newRollupConfig(rollupMin, "low"))
-		rcs = append(rcs, newRollupConfig(rollupMax, "high"))
-	default:
-		rcs = append(rcs, newRollupConfig(rf, ""))
-	}
-	return preFunc, rcs
 }
 
 var bbPool bytesutil.ByteBufferPool

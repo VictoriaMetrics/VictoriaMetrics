@@ -53,6 +53,7 @@ var rollupFuncs = map[string]bool{
 	"rollup_delta":        true,
 	"rollup_increase":     true,
 	"rollup_candlestick":  true,
+	"aggr_over_time":      true,
 }
 
 // IsRollupFunc returns whether funcName is known rollup function.

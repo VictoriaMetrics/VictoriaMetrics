@@ -4480,6 +4480,54 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`aggr_over_time(single-func)`, func(t *testing.T) {
+		t.Parallel()
+		q := `aggr_over_time("increase", rand(0)[:10s])`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5.465672601448873, 6.642207999066246, 6.8400051805114295, 7.182425481980655, 5.1677922402706, 6.594060518641982},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("increase"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`aggr_over_time(multi-func)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(aggr_over_time(("min_over_time", "count_over_time", "max_over_time"), round(rand(0),0.1)[:10s]))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("min_over_time"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.9, 0.9, 1, 0.9, 1, 0.9},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("max_over_time"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{20, 20, 20, 20, 20, 20},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("count_over_time"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
 	t.Run(`rollup_candlestick()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(rollup_candlestick(round(rand(0),0.01)[:10s]))`
@@ -5181,6 +5229,9 @@ func TestExecError(t *testing.T) {
 	f(`alias(1, "foo", "bar")`)
 	f(`lifetime()`)
 	f(`lag()`)
+	f(`aggr_over_time()`)
+	f(`aggr_over_time(foo)`)
+	f(`aggr_over_time("foo", bar, 1)`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -5216,6 +5267,8 @@ func TestExecError(t *testing.T) {
 	f(`label_transform(1, "foo", "bar", 4)`)
 	f(`label_transform(1, "foo", "invalid(regexp", "baz`)
 	f(`alias(1, 2)`)
+	f(`aggr_over_time(1, 2)`)
+	f(`aggr_over_time(("foo", "bar"), 3)`)
 
 	// Duplicate timeseries
 	f(`(label_set(1, "foo", "bar") or label_set(2, "foo", "baz"))
