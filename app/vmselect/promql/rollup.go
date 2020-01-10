@@ -136,6 +136,15 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
+	afe, ok := expr.(*metricsql.AggrFuncExpr)
+	if ok {
+		// This is for incremental aggregate function case:
+		//
+		//     sum(aggr_over_time(...))
+		//
+		// See aggr_incremental.go for details.
+		expr = afe.Args[0]
+	}
 	fe, ok := expr.(*metricsql.FuncExpr)
 	if !ok {
 		logger.Panicf("BUG: unexpected expression; want metricsql.FuncExpr; got %T; value: %s", expr, expr.AppendString(nil))

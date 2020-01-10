@@ -4528,6 +4528,41 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)
 	})
+	t.Run(`avg(aggr_over_time(multi-func))`, func(t *testing.T) {
+		t.Parallel()
+		q := `avg(aggr_over_time(("min_over_time", "max_over_time"), time()[:10s]))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`avg(aggr_over_time(multi-func)) by (rollup)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(avg(aggr_over_time(("min_over_time", "max_over_time"), time()[:10s])) by (rollup))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{800, 1000, 1200, 1400, 1600, 1800},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("min_over_time"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("max_over_time"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`rollup_candlestick()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(rollup_candlestick(round(rand(0),0.01)[:10s]))`
