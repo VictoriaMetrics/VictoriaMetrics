@@ -105,17 +105,26 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"tmax_over_time":      rollupTmax,
 }
 
-var rollupFuncsMayAdjustWindow = map[string]bool{
-	"default_rollup":  true,
-	"first_over_time": true,
-	"last_over_time":  true,
-	"deriv":           true,
-	"deriv_fast":      true,
-	"irate":           true,
-	"rate":            true,
-	"lifetime":        true,
-	"lag":             true,
-	"scrape_interval": true,
+var rollupFuncsCannotAdjustWindow = map[string]bool{
+	"changes":             true,
+	"delta":               true,
+	"holt_winters":        true,
+	"idelta":              true,
+	"increase":            true,
+	"predict_linear":      true,
+	"resets":              true,
+	"sum_over_time":       true,
+	"count_over_time":     true,
+	"quantile_over_time":  true,
+	"stddev_over_time":    true,
+	"stdvar_over_time":    true,
+	"absent_over_time":    true,
+	"sum2_over_time":      true,
+	"geomean_over_time":   true,
+	"distinct_over_time":  true,
+	"increases_over_time": true,
+	"decreases_over_time": true,
+	"integrate":           true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -214,7 +223,7 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 			End:             end,
 			Step:            step,
 			Window:          window,
-			MayAdjustWindow: rollupFuncsMayAdjustWindow[name],
+			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
 			LookbackDelta:   lookbackDelta,
 			Timestamps:      sharedTimestamps,
 		}
@@ -873,7 +882,10 @@ func rollupAvg(rfa *rollupFuncArg) float64 {
 	// before calling rollup funcs.
 	values := rfa.values
 	if len(values) == 0 {
-		return rfa.prevValue
+		// Do not take into account rfa.prevValue, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
 	}
 	var sum float64
 	for _, v := range values {
