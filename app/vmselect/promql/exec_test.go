@@ -4490,6 +4490,29 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`hoeffding_bound_lower()`, func(t *testing.T) {
+		t.Parallel()
+		q := `hoeffding_bound_lower(0.9, rand(0)[:10s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.2516770508510652, 0.2830570387745462, 0.27716232108436645, 0.3679356319931767, 0.3168460474120903, 0.23156726248243734},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`hoeffding_bound_upper()`, func(t *testing.T) {
+		t.Parallel()
+		q := `hoeffding_bound_upper(0.9, alias(rand(0), "foobar")[:10s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.6510581320042821, 0.7261021731890429, 0.7245290097397009, 0.8113950442584258, 0.7736122275568004, 0.6658564048254882},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`aggr_over_time(single-func)`, func(t *testing.T) {
 		t.Parallel()
 		q := `aggr_over_time("increase", rand(0)[:10s])`
@@ -5281,6 +5304,12 @@ func TestExecError(t *testing.T) {
 	f(`aggr_over_time()`)
 	f(`aggr_over_time(foo)`)
 	f(`aggr_over_time("foo", bar, 1)`)
+	f(`hoeffding_bound_lower()`)
+	f(`hoeffding_bound_lower(1)`)
+	f(`hoeffding_bound_lower(0.99, foo, 1)`)
+	f(`hoeffding_bound_upper()`)
+	f(`hoeffding_bound_upper(1)`)
+	f(`hoeffding_bound_upper(0.99, foo, 1)`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

@@ -41,30 +41,32 @@ var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
 
 	// Additional rollup funcs.
-	"sum2_over_time":      newRollupFuncOneArg(rollupSum2),
-	"geomean_over_time":   newRollupFuncOneArg(rollupGeomean),
-	"first_over_time":     newRollupFuncOneArg(rollupFirst),
-	"last_over_time":      newRollupFuncOneArg(rollupLast),
-	"distinct_over_time":  newRollupFuncOneArg(rollupDistinct),
-	"increases_over_time": newRollupFuncOneArg(rollupIncreases),
-	"decreases_over_time": newRollupFuncOneArg(rollupDecreases),
-	"integrate":           newRollupFuncOneArg(rollupIntegrate),
-	"ideriv":              newRollupFuncOneArg(rollupIderiv),
-	"lifetime":            newRollupFuncOneArg(rollupLifetime),
-	"lag":                 newRollupFuncOneArg(rollupLag),
-	"scrape_interval":     newRollupFuncOneArg(rollupScrapeInterval),
-	"tmin_over_time":      newRollupFuncOneArg(rollupTmin),
-	"tmax_over_time":      newRollupFuncOneArg(rollupTmax),
-	"share_le_over_time":  newRollupShareLE,
-	"share_gt_over_time":  newRollupShareGT,
-	"histogram_over_time": newRollupFuncOneArg(rollupHistogram),
-	"rollup":              newRollupFuncOneArg(rollupFake),
-	"rollup_rate":         newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_deriv":        newRollupFuncOneArg(rollupFake),
-	"rollup_delta":        newRollupFuncOneArg(rollupFake),
-	"rollup_increase":     newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_candlestick":  newRollupFuncOneArg(rollupFake),
-	"aggr_over_time":      newRollupFuncTwoArgs(rollupFake),
+	"sum2_over_time":        newRollupFuncOneArg(rollupSum2),
+	"geomean_over_time":     newRollupFuncOneArg(rollupGeomean),
+	"first_over_time":       newRollupFuncOneArg(rollupFirst),
+	"last_over_time":        newRollupFuncOneArg(rollupLast),
+	"distinct_over_time":    newRollupFuncOneArg(rollupDistinct),
+	"increases_over_time":   newRollupFuncOneArg(rollupIncreases),
+	"decreases_over_time":   newRollupFuncOneArg(rollupDecreases),
+	"integrate":             newRollupFuncOneArg(rollupIntegrate),
+	"ideriv":                newRollupFuncOneArg(rollupIderiv),
+	"lifetime":              newRollupFuncOneArg(rollupLifetime),
+	"lag":                   newRollupFuncOneArg(rollupLag),
+	"scrape_interval":       newRollupFuncOneArg(rollupScrapeInterval),
+	"tmin_over_time":        newRollupFuncOneArg(rollupTmin),
+	"tmax_over_time":        newRollupFuncOneArg(rollupTmax),
+	"share_le_over_time":    newRollupShareLE,
+	"share_gt_over_time":    newRollupShareGT,
+	"histogram_over_time":   newRollupFuncOneArg(rollupHistogram),
+	"rollup":                newRollupFuncOneArg(rollupFake),
+	"rollup_rate":           newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_deriv":          newRollupFuncOneArg(rollupFake),
+	"rollup_delta":          newRollupFuncOneArg(rollupFake),
+	"rollup_increase":       newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_candlestick":    newRollupFuncOneArg(rollupFake),
+	"aggr_over_time":        newRollupFuncTwoArgs(rollupFake),
+	"hoeffding_bound_upper": newRollupHoeffdingBoundUpper,
+	"hoeffding_bound_lower": newRollupHoeffdingBoundLower,
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -136,13 +138,15 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 }
 
 var rollupFuncsKeepMetricGroup = map[string]bool{
-	"default_rollup":     true,
-	"avg_over_time":      true,
-	"min_over_time":      true,
-	"max_over_time":      true,
-	"quantile_over_time": true,
-	"rollup":             true,
-	"geomean_over_time":  true,
+	"default_rollup":        true,
+	"avg_over_time":         true,
+	"min_over_time":         true,
+	"max_over_time":         true,
+	"quantile_over_time":    true,
+	"rollup":                true,
+	"geomean_over_time":     true,
+	"hoeffding_bound_lower": true,
+	"hoeffding_bound_upper": true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
@@ -200,7 +204,8 @@ func getRollupArgIdx(funcName string) int {
 		logger.Panicf("BUG: getRollupArgIdx is called for non-rollup func %q", funcName)
 	}
 	switch funcName {
-	case "quantile_over_time", "aggr_over_time":
+	case "quantile_over_time", "aggr_over_time",
+		"hoeffding_bound_lower", "hoeffding_bound_upper":
 		return 1
 	default:
 		return 0
@@ -826,6 +831,66 @@ func newRollupShareFilter(args []interface{}, countFilter func(values []float64,
 		return float64(n) / float64(len(values))
 	}
 	return rf, nil
+}
+
+func newRollupHoeffdingBoundLower(args []interface{}) (rollupFunc, error) {
+	if err := expectRollupArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	phis, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	rf := func(rfa *rollupFuncArg) float64 {
+		bound, avg := rollupHoeffdingBoundInternal(rfa, phis)
+		return avg - bound
+	}
+	return rf, nil
+}
+
+func newRollupHoeffdingBoundUpper(args []interface{}) (rollupFunc, error) {
+	if err := expectRollupArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	phis, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	rf := func(rfa *rollupFuncArg) float64 {
+		bound, avg := rollupHoeffdingBoundInternal(rfa, phis)
+		return avg + bound
+	}
+	return rf, nil
+}
+
+func rollupHoeffdingBoundInternal(rfa *rollupFuncArg, phis []float64) (float64, float64) {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	if len(values) == 0 {
+		return nan, nan
+	}
+	if len(values) == 1 {
+		return 0, values[0]
+	}
+	vMax := rollupMax(rfa)
+	vMin := rollupMin(rfa)
+	vAvg := rollupAvg(rfa)
+	vRange := vMax - vMin
+	if vRange <= 0 {
+		return 0, vAvg
+	}
+	phi := phis[rfa.idx]
+	if phi >= 1 {
+		return inf, vAvg
+	}
+	if phi <= 0 {
+		return 0, vAvg
+	}
+	// See https://en.wikipedia.org/wiki/Hoeffding%27s_inequality
+	// and https://www.youtube.com/watch?v=6UwcqiNsZ8U&feature=youtu.be&t=1237
+	bound := vRange * math.Sqrt(math.Log(1/(1-phi))/(2*float64(len(values))))
+	return bound, vAvg
 }
 
 func newRollupQuantile(args []interface{}) (rollupFunc, error) {

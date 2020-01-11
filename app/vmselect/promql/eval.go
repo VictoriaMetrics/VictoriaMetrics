@@ -611,6 +611,14 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		rollupResultCacheMiss.Inc()
 	}
 
+	// Obtain rollup configs before fetching data from db,
+	// so type errors can be caught earlier.
+	sharedTimestamps := getTimestamps(start, ec.End, ec.Step)
+	preFunc, rcs, err := getRollupConfigs(name, rf, expr, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
+	if err != nil {
+		return nil, err
+	}
+
 	// Fetch the remaining part of the result.
 	tfs := toTagFilters(me.LabelFilters)
 	sq := &storage.SearchQuery{
@@ -639,12 +647,6 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		// may be backfilled in the future.
 		tss = mergeTimeseries(tssCached, tss, start, ec)
 		return tss, nil
-	}
-	sharedTimestamps := getTimestamps(start, ec.End, ec.Step)
-	preFunc, rcs, err := getRollupConfigs(name, rf, expr, start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
-	if err != nil {
-		rss.Cancel()
-		return nil, err
 	}
 
 	// Verify timeseries fit available memory after the rollup.

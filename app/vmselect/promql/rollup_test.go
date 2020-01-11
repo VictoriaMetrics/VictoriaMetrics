@@ -310,6 +310,48 @@ func TestRollupHoltWinters(t *testing.T) {
 	f(0.9, 0.9, 33.99637566941818)
 }
 
+func TestRollupHoeffdingBoundLower(t *testing.T) {
+	f := func(phi, vExpected float64) {
+		t.Helper()
+		phis := []*timeseries{{
+			Values:     []float64{phi},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
+		testRollupFunc(t, "hoeffding_bound_lower", args, &me, vExpected)
+	}
+
+	f(0.5, 28.21949401521037)
+	f(-1, 47.083333333333336)
+	f(0, 47.083333333333336)
+	f(1, -inf)
+	f(2, -inf)
+	f(0.1, 39.72878000047643)
+	f(0.9, 12.701803086472331)
+}
+
+func TestRollupHoeffdingBoundUpper(t *testing.T) {
+	f := func(phi, vExpected float64) {
+		t.Helper()
+		phis := []*timeseries{{
+			Values:     []float64{phi},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{phis, &metricsql.RollupExpr{Expr: &me}}
+		testRollupFunc(t, "hoeffding_bound_upper", args, &me, vExpected)
+	}
+
+	f(0.5, 65.9471726514563)
+	f(-1, 47.083333333333336)
+	f(0, 47.083333333333336)
+	f(1, inf)
+	f(2, inf)
+	f(0.1, 54.43788666619024)
+	f(0.9, 81.46486358019433)
+}
+
 func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f := func(funcName string, vExpected float64) {
 		t.Helper()

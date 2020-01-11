@@ -103,3 +103,5 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `aggr_over_time(("aggr_func1", "aggr_func2", ...), m[d])` - simultaneously calculates all the listed `aggr_func*` for `m` over `d` time range.
   `aggr_func*` can contain any functions that accept range vector. For instance, `aggr_over_time(("min_over_time", "max_over_time", "rate"), m[d])`
   would calculate `min_over_time`, `max_over_time` and `rate` for `m[d]`.
+- `hoeffding_bound_upper(phi, m[d])` and `hoeffding_bound_lower(phi, m[d])` - return upper and lower [Hoeffding bounds](https://en.wikipedia.org/wiki/Hoeffding%27s_inequality)
+  for the given `phi` in the range `[0..1]`.
