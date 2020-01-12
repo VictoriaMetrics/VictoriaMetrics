@@ -2,7 +2,7 @@ version: '3.5'
 services:
   prometheus:
     container_name: prometheus
-    image: prom/prometheus:v2.14.0
+    image: prom/prometheus:v2.15.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -35,7 +35,7 @@ services:
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:6.5.0
+    image: grafana/grafana:6.5.2
     entrypoint: >
       /bin/sh -c "
       cd /var/lib/grafana &&
