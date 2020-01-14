@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -29,7 +28,8 @@ var (
 	maxCachedIndexBlocksPerPartOnce sync.Once
 )
 
-type partInternals struct {
+// part represents a searchable part containing time series data.
+type part struct {
 	ph partHeader
 
 	// Filesystem path to the part.
@@ -45,16 +45,8 @@ type partInternals struct {
 	indexFile      fs.ReadAtCloser
 
 	metaindex []metaindexRow
-}
 
-// part represents a searchable part containing time series data.
-type part struct {
-	partInternals
-
-	// Align ibCache to 8 bytes in order to align internal counters on 32-bit architectures.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
-	_       [(8 - (unsafe.Sizeof(partInternals{}) % 8)) % 8]byte
-	ibCache indexBlockCache
+	ibCache *indexBlockCache
 }
 
 // openFilePart opens file-based part from the given path.
@@ -133,7 +125,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 		return nil, err
 	}
 
-	p.ibCache.Init()
+	p.ibCache = newIndexBlockCache()
 
 	return &p, nil
 }
@@ -190,15 +182,18 @@ type indexBlockCache struct {
 }
 
 type indexBlockCacheEntry struct {
-	ib             *indexBlock
+	// Atomically updated counters must go first in the struct, so they are properly
+	// aligned to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
 	lastAccessTime uint64
+
+	ib *indexBlock
 }
 
-func (ibc *indexBlockCache) Init() {
+func newIndexBlockCache() *indexBlockCache {
+	var ibc indexBlockCache
 	ibc.m = make(map[uint64]indexBlockCacheEntry)
 	ibc.missesMap = make(map[uint64]uint64)
-	ibc.requests = 0
-	ibc.misses = 0
 
 	ibc.cleanerStopCh = make(chan struct{})
 	ibc.cleanerWG.Add(1)
@@ -206,6 +201,7 @@ func (ibc *indexBlockCache) Init() {
 		defer ibc.cleanerWG.Done()
 		ibc.cleaner()
 	}()
+	return &ibc
 }
 
 func (ibc *indexBlockCache) MustClose(isBig bool) {
@@ -320,8 +316,8 @@ func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
 	// Store frequently requested ib in the cache.
 	delete(ibc.missesMap, k)
 	ibe := indexBlockCacheEntry{
-		ib:             ib,
 		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		ib:             ib,
 	}
 	ibc.m[k] = ibe
 	ibc.mu.Unlock()
