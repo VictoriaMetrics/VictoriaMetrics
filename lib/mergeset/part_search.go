@@ -82,8 +82,8 @@ func (ps *partSearch) Init(p *part, shouldCacheBlock func(item []byte) bool) {
 	ps.reset()
 
 	ps.p = p
-	ps.idxbCache = &p.idxbCache
-	ps.ibCache = &p.ibCache
+	ps.idxbCache = p.idxbCache
+	ps.ibCache = p.ibCache
 }
 
 // Seek seeks for the first item greater or equal to k in ps.

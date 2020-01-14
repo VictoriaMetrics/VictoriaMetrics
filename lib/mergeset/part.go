@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -45,7 +44,7 @@ var (
 	maxCachedInmemoryBlocksPerPartOnce sync.Once
 )
 
-type partInternals struct {
+type part struct {
 	ph partHeader
 
 	path string
@@ -57,16 +56,9 @@ type partInternals struct {
 	indexFile fs.ReadAtCloser
 	itemsFile fs.ReadAtCloser
 	lensFile  fs.ReadAtCloser
-}
 
-type part struct {
-	partInternals
-
-	// Align atomic counters inside caches by 8 bytes on 32-bit architectures.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
-	_         [(8 - (unsafe.Sizeof(partInternals{}) % 8)) % 8]byte
-	idxbCache indexBlockCache
-	ibCache   inmemoryBlockCache
+	idxbCache *indexBlockCache
+	ibCache   *inmemoryBlockCache
 }
 
 func openFilePart(path string) (*part, error) {
@@ -133,8 +125,8 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.lensFile = lensFile
 
 	p.ph.CopyFrom(ph)
-	p.idxbCache.Init()
-	p.ibCache.Init()
+	p.idxbCache = newIndexBlockCache()
+	p.ibCache = newInmemoryBlockCache()
 
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
@@ -188,21 +180,24 @@ type indexBlockCache struct {
 }
 
 type indexBlockCacheEntry struct {
-	idxb           *indexBlock
+	// Atomically updated counters must go first in the struct, so they are properly
+	// aligned to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
 	lastAccessTime uint64
+
+	idxb *indexBlock
 }
 
-func (idxbc *indexBlockCache) Init() {
+func newIndexBlockCache() *indexBlockCache {
+	var idxbc indexBlockCache
 	idxbc.m = make(map[uint64]indexBlockCacheEntry)
-	idxbc.requests = 0
-	idxbc.misses = 0
-
 	idxbc.cleanerStopCh = make(chan struct{})
 	idxbc.cleanerWG.Add(1)
 	go func() {
 		defer idxbc.cleanerWG.Done()
 		idxbc.cleaner()
 	}()
+	return &idxbc
 }
 
 func (idxbc *indexBlockCache) MustClose() {
@@ -290,8 +285,8 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) bool {
 
 	// Store idxb in the cache.
 	idxbe := indexBlockCacheEntry{
-		idxb:           idxb,
 		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		idxb:           idxb,
 	}
 	idxbc.m[k] = idxbe
 	idxbc.mu.Unlock()
@@ -341,14 +336,17 @@ func (ibck *inmemoryBlockCacheKey) Init(bh *blockHeader) {
 }
 
 type inmemoryBlockCacheEntry struct {
-	ib             *inmemoryBlock
+	// Atomically updated counters must go first in the struct, so they are properly
+	// aligned to 8 bytes on 32-bit architectures.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
 	lastAccessTime uint64
+
+	ib *inmemoryBlock
 }
 
-func (ibc *inmemoryBlockCache) Init() {
+func newInmemoryBlockCache() *inmemoryBlockCache {
+	var ibc inmemoryBlockCache
 	ibc.m = make(map[inmemoryBlockCacheKey]inmemoryBlockCacheEntry)
-	ibc.requests = 0
-	ibc.misses = 0
 
 	ibc.cleanerStopCh = make(chan struct{})
 	ibc.cleanerWG.Add(1)
@@ -356,6 +354,7 @@ func (ibc *inmemoryBlockCache) Init() {
 		defer ibc.cleanerWG.Done()
 		ibc.cleaner()
 	}()
+	return &ibc
 }
 
 func (ibc *inmemoryBlockCache) MustClose() {
@@ -444,8 +443,8 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) b
 
 	// Store ib in the cache.
 	ibe := inmemoryBlockCacheEntry{
-		ib:             ib,
 		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		ib:             ib,
 	}
 	ibc.m[k] = ibe
 	ibc.mu.Unlock()

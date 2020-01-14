@@ -110,10 +110,8 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 	prefix := []*partWrapper{
 		{
 			p: &part{
-				partInternals: partInternals{
-					ph: partHeader{
-						RowsCount: 1234,
-					},
+				ph: partHeader{
+					RowsCount: 1234,
 				},
 			},
 		},
@@ -146,10 +144,8 @@ func newTestPartWrappersForRowsCount(rowsCount []uint64) []*partWrapper {
 	for _, rc := range rowsCount {
 		pw := &partWrapper{
 			p: &part{
-				partInternals: partInternals{
-					ph: partHeader{
-						RowsCount: rc,
-					},
+				ph: partHeader{
+					RowsCount: rc,
 				},
 			},
 		}

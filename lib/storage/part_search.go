@@ -88,7 +88,7 @@ func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange, fetchData bool) 
 	ps.tr = tr
 	ps.fetchData = fetchData
 	ps.metaindex = p.metaindex
-	ps.ibCache = &p.ibCache
+	ps.ibCache = p.ibCache
 
 	// Advance to the first tsid. There is no need in checking
 	// the returned result, since it will be checked in NextBlock.
