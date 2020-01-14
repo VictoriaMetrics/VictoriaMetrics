@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -152,7 +153,7 @@ func (p *part) MustClose() {
 	p.indexFile.MustClose()
 
 	isBig := p.ph.RowsCount > maxRowsPerSmallPart()
-	p.ibCache.Reset(isBig)
+	p.ibCache.MustClose(isBig)
 }
 
 type indexBlock struct {
@@ -180,19 +181,37 @@ type indexBlockCache struct {
 	requests uint64
 	misses   uint64
 
-	m         map[uint64]*indexBlock
+	m         map[uint64]indexBlockCacheEntry
 	missesMap map[uint64]uint64
 	mu        sync.RWMutex
+
+	cleanerStopCh chan struct{}
+	cleanerWG     sync.WaitGroup
+}
+
+type indexBlockCacheEntry struct {
+	ib             *indexBlock
+	lastAccessTime uint64
 }
 
 func (ibc *indexBlockCache) Init() {
-	ibc.m = make(map[uint64]*indexBlock)
+	ibc.m = make(map[uint64]indexBlockCacheEntry)
 	ibc.missesMap = make(map[uint64]uint64)
 	ibc.requests = 0
 	ibc.misses = 0
+
+	ibc.cleanerStopCh = make(chan struct{})
+	ibc.cleanerWG.Add(1)
+	go func() {
+		defer ibc.cleanerWG.Done()
+		ibc.cleaner()
+	}()
 }
 
-func (ibc *indexBlockCache) Reset(isBig bool) {
+func (ibc *indexBlockCache) MustClose(isBig bool) {
+	close(ibc.cleanerStopCh)
+	ibc.cleanerWG.Wait()
+
 	if isBig {
 		atomic.AddUint64(&bigIndexBlockCacheRequests, ibc.requests)
 		atomic.AddUint64(&bigIndexBlockCacheMisses, ibc.misses)
@@ -202,10 +221,36 @@ func (ibc *indexBlockCache) Reset(isBig bool) {
 	}
 	// It is safe returning ibc.m itemst to the pool, since Reset must
 	// be called only when no other goroutines access ibc entries.
-	for _, ib := range ibc.m {
-		putIndexBlock(ib)
+	for _, ibe := range ibc.m {
+		putIndexBlock(ibe.ib)
 	}
-	ibc.Init()
+	ibc.m = nil
+}
+
+// cleaner periodically cleans least recently used items.
+func (ibc *indexBlockCache) cleaner() {
+	t := time.NewTimer(5 * time.Second)
+	for {
+		select {
+		case <-t.C:
+			ibc.cleanByTimeout()
+		case <-ibc.cleanerStopCh:
+			t.Stop()
+			return
+		}
+	}
+}
+
+func (ibc *indexBlockCache) cleanByTimeout() {
+	currentTime := atomic.LoadUint64(&currentTimestamp)
+	ibc.mu.Lock()
+	for k, ibe := range ibc.m {
+		// Delete items accessed more than 10 minutes ago.
+		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 10*60 {
+			delete(ibc.m, k)
+		}
+	}
+	ibc.mu.Unlock()
 }
 
 var (
@@ -220,11 +265,15 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 	atomic.AddUint64(&ibc.requests, 1)
 
 	ibc.mu.RLock()
-	ib := ibc.m[k]
+	ibe, ok := ibc.m[k]
 	ibc.mu.RUnlock()
 
-	if ib != nil {
-		return ib
+	if ok {
+		currentTime := atomic.LoadUint64(&currentTimestamp)
+		if atomic.LoadUint64(&ibe.lastAccessTime) != currentTime {
+			atomic.StoreUint64(&ibe.lastAccessTime, currentTime)
+		}
+		return ibe.ib
 	}
 	atomic.AddUint64(&ibc.misses, 1)
 	ibc.mu.Lock()
@@ -270,7 +319,11 @@ func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
 
 	// Store frequently requested ib in the cache.
 	delete(ibc.missesMap, k)
-	ibc.m[k] = ib
+	ibe := indexBlockCacheEntry{
+		ib:             ib,
+		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+	}
+	ibc.m[k] = ibe
 	ibc.mu.Unlock()
 	return true
 }
@@ -289,3 +342,15 @@ func (ibc *indexBlockCache) Len() uint64 {
 	ibc.mu.Unlock()
 	return n
 }
+
+func init() {
+	go func() {
+		t := time.NewTimer(time.Second)
+		for tm := range t.C {
+			t := uint64(tm.Unix())
+			atomic.StoreUint64(&currentTimestamp, t)
+		}
+	}()
+}
+
+var currentTimestamp uint64
