@@ -323,6 +323,10 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 		return nil, nil
 	}
 	rollupArgIdx := getRollupArgIdx(fe.Name)
+	if rollupArgIdx >= len(fe.Args) {
+		// Incorrect number of args for rollup func.
+		return nil, nil
+	}
 	arg := fe.Args[rollupArgIdx]
 	if me, ok := arg.(*metricsql.MetricExpr); ok {
 		if me.IsEmpty() {
@@ -360,7 +364,7 @@ func evalRollupFuncArgs(ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, 
 	var re *metricsql.RollupExpr
 	rollupArgIdx := getRollupArgIdx(fe.Name)
 	if len(fe.Args) <= rollupArgIdx {
-		return nil, nil, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx, fe.Name, len(fe.Args), fe.AppendString(nil))
+		return nil, nil, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx+1, fe.Name, len(fe.Args), fe.AppendString(nil))
 	}
 	args := make([]interface{}, len(fe.Args))
 	for i, arg := range fe.Args {
