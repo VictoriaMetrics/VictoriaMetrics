@@ -600,9 +600,12 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 
 	// Marshal hm.m
 	dst = encoding.MarshalUint64(dst, uint64(hm.m.Len()))
-	for _, metricID := range hm.m.AppendTo(nil) {
-		dst = encoding.MarshalUint64(dst, metricID)
-	}
+	hm.m.ForEach(func(part []uint64) bool {
+		for _, metricID := range part {
+			dst = encoding.MarshalUint64(dst, metricID)
+		}
+		return true
+	})
 
 	// Marshal hm.byTenant
 	var metricIDs []uint64

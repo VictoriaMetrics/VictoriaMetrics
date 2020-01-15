@@ -166,6 +166,48 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		}
 	}
 
+	// Verify ForEach
+	{
+		var s Set
+		m := make(map[uint64]bool)
+		for i := 0; i < itemsCount; i++ {
+			v := uint64(i) + offset
+			s.Add(v)
+			m[v] = true
+		}
+
+		// Verify visiting all the items.
+		s.ForEach(func(part []uint64) bool {
+			for _, v := range part {
+				if !m[v] {
+					t.Fatalf("unexpected value v=%d passed to ForEach", v)
+				}
+				delete(m, v)
+			}
+			return true
+		})
+		if len(m) != 0 {
+			t.Fatalf("ForEach didn't visit %d items; items: %v", len(m), m)
+		}
+
+		// Verify fast stop
+		calls := 0
+		s.ForEach(func(part []uint64) bool {
+			calls++
+			return false
+		})
+		if itemsCount > 0 && calls != 1 {
+			t.Fatalf("Unexpected number of ForEach callback calls; got %d; want %d", calls, 1)
+		}
+
+		// Verify ForEach on nil set.
+		var s1 *Set
+		s1.ForEach(func(part []uint64) bool {
+			t.Fatalf("callback shouldn't be called on empty set")
+			return true
+		})
+	}
+
 	// Verify union
 	{
 		const unionOffset = 12345
