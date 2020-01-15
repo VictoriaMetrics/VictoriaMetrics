@@ -245,10 +245,12 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			return
 		}
 		m := pendingHourEntries.Clone()
-		origMetricIDs := hmOrig.m.AppendTo(nil)
-		for _, metricID := range origMetricIDs {
-			m.Add(metricID)
-		}
+		hmOrig.m.ForEach(func(part []uint64) bool {
+			for _, metricID := range part {
+				m.Add(metricID)
+			}
+			return true
+		})
 		if !hmCurr.m.Equal(m) {
 			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
 		}

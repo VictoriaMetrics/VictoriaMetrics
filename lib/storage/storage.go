@@ -553,9 +553,12 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 
 	// Marshal hm.m
 	dst = encoding.MarshalUint64(dst, uint64(hm.m.Len()))
-	for _, metricID := range hm.m.AppendTo(nil) {
-		dst = encoding.MarshalUint64(dst, metricID)
-	}
+	hm.m.ForEach(func(part []uint64) bool {
+		for _, metricID := range part {
+			dst = encoding.MarshalUint64(dst, metricID)
+		}
+		return true
+	})
 
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)

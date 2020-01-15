@@ -3,6 +3,7 @@ package uint64set
 import (
 	"math/bits"
 	"sort"
+	"sync"
 	"unsafe"
 )
 
@@ -155,45 +156,53 @@ func (s *Set) AppendTo(dst []uint64) []uint64 {
 
 // Union adds all the items from a to s.
 func (s *Set) Union(a *Set) {
-	// Clone a, since AppendTo may mutate it below.
-	aCopy := a.Clone()
 	if s.Len() == 0 {
-		// Fast path if the initial set is empty.
+		// Fast path - just copy a.
+		aCopy := a.Clone()
 		*s = *aCopy
 		return
 	}
-	// TODO: optimize it
-	for _, x := range aCopy.AppendTo(nil) {
-		s.Add(x)
+	if a.Len() == 0 {
+		// Fast path - nothing to union.
+		return
 	}
+	a.ForEach(func(part []uint64) bool {
+		for _, x := range part {
+			s.Add(x)
+		}
+		return true
+	})
 }
 
 // Intersect removes all the items missing in a from s.
 func (s *Set) Intersect(a *Set) {
-	if a.Len() == 0 {
-		// Fast path
+	if s.Len() == 0 || a.Len() == 0 {
+		// Fast path - the result is empty.
 		*s = Set{}
 		return
 	}
-	// TODO: optimize it
-	for _, x := range s.AppendTo(nil) {
-		if !a.Has(x) {
-			s.Del(x)
+	s.ForEach(func(part []uint64) bool {
+		for _, x := range part {
+			if !a.Has(x) {
+				s.Del(x)
+			}
 		}
-	}
+		return true
+	})
 }
 
 // Subtract removes from s all the shared items between s and a.
 func (s *Set) Subtract(a *Set) {
-	if s.Len() == 0 {
+	if s.Len() == 0 || a.Len() == 0 {
+		// Fast path - nothing to subtract.
 		return
 	}
-	// Copy a because AppendTo below can mutate a.
-	aCopy := a.Clone()
-	// TODO: optimize it
-	for _, x := range aCopy.AppendTo(nil) {
-		s.Del(x)
-	}
+	a.ForEach(func(part []uint64) bool {
+		for _, x := range part {
+			s.Del(x)
+		}
+		return true
+	})
 }
 
 // Equal returns true if s contains the same items as a.
@@ -201,21 +210,60 @@ func (s *Set) Equal(a *Set) bool {
 	if s.Len() != a.Len() {
 		return false
 	}
-	// Copy a because AppendTo below can mutate a
-	aCopy := a.Clone()
-	// TODO: optimize it
-	for _, x := range aCopy.AppendTo(nil) {
-		if !s.Has(x) {
-			return false
+	equal := true
+	a.ForEach(func(part []uint64) bool {
+		for _, x := range part {
+			if !s.Has(x) {
+				equal = false
+				return false
+			}
+		}
+		return true
+	})
+	return equal
+}
+
+// ForEach calls f for all the items stored in s.
+//
+// Each call to f contains part with arbitrary part of items stored in the set.
+// The iteration is stopped if f returns false.
+func (s *Set) ForEach(f func(part []uint64) bool) {
+	if s == nil {
+		return
+	}
+	for i := range s.buckets {
+		if !s.buckets[i].forEach(f) {
+			return
 		}
 	}
-	return true
 }
 
 type bucket32 struct {
 	hi      uint32
 	b16his  []uint16
 	buckets []bucket16
+}
+
+func (b *bucket32) forEach(f func(part []uint64) bool) bool {
+	xbuf := partBufPool.Get().(*[]uint64)
+	buf := *xbuf
+	for i := range b.buckets {
+		hi16 := b.b16his[i]
+		buf = b.buckets[i].appendTo(buf[:0], b.hi, hi16)
+		if !f(buf) {
+			return false
+		}
+	}
+	*xbuf = buf
+	partBufPool.Put(xbuf)
+	return true
+}
+
+var partBufPool = &sync.Pool{
+	New: func() interface{} {
+		buf := make([]uint64, 0, bitsPerBucket)
+		return &buf
+	},
 }
 
 func (b *bucket32) sizeBytes() uint64 {
