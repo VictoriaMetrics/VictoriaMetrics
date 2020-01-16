@@ -1,5 +1,11 @@
 # Changes
 
+## v1.5.0
+
+- Honor WithEndpoint client option for reads as well as writes.
+- Add archive storage class to docs.
+- Make fixes to storage benchwrapper.
+
 ## v1.4.0
 
 - When listing objects in a bucket, allow callers to specify which attributes

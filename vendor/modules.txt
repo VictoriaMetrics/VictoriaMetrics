@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.50.0
+# cloud.google.com/go v0.51.0
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -6,7 +6,7 @@ cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
-# cloud.google.com/go/storage v1.4.0
+# cloud.google.com/go/storage v1.5.0
 cloud.google.com/go/storage
 # github.com/BurntSushi/toml v0.3.1
 github.com/BurntSushi/toml
@@ -14,7 +14,7 @@ github.com/BurntSushi/toml
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/metrics v1.9.3
 github.com/VictoriaMetrics/metrics
-# github.com/aws/aws-sdk-go v1.26.8
+# github.com/aws/aws-sdk-go v1.28.3
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
 github.com/aws/aws-sdk-go/aws/awserr
@@ -41,6 +41,7 @@ github.com/aws/aws-sdk-go/internal/sdkmath
 github.com/aws/aws-sdk-go/internal/sdkrand
 github.com/aws/aws-sdk-go/internal/sdkuri
 github.com/aws/aws-sdk-go/internal/shareddefaults
+github.com/aws/aws-sdk-go/internal/strings
 github.com/aws/aws-sdk-go/private/protocol
 github.com/aws/aws-sdk-go/private/protocol/eventstream
 github.com/aws/aws-sdk-go/private/protocol/eventstream/eventstreamapi
@@ -58,7 +59,7 @@ github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9
+# github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7
 github.com/golang/groupcache/lru
 # github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
@@ -82,7 +83,7 @@ github.com/jmespath/go-jmespath
 github.com/jstemmer/go-junit-report
 github.com/jstemmer/go-junit-report/formatter
 github.com/jstemmer/go-junit-report/parser
-# github.com/klauspost/compress v1.9.4
+# github.com/klauspost/compress v1.9.7
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
@@ -118,13 +119,13 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# golang.org/x/exp v0.0.0-20191224044220-1fea468a75e9
+# golang.org/x/exp v0.0.0-20191227195350-da58074b4299
 golang.org/x/exp/apidiff
 golang.org/x/exp/cmd/apidiff
 # golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f
 golang.org/x/lint
 golang.org/x/lint/golint
-# golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
+# golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -133,20 +134,20 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6
+# golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 golang.org/x/oauth2
 golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20191224085550-c709ea063b76
+# golang.org/x/sys v0.0.0-20200116001909-b77594299b42
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20191224055732-dd894d0a8a40
+# golang.org/x/tools v0.0.0-20200116062425-473961ec044c
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/passes/inspect
@@ -186,7 +187,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20191223191004-3caeed10a8bf
+# google.golang.org/genproto v0.0.0-20200115191322-ca5a22157cba
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code

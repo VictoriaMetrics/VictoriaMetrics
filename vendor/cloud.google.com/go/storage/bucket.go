@@ -275,8 +275,10 @@ type BucketAttrs struct {
 
 	// StorageClass is the default storage class of the bucket. This defines
 	// how objects in the bucket are stored and determines the SLA
-	// and the cost of storage. Typical values are "NEARLINE", "COLDLINE" and
-	// "STANDARD". Defaults to "STANDARD".
+	// and the cost of storage. Typical values are "STANDARD", "NEARLINE",
+	// "COLDLINE" and "ARCHIVE". Defaults to "STANDARD".
+	// See https://cloud.google.com/storage/docs/storage-classes for all
+	// valid values.
 	StorageClass string
 
 	// Created is the creation time of the bucket.
@@ -459,7 +461,7 @@ type LifecycleCondition struct {
 	// MatchesStorageClasses is the condition matching the object's storage
 	// class.
 	//
-	// Values include "NEARLINE", "COLDLINE" and "STANDARD".
+	// Values include "STANDARD", "NEARLINE", "COLDLINE" and "ARCHIVE".
 	MatchesStorageClasses []string
 
 	// NumNewerVersions is the condition matching objects with a number of newer versions.
