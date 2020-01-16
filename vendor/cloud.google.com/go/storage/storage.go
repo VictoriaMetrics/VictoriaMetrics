@@ -121,7 +121,14 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		// TODO: remove when the raw client uses this endpoint as its default (~end of 2020)
 		rawService.BasePath = "https://storage.googleapis.com/storage/v1/"
 	} else {
+		// If the endpoint has been set explicitly, use this for the BasePath
+		// as well as readHost
 		rawService.BasePath = ep
+		u, err := url.Parse(ep)
+		if err != nil {
+			return nil, fmt.Errorf("supplied endpoint %v is not valid: %v", ep, err)
+		}
+		readHost = u.Hostname()
 	}
 
 	return &Client{
@@ -995,11 +1002,12 @@ type ObjectAttrs struct {
 	// of a particular object. This field is read-only.
 	Metageneration int64
 
-	// StorageClass is the storage class of the object.
-	// This value defines how objects in the bucket are stored and
-	// determines the SLA and the cost of storage. Typical values are
-	// "NEARLINE", "COLDLINE" and "STANDARD".
-	// It defaults to "STANDARD".
+	// StorageClass is the storage class of the object. This defines
+	// how objects are stored and determines the SLA and the cost of storage.
+	// Typical values are "STANDARD", "NEARLINE", "COLDLINE" and "ARCHIVE".
+	// Defaults to "STANDARD".
+	// See https://cloud.google.com/storage/docs/storage-classes for all
+	// valid values.
 	StorageClass string
 
 	// Created is the time the object was created. This field is read-only.
@@ -1155,7 +1163,7 @@ var attrToFieldMap = map[string]string{
 	"ContentEncoding":         "contentEncoding",
 	"ContentDisposition":      "contentDisposition",
 	"Size":                    "size",
-	"MD5":                     "md5hash",
+	"MD5":                     "md5Hash",
 	"CRC32C":                  "crc32c",
 	"MediaLink":               "mediaLink",
 	"Metadata":                "metadata",
@@ -1166,7 +1174,7 @@ var attrToFieldMap = map[string]string{
 	"KMSKeyName":              "kmsKeyName",
 	"Created":                 "timeCreated",
 	"Deleted":                 "timeDeleted",
-	"Updated":                 "timeUpdated",
+	"Updated":                 "updated",
 	"Etag":                    "etag",
 }
 
