@@ -24,7 +24,6 @@ var (
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
-	maxInsertRequestSize   = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size of a single insert request in bytes")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superflouos labels are dropped")
 )
 
@@ -43,10 +42,10 @@ func Init() {
 		graphiteServer = graphite.MustStart(*graphiteListenAddr)
 	}
 	if len(*opentsdbListenAddr) > 0 {
-		opentsdbServer = opentsdb.MustStart(*opentsdbListenAddr, int64(*maxInsertRequestSize))
+		opentsdbServer = opentsdb.MustStart(*opentsdbListenAddr)
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
-		opentsdbhttpServer = opentsdbhttp.MustStart(*opentsdbHTTPListenAddr, int64(*maxInsertRequestSize))
+		opentsdbhttpServer = opentsdbhttp.MustStart(*opentsdbHTTPListenAddr)
 	}
 }
 
@@ -69,7 +68,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	case "/api/v1/write":
 		prometheusWriteRequests.Inc()
-		if err := prometheus.InsertHandler(r, int64(*maxInsertRequestSize)); err != nil {
+		if err := prometheus.InsertHandler(r); err != nil {
 			prometheusWriteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true

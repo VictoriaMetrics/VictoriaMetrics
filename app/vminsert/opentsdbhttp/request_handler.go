@@ -1,6 +1,7 @@
 package opentsdbhttp
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 	"github.com/valyala/fastjson"
 )
 
+var maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
+
 var (
 	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdb-http"}`)
 	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="opentsdb-http"}`)
@@ -26,13 +29,13 @@ var (
 
 // insertHandler processes HTTP OpenTSDB put requests.
 // See http://opentsdb.net/docs/build/html/api_http/put.html
-func insertHandler(req *http.Request, maxSize int64) error {
+func insertHandler(req *http.Request) error {
 	return concurrencylimiter.Do(func() error {
-		return insertHandlerInternal(req, maxSize)
+		return insertHandlerInternal(req)
 	})
 }
 
-func insertHandlerInternal(req *http.Request, maxSize int64) error {
+func insertHandlerInternal(req *http.Request) error {
 	readCalls.Inc()
 
 	r := req.Body
@@ -50,15 +53,15 @@ func insertHandlerInternal(req *http.Request, maxSize int64) error {
 	defer putPushCtx(ctx)
 
 	// Read the request in ctx.reqBuf
-	lr := io.LimitReader(r, maxSize+1)
+	lr := io.LimitReader(r, int64(*maxInsertRequestSize)+1)
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
 		return fmt.Errorf("cannot read HTTP OpenTSDB request: %s", err)
 	}
-	if reqLen > maxSize {
+	if reqLen > int64(*maxInsertRequestSize) {
 		readErrors.Inc()
-		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed %d bytes", maxSize)
+		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed `-opentsdbhttp.maxInsertRequestSize=%d` bytes", *maxInsertRequestSize)
 	}
 
 	// Unmarshal the request to ctx.Rows

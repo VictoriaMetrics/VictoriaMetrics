@@ -36,7 +36,7 @@ type Server struct {
 // MustStart starts OpenTSDB collector on the given addr.
 //
 // MustStop must be called on the returned server when it is no longer needed.
-func MustStart(addr string, maxRequestSize int64) *Server {
+func MustStart(addr string) *Server {
 	logger.Infof("starting TCP OpenTSDB collector at %q", addr)
 	lnTCP, err := netutil.NewTCPListener("opentsdb", addr)
 	if err != nil {
@@ -45,7 +45,7 @@ func MustStart(addr string, maxRequestSize int64) *Server {
 	ls := newListenerSwitch(lnTCP)
 	lnHTTP := ls.newHTTPListener()
 	lnTelnet := ls.newTelnetListener()
-	httpServer := opentsdbhttp.MustServe(lnHTTP, maxRequestSize)
+	httpServer := opentsdbhttp.MustServe(lnHTTP)
 
 	logger.Infof("starting UDP OpenTSDB collector at %q", addr)
 	lnUDP, err := net.ListenPacket("udp4", addr)
