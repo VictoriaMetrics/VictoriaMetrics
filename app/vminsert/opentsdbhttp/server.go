@@ -29,20 +29,20 @@ type Server struct {
 // MustStart starts HTTP OpenTSDB server on the given addr.
 //
 // MustStop must be called on the returned server when it is no longer needed.
-func MustStart(addr string, maxRequestSize int64) *Server {
+func MustStart(addr string) *Server {
 	logger.Infof("starting HTTP OpenTSDB server at %q", addr)
 	lnTCP, err := netutil.NewTCPListener("opentsdbhttp", addr)
 	if err != nil {
 		logger.Fatalf("cannot start HTTP OpenTSDB collector at %q: %s", addr, err)
 	}
-	return MustServe(lnTCP, maxRequestSize)
+	return MustServe(lnTCP)
 }
 
-// MustServe serves OpenTSDB HTTP put requests from ln with up to maxRequestSize size.
+// MustServe serves OpenTSDB HTTP put requests from ln.
 //
 // MustStop must be called on the returned server when it is no longer needed.
-func MustServe(ln net.Listener, maxRequestSize int64) *Server {
-	h := newRequestHandler(maxRequestSize)
+func MustServe(ln net.Listener) *Server {
+	h := newRequestHandler()
 	hs := &http.Server{
 		Handler:      h,
 		ReadTimeout:  30 * time.Second,
@@ -83,7 +83,7 @@ func (s *Server) MustStop() {
 	logger.Infof("OpenTSDB HTTP server at %q has been stopped", s.ln.Addr())
 }
 
-func newRequestHandler(maxRequestSize int64) http.Handler {
+func newRequestHandler() http.Handler {
 	rh := func(w http.ResponseWriter, r *http.Request) {
 		p, err := httpserver.ParsePath(r.URL.Path)
 		if err != nil {
@@ -103,7 +103,7 @@ func newRequestHandler(maxRequestSize int64) http.Handler {
 		switch p.Suffix {
 		case "api/put", "opentsdb/api/put":
 			writeRequests.Inc()
-			if err := insertHandler(at, r, maxRequestSize); err != nil {
+			if err := insertHandler(at, r); err != nil {
 				writeErrors.Inc()
 				httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 				return

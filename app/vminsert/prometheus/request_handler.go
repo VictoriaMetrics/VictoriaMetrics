@@ -21,16 +21,16 @@ var (
 )
 
 // InsertHandler processes remote write for prometheus.
-func InsertHandler(at *auth.Token, r *http.Request, maxSize int64) error {
+func InsertHandler(at *auth.Token, r *http.Request) error {
 	return concurrencylimiter.Do(func() error {
-		return insertHandlerInternal(at, r, maxSize)
+		return insertHandlerInternal(at, r)
 	})
 }
 
-func insertHandlerInternal(at *auth.Token, r *http.Request, maxSize int64) error {
+func insertHandlerInternal(at *auth.Token, r *http.Request) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
-	if err := ctx.Read(r, maxSize); err != nil {
+	if err := ctx.Read(r); err != nil {
 		return err
 	}
 
@@ -71,11 +71,11 @@ func (ctx *pushCtx) reset() {
 	ctx.reqBuf = ctx.reqBuf[:0]
 }
 
-func (ctx *pushCtx) Read(r *http.Request, maxSize int64) error {
+func (ctx *pushCtx) Read(r *http.Request) error {
 	prometheusReadCalls.Inc()
 
 	var err error
-	ctx.reqBuf, err = prompb.ReadSnappy(ctx.reqBuf[:0], r.Body, maxSize)
+	ctx.reqBuf, err = prompb.ReadSnappy(ctx.reqBuf[:0], r.Body)
 	if err != nil {
 		prometheusReadErrors.Inc()
 		return fmt.Errorf("cannot read prompb.WriteRequest: %s", err)

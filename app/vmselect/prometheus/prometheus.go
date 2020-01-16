@@ -637,7 +637,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 	}
 
 	if len(query) > *maxQueryLen {
-		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
+		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
 	}
 	if !getBool(r, "nocache") && ct-start < queryOffset {
 		// Adjust start time only if `nocache` arg isn't set.
@@ -765,7 +765,7 @@ func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, star
 
 	// Validate input args.
 	if len(query) > *maxQueryLen {
-		return fmt.Errorf(`too long query; got %d bytes; mustn't exceed %d bytes`, len(query), *maxQueryLen)
+		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
 	}
 	if start > end {
 		end = start + defaultStep
