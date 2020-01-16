@@ -8,6 +8,36 @@ import (
 	"github.com/valyala/fastrand"
 )
 
+func BenchmarkIntersect(b *testing.B) {
+	const itemsCount = 3e6
+	for _, lastBits := range []uint64{20, 24, 28, 32} {
+		sa := createRandomSet(itemsCount, lastBits)
+		sb := createRandomSet(itemsCount, lastBits)
+		b.Run(fmt.Sprintf("lastBits_%d", lastBits), func(b *testing.B) {
+			b.ReportAllocs()
+			b.SetBytes(int64(sa.Len()+sb.Len()))
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					saCopy := sa.Clone()
+					saCopy.Intersect(sb)
+				}
+			})
+		})
+	}
+}
+
+func createRandomSet(itemsCount int, lastBits uint64) *Set {
+	mask := (uint64(1) << lastBits) - 1
+	start := uint64(time.Now().UnixNano())
+	var s Set
+	var rng fastrand.RNG
+	for i := 0; i < itemsCount; i++ {
+		n := start | uint64(rng.Uint32())&mask
+		s.Add(n)
+	}
+	return &s
+}
+
 func BenchmarkSetAddRandomLastBits(b *testing.B) {
 	const itemsCount = 1e5
 	for _, lastBits := range []uint64{20, 24, 28, 32} {
@@ -16,10 +46,10 @@ func BenchmarkSetAddRandomLastBits(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(itemsCount))
 			b.RunParallel(func(pb *testing.PB) {
+				var rng fastrand.RNG
 				for pb.Next() {
 					start := uint64(time.Now().UnixNano())
 					var s Set
-					var rng fastrand.RNG
 					for i := 0; i < itemsCount; i++ {
 						n := start | (uint64(rng.Uint32()) & mask)
 						s.Add(n)
@@ -38,10 +68,10 @@ func BenchmarkMapAddRandomLastBits(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(itemsCount))
 			b.RunParallel(func(pb *testing.PB) {
+				var rng fastrand.RNG
 				for pb.Next() {
 					start := uint64(time.Now().UnixNano())
 					m := make(map[uint64]struct{})
-					var rng fastrand.RNG
 					for i := 0; i < itemsCount; i++ {
 						n := start | (uint64(rng.Uint32()) & mask)
 						m[n] = struct{}{}
@@ -142,15 +172,8 @@ func BenchmarkMapAddReuse(b *testing.B) {
 func BenchmarkSetHasHitRandomLastBits(b *testing.B) {
 	const itemsCount = 1e5
 	for _, lastBits := range []uint64{20, 24, 28, 32} {
-		mask := (uint64(1) << lastBits) - 1
 		b.Run(fmt.Sprintf("lastBits_%d", lastBits), func(b *testing.B) {
-			start := uint64(time.Now().UnixNano())
-			var s Set
-			var rng fastrand.RNG
-			for i := 0; i < itemsCount; i++ {
-				n := start | (uint64(rng.Uint32()) & mask)
-				s.Add(n)
-			}
+			s := createRandomSet(itemsCount, lastBits)
 			a := s.AppendTo(nil)
 
 			b.ResetTimer()
