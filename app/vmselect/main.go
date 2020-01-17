@@ -25,10 +25,25 @@ import (
 var (
 	httpListenAddr        = flag.String("httpListenAddr", ":8481", "Address to listen for http connections")
 	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. Cache isn't saved if empty")
-	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", runtime.GOMAXPROCS(-1)*2, "The maximum number of concurrent search requests. It shouldn't exceed 2*vCPUs for better performance. See also -search.maxQueueDuration")
-	maxQueueDuration      = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
-	storageNodes          = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
+	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
+		"It shouldn't be high, since a single request can saturate all the CPU cores. See also `-search.maxQueueDuration`")
+	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
+	storageNodes     = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
 )
+
+func getDefaultMaxConcurrentRequests() int {
+	n := runtime.GOMAXPROCS(-1)
+	if n <= 4 {
+		n *= 2
+	}
+	if n > 16 {
+		// A single request can saturate all the CPU cores, so there is no sense
+		// in allowing higher number of concurrent requests - they will just contend
+		// for unavailable CPU time.
+		n = 16
+	}
+	return n
+}
 
 func main() {
 	flag.Parse()
