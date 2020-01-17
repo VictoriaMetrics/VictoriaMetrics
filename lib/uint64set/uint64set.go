@@ -165,14 +165,31 @@ func (s *Set) sort() {
 
 // Union adds all the items from a to s.
 func (s *Set) Union(a *Set) {
+	s.union(a, false)
+}
+
+// UnionMayOwn adds all the items from a to s.
+//
+// It may own a if s is empty. This means that `a` cannot be used
+// after the call to UnionMayOwn.
+func (s *Set) UnionMayOwn(a *Set) {
+	s.union(a, true)
+}
+
+func (s *Set) union(a *Set, mayOwn bool) {
+	if mayOwn && s.Len() < a.Len() {
+		// Swap `a` with `s` in order to reduce the number of iterations in ForEach loop below.
+		// This operation is safe only if `a` is no longer used after the call to union.
+		*a, *s = *s, *a
+	}
+	if a.Len() == 0 {
+		// Fast path - nothing to union.
+		return
+	}
 	if s.Len() == 0 {
 		// Fast path - just copy a.
 		aCopy := a.Clone()
 		*s = *aCopy
-		return
-	}
-	if a.Len() == 0 {
-		// Fast path - nothing to union.
 		return
 	}
 	a.ForEach(func(part []uint64) bool {
