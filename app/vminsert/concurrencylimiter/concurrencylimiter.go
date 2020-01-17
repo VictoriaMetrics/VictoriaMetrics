@@ -12,16 +12,13 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxConcurrentInserts = flag.Int("maxConcurrentInserts", runtime.GOMAXPROCS(-1)*4, "The maximum number of concurrent inserts")
-
 var (
-	// ch is the channel for limiting concurrent calls to Do.
-	ch chan struct{}
-
-	// waitDuration is the amount of time to wait until at least a single
-	// concurrent Do call out of cap(ch) inserts is complete.
-	waitDuration = time.Second * 30
+	maxConcurrentInserts = flag.Int("maxConcurrentInserts", runtime.GOMAXPROCS(-1)*4, "The maximum number of concurrent inserts; see also `-insert.maxQueueDuration`")
+	maxQueueDuration     = flag.Duration("insert.maxQueueDuration", 30*time.Second, "The maximum duration for waiting in the queue for insert requests due to `-maxConcurrentInserts`")
 )
+
+// ch is the channel for limiting concurrent calls to Do.
+var ch chan struct{}
 
 // Init initializes concurrencylimiter.
 //
@@ -43,9 +40,9 @@ func Do(f func() error) error {
 	}
 
 	// All the workers are busy.
-	// Sleep for up to waitDuration.
+	// Sleep for up to *maxQueueDuration.
 	concurrencyLimitReached.Inc()
-	t := timerpool.Get(waitDuration)
+	t := timerpool.Get(*maxQueueDuration)
 	select {
 	case ch <- struct{}{}:
 		timerpool.Put(t)
@@ -56,7 +53,9 @@ func Do(f func() error) error {
 		timerpool.Put(t)
 		concurrencyLimitTimeout.Inc()
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("the server is overloaded with %d concurrent inserts; either increase -maxConcurrentInserts or reduce the load", cap(ch)),
+			Err: fmt.Errorf("cannot handle more than %d concurrent inserts during %s; possible solutions: "+
+				"increase `-insert.maxQueueDuration`, increase `-maxConcurrentInserts`, "+
+				"decrease `-search.maxConcurrentRequests`, increase server capacity", *maxConcurrentInserts, *maxQueueDuration),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}
