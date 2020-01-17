@@ -8,31 +8,56 @@ import (
 	"github.com/valyala/fastrand"
 )
 
-func BenchmarkIntersect(b *testing.B) {
-	const itemsCount = 3e6
-	for _, lastBits := range []uint64{20, 24, 28, 32} {
-		sa := createRandomSet(itemsCount, lastBits)
-		sb := createRandomSet(itemsCount, lastBits)
-		b.Run(fmt.Sprintf("lastBits_%d", lastBits), func(b *testing.B) {
-			b.ReportAllocs()
-			b.SetBytes(int64(sa.Len()+sb.Len()))
-			b.RunParallel(func(pb *testing.PB) {
-				for pb.Next() {
-					saCopy := sa.Clone()
-					saCopy.Intersect(sb)
-				}
-			})
+func BenchmarkIntersectNoOverlap(b *testing.B) {
+	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
+		start := uint64(time.Now().UnixNano())
+		sa := createRangeSet(start, itemsCount)
+		sb := createRangeSet(start+uint64(itemsCount), itemsCount)
+		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
+			benchmarkIntersect(b, sa, sb)
 		})
 	}
 }
 
-func createRandomSet(itemsCount int, lastBits uint64) *Set {
-	mask := (uint64(1) << lastBits) - 1
-	start := uint64(time.Now().UnixNano())
+func BenchmarkIntersectPartialOverlap(b *testing.B) {
+	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
+		start := uint64(time.Now().UnixNano())
+		sa := createRangeSet(start, itemsCount)
+		sb := createRangeSet(start+uint64(itemsCount/2), itemsCount)
+		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
+			benchmarkIntersect(b, sa, sb)
+		})
+	}
+}
+
+func BenchmarkIntersectFullOverlap(b *testing.B) {
+	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
+		start := uint64(time.Now().UnixNano())
+		sa := createRangeSet(start, itemsCount)
+		sb := createRangeSet(start, itemsCount)
+		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
+			benchmarkIntersect(b, sa, sb)
+		})
+	}
+}
+
+func benchmarkIntersect(b *testing.B, sa, sb *Set) {
+	b.ReportAllocs()
+	b.SetBytes(int64(sa.Len() + sb.Len()))
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			saCopy := sa.Clone()
+			sbCopy := sb.Clone()
+			saCopy.Intersect(sb)
+			sbCopy.Intersect(sa)
+		}
+	})
+}
+
+func createRangeSet(start uint64, itemsCount int) *Set {
 	var s Set
-	var rng fastrand.RNG
 	for i := 0; i < itemsCount; i++ {
-		n := start | uint64(rng.Uint32())&mask
+		n := start + uint64(i)
 		s.Add(n)
 	}
 	return &s
@@ -172,8 +197,15 @@ func BenchmarkMapAddReuse(b *testing.B) {
 func BenchmarkSetHasHitRandomLastBits(b *testing.B) {
 	const itemsCount = 1e5
 	for _, lastBits := range []uint64{20, 24, 28, 32} {
+		mask := (uint64(1) << lastBits) - 1
 		b.Run(fmt.Sprintf("lastBits_%d", lastBits), func(b *testing.B) {
-			s := createRandomSet(itemsCount, lastBits)
+			start := uint64(time.Now().UnixNano())
+			var s Set
+			var rng fastrand.RNG
+			for i := 0; i < itemsCount; i++ {
+				n := start | (uint64(rng.Uint32()) & mask)
+				s.Add(n)
+			}
 			a := s.AppendTo(nil)
 
 			b.ResetTimer()
