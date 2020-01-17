@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"bufio"
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"flag"
@@ -20,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/klauspost/compress/gzip"
 )
 
 var (

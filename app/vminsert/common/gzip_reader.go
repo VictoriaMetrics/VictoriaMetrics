@@ -1,9 +1,10 @@
 package common
 
 import (
-	"compress/gzip"
 	"io"
 	"sync"
+
+	"github.com/klauspost/compress/gzip"
 )
 
 // GetGzipReader returns new gzip reader from the pool.
