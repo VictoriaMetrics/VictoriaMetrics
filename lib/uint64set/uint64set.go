@@ -660,14 +660,18 @@ func (b *bucket16) delFromSmallPool(x uint16) bool {
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	if b.bits == nil {
-		a := b.smallPool[:b.smallPoolLen]
-		if len(a) > 1 {
-			sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
+		// Use uint16Sorter instead of sort.Slice here in order to reduce memory allocations.
+		a := uint16SorterPool.Get().(*uint16Sorter)
+		*a = uint16Sorter(b.smallPool[:b.smallPoolLen])
+		if len(*a) > 1 && !sort.IsSorted(a) {
+			sort.Sort(a)
 		}
-		for _, v := range a {
+		for _, v := range *a {
 			x := hi64 | uint64(v)
 			dst = append(dst, x)
 		}
+		*a = nil
+		uint16SorterPool.Put(a)
 		return dst
 	}
 	var wordNum uint64
@@ -689,6 +693,22 @@ func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 		wordNum++
 	}
 	return dst
+}
+
+var uint16SorterPool = &sync.Pool{
+	New: func() interface{} {
+		return &uint16Sorter{}
+	},
+}
+
+type uint16Sorter []uint16
+
+func (s uint16Sorter) Len() int { return len(s) }
+func (s uint16Sorter) Less(i, j int) bool {
+	return s[i] < s[j]
+}
+func (s uint16Sorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 func getWordNumBitMask(x uint16) (uint16, uint64) {

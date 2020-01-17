@@ -240,6 +240,38 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		}
 	}
 
+	// Verify UnionMayOwn
+	{
+		const unionOffset = 12345
+		var s1, s2 Set
+		for i := 0; i < itemsCount; i++ {
+			s1.Add(uint64(i) + offset)
+			s2.Add(uint64(i) + offset + unionOffset)
+		}
+		s1.UnionMayOwn(&s2)
+		expectedLen := 2 * itemsCount
+		if itemsCount > unionOffset {
+			expectedLen = itemsCount + unionOffset
+		}
+		if n := s1.Len(); n != expectedLen {
+			t.Fatalf("unexpected s1.Len() after union; got %d; want %d", n, expectedLen)
+		}
+
+		// Verify union on empty set.
+		var s3 Set
+		expectedLen = s1.Len()
+		s3.UnionMayOwn(&s1)
+		if n := s3.Len(); n != expectedLen {
+			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
+		}
+		var s4 Set
+		expectedLen = s3.Len()
+		s3.UnionMayOwn(&s4)
+		if n := s3.Len(); n != expectedLen {
+			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
+		}
+	}
+
 	// Verify intersect
 	{
 		// Verify s1.Intersect(s2) and s2.Intersect(s1)
