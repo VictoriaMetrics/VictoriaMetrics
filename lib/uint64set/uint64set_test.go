@@ -232,31 +232,51 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		if n := s3.Len(); n != expectedLen {
 			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
 		}
+		var s4 Set
+		expectedLen = s3.Len()
+		s3.Union(&s4)
+		if n := s3.Len(); n != expectedLen {
+			t.Fatalf("unexpected s3.Len() after union with empty set; got %d; want %d", n, expectedLen)
+		}
 	}
 
 	// Verify intersect
 	{
-		const intersectOffset = 12345
+		// Verify s1.Intersect(s2) and s2.Intersect(s1)
 		var s1, s2 Set
-		for i := 0; i < itemsCount; i++ {
-			s1.Add(uint64(i) + offset)
-			s2.Add(uint64(i) + offset + intersectOffset)
-		}
-		s1.Intersect(&s2)
-		expectedLen := 0
-		if itemsCount > intersectOffset {
-			expectedLen = itemsCount - intersectOffset
-		}
-		if n := s1.Len(); n != expectedLen {
-			t.Fatalf("unexpected s1.Len() after intersect; got %d; want %d", n, expectedLen)
+		for _, intersectOffset := range []uint64{123, 12345, 1<<32 + 4343} {
+			s1 = Set{}
+			s2 = Set{}
+			for i := 0; i < itemsCount; i++ {
+				s1.Add(uint64(i) + offset)
+				s2.Add(uint64(i) + offset + intersectOffset)
+			}
+			expectedLen := 0
+			if uint64(itemsCount) > intersectOffset {
+				expectedLen = int(uint64(itemsCount) - intersectOffset)
+			}
+			s1Copy := s1.Clone()
+			s1Copy.Intersect(&s2)
+			if n := s1Copy.Len(); n != expectedLen {
+				t.Fatalf("unexpected s1.Len() after intersect; got %d; want %d", n, expectedLen)
+			}
+			s2.Intersect(&s1)
+			if n := s2.Len(); n != expectedLen {
+				t.Fatalf("unexpected s2.Len() after intersect; got %d; want %d", n, expectedLen)
+			}
 		}
 
 		// Verify intersect on empty set.
 		var s3 Set
 		s2.Intersect(&s3)
-		expectedLen = 0
-		if n := s2.Len(); n != 0 {
+		expectedLen := 0
+		if n := s2.Len(); n != expectedLen {
 			t.Fatalf("unexpected s3.Len() after intersect with empty set; got %d; want %d", n, expectedLen)
+		}
+		var s4 Set
+		s4.Intersect(&s1)
+		if n := s4.Len(); n != expectedLen {
+			t.Fatalf("unexpected s4.Len() after intersect with empty set; got %d; want %d", n, expectedLen)
 		}
 	}
 
