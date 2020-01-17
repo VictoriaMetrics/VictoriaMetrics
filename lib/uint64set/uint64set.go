@@ -198,7 +198,7 @@ func (s *Set) Intersect(a *Set) {
 	i := 0
 	j := 0
 	for {
-		for i < len(s.buckets) && j <= len(a.buckets) && s.buckets[i].hi < a.buckets[j].hi {
+		for i < len(s.buckets) && j < len(a.buckets) && s.buckets[i].hi < a.buckets[j].hi {
 			s.buckets[i] = bucket32{}
 			i++
 		}
