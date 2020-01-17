@@ -244,7 +244,10 @@ func (b *Block) UnmarshalData() error {
 	if err != nil {
 		return err
 	}
-	encoding.EnsureNonDecreasingSequence(b.timestamps, b.bh.MinTimestamp, b.bh.MaxTimestamp)
+	if b.bh.PrecisionBits < 64 {
+		// Recover timestamps order after lossy compression.
+		encoding.EnsureNonDecreasingSequence(b.timestamps, b.bh.MinTimestamp, b.bh.MaxTimestamp)
+	}
 	b.timestampsData = b.timestampsData[:0]
 
 	b.values, err = encoding.UnmarshalValues(b.values[:0], b.valuesData, b.bh.ValuesMarshalType, b.bh.FirstValue, int(b.bh.RowsCount))
