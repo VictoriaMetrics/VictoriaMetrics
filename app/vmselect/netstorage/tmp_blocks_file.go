@@ -36,6 +36,9 @@ func maxInmemoryTmpBlocksFile() int {
 	if maxLen < 64*1024 {
 		return 64 * 1024
 	}
+	if maxLen > 4*1024*1024 {
+		return 4*1024*1024
+	}
 	return maxLen
 }
 
