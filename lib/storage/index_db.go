@@ -1775,7 +1775,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		}
 		minMetricIDs = mIDs
 	}
-	metricIDs.Union(minMetricIDs)
+	metricIDs.UnionMayOwn(minMetricIDs)
 	return nil
 }
 
@@ -2094,7 +2094,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 			err := isLocal.getMetricIDsForDate(date, &result, maxMetrics, accountID, projectID)
 			mu.Lock()
 			if metricIDs.Len() < maxMetrics {
-				metricIDs.Union(&result)
+				metricIDs.UnionMayOwn(&result)
 			}
 			if err != nil {
 				errGlobal = err
@@ -2140,7 +2140,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 			ok, err := isLocal.tryUpdatingMetricIDsForDate(date, &result, tfs, maxMetrics)
 			mu.Lock()
 			if metricIDs.Len() < maxMetrics {
-				metricIDs.Union(&result)
+				metricIDs.UnionMayOwn(&result)
 			}
 			if !ok {
 				okGlobal = ok
@@ -2229,7 +2229,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDate(date uint64, metricIDs *uint6
 			return true, nil
 		}
 	}
-	metricIDs.Union(result)
+	metricIDs.UnionMayOwn(result)
 	return true, nil
 }
 
