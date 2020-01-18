@@ -10,6 +10,20 @@ from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-wri
 VictoriaMetrics is compared to Thanos, Corex and M3DB in the talk.
 
 
+### COLOPL
+
+[COLOPL](http://www.colopl.co.jp/en/) is Japaneese Game Development company. It started using VictoriaMetrics
+after evaulating the following remote storage solutions for Prometheus:
+
+* Cortex
+* Thanos
+* M3DB
+* VictoriaMetrics
+
+See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victoria-metrics) and [video](https://www.youtube.com/watch?v=hUpHIluxw80)
+from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
+
+
 ### Wix.com
 
 [Wix.com](https://en.wikipedia.org/wiki/Wix.com) is the leading web development platform.
