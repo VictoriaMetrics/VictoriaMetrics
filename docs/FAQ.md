@@ -158,7 +158,7 @@ This is slow and expensive.
 Prometheus remote read API isn't intended for querying foreign data aka `global query view`. See [this issue](https://github.com/prometheus/prometheus/issues/4456) for details.
 
 So just query VictoriaMetrics directly via [Prometheus Querying API](https://prometheus.io/docs/prometheus/latest/querying/api/)
-or via [Prometheus datasoruce in Grafana](http://docs.grafana.org/features/datasources/prometheus/).
+or via [Prometheus datasource in Grafana](http://docs.grafana.org/features/datasources/prometheus/).
 
 
 ### Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
