@@ -364,6 +364,7 @@ func (b *bucket32) union(a *bucket32, mayOwn bool) {
 		}
 		if i >= len(bb16his) {
 			for j < len(a.b16his) {
+				b.b16his = append(b.b16his, a.b16his[j])
 				b16 := b.addBucket16()
 				a.buckets[j].copyTo(b16)
 				j++
@@ -371,6 +372,7 @@ func (b *bucket32) union(a *bucket32, mayOwn bool) {
 			break
 		}
 		for j < len(a.b16his) && a.b16his[j] < bb16his[i] {
+			b.b16his = append(b.b16his, a.b16his[j])
 			b16 := b.addBucket16()
 			a.buckets[j].copyTo(b16)
 			j++
