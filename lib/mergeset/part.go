@@ -315,7 +315,7 @@ type inmemoryBlockCache struct {
 	requests uint64
 	misses   uint64
 
-	m  map[inmemoryBlockCacheKey]inmemoryBlockCacheEntry
+	m  map[inmemoryBlockCacheKey]*inmemoryBlockCacheEntry
 	mu sync.RWMutex
 
 	cleanerStopCh chan struct{}
@@ -346,7 +346,7 @@ type inmemoryBlockCacheEntry struct {
 
 func newInmemoryBlockCache() *inmemoryBlockCache {
 	var ibc inmemoryBlockCache
-	ibc.m = make(map[inmemoryBlockCacheKey]inmemoryBlockCacheEntry)
+	ibc.m = make(map[inmemoryBlockCacheKey]*inmemoryBlockCacheEntry)
 
 	ibc.cleanerStopCh = make(chan struct{})
 	ibc.cleanerWG.Add(1)
@@ -406,10 +406,10 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 	atomic.AddUint64(&ibc.requests, 1)
 
 	ibc.mu.RLock()
-	ibe, ok := ibc.m[k]
+	ibe := ibc.m[k]
 	ibc.mu.RUnlock()
 
-	if ok {
+	if ibe != nil {
 		currentTime := atomic.LoadUint64(&currentTimestamp)
 		if atomic.LoadUint64(&ibe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&ibe.lastAccessTime, currentTime)
@@ -442,7 +442,7 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) b
 	}
 
 	// Store ib in the cache.
-	ibe := inmemoryBlockCacheEntry{
+	ibe := &inmemoryBlockCacheEntry{
 		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
 		ib:             ib,
 	}

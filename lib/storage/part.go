@@ -173,9 +173,8 @@ type indexBlockCache struct {
 	requests uint64
 	misses   uint64
 
-	m         map[uint64]indexBlockCacheEntry
-	missesMap map[uint64]uint64
-	mu        sync.RWMutex
+	m  map[uint64]*indexBlockCacheEntry
+	mu sync.RWMutex
 
 	cleanerStopCh chan struct{}
 	cleanerWG     sync.WaitGroup
@@ -192,8 +191,7 @@ type indexBlockCacheEntry struct {
 
 func newIndexBlockCache() *indexBlockCache {
 	var ibc indexBlockCache
-	ibc.m = make(map[uint64]indexBlockCacheEntry)
-	ibc.missesMap = make(map[uint64]uint64)
+	ibc.m = make(map[uint64]*indexBlockCacheEntry)
 
 	ibc.cleanerStopCh = make(chan struct{})
 	ibc.cleanerWG.Add(1)
@@ -261,10 +259,10 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 	atomic.AddUint64(&ibc.requests, 1)
 
 	ibc.mu.RLock()
-	ibe, ok := ibc.m[k]
+	ibe := ibc.m[k]
 	ibc.mu.RUnlock()
 
-	if ok {
+	if ibe != nil {
 		currentTime := atomic.LoadUint64(&currentTimestamp)
 		if atomic.LoadUint64(&ibe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&ibe.lastAccessTime, currentTime)
@@ -272,21 +270,11 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 		return ibe.ib
 	}
 	atomic.AddUint64(&ibc.misses, 1)
-	ibc.mu.Lock()
-	ibc.missesMap[k]++
-	ibc.mu.Unlock()
 	return nil
 }
 
 func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
 	ibc.mu.Lock()
-
-	if ibc.missesMap[k] < 2 {
-		// Do not store infrequently accessed ib in the cache,
-		// so it don't evict frequently accessed items.
-		ibc.mu.Unlock()
-		return false
-	}
 
 	// Clean superflouos cache entries.
 	if overflow := len(ibc.m) - getMaxCachedIndexBlocksPerPart(); overflow > 0 {
@@ -301,21 +289,9 @@ func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
 			}
 		}
 	}
-	if overflow := len(ibc.missesMap) - 8*getMaxCachedIndexBlocksPerPart(); overflow > 0 {
-		// Remove 10% of items from the cache.
-		overflow = int(float64(len(ibc.missesMap)) * 0.1)
-		for k := range ibc.missesMap {
-			delete(ibc.missesMap, k)
-			overflow--
-			if overflow == 0 {
-				break
-			}
-		}
-	}
 
 	// Store frequently requested ib in the cache.
-	delete(ibc.missesMap, k)
-	ibe := indexBlockCacheEntry{
+	ibe := &indexBlockCacheEntry{
 		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
 		ib:             ib,
 	}
