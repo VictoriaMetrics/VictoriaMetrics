@@ -547,6 +547,19 @@ the deleted time series isn't freed instantly - it is freed during subsequent me
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
 before actually deleting the metrics.
 
+The delete API is intended mainly for the following cases:
+
+- One-off deleting of accidentally written invalid (or undesired) time series.
+- One-off deleting of user data due to [GDPR](https://en.wikipedia.org/wiki/General_Data_Protection_Regulation).
+
+It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
+
+- Regular cleanups for unneded data. Just prevent writing unneeded data into VictoriaMetrics.
+- Reducing disk space usage by deleting unneded time series. This doesn't work as expected, since the deleted
+  time series occupy disk space until the next merge operation, which can never occur.
+
+It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
+
 
 ### How to export time series?
 
@@ -815,6 +828,7 @@ The most interesting metrics are:
 
 ### Backfilling
 
+VictoriaMetrics accepts historical data in arbitrary order of time.
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
