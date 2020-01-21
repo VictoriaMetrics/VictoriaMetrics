@@ -117,7 +117,7 @@ func (sn *storageNode) sendBufLocked(buf []byte) error {
 			return fmt.Errorf("cannot dial %q: %s", sn.dialer.Addr(), err)
 		}
 	}
-	timeoutSeconds := len(buf) / 1e6
+	timeoutSeconds := len(buf) / 3e5
 	if timeoutSeconds < 60 {
 		timeoutSeconds = 60
 	}
