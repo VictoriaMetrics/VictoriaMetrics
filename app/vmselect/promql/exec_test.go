@@ -3248,6 +3248,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_over_time(time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_over_time(alias(time()/100, "foobar")[3i])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(multi-vector)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum(label_set(10, "foo", "bar") or label_set(time()/100, "baz", "sss"))`

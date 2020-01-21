@@ -66,6 +66,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `lifetime(q[d])` - returns lifetime of `q` over `d` in seconds. It is expected that `d` exceeds the lifetime of `q`.
 - `scrape_interval(q[d])` - returns the average interval in seconds between data points of `q` over `d` aka `scrape interval`.
 - Trigonometric functions - `sin(q)`, `cos(q)`, `asin(q)`, `acos(q)` and `pi()`.
+- `range_over_time(m[d])` - returns value range for `m` over `d` time window, i.e. `max_over_time(m[d])-min_over_time(m[d])`.
 - `median_over_time(m[d])` - calculates median values for `m` over `d` time window. Shorthand to `quantile_over_time(0.5, m[d])`.
 - `median(q)` - median aggregate. Shorthand to `quantile(0.5, q)`.
 - `limitk(k, q)` - limits the number of time series returned from `q` to `k`.
