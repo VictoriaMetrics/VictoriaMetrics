@@ -1476,6 +1476,38 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_match()`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		label_match((
+			alias(time(), "foo"),
+			alias(2*time(), "bar"),
+		), "__name__", "f.+")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foo")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`label_mismatch()`, func(t *testing.T) {
+		t.Parallel()
+		q := `
+		label_mismatch((
+			alias(time(), "foo"),
+			alias(2*time(), "bar"),
+		), "__name__", "f.+")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("bar")
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`two_timeseries`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(time() or label_set(2, "xx", "foo"))`
@@ -5247,6 +5279,8 @@ func TestExecError(t *testing.T) {
 	f(`label_set(1, "foo")`)
 	f(`label_del()`)
 	f(`label_keep()`)
+	f(`label_match()`)
+	f(`label_mismatch()`)
 	f(`round()`)
 	f(`round(1,2,3)`)
 	f(`scalar()`)
@@ -5347,6 +5381,8 @@ func TestExecError(t *testing.T) {
 	f(`label_transform(1, "foo", 3, 4)`)
 	f(`label_transform(1, "foo", "bar", 4)`)
 	f(`label_transform(1, "foo", "invalid(regexp", "baz`)
+	f(`label_match(1, 2, 3)`)
+	f(`label_mismatch(1, 2, 3)`)
 	f(`alias(1, 2)`)
 	f(`aggr_over_time(1, 2)`)
 	f(`aggr_over_time(("foo", "bar"), 3)`)

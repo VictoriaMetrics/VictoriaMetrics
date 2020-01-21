@@ -65,6 +65,8 @@ var transformFuncs = map[string]transformFunc{
 	"label_move":         transformLabelMove,
 	"label_transform":    transformLabelTransform,
 	"label_value":        transformLabelValue,
+	"label_match":        transformLabelMatch,
+	"label_mismatch":     transformLabelMismatch,
 	"union":              transformUnion,
 	"":                   transformUnion, // empty func is a synonim to union
 	"keep_last_value":    transformKeepLastValue,
@@ -1200,6 +1202,62 @@ func transformLabelValue(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	// Do not remove timeseries with only NaN values, so `default` could be applied to them:
 	// label_value(q, "label") default 123
+	return rvs, nil
+}
+
+func transformLabelMatch(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
+		return nil, err
+	}
+	labelName, err := getString(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get label name: %s", err)
+	}
+	labelRe, err := getString(args[2], 2)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get regexp: %s", err)
+	}
+	r, err := metricsql.CompileRegexpAnchored(labelRe)
+	if err != nil {
+		return nil, fmt.Errorf(`cannot compile regexp %q: %s`, labelRe, err)
+	}
+	tss := args[0]
+	rvs := tss[:0]
+	for _, ts := range tss {
+		labelValue := ts.MetricName.GetTagValue(labelName)
+		if r.Match(labelValue) {
+			rvs = append(rvs, ts)
+		}
+	}
+	return rvs, nil
+}
+
+func transformLabelMismatch(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
+		return nil, err
+	}
+	labelName, err := getString(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get label name: %s", err)
+	}
+	labelRe, err := getString(args[2], 2)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get regexp: %s", err)
+	}
+	r, err := metricsql.CompileRegexpAnchored(labelRe)
+	if err != nil {
+		return nil, fmt.Errorf(`cannot compile regexp %q: %s`, labelRe, err)
+	}
+	tss := args[0]
+	rvs := tss[:0]
+	for _, ts := range tss {
+		labelValue := ts.MetricName.GetTagValue(labelName)
+		if !r.Match(labelValue) {
+			rvs = append(rvs, ts)
+		}
+	}
 	return rvs, nil
 }
 

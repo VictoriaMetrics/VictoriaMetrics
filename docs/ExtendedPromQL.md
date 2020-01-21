@@ -52,6 +52,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   - `label_move(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for moving label values from `src_*` to `dst_*`.
   - `label_transform(q, label, regexp, replacement)` for replacing all the `regexp` occurences with `replacement` in the `label` values from `q`.
   - `label_value(q, label)` - returns numeric values for the given `label` from `q`.
+- `label_match(q, label, regexp)` and `label_mismatch(q, label, regexp)` for filtering time series with labels matching (or not matching) the given regexps.
 - `step()` function for returning the step in seconds used in the query.
 - `start()` and `end()` functions for returning the start and end timestamps of the `[start ... end]` range used in the query.
 - `integrate(m[d])` for returning integral over the given duration `d` for the given metric `m`.
