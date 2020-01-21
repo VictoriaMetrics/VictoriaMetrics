@@ -15,8 +15,6 @@ import (
 )
 
 var rollupFuncs = map[string]newRollupFunc{
-	"default_rollup": newRollupFuncOneArg(rollupDefault), // default rollup func
-
 	// Standard rollup funcs from PromQL.
 	// See funcs accepting range-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
 	"changes":            newRollupFuncOneArg(rollupChanges),
@@ -41,6 +39,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"absent_over_time":   newRollupFuncOneArg(rollupAbsent),
 
 	// Additional rollup funcs.
+	"default_rollup":        newRollupFuncOneArg(rollupDefault), // default rollup func
+	"range_over_time":       newRollupFuncOneArg(rollupRange),
 	"sum2_over_time":        newRollupFuncOneArg(rollupSum2),
 	"geomean_over_time":     newRollupFuncOneArg(rollupGeomean),
 	"first_over_time":       newRollupFuncOneArg(rollupFirst),
@@ -91,6 +91,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"absent_over_time": rollupAbsent,
 
 	// Additional rollup funcs.
+	"range_over_time":     rollupRange,
 	"sum2_over_time":      rollupSum2,
 	"geomean_over_time":   rollupGeomean,
 	"first_over_time":     rollupFirst,
@@ -1050,6 +1051,12 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 		sum += v
 	}
 	return sum
+}
+
+func rollupRange(rfa *rollupFuncArg) float64 {
+	max := rollupMax(rfa)
+	min := rollupMin(rfa)
+	return max - min
 }
 
 func rollupSum2(rfa *rollupFuncArg) float64 {

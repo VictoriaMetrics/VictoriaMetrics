@@ -30,6 +30,7 @@ var rollupFuncs = map[string]bool{
 
 	// Additional rollup funcs.
 	"default_rollup":        true,
+	"range_over_time":       true,
 	"sum2_over_time":        true,
 	"geomean_over_time":     true,
 	"first_over_time":       true,

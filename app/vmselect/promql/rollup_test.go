@@ -370,6 +370,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("irate", 0)
 	f("rate", 2200)
 	f("resets", 5)
+	f("range_over_time", 111)
 	f("avg_over_time", 47.083333333333336)
 	f("min_over_time", 12)
 	f("max_over_time", 123)
