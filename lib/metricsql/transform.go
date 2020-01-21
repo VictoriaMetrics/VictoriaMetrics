@@ -44,6 +44,8 @@ var transformFuncs = map[string]bool{
 	"label_move":         true,
 	"label_transform":    true,
 	"label_value":        true,
+	"label_match":        true,
+	"label_mismatch":     true,
 	"union":              true,
 	"":                   true, // empty func is a synonim to union
 	"keep_last_value":    true,
