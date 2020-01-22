@@ -176,8 +176,8 @@ The deduplication for Prometheus HA pair may be easily implemented on top of Vic
 ### Where is the source code of VictoriaMetrics?
 
 Source code for the following versions is available in the following places:
-* [Single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics).
-* [Cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+* [Single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics)
+* [Cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster)
 
 
 ### Does VictoriaMetrics fit for data from IoT sensors and industrial sensors?
@@ -190,7 +190,11 @@ and scales horizontally to multiple nodes.
 
 ### Where can I ask questions about VictoriaMetrics?
 
-See [VictoriaMetrics-users group](https://groups.google.com/forum/#!forum/victorametrics-users).
+Questions about VictoriaMetrics can be asked via the following channels:
+
+- [Slack channel](http://slack.victoriametrics.com/)
+- [Telegram channel](https://t.me/VictoriaMetrics_en)
+- [Google group](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 
 ### Where can I file bugs and feature requests regarding VictoriaMetrics?
