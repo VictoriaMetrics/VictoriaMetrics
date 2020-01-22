@@ -29,10 +29,10 @@ type ModuleResolver struct {
 	scanSema       chan struct{} // scanSema prevents concurrent scans and guards scannedRoots.
 	scannedRoots   map[gopathwalk.Root]bool
 
-	Initialized   bool
-	Main          *ModuleJSON
-	ModsByModPath []*ModuleJSON // All modules, ordered by # of path components in module Path...
-	ModsByDir     []*ModuleJSON // ...or Dir.
+	initialized   bool
+	main          *ModuleJSON
+	modsByModPath []*ModuleJSON // All modules, ordered by # of path components in module Path...
+	modsByDir     []*ModuleJSON // ...or Dir.
 
 	// moduleCacheCache stores information about the module cache.
 	moduleCacheCache *dirInfoCache
@@ -59,7 +59,7 @@ func newModuleResolver(e *ProcessEnv) *ModuleResolver {
 }
 
 func (r *ModuleResolver) init() error {
-	if r.Initialized {
+	if r.initialized {
 		return nil
 	}
 	mainMod, vendorEnabled, err := vendorEnabled(r.env)
@@ -70,13 +70,13 @@ func (r *ModuleResolver) init() error {
 	if mainMod != nil && vendorEnabled {
 		// Vendor mode is on, so all the non-Main modules are irrelevant,
 		// and we need to search /vendor for everything.
-		r.Main = mainMod
+		r.main = mainMod
 		r.dummyVendorMod = &ModuleJSON{
 			Path: "",
 			Dir:  filepath.Join(mainMod.Dir, "vendor"),
 		}
-		r.ModsByModPath = []*ModuleJSON{mainMod, r.dummyVendorMod}
-		r.ModsByDir = []*ModuleJSON{mainMod, r.dummyVendorMod}
+		r.modsByModPath = []*ModuleJSON{mainMod, r.dummyVendorMod}
+		r.modsByDir = []*ModuleJSON{mainMod, r.dummyVendorMod}
 	} else {
 		// Vendor mode is off, so run go list -m ... to find everything.
 		r.initAllMods()
@@ -84,15 +84,15 @@ func (r *ModuleResolver) init() error {
 
 	r.moduleCacheDir = filepath.Join(filepath.SplitList(r.env.GOPATH)[0], "/pkg/mod")
 
-	sort.Slice(r.ModsByModPath, func(i, j int) bool {
+	sort.Slice(r.modsByModPath, func(i, j int) bool {
 		count := func(x int) int {
-			return strings.Count(r.ModsByModPath[x].Path, "/")
+			return strings.Count(r.modsByModPath[x].Path, "/")
 		}
 		return count(j) < count(i) // descending order
 	})
-	sort.Slice(r.ModsByDir, func(i, j int) bool {
+	sort.Slice(r.modsByDir, func(i, j int) bool {
 		count := func(x int) int {
-			return strings.Count(r.ModsByDir[x].Dir, "/")
+			return strings.Count(r.modsByDir[x].Dir, "/")
 		}
 		return count(j) < count(i) // descending order
 	})
@@ -100,8 +100,8 @@ func (r *ModuleResolver) init() error {
 	r.roots = []gopathwalk.Root{
 		{filepath.Join(r.env.GOROOT, "/src"), gopathwalk.RootGOROOT},
 	}
-	if r.Main != nil {
-		r.roots = append(r.roots, gopathwalk.Root{r.Main.Dir, gopathwalk.RootCurrentModule})
+	if r.main != nil {
+		r.roots = append(r.roots, gopathwalk.Root{r.main.Dir, gopathwalk.RootCurrentModule})
 	}
 	if vendorEnabled {
 		r.roots = append(r.roots, gopathwalk.Root{r.dummyVendorMod.Dir, gopathwalk.RootOther})
@@ -115,12 +115,12 @@ func (r *ModuleResolver) init() error {
 			}
 		}
 		// Walk dependent modules before scanning the full mod cache, direct deps first.
-		for _, mod := range r.ModsByModPath {
+		for _, mod := range r.modsByModPath {
 			if !mod.Indirect && !mod.Main {
 				addDep(mod)
 			}
 		}
-		for _, mod := range r.ModsByModPath {
+		for _, mod := range r.modsByModPath {
 			if mod.Indirect && !mod.Main {
 				addDep(mod)
 			}
@@ -141,7 +141,7 @@ func (r *ModuleResolver) init() error {
 			listeners: map[*int]cacheListener{},
 		}
 	}
-	r.Initialized = true
+	r.initialized = true
 	return nil
 }
 
@@ -162,10 +162,10 @@ func (r *ModuleResolver) initAllMods() error {
 			// Can't do anything with a module that's not downloaded.
 			continue
 		}
-		r.ModsByModPath = append(r.ModsByModPath, mod)
-		r.ModsByDir = append(r.ModsByDir, mod)
+		r.modsByModPath = append(r.modsByModPath, mod)
+		r.modsByDir = append(r.modsByDir, mod)
 		if mod.Main {
-			r.Main = mod
+			r.main = mod
 		}
 	}
 	return nil
@@ -198,7 +198,7 @@ func (r *ModuleResolver) ClearForNewMod() {
 func (r *ModuleResolver) findPackage(importPath string) (*ModuleJSON, string) {
 	// This can't find packages in the stdlib, but that's harmless for all
 	// the existing code paths.
-	for _, m := range r.ModsByModPath {
+	for _, m := range r.modsByModPath {
 		if !strings.HasPrefix(importPath, m.Path) {
 			continue
 		}
@@ -292,7 +292,7 @@ func (r *ModuleResolver) findModuleByDir(dir string) *ModuleJSON {
 	// - in /vendor/ in -mod=vendor mode.
 	//    - nested module? Dunno.
 	// Rumor has it that replace targets cannot contain other replace targets.
-	for _, m := range r.ModsByDir {
+	for _, m := range r.modsByDir {
 		if !strings.HasPrefix(dir, m.Dir) {
 			continue
 		}
@@ -480,6 +480,27 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 	return nil
 }
 
+func (r *ModuleResolver) scoreImportPath(ctx context.Context, path string) int {
+	if _, ok := stdlib[path]; ok {
+		return MaxRelevance
+	}
+	mod, _ := r.findPackage(path)
+	return modRelevance(mod)
+}
+
+func modRelevance(mod *ModuleJSON) int {
+	switch {
+	case mod == nil: // out of scope
+		return MaxRelevance - 4
+	case mod.Indirect:
+		return MaxRelevance - 3
+	case !mod.Main:
+		return MaxRelevance - 2
+	default:
+		return MaxRelevance - 1 // main module ties with stdlib
+	}
+}
+
 // canonicalize gets the result of canonicalizing the packages using the results
 // of initializing the resolver from 'go list -m'.
 func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
@@ -494,14 +515,9 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	}
 
 	importPath := info.nonCanonicalImportPath
-	relevance := MaxRelevance - 3
+	mod := r.findModuleByDir(info.dir)
 	// Check if the directory is underneath a module that's in scope.
-	if mod := r.findModuleByDir(info.dir); mod != nil {
-		if mod.Indirect {
-			relevance = MaxRelevance - 2
-		} else {
-			relevance = MaxRelevance - 1
-		}
+	if mod != nil {
 		// It is. If dir is the target of a replace directive,
 		// our guessed import path is wrong. Use the real one.
 		if mod.Dir == info.dir {
@@ -519,7 +535,7 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	res := &pkg{
 		importPathShort: importPath,
 		dir:             info.dir,
-		relevance:       relevance,
+		relevance:       modRelevance(mod),
 	}
 	// We may have discovered a package that has a different version
 	// in scope already. Canonicalize to that one if possible.
@@ -554,7 +570,7 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) dir
 	}
 	switch root.Type {
 	case gopathwalk.RootCurrentModule:
-		importPath = path.Join(r.Main.Path, filepath.ToSlash(subdir))
+		importPath = path.Join(r.main.Path, filepath.ToSlash(subdir))
 	case gopathwalk.RootModuleCache:
 		matches := modCacheRegexp.FindStringSubmatch(subdir)
 		if len(matches) == 0 {
