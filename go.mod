@@ -3,7 +3,7 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 require (
 	cloud.google.com/go v0.51.0 // indirect
 	cloud.google.com/go/storage v1.5.0
-	github.com/VictoriaMetrics/fastcache v1.5.5
+	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/VictoriaMetrics/metrics v1.9.3
 	github.com/aws/aws-sdk-go v1.28.3
 	github.com/cespare/xxhash/v2 v2.1.1
