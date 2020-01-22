@@ -103,7 +103,7 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 			rowsProcessed := 0
 			for pts := range workCh {
 				if time.Until(rss.deadline.Deadline) < 0 {
-					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.Timeout)
+					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 					break
 				}
 				if err = pts.Unpack(rss.tbf, rs, rss.tr, rss.fetchData, maxWorkersCount); err != nil {
@@ -499,7 +499,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		}
 		if time.Until(deadline.Deadline) < 0 {
 			putTmpBlocksFile(tbf)
-			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.Timeout)
+			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		metricName := sr.MetricBlock.MetricName
 		m[string(metricName)] = append(m[string(metricName)], addr)
@@ -575,13 +575,24 @@ func setupTfss(tagFilterss [][]storage.TagFilter) ([]*storage.TagFilters, error)
 // Deadline contains deadline with the corresponding timeout for pretty error messages.
 type Deadline struct {
 	Deadline time.Time
-	Timeout  time.Duration
+
+	timeout  time.Duration
+	flagHint string
 }
 
 // NewDeadline returns deadline for the given timeout.
-func NewDeadline(timeout time.Duration) Deadline {
+//
+// flagHint must contain a hit for command-line flag, which could be used
+// in order to increase timeout.
+func NewDeadline(timeout time.Duration, flagHint string) Deadline {
 	return Deadline{
 		Deadline: time.Now().Add(timeout),
-		Timeout:  timeout,
+		timeout:  timeout,
+		flagHint: flagHint,
 	}
+}
+
+// String returns human-readable string representation for d.
+func (d *Deadline) String() string {
+	return fmt.Sprintf("%.3f seconds; the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), d.flagHint)
 }
