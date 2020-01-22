@@ -20,3 +20,4 @@
 * [Evaluation performance and correctness: VictoriaMetrics response](https://medium.com/@valyala/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
 * [Improving histogram usability for Prometheus and Grafana](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 * [Prometheus storage: tech terms for humans](https://medium.com/@valyala/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
+* [Billy: how VictoriaMetrics deals with more than 500 billion rows](https://medium.com/@valyala/billy-how-victoriametrics-deals-with-more-than-500-billion-rows-e82ff8f725da)
