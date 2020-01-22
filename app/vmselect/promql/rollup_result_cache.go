@@ -77,8 +77,8 @@ func InitRollupResultCache(cachePath string) {
 		return stats
 	}
 	if len(rollupResultCachePath) > 0 {
-		logger.Infof("loaded rollupResult cache from %q in %s; entriesCount: %d, sizeBytes: %d",
-			rollupResultCachePath, time.Since(startTime), fcs().EntriesCount, fcs().BytesSize)
+		logger.Infof("loaded rollupResult cache from %q in %.3f seconds; entriesCount: %d, sizeBytes: %d",
+			rollupResultCachePath, time.Since(startTime).Seconds(), fcs().EntriesCount, fcs().BytesSize)
 	}
 
 	metrics.NewGauge(`vm_cache_entries{type="promql/rollupResult"}`, func() float64 {
@@ -116,8 +116,8 @@ func StopRollupResultCache() {
 	rollupResultCacheV.c.UpdateStats(&fcs)
 	rollupResultCacheV.c.Stop()
 	rollupResultCacheV.c = nil
-	logger.Infof("saved rollupResult cache to %q in %s; entriesCount: %d, sizeBytes: %d",
-		rollupResultCachePath, time.Since(startTime), fcs.EntriesCount, fcs.BytesSize)
+	logger.Infof("saved rollupResult cache to %q in %.3f seconds; entriesCount: %d, sizeBytes: %d",
+		rollupResultCachePath, time.Since(startTime).Seconds(), fcs.EntriesCount, fcs.BytesSize)
 }
 
 // TODO: convert this cache to distributed cache shared among vmselect

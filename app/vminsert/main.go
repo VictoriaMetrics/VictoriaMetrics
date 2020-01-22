@@ -53,7 +53,7 @@ func main() {
 		logger.Fatalf("missing -storageNode arg")
 	}
 	netstorage.InitStorageNodes(*storageNodes)
-	logger.Infof("successfully initialized netstorage in %s", time.Since(startTime))
+	logger.Infof("successfully initialized netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 
@@ -80,7 +80,7 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the service: %s", err)
 	}
-	logger.Infof("successfully shut down the service in %s", time.Since(startTime))
+	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
@@ -95,7 +95,7 @@ func main() {
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
 	netstorage.Stop()
-	logger.Infof("successfully stopped netstorage in %s", time.Since(startTime))
+	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
 

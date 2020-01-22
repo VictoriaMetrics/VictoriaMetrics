@@ -56,7 +56,7 @@ func main() {
 		logger.Fatalf("missing -storageNode arg")
 	}
 	netstorage.InitStorageNodes(*storageNodes)
-	logger.Infof("started netstorage in %s", time.Since(startTime))
+	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*cacheDataPath) > 0 {
 		tmpDataPath := *cacheDataPath + "/tmp"
@@ -81,7 +81,7 @@ func main() {
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the service: %s", err)
 	}
-	logger.Infof("successfully shut down the service in %s", time.Since(startTime))
+	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
@@ -89,7 +89,7 @@ func main() {
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
 	}
-	logger.Infof("successfully stopped netstorage in %s", time.Since(startTime))
+	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
 

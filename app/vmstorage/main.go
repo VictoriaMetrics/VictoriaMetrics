@@ -52,8 +52,8 @@ func main() {
 	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
 	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
 	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
-	logger.Infof("successfully opened storage %q in %s; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		*storageDataPath, time.Since(startTime), partsCount, blocksCount, rowsCount, sizeBytes)
+	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
+		*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 
 	registerStorageMetrics(strg)
 
@@ -76,12 +76,12 @@ func main() {
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 	srv.MustClose()
-	logger.Infof("successfully shut down the service in %s", time.Since(startTime))
+	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 
 	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
 	startTime = time.Now()
 	strg.MustClose()
-	logger.Infof("successfully closed the storage in %s", time.Since(startTime))
+	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()
 

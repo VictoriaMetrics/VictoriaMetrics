@@ -182,7 +182,8 @@ func (r *Restore) Run() error {
 		}
 	}
 
-	logger.Infof("restored %d bytes from backup in %s; deleted %d bytes; downloaded %d bytes", backupSize, time.Since(startTime), deleteSize, downloadSize)
+	logger.Infof("restored %d bytes from backup in %.3f seconds; deleted %d bytes; downloaded %d bytes",
+		backupSize, time.Since(startTime).Seconds(), deleteSize, downloadSize)
 
 	return nil
 }
