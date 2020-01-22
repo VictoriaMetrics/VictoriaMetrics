@@ -953,15 +953,15 @@ func getMaxLookback(r *http.Request) (int64, error) {
 
 func getDeadlineForQuery(r *http.Request) netstorage.Deadline {
 	dMax := int64(maxQueryDuration.Seconds() * 1e3)
-	return getDeadlineWithMaxDuration(r, dMax)
+	return getDeadlineWithMaxDuration(r, dMax, "-search.maxQueryDuration")
 }
 
 func getDeadlineForExport(r *http.Request) netstorage.Deadline {
 	dMax := int64(maxExportDuration.Seconds() * 1e3)
-	return getDeadlineWithMaxDuration(r, dMax)
+	return getDeadlineWithMaxDuration(r, dMax, "-search.maxExportDuration")
 }
 
-func getDeadlineWithMaxDuration(r *http.Request, dMax int64) netstorage.Deadline {
+func getDeadlineWithMaxDuration(r *http.Request, dMax int64, flagHint string) netstorage.Deadline {
 	d, err := getDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
@@ -970,7 +970,7 @@ func getDeadlineWithMaxDuration(r *http.Request, dMax int64) netstorage.Deadline
 		d = dMax
 	}
 	timeout := time.Duration(d) * time.Millisecond
-	return netstorage.NewDeadline(timeout)
+	return netstorage.NewDeadline(timeout, flagHint)
 }
 
 func getBool(r *http.Request, argKey string) bool {

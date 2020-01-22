@@ -101,7 +101,7 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 			rowsProcessed := 0
 			for pts := range workCh {
 				if time.Until(rss.deadline.Deadline) < 0 {
-					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.Timeout)
+					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 					break
 				}
 				if err = pts.Unpack(rss.tbf, rs, rss.tr, rss.fetchData, rss.at, maxWorkersCount); err != nil {
@@ -1010,7 +1010,7 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 			// since it may be broken.
 			_ = bc.Close()
 		}
-		return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout %s: %s", rpcName, remoteAddr, deadline.Timeout, err)
+		return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout %s: %s", rpcName, remoteAddr, deadline.String(), err)
 	}
 	// Return the connection back to the pool, assuming it is healthy.
 	sn.connPool.Put(bc)
@@ -1406,13 +1406,24 @@ var rsPool sync.Pool
 // Deadline contains deadline with the corresponding timeout for pretty error messages.
 type Deadline struct {
 	Deadline time.Time
-	Timeout  time.Duration
+
+	timeout  time.Duration
+	flagHint string
 }
 
 // NewDeadline returns deadline for the given timeout.
-func NewDeadline(timeout time.Duration) Deadline {
+//
+// flagHint must contain a hit for command-line flag, which could be used
+// in order to increase timeout.
+func NewDeadline(timeout time.Duration, flagHint string) Deadline {
 	return Deadline{
 		Deadline: time.Now().Add(timeout),
-		Timeout:  timeout,
+		timeout:  timeout,
+		flagHint: flagHint,
 	}
+}
+
+// String returns human-readable string representation for d.
+func (d *Deadline) String() string {
+	return fmt.Sprintf("%.3f seconds; the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), d.flagHint)
 }
