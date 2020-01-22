@@ -145,7 +145,7 @@ func ExportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error
 		end = start + defaultStep
 	}
 	if err := exportHandler(at, w, matches, start, end, format, deadline); err != nil {
-		return err
+		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %s", matches, start, end, err)
 	}
 	exportDuration.UpdateDuration(startTime)
 	return nil
@@ -657,7 +657,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		end := start
 		start = end - window
 		if err := exportHandler(at, w, []string{childQuery}, start, end, "promapi", deadline); err != nil {
-			return err
+			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %s", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
 		return nil
@@ -682,7 +682,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 		end := start
 		start = end - window
 		if err := queryRangeHandler(at, w, childQuery, start, end, step, r, ct); err != nil {
-			return err
+			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %s", childQuery, start, end, step, err)
 		}
 		queryDuration.UpdateDuration(startTime)
 		return nil
@@ -700,7 +700,7 @@ func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error 
 	}
 	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
-		return fmt.Errorf("cannot execute %q: %s", query, err)
+		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %s", query, start, step, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -749,7 +749,7 @@ func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) e
 		return err
 	}
 	if err := queryRangeHandler(at, w, query, start, end, step, r, ct); err != nil {
-		return err
+		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %s", query, start, end, step, err)
 	}
 	queryRangeDuration.UpdateDuration(startTime)
 	return nil
@@ -790,7 +790,7 @@ func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, star
 	}
 	result, err := promql.Exec(&ec, query, false)
 	if err != nil {
-		return fmt.Errorf("cannot execute %q: %s", query, err)
+		return fmt.Errorf("cannot execute query: %s", err)
 	}
 	queryOffset := getLatencyOffsetMilliseconds()
 	if ct-end < queryOffset {

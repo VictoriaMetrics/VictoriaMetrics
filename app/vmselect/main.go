@@ -285,7 +285,7 @@ func deleteHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.Errorf("error in %q: %s", r.URL.Path, err)
+	logger.Errorf("error in %q: %s", r.RequestURI, err)
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
