@@ -5,8 +5,9 @@ require (
 	cloud.google.com/go/storage v1.5.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/VictoriaMetrics/metrics v1.9.3
-	github.com/aws/aws-sdk-go v1.28.3
+	github.com/aws/aws-sdk-go v1.28.7
 	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.9.8
 	github.com/valyala/fastjson v1.4.5
@@ -14,12 +15,13 @@ require (
 	github.com/valyala/gozstd v1.6.4
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.4.1
+	golang.org/x/exp v0.0.0-20200119233911-0405dc783f0a // indirect
 	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
-	golang.org/x/sys v0.0.0-20200116001909-b77594299b42
-	golang.org/x/tools v0.0.0-20200116062425-473961ec044c // indirect
+	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82
+	golang.org/x/tools v0.0.0-20200122042241-dc16b66866f1 // indirect
 	google.golang.org/api v0.15.0
-	google.golang.org/genproto v0.0.0-20200115191322-ca5a22157cba // indirect
+	google.golang.org/genproto v0.0.0-20200117163144-32f20d992d24 // indirect
 )
 
 go 1.12
