@@ -613,22 +613,22 @@ func (pt *partition) MustClose() {
 	logger.Infof("waiting for inmemory parts flusher to stop on %q...", pt.smallPartsPath)
 	startTime := time.Now()
 	pt.inmemoryPartsFlusherWG.Wait()
-	logger.Infof("inmemory parts flusher stopped in %s on %q", time.Since(startTime), pt.smallPartsPath)
+	logger.Infof("inmemory parts flusher stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	logger.Infof("waiting for raw rows flusher to stop on %q...", pt.smallPartsPath)
 	startTime = time.Now()
 	pt.rawRowsFlusherWG.Wait()
-	logger.Infof("raw rows flusher stopped in %s on %q", time.Since(startTime), pt.smallPartsPath)
+	logger.Infof("raw rows flusher stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	logger.Infof("waiting for small part mergers to stop on %q...", pt.smallPartsPath)
 	startTime = time.Now()
 	pt.smallPartsMergerWG.Wait()
-	logger.Infof("small part mergers stopped in %s on %q", time.Since(startTime), pt.smallPartsPath)
+	logger.Infof("small part mergers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	logger.Infof("waiting for big part mergers to stop on %q...", pt.bigPartsPath)
 	startTime = time.Now()
 	pt.bigPartsMergerWG.Wait()
-	logger.Infof("big part mergers stopped in %s on %q", time.Since(startTime), pt.bigPartsPath)
+	logger.Infof("big part mergers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.bigPartsPath)
 
 	logger.Infof("flushing inmemory parts to files on %q...", pt.smallPartsPath)
 	startTime = time.Now()
@@ -654,7 +654,7 @@ func (pt *partition) MustClose() {
 	if err := pt.mergePartsOptimal(pws); err != nil {
 		logger.Panicf("FATAL: cannot flush %d inmemory parts to files on %q: %s", len(pws), pt.smallPartsPath, err)
 	}
-	logger.Infof("%d inmemory parts have been flushed to files in %s on %q", len(pws), time.Since(startTime), pt.smallPartsPath)
+	logger.Infof("%d inmemory parts have been flushed to files in %.3f seconds on %q", len(pws), time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	// Remove references to smallParts from the pt, so they may be eventually closed
 	// after all the searches are done.
@@ -1167,7 +1167,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d rows in %s at %d rows/sec to %q; sizeBytes: %d", outRowsCount, d, int(float64(outRowsCount)/d.Seconds()), dstPartPath, newPSize)
+		logger.Infof("merged %d rows in %.3f seconds at %d rows/sec to %q; sizeBytes: %d",
+			outRowsCount, d.Seconds(), int(float64(outRowsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil
@@ -1359,8 +1360,7 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 			mustCloseParts(pws)
 			return nil, fmt.Errorf("cannot open part %q: %s", partPath, err)
 		}
-		d := time.Since(startTime)
-		logger.Infof("opened part %q in %s", partPath, d)
+		logger.Infof("opened part %q in %.3f seconds", partPath, time.Since(startTime).Seconds())
 
 		pw := &partWrapper{
 			p:        p,
@@ -1407,7 +1407,8 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 		return fmt.Errorf("cannot create snapshot for %q: %s", pt.bigPartsPath, err)
 	}
 
-	logger.Infof("created partition snapshot of %q and %q at %q and %q in %s", pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime))
+	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
+		pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime).Seconds())
 	return nil
 }
 

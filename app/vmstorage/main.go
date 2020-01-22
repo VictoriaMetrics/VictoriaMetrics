@@ -62,8 +62,8 @@ func InitWithoutMetrics() {
 	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
 	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
 	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
-	logger.Infof("successfully opened storage %q in %s; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		*DataPath, time.Since(startTime), partsCount, blocksCount, rowsCount, sizeBytes)
+	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
+		*DataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 }
 
 // Storage is a storage.
@@ -133,7 +133,7 @@ func Stop() {
 	startTime := time.Now()
 	WG.WaitAndBlock()
 	Storage.MustClose()
-	logger.Infof("successfully closed the storage in %s", time.Since(startTime))
+	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
 	logger.Infof("the storage has been stopped")
 }

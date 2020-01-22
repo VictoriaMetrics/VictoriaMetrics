@@ -216,7 +216,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	fs.MustSyncPath(dstDir)
 	fs.MustSyncPath(srcDir + "/snapshots")
 
-	logger.Infof("created Storage snapshot for %q at %q in %s", srcDir, dstDir, time.Since(startTime))
+	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 	return snapshotName, nil
 }
 
@@ -261,7 +261,7 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 	fs.MustRemoveAll(idbPath)
 	fs.MustRemoveAll(snapshotPath)
 
-	logger.Infof("deleted snapshot %q in %s", snapshotPath, time.Since(startTime))
+	logger.Infof("deleted snapshot %q in %.3f seconds", snapshotPath, time.Since(startTime).Seconds())
 
 	return nil
 }
@@ -529,7 +529,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		m.Add(metricID)
 	}
 
-	logger.Infof("loaded %s from %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hmLen, srcOrigLen)
+	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), hmLen, srcOrigLen)
 	return &hourMetricIDs{
 		m:      m,
 		hour:   hourLoaded,
@@ -563,7 +563,7 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %s; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime), hm.m.Len(), len(dst))
+	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), hm.m.Len(), len(dst))
 }
 
 func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
@@ -573,8 +573,8 @@ func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcac
 	c := workingsetcache.Load(path, sizeBytes, time.Hour)
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
-	logger.Infof("loaded %s cache from %q in %s; entriesCount: %d; sizeBytes: %d",
-		info, path, time.Since(startTime), cs.EntriesCount, cs.BytesSize)
+	logger.Infof("loaded %s cache from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
+		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 	return c
 }
 
@@ -588,8 +588,8 @@ func (s *Storage) mustSaveAndStopCache(c *workingsetcache.Cache, info, name stri
 	var cs fastcache.Stats
 	c.UpdateStats(&cs)
 	c.Stop()
-	logger.Infof("saved %s cache to %q in %s; entriesCount: %d; sizeBytes: %d",
-		info, path, time.Since(startTime), cs.EntriesCount, cs.BytesSize)
+	logger.Infof("saved %s cache to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
+		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 }
 
 func nextRetentionDuration(retentionMonths int) time.Duration {

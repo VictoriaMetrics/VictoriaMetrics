@@ -28,7 +28,7 @@ func main() {
 	vminsert.Init()
 
 	go httpserver.Serve(*httpListenAddr, requestHandler)
-	logger.Infof("started VictoriaMetrics in %s", time.Since(startTime))
+	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
@@ -39,14 +39,14 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	vminsert.Stop()
-	logger.Infof("successfully shut down the webservice in %s", time.Since(startTime))
+	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
 	vmstorage.Stop()
 	vmselect.Stop()
 
 	fs.MustStopDirRemover()
 
-	logger.Infof("the VictoriaMetrics has been stopped in %s", time.Since(startTime))
+	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {

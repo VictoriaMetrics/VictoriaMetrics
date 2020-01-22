@@ -187,8 +187,8 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
-	logger.Infof("table %q has been opened in %s; partsCount: %d; blocksCount: %d, itemsCount: %d; sizeBytes: %d",
-		path, time.Since(startTime), m.PartsCount, m.BlocksCount, m.ItemsCount, m.SizeBytes)
+	logger.Infof("table %q has been opened in %.3f seconds; partsCount: %d; blocksCount: %d, itemsCount: %d; sizeBytes: %d",
+		path, time.Since(startTime).Seconds(), m.PartsCount, m.BlocksCount, m.ItemsCount, m.SizeBytes)
 
 	tb.convertersWG.Add(1)
 	go func() {
@@ -206,17 +206,17 @@ func (tb *Table) MustClose() {
 	logger.Infof("waiting for raw items flusher to stop on %q...", tb.path)
 	startTime := time.Now()
 	tb.rawItemsFlusherWG.Wait()
-	logger.Infof("raw items flusher stopped in %s on %q", time.Since(startTime), tb.path)
+	logger.Infof("raw items flusher stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
 
 	logger.Infof("waiting for converters to stop on %q...", tb.path)
 	startTime = time.Now()
 	tb.convertersWG.Wait()
-	logger.Infof("converters stopped in %s on %q", time.Since(startTime), tb.path)
+	logger.Infof("converters stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
 
 	logger.Infof("waiting for part mergers to stop on %q...", tb.path)
 	startTime = time.Now()
 	tb.partMergersWG.Wait()
-	logger.Infof("part mergers stopped in %s on %q", time.Since(startTime), tb.path)
+	logger.Infof("part mergers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
 
 	logger.Infof("flushing inmemory parts to files on %q...", tb.path)
 	startTime = time.Now()
@@ -242,7 +242,7 @@ func (tb *Table) MustClose() {
 	if err := tb.mergePartsOptimal(pws, nil); err != nil {
 		logger.Panicf("FATAL: cannot flush inmemory parts to files in %q: %s", tb.path, err)
 	}
-	logger.Infof("%d inmemory parts have been flushed to files in %s on %q", len(pws), time.Since(startTime), tb.path)
+	logger.Infof("%d inmemory parts have been flushed to files in %.3f seconds on %q", len(pws), time.Since(startTime).Seconds(), tb.path)
 
 	// Remove references to parts from the tb, so they may be eventually closed
 	// after all the searches are done.
@@ -447,7 +447,7 @@ func (tb *Table) convertToV1280() {
 			logger.Errorf("failed round 1 of background conversion of %q to v1.28.0 format: %s", tb.path, err)
 			return
 		}
-		logger.Infof("finished round 1 of background conversion of %q to v1.28.0 format in %s", tb.path, time.Since(startTime))
+		logger.Infof("finished round 1 of background conversion of %q to v1.28.0 format in %.3f seconds", tb.path, time.Since(startTime).Seconds())
 
 		// The second round is needed in order to merge small blocks
 		// with tag->metricIDs rows left after the first round.
@@ -460,7 +460,7 @@ func (tb *Table) convertToV1280() {
 				return
 			}
 		}
-		logger.Infof("finished round 2 of background conversion of %q to v1.28.0 format in %s", tb.path, time.Since(startTime))
+		logger.Infof("finished round 2 of background conversion of %q to v1.28.0 format in %.3f seconds", tb.path, time.Since(startTime).Seconds())
 	}
 
 	if err := fs.WriteFileAtomically(flagFilePath, []byte("ok")); err != nil {
@@ -853,7 +853,8 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d items in %s at %d items/sec to %q; sizeBytes: %d", outItemsCount, d, int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
+		logger.Infof("merged %d items in %.3f seconds at %d items/sec to %q; sizeBytes: %d",
+			outItemsCount, d.Seconds(), int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil
@@ -1057,7 +1058,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	parentDir := filepath.Dir(dstDir)
 	fs.MustSyncPath(parentDir)
 
-	logger.Infof("created Table snapshot of %q at %q in %s", srcDir, dstDir, time.Since(startTime))
+	logger.Infof("created Table snapshot of %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 	return nil
 }
 

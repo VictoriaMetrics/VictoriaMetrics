@@ -166,8 +166,8 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 		}
 	}
 
-	logger.Infof("backed up %d bytes in %s; deleted %d bytes; server-side copied %d bytes; uploaded %d bytes",
-		backupSize, time.Since(startTime), deleteSize, copySize, uploadSize)
+	logger.Infof("backed up %d bytes in %.3f seconds; deleted %d bytes; server-side copied %d bytes; uploaded %d bytes",
+		backupSize, time.Since(startTime).Seconds(), deleteSize, copySize, uploadSize)
 
 	return nil
 }
