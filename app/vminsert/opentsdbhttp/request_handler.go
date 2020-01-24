@@ -14,9 +14,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson"
 )
 
 var maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
@@ -68,8 +68,8 @@ func insertHandlerInternal(at *auth.Token, req *http.Request) error {
 	}
 
 	// Unmarshal the request to ctx.Rows
-	p := parserPool.Get()
-	defer parserPool.Put(p)
+	p := opentsdbhttp.GetParser()
+	defer opentsdbhttp.PutParser(p)
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
 		unmarshalErrors.Inc()
@@ -118,10 +118,8 @@ func insertHandlerInternal(at *auth.Token, req *http.Request) error {
 
 const secondMask int64 = 0x7FFFFFFF00000000
 
-var parserPool fastjson.ParserPool
-
 type pushCtx struct {
-	Rows   Rows
+	Rows   opentsdbhttp.Rows
 	Common netstorage.InsertCtx
 
 	reqBuf bytesutil.ByteBuffer

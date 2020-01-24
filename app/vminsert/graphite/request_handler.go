@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
@@ -124,7 +125,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 }
 
 type pushCtx struct {
-	Rows   Rows
+	Rows   graphite.Rows
 	Common netstorage.InsertCtx
 
 	reqBuf  []byte
