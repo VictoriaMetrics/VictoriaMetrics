@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -105,7 +106,7 @@ func (ctx *pushCtx) Read(r io.Reader) bool {
 }
 
 type pushCtx struct {
-	Rows   Rows
+	Rows   opentsdb.Rows
 	Common common.InsertCtx
 
 	reqBuf  []byte
