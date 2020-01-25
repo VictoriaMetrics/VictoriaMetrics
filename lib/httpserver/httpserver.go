@@ -365,7 +365,7 @@ var (
 // Errorf writes formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, format string, args ...interface{}) {
 	errStr := fmt.Sprintf(format, args...)
-	logger.Errorf("%s", errStr)
+	logger.ErrorfSkipframes(1, "%s", errStr)
 
 	// Extract statusCode from args
 	statusCode := http.StatusBadRequest

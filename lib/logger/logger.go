@@ -68,6 +68,11 @@ func Errorf(format string, args ...interface{}) {
 	logLevel("ERROR", format, args...)
 }
 
+// ErrorfSkipframes logs error message and skips the given number of frames for the caller.
+func ErrorfSkipframes(skipframes int, format string, args ...interface{}) {
+	logLevelSkipframes(skipframes, "ERROR", format, args...)
+}
+
 // Fatalf logs fatal message and terminates the app.
 func Fatalf(format string, args ...interface{}) {
 	logLevel("FATAL", format, args...)
@@ -79,19 +84,15 @@ func Panicf(format string, args ...interface{}) {
 }
 
 func logLevel(level, format string, args ...interface{}) {
+	logLevelSkipframes(0, level, format, args...)
+}
+
+func logLevelSkipframes(skipframes int, level, format string, args ...interface{}) {
 	if shouldSkipLog(level) {
 		return
 	}
-
-	// rate limit ERROR log messages
-	if level == "ERROR" {
-		if n := atomic.AddUint64(&errorsLogged, 1); n > 10 {
-			return
-		}
-	}
-
 	msg := fmt.Sprintf(format, args...)
-	logMessage(level, msg, 3)
+	logMessage(level, msg, 3+skipframes)
 }
 
 func errorsLoggedCleaner() {
@@ -107,13 +108,18 @@ type logWriter struct {
 }
 
 func (lw *logWriter) Write(p []byte) (int, error) {
-	if !shouldSkipLog("ERROR") {
-		logMessage("ERROR", string(p), 4)
-	}
+	logLevelSkipframes(2, "ERROR", "%s", p)
 	return len(p), nil
 }
 
 func logMessage(level, msg string, skipframes int) {
+	// rate limit ERROR log messages
+	if level == "ERROR" {
+		if n := atomic.AddUint64(&errorsLogged, 1); n > 10 {
+			return
+		}
+	}
+
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	levelLowercase := strings.ToLower(level)
 	_, file, line, ok := runtime.Caller(skipframes)
