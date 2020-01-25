@@ -786,8 +786,11 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 
 ### Monitoring
 
-VictoriaMetrics exports internal metrics in Prometheus format on the `/metrics` page.
-Add this page to Prometheus' scrape config in order to collect VictoriaMetrics metrics.
+VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
+These metrics may be collected either via Prometheus by adding the corresponding scrape config to it.
+Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
+For example, `-scrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
+
 There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176).
 
 The most interesting metrics are:

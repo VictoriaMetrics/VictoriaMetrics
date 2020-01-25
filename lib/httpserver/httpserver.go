@@ -181,7 +181,7 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		}
 		startTime := time.Now()
 		w.Header().Set("Content-Type", "text/plain")
-		writePrometheusMetrics(w)
+		WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	default:

@@ -26,12 +26,15 @@ func main() {
 	vmstorage.Init()
 	vmselect.Init()
 	vminsert.Init()
+	startSelfScraper()
 
 	go httpserver.Serve(*httpListenAddr, requestHandler)
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+
+	stopSelfScraper()
 
 	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
 	startTime = time.Now()
