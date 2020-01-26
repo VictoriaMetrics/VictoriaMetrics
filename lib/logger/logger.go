@@ -84,7 +84,7 @@ func Panicf(format string, args ...interface{}) {
 }
 
 func logLevel(level, format string, args ...interface{}) {
-	logLevelSkipframes(0, level, format, args...)
+	logLevelSkipframes(1, level, format, args...)
 }
 
 func logLevelSkipframes(skipframes int, level, format string, args ...interface{}) {
