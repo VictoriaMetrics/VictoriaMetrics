@@ -701,11 +701,15 @@ kill -HUP `pidof prometheus`
 If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
 to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
 
+
 ### Retention
 
-Metrics is stored in directories per month. Retention occurs on the first day of the new month.
-In order to keep data according to `retentionPeriod` max disk usage is going to be `retentionPeriod` + 1 month.
-For example if you have `retentionPeriod` set to 1, january data will be deleted at March 1st.
+Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
+that the data will be stored for 3 months and then deleted.
+Data is split in per-month subdirectories inside `<-storageDataPath>/data/small` and `<-storageDataPath>/data/big` folders.
+Directories for months outside the configured retention are deleted on the first day of new month.
+In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
+For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
 
 
 ### Multiple retentions
