@@ -95,6 +95,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Federation](#federation)
   - [Capacity planning](#capacity-planning)
   - [High availability](#high-availability)
+  - [Retention](#retention)
   - [Multiple retentions](#multiple-retentions)
   - [Downsampling](#downsampling)
   - [Multi-tenancy](#multi-tenancy)
@@ -699,6 +700,12 @@ kill -HUP `pidof prometheus`
 
 If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
 to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
+
+### Retention
+
+Metrics is stored in directories per month. Retention occurs on the first day of the new month.
+In order to keep data according to `retentionPeriod` max disk usage is going to be `retentionPeriod` + 1 month.
+For example if you have `retentionPeriod` set to 1, january data will be deleted at March 1st.
 
 
 ### Multiple retentions
