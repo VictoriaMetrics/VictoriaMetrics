@@ -300,6 +300,9 @@ func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 	s := newSuite(t)
 	var tt []test
 	s.noError(filepath.Walk(filepath.Join(testFixturesDir, readFor), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if filepath.Ext(path) != ".json" {
 			return nil
 		}
