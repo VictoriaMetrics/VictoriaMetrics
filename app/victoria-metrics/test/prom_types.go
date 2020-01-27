@@ -1,18 +1,18 @@
-// +build integration
-
-// Source https://github.com/prometheus/prometheus/blob/master/prompb/remote.pb.go . Code is copy pasted and cleaned up
 package test
 
+// Source https://github.com/prometheus/prometheus/blob/master/prompb/remote.pb.go . Code is copy pasted and cleaned up
 import (
 	"encoding/binary"
 	"math"
 	"math/bits"
 )
 
+// WriteRequest is write request
 type WriteRequest struct {
 	Timeseries []TimeSeries `protobuf:"bytes,1,rep,name=timeseries,proto3" json:"timeseries"`
 }
 
+// Size returns m size in bytes after marshaling.
 func (m *WriteRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -31,6 +31,7 @@ func sovRemote(x uint64) (n int) {
 	return (bits.Len64(x|1) + 6) / 7
 }
 
+// Marshal marshals m.
 func (m *WriteRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -41,11 +42,13 @@ func (m *WriteRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
+// MarshalTo marshals m to dAtA
 func (m *WriteRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
+// MarshalToSizedBuffer marshals m to dAtA.
 func (m *WriteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if len(m.Timeseries) > 0 {
@@ -77,11 +80,13 @@ func encodeVarintRemote(dAtA []byte, offset int, v uint64) int {
 	return base
 }
 
+// Sample is time series sample.
 type Sample struct {
 	Value     float64 `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
 	Timestamp int64   `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 }
 
+// Reset resets m.
 func (m *Sample) Reset() { *m = Sample{} }
 
 // TimeSeries represents samples and labels for a single time series.
@@ -90,21 +95,27 @@ type TimeSeries struct {
 	Samples []Sample `protobuf:"bytes,2,rep,name=samples,proto3" json:"samples"`
 }
 
+// Reset resets m.
 func (m *TimeSeries) Reset() { *m = TimeSeries{} }
 
+// Label is time series label.
 type Label struct {
 	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 }
 
+// Reset resets m.
 func (m *Label) Reset() { *m = Label{} }
 
+// Labels is a set of labels.
 type Labels struct {
 	Labels []Label `protobuf:"bytes,1,rep,name=labels,proto3" json:"labels"`
 }
 
+// Reset resets m.
 func (m *Labels) Reset() { *m = Labels{} }
 
+// Marshal marshals m.
 func (m *Sample) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -115,11 +126,13 @@ func (m *Sample) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
+// MarshalTo marshals m to dAtA.
 func (m *Sample) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
+// MarshalToSizedBuffer marshals m to dAtA.
 func (m *Sample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if m.Timestamp != 0 {
@@ -136,6 +149,7 @@ func (m *Sample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+// Marshal marshals m.
 func (m *TimeSeries) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -146,11 +160,13 @@ func (m *TimeSeries) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
+// MarshalTo marshals m to dAtA.
 func (m *TimeSeries) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
+// MarshalToSizedBuffer marshals m to dAtA.
 func (m *TimeSeries) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if len(m.Samples) > 0 {
@@ -184,6 +200,7 @@ func (m *TimeSeries) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+// Marshal marshals m.
 func (m *Label) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -194,11 +211,13 @@ func (m *Label) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
+// MarshalTo marshals m to dAtA.
 func (m *Label) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
+// MarshalToSizedBuffer marshals m to dAtA.
 func (m *Label) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
@@ -221,6 +240,7 @@ func (m *Label) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+// Marshal marshals m.
 func (m *Labels) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -231,11 +251,13 @@ func (m *Labels) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
+// MarshalTo marshals m to dAtA.
 func (m *Labels) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
+// MarshalToSizedBuffer marshals m to dAtA.
 func (m *Labels) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	if len(m.Labels) > 0 {
@@ -267,6 +289,7 @@ func encodeVarintTypes(dAtA []byte, offset int, v uint64) int {
 	return base
 }
 
+// Size returns the size of marshaled m.
 func (m *Sample) Size() (n int) {
 	if m == nil {
 		return 0
@@ -280,6 +303,7 @@ func (m *Sample) Size() (n int) {
 	return n
 }
 
+// Size returns the size of marshaled m.
 func (m *TimeSeries) Size() (n int) {
 	if m == nil {
 		return 0
@@ -301,6 +325,7 @@ func (m *TimeSeries) Size() (n int) {
 	return n
 }
 
+// Size returns the size of marshaled m.
 func (m *Label) Size() (n int) {
 	if m == nil {
 		return 0
@@ -318,6 +343,7 @@ func (m *Label) Size() (n int) {
 	return n
 }
 
+// Size returns the size of marshaled m.
 func (m *Labels) Size() (n int) {
 	if m == nil {
 		return 0
