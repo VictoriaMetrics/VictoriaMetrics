@@ -363,6 +363,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			ts := xs.ts
 			if isZeroTS(ts) {
 				// Skip time series with zeros. They are substituted by xssNew below.
+				xsPrev = xs
 				continue
 			}
 			if xs.start != xsPrev.end {
