@@ -78,7 +78,6 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
     - [Building docker images](#building-docker-images)
   - [Start with docker-compose](#start-with-docker-compose)
   - [Setting up service](#setting-up-service)
-  - [Third-party contributions](#third-party-contributions)
   - [How to work with snapshots?](#how-to-work-with-snapshots)
   - [How to delete time series?](#how-to-delete-time-series)
   - [How to export time series?](#how-to-export-time-series)
@@ -101,6 +100,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 - [Roadmap](#roadmap)
 - [Contacts](#contacts)
 - [Community and contributions](#community-and-contributions)
+- [Third-party contributions](#third-party-contributions)
 - [Reporting bugs](#reporting-bugs)
 - [Victoria Metrics Logo](#victoria-metrics-logo)
   - [Logo Usage Guidelines](#logo-usage-guidelines)
@@ -492,12 +492,6 @@ More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetr
 Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics as a service in your OS.
 
 
-### Third-party contributions
-
-* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
-* [Prometheus -> VictoriaMetrics exporter](https://github.com/ryotarai/prometheus-tsdb-dump)
-
-
 ### How to work with snapshots?
 
 VictoriaMetrics can create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
@@ -776,8 +770,11 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 
 ### Monitoring
 
-VictoriaMetrics exports internal metrics in Prometheus format on the `/metrics` page.
-Add this page to Prometheus' scrape config in order to collect VictoriaMetrics metrics.
+VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
+These metrics may be collected either via Prometheus by adding the corresponding scrape config to it.
+Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
+For example, `-scrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
+
 There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176).
 
 The most interesting metrics are:
@@ -898,6 +895,13 @@ We are open to third-party pull requests provided they follow [KISS design princ
 - Avoid automated decisions, which may hurt cluster availability, consistency or performance.
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
+
+
+### Third-party contributions
+
+* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
+* [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
+* [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
 
 
 ## Reporting bugs
