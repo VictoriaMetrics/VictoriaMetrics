@@ -1157,10 +1157,18 @@ func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 		if len(values) == 0 {
 			return nan
 		}
-		// Assume that the previous non-existing value was 0.
-		prevValue = 0
-		if canUseRealPrevValue && !math.IsNaN(rfa.prevValue) {
-			prevValue = rfa.prevValue
+		// Assume that the previous non-existing value was 0
+		// only if the first value is quite small.
+		// This should prevent from improper increase() results for os-level counters
+		// such as cpu time or bytes sent over the network interface.
+		// These counters may start long ago before the first value appears in the db.
+		if values[0] < 1e6 {
+			prevValue = 0
+			if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
+				prevValue = rfa.realPrevValue
+			}
+		} else {
+			prevValue = values[0]
 		}
 	}
 	if len(values) == 0 {
