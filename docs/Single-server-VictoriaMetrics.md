@@ -908,7 +908,7 @@ We are open to third-party pull requests provided they follow [KISS design princ
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
 
 
-### Third-party contributions
+## Third-party contributions
 
 * [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
 * [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
