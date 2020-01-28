@@ -70,6 +70,7 @@ var transformFuncs = map[string]transformFunc{
 	"union":              transformUnion,
 	"":                   transformUnion, // empty func is a synonim to union
 	"keep_last_value":    transformKeepLastValue,
+	"keep_next_value":    transformKeepNextValue,
 	"start":              newTransformFuncZeroArgs(transformStart),
 	"end":                newTransformFuncZeroArgs(transformEnd),
 	"step":               newTransformFuncZeroArgs(transformStep),
@@ -724,13 +725,37 @@ func transformKeepLastValue(tfa *transformFuncArg) ([]*timeseries, error) {
 		if len(values) == 0 {
 			continue
 		}
-		prevValue := values[0]
+		lastValue := values[0]
 		for i, v := range values {
-			if math.IsNaN(v) {
-				v = prevValue
+			if !math.IsNaN(v) {
+				lastValue = v
+				continue
 			}
-			values[i] = v
-			prevValue = v
+			values[i] = lastValue
+		}
+	}
+	return rvs, nil
+}
+
+func transformKeepNextValue(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		if len(values) == 0 {
+			continue
+		}
+		nextValue := values[len(values)-1]
+		for i := len(values) - 1; i >= 0; i-- {
+			v := values[i]
+			if !math.IsNaN(v) {
+				nextValue = v
+				continue
+			}
+			values[i] = nextValue
 		}
 	}
 	return rvs, nil
