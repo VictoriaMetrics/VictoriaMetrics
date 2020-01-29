@@ -71,10 +71,14 @@ type Storage struct {
 	pendingHourEntriesLock sync.Mutex
 	pendingHourEntries     *uint64set.Set
 
+	// metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
+	prefetchedMetricIDs atomic.Value
+
 	stop chan struct{}
 
-	currHourMetricIDsUpdaterWG sync.WaitGroup
-	retentionWatcherWG         sync.WaitGroup
+	currHourMetricIDsUpdaterWG   sync.WaitGroup
+	retentionWatcherWG           sync.WaitGroup
+	prefetchedMetricIDsCleanerWG sync.WaitGroup
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.
@@ -127,6 +131,8 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
 
+	s.prefetchedMetricIDs.Store(&uint64set.Set{})
+
 	// Load indexdb
 	idbPath := path + "/indexdb"
 	idbSnapshotsPath := idbPath + "/snapshots"
@@ -151,6 +157,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startRetentionWatcher()
+	s.startPrefetchedMetricIDsCleaner()
 
 	return s, nil
 }
@@ -313,6 +320,9 @@ type Metrics struct {
 	HourMetricIDCacheSize      uint64
 	HourMetricIDCacheSizeBytes uint64
 
+	PrefetchedMetricIDsSize      uint64
+	PrefetchedMetricIDsSizeBytes uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -372,8 +382,33 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
 
+	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
+	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
+	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
+
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
+}
+
+func (s *Storage) startPrefetchedMetricIDsCleaner() {
+	s.prefetchedMetricIDsCleanerWG.Add(1)
+	go func() {
+		s.prefetchedMetricIDsCleaner()
+		s.prefetchedMetricIDsCleanerWG.Done()
+	}()
+}
+
+func (s *Storage) prefetchedMetricIDsCleaner() {
+	t := time.NewTicker(7 * time.Minute)
+	for {
+		select {
+		case <-s.stop:
+			t.Stop()
+			return
+		case <-t.C:
+			s.prefetchedMetricIDs.Store(&uint64set.Set{})
+		}
+	}
 }
 
 func (s *Storage) startRetentionWatcher() {
@@ -614,6 +649,44 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) 
 		return nil, fmt.Errorf("error when searching tsids for tfss %q: %s", tfss, err)
 	}
 	return tsids, nil
+}
+
+// prefetchMetricNames pre-fetches metric names for the given tsids into metricID->metricName cache.
+//
+// This should speed-up further searchMetricName calls for metricIDs from tsids.
+func (s *Storage) prefetchMetricNames(tsids []TSID) error {
+	var metricIDs uint64Sorter
+	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
+	for i := range tsids {
+		metricID := tsids[i].MetricID
+		if prefetchedMetricIDs.Has(metricID) {
+			continue
+		}
+		metricIDs = append(metricIDs, metricID)
+	}
+	if len(metricIDs) < 500 {
+		// It is cheaper to skip pre-fetching and obtain metricNames inline.
+		return nil
+	}
+
+	// Pre-fetch metricIDs.
+	sort.Sort(metricIDs)
+	var metricName []byte
+	var err error
+	for _, metricID := range metricIDs {
+		metricName, err = s.searchMetricName(metricName[:0], metricID)
+		if err != nil {
+			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %s", metricID, err)
+		}
+	}
+
+	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
+	prefetchedMetricIDsNew := prefetchedMetricIDs.Clone()
+	for _, metricID := range metricIDs {
+		prefetchedMetricIDsNew.Add(metricID)
+	}
+	s.prefetchedMetricIDs.Store(prefetchedMetricIDsNew)
+	return nil
 }
 
 // DeleteMetrics deletes all the metrics matching the given tfss.

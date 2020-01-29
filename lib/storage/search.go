@@ -112,7 +112,9 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, fetchD
 	s.needClosing = true
 
 	tsids, err := storage.searchTSIDs(tfss, tr, maxMetrics)
-
+	if err == nil {
+		err = storage.prefetchMetricNames(tsids)
+	}
 	// It is ok to call Init on error from storage.searchTSIDs.
 	// Init must be called before returning because it will fail
 	// on Seach.MustClose otherwise.

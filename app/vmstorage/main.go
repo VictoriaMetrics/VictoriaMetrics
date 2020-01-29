@@ -461,6 +461,9 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
 	})
+	metrics.NewGauge(`vm_cache_size_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
+		return float64(m().PrefetchedMetricIDsSize)
+	})
 
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/tsid"}`, func() float64 {
 		return float64(m().TSIDCacheSizeBytes)
@@ -482,6 +485,9 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/uselessTagFilters"}`, func() float64 {
 		return float64(idbm().UselessTagFiltersCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/prefetchedMetricIDs"}`, func() float64 {
+		return float64(m().PrefetchedMetricIDsSizeBytes)
 	})
 
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/tsid"}`, func() float64 {
