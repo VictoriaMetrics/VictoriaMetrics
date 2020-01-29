@@ -3673,14 +3673,14 @@
               "expr": "sum(vm_concurrent_queries{job=\"$job_select\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "max",
+              "legendFormat": "current",
               "refId": "A"
             },
             {
               "expr": "sum(vm_concurrent_select_capacity{job=\"$job_select\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "current",
+              "legendFormat": "max",
               "refId": "B"
             }
           ],
@@ -3996,14 +3996,14 @@
               "expr": "sum(vm_concurrent_insert_current{job=\"$job_insert\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "max",
+              "legendFormat": "current",
               "refId": "A"
             },
             {
               "expr": "sum(vm_concurrent_insert_capacity{job=\"$job_insert\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "current",
+              "legendFormat": "max",
               "refId": "B"
             }
           ],
