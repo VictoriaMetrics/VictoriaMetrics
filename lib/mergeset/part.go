@@ -172,7 +172,7 @@ type indexBlockCache struct {
 	requests uint64
 	misses   uint64
 
-	m  map[uint64]indexBlockCacheEntry
+	m  map[uint64]*indexBlockCacheEntry
 	mu sync.RWMutex
 
 	cleanerStopCh chan struct{}
@@ -190,7 +190,7 @@ type indexBlockCacheEntry struct {
 
 func newIndexBlockCache() *indexBlockCache {
 	var idxbc indexBlockCache
-	idxbc.m = make(map[uint64]indexBlockCacheEntry)
+	idxbc.m = make(map[uint64]*indexBlockCacheEntry)
 	idxbc.cleanerStopCh = make(chan struct{})
 	idxbc.cleanerWG.Add(1)
 	go func() {
@@ -248,10 +248,10 @@ var (
 func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 	atomic.AddUint64(&idxbc.requests, 1)
 	idxbc.mu.RLock()
-	idxbe, ok := idxbc.m[k]
+	idxbe := idxbc.m[k]
 	idxbc.mu.RUnlock()
 
-	if ok {
+	if idxbe != nil {
 		currentTime := atomic.LoadUint64(&currentTimestamp)
 		if atomic.LoadUint64(&idxbe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&idxbe.lastAccessTime, currentTime)
@@ -284,7 +284,7 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) bool {
 	}
 
 	// Store idxb in the cache.
-	idxbe := indexBlockCacheEntry{
+	idxbe := &indexBlockCacheEntry{
 		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
 		idxb:           idxb,
 	}
