@@ -50,6 +50,7 @@ type tmpBlocksFile struct {
 	buf []byte
 
 	f *os.File
+	r *fs.ReaderAt
 
 	offset uint64
 }
@@ -68,6 +69,7 @@ func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.MustClose()
 	tbf.buf = tbf.buf[:0]
 	tbf.f = nil
+	tbf.r = nil
 	tbf.offset = 0
 	tmpBlocksFilePool.Put(tbf)
 }
@@ -121,17 +123,20 @@ func (tbf *tmpBlocksFile) Finalize() error {
 	if tbf.f == nil {
 		return nil
 	}
+	fname := tbf.f.Name()
 	if _, err := tbf.f.Write(tbf.buf); err != nil {
-		return fmt.Errorf("cannot flush the remaining %d bytes to tmpBlocksFile: %s", len(tbf.buf), err)
+		return fmt.Errorf("cannot write the remaining %d bytes to %q: %s", len(tbf.buf), fname, err)
 	}
 	tbf.buf = tbf.buf[:0]
-	if _, err := tbf.f.Seek(0, 0); err != nil {
-		logger.Panicf("FATAL: cannot seek to the start of file: %s", err)
+	r, err := fs.OpenReaderAt(fname)
+	if err != nil {
+		logger.Panicf("FATAL: cannot open %q: %s", fname, err)
 	}
 	// Hint the OS that the file is read almost sequentiallly.
 	// This should reduce the number of disk seeks, which is important
 	// for HDDs.
-	fs.MustFadviseSequentialRead(tbf.f, true)
+	r.MustFadviseSequentialRead(true)
+	tbf.r = r
 	return nil
 }
 
@@ -143,13 +148,7 @@ func (tbf *tmpBlocksFile) MustReadBlockAt(dst *storage.Block, addr tmpBlockAddr)
 		bb := tmpBufPool.Get()
 		defer tmpBufPool.Put(bb)
 		bb.B = bytesutil.Resize(bb.B, addr.size)
-		n, err := tbf.f.ReadAt(bb.B, int64(addr.offset))
-		if err != nil {
-			logger.Panicf("FATAL: cannot read from %q at %s: %s", tbf.f.Name(), addr, err)
-		}
-		if n != len(bb.B) {
-			logger.Panicf("FATAL: too short number of bytes read at %s; got %d; want %d", addr, n, len(bb.B))
-		}
+		tbf.r.MustReadAt(bb.B, int64(addr.offset))
 		buf = bb.B
 	}
 	tail, err := storage.UnmarshalBlock(dst, buf)
@@ -166,6 +165,10 @@ var tmpBufPool bytesutil.ByteBufferPool
 func (tbf *tmpBlocksFile) MustClose() {
 	if tbf.f == nil {
 		return
+	}
+	if tbf.r != nil {
+		// tbf.r could be nil if Finalize wasn't called.
+		tbf.r.MustClose()
 	}
 	fname := tbf.f.Name()
 
