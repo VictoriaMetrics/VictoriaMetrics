@@ -311,7 +311,7 @@ func (ps *partSearch) getIndexBlock(mr *metaindexRow) (*indexBlock, bool, error)
 
 func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	ps.compressedIndexBuf = bytesutil.Resize(ps.compressedIndexBuf, int(mr.indexBlockSize))
-	ps.p.indexFile.ReadAt(ps.compressedIndexBuf, int64(mr.indexBlockOffset))
+	ps.p.indexFile.MustReadAt(ps.compressedIndexBuf, int64(mr.indexBlockOffset))
 
 	var err error
 	ps.indexBuf, err = encoding.DecompressZSTD(ps.indexBuf[:0], ps.compressedIndexBuf)
@@ -355,10 +355,10 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 	ps.sb.Reset()
 
 	ps.sb.itemsData = bytesutil.Resize(ps.sb.itemsData, int(bh.itemsBlockSize))
-	ps.p.itemsFile.ReadAt(ps.sb.itemsData, int64(bh.itemsBlockOffset))
+	ps.p.itemsFile.MustReadAt(ps.sb.itemsData, int64(bh.itemsBlockOffset))
 
 	ps.sb.lensData = bytesutil.Resize(ps.sb.lensData, int(bh.lensBlockSize))
-	ps.p.lensFile.ReadAt(ps.sb.lensData, int64(bh.lensBlockOffset))
+	ps.p.lensFile.MustReadAt(ps.sb.lensData, int64(bh.lensBlockOffset))
 
 	ib := getInmemoryBlock()
 	if err := ib.UnmarshalData(&ps.sb, bh.firstItem, bh.commonPrefix, bh.itemsCount, bh.marshalType); err != nil {

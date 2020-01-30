@@ -40,9 +40,9 @@ type part struct {
 	// Total size in bytes of part data.
 	size uint64
 
-	timestampsFile fs.ReadAtCloser
-	valuesFile     fs.ReadAtCloser
-	indexFile      fs.ReadAtCloser
+	timestampsFile fs.MustReadAtCloser
+	valuesFile     fs.MustReadAtCloser
+	indexFile      fs.MustReadAtCloser
 
 	metaindex []metaindexRow
 
@@ -100,7 +100,7 @@ func openFilePart(path string) (*part, error) {
 //
 // The returned part calls MustClose on all the files passed to newPart
 // when calling part.MustClose.
-func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, timestampsFile, valuesFile, indexFile fs.ReadAtCloser) (*part, error) {
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, timestampsFile, valuesFile, indexFile fs.MustReadAtCloser) (*part, error) {
 	var errors []error
 	metaindex, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
