@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
@@ -735,10 +736,13 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	sort.Sort(metricIDs)
 	var metricName []byte
 	var err error
+	idb := s.idb()
+	is := idb.getIndexSearch()
+	defer idb.putIndexSearch(is)
 	for _, metricID := range metricIDs {
 		tsid := tsidsMap[metricID]
-		metricName, err = s.searchMetricName(metricName[:0], metricID, tsid.AccountID, tsid.ProjectID)
-		if err != nil {
+		metricName, err = is.searchMetricName(metricName[:0], metricID, tsid.AccountID, tsid.ProjectID)
+		if err != nil && err != io.EOF {
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %s", metricID, err)
 		}
 	}
