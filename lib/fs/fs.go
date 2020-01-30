@@ -14,10 +14,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// ReadAtCloser is rand-access read interface.
-type ReadAtCloser interface {
-	// ReadAt must read len(p) bytes from offset off to p.
-	ReadAt(p []byte, off int64)
+// MustReadAtCloser is rand-access read interface.
+type MustReadAtCloser interface {
+	// MustReadAt must read len(p) bytes from offset off to p.
+	MustReadAt(p []byte, off int64)
 
 	// MustClose must close the reader.
 	MustClose()
@@ -28,8 +28,8 @@ type ReaderAt struct {
 	f *os.File
 }
 
-// ReadAt reads len(p) bytes from off to p.
-func (ra *ReaderAt) ReadAt(p []byte, off int64) {
+// MustReadAt reads len(p) bytes from off to p.
+func (ra *ReaderAt) MustReadAt(p []byte, off int64) {
 	if len(p) == 0 {
 		return
 	}

@@ -53,9 +53,9 @@ type part struct {
 
 	mrs []metaindexRow
 
-	indexFile fs.ReadAtCloser
-	itemsFile fs.ReadAtCloser
-	lensFile  fs.ReadAtCloser
+	indexFile fs.MustReadAtCloser
+	itemsFile fs.MustReadAtCloser
+	lensFile  fs.MustReadAtCloser
 
 	idxbCache *indexBlockCache
 	ibCache   *inmemoryBlockCache
@@ -107,7 +107,7 @@ func openFilePart(path string) (*part, error) {
 	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
 }
 
-func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.ReadAtCloser) (*part, error) {
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.MustReadAtCloser) (*part, error) {
 	var errors []error
 	mrs, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {

@@ -11,9 +11,9 @@ import (
 
 var (
 	// Verify ByteBuffer implements the given interfaces.
-	_ io.Writer       = &ByteBuffer{}
-	_ fs.ReadAtCloser = &ByteBuffer{}
-	_ io.ReaderFrom   = &ByteBuffer{}
+	_ io.Writer           = &ByteBuffer{}
+	_ fs.MustReadAtCloser = &ByteBuffer{}
+	_ io.ReaderFrom       = &ByteBuffer{}
 
 	// Verify reader implement filestream.ReadCloser interface.
 	_ filestream.ReadCloser = &reader{}
@@ -36,8 +36,8 @@ func (bb *ByteBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// ReadAt reads len(p) bytes starting from the given offset.
-func (bb *ByteBuffer) ReadAt(p []byte, offset int64) {
+// MustReadAt reads len(p) bytes starting from the given offset.
+func (bb *ByteBuffer) MustReadAt(p []byte, offset int64) {
 	if offset < 0 {
 		logger.Panicf("BUG: cannot read at negative offset=%d", offset)
 	}

@@ -218,7 +218,7 @@ func TestByteBufferRead(t *testing.T) {
 	}
 }
 
-func TestByteBufferReadAt(t *testing.T) {
+func TestByteBufferMustReadAt(t *testing.T) {
 	testStr := "foobar baz"
 
 	var bb ByteBuffer
@@ -232,7 +232,7 @@ func TestByteBufferReadAt(t *testing.T) {
 				t.Fatalf("expecting non-nil error when reading at negative offset")
 			}
 		}()
-		bb.ReadAt(p, -1)
+		bb.MustReadAt(p, -1)
 	}()
 
 	// Try reading past the end of buffer
@@ -242,18 +242,18 @@ func TestByteBufferReadAt(t *testing.T) {
 				t.Fatalf("expecting non-nil error when reading past the end of buffer")
 			}
 		}()
-		bb.ReadAt(p, int64(len(testStr))+1)
+		bb.MustReadAt(p, int64(len(testStr))+1)
 	}()
 
 	// Try reading the first byte
 	n := len(p)
-	bb.ReadAt(p, 0)
+	bb.MustReadAt(p, 0)
 	if string(p) != testStr[:n] {
 		t.Fatalf("unexpected value read: %q; want %q", p, testStr[:n])
 	}
 
 	// Try reading the last byte
-	bb.ReadAt(p, int64(len(testStr))-1)
+	bb.MustReadAt(p, int64(len(testStr))-1)
 	if string(p) != testStr[len(testStr)-1:] {
 		t.Fatalf("unexpected value read: %q; want %q", p, testStr[len(testStr)-1:])
 	}
@@ -266,18 +266,18 @@ func TestByteBufferReadAt(t *testing.T) {
 			}
 		}()
 		p := make([]byte, 10)
-		bb.ReadAt(p, int64(len(testStr))-3)
+		bb.MustReadAt(p, int64(len(testStr))-3)
 	}()
 
 	// Try reading multiple bytes from the middle
 	p = make([]byte, 3)
-	bb.ReadAt(p, 2)
+	bb.MustReadAt(p, 2)
 	if string(p) != testStr[2:2+len(p)] {
 		t.Fatalf("unexpected value read: %q; want %q", p, testStr[2:2+len(p)])
 	}
 }
 
-func TestByteBufferReadAtParallel(t *testing.T) {
+func TestByteBufferMustReadAtParallel(t *testing.T) {
 	ch := make(chan error, 10)
 	var bb ByteBuffer
 	bb.B = []byte("foo bar baz adsf adsf dsakjlkjlkj2l34324")
@@ -285,7 +285,7 @@ func TestByteBufferReadAtParallel(t *testing.T) {
 		go func() {
 			p := make([]byte, 3)
 			for i := 0; i < len(bb.B)-len(p); i++ {
-				bb.ReadAt(p, int64(i))
+				bb.MustReadAt(p, int64(i))
 			}
 			ch <- nil
 		}()

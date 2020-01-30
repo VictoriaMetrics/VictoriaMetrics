@@ -229,7 +229,7 @@ func skipSmallMetaindexRows(metaindex []metaindexRow, tsid *TSID) []metaindexRow
 
 func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	ps.compressedIndexBuf = bytesutil.Resize(ps.compressedIndexBuf[:0], int(mr.IndexBlockSize))
-	ps.p.indexFile.ReadAt(ps.compressedIndexBuf, int64(mr.IndexBlockOffset))
+	ps.p.indexFile.MustReadAt(ps.compressedIndexBuf, int64(mr.IndexBlockOffset))
 
 	var err error
 	ps.indexBuf, err = encoding.DecompressZSTD(ps.indexBuf[:0], ps.compressedIndexBuf)
@@ -302,8 +302,8 @@ func (ps *partSearch) readBlock(bh *blockHeader) {
 	}
 
 	ps.Block.timestampsData = bytesutil.Resize(ps.Block.timestampsData[:0], int(bh.TimestampsBlockSize))
-	ps.p.timestampsFile.ReadAt(ps.Block.timestampsData, int64(bh.TimestampsBlockOffset))
+	ps.p.timestampsFile.MustReadAt(ps.Block.timestampsData, int64(bh.TimestampsBlockOffset))
 
 	ps.Block.valuesData = bytesutil.Resize(ps.Block.valuesData[:0], int(bh.ValuesBlockSize))
-	ps.p.valuesFile.ReadAt(ps.Block.valuesData, int64(bh.ValuesBlockOffset))
+	ps.p.valuesFile.MustReadAt(ps.Block.valuesData, int64(bh.ValuesBlockOffset))
 }
