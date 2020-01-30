@@ -264,7 +264,7 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap) {
 			dst.Timestamps = append(dst.Timestamps, top.Timestamps[top.NextIdx:]...)
 			dst.Values = append(dst.Values, top.Values[top.NextIdx:]...)
 			putSortBlock(top)
-			return
+			break
 		}
 		sbNext := sbh[0]
 		tsNext := sbNext.Timestamps[sbNext.NextIdx]
@@ -285,6 +285,8 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap) {
 			putSortBlock(top)
 		}
 	}
+
+	dst.Timestamps, dst.Values = storage.DeduplicateSamples(dst.Timestamps, dst.Values)
 }
 
 type sortBlock struct {
