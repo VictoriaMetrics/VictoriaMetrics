@@ -716,6 +716,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) 
 // This should speed-up further searchMetricName calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	var metricIDs uint64Sorter
+	tsidsMap := make(map[uint64]*TSID)
 	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
 	for i := range tsids {
 		metricID := tsids[i].MetricID
@@ -723,6 +724,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 			continue
 		}
 		metricIDs = append(metricIDs, metricID)
+		tsidsMap[metricID] = &tsids[i]
 	}
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
@@ -734,7 +736,8 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	var metricName []byte
 	var err error
 	for _, metricID := range metricIDs {
-		metricName, err = s.searchMetricName(metricName[:0], metricID)
+		tsid := tsidsMap[metricID]
+		metricName, err = s.searchMetricName(metricName[:0], metricID, tsid.AccountID, tsid.ProjectID)
 		if err != nil {
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %s", metricID, err)
 		}
