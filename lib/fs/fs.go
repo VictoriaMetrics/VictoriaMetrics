@@ -10,67 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/metrics"
 	"golang.org/x/sys/unix"
-)
-
-// MustReadAtCloser is rand-access read interface.
-type MustReadAtCloser interface {
-	// MustReadAt must read len(p) bytes from offset off to p.
-	MustReadAt(p []byte, off int64)
-
-	// MustClose must close the reader.
-	MustClose()
-}
-
-// ReaderAt implements rand-access read.
-type ReaderAt struct {
-	f *os.File
-}
-
-// MustReadAt reads len(p) bytes from off to p.
-func (ra *ReaderAt) MustReadAt(p []byte, off int64) {
-	if len(p) == 0 {
-		return
-	}
-	n, err := ra.f.ReadAt(p, off)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, ra.f.Name(), err)
-	}
-	if n != len(p) {
-		logger.Panicf("FATAL: unexpected number of bytes read; got %d; want %d", n, len(p))
-	}
-	readCalls.Inc()
-	readBytes.Add(len(p))
-}
-
-// MustClose closes ra.
-func (ra *ReaderAt) MustClose() {
-	if err := ra.f.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close file %q: %s", ra.f.Name(), err)
-	}
-	readersCount.Dec()
-}
-
-// OpenReaderAt opens a file on the given path for random-read access.
-//
-// The file must be closed with MustClose when no longer needed.
-func OpenReaderAt(path string) (*ReaderAt, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	readersCount.Inc()
-	ra := &ReaderAt{
-		f: f,
-	}
-	return ra, nil
-}
-
-var (
-	readCalls    = metrics.NewCounter(`vm_fs_read_calls_total`)
-	readBytes    = metrics.NewCounter(`vm_fs_read_bytes_total`)
-	readersCount = metrics.NewCounter(`vm_fs_readers`)
 )
 
 // MustSyncPath syncs contents of the given path.
