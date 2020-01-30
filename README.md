@@ -95,6 +95,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Federation](#federation)
   - [Capacity planning](#capacity-planning)
   - [High availability](#high-availability)
+  - [Deduplication](#deduplication)
   - [Retention](#retention)
   - [Multiple retentions](#multiple-retentions)
   - [Downsampling](#downsampling)
@@ -700,6 +701,19 @@ kill -HUP `pidof prometheus`
 
 If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
 to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
+
+Another option is to write data simultaneously from Prometheus HA pair to a pair of VictoriaMetrics instances
+with the enabled de-duplication. See [this section](#deduplication) for details.
+
+
+### Deduplication
+
+VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-line flag
+is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points
+on the same time series if they are located closer than 60s to each other.
+The de-duplication reduces disk space usage if multiple identically configured Prometheus instances in HA pair
+write data to the same VictoriaMetrics instance. Note that these Prometheus instances must have identical
+`external_labels` section in their configs, so they write data to the same time series.
 
 
 ### Retention

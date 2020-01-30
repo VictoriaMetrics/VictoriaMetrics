@@ -158,6 +158,25 @@ func (b *Block) tooBig() bool {
 	return false
 }
 
+func (b *Block) deduplicateSamplesDuringMerge() {
+	if len(b.values) == 0 {
+		// Nothing to dedup or the data is already marshaled.
+		return
+	}
+	srcTimestamps := b.timestamps[b.nextIdx:]
+	srcValues := b.values[b.nextIdx:]
+	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues)
+	b.timestamps = b.timestamps[:b.nextIdx+len(timestamps)]
+	b.values = b.values[:b.nextIdx+len(values)]
+}
+
+func (b *Block) rowsCount() int {
+	if len(b.values) == 0 {
+		return int(b.bh.RowsCount)
+	}
+	return len(b.values[b.nextIdx:])
+}
+
 // MarshalData marshals the block into binary representation.
 func (b *Block) MarshalData(timestampsBlockOffset, valuesBlockOffset uint64) ([]byte, []byte, []byte) {
 	if len(b.values) == 0 {
