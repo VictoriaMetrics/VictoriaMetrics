@@ -1,2 +1,2 @@
-FROM golang:1.13.6
+FROM golang:1.13.7
 STOPSIGNAL SIGINT
