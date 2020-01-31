@@ -1720,10 +1720,32 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`time() and time() > 1300`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() and time() > 1300`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`time() unless 2`, func(t *testing.T) {
 		t.Parallel()
 		q := `time() unless 2`
 		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`time() unless time() > 1500`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() unless time() > 1500`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`timseries-with-tags unless 2`, func(t *testing.T) {

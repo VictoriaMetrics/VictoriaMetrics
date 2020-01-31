@@ -32,7 +32,7 @@ var binaryOpFuncs = map[string]binaryOpFunc{
 	"or":     binaryOpOr,
 	"unless": binaryOpUnless,
 
-	// New op
+	// New ops
 	"if":      newBinaryOpArithFunc(binaryop.If),
 	"ifnot":   newBinaryOpArithFunc(binaryop.Ifnot),
 	"default": newBinaryOpArithFunc(binaryop.Default),
@@ -285,10 +285,21 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
-	for k := range mRight {
-		if tss := mLeft[k]; tss != nil {
-			rvs = append(rvs, tss...)
+	for k, tssRight := range mRight {
+		tssLeft := mLeft[k]
+		if tssLeft == nil {
+			continue
 		}
+		for i := range tssLeft[0].Values {
+			if !isAllNaNs(tssRight, i) {
+				continue
+			}
+			for _, tsLeft := range tssLeft {
+				tsLeft.Values[i] = nan
+			}
+		}
+		tssLeft = removeNaNs(tssLeft)
+		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
 }
@@ -310,12 +321,33 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
-	for k, tss := range mLeft {
-		if mRight[k] == nil {
-			rvs = append(rvs, tss...)
+	for k, tssLeft := range mLeft {
+		tssRight := mRight[k]
+		if tssRight == nil {
+			rvs = append(rvs, tssLeft...)
+			continue
 		}
+		for i := range tssLeft[0].Values {
+			if isAllNaNs(tssRight, i) {
+				continue
+			}
+			for _, tsLeft := range tssLeft {
+				tsLeft.Values[i] = nan
+			}
+		}
+		tssLeft = removeNaNs(tssLeft)
+		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
+}
+
+func isAllNaNs(tss []*timeseries, idx int) bool {
+	for _, ts := range tss {
+		if !math.IsNaN(ts.Values[idx]) {
+			return false
+		}
+	}
+	return true
 }
 
 func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
