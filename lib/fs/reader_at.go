@@ -21,11 +21,6 @@ type MustReadAtCloser interface {
 	MustClose()
 }
 
-type readerAt interface {
-	ReadAt(p []byte, off int64) (int, error)
-	Close() error
-}
-
 // ReaderAt implements rand-access reader.
 type ReaderAt struct {
 	f        *os.File
