@@ -38,4 +38,4 @@ open questions:
 - Application uses command line flags for configuration
 
 
-![vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmalert/vmalert.png "vmalert")
+![vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmalert/vmalert.png)
