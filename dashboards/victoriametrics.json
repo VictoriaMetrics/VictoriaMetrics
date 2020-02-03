@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.5.0"
+      "version": "6.5.2"
     },
     {
       "type": "panel",
@@ -54,12 +54,12 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.30.3 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.32.8 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1575826250599,
+  "iteration": 1580634787848,
   "links": [
     {
       "icon": "doc",
@@ -1327,8 +1327,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 43
           },
+          "hiddenSeries": false,
           "id": 64,
           "legend": {
             "avg": false,
@@ -1417,8 +1418,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 43
           },
+          "hiddenSeries": false,
           "id": 66,
           "legend": {
             "avg": false,
@@ -1504,8 +1506,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 51
           },
+          "hiddenSeries": false,
           "id": 68,
           "legend": {
             "avg": false,
@@ -1594,8 +1597,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 51
           },
+          "hiddenSeries": false,
           "id": 70,
           "legend": {
             "avg": false,
@@ -1684,8 +1688,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
+          "hiddenSeries": false,
           "id": 72,
           "legend": {
             "avg": false,
@@ -1791,6 +1796,7 @@
             "x": 0,
             "y": 44
           },
+          "hiddenSeries": false,
           "id": 76,
           "legend": {
             "alignAsTable": true,
@@ -1889,6 +1895,7 @@
             "x": 12,
             "y": 44
           },
+          "hiddenSeries": false,
           "id": 86,
           "legend": {
             "alignAsTable": true,
@@ -2001,6 +2008,7 @@
             "x": 0,
             "y": 53
           },
+          "hiddenSeries": false,
           "id": 80,
           "legend": {
             "alignAsTable": true,
@@ -2092,6 +2100,7 @@
             "x": 12,
             "y": 53
           },
+          "hiddenSeries": false,
           "id": 78,
           "legend": {
             "alignAsTable": true,
@@ -2183,6 +2192,7 @@
             "x": 0,
             "y": 61
           },
+          "hiddenSeries": false,
           "id": 82,
           "legend": {
             "alignAsTable": true,
@@ -2281,6 +2291,7 @@
             "x": 12,
             "y": 61
           },
+          "hiddenSeries": false,
           "id": 84,
           "legend": {
             "alignAsTable": true,
@@ -2369,6 +2380,7 @@
             "x": 0,
             "y": 69
           },
+          "hiddenSeries": false,
           "id": 74,
           "legend": {
             "avg": false,
@@ -2395,7 +2407,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcpdialer_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[5m]))",
+              "expr": "sum(rate(vm_tcpdialer_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[5m])) * 8",
               "legendFormat": "network usage",
               "refId": "A"
             }
@@ -2420,7 +2432,7 @@
           },
           "yaxes": [
             {
-              "format": "bytes",
+              "format": "bps",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -2683,6 +2695,7 @@
             "x": 0,
             "y": 46
           },
+          "hiddenSeries": false,
           "id": 16,
           "legend": {
             "avg": false,
@@ -2773,6 +2786,7 @@
             "x": 12,
             "y": 46
           },
+          "hiddenSeries": false,
           "id": 100,
           "legend": {
             "avg": false,
@@ -2863,6 +2877,7 @@
             "x": 0,
             "y": 54
           },
+          "hiddenSeries": false,
           "id": 20,
           "legend": {
             "avg": false,
@@ -2953,6 +2968,7 @@
             "x": 12,
             "y": 54
           },
+          "hiddenSeries": false,
           "id": 18,
           "legend": {
             "avg": false,
@@ -3043,6 +3059,7 @@
             "x": 0,
             "y": 62
           },
+          "hiddenSeries": false,
           "id": 54,
           "legend": {
             "avg": false,
@@ -3122,7 +3139,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The less is better.",
+          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -3131,6 +3148,7 @@
             "x": 12,
             "y": 62
           },
+          "hiddenSeries": false,
           "id": 14,
           "legend": {
             "alignAsTable": true,
@@ -3238,6 +3256,7 @@
             "x": 0,
             "y": 70
           },
+          "hiddenSeries": false,
           "id": 22,
           "legend": {
             "avg": false,
@@ -3328,6 +3347,7 @@
             "x": 12,
             "y": 70
           },
+          "hiddenSeries": false,
           "id": 55,
           "legend": {
             "avg": false,
@@ -3416,6 +3436,7 @@
             "x": 12,
             "y": 78
           },
+          "hiddenSeries": false,
           "id": 4,
           "legend": {
             "alignAsTable": true,
@@ -3538,8 +3559,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 47
           },
+          "hiddenSeries": false,
           "id": 92,
           "legend": {
             "alignAsTable": true,
@@ -3631,8 +3653,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 47
           },
+          "hiddenSeries": false,
           "id": 95,
           "legend": {
             "alignAsTable": true,
@@ -3740,8 +3763,9 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 47
+            "y": 55
           },
+          "hiddenSeries": false,
           "id": 93,
           "legend": {
             "alignAsTable": true,
@@ -3777,14 +3801,14 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[5m])) by (instance) > 0",
+              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "read - {{instance}}",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[5m])) by (instance) > 0",
+              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_select\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -3812,7 +3836,7 @@
           },
           "yaxes": [
             {
-              "format": "bytes",
+              "format": "bps",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -3861,8 +3885,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 48
           },
+          "hiddenSeries": false,
           "id": 97,
           "legend": {
             "alignAsTable": true,
@@ -3954,8 +3979,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 48
           },
+          "hiddenSeries": false,
           "id": 99,
           "legend": {
             "alignAsTable": true,
@@ -4063,8 +4089,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 56
           },
+          "hiddenSeries": false,
           "id": 90,
           "legend": {
             "alignAsTable": true,
@@ -4100,14 +4127,14 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) > 0",
+              "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "read - {{instance}}",
               "refId": "A"
             },
             {
-              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) > 0",
+              "expr": "sum(rate(vm_tcplistener_written_bytes_total{job=~\"$job_insert\", instance=~\"$instance\"}[5m])) by (instance) * 8 > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -4135,7 +4162,7 @@
           },
           "yaxes": [
             {
-              "format": "bytes",
+              "format": "bps",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -4169,8 +4196,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 56
           },
+          "hiddenSeries": false,
           "id": 88,
           "legend": {
             "alignAsTable": true,
