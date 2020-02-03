@@ -2509,6 +2509,7 @@
             {
               "alias": "max allowed",
               "color": "#C4162A",
+              "fill": 0,
               "stack": false
             }
           ],
@@ -3466,7 +3467,8 @@
           "seriesOverrides": [
             {
               "alias": "max",
-              "color": "#C4162A"
+              "color": "#C4162A",
+              "fill": 0
             }
           ],
           "spaceLength": 10,
@@ -3685,7 +3687,8 @@
           "seriesOverrides": [
             {
               "alias": "max",
-              "color": "#C4162A"
+              "color": "#C4162A",
+              "fill": 0
             }
           ],
           "spaceLength": 10,
@@ -4011,7 +4014,8 @@
           "seriesOverrides": [
             {
               "alias": "max",
-              "color": "#C4162A"
+              "color": "#C4162A",
+              "fill": 0
             }
           ],
           "spaceLength": 10,
