@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.5.0"
+      "version": "6.5.2"
     },
     {
       "type": "panel",
@@ -60,12 +60,12 @@
       }
     ]
   },
-  "description": "Overview for single node VictoriaMetrics v1.30.3 or higher",
+  "description": "Overview for single node VictoriaMetrics v1.32.8 or higher",
   "editable": true,
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1575825261972,
+  "iteration": 1580634216692,
   "links": [
     {
       "icon": "doc",
@@ -1565,7 +1565,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_PROMETHEUS}",
-      "description": "How many datapoints are in RAM queue waiting to be written into storage. The less is better.",
+      "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second.",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -2930,7 +2930,7 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {
@@ -2961,5 +2961,5 @@
   "timezone": "",
   "title": "VictoriaMetrics",
   "uid": "wNf0q_kZk",
-  "version": 1
+  "version": 2
 }
