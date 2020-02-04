@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var disableMmap = flag.Bool("fs.disableMmap", false, "Whether to use `pread` instead of `mmap` for reading data files")
+var disableMmap = flag.Bool("fs.disableMmap", false, "Whether to use pread() instead of mmap() for reading data files")
 
 // MustReadAtCloser is rand-access read interface.
 type MustReadAtCloser interface {

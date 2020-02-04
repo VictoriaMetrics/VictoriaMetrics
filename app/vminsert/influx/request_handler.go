@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	measurementFieldSeparator = flag.String("influxMeasurementFieldSeparator", "_", "Separator for `{measurement}{separator}{field_name}` metric name when inserted via Influx line protocol")
-	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses `{measurement}` instead of `{measurement}{separator}{field_name}` for metic name if Influx line contains only a single field")
+	measurementFieldSeparator = flag.String("influxMeasurementFieldSeparator", "_", "Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol")
+	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field")
 )
 
 var (
