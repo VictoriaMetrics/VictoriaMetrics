@@ -259,10 +259,10 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 		}
 		rcs = appendRollupConfigs(rcs)
 	case "rollup_candlestick":
-		rcs = append(rcs, newRollupConfig(rollupFirst, "open"))
-		rcs = append(rcs, newRollupConfig(rollupLast, "close"))
-		rcs = append(rcs, newRollupConfig(rollupMin, "low"))
-		rcs = append(rcs, newRollupConfig(rollupMax, "high"))
+		rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
+		rcs = append(rcs, newRollupConfig(rollupClose, "close"))
+		rcs = append(rcs, newRollupConfig(rollupLow, "low"))
+		rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
 	case "aggr_over_time":
 		aggrFuncNames, err := getRollupAggrFuncNames(expr)
 		if err != nil {
@@ -1417,6 +1417,74 @@ func rollupResets(rfa *rollupFuncArg) float64 {
 		prevValue = v
 	}
 	return float64(n)
+}
+
+// getCandlestickValues returns a subset of rfa.values suitable for rollup_candlestick
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/309 for details.
+func getCandlestickValues(rfa *rollupFuncArg) []float64 {
+	currTimestamp := rfa.currTimestamp
+	timestamps := rfa.timestamps
+	for len(timestamps) > 0 && timestamps[len(timestamps)-1] >= currTimestamp {
+		timestamps = timestamps[:len(timestamps)-1]
+	}
+	if len(timestamps) == 0 {
+		return nil
+	}
+	return rfa.values[:len(timestamps)]
+}
+
+func rollupOpen(rfa *rollupFuncArg) float64 {
+	if !math.IsNaN(rfa.prevValue) {
+		return rfa.prevValue
+	}
+	values := getCandlestickValues(rfa)
+	if len(values) == 0 {
+		return nan
+	}
+	return values[0]
+}
+
+func rollupClose(rfa *rollupFuncArg) float64 {
+	values := getCandlestickValues(rfa)
+	if len(values) == 0 {
+		return rfa.prevValue
+	}
+	return values[len(values)-1]
+}
+
+func rollupHigh(rfa *rollupFuncArg) float64 {
+	values := getCandlestickValues(rfa)
+	max := rfa.prevValue
+	if math.IsNaN(max) {
+		if len(values) == 0 {
+			return nan
+		}
+		max = values[0]
+	}
+	for _, v := range values {
+		if v > max {
+			max = v
+		}
+	}
+	return max
+}
+
+func rollupLow(rfa *rollupFuncArg) float64 {
+	values := getCandlestickValues(rfa)
+	min := rfa.prevValue
+	if math.IsNaN(min) {
+		if len(values) == 0 {
+			return nan
+		}
+		min = values[0]
+	}
+	for _, v := range values {
+		if v < min {
+			min = v
+		}
+	}
+	return min
 }
 
 func rollupFirst(rfa *rollupFuncArg) float64 {
