@@ -429,7 +429,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 			ecNew.End = end
 		}
 	}
-	if name == "rollup_candlestick" && len(re.Window) == 0 {
+	if name == "rollup_candlestick" {
 		// Automatically apply `offset -step` to `rollup_candlestick` function
 		// in order to obtain expected OHLC results.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/309#issuecomment-582113462
