@@ -155,6 +155,10 @@ func logMessage(level, msg string, skipframes int) {
 
 	switch level {
 	case "PANIC":
+		if *loggerFormat == "json" {
+			// Do not clutter `json` output with panic stack trace
+			os.Exit(-1)
+		}
 		panic(errors.New(msg))
 	case "FATAL":
 		os.Exit(-1)
