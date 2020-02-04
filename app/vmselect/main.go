@@ -71,6 +71,7 @@ var (
 
 // RequestHandler handles remote read API requests for Prometheus
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:
@@ -104,7 +105,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
 			httpserver.EnableCORS(w, r)
-			if err := prometheus.LabelValuesHandler(labelName, w, r); err != nil {
+			if err := prometheus.LabelValuesHandler(startTime, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
 				sendPrometheusError(w, r, err)
 				return true
@@ -117,7 +118,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryHandler(w, r); err != nil {
+		if err := prometheus.QueryHandler(startTime, w, r); err != nil {
 			queryErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -126,7 +127,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/query_range":
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryRangeHandler(w, r); err != nil {
+		if err := prometheus.QueryRangeHandler(startTime, w, r); err != nil {
 			queryRangeErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -135,7 +136,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/series":
 		seriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesHandler(w, r); err != nil {
+		if err := prometheus.SeriesHandler(startTime, w, r); err != nil {
 			seriesErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -144,7 +145,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/series/count":
 		seriesCountRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesCountHandler(w, r); err != nil {
+		if err := prometheus.SeriesCountHandler(startTime, w, r); err != nil {
 			seriesCountErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -153,7 +154,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/labels":
 		labelsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsHandler(w, r); err != nil {
+		if err := prometheus.LabelsHandler(startTime, w, r); err != nil {
 			labelsErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -162,7 +163,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/labels/count":
 		labelsCountRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsCountHandler(w, r); err != nil {
+		if err := prometheus.LabelsCountHandler(startTime, w, r); err != nil {
 			labelsCountErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -170,7 +171,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
-		if err := prometheus.ExportHandler(w, r); err != nil {
+		if err := prometheus.ExportHandler(startTime, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
@@ -178,7 +179,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/federate":
 		federateRequests.Inc()
-		if err := prometheus.FederateHandler(w, r); err != nil {
+		if err := prometheus.FederateHandler(startTime, w, r); err != nil {
 			federateErrors.Inc()
 			httpserver.Errorf(w, "error int %q: %s", r.URL.Path, err)
 			return true
@@ -209,7 +210,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
 			return true
 		}
-		if err := prometheus.DeleteHandler(r); err != nil {
+		if err := prometheus.DeleteHandler(startTime, r); err != nil {
 			deleteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
