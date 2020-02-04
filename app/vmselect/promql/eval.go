@@ -425,7 +425,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 		if err != nil {
 			return nil, err
 		}
-		ecNew = newEvalConfig(ec)
+		ecNew = newEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset
 		if ecNew.MayCache {
@@ -434,6 +434,16 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 			ecNew.Start = start
 			ecNew.End = end
 		}
+	}
+	if name == "rollup_candlestick" && len(re.Window) == 0 {
+		// Automatically apply `offset -step` to `rollup_candlestick` function
+		// in order to obtain expected OHLC results.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/309#issuecomment-582113462
+		step := ecNew.Step
+		ecNew = newEvalConfig(ecNew)
+		ecNew.Start += step
+		ecNew.End += step
+		offset -= step
 	}
 	var rvs []*timeseries
 	var err error
