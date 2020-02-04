@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -19,6 +20,7 @@ import (
 var (
 	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC")
 	loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
+	loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 )
 
 // Init initializes the logger.
@@ -27,11 +29,25 @@ var (
 //
 // There is no need in calling Init from tests.
 func Init() {
+	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
 	go errorsLoggedCleaner()
 	logAllFlags()
 }
+
+func setLoggerOutput() {
+	switch *loggerOutput {
+	case "stderr":
+		output = os.Stderr
+	case "stdout":
+		output = os.Stdout
+	default:
+		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
+	}
+}
+
+var output io.Writer
 
 func validateLoggerLevel() {
 	switch *loggerLevel {
@@ -145,7 +161,7 @@ func logMessage(level, msg string, skipframes int) {
 
 	// Serialize writes to log.
 	mu.Lock()
-	fmt.Fprint(os.Stderr, logMsg)
+	fmt.Fprint(output, logMsg)
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
