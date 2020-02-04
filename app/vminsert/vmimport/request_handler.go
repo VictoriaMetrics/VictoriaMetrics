@@ -15,7 +15,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxLineLen = flag.Int("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by `/api/v1/import`")
+var maxLineLen = flag.Int("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import")
 
 var (
 	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="vmimport"}`)

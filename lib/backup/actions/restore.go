@@ -62,7 +62,7 @@ func (r *Restore) Run() error {
 		}
 		if !ok {
 			return fmt.Errorf("cannot find %s file in %s; this means either incomplete backup or old backup; "+
-				"pass `-skipBackupCompleteCheck` command-line flag if you still need restoring from this backup", fscommon.BackupCompleteFilename, src)
+				"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", fscommon.BackupCompleteFilename, src)
 		}
 	}
 
