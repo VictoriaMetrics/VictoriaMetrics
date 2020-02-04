@@ -47,7 +47,7 @@ func setLoggerOutput() {
 	}
 }
 
-var output io.Writer
+var output io.Writer = os.Stderr
 
 func validateLoggerLevel() {
 	switch *loggerLevel {
