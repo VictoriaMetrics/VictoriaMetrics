@@ -57,6 +57,11 @@ func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]
 	if *minScrapeInterval <= 0 {
 		return srcTimestamps, srcValues
 	}
+	if len(srcTimestamps) < 32 {
+		// Do not de-duplicate small number of samples during merge
+		// in order to improve deduplication accuracy on later stages.
+		return srcTimestamps, srcValues
+	}
 	minDelta := getMinDelta()
 	if !needsDedup(srcTimestamps, minDelta) {
 		// Fast path - nothing to deduplicate
