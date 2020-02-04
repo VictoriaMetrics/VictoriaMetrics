@@ -111,6 +111,7 @@ var (
 )
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	startTime := time.Now()
 	// Limit the number of concurrent queries.
 	select {
 	case concurrencyCh <- struct{}{}:
@@ -155,23 +156,23 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch p.Prefix {
 	case "select":
-		return selectHandler(w, r, p, at)
+		return selectHandler(startTime, w, r, p, at)
 	case "delete":
-		return deleteHandler(w, r, p, at)
+		return deleteHandler(startTime, w, r, p, at)
 	default:
 		// This is not our link
 		return false
 	}
 }
 
-func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/label/") {
 		s := p.Suffix[len("prometheus/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
 			httpserver.EnableCORS(w, r)
-			if err := prometheus.LabelValuesHandler(at, labelName, w, r); err != nil {
+			if err := prometheus.LabelValuesHandler(startTime, at, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
 				sendPrometheusError(w, r, err)
 				return true
@@ -184,7 +185,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	case "prometheus/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryHandler(at, w, r); err != nil {
+		if err := prometheus.QueryHandler(startTime, at, w, r); err != nil {
 			queryErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -193,7 +194,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	case "prometheus/api/v1/query_range":
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryRangeHandler(at, w, r); err != nil {
+		if err := prometheus.QueryRangeHandler(startTime, at, w, r); err != nil {
 			queryRangeErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -202,7 +203,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	case "prometheus/api/v1/series":
 		seriesRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesHandler(at, w, r); err != nil {
+		if err := prometheus.SeriesHandler(startTime, at, w, r); err != nil {
 			seriesErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -211,7 +212,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	case "prometheus/api/v1/series/count":
 		seriesCountRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.SeriesCountHandler(at, w, r); err != nil {
+		if err := prometheus.SeriesCountHandler(startTime, at, w, r); err != nil {
 			seriesCountErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -220,7 +221,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	case "prometheus/api/v1/labels":
 		labelsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsHandler(at, w, r); err != nil {
+		if err := prometheus.LabelsHandler(startTime, at, w, r); err != nil {
 			labelsErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -229,7 +230,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	case "prometheus/api/v1/labels/count":
 		labelsCountRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.LabelsCountHandler(at, w, r); err != nil {
+		if err := prometheus.LabelsCountHandler(startTime, at, w, r); err != nil {
 			labelsCountErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -237,7 +238,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
-		if err := prometheus.ExportHandler(at, w, r); err != nil {
+		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
@@ -245,7 +246,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 		return true
 	case "prometheus/federate":
 		federateRequests.Inc()
-		if err := prometheus.FederateHandler(at, w, r); err != nil {
+		if err := prometheus.FederateHandler(startTime, at, w, r); err != nil {
 			federateErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
@@ -274,11 +275,11 @@ func selectHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, a
 	}
 }
 
-func deleteHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
 	switch p.Suffix {
 	case "prometheus/api/v1/admin/tsdb/delete_series":
 		deleteRequests.Inc()
-		if err := prometheus.DeleteHandler(at, r); err != nil {
+		if err := prometheus.DeleteHandler(startTime, at, r); err != nil {
 			deleteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true

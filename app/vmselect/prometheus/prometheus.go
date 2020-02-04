@@ -39,8 +39,7 @@ var (
 const defaultStep = 5 * 60 * 1000
 
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
-func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %s", err)
@@ -116,8 +115,7 @@ func FederateHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) err
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
 
 // ExportHandler exports data in raw format from /api/v1/export.
-func ExportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %s", err)
@@ -215,8 +213,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, star
 // DeleteHandler processes /api/v1/admin/tsdb/delete_series prometheus API request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#delete-series
-func DeleteHandler(at *auth.Token, r *http.Request) error {
-	startTime := time.Now()
+func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %s", err)
 	}
@@ -288,8 +285,7 @@ var httpClient = &http.Client{
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
-func LabelValuesHandler(at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w http.ResponseWriter, r *http.Request) error {
 	deadline := getDeadlineForQuery(r)
 
 	if err := r.ParseForm(); err != nil {
@@ -392,8 +388,7 @@ func labelValuesWithMatches(at *auth.Token, labelName string, matches []string, 
 var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/label/{}/values"}`)
 
 // LabelsCountHandler processes /api/v1/labels/count request.
-func LabelsCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func LabelsCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := getDeadlineForQuery(r)
 	labelEntries, isPartial, err := netstorage.GetLabelEntries(at, deadline)
 	if err != nil {
@@ -414,8 +409,7 @@ var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
-func LabelsHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := getDeadlineForQuery(r)
 
 	if err := r.ParseForm(); err != nil {
@@ -510,8 +504,7 @@ func labelsWithMatches(at *auth.Token, matches []string, start, end int64, deadl
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)
 
 // SeriesCountHandler processes /api/v1/series/count request.
-func SeriesCountHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	deadline := getDeadlineForQuery(r)
 	n, isPartial, err := netstorage.GetSeriesCount(at, deadline)
 	if err != nil {
@@ -532,8 +525,7 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 // SeriesHandler processes /api/v1/series request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-func SeriesHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	if err := r.ParseForm(); err != nil {
@@ -613,8 +605,7 @@ var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // QueryHandler processes /api/v1/query request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-func QueryHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	query := r.FormValue("query")
@@ -728,8 +719,7 @@ func parsePositiveDuration(s string, step int64) (int64, error) {
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-func QueryRangeHandler(at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	startTime := time.Now()
+func QueryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
 	query := r.FormValue("query")
