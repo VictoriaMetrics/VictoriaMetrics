@@ -40,24 +40,10 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		return nil, err
 	}
 
-	// Add an additional point to the end. This point is used
-	// in calculating the last value for rate, deriv, increase
-	// and delta funcs.
-	ec.End += ec.Step
-
 	rv, err := evalExpr(ec, e)
 	if err != nil {
 		return nil, err
 	}
-
-	// Remove the additional point at the end.
-	for _, ts := range rv {
-		ts.Values = ts.Values[:len(ts.Values)-1]
-
-		// ts.Timestamps may be shared between timeseries, so truncate it with len(ts.Values) instead of len(ts.Timestamps)-1
-		ts.Timestamps = ts.Timestamps[:len(ts.Values)]
-	}
-	ec.End -= ec.Step
 
 	if isFirstPointOnly {
 		// Remove all the points except the first one from every time series.

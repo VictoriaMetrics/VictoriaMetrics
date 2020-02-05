@@ -820,10 +820,6 @@ func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		hf.Reset()
 		lastIdx := -1
 		values := ts.Values
-		if len(values) > 0 {
-			// Ignore the last value. See Exec func for details.
-			values = values[:len(values)-1]
-		}
 		for i, v := range values {
 			if math.IsNaN(v) {
 				continue
@@ -874,14 +870,7 @@ func transformRangeLast(tfa *transformFuncArg) ([]*timeseries, error) {
 
 func setLastValues(tss []*timeseries) {
 	for _, ts := range tss {
-		values := ts.Values
-		if len(values) < 2 {
-			continue
-		}
-		// Do not take into account the last value, since it shouldn't be included
-		// in the range. See Exec func for details.
-		values = values[:len(values)-1]
-		values = skipTrailingNaNs(values)
+		values := skipTrailingNaNs(ts.Values)
 		if len(values) == 0 {
 			continue
 		}
@@ -1521,9 +1510,7 @@ func transformStart(tfa *transformFuncArg) float64 {
 }
 
 func transformEnd(tfa *transformFuncArg) float64 {
-	// Subtract step from end, since it shouldn't go to the range.
-	// See Exec func for details.
-	return float64(tfa.ec.End-tfa.ec.Step) * 1e-3
+	return float64(tfa.ec.End) * 1e-3
 }
 
 // copyTimeseriesMetricNames returns a copy of arg with real copy of MetricNames,
