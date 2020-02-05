@@ -635,11 +635,17 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 
 	// Fetch the remaining part of the result.
 	tfs := toTagFilters(me.LabelFilters)
+	minTimestamp := start - maxSilenceInterval
+	if window > ec.Step {
+		minTimestamp -= window
+	} else {
+		minTimestamp -= ec.Step
+	}
 	sq := &storage.SearchQuery{
 		AccountID:    ec.AuthToken.AccountID,
 		ProjectID:    ec.AuthToken.ProjectID,
-		MinTimestamp: start - window - maxSilenceInterval,
-		MaxTimestamp: ec.End + ec.Step,
+		MinTimestamp: minTimestamp,
+		MaxTimestamp: ec.End,
 		TagFilterss:  [][]storage.TagFilter{tfs},
 	}
 	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, sq, true, ec.Deadline)
