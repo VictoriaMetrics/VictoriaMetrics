@@ -298,7 +298,7 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 
 var (
 	labelValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
-	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="select/{}/prometheus/api/v1/label/{}/values"}`)
+	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
 
 	queryRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/query"}`)
 	queryErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/query"}`)
