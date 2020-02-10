@@ -29,6 +29,8 @@ type DialSettings struct {
 	HTTPClient        *http.Client
 	GRPCDialOpts      []grpc.DialOption
 	GRPCConn          *grpc.ClientConn
+	GRPCConnPool      ConnPool
+	GRPCConnPoolSize  int
 	NoAuth            bool
 	TelemetryDisabled bool
 
@@ -69,6 +71,12 @@ func (ds *DialSettings) Validate() error {
 	// Accept only one form of credentials, except we allow TokenSource and CredentialsFile for backwards compatibility.
 	if nCreds > 1 && !(nCreds == 2 && ds.TokenSource != nil && ds.CredentialsFile != "") {
 		return errors.New("multiple credential options provided")
+	}
+	if ds.GRPCConn != nil && ds.GRPCConnPool != nil {
+		return errors.New("WithGRPCConn is incompatible with WithConnPool")
+	}
+	if ds.HTTPClient != nil && ds.GRPCConnPool != nil {
+		return errors.New("WithHTTPClient is incompatible with WithConnPool")
 	}
 	if ds.HTTPClient != nil && ds.GRPCConn != nil {
 		return errors.New("WithHTTPClient is incompatible with WithGRPCConn")
