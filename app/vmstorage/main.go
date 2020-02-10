@@ -28,6 +28,9 @@ var (
 
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
+	minScrapeInterval     = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
+		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
+		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
 )
 
 func main() {
@@ -35,6 +38,7 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
+	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 

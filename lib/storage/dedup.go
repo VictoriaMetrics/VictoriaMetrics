@@ -1,14 +1,21 @@
 package storage
 
 import (
-	"flag"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
-	"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
-	"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
+// SetMinScrapeIntervalForDeduplication sets the minimum interval for data points during de-duplication.
+//
+// De-duplication is disabled if interval is 0.
+//
+// This function must be called before initializing the storage.
+func SetMinScrapeIntervalForDeduplication(interval time.Duration) {
+	minScrapeInterval = interval
+}
+
+var minScrapeInterval = time.Duration(0)
 
 func getMinDelta() int64 {
 	// Divide minScrapeInterval by 2 in order to preserve proper data points.
@@ -23,7 +30,7 @@ func getMinDelta() int64 {
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than minScrapeInterval.
 func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []float64) {
-	if *minScrapeInterval <= 0 {
+	if minScrapeInterval <= 0 {
 		return srcTimestamps, srcValues
 	}
 	minDelta := getMinDelta()
@@ -54,7 +61,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 var dedupsDuringSelect = metrics.NewCounter(`deduplicated_samples_total{type="select"}`)
 
 func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]int64, []int64) {
-	if *minScrapeInterval <= 0 {
+	if minScrapeInterval <= 0 {
 		return srcTimestamps, srcValues
 	}
 	if len(srcTimestamps) < 32 {
