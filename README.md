@@ -30,7 +30,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ## Prominent features
 
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL) query language, which is inspired by PromQL.
+  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which is inspired by PromQL.
 * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
 * High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
   and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
@@ -207,7 +207,7 @@ http://<victoriametrics-addr>:8428
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
 Then build graphs with the created datasource using [Prometheus query language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
-VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL).
+VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
 
 
 ### How to upgrade VictoriaMetrics?
