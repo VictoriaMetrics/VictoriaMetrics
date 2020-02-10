@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -24,7 +25,7 @@ var (
 )
 
 func main() {
-	flag.Parse()
+	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
