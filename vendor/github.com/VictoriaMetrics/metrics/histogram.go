@@ -35,7 +35,7 @@ const (
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
 // with `prometheus_buckets(<metric_name>_bucket)` function from PromQL extensions in VictoriaMetrics.
-// (see https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL ):
+// (see https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL ):
 //
 //     prometheus_buckets(request_duration_bucket)
 //
