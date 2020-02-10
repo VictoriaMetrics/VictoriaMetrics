@@ -26,5 +26,16 @@ $ ./victoria-metrics-prod --version
 victoria-metrics-20190730-121249-heads-single-node-0-g671d9e55
 ```
 
+**Used command-line flags**
+Command-line flags are listed as `flag{name="httpListenAddr", value=":443"} 1` lines at `/metrics` page.
+See the following docs for details:
+
+* [monitoring for single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#monitoring)
+* [montioring for VictoriaMetrics cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#monitoring)
+
 **Additional context**
-Add any other context about the problem here such as error logs, `/metrics` output, screenshots from [the official Grafana dashboard for VictoriaMetrics](https://grafana.com/dashboards/10229).
+Add any other context about the problem here such as error logs from VictoriaMetrics and Prometheus,
+`/metrics` output, screenshots from the official Grafana dashboards for VictoriaMetrics:
+
+* [Grafana dashboard for single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
+* [Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
