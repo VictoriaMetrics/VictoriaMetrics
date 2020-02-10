@@ -20,7 +20,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ## Prominent features
 
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL) query language, which is inspired by PromQL.
+  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which is inspired by PromQL.
 * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
 * High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
   and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
@@ -121,11 +121,11 @@ The following command-line flags are used the most:
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
-* `-graphiteListenAddr` - TCP and UDP address to listen to for Graphite data. By default, it is disabled.
-* `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data over telnet protocol. By default, it is disabled.
-* `-opentsdbHTTPListenAddr` - TCP address to listen to for HTTP OpenTSDB data over `/api/put`. By default, it is disabled.
 
 Pass `-help` to see all the available flags with description and default values.
+
+Default flag values may be read from environment variables if `-envflag.enable` command-line flag is set.
+See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311) for more details.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
@@ -197,7 +197,7 @@ http://<victoriametrics-addr>:8428
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
 Then build graphs with the created datasource using [Prometheus query language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
-VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL).
+VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
 
 
 ### How to upgrade VictoriaMetrics?
@@ -541,6 +541,7 @@ The delete API is intended mainly for the following cases:
 It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
 
 - Regular cleanups for unneded data. Just prevent writing unneeded data into VictoriaMetrics.
+  See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
 - Reducing disk space usage by deleting unneded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur.
 

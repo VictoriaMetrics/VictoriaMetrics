@@ -8,7 +8,7 @@ To provide the best long-term [remote storage](https://prometheus.io/docs/operat
 ### Which features does VictoriaMetrics have?
 
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-  Additionally, VictoriaMetrics extends PromQL with opt-in [useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/ExtendedPromQL).
+  Additionally, VictoriaMetrics extends PromQL with opt-in [useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
 * High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
   and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
   [Outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
@@ -56,7 +56,7 @@ and new data is available for querying via Prometheus as usual.
 
 ### How does VictoriaMetrics compare to other clustered TSDBs on top of Prometheus such as [M3 from Uber](https://eng.uber.com/m3/), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), etc.?
 
-VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL with useful extensions for PromQL](ExtendedPromQL). The simplicity is twofold:
+VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL with useful extensions for PromQL](MetricsQL). The simplicity is twofold:
 - It is simpler to configure and operate. There is no need in configuring third-party [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md)
   or fighting with [gossip protocol](https://github.com/thanos-io/thanos/blob/master/docs/proposals/completed/201809_gossip-removal.md).
 - VictoriaMetrics has simpler architecture, which means less bugs and more useful features in the long run comparing to competing TSDBs.
