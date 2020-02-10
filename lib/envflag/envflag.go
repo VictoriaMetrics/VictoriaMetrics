@@ -2,6 +2,7 @@ package envflag
 
 import (
 	"flag"
+	"log"
 	"os"
 )
 
@@ -34,7 +35,10 @@ func Parse() {
 		}
 		// Get flag value from environment var.
 		if v, ok := os.LookupEnv(f.Name); ok {
-			f.Value.Set(v)
+			if err := f.Value.Set(v); err != nil {
+				// Do not use lib/logger here, since it is uninitialized yet.
+				log.Fatalf("cannot set flag %s to %q, which is read from environment variable: %s", f.Name, v, err)
+			}
 		}
 	})
 }
