@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -25,7 +26,7 @@ var (
 
 func main() {
 	flag.Usage = usage
-	flag.Parse()
+	envflag.Parse()
 	buildinfo.Init()
 
 	srcFS, err := newSrcFS()

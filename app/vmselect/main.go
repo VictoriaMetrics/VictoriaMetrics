@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -50,7 +51,7 @@ func getDefaultMaxConcurrentRequests() int {
 }
 
 func main() {
-	flag.Parse()
+	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
 
