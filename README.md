@@ -131,11 +131,11 @@ The following command-line flags are used the most:
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
-* `-graphiteListenAddr` - TCP and UDP address to listen to for Graphite data. By default, it is disabled.
-* `-opentsdbListenAddr` - TCP and UDP address to listen to for OpenTSDB data over telnet protocol. By default, it is disabled.
-* `-opentsdbHTTPListenAddr` - TCP address to listen to for HTTP OpenTSDB data over `/api/put`. By default, it is disabled.
 
 Pass `-help` to see all the available flags with description and default values.
+
+Default flag values may be read from environment variables if `-envflag.enable` command-line flag is set.
+See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311) for more details.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
