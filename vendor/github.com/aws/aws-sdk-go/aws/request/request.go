@@ -135,8 +135,6 @@ func New(cfg aws.Config, clientInfo metadata.ClientInfo, handlers Handlers,
 		err = awserr.New("InvalidEndpointURL", "invalid endpoint uri", err)
 	}
 
-	SanitizeHostForHeader(httpReq)
-
 	r := &Request{
 		Config:     cfg,
 		ClientInfo: clientInfo,
@@ -425,6 +423,8 @@ func (r *Request) Sign() error {
 		debugLogReqError(r, "Build Request", notRetrying, r.Error)
 		return r.Error
 	}
+
+	SanitizeHostForHeader(r.HTTPRequest)
 
 	r.Handlers.Sign.Run(r)
 	return r.Error

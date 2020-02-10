@@ -68,7 +68,6 @@ var (
 				Timeout:   2 * time.Second,
 				KeepAlive: 30 * time.Second,
 			}).Dial,
-			ResponseHeaderTimeout: 2 * time.Second,
 		},
 	}}
 	subscribeClient = &Client{hc: &http.Client{

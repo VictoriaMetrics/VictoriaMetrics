@@ -150,8 +150,7 @@ func WithGRPCConnectionPool(size int) ClientOption {
 type withGRPCConnectionPool int
 
 func (w withGRPCConnectionPool) Apply(o *internal.DialSettings) {
-	balancer := grpc.RoundRobin(internal.NewPoolResolver(int(w), o))
-	o.GRPCDialOpts = append(o.GRPCDialOpts, grpc.WithBalancer(balancer))
+	o.GRPCConnPoolSize = int(w)
 }
 
 // WithAPIKey returns a ClientOption that specifies an API key to be used

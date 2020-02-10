@@ -49,7 +49,7 @@ Google API                                      | Status       | Package
 [IAM][cloud-iam]                                | stable       | [`cloud.google.com/go/iam`](https://godoc.org/cloud.google.com/go/iam)
 [IoT][cloud-iot]                                | stable       | [`cloud.google.com/go/iot/apiv1`](https://godoc.org/cloud.google.com/go/iot/apiv1)
 [IRM][cloud-irm]                                | alpha        | [`cloud.google.com/go/irm/apiv1alpha2`](https://godoc.org/cloud.google.com/go/irm/apiv1alpha2)
-[KMS][cloud-kms]                                | stable       | [`cloud.google.com/go/kms`](https://godoc.org/cloud.google.com/go/kms)
+[KMS][cloud-kms]                                | stable       | [`cloud.google.com/go/kms/apiv1`](https://godoc.org/cloud.google.com/go/kms/apiv1)
 [Natural Language][cloud-natural-language]      | stable       | [`cloud.google.com/go/language/apiv1`](https://godoc.org/cloud.google.com/go/language/apiv1)
 [Logging][cloud-logging]                        | stable       | [`cloud.google.com/go/logging`](https://godoc.org/cloud.google.com/go/logging)
 [Memorystore][cloud-memorystore]                | alpha        | [`cloud.google.com/go/redis/apiv1`](https://godoc.org/cloud.google.com/go/redis/apiv1)
