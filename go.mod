@@ -4,7 +4,7 @@ require (
 	cloud.google.com/go v0.51.0 // indirect
 	cloud.google.com/go/storage v1.5.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
-	github.com/VictoriaMetrics/metrics v1.9.3
+	github.com/VictoriaMetrics/metrics v1.10.1
 	github.com/aws/aws-sdk-go v1.28.7
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect

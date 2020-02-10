@@ -169,6 +169,64 @@ func (s *Set) GetOrCreateCounter(name string) *Counter {
 	return c
 }
 
+// NewFloatCounter registers and returns new FloatCounter with the given name in the s.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//     * foo
+//     * foo{bar="baz"}
+//     * foo{bar="baz",aaa="b"}
+//
+// The returned FloatCounter is safe to use from concurrent goroutines.
+func (s *Set) NewFloatCounter(name string) *FloatCounter {
+	c := &FloatCounter{}
+	s.registerMetric(name, c)
+	return c
+}
+
+// GetOrCreateFloatCounter returns registered FloatCounter in s with the given name
+// or creates new FloatCounter if s doesn't contain FloatCounter with the given name.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//     * foo
+//     * foo{bar="baz"}
+//     * foo{bar="baz",aaa="b"}
+//
+// The returned FloatCounter is safe to use from concurrent goroutines.
+//
+// Performance tip: prefer NewFloatCounter instead of GetOrCreateFloatCounter.
+func (s *Set) GetOrCreateFloatCounter(name string) *FloatCounter {
+	s.mu.Lock()
+	nm := s.m[name]
+	s.mu.Unlock()
+	if nm == nil {
+		// Slow path - create and register missing counter.
+		if err := validateMetric(name); err != nil {
+			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
+		}
+		nmNew := &namedMetric{
+			name:   name,
+			metric: &FloatCounter{},
+		}
+		s.mu.Lock()
+		nm = s.m[name]
+		if nm == nil {
+			nm = nmNew
+			s.m[name] = nm
+			s.a = append(s.a, nm)
+		}
+		s.mu.Unlock()
+	}
+	c, ok := nm.metric.(*FloatCounter)
+	if !ok {
+		panic(fmt.Errorf("BUG: metric %q isn't a Counter. It is %T", name, nm.metric))
+	}
+	return c
+}
+
 // NewGauge registers and returns gauge with the given name in s, which calls f
 // to obtain gauge value.
 //
