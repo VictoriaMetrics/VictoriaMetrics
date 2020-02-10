@@ -551,6 +551,7 @@ The delete API is intended mainly for the following cases:
 It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
 
 - Regular cleanups for unneded data. Just prevent writing unneeded data into VictoriaMetrics.
+  See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
 - Reducing disk space usage by deleting unneded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur.
 
