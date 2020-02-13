@@ -453,15 +453,15 @@ func (s *Storage) startCurrHourMetricIDsUpdater() {
 var currHourMetricIDsUpdateInterval = time.Second * 10
 
 func (s *Storage) currHourMetricIDsUpdater() {
-	t := time.NewTimer(currHourMetricIDsUpdateInterval)
+	ticker := time.NewTicker(currHourMetricIDsUpdateInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-s.stop:
 			s.updateCurrHourMetricIDs()
 			return
-		case <-t.C:
+		case <-ticker.C:
 			s.updateCurrHourMetricIDs()
-			t.Reset(currHourMetricIDsUpdateInterval)
 		}
 	}
 }

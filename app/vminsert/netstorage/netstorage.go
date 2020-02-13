@@ -178,7 +178,8 @@ func (sn *storageNode) closeBrokenConn() {
 }
 
 func (sn *storageNode) run(stopCh <-chan struct{}) {
-	t := time.NewTimer(time.Second)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	mustStop := false
 	for !mustStop {
 		select {
@@ -186,7 +187,7 @@ func (sn *storageNode) run(stopCh <-chan struct{}) {
 			mustStop = true
 			// Make sure flushBufLocked is called last time before returning
 			// in order to send the remaining bits of data.
-		case <-t.C:
+		case <-ticker.C:
 		}
 
 		sn.mu.Lock()
@@ -195,14 +196,12 @@ func (sn *storageNode) run(stopCh <-chan struct{}) {
 			logger.Errorf("cannot flush data to storageNode %q: %s", sn.dialer.Addr(), err)
 		}
 		sn.mu.Unlock()
-
-		t.Reset(time.Second)
 	}
-	t.Stop()
 }
 
 func rerouteWorker(stopCh <-chan struct{}) {
-	t := time.NewTimer(time.Second)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	var buf []byte
 	mustStop := false
 	for !mustStop {
@@ -211,7 +210,7 @@ func rerouteWorker(stopCh <-chan struct{}) {
 			mustStop = true
 			// Make sure spreadReroutedBufToStorageNodes is called last time before returning
 			// in order to reroute the remaining data to healthy vmstorage nodes.
-		case <-t.C:
+		case <-ticker.C:
 		}
 
 		var err error
@@ -220,9 +219,7 @@ func rerouteWorker(stopCh <-chan struct{}) {
 			rerouteErrors.Inc()
 			logger.Errorf("cannot reroute data among healthy vmstorage nodes: %s", err)
 		}
-		t.Reset(time.Second)
 	}
-	t.Stop()
 }
 
 // storageNode is a client sending data to vmstorage node.

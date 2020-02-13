@@ -403,16 +403,15 @@ func (tb *Table) startRawItemsFlusher() {
 }
 
 func (tb *Table) rawItemsFlusher() {
-	t := time.NewTimer(rawItemsFlushInterval)
+	ticker := time.NewTicker(rawItemsFlushInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-tb.stopCh:
 			return
-		case <-t.C:
-			t.Reset(rawItemsFlushInterval)
+		case <-ticker.C:
+			tb.flushRawItems(false)
 		}
-
-		tb.flushRawItems(false)
 	}
 }
 
