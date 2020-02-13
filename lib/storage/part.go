@@ -223,13 +223,13 @@ func (ibc *indexBlockCache) MustClose(isBig bool) {
 
 // cleaner periodically cleans least recently used items.
 func (ibc *indexBlockCache) cleaner() {
-	t := time.NewTimer(5 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-t.C:
+		case <-ticker.C:
 			ibc.cleanByTimeout()
 		case <-ibc.cleanerStopCh:
-			t.Stop()
 			return
 		}
 	}
@@ -317,8 +317,9 @@ func (ibc *indexBlockCache) Len() uint64 {
 
 func init() {
 	go func() {
-		t := time.NewTimer(time.Second)
-		for tm := range t.C {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for tm := range ticker.C {
 			t := uint64(tm.Unix())
 			atomic.StoreUint64(&currentTimestamp, t)
 		}

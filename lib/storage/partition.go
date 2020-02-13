@@ -688,15 +688,15 @@ func (pt *partition) startRawRowsFlusher() {
 }
 
 func (pt *partition) rawRowsFlusher() {
-	t := time.NewTimer(rawRowsFlushInterval)
+	ticker := time.NewTicker(rawRowsFlushInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-pt.stopCh:
 			return
-		case <-t.C:
-			t.Reset(rawRowsFlushInterval)
+		case <-ticker.C:
+			pt.flushRawRows(false)
 		}
-		pt.flushRawRows(false)
 	}
 }
 
@@ -736,20 +736,19 @@ func (pt *partition) startInmemoryPartsFlusher() {
 }
 
 func (pt *partition) inmemoryPartsFlusher() {
-	t := time.NewTimer(inmemoryPartsFlushInterval)
+	ticker := time.NewTicker(inmemoryPartsFlushInterval)
+	defer ticker.Stop()
 	var pwsBuf []*partWrapper
 	var err error
 	for {
 		select {
 		case <-pt.stopCh:
 			return
-		case <-t.C:
-			t.Reset(inmemoryPartsFlushInterval)
-		}
-
-		pwsBuf, err = pt.flushInmemoryParts(pwsBuf[:0], false)
-		if err != nil {
-			logger.Panicf("FATAL: cannot flush inmemory parts: %s", err)
+		case <-ticker.C:
+			pwsBuf, err = pt.flushInmemoryParts(pwsBuf[:0], false)
+			if err != nil {
+				logger.Panicf("FATAL: cannot flush inmemory parts: %s", err)
+			}
 		}
 	}
 }

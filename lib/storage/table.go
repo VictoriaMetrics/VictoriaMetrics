@@ -375,13 +375,13 @@ func (tb *table) startRetentionWatcher() {
 }
 
 func (tb *table) retentionWatcher() {
-	t := time.NewTimer(time.Minute)
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-tb.stop:
 			return
-		case <-t.C:
-			t.Reset(time.Minute)
+		case <-ticker.C:
 		}
 
 		minTimestamp := timestampFromTime(time.Now()) - tb.retentionMilliseconds
