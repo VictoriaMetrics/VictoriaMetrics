@@ -1607,6 +1607,48 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`sort_by_label()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			alias(1, "foo"),
+			alias(2, "bar"),
+		), "__name__")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("bar")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("foo")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_desc()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_desc((
+			alias(1, "foo"),
+			alias(2, "bar"),
+		), "__name__")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("foo")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("bar")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`a cmp scalar (leave MetricGroup)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc((
@@ -5352,6 +5394,8 @@ func TestExecError(t *testing.T) {
 	f(`scalar()`)
 	f(`sort(1,2)`)
 	f(`sort_desc()`)
+	f(`sort_by_label()`)
+	f(`sort_by_label_desc()`)
 	f(`timestamp()`)
 	f(`vector()`)
 	f(`histogram_quantile()`)

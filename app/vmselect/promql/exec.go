@@ -71,7 +71,8 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 		return true
 	}
 	switch fe.Name {
-	case "sort", "sort_desc":
+	case "sort", "sort_desc",
+		"sort_by_label", "sort_by_label_desc":
 		return false
 	default:
 		return true
