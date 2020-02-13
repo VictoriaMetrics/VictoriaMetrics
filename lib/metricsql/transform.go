@@ -76,6 +76,8 @@ var transformFuncs = map[string]bool{
 	"acos":               true,
 	"prometheus_buckets": true,
 	"histogram_share":    true,
+	"sort_by_label":      true,
+	"sort_by_label_desc": true,
 }
 
 // IsTransformFunc returns whether funcName is known transform function.

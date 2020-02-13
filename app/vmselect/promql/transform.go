@@ -97,6 +97,8 @@ var transformFuncs = map[string]transformFunc{
 	"acos":               newTransformFuncOneArg(transformAcos),
 	"prometheus_buckets": transformPrometheusBuckets,
 	"histogram_share":    transformHistogramShare,
+	"sort_by_label":      newTransformFuncSortByLabel(false),
+	"sort_by_label_desc": newTransformFuncSortByLabel(true),
 }
 
 func getTransformFunc(s string) transformFunc {
@@ -1355,6 +1357,29 @@ func transformScalar(tfa *transformFuncArg) ([]*timeseries, error) {
 	return arg, nil
 }
 
+func newTransformFuncSortByLabel(isDesc bool) transformFunc {
+	return func(tfa *transformFuncArg) ([]*timeseries, error) {
+		args := tfa.args
+		if err := expectTransformArgsNum(args, 2); err != nil {
+			return nil, err
+		}
+		label, err := getString(args[1], 1)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse label name for sorting: %s", err)
+		}
+		rvs := args[0]
+		sort.SliceStable(rvs, func(i, j int) bool {
+			a := rvs[i].MetricName.GetTagValue(label)
+			b := rvs[j].MetricName.GetTagValue(label)
+			if isDesc {
+				return string(b) < string(a)
+			}
+			return string(a) < string(b)
+		})
+		return rvs, nil
+	}
+}
+
 func newTransformFuncSort(isDesc bool) transformFunc {
 	return func(tfa *transformFuncArg) ([]*timeseries, error) {
 		args := tfa.args
@@ -1367,7 +1392,7 @@ func newTransformFuncSort(isDesc bool) transformFunc {
 			b := rvs[j].Values
 			n := len(a) - 1
 			for n >= 0 {
-				if !math.IsNaN(a[n]) && !math.IsNaN(b[n]) {
+				if !math.IsNaN(a[n]) && !math.IsNaN(b[n]) && a[n] != b[n] {
 					break
 				}
 				n--
@@ -1375,11 +1400,10 @@ func newTransformFuncSort(isDesc bool) transformFunc {
 			if n < 0 {
 				return false
 			}
-			cmp := a[n] < b[n]
 			if isDesc {
-				cmp = !cmp
+				return b[n] < a[n]
 			}
-			return cmp
+			return a[n] < b[n]
 		})
 		return rvs, nil
 	}
