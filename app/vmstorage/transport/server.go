@@ -412,6 +412,21 @@ func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 	return nil
 }
 
+// maxErrorMessageSize is the maximum size of error message to send to clients.
+const maxErrorMessageSize = 64 * 1024
+
+func (ctx *vmselectRequestCtx) writeErrorMessage(err error) error {
+	errMsg := err.Error()
+	if len(errMsg) > maxErrorMessageSize {
+		// Trim too long error message.
+		errMsg = errMsg[:maxErrorMessageSize]
+	}
+	if err := ctx.writeString(errMsg); err != nil {
+		return fmt.Errorf("cannot send error message %q to client: %s", errMsg, err)
+	}
+	return nil
+}
+
 func (ctx *vmselectRequestCtx) writeString(s string) error {
 	ctx.dataBuf = append(ctx.dataBuf[:0], s...)
 	return ctx.writeDataBufBytes()
@@ -486,21 +501,13 @@ func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 
 	// Setup ctx.tfss
 	if err := ctx.setupTfss(); err != nil {
-		// Send the error message to vmselect.
-		errMsg := err.Error()
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Delete the given metrics.
 	deletedCount, err := s.storage.DeleteMetrics(ctx.tfss)
 	if err != nil {
-		if err := ctx.writeString(err.Error()); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Send an empty error message to vmselect.
@@ -530,12 +537,7 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 	// Search for tag keys
 	labels, err := s.storage.SearchTagKeys(accountID, projectID, *maxTagKeysPerSearch)
 	if err != nil {
-		// Send the error message to vmselect.
-		errMsg := fmt.Sprintf("error during labels search: %s", err)
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Send an empty error message to vmselect.
@@ -583,12 +585,7 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 	// Search for tag values
 	labelValues, err := s.storage.SearchTagValues(accountID, projectID, labelName, *maxTagValuesPerSearch)
 	if err != nil {
-		// Send the error message to vmselect.
-		errMsg := fmt.Sprintf("error during label values search for labelName=%q: %s", labelName, err)
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Send an empty error message to vmselect.
@@ -632,12 +629,7 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 	// Perform the request
 	labelEntries, err := s.storage.SearchTagEntries(accountID, projectID, *maxTagKeysPerSearch, *maxTagValuesPerSearch)
 	if err != nil {
-		// Send the error message to vmselect.
-		errMsg := fmt.Sprintf("error during label entries search: %s", err)
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Send an empty error message to vmselect.
@@ -684,12 +676,7 @@ func (s *Server) processVMSelectSeriesCount(ctx *vmselectRequestCtx) error {
 	// Execute the request
 	n, err := s.storage.GetSeriesCount(accountID, projectID)
 	if err != nil {
-		// Send the error message to vmselect.
-		errMsg := fmt.Sprintf("error during obtaining series count: %s", err)
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Send an empty error message to vmselect.
@@ -728,12 +715,7 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 
 	// Setup search.
 	if err := ctx.setupTfss(); err != nil {
-		// Send the error message to vmselect.
-		errMsg := err.Error()
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 	tr := storage.TimeRange{
 		MinTimestamp: ctx.sq.MinTimestamp,
@@ -742,12 +724,7 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 	ctx.sr.Init(s.storage, ctx.tfss, tr, fetchData, *maxMetricsPerSearch)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
-		// Send the error message to vmselect.
-		errMsg := fmt.Sprintf("search error: %s", err)
-		if err := ctx.writeString(errMsg); err != nil {
-			return fmt.Errorf("cannot send error message: %s", err)
-		}
-		return nil
+		return ctx.writeErrorMessage(err)
 	}
 
 	// Send empty error message to vmselect.
