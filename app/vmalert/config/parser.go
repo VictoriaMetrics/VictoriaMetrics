@@ -1,12 +1,34 @@
 package config
 
-// AlertRule basic alert entity rule
-type AlertRule struct{}
+import "time"
 
-// Alerts grouping array of alert
-type Alerts struct{}
+// Labels basic struct of different labels
+type Labels struct {
+	Severity string
+}
+
+// Annotations basic annotation for alert rule
+type Annotations struct {
+	Summary     string
+	Description string
+}
+
+// Alert basic alert entity rule
+type Alert struct {
+	Alert       string
+	Expr        string
+	For         time.Duration
+	Labels      Labels
+	Annotations Annotations
+}
+
+// Group grouping array of alert
+type Group struct {
+	Name string
+	Rule Alert
+}
 
 // Parse parses config from given file
-func Parse(filepath string) Alerts {
-	return Alerts{}
+func Parse(filepath string) ([]Group, error) {
+	return []Group{}, nil
 }

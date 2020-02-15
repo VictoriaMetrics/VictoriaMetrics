@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -22,11 +22,16 @@ func main() {
 	logger.Init()
 
 	logger.Infof("reading alert rules configuration file from %s", *configPath)
-	alerts := config.Parse(*configPath)
-	w := &watchdog{storage: &storage.VMStorage{}}
-	go func() {
-		w.run(alerts)
-	}()
+	alertGroups, err := config.Parse(*configPath)
+	if err != nil {
+		logger.Fatalf("Cannot parse configuration file %s", err)
+	}
+	w := &watchdog{storage: &datasource.VMStorage{}}
+	for id := range alertGroups {
+		go func(group config.Group) {
+			w.run(group)
+		}(alertGroups[id])
+	}
 	go func() {
 		httpserver.Serve(*httpListenAddr, func(w http.ResponseWriter, r *http.Request) bool {
 			panic("not implemented")
@@ -39,10 +44,10 @@ func main() {
 }
 
 type watchdog struct {
-	storage *storage.VMStorage
+	storage *datasource.VMStorage
 }
 
-func (w *watchdog) run(a config.Alerts) {
+func (w *watchdog) run(a config.Group) {
 
 }
 
