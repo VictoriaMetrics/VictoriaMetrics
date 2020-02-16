@@ -236,7 +236,7 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 		if len(s) == 0 || s[0] != ',' {
 			return s, dst, fmt.Errorf("missing comma after tag %s=%q", key, value)
 		}
-		s = s[1:]
+		s = skipLeadingWhitespace(s[1:])
 	}
 }
 
