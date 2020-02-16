@@ -13,12 +13,16 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date 
 all: \
 	vminsert \
 	vmselect \
-	vmstorage
+	vmstorage \
+	vmbackup \
+	vmrestore
 
 all-pure: \
 	vminsert-pure \
 	vmselect-pure \
-	vmstorage-pure
+	vmstorage-pure \
+	vmbackup-pure \
+	vmrestore-pure
 
 include app/*/Makefile
 include deployment/*/Makefile
@@ -27,16 +31,16 @@ clean:
 	rm -rf bin/*
 
 publish: \
-	publish-vmstorage \
-	publish-vmselect \
 	publish-vminsert \
+	publish-vmselect \
+	publish-vmstorage \
 	publish-vmbackup \
 	publish-vmrestore
 
 package: \
-	package-vmstorage \
-	package-vmselect \
 	package-vminsert \
+	package-vmselect \
+	package-vmstorage \
 	package-vmbackup \
 	package-vmrestore
 
