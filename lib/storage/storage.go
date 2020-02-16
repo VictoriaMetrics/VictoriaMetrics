@@ -1038,8 +1038,8 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	if err := s.tb.AddRows(rows); err != nil {
 		lastError = fmt.Errorf("cannot add rows to table: %s", err)
 	}
-	if err := s.updatePerDateData(rows, lastError); err != nil {
-		lastError = err
+	if err := s.updatePerDateData(rows, lastError); err != nil lastError == nil {
+		lastError = fmt.Errorf("cannot update per-date data: %s", err)
 	}
 	if lastError != nil {
 		return rows, fmt.Errorf("error occurred during rows addition: %s", lastError)
