@@ -15,7 +15,7 @@ type Annotations struct {
 
 // Alert basic alert entity rule
 type Alert struct {
-	Alert       string
+	Name        string
 	Expr        string
 	For         time.Duration
 	Labels      Labels
@@ -24,8 +24,8 @@ type Alert struct {
 
 // Group grouping array of alert
 type Group struct {
-	Name string
-	Rule Alert
+	Name  string
+	Rules []Alert
 }
 
 // Parse parses config from given file
