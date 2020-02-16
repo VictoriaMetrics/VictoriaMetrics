@@ -253,7 +253,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Multi lines with invalid line
-	f("\t foo\t {} 0.3\t 2\naaa\n  bar.baz 0.34 43\n", &Rows{
+	f("\t foo\t {  } 0.3\t 2\naaa\n  bar.baz 0.34 43\n", &Rows{
 		Rows: []Row{
 			{
 				Metric:    "foo",
@@ -264,6 +264,31 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Metric:    "bar.baz",
 				Value:     0.34,
 				Timestamp: 43,
+			},
+		},
+	})
+
+	// Spaces around tags
+	f(`vm_accounting	{   name="vminsertRows", accountID = "1" , projectID=	"1"   } 277779100`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "vm_accounting",
+				Tags: []Tag{
+					{
+						Key:   "name",
+						Value: "vminsertRows",
+					},
+					{
+						Key:   "accountID",
+						Value: "1",
+					},
+					{
+						Key:   "projectID",
+						Value: "1",
+					},
+				},
+				Value:     277779100,
+				Timestamp: 0,
 			},
 		},
 	})
