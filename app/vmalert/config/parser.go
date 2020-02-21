@@ -2,11 +2,6 @@ package config
 
 import "time"
 
-// Labels basic struct of different labels
-type Labels struct {
-	Severity string
-}
-
 // Annotations basic annotation for alert rule
 type Annotations struct {
 	Summary     string
@@ -18,8 +13,11 @@ type Alert struct {
 	Name        string
 	Expr        string
 	For         time.Duration
-	Labels      Labels
+	Labels      map[string]string
 	Annotations Annotations
+
+	Start time.Time
+	End   time.Time
 }
 
 // Group grouping array of alert

@@ -41,7 +41,9 @@ func main() {
 	}()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
-	httpserver.Stop(*httpListenAddr)
+	if err := httpserver.Stop(*httpListenAddr); err != nil {
+		logger.Fatalf("cannot stop the webservice: %s", err)
+	}
 	w.stop()
 }
 

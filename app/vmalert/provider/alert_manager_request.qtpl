@@ -1,0 +1,26 @@
+{% import (
+    "time"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
+) %}
+{% stripspace %}
+
+{% func amRequest(alert *config.Alert, generatorURL string) %}
+{
+	"startsAt":{%q= alert.Start.Format(time.RFC3339Nano) %},
+	"generatorURL": {%q= generatorURL %},
+    {% if !alert.End.IsZero() %}
+    "endsAt":{%q= alert.End.Format(time.RFC3339Nano) %},
+    {% endif %}
+    "labels": {
+        "alertname":{%q= alert.Name %}
+        {% for k,v := range alert.Labels %}
+            ,{%q= k %}:{%q= v %}
+        {% endfor %}
+    },
+    "annotations": {
+        "summary": {%q= alert.Annotations.Summary %},
+        "description": {%q= alert.Annotations.Description %}
+    }
+}
+{% endfunc %}
+{% endstripspace %}
