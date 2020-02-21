@@ -23,7 +23,8 @@ var (
 	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
-	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
+	maxQueueDuration  = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
+	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetCache call")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -99,6 +100,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	if path == "/internal/resetRollupResultCache" {
+		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
+			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+			return true
+		}
+		promql.ResetRollupResultCache()
+		return true
+	}
+
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := r.URL.Path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
