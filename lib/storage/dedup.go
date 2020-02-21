@@ -58,7 +58,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 	return dstTimestamps, dstValues
 }
 
-var dedupsDuringSelect = metrics.NewCounter(`deduplicated_samples_total{type="select"}`)
+var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
 
 func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]int64, []int64) {
 	if minScrapeInterval <= 0 {
@@ -94,7 +94,7 @@ func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]
 	return dstTimestamps, dstValues
 }
 
-var dedupsDuringMerge = metrics.NewCounter(`deduplicated_samples_total{type="merge"}`)
+var dedupsDuringMerge = metrics.NewCounter(`vm_deduplicated_samples_total{type="merge"}`)
 
 func needsDedup(timestamps []int64, minDelta int64) bool {
 	if len(timestamps) == 0 {
