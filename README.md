@@ -848,6 +848,10 @@ The most interesting metrics are:
   of data loss stored in the broken parts. In the future, `vmrecover` tool will be created
   for automatic recovering from such errors.
 
+* If you see gaps on the graphs, try resetting the cache by sending request to `/internal/resetRollupResultCache`.
+  If this removes gaps on the graphs, then it is likely data with timestamps older than `-search.cacheTimestampOffset`
+  is ingested into VictoriaMetrics. Make sure that data sources have synchronized time with VictoriaMetrics.
+
 
 ### Backfilling
 
@@ -857,6 +861,9 @@ Make sure that configured `-retentionPeriod` covers timestamps for the backfille
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
+
+An alternative solution is to query `/internal/resetRollupResultCache` url after backfilling is complete. This will reset
+the query cache, which could contain incomplete data cached during the backfilling.
 
 
 ### Profiling
