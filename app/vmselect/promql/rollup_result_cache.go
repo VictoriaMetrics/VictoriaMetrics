@@ -19,7 +19,12 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var disableCache = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
+var (
+	disableCache         = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
+	cacheTimestampOffset = flag.Duration("search.cacheTimestampOffset", 5*time.Minute, "The maximum duration since the current time for response data, "+
+		"which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses "+
+		"due to time synchronization issues between VictoriaMetrics and data sources")
+)
 
 var rollupResultCacheV = &rollupResultCache{
 	c: workingsetcache.New(1024*1024, time.Hour), // This is a cache for testing.
@@ -220,10 +225,10 @@ func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window in
 		return
 	}
 
-	// Remove values up to currentTime - step - maxSilenceInterval,
+	// Remove values up to currentTime - step - cacheTimestampOffset,
 	// since these values may be added later.
 	timestamps := tss[0].Timestamps
-	deadline := (time.Now().UnixNano() / 1e6) - ec.Step - maxSilenceInterval
+	deadline := (time.Now().UnixNano() / 1e6) - ec.Step - cacheTimestampOffset.Milliseconds()
 	i := len(timestamps) - 1
 	for i >= 0 && timestamps[i] > deadline {
 		i--
