@@ -33,7 +33,8 @@ var (
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
 		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
 		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
-	storageNodes = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
+	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetCache call")
+	storageNodes      = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -144,8 +145,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
-	path := r.URL.Path
+	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if path == "/internal/resetRollupResultCache" {
+		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
+			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+			return true
+		}
 		promql.ResetRollupResultCache()
 		return true
 	}
