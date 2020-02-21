@@ -137,6 +137,7 @@ var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="pr
 func ResetRollupResultCache() {
 	rollupResultCacheResets.Inc()
 	rollupResultCacheV.c.Reset()
+	logger.Infof("rollupResult cache has been cleared")
 }
 
 func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
