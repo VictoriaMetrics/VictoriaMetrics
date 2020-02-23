@@ -4740,7 +4740,7 @@ func TestExecSuccess(t *testing.T) {
 		}}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0.9, 0.32, 0.82, 0.13, 0.28, 0.86},
+			Values:     []float64{0.85, 0.15, 0.43, 0.76, 0.47, 0.21},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{{
@@ -4758,7 +4758,7 @@ func TestExecSuccess(t *testing.T) {
 		}}
 		r4 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0.9, 0.94, 0.97, 0.93, 0.98, 0.92},
+			Values:     []float64{0.85, 0.94, 0.97, 0.93, 0.98, 0.92},
 			Timestamps: timestampsExpected,
 		}
 		r4.MetricName.Tags = []storage.Tag{{
