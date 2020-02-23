@@ -38,8 +38,19 @@ func (rs *Rows) Reset() {
 //
 // s must be unchanged until rs is in use.
 func (rs *Rows) Unmarshal(s string) {
+	rs.UnmarshalWithErrLogger(s, stdErrLogger)
+}
+
+func stdErrLogger(s string) {
+	logger.ErrorfSkipframes(1, "%s", s)
+}
+
+// UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
+//
+// It calls errLogger for logging parsing errors.
+func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	noEscapes := strings.IndexByte(s, '\\') < 0
-	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes)
+	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }
 
 // Row is a single Prometheus row.
@@ -136,20 +147,20 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 	return tagsPool, nil
 }
 
-func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool) ([]Row, []Tag) {
+func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			return unmarshalRow(dst, s, tagsPool, noEscapes)
+			return unmarshalRow(dst, s, tagsPool, noEscapes, errLogger)
 		}
-		dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes)
+		dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes, errLogger)
 		s = s[n+1:]
 	}
 	return dst, tagsPool
 }
 
-func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool) ([]Row, []Tag) {
+func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
 	if len(s) > 0 && s[len(s)-1] == '\r' {
 		s = s[:len(s)-1]
 	}
@@ -172,7 +183,8 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool) ([]Row, [
 	tagsPool, err = r.unmarshal(s, tagsPool, noEscapes)
 	if err != nil {
 		dst = dst[:len(dst)-1]
-		logger.Errorf("cannot unmarshal Prometheus line %q: %s", s, err)
+		msg := fmt.Sprintf("cannot unmarshal Prometheus line %q: %s", s, err)
+		errLogger(msg)
 		invalidLines.Inc()
 	}
 	return dst, tagsPool

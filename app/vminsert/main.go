@@ -3,16 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -20,9 +20,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
+	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
+	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -38,9 +42,9 @@ var (
 )
 
 var (
-	graphiteServer     *graphite.Server
-	opentsdbServer     *opentsdb.Server
-	opentsdbhttpServer *opentsdbhttp.Server
+	graphiteServer     *graphiteserver.Server
+	opentsdbServer     *opentsdbserver.Server
+	opentsdbhttpServer *opentsdbhttpserver.Server
 )
 
 func main() {
@@ -58,15 +62,21 @@ func main() {
 
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 
-	concurrencylimiter.Init()
+	writeconcurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
-		graphiteServer = graphite.MustStart(*graphiteListenAddr)
+		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, func(r io.Reader) error {
+			var at auth.Token // TODO: properly initialize auth token
+			return graphite.InsertHandler(&at, r)
+		})
 	}
 	if len(*opentsdbListenAddr) > 0 {
-		opentsdbServer = opentsdb.MustStart(*opentsdbListenAddr)
+		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, func(r io.Reader) error {
+			var at auth.Token // TODO: properly initialize auth token
+			return opentsdb.InsertHandler(&at, r)
+		}, opentsdbhttp.InsertHandler)
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
-		opentsdbhttpServer = opentsdbhttp.MustStart(*opentsdbHTTPListenAddr)
+		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, opentsdbhttp.InsertHandler)
 	}
 
 	go func() {
@@ -122,7 +132,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch p.Suffix {
 	case "prometheus/", "prometheus", "prometheus/api/v1/write":
 		prometheusWriteRequests.Inc()
-		if err := prometheus.InsertHandler(at, r); err != nil {
+		if err := promremotewrite.InsertHandler(at, r); err != nil {
 			prometheusWriteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true

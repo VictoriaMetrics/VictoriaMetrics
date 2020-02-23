@@ -212,7 +212,7 @@ func newWriter(f *os.File, nocache bool) *Writer {
 // MustClose syncs the underlying file to storage and then closes it.
 func (w *Writer) MustClose() {
 	if err := w.bw.Flush(); err != nil {
-		logger.Panicf("FATAL: cannot flush data to file %q: %s", w.f.Name(), err)
+		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
 	}
 	putBufioWriter(w.bw)
 	w.bw = nil
@@ -251,6 +251,14 @@ func (w *Writer) Write(p []byte) (int, error) {
 		return n, fmt.Errorf("advise error for %q: %s", w.f.Name(), err)
 	}
 	return n, nil
+}
+
+// MustFlush flushes all the buffered data to file.
+func (w *Writer) MustFlush() {
+	if err := w.bw.Flush(); err != nil {
+		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
+	}
+	// Do not call w.f.Sync() for performance reasons.
 }
 
 type statWriter struct {

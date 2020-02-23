@@ -1,0 +1,6 @@
+scrape_configs:
+- job_name: foo
+  file_sd_configs:
+  - files: ["file_sd_*.yml"]
+    refresh_interval: 10s
+  - fules: ["file_sd.json"]

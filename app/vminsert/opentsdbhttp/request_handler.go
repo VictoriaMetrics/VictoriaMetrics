@@ -1,156 +1,68 @@
 package opentsdbhttp
 
 import (
-	"flag"
 	"fmt"
-	"io"
 	"net/http"
-	"runtime"
-	"sync"
-	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
-
 var (
 	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdb-http"}`)
-	rowsPerInsert = metrics.NewSummary(`vm_rows_per_insert{type="opentsdb-http"}`)
-
-	readCalls       = metrics.NewCounter(`vm_read_calls_total{name="opentsdb-http"}`)
-	readErrors      = metrics.NewCounter(`vm_read_errors_total{name="opentsdb-http"}`)
-	unmarshalErrors = metrics.NewCounter(`vm_unmarshal_errors_total{name="opentsdb-http"}`)
+	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="opentsdbhttp"}`)
 )
 
-// insertHandler processes HTTP OpenTSDB put requests.
+// InsertHandler processes HTTP OpenTSDB put requests.
 // See http://opentsdb.net/docs/build/html/api_http/put.html
-func insertHandler(at *auth.Token, req *http.Request) error {
-	return concurrencylimiter.Do(func() error {
-		return insertHandlerInternal(at, req)
-	})
+func InsertHandler(req *http.Request) error {
+	path := req.URL.Path
+	p, err := httpserver.ParsePath(path)
+	if err != nil {
+		return fmt.Errorf("cannot parse path %q: %s", path, err)
+	}
+	if p.Prefix != "insert" {
+		// This is not our link.
+		return fmt.Errorf("unexpected path requested on HTTP OpenTSDB server: %q", path)
+	}
+	at, err := auth.NewToken(p.AuthToken)
+	if err != nil {
+		return fmt.Errorf("auth error: %s", err)
+	}
+	switch p.Suffix {
+	case "api/put", "opentsdb/api/put":
+		return writeconcurrencylimiter.Do(func() error {
+			return parser.ParseStream(req, func(rows []parser.Row) error {
+				return insertRows(at, rows)
+			})
+		})
+	default:
+		return fmt.Errorf("unexpected path requested on HTTP OpenTSDB server: %q", path)
+	}
 }
 
-func insertHandlerInternal(at *auth.Token, req *http.Request) error {
-	readCalls.Inc()
+func insertRows(at *auth.Token, rows []parser.Row) error {
+	ctx := netstorage.GetInsertCtx()
+	defer netstorage.PutInsertCtx(ctx)
 
-	r := req.Body
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			readErrors.Inc()
-			return fmt.Errorf("cannot read gzipped http protocol data: %s", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
-	}
-
-	ctx := getPushCtx()
-	defer putPushCtx(ctx)
-
-	// Read the request in ctx.reqBuf
-	lr := io.LimitReader(r, int64(*maxInsertRequestSize)+1)
-	reqLen, err := ctx.reqBuf.ReadFrom(lr)
-	if err != nil {
-		readErrors.Inc()
-		return fmt.Errorf("cannot read HTTP OpenTSDB request: %s", err)
-	}
-	if reqLen > int64(*maxInsertRequestSize) {
-		readErrors.Inc()
-		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed `-opentsdbhttp.maxInsertRequestSize=%d` bytes", *maxInsertRequestSize)
-	}
-
-	// Unmarshal the request to ctx.Rows
-	p := opentsdbhttp.GetParser()
-	defer opentsdbhttp.PutParser(p)
-	v, err := p.ParseBytes(ctx.reqBuf.B)
-	if err != nil {
-		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %s", err)
-	}
-	ctx.Rows.Unmarshal(v)
-
-	// Fill in missing timestamps
-	currentTimestamp := time.Now().Unix()
-	rows := ctx.Rows.Rows
 	for i := range rows {
 		r := &rows[i]
-		if r.Timestamp == 0 {
-			r.Timestamp = currentTimestamp
-		}
-	}
-
-	// Convert timestamps in seconds to milliseconds if needed.
-	// See http://opentsdb.net/docs/javadoc/net/opentsdb/core/Const.html#SECOND_MASK
-	for i := range rows {
-		r := &rows[i]
-		if r.Timestamp&secondMask == 0 {
-			r.Timestamp *= 1e3
-		}
-	}
-
-	// Insert ctx.Rows to db.
-	ic := &ctx.Common
-	ic.Reset()
-	for i := range rows {
-		r := &rows[i]
-		ic.Labels = ic.Labels[:0]
-		ic.AddLabel("", r.Metric)
+		ctx.Labels = ctx.Labels[:0]
+		ctx.AddLabel("", r.Metric)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			ic.AddLabel(tag.Key, tag.Value)
+			ctx.AddLabel(tag.Key, tag.Value)
 		}
-		if err := ic.WriteDataPoint(at, ic.Labels, r.Timestamp, r.Value); err != nil {
+		if err := ctx.WriteDataPoint(at, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
 	}
 	rowsInserted.Get(at).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
-	return ic.FlushBufs()
+	return ctx.FlushBufs()
 }
-
-const secondMask int64 = 0x7FFFFFFF00000000
-
-type pushCtx struct {
-	Rows   opentsdbhttp.Rows
-	Common netstorage.InsertCtx
-
-	reqBuf bytesutil.ByteBuffer
-}
-
-func (ctx *pushCtx) reset() {
-	ctx.Rows.Reset()
-	ctx.Common.Reset()
-	ctx.reqBuf.Reset()
-}
-
-func getPushCtx() *pushCtx {
-	select {
-	case ctx := <-pushCtxPoolCh:
-		return ctx
-	default:
-		if v := pushCtxPool.Get(); v != nil {
-			return v.(*pushCtx)
-		}
-		return &pushCtx{}
-	}
-}
-
-func putPushCtx(ctx *pushCtx) {
-	ctx.reset()
-	select {
-	case pushCtxPoolCh <- ctx:
-	default:
-		pushCtxPool.Put(ctx)
-	}
-}
-
-var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))

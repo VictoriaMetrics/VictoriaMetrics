@@ -156,7 +156,7 @@ func unmarshalRow(dst []Row, o *fastjson.Value, tagsPool []Tag) ([]Row, []Tag) {
 	return dst, tagsPool
 }
 
-var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="opentsdb-http"}`)
+var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="opentsdbhttp"}`)
 
 func unmarshalTags(dst []Tag, o *fastjson.Object) ([]Tag, error) {
 	var err error
