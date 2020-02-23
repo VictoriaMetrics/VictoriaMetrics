@@ -1434,10 +1434,17 @@ func getCandlestickValues(rfa *rollupFuncArg) []float64 {
 	return rfa.values[:len(timestamps)]
 }
 
+func getPrevValueForCandlestick(rfa *rollupFuncArg) float64 {
+	if rfa.prevTimestamp+rfa.step == rfa.currTimestamp {
+		return rfa.prevValue
+	}
+	return nan
+}
+
 func rollupOpen(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
 	if len(values) == 0 {
-		return rfa.prevValue
+		return getPrevValueForCandlestick(rfa)
 	}
 	return values[0]
 }
@@ -1445,7 +1452,7 @@ func rollupOpen(rfa *rollupFuncArg) float64 {
 func rollupClose(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
 	if len(values) == 0 {
-		return rfa.prevValue
+		return getPrevValueForCandlestick(rfa)
 	}
 	return values[len(values)-1]
 }
@@ -1453,7 +1460,7 @@ func rollupClose(rfa *rollupFuncArg) float64 {
 func rollupHigh(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
 	if len(values) == 0 {
-		return rfa.prevValue
+		return getPrevValueForCandlestick(rfa)
 	}
 	max := values[0]
 	for _, v := range values[1:] {
@@ -1467,7 +1474,7 @@ func rollupHigh(rfa *rollupFuncArg) float64 {
 func rollupLow(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
 	if len(values) == 0 {
-		return rfa.prevValue
+		return getPrevValueForCandlestick(rfa)
 	}
 	min := values[0]
 	for _, v := range values[1:] {
