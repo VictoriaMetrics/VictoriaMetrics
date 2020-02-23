@@ -6,15 +6,20 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/concurrencylimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prompush"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
+	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
+	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -28,29 +33,31 @@ var (
 )
 
 var (
-	graphiteServer     *graphite.Server
-	opentsdbServer     *opentsdb.Server
-	opentsdbhttpServer *opentsdbhttp.Server
+	graphiteServer     *graphiteserver.Server
+	opentsdbServer     *opentsdbserver.Server
+	opentsdbhttpServer *opentsdbhttpserver.Server
 )
 
 // Init initializes vminsert.
 func Init() {
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 
-	concurrencylimiter.Init()
+	writeconcurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
-		graphiteServer = graphite.MustStart(*graphiteListenAddr)
+		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
 	}
 	if len(*opentsdbListenAddr) > 0 {
-		opentsdbServer = opentsdb.MustStart(*opentsdbListenAddr)
+		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, opentsdb.InsertHandler, opentsdbhttp.InsertHandler)
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
-		opentsdbhttpServer = opentsdbhttp.MustStart(*opentsdbHTTPListenAddr)
+		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, opentsdbhttp.InsertHandler)
 	}
+	promscrape.Init(prompush.Push)
 }
 
 // Stop stops vminsert.
 func Stop() {
+	promscrape.Stop()
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
 	}
@@ -68,7 +75,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	case "/api/v1/write":
 		prometheusWriteRequests.Inc()
-		if err := prometheus.InsertHandler(r); err != nil {
+		if err := promremotewrite.InsertHandler(r); err != nil {
 			prometheusWriteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true

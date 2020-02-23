@@ -9,6 +9,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.10.0
+	github.com/valyala/fasthttp v1.9.0
 	github.com/valyala/fastjson v1.5.0
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.6.4
@@ -18,6 +19,7 @@ require (
 	golang.org/x/sys v0.0.0-20200212091648-12a6c2dcc1e4
 	golang.org/x/tools v0.0.0-20200214225126-5916a50871fb // indirect
 	google.golang.org/api v0.17.0
+	gopkg.in/yaml.v2 v2.2.8
 )
 
 go 1.12

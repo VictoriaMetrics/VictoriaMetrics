@@ -53,7 +53,9 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   to S3 or GCS with [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md) / [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md).
   See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-* Supports metrics' ingestion and [backfilling](#backfilling) via the following protocols:
+* Supports metrics' scraping, ingestion and [backfilling](#backfilling) via the following protocols:
+  * [Metrics from Prometheus exporters](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
+  such as [node_exporter](https://github.com/prometheus/node_exporter). See [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for details.
   * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
   * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
@@ -75,6 +77,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   - [Grafana setup](#grafana-setup)
   - [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
   - [How to apply new config to VictoriaMetrics?](#how-to-apply-new-config-to-victoriametrics)
+  - [How to scrape Prometheus exporters such as node_exporter?](#how-to-scrape-prometheus-exporters-such-as-node-exporter)
   - [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
   - [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
   - [Querying Graphite data](#querying-graphite-data)
@@ -236,6 +239,20 @@ VictoriaMetrics must be restarted for applying new config:
 
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
+
+
+### How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)?
+
+VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file).
+Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets.
+Currently the following [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) types are supported:
+
+* [static_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config)
+* [file_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config)
+
+In the future other `*_sd_config` types will be supported.
+
+See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md), which can be used as drop-in replacement for Prometheus.
 
 
 ### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)?

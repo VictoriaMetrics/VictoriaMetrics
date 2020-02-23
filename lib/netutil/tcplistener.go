@@ -32,6 +32,11 @@ func NewTCPListener(name, addr string) (*TCPListener, error) {
 	return tln, err
 }
 
+// TCP6Enabled returns true if dialing and listening for IPv4 TCP is enabled.
+func TCP6Enabled() bool {
+	return *enableTCP6
+}
+
 func getNetwork() string {
 	if *enableTCP6 {
 		// Enable both tcp4 and tcp6
