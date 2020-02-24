@@ -17,7 +17,7 @@ The recommended remote storage is [VictoriaMetrics](https://github.com/VictoriaM
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
 * Prometheus relabeling can be applied to all the collected metrics. See [these docs](#relabeling).
 * Additional labels can be added to all the collected metrics before sending them to remote storage.
-  Just pass these labels to `-remoteWrite.label` command-line flag: `-remoteWrite.label="labelName=labelValue"`.
+  Just pass these labels to `-remoteWrite.label` command-line flags: `-remoteWrite.label="labelName=labelValue"`.
 * Collected metrics can be sent simultaneously to multiple remote storage systems by providing multiple `-remoteWrite.url` args.
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath` until free space is available. The buffered metrics are sent to remote storage
@@ -27,12 +27,12 @@ The recommended remote storage is [VictoriaMetrics](https://github.com/VictoriaM
 
 ### Quick start
 
-Just pass path the following flags to `vmagent` in order to start scraping Prometheus targets:
+Just pass the following flags to `vmagent` in order to start scraping Prometheus targets:
 
 * `-promscrape.config` with the path to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`)
-* `-remoteWrite.url` with the remote storage endpoint that accepts data over Prometheus remote_write API.
-  See [the list of supported remote storage systems](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
-  `vmagent` supports sending data to multiple remote storage systems in parallel. Just set multiple `-remoteWrite.url` args.
+* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics. Multiple `-remoteWrite.url` args can be set in parallel
+  in order to replicate data concurrently to multiple remote storage systems.
+
 
 Example command line:
 
@@ -51,9 +51,8 @@ Then send Influx data to `http://vmagent-host:8429/write`. See [these docs](http
 
 ### How to collect metrics in Prometheus format?
 
-`vmagent` can be used as Prometheus replacement for metrics' scraping if path to [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)
-path is passed to `-promscrape.config` command-line flag. This file is usually named `prometheus.yml`.
-`vmagent` takes into account the following sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
+Pass the path to `prometheus.yml` to `-promscrape.config` command-line flag. `vmagent` takes into account the following
+sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
 
 * `global`
 * `scrape_configs`
@@ -87,15 +86,14 @@ Labels can be added to metrics via the following mechanisms:
 `vmagent` supports [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config).
 Additionally it provides the following extra actions:
 
-* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement`
-* `labelmap_all`: replaces all the occurences of `regex` in all the labels with the `replacement`
+* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`
+* `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`
 
 The relabeling can be defined in the following places:
 
-* At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied when parsing the file during `vmagent` startup
+* At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to targets when parsing the file during `vmagent` startup
   or during config reload after sending `SIGHUP` signal to `vmagent`  via `kill -HUP`.
-* At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to metrics after each scrape for configured targets.
-  Changes to this section can be applied after sending `SIGHUP` signal to `vmagent`.
+* At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to metrics after each scrape for the configured targets.
 * At `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to `-remoteWrite.url`.
 
 Read more about relabeling in the following articles:
@@ -109,13 +107,13 @@ Read more about relabeling in the following articles:
 
 ### Monitoring
 
-`vmagent` export various metrics in Prometheus exposition format at `/metrics` page. It is recommended setting up regular scraping of this page
+`vmagent` exports various metrics in Prometheus exposition format at `/metrics` page. It is recommended setting up regular scraping of this page
 either via `vmagent` itself or via Prometheus, so the exported metrics could be analyzed later.
 
 
 ### Troubleshooting
 
-* It is recommended increasing the maximum number of open file in the system (`ulimit -n`) when scraping big number of targets,
+* It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping big number of targets,
   since `vmagent` establishes at least a single TCP connection per each target.
 
 * It is recommended increasing `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
@@ -148,4 +146,3 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 Run `make package-vmagent`. It builds `victoriametrics/vmagent:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
-
