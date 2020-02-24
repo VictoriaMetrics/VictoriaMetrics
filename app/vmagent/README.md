@@ -1,38 +1,45 @@
 ## vmagent
 
-`vmagent` collects metrics from various sources and pushes them to any remote storage for Prometheus
-from [this list](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
-The recommended remote storage is [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
+`vmagent` is a tiny but brave agent, which helps you collecting metrics from various sources
+and storing them to [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
+
+<img alt="vmagent" src="logo.png">
+
+
+### Motivation
+
+While VictoriaMetrics provides an efficient solution to store and observe metrics, our users needed something fast
+and RAM friendly to scrape metrics from Prometheus-compatible exporters to VictoriaMetrics.
+Also, we found that users’ infrastructure is like snowflakes - never alike, and we decided to add more flexibility
+to `vmagent` (like the ability to push metrics instead of pulling them). We did our best and plan to do even more.
 
 
 ### Features
 
 * Can be used as drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
-  Just use `-promscrape.config=/path/to/prometheus.yml` command-line flag.
+  See [Quick Start](#quick-start) for details.
+* Can add, remove and modify labels via Prometheus relabeling. See [these docs](#relabeling) for details.
 * Accepts data via all the ingestion protocols supported by VictoriaMetrics:
   * Influx line protocol via `http://<vmagent>:8429/write`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
   * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data).
   * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
   * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-opentsdb-compatible-agents).
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
-* Prometheus relabeling can be applied to all the collected metrics. See [these docs](#relabeling).
-* Additional labels can be added to all the collected metrics before sending them to remote storage.
-  Just pass these labels to `-remoteWrite.label` command-line flags: `-remoteWrite.label="labelName=labelValue"`.
-* Collected metrics can be sent simultaneously to multiple remote storage systems by providing multiple `-remoteWrite.url` args.
+* Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
-  are buffered at `-remoteWrite.tmpDataPath` until free space is available. The buffered metrics are sent to remote storage
-  as soon as connection to remote storage is recovered.
+  are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as connection
+  to remote storage is recovered.
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth comparing to Prometheus.
 
 
-### Quick start
+### Quick Start
 
-Just pass the following flags to `vmagent` in order to start scraping Prometheus targets:
+Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
+and pass the following flags to `vmagent` binary in order to start scraping Prometheus targets:
 
 * `-promscrape.config` with the path to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`)
 * `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics. Multiple `-remoteWrite.url` args can be set in parallel
   in order to replicate data concurrently to multiple remote storage systems.
-
 
 Example command line:
 
@@ -47,6 +54,10 @@ If you need collecting only Influx data, then the following command line would b
 ```
 
 Then send Influx data to `http://vmagent-host:8429/write`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
+
+`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/).
+
+Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
 
 ### How to collect metrics in Prometheus format?
