@@ -138,7 +138,8 @@ The following command-line flags are used the most:
 Pass `-help` to see all the available flags with description and default values.
 
 Default flag values may be read from environment variables if `-envflag.enable` command-line flag is set.
-See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311) for more details.
+Substitute dots with underscores in env var names. Alternative syntax can be used for setting repeatable flags:
+`-arg=foo -arg=bar` can be written as `-arg=foo,bar`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311) for more details.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
