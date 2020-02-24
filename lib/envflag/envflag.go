@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strings"
 )
 
 var enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables additionally to command line. "+
@@ -34,11 +35,18 @@ func Parse() {
 			return
 		}
 		// Get flag value from environment var.
-		if v, ok := os.LookupEnv(f.Name); ok {
+		fname := getEnvFlagName(f.Name)
+		if v, ok := os.LookupEnv(fname); ok {
 			if err := f.Value.Set(v); err != nil {
 				// Do not use lib/logger here, since it is uninitialized yet.
-				log.Fatalf("cannot set flag %s to %q, which is read from environment variable: %s", f.Name, v, err)
+				log.Fatalf("cannot set flag %s to %q, which is read from environment variable %q: %s", f.Name, v, fname, err)
 			}
 		}
 	})
+}
+
+func getEnvFlagName(s string) string {
+	// Substitute dots with underscores, since env var names cannot contain dots.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311#issuecomment-586354129 for details.
+	return strings.ReplaceAll(s, ".", "_")
 }
