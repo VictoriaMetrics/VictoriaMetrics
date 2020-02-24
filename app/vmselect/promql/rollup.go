@@ -1434,17 +1434,21 @@ func getCandlestickValues(rfa *rollupFuncArg) []float64 {
 	return rfa.values[:len(timestamps)]
 }
 
-func getPrevValueForCandlestick(rfa *rollupFuncArg) float64 {
-	if rfa.prevTimestamp+rfa.step == rfa.currTimestamp {
+func getFirstValueForCandlestick(rfa *rollupFuncArg) float64 {
+	if rfa.prevTimestamp+rfa.step >= rfa.currTimestamp {
 		return rfa.prevValue
 	}
 	return nan
 }
 
 func rollupOpen(rfa *rollupFuncArg) float64 {
+	v := getFirstValueForCandlestick(rfa)
+	if !math.IsNaN(v) {
+		return v
+	}
 	values := getCandlestickValues(rfa)
 	if len(values) == 0 {
-		return getPrevValueForCandlestick(rfa)
+		return nan
 	}
 	return values[0]
 }
@@ -1452,18 +1456,22 @@ func rollupOpen(rfa *rollupFuncArg) float64 {
 func rollupClose(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
 	if len(values) == 0 {
-		return getPrevValueForCandlestick(rfa)
+		return getFirstValueForCandlestick(rfa)
 	}
 	return values[len(values)-1]
 }
 
 func rollupHigh(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	if len(values) == 0 {
-		return getPrevValueForCandlestick(rfa)
+	max := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(max) {
+		if len(values) == 0 {
+			return nan
+		}
+		max = values[0]
+		values = values[1:]
 	}
-	max := values[0]
-	for _, v := range values[1:] {
+	for _, v := range values {
 		if v > max {
 			max = v
 		}
@@ -1473,11 +1481,15 @@ func rollupHigh(rfa *rollupFuncArg) float64 {
 
 func rollupLow(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	if len(values) == 0 {
-		return getPrevValueForCandlestick(rfa)
+	min := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(min) {
+		if len(values) == 0 {
+			return nan
+		}
+		min = values[0]
+		values = values[1:]
 	}
-	min := values[0]
-	for _, v := range values[1:] {
+	for _, v := range values {
 		if v < min {
 			min = v
 		}
