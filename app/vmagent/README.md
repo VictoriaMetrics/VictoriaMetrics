@@ -3,7 +3,7 @@
 `vmagent` is a tiny but brave agent, which helps you collecting metrics from various sources
 and storing them to [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
 
-<img alt="vmagent" src="logo.png">
+<img alt="vmagent" src="vmagent.png">
 
 
 ### Motivation
