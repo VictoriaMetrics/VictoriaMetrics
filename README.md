@@ -142,7 +142,7 @@ It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
 #### Environment variables
 
-Each flag values can be set thru environment variables if needed by following these rules:
+Each flag values can be set thru environment variables by following these rules:
 
 * The `-envflag.enable` flag must be set
 * Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
