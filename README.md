@@ -73,6 +73,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ### Table of contents
 
   - [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+      - [Environment variables](#environment-variables)
   - [Prometheus setup](#prometheus-setup)
   - [Grafana setup](#grafana-setup)
   - [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
