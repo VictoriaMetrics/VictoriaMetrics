@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	writeRequests = metrics.NewCounter(`vm_opentsdbhttp_requests_total{name="write", net="tcp"}`)
-	writeErrors   = metrics.NewCounter(`vm_opentsdbhttp_request_errors_total{name="write", net="tcp"}`)
+	writeRequests = metrics.NewCounter(`vm_ingestserver_requests_total{type="opentsdbhttp", name="write", net="tcp"}`)
+	writeErrors   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="opentsdbhttp", name="write", net="tcp"}`)
 )
 
 // Server represents HTTP OpenTSDB server.
