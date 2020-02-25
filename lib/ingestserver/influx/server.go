@@ -1,4 +1,4 @@
-package graphite
+package influx
 
 import (
 	"io"
@@ -15,14 +15,14 @@ import (
 )
 
 var (
-	writeRequestsTCP = metrics.NewCounter(`vm_ingestserver_requests_total{type="graphite", name="write", net="tcp"}`)
-	writeErrorsTCP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="graphite", name="write", net="tcp"}`)
+	writeRequestsTCP = metrics.NewCounter(`vm_ingestserver_requests_total{type="influx", name="write", net="tcp"}`)
+	writeErrorsTCP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="influx", name="write", net="tcp"}`)
 
-	writeRequestsUDP = metrics.NewCounter(`vm_ingestserver_requests_total{type="graphite", name="write", net="udp"}`)
-	writeErrorsUDP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="graphite", name="write", net="udp"}`)
+	writeRequestsUDP = metrics.NewCounter(`vm_ingestserver_requests_total{type="influx", name="write", net="udp"}`)
+	writeErrorsUDP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="influx", name="write", net="udp"}`)
 )
 
-// Server accepts Graphite plaintext lines over TCP and UDP.
+// Server accepts Influx line protocol over TCP and UDP.
 type Server struct {
 	addr  string
 	lnTCP net.Listener
@@ -30,22 +30,22 @@ type Server struct {
 	wg    sync.WaitGroup
 }
 
-// MustStart starts graphite server on the given addr.
+// MustStart starts Influx server on the given addr.
 //
 // The incoming connections are processed with insertHandler.
 //
 // MustStop must be called on the returned server when it is no longer needed.
 func MustStart(addr string, insertHandler func(r io.Reader) error) *Server {
-	logger.Infof("starting TCP Graphite server at %q", addr)
-	lnTCP, err := netutil.NewTCPListener("graphite", addr)
+	logger.Infof("starting TCP Influx server at %q", addr)
+	lnTCP, err := netutil.NewTCPListener("influx", addr)
 	if err != nil {
-		logger.Fatalf("cannot start TCP Graphite server at %q: %s", addr, err)
+		logger.Fatalf("cannot start TCP Influx server at %q: %s", addr, err)
 	}
 
-	logger.Infof("starting UDP Graphite server at %q", addr)
+	logger.Infof("starting UDP Influx server at %q", addr)
 	lnUDP, err := net.ListenPacket("udp4", addr)
 	if err != nil {
-		logger.Fatalf("cannot start UDP Graphite server at %q: %s", addr, err)
+		logger.Fatalf("cannot start UDP Influx server at %q: %s", addr, err)
 	}
 
 	s := &Server{
@@ -57,29 +57,29 @@ func MustStart(addr string, insertHandler func(r io.Reader) error) *Server {
 	go func() {
 		defer s.wg.Done()
 		serveTCP(lnTCP, insertHandler)
-		logger.Infof("stopped TCP Graphite server at %q", addr)
+		logger.Infof("stopped TCP Influx server at %q", addr)
 	}()
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 		serveUDP(lnUDP, insertHandler)
-		logger.Infof("stopped UDP Graphite server at %q", addr)
+		logger.Infof("stopped UDP Influx server at %q", addr)
 	}()
 	return s
 }
 
 // MustStop stops the server.
 func (s *Server) MustStop() {
-	logger.Infof("stopping TCP Graphite server at %q...", s.addr)
+	logger.Infof("stopping TCP Influx server at %q...", s.addr)
 	if err := s.lnTCP.Close(); err != nil {
-		logger.Errorf("cannot close TCP Graphite server: %s", err)
+		logger.Errorf("cannot close TCP Influx server: %s", err)
 	}
-	logger.Infof("stopping UDP Graphite server at %q...", s.addr)
+	logger.Infof("stopping UDP Influx server at %q...", s.addr)
 	if err := s.lnUDP.Close(); err != nil {
-		logger.Errorf("cannot close UDP Graphite server: %s", err)
+		logger.Errorf("cannot close UDP Influx server: %s", err)
 	}
 	s.wg.Wait()
-	logger.Infof("TCP and UDP Graphite servers at %q have been stopped", s.addr)
+	logger.Infof("TCP and UDP Influx servers at %q have been stopped", s.addr)
 }
 
 func serveTCP(ln net.Listener, insertHandler func(r io.Reader) error) {
@@ -88,22 +88,22 @@ func serveTCP(ln net.Listener, insertHandler func(r io.Reader) error) {
 		if err != nil {
 			if ne, ok := err.(net.Error); ok {
 				if ne.Temporary() {
-					logger.Errorf("graphite: temporary error when listening for TCP addr %q: %s", ln.Addr(), err)
+					logger.Errorf("influx: temporary error when listening for TCP addr %q: %s", ln.Addr(), err)
 					time.Sleep(time.Second)
 					continue
 				}
 				if strings.Contains(err.Error(), "use of closed network connection") {
 					break
 				}
-				logger.Fatalf("unrecoverable error when accepting TCP Graphite connections: %s", err)
+				logger.Fatalf("unrecoverable error when accepting TCP Influx connections: %s", err)
 			}
-			logger.Fatalf("unexpected error when accepting TCP Graphite connections: %s", err)
+			logger.Fatalf("unexpected error when accepting TCP Influx connections: %s", err)
 		}
 		go func() {
 			writeRequestsTCP.Inc()
 			if err := insertHandler(c); err != nil {
 				writeErrorsTCP.Inc()
-				logger.Errorf("error in TCP Graphite conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
+				logger.Errorf("error in TCP Influx conn %q<->%q: %s", c.LocalAddr(), c.RemoteAddr(), err)
 			}
 			_ = c.Close()
 		}()
@@ -127,7 +127,7 @@ func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
 					writeErrorsUDP.Inc()
 					if ne, ok := err.(net.Error); ok {
 						if ne.Temporary() {
-							logger.Errorf("graphite: temporary error when listening for UDP addr %q: %s", ln.LocalAddr(), err)
+							logger.Errorf("influx: temporary error when listening for UDP addr %q: %s", ln.LocalAddr(), err)
 							time.Sleep(time.Second)
 							continue
 						}
@@ -135,14 +135,14 @@ func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
 							break
 						}
 					}
-					logger.Errorf("cannot read Graphite UDP data: %s", err)
+					logger.Errorf("cannot read Influx UDP data: %s", err)
 					continue
 				}
 				bb.B = bb.B[:n]
 				writeRequestsUDP.Inc()
 				if err := insertHandler(bb.NewReader()); err != nil {
 					writeErrorsUDP.Inc()
-					logger.Errorf("error in UDP Graphite conn %q<->%q: %s", ln.LocalAddr(), addr, err)
+					logger.Errorf("error in UDP Influx conn %q<->%q: %s", ln.LocalAddr(), addr, err)
 					continue
 				}
 			}

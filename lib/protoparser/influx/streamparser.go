@@ -3,7 +3,6 @@ package influx
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"runtime"
 	"sync"
 	"time"
@@ -13,15 +12,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// ParseStream parses req and calls callback for the parsed rows.
+// ParseStream parses r with the given args and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from req.
+// The callback can be called multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(req *http.Request, callback func(db string, rows []Row) error) error {
+func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {
 	readCalls.Inc()
-	r := req.Body
-	if req.Header.Get("Content-Encoding") == "gzip" {
+	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return fmt.Errorf("cannot read gzipped influx line protocol data: %s", err)
@@ -30,9 +28,9 @@ func ParseStream(req *http.Request, callback func(db string, rows []Row) error) 
 		r = zr
 	}
 
-	q := req.URL.Query()
+	// Default precision is 'ns'. See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp
 	tsMultiplier := int64(1e6)
-	switch q.Get("precision") {
+	switch precision {
 	case "ns":
 		tsMultiplier = 1e6
 	case "u":
@@ -46,9 +44,6 @@ func ParseStream(req *http.Request, callback func(db string, rows []Row) error) 
 	case "h":
 		tsMultiplier = -1e3 * 3600
 	}
-
-	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
-	db := q.Get("db")
 
 	ctx := getStreamContext()
 	defer putStreamContext(ctx)

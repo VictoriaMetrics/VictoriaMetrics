@@ -57,7 +57,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * [Metrics from Prometheus exporters](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
   such as [node_exporter](https://github.com/prometheus/node_exporter). See [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for details.
   * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+  * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
     if `-graphiteListenAddr` is set.
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol) if `-opentsdbListenAddr` is set.
@@ -267,6 +267,8 @@ For instance, put the following lines into `Telegraf` config, so it sends data t
 ```
 
 Do not forget substituting `<victoriametrics-addr>` with the real address where VictoriaMetrics runs.
+
+Another option is to enable TCP and UDP receiver for Influx line protocol via `-influxListenAddr` command-line flag.
 
 VictoriaMetrics maps Influx data using the following rules:
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value

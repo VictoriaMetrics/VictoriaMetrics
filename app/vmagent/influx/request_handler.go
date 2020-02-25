@@ -2,6 +2,7 @@ package influx
 
 import (
 	"flag"
+	"io"
 	"net/http"
 	"runtime"
 	"sync"
@@ -25,12 +26,26 @@ var (
 	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="influx"}`)
 )
 
-// InsertHandler processes remote write for influx line protocol.
+// InsertHandlerForReader processes remote write for influx line protocol.
+//
+// See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
+func InsertHandlerForReader(r io.Reader) error {
+	return writeconcurrencylimiter.Do(func() error {
+		return parser.ParseStream(r, false, "", "", insertRows)
+	})
+}
+
+// InsertHandlerForHTTP processes remote write for influx line protocol.
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
-func InsertHandler(req *http.Request) error {
+func InsertHandlerForHTTP(req *http.Request) error {
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, insertRows)
+		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+		q := req.URL.Query()
+		precision := q.Get("precision")
+		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
+		db := q.Get("db")
+		return parser.ParseStream(req.Body, isGzipped, precision, db, insertRows)
 	})
 }
 

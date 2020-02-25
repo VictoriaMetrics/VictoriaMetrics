@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
+	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -29,6 +30,7 @@ import (
 
 var (
 	httpListenAddr     = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections")
+	influxListenAddr   = flag.String("influxListenAddr", "", "TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty")
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB metrics. "+
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
@@ -37,6 +39,7 @@ var (
 )
 
 var (
+	influxServer       *influxserver.Server
 	graphiteServer     *graphiteserver.Server
 	opentsdbServer     *opentsdbserver.Server
 	opentsdbhttpServer *opentsdbhttpserver.Server
@@ -50,6 +53,9 @@ func main() {
 	startTime := time.Now()
 	remotewrite.Init()
 	writeconcurrencylimiter.Init()
+	if len(*influxListenAddr) > 0 {
+		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
+	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
 	}
@@ -77,6 +83,9 @@ func main() {
 
 	promscrape.Stop()
 
+	if len(*influxListenAddr) > 0 {
+		influxServer.MustStop()
+	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer.MustStop()
 	}
@@ -114,7 +123,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
-		if err := influx.InsertHandler(r); err != nil {
+		if err := influx.InsertHandlerForHTTP(r); err != nil {
 			influxWriteErrors.Inc()
 			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true

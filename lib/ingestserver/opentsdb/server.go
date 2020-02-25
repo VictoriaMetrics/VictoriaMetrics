@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	writeRequestsTCP = metrics.NewCounter(`vm_opentsdb_requests_total{name="write", net="tcp"}`)
-	writeErrorsTCP   = metrics.NewCounter(`vm_opentsdb_request_errors_total{name="write", net="tcp"}`)
+	writeRequestsTCP = metrics.NewCounter(`vm_ingestserver_requests_total{type="opentsdb", name="write", net="tcp"}`)
+	writeErrorsTCP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="opentsdb", name="write", net="tcp"}`)
 
-	writeRequestsUDP = metrics.NewCounter(`vm_opentsdb_requests_total{name="write", net="udp"}`)
-	writeErrorsUDP   = metrics.NewCounter(`vm_opentsdb_request_errors_total{name="write", net="udp"}`)
+	writeRequestsUDP = metrics.NewCounter(`vm_ingestserver_requests_total{type="opentsdb", name="write", net="udp"}`)
+	writeErrorsUDP   = metrics.NewCounter(`vm_ingestserver_request_errors_total{type="opentsdb", name="write", net="udp"}`)
 )
 
 // Server is a server for collecting OpenTSDB TCP and UDP metrics.
