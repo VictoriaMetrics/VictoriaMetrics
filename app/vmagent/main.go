@@ -103,10 +103,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/targets":
-		w.Header().Set("Content-Type", "text/plain")
-		promscrape.WriteHumanReadableTargetsStatus(w)
-		return true
 	case "/api/v1/import":
 		vmimportRequests.Inc()
 		if err := vmimport.InsertHandler(r); err != nil {
@@ -131,6 +127,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
+	case "/targets":
+		promscrapeTargetsRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain")
+		promscrape.WriteHumanReadableTargetsStatus(w)
+		return true
 	}
 	return false
 }
@@ -146,4 +147,6 @@ var (
 	influxWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/write", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query", protocol="influx"}`)
+
+	promscrapeTargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 )
