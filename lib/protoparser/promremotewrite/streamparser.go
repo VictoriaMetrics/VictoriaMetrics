@@ -112,7 +112,7 @@ func readSnappy(dst []byte, r io.Reader) ([]byte, error) {
 		return dst, err
 	}
 	if len(buf) > *maxInsertRequestSize {
-		return dst, fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes", *maxInsertRequestSize)
+		return dst, fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", *maxInsertRequestSize, len(buf))
 	}
 	if len(buf) > 0 && len(dst) < cap(dst) && &buf[0] == &dst[len(dst):cap(dst)][0] {
 		dst = dst[:len(dst)+len(buf)]
