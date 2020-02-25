@@ -424,7 +424,6 @@ func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfi
 		if target == "" {
 			return nil, fmt.Errorf("`static_configs` target for `job_name` %q cannot be empty", swc.jobName)
 		}
-		target = addMissingPort(swc.scheme, target)
 		labels, err := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, stc.Labels, swc.externalLabels, swc.metaLabels, swc.params)
 		if err != nil {
 			return nil, fmt.Errorf("cannot merge labels for `static_configs` target for `job_name` %q: %s", swc.jobName, err)
