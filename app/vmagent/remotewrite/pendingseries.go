@@ -160,17 +160,17 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 	}
 	bb := writeRequestBufPool.Get()
 	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
-	zb := snappyBufPool.Get()
-	zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
-	writeRequestBufPool.Put(bb)
-	if len(zb.B) <= persistentqueue.MaxBlockSize {
+	if len(bb.B) <= persistentqueue.MaxBlockSize {
+		zb := snappyBufPool.Get()
+		zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
+		writeRequestBufPool.Put(bb)
 		pushBlock(zb.B)
 		blockSizeRows.Update(float64(len(wr.Timeseries)))
 		blockSizeBytes.Update(float64(len(zb.B)))
 		snappyBufPool.Put(zb)
 		return
 	}
-	snappyBufPool.Put(zb)
+	writeRequestBufPool.Put(bb)
 
 	// Too big block. Recursively split it into smaller parts.
 	timeseries := wr.Timeseries
