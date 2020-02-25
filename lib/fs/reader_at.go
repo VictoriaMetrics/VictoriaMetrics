@@ -32,7 +32,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 	if len(p) == 0 {
 		return
 	}
-	if len(r.mmapData) == 0 || len(p) > 8*1024*1024 {
+	if len(r.mmapData) == 0 || len(p) > 8*1024 {
 		// Read big blocks directly from file.
 		// This could be faster than reading these blocks from mmap,
 		// since it triggers less page faults.
