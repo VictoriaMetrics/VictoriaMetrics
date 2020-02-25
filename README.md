@@ -73,6 +73,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ### Table of contents
 
   - [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+      - [Environment variables](#environment-variables)
   - [Prometheus setup](#prometheus-setup)
   - [Grafana setup](#grafana-setup)
   - [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
@@ -137,12 +138,15 @@ The following command-line flags are used the most:
 
 Pass `-help` to see all the available flags with description and default values.
 
-Default flag values may be read from environment variables if `-envflag.enable` command-line flag is set.
-Substitute dots with underscores in env var names. Alternative syntax can be used for setting repeatable flags:
-`-arg=foo -arg=bar` can be written as `-arg=foo,bar`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311) for more details.
-
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
+#### Environment variables
+
+Each flag values can be set thru environment variables by following these rules:
+
+* The `-envflag.enable` flag must be set
+* Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
+* For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 
 ### Prometheus setup
 
