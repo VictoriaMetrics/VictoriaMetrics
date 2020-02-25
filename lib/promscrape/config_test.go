@@ -470,7 +470,7 @@ scrape_configs:
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
-					Value: "host1:80",
+					Value: "host1",
 				},
 				{
 					Name:  "__meta_filepath",
@@ -503,7 +503,7 @@ scrape_configs:
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
-					Value: "host2:80",
+					Value: "host2",
 				},
 				{
 					Name:  "__meta_filepath",
@@ -690,7 +690,7 @@ scrape_configs:
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
-					Value: "foo.bar:443",
+					Value: "foo.bar",
 				},
 				{
 					Name:  "__metrics_path__",
@@ -724,7 +724,7 @@ scrape_configs:
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
-					Value: "aaa:443",
+					Value: "aaa",
 				},
 				{
 					Name:  "__metrics_path__",
@@ -758,7 +758,7 @@ scrape_configs:
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
-					Value: "1.2.3.4:80",
+					Value: "1.2.3.4",
 				},
 				{
 					Name:  "__metrics_path__",
@@ -1090,7 +1090,59 @@ scrape_configs:
 			TLSCertificate: &snakeoilCert,
 		},
 	})
-
+	f(`
+scrape_configs:
+  - job_name: 'snmp'
+    static_configs:
+      - targets:
+        - 192.168.1.2  # SNMP device.
+    metrics_path: /snmp
+    params:
+      module: [if_mib]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9116  # The SNMP exporter's real hostname:port.
+`, []ScrapeWork{
+		{
+			ScrapeURL:      "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "__address__",
+					Value: "127.0.0.1:9116",
+				},
+				{
+					Name:  "__metrics_path__",
+					Value: "/snmp",
+				},
+				{
+					Name: "__param_module",
+					Value: "if_mib",
+				},
+				{
+					Name: "__param_target",
+					Value: "192.168.1.2",
+				},
+				{
+					Name:  "__scheme__",
+					Value: "http",
+				},
+				{
+					Name: "instance",
+					Value: "192.168.1.2",
+				},
+				{
+					Name:  "job",
+					Value: "snmp",
+				},
+			},
+		},
+	})
 }
 
 var defaultRegexForRelabelConfig = regexp.MustCompile("^(.*)$")
