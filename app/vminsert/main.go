@@ -106,6 +106,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
+	case "/targets":
+		promscrapeTargetsRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain")
+		promscrape.WriteHumanReadableTargetsStatus(w)
+		return true
 	default:
 		// This is not our link
 		return false
@@ -123,4 +128,6 @@ var (
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/write", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/query", protocol="influx"}`)
+
+	promscrapeTargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 )
