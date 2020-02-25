@@ -1121,11 +1121,11 @@ scrape_configs:
 					Value: "/snmp",
 				},
 				{
-					Name: "__param_module",
+					Name:  "__param_module",
 					Value: "if_mib",
 				},
 				{
-					Name: "__param_target",
+					Name:  "__param_target",
 					Value: "192.168.1.2",
 				},
 				{
@@ -1133,7 +1133,7 @@ scrape_configs:
 					Value: "http",
 				},
 				{
-					Name: "instance",
+					Name:  "instance",
 					Value: "192.168.1.2",
 				},
 				{
