@@ -438,3 +438,62 @@ func (s *Set) registerMetric(name string, m metric) {
 		panic(fmt.Errorf("BUG: metric %q is already registered", name))
 	}
 }
+
+// UnregisterMetric removes metric with the given name from s.
+//
+// True is returned if the metric has been removed.
+// False is returned if the given metric is missing in s.
+func (s *Set) UnregisterMetric(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	nm, ok := s.m[name]
+	if !ok {
+		return false
+	}
+	m := nm.metric
+
+	delete(s.m, name)
+
+	// remove metric from s.a
+	found := false
+	for i, nm := range s.a {
+		if nm.name == name {
+			s.a = append(s.a[:i], s.a[i+1:]...)
+			found = true
+			break
+		}
+	}
+	if !found {
+		panic(fmt.Errorf("BUG: cannot find metric %q in the list of registered metrics", name))
+	}
+	sm, ok := m.(*Summary)
+	if !ok {
+		// There is no need in cleaning up s.summaries.
+		return true
+	}
+
+	// Remove sm from s.summaries
+	found = false
+	for i, xsm := range s.summaries {
+		if xsm == sm {
+			s.summaries = append(s.summaries[:i], s.summaries[i+1:]...)
+			found = true
+			break
+		}
+	}
+	if !found {
+		panic(fmt.Errorf("BUG: cannot find summary %q in the list of registered summaries", name))
+	}
+	unregisterSummary(sm)
+	return true
+}
+
+// ListMetricNames returns a list of all the metrics in s.
+func (s *Set) ListMetricNames() []string {
+	var list []string
+	for name := range s.m {
+		list = append(list, name)
+	}
+	return list
+}

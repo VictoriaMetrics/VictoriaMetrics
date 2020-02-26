@@ -213,6 +213,25 @@ func registerSummary(sm *Summary) {
 	summariesLock.Unlock()
 }
 
+func unregisterSummary(sm *Summary) {
+	window := sm.window
+	summariesLock.Lock()
+	sms := summaries[window]
+	found := false
+	for i, xsm := range sms {
+		if xsm == sm {
+			sms = append(sms[:i], sms[i+1:]...)
+			found = true
+			break
+		}
+	}
+	if !found {
+		panic(fmt.Errorf("BUG: cannot find registered summary %p", sm))
+	}
+	summaries[window] = sms
+	summariesLock.Unlock()
+}
+
 func summariesSwapCron(window time.Duration) {
 	for {
 		time.Sleep(window / 2)
