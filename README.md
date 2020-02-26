@@ -150,8 +150,8 @@ Each flag values can be set thru environment variables by following these rules:
 
 ### Prometheus setup
 
-Prometheus must be configured with [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) 
-in order to send data to VictoriaMetrics. Add the following lines 
+Prometheus must be configured with [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
+in order to send data to VictoriaMetrics. Add the following lines
 to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`):
 
 ```yml
@@ -196,7 +196,7 @@ remote_write:
 
 Using remote write increases memory usage for Prometheus up to ~25%
 and depends on the shape of data. If you are experiencing issues with
-too high memory consumption try to lower `max_samples_per_send` 
+too high memory consumption try to lower `max_samples_per_send`
 and `capacity` params (keep in mind that these two params are tightly connected).
 Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
@@ -923,7 +923,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 - [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
 - [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
 - [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
-- [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119) 
+- [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
 - [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
 
 
