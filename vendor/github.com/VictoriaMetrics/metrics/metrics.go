@@ -41,7 +41,24 @@ var defaultSet = NewSet()
 func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 	defaultSet.WritePrometheus(w)
 	if exposeProcessMetrics {
-		writeGoMetrics(w)
-		writeProcessMetrics(w)
+		WriteProcessMetrics(w)
 	}
+}
+
+// WriteProcessMetrics writes additional process metrics in Prometheus format to w.
+//
+// Various `go_*` and `process_*` metrics are exposed for the currently
+// running process.
+//
+// The WriteProcessMetrics func is usually called in combination with writing Set metrics
+// inside "/metrics" handler:
+//
+//     http.HandleFunc("/metrics", func(w http.ResponseWriter, req *http.Request) {
+//         mySet.WritePrometheus(w)
+//         metrics.WriteProcessMetrics(w)
+//     })
+//
+func WriteProcessMetrics(w io.Writer) {
+	writeGoMetrics(w)
+	writeProcessMetrics(w)
 }
