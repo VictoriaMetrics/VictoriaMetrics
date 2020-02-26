@@ -29,7 +29,9 @@ import (
 )
 
 var (
-	httpListenAddr     = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections")
+	httpListenAddr = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections. "+
+		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
+		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''")
 	influxListenAddr   = flag.String("influxListenAddr", "", "TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty")
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB metrics. "+
@@ -68,18 +70,22 @@ func main() {
 
 	promscrape.Init(remotewrite.Push)
 
-	go httpserver.Serve(*httpListenAddr, requestHandler)
+	if len(*httpListenAddr) > 0 {
+		go httpserver.Serve(*httpListenAddr, requestHandler)
+	}
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
 
-	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
 	startTime = time.Now()
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
-		logger.Fatalf("cannot stop the webservice: %s", err)
+	if len(*httpListenAddr) > 0 {
+		logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
+		if err := httpserver.Stop(*httpListenAddr); err != nil {
+			logger.Fatalf("cannot stop the webservice: %s", err)
+		}
+		logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	}
-	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
 	promscrape.Stop()
 
