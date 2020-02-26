@@ -89,12 +89,12 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			swsStaticNew, err := cfg.getStaticScrapeWork()
+			swsStaticNew, err := cfgNew.getStaticScrapeWork()
 			if err != nil {
 				logger.Errorf("cannot parse `static_configs` from %q: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			swsFileSDNew, err := cfg.getFileSDScrapeWork(swsFileSD)
+			swsFileSDNew, err := cfgNew.getFileSDScrapeWork(swsFileSD)
 			if err != nil {
 				logger.Errorf("cannot parse `file_sd_config` from %q: %s; continuing with the previous config", configFile, err)
 			}
