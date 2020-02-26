@@ -1,5 +1,11 @@
 # Changes
 
+## v1.6.0
+
+- Updated option handling:
+  - Don't drop custom scopes (#1756)
+  - Don't drop port in provided endpoint (#1737)
+
 ## v1.5.0
 
 - Honor WithEndpoint client option for reads as well as writes.

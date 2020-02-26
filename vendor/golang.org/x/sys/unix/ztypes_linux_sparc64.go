@@ -56,6 +56,16 @@ type Timex struct {
 	_         [44]byte
 }
 
+const (
+	TIME_OK    = 0x0
+	TIME_INS   = 0x1
+	TIME_DEL   = 0x2
+	TIME_OOP   = 0x3
+	TIME_WAIT  = 0x4
+	TIME_ERROR = 0x5
+	TIME_BAD   = 0x5
+)
+
 type Time_t int64
 
 type Tms struct {

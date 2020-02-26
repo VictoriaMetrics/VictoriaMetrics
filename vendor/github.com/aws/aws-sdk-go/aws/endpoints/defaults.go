@@ -1571,6 +1571,17 @@ var awsPartition = partition{
 				"us-west-2":      endpoint{},
 			},
 		},
+		"elastic-inference": service{
+
+			Endpoints: endpoints{
+				"ap-northeast-1": endpoint{},
+				"ap-northeast-2": endpoint{},
+				"eu-west-1":      endpoint{},
+				"us-east-1":      endpoint{},
+				"us-east-2":      endpoint{},
+				"us-west-2":      endpoint{},
+			},
+		},
 		"elasticache": service{
 
 			Endpoints: endpoints{
@@ -2444,6 +2455,12 @@ var awsPartition = partition{
 
 			Endpoints: endpoints{
 				"eu-west-1": endpoint{},
+				"us-east-1": endpoint{},
+			},
+		},
+		"managedblockchain": service{
+
+			Endpoints: endpoints{
 				"us-east-1": endpoint{},
 			},
 		},
@@ -4410,6 +4427,13 @@ var awscnPartition = partition{
 			Defaults: endpoint{
 				Protocols: []string{"http", "https"},
 			},
+			Endpoints: endpoints{
+				"cn-north-1":     endpoint{},
+				"cn-northwest-1": endpoint{},
+			},
+		},
+		"backup": service{
+
 			Endpoints: endpoints{
 				"cn-north-1":     endpoint{},
 				"cn-northwest-1": endpoint{},

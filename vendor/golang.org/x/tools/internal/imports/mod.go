@@ -146,7 +146,7 @@ func (r *ModuleResolver) init() error {
 }
 
 func (r *ModuleResolver) initAllMods() error {
-	stdout, err := r.env.invokeGo("list", "-m", "-json", "...")
+	stdout, err := r.env.invokeGo(context.TODO(), "list", "-m", "-json", "...")
 	if err != nil {
 		return err
 	}
@@ -162,6 +162,8 @@ func (r *ModuleResolver) initAllMods() error {
 			// Can't do anything with a module that's not downloaded.
 			continue
 		}
+		// golang/go#36193: the go command doesn't always clean paths.
+		mod.Dir = filepath.Clean(mod.Dir)
 		r.modsByModPath = append(r.modsByModPath, mod)
 		r.modsByDir = append(r.modsByDir, mod)
 		if mod.Main {
@@ -697,7 +699,7 @@ func getMainModuleAnd114(env *ProcessEnv) (*ModuleJSON, bool, error) {
 {{.GoVersion}}
 {{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}
 `
-	stdout, err := env.invokeGo("list", "-m", "-f", format)
+	stdout, err := env.invokeGo(context.TODO(), "list", "-m", "-f", format)
 	if err != nil {
 		return nil, false, nil
 	}
