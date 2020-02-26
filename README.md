@@ -68,57 +68,57 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 ### Table of contents
 
-- [How to start VictoriaMetrics](#how-to-start-victoriametrics)
-  - [Environment variables](#environment-variables)
-- [Prometheus setup](#prometheus-setup)
-- [Grafana setup](#grafana-setup)
-- [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
-- [How to apply new config to VictoriaMetrics?](#how-to-apply-new-config-to-victoriametrics)
-- [How to scrape Prometheus exporters such as node_exporter?](#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-- [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-- [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
-- [Querying Graphite data](#querying-graphite-data)
-- [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
-- [Prometheus querying API usage](#prometheus-querying-api-usage)
-- [How to build from sources](#how-to-build-from-sources)
-  - [Development build](#development-build)
-  - [Production build](#production-build)
-  - [ARM build](#arm-build)
-  - [Pure Go build (CGO_ENABLED=0)](#pure-go-build-cgo_enabled0)
-  - [Building docker images](#building-docker-images)
-- [Start with docker-compose](#start-with-docker-compose)
-- [Setting up service](#setting-up-service)
-- [How to work with snapshots?](#how-to-work-with-snapshots)
-- [How to delete time series?](#how-to-delete-time-series)
-- [How to export time series?](#how-to-export-time-series)
-- [How to import time series data?](#how-to-import-time-series-data)
-- [Federation](#federation)
-- [Capacity planning](#capacity-planning)
-- [High availability](#high-availability)
-- [Deduplication](#deduplication)
-- [Retention](#retention)
-- [Multiple retentions](#multiple-retentions)
-- [Downsampling](#downsampling)
-- [Multi-tenancy](#multi-tenancy)
-- [Scalability and cluster version](#scalability-and-cluster-version)
-- [Alerting](#alerting)
-- [Security](#security)
-- [Tuning](#tuning)
-- [Monitoring](#monitoring)
-- [Troubleshooting](#troubleshooting)
-- [Backfilling](#backfilling)
-- [Profiling](#profiling)
-- [Integrations](#integrations)
-- [Roadmap](#roadmap)
-- [Contacts](#contacts)
-- [Community and contributions](#community-and-contributions)
-- [Third-party contributions](#third-party-contributions)
-- [Reporting bugs](#reporting-bugs)
-- [Victoria Metrics Logo](#victoria-metrics-logo)
-  - [Logo Usage Guidelines](#logo-usage-guidelines)
-    - [Font used:](#font-used)
-    - [Color Palette:](#color-palette)
-  - [We kindly ask:](#we-kindly-ask)
+* [How to start VictoriaMetrics](#how-to-start-victoriametrics)
+  * [Environment variables](#environment-variables)
+* [Prometheus setup](#prometheus-setup)
+* [Grafana setup](#grafana-setup)
+* [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
+* [How to apply new config to VictoriaMetrics?](#how-to-apply-new-config-to-victoriametrics)
+* [How to scrape Prometheus exporters such as node_exporter?](#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+* [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+* [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [Querying Graphite data](#querying-graphite-data)
+* [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
+* [Prometheus querying API usage](#prometheus-querying-api-usage)
+* [How to build from sources](#how-to-build-from-sources)
+  * [Development build](#development-build)
+  * [Production build](#production-build)
+  * [ARM build](#arm-build)
+  * [Pure Go build (CGO_ENABLED=0)](#pure-go-build-cgo_enabled0)
+  * [Building docker images](#building-docker-images)
+* [Start with docker-compose](#start-with-docker-compose)
+* [Setting up service](#setting-up-service)
+* [How to work with snapshots?](#how-to-work-with-snapshots)
+* [How to delete time series?](#how-to-delete-time-series)
+* [How to export time series?](#how-to-export-time-series)
+* [How to import time series data?](#how-to-import-time-series-data)
+* [Federation](#federation)
+* [Capacity planning](#capacity-planning)
+* [High availability](#high-availability)
+* [Deduplication](#deduplication)
+* [Retention](#retention)
+* [Multiple retentions](#multiple-retentions)
+* [Downsampling](#downsampling)
+* [Multi-tenancy](#multi-tenancy)
+* [Scalability and cluster version](#scalability-and-cluster-version)
+* [Alerting](#alerting)
+* [Security](#security)
+* [Tuning](#tuning)
+* [Monitoring](#monitoring)
+* [Troubleshooting](#troubleshooting)
+* [Backfilling](#backfilling)
+* [Profiling](#profiling)
+* [Integrations](#integrations)
+* [Roadmap](#roadmap)
+* [Contacts](#contacts)
+* [Community and contributions](#community-and-contributions)
+* [Third-party contributions](#third-party-contributions)
+* [Reporting bugs](#reporting-bugs)
+* [Victoria Metrics Logo](#victoria-metrics-logo)
+  * [Logo Usage Guidelines](#logo-usage-guidelines)
+    * [Font used:](#font-used)
+    * [Color Palette:](#color-palette)
+  * [We kindly ask:](#we-kindly-ask)
 
 ### How to start VictoriaMetrics
 
@@ -545,14 +545,14 @@ before actually deleting the metrics.
 
 The delete API is intended mainly for the following cases:
 
-- One-off deleting of accidentally written invalid (or undesired) time series.
-- One-off deleting of user data due to [GDPR](https://en.wikipedia.org/wiki/General_Data_Protection_Regulation).
+* One-off deleting of accidentally written invalid (or undesired) time series.
+* One-off deleting of user data due to [GDPR](https://en.wikipedia.org/wiki/General_Data_Protection_Regulation).
 
 It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
 
-- Regular cleanups for unneded data. Just prevent writing unneeded data into VictoriaMetrics.
+* Regular cleanups for unneded data. Just prevent writing unneeded data into VictoriaMetrics.
   See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
-- Reducing disk space usage by deleting unneded time series. This doesn't work as expected, since the deleted
+* Reducing disk space usage by deleting unneded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur.
 
 It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
@@ -728,9 +728,10 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 ### Downsampling
 
 There is no downsampling support at the moment, but:
-- VictoriaMetrics is optimized for querying big amounts of raw data. See benchmark results for heavy queries
+
+* VictoriaMetrics is optimized for querying big amounts of raw data. See benchmark results for heavy queries
   in [this article](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-- VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
+* VictoriaMetrics has good compression for on-disk data. See [this article](https://medium.com/@valyala/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
   for details.
 
 These properties reduce the need of downsampling. We plan to implement downsampling in the future.
@@ -850,12 +851,14 @@ the query cache, which could contain incomplete data cached during the backfilli
 
 VictoriaMetrics provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
-- Memory profile. It can be collected with the following command:
+* Memory profile. It can be collected with the following command:
+
 ```
 curl -s http://<victoria-metrics-host>:8428/debug/pprof/heap > mem.pprof
 ```
 
-- CPU profile. It can be collected with the following command:
+* CPU profile. It can be collected with the following command:
+
 ```
 curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
 ```
@@ -874,11 +877,11 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 ## Roadmap
 
-- [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
-- [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
-- [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
-- [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
-- [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
+* [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
+* [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
+* [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
+* [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
+* [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
 
 The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
 
@@ -890,26 +893,26 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 
 Feel free asking any questions regarding VictoriaMetrics:
 
-- [slack](http://slack.victoriametrics.com/)
-- [reddit](https://www.reddit.com/r/VictoriaMetrics/)
-- [telegram-en](https://t.me/VictoriaMetrics_en)
-- [telegram-ru](https://t.me/VictoriaMetrics_ru1)
-- [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
+* [slack](http://slack.victoriametrics.com/)
+* [reddit](https://www.reddit.com/r/VictoriaMetrics/)
+* [telegram-en](https://t.me/VictoriaMetrics_en)
+* [telegram-ru](https://t.me/VictoriaMetrics_ru1)
+* [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
 
-- Filing issues and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-- Spreading a word about VictoriaMetrics: conference talks, articles, comments, experience sharing with colleagues.
-- Updating documentation.
+* Filing issues and feature requests [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+* Spreading a word about VictoriaMetrics: conference talks, articles, comments, experience sharing with colleagues.
+* Updating documentation.
 
 We are open to third-party pull requests provided they follow [KISS design principle](https://en.wikipedia.org/wiki/KISS_principle):
 
-- Prefer simple code and architecture.
-- Avoid complex abstractions.
-- Avoid magic code and fancy algorithms.
-- Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
-- Minimize the number of moving parts in the distributed system.
-- Avoid automated decisions, which may hurt cluster availability, consistency or performance.
+* Prefer simple code and architecture.
+* Avoid complex abstractions.
+* Avoid magic code and fancy algorithms.
+* Avoid [big external dependencies](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d).
+* Minimize the number of moving parts in the distributed system.
+* Avoid automated decisions, which may hurt cluster availability, consistency or performance.
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
 
@@ -947,7 +950,7 @@ Files included in each folder:
 
 ### We kindly ask:
 
-- Please don't use any other font instead of suggested.
-- There should be sufficient clear space around the logo.
-- Do not change spacing, alignment, or relative locations of the design elements.
-- Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.
+* Please don't use any other font instead of suggested.
+* There should be sufficient clear space around the logo.
+* Do not change spacing, alignment, or relative locations of the design elements.
+* Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.
