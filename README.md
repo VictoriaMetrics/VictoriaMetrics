@@ -266,6 +266,7 @@ Do not forget substituting `<victoriametrics-addr>` with the real address where 
 Another option is to enable TCP and UDP receiver for Influx line protocol via `-influxListenAddr` command-line flag.
 
 VictoriaMetrics maps Influx data using the following rules:
+
 * [`db` query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
   unless `db` tag exists in the Influx line.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value,
@@ -529,6 +530,7 @@ to delete `<snapshot-name>` snapshot.
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to delete all the snapshots.
 
 Steps for restoring from a snapshot:
+
 1. Stop VictoriaMetrics with `kill -INT`.
 2. Restore snapshot contents from backup with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md)
    to the directory pointed by `-storageDataPath`.
@@ -755,6 +757,7 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 ### Alerting
 
 VictoriaMetrics doesn't support rule evaluation and alerting yet, so these actions can be performed at the following places:
+
 * At Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
 * At Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
 * At Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
