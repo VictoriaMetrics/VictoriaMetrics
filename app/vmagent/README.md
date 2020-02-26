@@ -68,7 +68,7 @@ sections from [Prometheus config file](https://prometheus.io/docs/prometheus/lat
 * `global`
 * `scrape_configs`
 
-All the other section are ignored, including [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
+All the other sections are ignored, including [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
 Use `-remoteWrite.*` command-line flags instead for configuring remote write settings:
 
 * `-remoteWrite.url` for pointing to remote storage. Data to remote storage can be sent either via HTTP or HTTPS. See `-remoteWrite.tls*` flags for details.
@@ -80,6 +80,15 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `static_configs` - for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config) for details.
 * `file_sd_configs` - for scraping targets defined in external files aka file-based service discover.
   See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details.
+
+The following service discovery mechanisms will be added to `vmagent` soon:
+
+* [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config)
+* [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config)
+* [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config)
+* [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
+* [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
+
 
 File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
@@ -97,8 +106,8 @@ Labels can be added to metrics via the following mechanisms:
 `vmagent` supports [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config).
 Additionally it provides the following extra actions:
 
-* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`
-* `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`
+* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
+* `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
 
 The relabeling can be defined in the following places:
 
