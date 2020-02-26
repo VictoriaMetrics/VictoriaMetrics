@@ -986,12 +986,11 @@ func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 			},
 		}
 
-		switch {
-		case rr.Condition.IsLive == nil:
+		if rr.Condition.IsLive == nil {
 			r.Condition.Liveness = LiveAndArchived
-		case *rr.Condition.IsLive == true:
+		} else if *rr.Condition.IsLive {
 			r.Condition.Liveness = Live
-		case *rr.Condition.IsLive == false:
+		} else {
 			r.Condition.Liveness = Archived
 		}
 
