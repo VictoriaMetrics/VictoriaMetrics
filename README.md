@@ -115,6 +115,13 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 
 It is recommended setting up [monitoring](#monitoring) for the cluster.
 
+#### Environment variables
+
+Each flag values can be set thru environment variables by following these rules:
+
+- The `-envflag.enable` flag must be set
+- Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
+- For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 
 ### Monitoring
 
