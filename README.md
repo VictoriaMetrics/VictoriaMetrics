@@ -180,6 +180,7 @@ across Prometheus instances, so those time series may be filtered and grouped by
 
 For highly loaded Prometheus instances (400k+ samples per second)
 the following tuning may be applied:
+
 ```
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
