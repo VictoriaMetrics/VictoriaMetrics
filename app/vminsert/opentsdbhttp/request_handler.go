@@ -50,6 +50,7 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
+	ctx.Reset() // This line is required for initializing ctx internals.
 	for i := range rows {
 		r := &rows[i]
 		ctx.Labels = ctx.Labels[:0]

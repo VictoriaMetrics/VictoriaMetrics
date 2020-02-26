@@ -59,6 +59,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row) error {
 	defer putPushCtx(ctx)
 
 	ic := &ctx.Common
+	ic.Reset() // This line is required for initializing ic internals.
 	rowsTotal := 0
 	for i := range rows {
 		r := &rows[i]

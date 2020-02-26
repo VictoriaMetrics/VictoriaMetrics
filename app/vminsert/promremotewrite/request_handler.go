@@ -31,6 +31,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
+	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
 	for i := range timeseries {
 		ts := &timeseries[i]
