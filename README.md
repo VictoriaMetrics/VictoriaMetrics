@@ -72,13 +72,13 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * [Environment variables](#environment-variables)
 * [Prometheus setup](#prometheus-setup)
 * [Grafana setup](#grafana-setup)
-* [How to upgrade VictoriaMetrics?](#how-to-upgrade-victoriametrics)
-* [How to apply new config to VictoriaMetrics?](#how-to-apply-new-config-to-victoriametrics)
-* [How to scrape Prometheus exporters such as node_exporter?](#how-to-scrape-prometheus-exporters-such-as-node-exporter)
-* [How to send data from InfluxDB-compatible agents such as Telegraf?](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-* [How to send data from Graphite-compatible agents such as StatsD?](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
+* [How to upgrade VictoriaMetrics](#how-to-upgrade-victoriametrics)
+* [How to apply new config to VictoriaMetrics](#how-to-apply-new-config-to-victoriametrics)
+* [How to scrape Prometheus exporters such as node_exporter](#how-to-scrape-prometheus-exporters-such-as-node-exporter)
+* [How to send data from InfluxDB-compatible agents such as Telegraf](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+* [How to send data from Graphite-compatible agents such as StatsD](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [Querying Graphite data](#querying-graphite-data)
-* [How to send data from OpenTSDB-compatible agents?](#how-to-send-data-from-opentsdb-compatible-agents)
+* [How to send data from OpenTSDB-compatible agents](#how-to-send-data-from-opentsdb-compatible-agents)
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
 * [How to build from sources](#how-to-build-from-sources)
   * [Development build](#development-build)
@@ -88,10 +88,10 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
   * [Building docker images](#building-docker-images)
 * [Start with docker-compose](#start-with-docker-compose)
 * [Setting up service](#setting-up-service)
-* [How to work with snapshots?](#how-to-work-with-snapshots)
-* [How to delete time series?](#how-to-delete-time-series)
-* [How to export time series?](#how-to-export-time-series)
-* [How to import time series data?](#how-to-import-time-series-data)
+* [How to work with snapshots](#how-to-work-with-snapshots)
+* [How to delete time series](#how-to-delete-time-series)
+* [How to export time series](#how-to-export-time-series)
+* [How to import time series data](#how-to-import-time-series-data)
 * [Federation](#federation)
 * [Capacity planning](#capacity-planning)
 * [High availability](#high-availability)
@@ -116,9 +116,9 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Reporting bugs](#reporting-bugs)
 * [Victoria Metrics Logo](#victoria-metrics-logo)
   * [Logo Usage Guidelines](#logo-usage-guidelines)
-    * [Font used:](#font-used)
-    * [Color Palette:](#color-palette)
-  * [We kindly ask:](#we-kindly-ask)
+    * [Font used](#font-used)
+    * [Color Palette](#color-palette)
+  * [We kindly ask](#we-kindly-ask)
 
 ### How to start VictoriaMetrics
 
@@ -212,7 +212,7 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 Then build graphs with the created datasource using [Prometheus query language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
 
-### How to upgrade VictoriaMetrics?
+### How to upgrade VictoriaMetrics
 
 It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 say otherwise. It is recommended performing regular upgrades to the latest version,
@@ -227,7 +227,7 @@ Follow the following steps during the upgrade:
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
 
-### How to apply new config to VictoriaMetrics?
+### How to apply new config to VictoriaMetrics
 
 VictoriaMetrics must be restarted for applying new config:
 
@@ -238,7 +238,7 @@ VictoriaMetrics must be restarted for applying new config:
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
 
-### How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)?
+### How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
 VictoriaMetrics can be used as drop-in replacement for Prometheus for scraping targets configured in `prometheus.yml` config file according to [the specification](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file).
 Just set `-promscrape.config` command-line flag to the path to `prometheus.yml` config - and VictoriaMetrics should start scraping the configured targets.
@@ -251,7 +251,7 @@ In the future other `*_sd_config` types will be supported.
 
 See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md), which can be used as drop-in replacement for Prometheus.
 
-### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)?
+### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
 Just use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
 For instance, put the following lines into `Telegraf` config, so it sends data to VictoriaMetrics instead of InfluxDB:
@@ -312,7 +312,7 @@ The `/api/v1/export` endpoint should return the following response:
 Note that Influx line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
 while VictoriaMetrics stores them with *milliseconds* precision.
 
-### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)?
+### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 1) Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
 the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
@@ -350,7 +350,7 @@ Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read eithe
 [Prometheus querying API](#prometheus-querying-api-usage)
 or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 
-### How to send data from OpenTSDB-compatible agents?
+### How to send data from OpenTSDB-compatible agents
 
 VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
 and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) for ingesting OpenTSDB data.
@@ -507,7 +507,7 @@ More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetr
 
 Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics as a service in your OS.
 
-### How to work with snapshots?
+### How to work with snapshots
 
 VictoriaMetrics can create [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 for all the data stored under `-storageDataPath` directory.
@@ -536,7 +536,7 @@ Steps for restoring from a snapshot:
    to the directory pointed by `-storageDataPath`.
 3. Start VictoriaMetrics.
 
-### How to delete time series?
+### How to delete time series
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
@@ -560,7 +560,7 @@ It isn't recommended using delete API for the following cases, since it brings n
 
 It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
 
-### How to export time series?
+### How to export time series
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
@@ -587,7 +587,7 @@ The maximum duration for each request to `/api/v1/export` is limited by `-search
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-time-series-data).
 
-### How to import time series data?
+### How to import time series data
 
 Time series data can be imported via any supported ingestion protocol:
 
@@ -942,17 +942,17 @@ Files included in each folder:
 
 ### Logo Usage Guidelines
 
-#### Font used:
+#### Font used
 
 * Lato Black
 * Lato Regular
 
-#### Color Palette:
+#### Color Palette
 
 * HEX [#110f0f](https://www.color-hex.com/color/110f0f)
 * HEX [#ffffff](https://www.color-hex.com/color/ffffff)
 
-### We kindly ask:
+### We kindly ask
 
 * Please don't use any other font instead of suggested.
 * There should be sufficient clear space around the logo.
