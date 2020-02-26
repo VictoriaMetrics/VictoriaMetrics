@@ -157,7 +157,7 @@ remote_write:
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 Then apply the new config via the following command:
 
-```
+```bash
 kill -HUP `pidof prometheus`
 ```
 
@@ -181,7 +181,7 @@ across Prometheus instances, so those time series may be filtered and grouped by
 For highly loaded Prometheus instances (400k+ samples per second)
 the following tuning may be applied:
 
-```
+```yaml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
     queue_config:
@@ -203,7 +203,7 @@ since the previous versions may have issues with `remote_write`.
 
 Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following Url:
 
-```
+```url
 http://<victoriametrics-addr>:8428
 ```
 
@@ -256,7 +256,7 @@ See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/maste
 Just use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
 For instance, put the following lines into `Telegraf` config, so it sends data to VictoriaMetrics instead of InfluxDB:
 
-```
+```toml
 [[outputs.influxdb]]
   urls = ["http://<victoriametrics-addr>:8428"]
 ```
@@ -276,13 +276,13 @@ VictoriaMetrics maps Influx data using the following rules:
 
 For example, the following Influx line:
 
-```
+```raw
 foo,tag1=value1,tag2=value2 field1=12,field2=40
 ```
 
 is converted into the following Prometheus data points:
 
-```
+```raw
 foo_field1{tag1="value1", tag2="value2"} 12
 foo_field2{tag1="value1", tag2="value2"} 40
 ```
@@ -290,20 +290,20 @@ foo_field2{tag1="value1", tag2="value2"} 40
 Example for writing data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 to local VictoriaMetrics using `curl`:
 
-```
+```bash
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
 An arbitrary number of lines delimited by '\n' may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
-```
+```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 
-```
+```jsonl
 {"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560272508147]}
 {"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1560272508147]}
 ```
@@ -316,7 +316,7 @@ while VictoriaMetrics stores them with *milliseconds* precision.
 1) Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
 the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
 
-```
+```bash
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
 
@@ -325,7 +325,7 @@ to the VictoriaMetrics host in `StatsD` configs.
 
 Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
 
-```
+```bash
 echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
@@ -333,13 +333,13 @@ VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
-```
+```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 
-```
+```bash
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
@@ -359,7 +359,7 @@ and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.ht
 1) Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
 the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
 
-```
+```bash
 /path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
 ```
 
@@ -367,20 +367,20 @@ the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UD
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
-```
+```bash
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
 An arbitrary number of lines delimited by `\n` may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
-```
+```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 
-```
+```bash
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
 ```
 
@@ -389,7 +389,7 @@ The `/api/v1/export` endpoint should return the following response:
 1) Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
 the following command enables OpenTSDB HTTP server on port `4242`:
 
-```
+```bash
 /path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
 ```
 
@@ -397,25 +397,25 @@ the following command enables OpenTSDB HTTP server on port `4242`:
 
 Example for writing a single data point:
 
-```
+```bash
 curl -H 'Content-Type: application/json' -d '{"metric":"x.y.z","value":45.34,"tags":{"t1":"v1","t2":"v2"}}' http://localhost:4242/api/put
 ```
 
 Example for writing multiple data points in a single request:
 
-```
+```bash
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
-```
+```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 
-```
+```bash
 {"metric":{"__name__":"foo"},"values":[45.34],"timestamps":[1566464846000]}
 {"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
 {"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
@@ -513,7 +513,7 @@ for all the data stored under `-storageDataPath` directory.
 Navigate to `http://<victoriametrics-addr>:8428/snapshot/create` in order to create an instant snapshot.
 The page will return the following JSON response:
 
-```
+```json
 {"status":"ok","snapshot":"<snapshot-name>"}
 ```
 
@@ -566,7 +566,7 @@ for metrics to export. Use `{__name__!=""}` selector for fetching all the time s
 The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
 Each JSON line would contain data for a single time series. An example output:
 
-```
+```jsonl
 {"metric":{"__name__":"up","job":"node_exporter","instance":"localhost:9100"},"values":[0,0,0],"timestamps":[1549891472010,1549891487724,1549891503438]}
 {"metric":{"__name__":"up","job":"prometheus","instance":"localhost:9090"},"values":[1,1,1],"timestamps":[1549891461511,1549891476511,1549891491511]}
 ```
@@ -577,7 +577,7 @@ unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) val
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
 
-```
+```bash
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
@@ -598,7 +598,7 @@ Time series data can be imported via any supported ingestion protocol:
 
 The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import`. Example for importing data obtained via `/api/v1/export`:
 
-```
+```bash
 # Export the data from <source-victoriametrics>:
 curl http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl
 
@@ -608,7 +608,7 @@ curl -X POST http://destination-victoriametrics:8428/api/v1/import -T exported_d
 
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import` for importing gzipped data:
 
-```
+```bash
 # Export gzipped data from <source-victoriametrics>:
 curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export -d 'match={__name__!=""}' > exported_data.jsonl.gz
 
@@ -686,7 +686,7 @@ remote_write:
 
 3) Apply the updated config:
 
-```
+```bash
 kill -HUP `pidof prometheus`
 ```
 
@@ -785,7 +785,7 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
   If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
   then the following options are recommended to pass to `mkfs.ext4`:
 
-```
+```bash
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ```
 
@@ -854,13 +854,13 @@ VictoriaMetrics provides handlers for collecting the following [Go profiles](htt
 
 * Memory profile. It can be collected with the following command:
 
-```
+```bash
 curl -s http://<victoria-metrics-host>:8428/debug/pprof/heap > mem.pprof
 ```
 
 * CPU profile. It can be collected with the following command:
 
-```
+```bash
 curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
 ```
 
