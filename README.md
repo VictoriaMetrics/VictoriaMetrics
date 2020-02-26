@@ -17,7 +17,6 @@ in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just downl
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
-
 ## Case studies and talks
 
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
@@ -25,7 +24,6 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
 * [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
 * [Dreamteam](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#dreamteam)
-
 
 ## Prominent features
 
@@ -66,9 +64,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
-
 ## Operation
-
 
 ### Table of contents
 
@@ -123,7 +119,6 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
     - [Font used:](#font-used)
     - [Color Palette:](#color-palette)
   - [We kindly ask:](#we-kindly-ask)
-
 
 ### How to start VictoriaMetrics
 
@@ -203,7 +198,6 @@ Read more about tuning remote write for Prometheus [here](https://prometheus.io/
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer,
 since the previous versions may have issues with `remote_write`.
 
-
 ### Grafana setup
 
 Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following Url:
@@ -216,7 +210,6 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 
 Then build graphs with the created datasource using [Prometheus query language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
-
 
 ### How to upgrade VictoriaMetrics?
 
@@ -233,7 +226,6 @@ Follow the following steps during the upgrade:
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
 
-
 ### How to apply new config to VictoriaMetrics?
 
 VictoriaMetrics must be restarted for applying new config:
@@ -244,7 +236,6 @@ VictoriaMetrics must be restarted for applying new config:
 
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
-
 
 ### How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)?
 
@@ -258,7 +249,6 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 In the future other `*_sd_config` types will be supported.
 
 See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md), which can be used as drop-in replacement for Prometheus.
-
 
 ### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)?
 
@@ -320,7 +310,6 @@ The `/api/v1/export` endpoint should return the following response:
 Note that Influx line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
 while VictoriaMetrics stores them with *milliseconds* precision.
 
-
 ### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)?
 
 1) Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
@@ -332,7 +321,6 @@ the following command will enable Graphite receiver in VictoriaMetrics on TCP an
 
 2) Use the configured address in Graphite-compatible agents. For instance, set `graphiteHost`
 to the VictoriaMetrics host in `StatsD` configs.
-
 
 Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
 
@@ -354,14 +342,11 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
-
 ### Querying Graphite data
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read either via
 [Prometheus querying API](#prometheus-querying-api-usage)
 or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
-
-
 
 ### How to send data from OpenTSDB-compatible agents?
 
@@ -378,7 +363,6 @@ the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UD
 ```
 
 2) Send data to the given address from OpenTSDB-compatible agents.
-
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
@@ -398,7 +382,6 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277292000]}
 ```
-
 
 #### Sending OpenTSDB data via HTTP `/api/put` requests
 
@@ -437,7 +420,6 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
 ```
 
-
 ### Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
@@ -462,14 +444,12 @@ Additionally VictoriaMetrics provides the following handlers:
   so it can be slow if the database contains tens of millions of time series.
 * `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
 
-
 ### How to build from sources
 
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing additional features specific
 to your needs.
-
 
 #### Development build
 
@@ -515,18 +495,15 @@ Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
-
 ### Start with docker-compose
 
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
 helps to spin up VictoriaMetrics, Prometheus and Grafana with one command.
 More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
-
 ### Setting up service
 
 Read [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics as a service in your OS.
-
 
 ### How to work with snapshots?
 
@@ -556,7 +533,6 @@ Steps for restoring from a snapshot:
    to the directory pointed by `-storageDataPath`.
 3. Start VictoriaMetrics.
 
-
 ### How to delete time series?
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
@@ -580,7 +556,6 @@ It isn't recommended using delete API for the following cases, since it brings n
   time series occupy disk space until the next merge operation, which can never occur.
 
 It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
-
 
 ### How to export time series?
 
@@ -608,7 +583,6 @@ curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]=
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-time-series-data).
-
 
 ### How to import time series data?
 
@@ -644,7 +618,6 @@ curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428
 Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
 and importing them concurrently. Note that the original file must be split on newlines.
 
-
 ### Federation
 
 VictoriaMetrics exports [Prometheus-compatible federation data](https://prometheus.io/docs/prometheus/latest/federation/)
@@ -655,7 +628,6 @@ Optional `start` and `end` args may be added to the request in order to scrape t
 on the interval `[now - max_lookback ... now]` is scraped for each time series. The default value for `max_lookback` is `5m` (5 minutes), but it can be overridden.
 For instance, `/federate?match[]=up&max_lookback=1h` would return last points on the `[now - 1h ... now]` interval. This may be useful for time series federation
 with scrape intervals exceeding `5m`.
-
 
 ### Capacity planning
 
@@ -684,7 +656,6 @@ A rough estimation of the required resources for ingestion path:
   The actual ingress bandwidth usage depends on the average number of labels per ingested metric and the average size
   of label values. The higher number of per-metric labels and longer label values mean the higher ingress bandwidth.
 
-
 The required resources for query path:
 
 * RAM size: depends on the number of time series to scan in each query and the `step`
@@ -695,7 +666,6 @@ The required resources for query path:
 
 * Network usage: depends on the frequency and the type of incoming requests. Typical Grafana dashboards usually
   require negligible network bandwidth.
-
 
 ### High availability
 
@@ -723,13 +693,11 @@ kill -HUP `pidof prometheus`
 5) Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
 6) Set up Prometheus datasource in Grafana that points to Promxy.
 
-
 If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
 to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
 
 Another option is to write data simultaneously from Prometheus HA pair to a pair of VictoriaMetrics instances
 with the enabled de-duplication. See [this section](#deduplication) for details.
-
 
 ### Deduplication
 
@@ -740,7 +708,6 @@ The de-duplication reduces disk space usage if multiple identically configured P
 write data to the same VictoriaMetrics instance. Note that these Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series.
 
-
 ### Retention
 
 Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
@@ -750,7 +717,6 @@ Directories for months outside the configured retention are deleted on the first
 In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
 For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
 
-
 ### Multiple retentions
 
 Just start multiple VictoriaMetrics instances with distinct values for the following flags:
@@ -758,7 +724,6 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
 * `-httpListenAddr`, so clients may reach VictoriaMetrics instance with proper retention
-
 
 ### Downsampling
 
@@ -771,11 +736,9 @@ There is no downsampling support at the moment, but:
 These properties reduce the need of downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
-
 ### Multi-tenancy
 
 Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) instead.
-
 
 ### Scalability and cluster version
 
@@ -787,14 +750,12 @@ So try single-node VictoriaMetrics at first and then [switch to cluster version]
 horizontally scalable long-term remote storage for really large Prometheus deployments.
 [Contact us](mailto:info@victoriametrics.com) for paid support.
 
-
 ### Alerting
 
 VictoriaMetrics doesn't support rule evaluation and alerting yet, so these actions can be performed at the following places:
 * At Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
 * At Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
 * At Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
-
 
 ### Security
 
@@ -809,7 +770,6 @@ Consider setting the following command-line flags:
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
-
 
 ### Tuning
 
@@ -826,7 +786,6 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
 ```
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ```
-
 
 ### Monitoring
 
@@ -849,7 +808,6 @@ The most interesting metrics are:
 * `vm_allowed_memory_bytes` - the maximum allowed size for caches in the database. It is calculated as `system_memory * <-memory.allowedPercent> / 100`,
   where `system_memory` is the amount of system memory and `-memory.allowedPercent` is the corresponding flag value.
 * `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
-
 
 ### Troubleshooting
 
@@ -876,7 +834,6 @@ The most interesting metrics are:
   If this removes gaps on the graphs, then it is likely data with timestamps older than `-search.cacheTimestampOffset`
   is ingested into VictoriaMetrics. Make sure that data sources have synchronized time with VictoriaMetrics.
 
-
 ### Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time.
@@ -888,7 +845,6 @@ the current timestamps. Query cache can be enabled after the backfilling is comp
 
 An alternative solution is to query `/internal/resetRollupResultCache` url after backfilling is complete. This will reset
 the query cache, which could contain incomplete data cached during the backfilling.
-
 
 ### Profiling
 
@@ -908,7 +864,6 @@ The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 
-
 ## Integrations
 
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
@@ -916,7 +871,6 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
   See [this example](/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 * [Ansible role for installing VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
-
 
 ## Roadmap
 
@@ -926,14 +880,11 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 - [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
 - [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
 
-
 The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
-
 
 ## Contacts
 
 Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics.com](mailto:info@victoriametrics.com).
-
 
 ## Community and contributions
 
@@ -944,7 +895,6 @@ Feel free asking any questions regarding VictoriaMetrics:
 - [telegram-en](https://t.me/VictoriaMetrics_en)
 - [telegram-ru](https://t.me/VictoriaMetrics_ru1)
 - [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
-
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
 
@@ -963,18 +913,15 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
 
-
 ## Third-party contributions
 
 * [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
 * [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
 * [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
 
-
 ## Reporting bugs
 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-
 
 ## Victoria Metrics Logo
 
@@ -985,7 +932,6 @@ Files included in each folder:
 * 2 JPEG Preview files
 * 2 PNG Preview files with transparent background
 * 2 EPS Adobe Illustrator EPS10 files
-
 
 ### Logo Usage Guidelines
 
