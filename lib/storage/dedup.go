@@ -2,8 +2,6 @@ package storage
 
 import (
 	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // SetMinScrapeIntervalForDeduplication sets the minimum interval for data points during de-duplication.
@@ -43,22 +41,17 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 	prevTimestamp := srcTimestamps[0]
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
-	dedups := 0
 	for i := 1; i < len(srcTimestamps); i++ {
 		ts := srcTimestamps[i]
 		if ts-prevTimestamp < minDelta {
-			dedups++
 			continue
 		}
 		dstTimestamps = append(dstTimestamps, ts)
 		dstValues = append(dstValues, srcValues[i])
 		prevTimestamp = ts
 	}
-	dedupsDuringSelect.Add(dedups)
 	return dstTimestamps, dstValues
 }
-
-var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
 
 func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]int64, []int64) {
 	if minScrapeInterval <= 0 {
@@ -79,22 +72,17 @@ func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]
 	prevTimestamp := srcTimestamps[0]
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
-	dedups := 0
 	for i := 1; i < len(srcTimestamps); i++ {
 		ts := srcTimestamps[i]
 		if ts-prevTimestamp < minDelta {
-			dedups++
 			continue
 		}
 		dstTimestamps = append(dstTimestamps, ts)
 		dstValues = append(dstValues, srcValues[i])
 		prevTimestamp = ts
 	}
-	dedupsDuringMerge.Add(dedups)
 	return dstTimestamps, dstValues
 }
-
-var dedupsDuringMerge = metrics.NewCounter(`vm_deduplicated_samples_total{type="merge"}`)
 
 func needsDedup(timestamps []int64, minDelta int64) bool {
 	if len(timestamps) == 0 {

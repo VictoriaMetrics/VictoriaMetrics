@@ -2,6 +2,7 @@ package storage
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -166,9 +167,13 @@ func (b *Block) deduplicateSamplesDuringMerge() {
 	srcTimestamps := b.timestamps[b.nextIdx:]
 	srcValues := b.values[b.nextIdx:]
 	timestamps, values := deduplicateSamplesDuringMerge(srcTimestamps, srcValues)
+	dedups := len(srcTimestamps) - len(timestamps)
+	atomic.AddUint64(&dedupsDuringMerge, uint64(dedups))
 	b.timestamps = b.timestamps[:b.nextIdx+len(timestamps)]
 	b.values = b.values[:b.nextIdx+len(values)]
 }
+
+var dedupsDuringMerge uint64
 
 func (b *Block) rowsCount() int {
 	if len(b.values) == 0 {

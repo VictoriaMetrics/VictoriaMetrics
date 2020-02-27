@@ -288,8 +288,14 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap) {
 		}
 	}
 
-	dst.Timestamps, dst.Values = storage.DeduplicateSamples(dst.Timestamps, dst.Values)
+	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values)
+	dedups := len(dst.Timestamps) - len(timestamps)
+	dedupsDuringSelect.Add(dedups)
+	dst.Timestamps = timestamps
+	dst.Values = values
 }
+
+var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
 
 type sortBlock struct {
 	// b is used as a temporary storage for unpacked rows before they
