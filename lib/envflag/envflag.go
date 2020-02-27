@@ -8,7 +8,7 @@ import (
 )
 
 var enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables additionally to command line. "+
-	"Command line flag values have priority over values from envoronment vars. "+
+	"Command line flag values have priority over values from environment vars. "+
 	"Flags are read only from command line if this flag isn't set")
 
 // Parse parses environment vars and command-line flags.
