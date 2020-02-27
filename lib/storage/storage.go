@@ -296,6 +296,8 @@ func (s *Storage) idb() *indexDB {
 
 // Metrics contains essential metrics for the Storage.
 type Metrics struct {
+	DedupsDuringMerge uint64
+
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
 
@@ -345,6 +347,8 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
+	m.DedupsDuringMerge = atomic.LoadUint64(&dedupsDuringMerge)
+
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
 	m.TooBigTimestampRows += atomic.LoadUint64(&s.tooBigTimestampRows)
 
