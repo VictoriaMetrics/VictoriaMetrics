@@ -97,9 +97,9 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 }
 
 var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_influx_read_calls_total`)
-	readErrors = metrics.NewCounter(`vm_protoparser_influx_read_errors_total`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_influx_rows_read_total`)
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="influx"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="influx"}`)
 )
 
 type streamContext struct {

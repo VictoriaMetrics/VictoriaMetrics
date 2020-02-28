@@ -98,9 +98,9 @@ func (ctx *streamContext) reset() {
 }
 
 var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_opentsdb_read_calls_total`)
-	readErrors = metrics.NewCounter(`vm_protoparser_opentsdb_read_errors_total`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_opentsdb_rows_read_total`)
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="opentsdb"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="opentsdb"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="opentsdb"}`)
 )
 
 func getStreamContext() *streamContext {

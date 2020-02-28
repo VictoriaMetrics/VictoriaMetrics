@@ -100,9 +100,9 @@ func (ctx *streamContext) reset() {
 }
 
 var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_graphite_read_calls_total`)
-	readErrors = metrics.NewCounter(`vm_protoparser_graphite_read_errors_total`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_graphite_rows_read_total`)
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="graphite"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="graphite"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="graphite"}`)
 )
 
 func getStreamContext() *streamContext {

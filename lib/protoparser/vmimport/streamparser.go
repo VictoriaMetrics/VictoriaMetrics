@@ -60,9 +60,9 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 }
 
 var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_vmimport_read_calls_total`)
-	readErrors = metrics.NewCounter(`vm_protoparser_vmimport_read_errors_total`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_vmimport_rows_read_total`)
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="vmimport"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="vmimport"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="vmimport"}`)
 )
 
 type streamContext struct {
