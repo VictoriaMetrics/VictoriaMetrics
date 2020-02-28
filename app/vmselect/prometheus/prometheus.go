@@ -340,10 +340,14 @@ func labelValuesWithMatches(at *auth.Token, labelName string, matches []string, 
 	if err != nil {
 		return nil, false, err
 	}
+	// Add `labelName!=''` tag filter in order to filter out series without the labelName.
+	key := []byte(labelName)
+	if string(key) == "__name__" {
+		key = nil
+	}
 	for i, tfs := range tagFilterss {
-		// Add `labelName!=''` tag filter in order to filter out series without the labelName.
 		tagFilterss[i] = append(tfs, storage.TagFilter{
-			Key:        []byte(labelName),
+			Key:        key,
 			IsNegative: true,
 		})
 	}
