@@ -340,16 +340,18 @@ func labelValuesWithMatches(at *auth.Token, labelName string, matches []string, 
 	if err != nil {
 		return nil, false, err
 	}
+
 	// Add `labelName!=''` tag filter in order to filter out series without the labelName.
-	key := []byte(labelName)
-	if string(key) == "__name__" {
-		key = nil
-	}
-	for i, tfs := range tagFilterss {
-		tagFilterss[i] = append(tfs, storage.TagFilter{
-			Key:        key,
-			IsNegative: true,
-		})
+	// There is no need in adding `__name__!=''` filter, since all the time series should
+	// already have non-empty name.
+	if labelName != "__name__" {
+		key := []byte(labelName)
+		for i, tfs := range tagFilterss {
+			tagFilterss[i] = append(tfs, storage.TagFilter{
+				Key:        key,
+				IsNegative: true,
+			})
+		}
 	}
 	if start >= end {
 		end = start + defaultStep
