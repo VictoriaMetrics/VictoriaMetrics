@@ -116,8 +116,8 @@ func Push(wr *prompbmarshal.WriteRequest) {
 		tssBlock = rctx.applyRelabeling(tssBlock)
 		idx := atomic.AddUint64(&pssNextIdx, 1) % uint64(len(pss))
 		pss[idx].Push(tssBlock)
+		rctx.reset()
 	}
-	rctx.reset()
 	relabelCtxPool.Put(rctx)
 }
 
