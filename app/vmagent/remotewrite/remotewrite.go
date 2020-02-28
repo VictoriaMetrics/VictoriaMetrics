@@ -105,11 +105,18 @@ func Stop() {
 // Each timeseries in wr.Timeseries must contain one sample.
 func Push(wr *prompbmarshal.WriteRequest) {
 	rctx := relabelCtxPool.Get().(*relabelCtx)
-	rctx.applyRelabeling(wr)
-
-	idx := atomic.AddUint64(&pssNextIdx, 1) % uint64(len(pss))
-	pss[idx].Push(wr.Timeseries)
-
+	tss := wr.Timeseries
+	for len(tss) > 0 {
+		// Process big tss in smaller blocks in order to reduce maxmimum memory usage
+		tssBlock := tss
+		if len(tssBlock) > maxRowsPerBlock {
+			tssBlock = tss[:maxRowsPerBlock]
+			tss = tss[maxRowsPerBlock:]
+		}
+		tssBlock = rctx.applyRelabeling(tssBlock)
+		idx := atomic.AddUint64(&pssNextIdx, 1) % uint64(len(pss))
+		pss[idx].Push(tssBlock)
+	}
 	rctx.reset()
 	relabelCtxPool.Put(rctx)
 }
