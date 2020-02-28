@@ -11,3 +11,4 @@
 * [Case Studies](CaseStudies)
 * [vmbackup](vmbackup)
 * [vmrestore](vmrestore)
+* [vmagent](vmagent)

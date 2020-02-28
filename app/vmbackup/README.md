@@ -6,7 +6,7 @@ Supported storage systems for backups:
 
 * [GCS](https://cloud.google.com/storage/). Example: `gcs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
-* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio). See `-customS3Endpoint` command-line flag.
+* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/docs/mimic/radosgw/s3/) or [Swift](https://www.swiftstack.com/docs/admin/middleware/s3_middleware.html). See `-customS3Endpoint` command-line flag.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`
 
 Incremental backups and full backups are supported. Incremental backups are created automatically if the destination path already contains data from the previous backup.
@@ -16,6 +16,8 @@ data between the existing backup and new backup. This saves time and costs on da
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 
 Backed up data can be restored with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md).
+
+See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
 
 ### Use cases
@@ -107,6 +109,7 @@ Such splitting minimizes the amounts of data to re-transfer after temporary erro
 - Consecutive snapshots share many identical files.
 
 These properties allow performing fast and cheap incremental backups and server-side copying from `-origin` paths.
+See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 `vmbackup` can work improperly or slowly when these properties are violated.
 
 
