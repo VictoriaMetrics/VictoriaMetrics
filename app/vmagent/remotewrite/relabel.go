@@ -50,12 +50,11 @@ func resetRelabel() {
 	prcs = nil
 }
 
-func (rctx *relabelCtx) applyRelabeling(wr *prompbmarshal.WriteRequest) {
+func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
 	if len(extraLabels) == 0 && len(prcs) == 0 {
 		// Nothing to change.
-		return
+		return tss
 	}
-	tss := wr.Timeseries
 	tssDst := tss[:0]
 	labels := rctx.labels[:0]
 	for i := range tss {
@@ -83,7 +82,7 @@ func (rctx *relabelCtx) applyRelabeling(wr *prompbmarshal.WriteRequest) {
 		})
 	}
 	rctx.labels = labels
-	wr.Timeseries = tssDst
+	return tssDst
 }
 
 type relabelCtx struct {
