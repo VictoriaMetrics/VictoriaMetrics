@@ -62,10 +62,10 @@ func (ctx *pushCtx) Read(r *http.Request) error {
 }
 
 var (
-	readCalls       = metrics.NewCounter(`vm_protoparser_promremotewrite_read_calls_total`)
-	readErrors      = metrics.NewCounter(`vm_protoparser_promremotewrite_read_errors_total`)
-	rowsRead        = metrics.NewCounter(`vm_protoparser_promremotewrite_rows_read_total`)
-	unmarshalErrors = metrics.NewCounter(`vm_protoparser_promremotewrite_unmarshal_errors`)
+	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="promremotewrite"}`)
+	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="promremotewrite"}`)
+	rowsRead        = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promremotewrite"}`)
+	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors{type="promremotewrite"}`)
 )
 
 func getPushCtx() *pushCtx {
