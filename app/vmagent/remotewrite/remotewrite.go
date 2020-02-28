@@ -112,6 +112,8 @@ func Push(wr *prompbmarshal.WriteRequest) {
 		if len(tssBlock) > maxRowsPerBlock {
 			tssBlock = tss[:maxRowsPerBlock]
 			tss = tss[maxRowsPerBlock:]
+		} else {
+			tss = nil
 		}
 		tssBlock = rctx.applyRelabeling(tssBlock)
 		idx := atomic.AddUint64(&pssNextIdx, 1) % uint64(len(pss))
