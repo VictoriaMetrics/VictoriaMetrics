@@ -53,6 +53,55 @@ type Queue struct {
 	mustStop bool
 }
 
+// ResetIfEmpty resets q if it is empty.
+//
+// This is needed in order to remove chunk file associated with empty q.
+func (q *Queue) ResetIfEmpty() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.readerOffset != q.writerOffset {
+		// The queue isn't empty.
+		return
+	}
+	if q.readerOffset < 16*1024*1024 {
+		// The file is too small to drop. Leave it as is in order to reduce filesystem load.
+		return
+	}
+	if q.readerPath != q.writerPath {
+		logger.Panicf("BUG: readerPath=%q doesn't match writerPath=%q", q.readerPath, q.writerPath)
+	}
+
+	q.reader.MustClose()
+	q.writer.MustClose()
+	fs.MustRemoveAll(q.readerPath)
+
+	q.writerOffset = 0
+	q.writerLocalOffset = 0
+	q.writerFlushedOffset = 0
+
+	q.readerOffset = 0
+	q.readerLocalOffset = 0
+
+	q.writerPath = q.chunkFilePath(q.writerOffset)
+	w, err := filestream.Create(q.writerPath, false)
+	if err != nil {
+		logger.Panicf("FATAL: cannot create chunk file %q: %s", q.writerPath, err)
+	}
+	q.writer = w
+
+	q.readerPath = q.writerPath
+	r, err := filestream.Open(q.readerPath, true)
+	if err != nil {
+		logger.Panicf("FATAL: cannot open chunk file %q: %s", q.readerPath, err)
+	}
+	q.reader = r
+
+	if err := q.flushMetainfo(); err != nil {
+		logger.Panicf("FATAL: cannot flush metainfo: %s", err)
+	}
+}
+
 // GetPendingBytes returns the number of pending bytes in the queue.
 func (q *Queue) GetPendingBytes() uint64 {
 	q.mu.Lock()
