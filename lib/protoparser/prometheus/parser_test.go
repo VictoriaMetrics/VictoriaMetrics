@@ -111,15 +111,14 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f("a{")
 	f("a { ")
 	f("a {foo")
-	f("a {foo}")
+	f("a {foo} 3")
 	f("a {foo  =")
 	f(`a {foo  ="bar`)
 	f(`a {foo  ="b\ar`)
 	f(`a {foo  = "bar"`)
 	f(`a {foo  ="bar",`)
 	f(`a {foo  ="bar" , `)
-	f(`a {foo  ="bar" , }`)
-	f(`a {foo  ="bar" , baz }`)
+	f(`a {foo  ="bar" , baz } 2`)
 
 	// empty metric name
 	f(`{foo="bar"}`)
@@ -227,6 +226,20 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 					Value: "y",
 				},
 			},
+			Value:     1,
+			Timestamp: 2,
+		}},
+	})
+
+	// Trailing comma after tag
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/350
+	f(`foo{bar="baz",} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
 			Value:     1,
 			Timestamp: 2,
 		}},

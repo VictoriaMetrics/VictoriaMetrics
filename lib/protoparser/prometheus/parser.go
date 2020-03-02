@@ -193,12 +193,12 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
 func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
-	s = skipLeadingWhitespace(s)
-	if len(s) > 0 && s[0] == '}' {
-		// End of tags found.
-		return s[1:], dst, nil
-	}
 	for {
+		s = skipLeadingWhitespace(s)
+		if len(s) > 0 && s[0] == '}' {
+			// End of tags found.
+			return s[1:], dst, nil
+		}
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
 			return s, dst, fmt.Errorf("missing value for tag %q", s)
@@ -248,7 +248,7 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 		if len(s) == 0 || s[0] != ',' {
 			return s, dst, fmt.Errorf("missing comma after tag %s=%q", key, value)
 		}
-		s = skipLeadingWhitespace(s[1:])
+		s = s[1:]
 	}
 }
 
