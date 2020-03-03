@@ -106,7 +106,9 @@ func Push(wr *prompbmarshal.WriteRequest) {
 		for _, rwctx := range rwctxs {
 			rwctx.Push(tssBlock)
 		}
-		rctx.reset()
+		if rctx != nil {
+			rctx.reset()
+		}
 	}
 	if rctx != nil {
 		putRelabelCtx(rctx)
