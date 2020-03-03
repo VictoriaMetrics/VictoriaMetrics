@@ -851,6 +851,9 @@ the current timestamps. Query cache can be enabled after the backfilling is comp
 An alternative solution is to query `/internal/resetRollupResultCache` url after backfilling is complete. This will reset
 the query cache, which could contain incomplete data cached during the backfilling.
 
+Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
+for data with timestamps close to the current time.
+
 ### Profiling
 
 VictoriaMetrics provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
