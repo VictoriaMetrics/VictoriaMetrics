@@ -15,7 +15,7 @@ func BenchmarkFastQueueThroughputSerial(b *testing.B) {
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-serial-%d", blockSize)
 			mustDeleteDir(path)
-			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2)
+			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2, 0)
 			defer func() {
 				fq.MustClose()
 				mustDeleteDir(path)
@@ -36,7 +36,7 @@ func BenchmarkFastQueueThroughputConcurrent(b *testing.B) {
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-concurrent-%d", blockSize)
 			mustDeleteDir(path)
-			fq := MustOpenFastQueue(path, "foobar", iterationsCount*runtime.GOMAXPROCS(-1)*2)
+			fq := MustOpenFastQueue(path, "foobar", iterationsCount*runtime.GOMAXPROCS(-1)*2, 0)
 			defer func() {
 				fq.MustClose()
 				mustDeleteDir(path)

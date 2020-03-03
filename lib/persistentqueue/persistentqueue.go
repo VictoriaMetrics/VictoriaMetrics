@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // MaxBlockSize is the maximum size of the block persistent queue can work with.
@@ -26,8 +27,9 @@ var chunkFileNameRegex = regexp.MustCompile("^[0-9A-F]{16}$")
 
 // Queue represents persistent queue.
 type Queue struct {
-	chunkFileSize uint64
-	maxBlockSize  uint64
+	chunkFileSize   uint64
+	maxBlockSize    uint64
+	maxPendingBytes uint64
 
 	dir  string
 	name string
@@ -51,6 +53,15 @@ type Queue struct {
 	writerFlushedOffset uint64
 
 	mustStop bool
+
+	blocksDropped *metrics.Counter
+	bytesDropped  *metrics.Counter
+
+	blocksWritten *metrics.Counter
+	bytesWritten  *metrics.Counter
+
+	blocksRead *metrics.Counter
+	bytesRead  *metrics.Counter
 }
 
 // ResetIfEmpty resets q if it is empty.
@@ -111,22 +122,28 @@ func (q *Queue) GetPendingBytes() uint64 {
 }
 
 // MustOpen opens persistent queue from the given path.
-func MustOpen(path, name string) *Queue {
-	return mustOpen(path, name, defaultChunkFileSize, MaxBlockSize)
+//
+// If maxPendingBytes is greater than 0, then the max queue size is limited by this value.
+// The oldest data is deleted when queue size exceeds maxPendingBytes.
+func MustOpen(path, name string, maxPendingBytes int) *Queue {
+	if maxPendingBytes < 0 {
+		maxPendingBytes = 0
+	}
+	return mustOpen(path, name, defaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
 }
 
-func mustOpen(path, name string, chunkFileSize, maxBlockSize uint64) *Queue {
+func mustOpen(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) *Queue {
 	if chunkFileSize < 8 || chunkFileSize-8 < maxBlockSize {
 		logger.Panicf("BUG: too small chunkFileSize=%d for maxBlockSize=%d; chunkFileSize must fit at least one block", chunkFileSize, maxBlockSize)
 	}
 	if maxBlockSize <= 0 {
 		logger.Panicf("BUG: maxBlockSize must be greater than 0; got %d", maxBlockSize)
 	}
-	q, err := tryOpeningQueue(path, name, chunkFileSize, maxBlockSize)
+	q, err := tryOpeningQueue(path, name, chunkFileSize, maxBlockSize, maxPendingBytes)
 	if err != nil {
 		logger.Errorf("cannot open persistent queue at %q: %s; cleaning it up and trying again", path, err)
 		fs.RemoveDirContents(path)
-		q, err = tryOpeningQueue(path, name, chunkFileSize, maxBlockSize)
+		q, err = tryOpeningQueue(path, name, chunkFileSize, maxBlockSize, maxPendingBytes)
 		if err != nil {
 			logger.Panicf("FATAL: %s", err)
 		}
@@ -134,13 +151,21 @@ func mustOpen(path, name string, chunkFileSize, maxBlockSize uint64) *Queue {
 	return q
 }
 
-func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize uint64) (*Queue, error) {
+func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) (*Queue, error) {
 	var q Queue
 	q.chunkFileSize = chunkFileSize
 	q.maxBlockSize = maxBlockSize
+	q.maxPendingBytes = maxPendingBytes
 	q.dir = path
 	q.name = name
 	q.cond.L = &q.mu
+
+	q.blocksDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_blocks_dropped_total{path=%q}`, path))
+	q.bytesDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_dropped_total{path=%q}`, path))
+	q.blocksWritten = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_blocks_written_total{path=%q}`, path))
+	q.bytesWritten = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_written_total{path=%q}`, path))
+	q.blocksRead = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_blocks_read_total{path=%q}`, path))
+	q.bytesRead = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_read_total{path=%q}`, path))
 
 	cleanOnError := func() {
 		if q.reader != nil {
@@ -333,6 +358,31 @@ func (q *Queue) MustWriteBlock(block []byte) {
 	if q.readerOffset > q.writerOffset {
 		logger.Panicf("BUG: readerOffset=%d shouldn't exceed writerOffset=%d", q.readerOffset, q.writerOffset)
 	}
+	if q.maxPendingBytes > 0 {
+		// Drain the oldest blocks until the number of pending bytes becomes enough for the block.
+		blockSize := uint64(len(block) + 8)
+		maxPendingBytes := q.maxPendingBytes
+		if blockSize < maxPendingBytes {
+			maxPendingBytes -= blockSize
+		} else {
+			maxPendingBytes = 0
+		}
+		bb := blockBufPool.Get()
+		for q.writerOffset-q.readerOffset > maxPendingBytes {
+			var err error
+			bb.B, err = q.readBlockLocked(bb.B[:0])
+			if err != nil {
+				logger.Panicf("FATAL: cannot read the oldest block %s", err)
+			}
+			q.blocksDropped.Inc()
+			q.bytesDropped.Add(len(bb.B))
+		}
+		blockBufPool.Put(bb)
+		if blockSize > q.maxPendingBytes {
+			// The block is too big to put it into the queue. Drop it.
+			return
+		}
+	}
 	mustNotifyReader := q.readerOffset == q.writerOffset
 	if err := q.writeBlockLocked(block); err != nil {
 		logger.Panicf("FATAL: %s", err)
@@ -341,6 +391,8 @@ func (q *Queue) MustWriteBlock(block []byte) {
 		q.cond.Signal()
 	}
 }
+
+var blockBufPool bytesutil.ByteBufferPool
 
 func (q *Queue) writeBlockLocked(block []byte) error {
 	if q.writerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
@@ -376,6 +428,8 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 	if err := q.write(block); err != nil {
 		return fmt.Errorf("cannot write block contents with size %d bytes to %q: %s", len(block), q.writerPath, err)
 	}
+	q.blocksWritten.Inc()
+	q.bytesWritten.Add(len(block))
 	return nil
 }
 
@@ -447,6 +501,8 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 	if err := q.readFull(dst[dstLen:]); err != nil {
 		return dst, fmt.Errorf("cannot read block contents with size %d bytes from %q: %s", blockLen, q.readerPath, err)
 	}
+	q.blocksRead.Inc()
+	q.bytesRead.Add(int(blockLen))
 	return dst, nil
 }
 

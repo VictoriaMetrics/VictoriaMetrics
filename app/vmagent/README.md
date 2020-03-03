@@ -28,7 +28,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
 * Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as connection
-  to remote storage is recovered.
+  to remote storage is recovered. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth comparing to Prometheus.
 
 

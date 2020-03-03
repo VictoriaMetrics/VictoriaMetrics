@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ func TestQueueOpenClose(t *testing.T) {
 	path := "queue-open-close"
 	mustDeleteDir(path)
 	for i := 0; i < 3; i++ {
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		if n := q.GetPendingBytes(); n > 0 {
 			t.Fatalf("pending bytes must be 0; got %d", n)
 		}
@@ -27,7 +28,7 @@ func TestQueueOpen(t *testing.T) {
 		path := "queue-open-invalid-metainfo"
 		mustCreateDir(path)
 		mustCreateFile(path+"/metainfo.json", "foobarbaz")
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -37,7 +38,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateEmptyMetainfo(path, "foobar")
 		mustCreateFile(path+"/junk-file", "foobar")
 		mustCreateDir(path + "/junk-dir")
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -46,7 +47,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
 		mustCreateFile(fmt.Sprintf("%s/%016X", path, 1234), "qwere")
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -55,7 +56,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
 		mustCreateFile(fmt.Sprintf("%s/%016X", path, 100*uint64(defaultChunkFileSize)), "asdf")
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -71,7 +72,7 @@ func TestQueueOpen(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "adfsfd")
-		q := MustOpen(path, mi.Name)
+		q := MustOpen(path, mi.Name, 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -85,7 +86,7 @@ func TestQueueOpen(t *testing.T) {
 		if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		q := MustOpen(path, mi.Name)
+		q := MustOpen(path, mi.Name, 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -93,7 +94,7 @@ func TestQueueOpen(t *testing.T) {
 		path := "queue-open-metainfo-dir"
 		mustCreateDir(path)
 		mustCreateDir(path + "/metainfo.json")
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -109,7 +110,7 @@ func TestQueueOpen(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "sdf")
-		q := MustOpen(path, mi.Name)
+		q := MustOpen(path, mi.Name, 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -118,7 +119,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
 		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "sdfdsf")
-		q := MustOpen(path, "foobar")
+		q := MustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
@@ -132,16 +133,43 @@ func TestQueueOpen(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "sdf")
-		q := MustOpen(path, "baz")
+		q := MustOpen(path, "baz", 0)
 		q.MustClose()
 		mustDeleteDir(path)
 	})
 }
 
+func TestQueueResetIfEmpty(t *testing.T) {
+	path := "queue-reset-if-empty"
+	mustDeleteDir(path)
+	q := MustOpen(path, "foobar", 0)
+	defer func() {
+		q.MustClose()
+		mustDeleteDir(path)
+	}()
+
+	block := make([]byte, 1024*1024)
+	var buf []byte
+	for j := 0; j < 10; j++ {
+		for i := 0; i < 10; i++ {
+			q.MustWriteBlock(block)
+			var ok bool
+			buf, ok = q.MustReadBlock(buf[:0])
+			if !ok {
+				t.Fatalf("unexpected ok=false returned from MustReadBlock")
+			}
+		}
+		q.ResetIfEmpty()
+		if n := q.GetPendingBytes(); n > 0 {
+			t.Fatalf("unexpected non-zer pending bytes after queue reset: %d", n)
+		}
+	}
+}
+
 func TestQueueWriteRead(t *testing.T) {
 	path := "queue-write-read"
 	mustDeleteDir(path)
-	q := MustOpen(path, "foobar")
+	q := MustOpen(path, "foobar", 0)
 	defer func() {
 		q.MustClose()
 		mustDeleteDir(path)
@@ -177,7 +205,7 @@ func TestQueueWriteRead(t *testing.T) {
 func TestQueueWriteCloseRead(t *testing.T) {
 	path := "queue-write-close-read"
 	mustDeleteDir(path)
-	q := MustOpen(path, "foobar")
+	q := MustOpen(path, "foobar", 0)
 	defer func() {
 		q.MustClose()
 		mustDeleteDir(path)
@@ -194,7 +222,7 @@ func TestQueueWriteCloseRead(t *testing.T) {
 			t.Fatalf("pending bytes must be greater than 0; got %d", n)
 		}
 		q.MustClose()
-		q = MustOpen(path, "foobar")
+		q = MustOpen(path, "foobar", 0)
 		if n := q.GetPendingBytes(); n <= 0 {
 			t.Fatalf("pending bytes must be greater than 0; got %d", n)
 		}
@@ -218,7 +246,7 @@ func TestQueueWriteCloseRead(t *testing.T) {
 func TestQueueReadEmpty(t *testing.T) {
 	path := "queue-read-empty"
 	mustDeleteDir(path)
-	q := MustOpen(path, "foobar")
+	q := MustOpen(path, "foobar", 0)
 	defer mustDeleteDir(path)
 
 	resultCh := make(chan error)
@@ -249,7 +277,7 @@ func TestQueueReadEmpty(t *testing.T) {
 func TestQueueReadWriteConcurrent(t *testing.T) {
 	path := "queue-read-write-concurrent"
 	mustDeleteDir(path)
-	q := MustOpen(path, "foobar")
+	q := MustOpen(path, "foobar", 0)
 	defer mustDeleteDir(path)
 
 	blocksMap := make(map[string]bool, 1000)
@@ -309,7 +337,7 @@ func TestQueueReadWriteConcurrent(t *testing.T) {
 	readersWG.Wait()
 
 	// Read the remaining blocks in q.
-	q = MustOpen(path, "foobar")
+	q = MustOpen(path, "foobar", 0)
 	defer q.MustClose()
 	resultCh := make(chan error)
 	go func() {
@@ -345,7 +373,7 @@ func TestQueueChunkManagementSimple(t *testing.T) {
 	mustDeleteDir(path)
 	const chunkFileSize = 100
 	const maxBlockSize = 20
-	q := mustOpen(path, "foobar", chunkFileSize, maxBlockSize)
+	q := mustOpen(path, "foobar", chunkFileSize, maxBlockSize, 0)
 	defer mustDeleteDir(path)
 	defer q.MustClose()
 	var blocks []string
@@ -376,7 +404,7 @@ func TestQueueChunkManagementPeriodicClose(t *testing.T) {
 	mustDeleteDir(path)
 	const chunkFileSize = 100
 	const maxBlockSize = 20
-	q := mustOpen(path, "foobar", chunkFileSize, maxBlockSize)
+	q := mustOpen(path, "foobar", chunkFileSize, maxBlockSize, 0)
 	defer func() {
 		q.MustClose()
 		mustDeleteDir(path)
@@ -387,7 +415,7 @@ func TestQueueChunkManagementPeriodicClose(t *testing.T) {
 		q.MustWriteBlock([]byte(block))
 		blocks = append(blocks, block)
 		q.MustClose()
-		q = mustOpen(path, "foobar", chunkFileSize, maxBlockSize)
+		q = mustOpen(path, "foobar", chunkFileSize, maxBlockSize, 0)
 	}
 	if n := q.GetPendingBytes(); n == 0 {
 		t.Fatalf("unexpected zero number of bytes pending")
@@ -401,10 +429,67 @@ func TestQueueChunkManagementPeriodicClose(t *testing.T) {
 			t.Fatalf("unexpected block read; got %q; want %q", data, block)
 		}
 		q.MustClose()
-		q = mustOpen(path, "foobar", chunkFileSize, maxBlockSize)
+		q = mustOpen(path, "foobar", chunkFileSize, maxBlockSize, 0)
 	}
 	if n := q.GetPendingBytes(); n != 0 {
 		t.Fatalf("unexpected non-zero number of pending bytes: %d", n)
+	}
+}
+
+func TestQueueLimitedSize(t *testing.T) {
+	const maxPendingBytes = 1000
+	path := "queue-limited-size"
+	mustDeleteDir(path)
+	q := MustOpen(path, "foobar", maxPendingBytes)
+	defer func() {
+		q.MustClose()
+		mustDeleteDir(path)
+	}()
+
+	// Check that small blocks are successfully buffered and read
+	var blocks []string
+	for i := 0; i < 10; i++ {
+		block := fmt.Sprintf("block_%d", i)
+		q.MustWriteBlock([]byte(block))
+		blocks = append(blocks, block)
+	}
+	var buf []byte
+	var ok bool
+	for _, block := range blocks {
+		buf, ok = q.MustReadBlock(buf[:0])
+		if !ok {
+			t.Fatalf("unexpected ok=false")
+		}
+		if string(buf) != block {
+			t.Fatalf("unexpected block read; got %q; want %q", buf, block)
+		}
+	}
+
+	// Make sure that old blocks are dropped on queue size overflow
+	for i := 0; i < maxPendingBytes; i++ {
+		block := fmt.Sprintf("%d", i)
+		q.MustWriteBlock([]byte(block))
+	}
+	if n := q.GetPendingBytes(); n > maxPendingBytes {
+		t.Fatalf("too many pending bytes; got %d; mustn't exceed %d", n, maxPendingBytes)
+	}
+	buf, ok = q.MustReadBlock(buf[:0])
+	if !ok {
+		t.Fatalf("unexpected ok=false")
+	}
+	blockNum, err := strconv.Atoi(string(buf))
+	if err != nil {
+		t.Fatalf("cannot parse block contents: %s", err)
+	}
+	if blockNum < 20 {
+		t.Fatalf("too small block number: %d; it looks like it wasn't dropped", blockNum)
+	}
+
+	// Try writing a block with too big size
+	block := make([]byte, maxPendingBytes+1)
+	q.MustWriteBlock(block)
+	if n := q.GetPendingBytes(); n != 0 {
+		t.Fatalf("unexpected non-empty queue after writing a block with too big size; queue size: %d bytes", n)
 	}
 }
 
