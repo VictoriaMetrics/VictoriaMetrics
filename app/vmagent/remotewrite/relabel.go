@@ -12,45 +12,42 @@ import (
 )
 
 var (
-	extraLabelsUnparsed = flagutil.NewArray("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
+	unparsedLabelsGlobal = flagutil.NewArray("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
 		"Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage")
-	relabelConfigPath = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. These entries are applied to all the metrics "+
+	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. These entries are applied to all the metrics "+
 		"before sending them to -remoteWrite.url. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config for details")
 )
 
-var extraLabels []prompbmarshal.Label
-var prcs []promrelabel.ParsedRelabelConfig
+var labelsGlobal []prompbmarshal.Label
+var prcsGlobal []promrelabel.ParsedRelabelConfig
 
-// initRelabel must be called after parsing command-line flags.
-func initRelabel() {
-	// Init extraLabels
-	for _, s := range *extraLabelsUnparsed {
+// initRelabelGlobal must be called after parsing command-line flags.
+func initRelabelGlobal() {
+	// Init labelsGlobal
+	labelsGlobal = nil
+	for _, s := range *unparsedLabelsGlobal {
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
 			logger.Panicf("FATAL: missing '=' in `-remoteWrite.label`. It must contain label in the form `name=value`; got %q", s)
 		}
-		extraLabels = append(extraLabels, prompbmarshal.Label{
+		labelsGlobal = append(labelsGlobal, prompbmarshal.Label{
 			Name:  s[:n],
 			Value: s[n+1:],
 		})
 	}
 
-	// Init prcs
-	if len(*relabelConfigPath) > 0 {
+	// Init prcsGlobal
+	prcsGlobal = nil
+	if len(*relabelConfigPathGlobal) > 0 {
 		var err error
-		prcs, err = promrelabel.LoadRelabelConfigs(*relabelConfigPath)
+		prcsGlobal, err = promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
 		if err != nil {
-			logger.Panicf("FATAL: cannot load relabel configs from -remoteWrite.relabelConfig=%q: %s", *relabelConfigPath, err)
+			logger.Panicf("FATAL: cannot load relabel configs from -remoteWrite.relabelConfig=%q: %s", *relabelConfigPathGlobal, err)
 		}
 	}
 }
 
-func resetRelabel() {
-	extraLabels = nil
-	prcs = nil
-}
-
-func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label, prcs []promrelabel.ParsedRelabelConfig) []prompbmarshal.TimeSeries {
 	if len(extraLabels) == 0 && len(prcs) == 0 {
 		// Nothing to change.
 		return tss
@@ -104,4 +101,13 @@ var relabelCtxPool = &sync.Pool{
 	New: func() interface{} {
 		return &relabelCtx{}
 	},
+}
+
+func getRelabelCtx() *relabelCtx {
+	return relabelCtxPool.Get().(*relabelCtx)
+}
+
+func putRelabelCtx(rctx *relabelCtx) {
+	rctx.labels = rctx.labels[:0]
+	relabelCtxPool.Put(rctx)
 }

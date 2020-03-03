@@ -69,11 +69,7 @@ sections from [Prometheus config file](https://prometheus.io/docs/prometheus/lat
 * `scrape_configs`
 
 All the other sections are ignored, including [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
-Use `-remoteWrite.*` command-line flags instead for configuring remote write settings:
-
-* `-remoteWrite.url` for pointing to remote storage. Data to remote storage can be sent either via HTTP or HTTPS. See `-remoteWrite.tls*` flags for details.
-* `-remoteWrite.label` for adding labels to metrics before sending them to remote storage.
-* `-remoteWrite.relabelConfig` for applying relabeling to metrics before sending them to remote storage.
+Use `-remoteWrite.*` command-line flags instead for configuring remote write settings.
 
 The following scrape types in [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) section are supported:
 
@@ -114,7 +110,8 @@ The relabeling can be defined in the following places:
 * At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to targets when parsing the file during `vmagent` startup
   or during config reload after sending `SIGHUP` signal to `vmagent`  via `kill -HUP`.
 * At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to metrics after each scrape for the configured targets.
-* At `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to `-remoteWrite.url`.
+* At `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to remote storage.
+* At `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`.
 
 Read more about relabeling in the following articles:
 

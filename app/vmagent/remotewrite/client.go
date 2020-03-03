@@ -50,7 +50,7 @@ type client struct {
 	stopCh chan struct{}
 }
 
-func newClient(remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQueue) *client {
+func newClient(remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authHeader := ""
 	if len(*basicAuthUsername) > 0 || len(*basicAuthPassword) > 0 {
 		// See https://en.wikipedia.org/wiki/Basic_access_authentication
@@ -98,7 +98,7 @@ func newClient(remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQue
 			host += ":80"
 		}
 	}
-	maxConns := 2 * *queues
+	maxConns := 2 * concurrency
 	hc := &fasthttp.HostClient{
 		Addr:                host,
 		Name:                "vmagent",
@@ -126,7 +126,7 @@ func newClient(remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQue
 	c.requestsOKCount = metrics.NewCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.urlLabelValue))
 	c.errorsCount = metrics.NewCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.urlLabelValue))
 	c.retriesCount = metrics.NewCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.urlLabelValue))
-	for i := 0; i < *queues; i++ {
+	for i := 0; i < concurrency; i++ {
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
