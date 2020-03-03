@@ -24,23 +24,23 @@ var (
 //
 // Scraped data is passed to pushData.
 func Init(pushData func(wr *prompbmarshal.WriteRequest)) {
-	stopCh = make(chan struct{})
+	globalStopCh = make(chan struct{})
 	scraperWG.Add(1)
 	go func() {
 		defer scraperWG.Done()
-		runScraper(*promscrapeConfigFile, pushData, stopCh)
+		runScraper(*promscrapeConfigFile, pushData, globalStopCh)
 	}()
 }
 
 // Stop stops Prometheus scraper.
 func Stop() {
-	close(stopCh)
+	close(globalStopCh)
 	scraperWG.Wait()
 }
 
 var (
-	stopCh    chan struct{}
-	scraperWG sync.WaitGroup
+	globalStopCh chan struct{}
+	scraperWG    sync.WaitGroup
 )
 
 func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
