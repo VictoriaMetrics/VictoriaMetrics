@@ -32,8 +32,12 @@ type FastQueue struct {
 // MustOpenFastQueue opens persistent queue at the given path.
 //
 // It holds up to maxInmemoryBlocks in memory before falling back to file-based persistence.
-func MustOpenFastQueue(path, name string, maxInmemoryBlocks int) *FastQueue {
-	pq := MustOpen(path, name)
+//
+// if maxPendingBytes is 0, then the queue size is unlimited.
+// Otherwise its size is limited by maxPendingBytes. The oldest data is dropped when the queue
+// reaches maxPendingSize.
+func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int) *FastQueue {
+	pq := MustOpen(path, name, maxPendingBytes)
 	fq := &FastQueue{
 		pq: pq,
 		ch: make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
@@ -150,5 +154,3 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 		fq.cond.Wait()
 	}
 }
-
-var blockBufPool bytesutil.ByteBufferPool

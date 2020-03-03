@@ -26,6 +26,10 @@ var (
 		"isn't enough for sending high volume of collected data to remote storage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensistive auth info")
+	maxPendingBytesPerURL = flag.Int("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
+		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. "+
+		"Disk usage is unlimited if the value is set to 0")
 )
 
 var rwctxs []*remoteWriteCtx
@@ -130,11 +134,11 @@ type remoteWriteCtx struct {
 func newRemoteWriteCtx(remoteWriteURL, relabelConfigPath string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
 	h := xxhash.Sum64([]byte(remoteWriteURL))
 	path := fmt.Sprintf("%s/persistent-queue/%016X", *tmpDataPath, h)
-	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks)
-	_ = metrics.NewGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{url=%q, hash="%016X"}`, urlLabelValue, h), func() float64 {
+	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, *maxPendingBytesPerURL)
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
-	_ = metrics.NewGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{url=%q}`, urlLabelValue), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
 	c := newClient(remoteWriteURL, urlLabelValue, fq, *queues)
@@ -156,7 +160,7 @@ func newRemoteWriteCtx(remoteWriteURL, relabelConfigPath string, maxInmemoryBloc
 		prcs: prcs,
 		pss:  pss,
 
-		relabelMetricsDropped: metrics.NewCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{url=%q}`, urlLabelValue)),
+		relabelMetricsDropped: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, path, urlLabelValue)),
 	}
 }
 
