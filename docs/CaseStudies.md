@@ -68,6 +68,24 @@ Numbers:
 > We like configuration simplicity and zero maintenance for VictoriaMetrics - once installed and forgot about it. It works out of the box without any issues.
 
 
+### Synthesio
+
+[Synthesio](https://www.synthesio.com/) is the leading social intelligence tool for social media monitoring & social analytics.
+
+> We fully migrated from [Metrictank](https://grafana.com/oss/metrictank/)  to Victoria Metrics
+
+Numbers:
+- Single node
+- Active time series - 5 Million
+- Datapoints: 1.25 Trillion
+- Ingestion rate - 550k datapoints per second
+- Disk usage - 150gb
+- Index size - 3gb
+- Query duration 99th percentile - 147ms
+- Churn rate - 100 new time series per hour
+
+
+
 ### Dreamteam
 
 [Dreamteam](https://dreamteam.gg/) successfully uses single-node VictoriaMetrics in multiple environments.
