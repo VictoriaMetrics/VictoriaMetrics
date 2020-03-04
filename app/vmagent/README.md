@@ -62,6 +62,18 @@ Pass `-help` to `vmagent` in order to see the full list of supported command-lin
 
 ### Use cases
 
+
+#### IoT and Edge monitoring
+
+`vmagent` can run and collect metrics in IoT and industrial networks with unreliable or scheduled connections to the remote storage.
+It buffers the collected data in local files until the connection to remote storage becomes available and then sends the buffered
+data to the remote storage at the maximum performance. It re-tries sending the data to remote storage on any errors.
+The maximum buffer size can be limited with `-remoteWrite.maxDiskUsagePerURL'.
+
+`vmagent` works on various architectures from IoT world - 32-bit arm, 64-bit arm, ppc64, 386, amd64.
+See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/Makefile) for details.
+
+
 #### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage,
