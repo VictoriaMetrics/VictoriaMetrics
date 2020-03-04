@@ -77,7 +77,7 @@ See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/Victor
 #### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage,
-then `vmagent` can replace such Prometheus setup. Usually `vmagent` requires lower amounts RAM, CPU and network bandwidth comparing to Prometheus for such setup.
+then `vmagent` can replace such Prometheus setup. Usually `vmagent` requires lower amounts of RAM, CPU and network bandwidth comparing to Prometheus for such setup.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 
 
@@ -184,8 +184,8 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   and `vmagent_remotewrite_pending_data_bytes` metric exported by `vmagent` at `/metrics` page constantly grows.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
-  The directory can grow big when remote storage is unvailable during extended periods of time. If you don't want
-  sending all the data from the directory to remote storage, just stop `vmagent` and delete the directory.
+  The directory can grow big when remote storage is unvailable during extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
+  If you don't want sending all the data from the directory to remote storage, just stop `vmagent` and delete the directory.
 
 
 ### How to build from sources
