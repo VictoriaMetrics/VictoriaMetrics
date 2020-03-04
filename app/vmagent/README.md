@@ -60,7 +60,40 @@ Then send Influx data to `http://vmagent-host:8429/write`. See [these docs](http
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
 
-### How to collect metrics in Prometheus format?
+### Use cases
+
+#### Drop-in replacement for Prometheus
+
+If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage,
+then `vmagent` can replace such Prometheus setup. Usually `vmagent` requires lower amounts RAM, CPU and network bandwidth comparing to Prometheus for such setup.
+See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
+
+
+#### Replication and high availability
+
+`vmagent` replicates the collected metrics among multiple remote storage instances configured via `-remoteWrite.url` args.
+If a single remote storage instance temporarily goes out of service, then the collected data remains available in another remote storage instances.
+`vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again.
+Then it sends the buffered data to the remote storage in order to prevent data gaps in the remote storage.
+
+
+#### Relabeling and filtering
+
+`vmagent` can add, remove or update labels on the collected data before sending it to remote storage. Additionally,
+it can remove unneeded samples via Prometheus-like relabeling before sending the collected data to remote storage.
+See [these docs](#relabeling) for details.
+
+
+#### Splitting data streams among multiple systems
+
+`vmagent` supports splitting of the collected data among muliple destinations with the help of `-remoteWrite.urlRelabelConfig`,
+which is applied independently for each configured `-remoteWrite.url` destination. For instance, it is possible to replicate or split
+data among long-term remote storage, short-term remote storage and real-time analytical system [built on top of Kafka](https://github.com/Telefonica/prometheus-kafka-adapter).
+Note that each destination can receive its own subset of the collected data thanks to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
+
+
+
+### How to collect metrics in Prometheus format
 
 Pass the path to `prometheus.yml` to `-promscrape.config` command-line flag. `vmagent` takes into account the following
 sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
