@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -168,7 +169,7 @@ func (ts *timeseries) marshalFastNoTimestamps(dst []byte) []byte {
 	// during marshalFastTimestamps.
 	var valuesBuf []byte
 	if len(ts.Values) > 0 {
-		valuesBuf = (*[maxByteSliceLen]byte)(unsafe.Pointer(&ts.Values[0]))[:len(ts.Values)*8]
+		valuesBuf = float64ToByteSlice(ts.Values)
 	}
 	dst = append(dst, valuesBuf...)
 	return dst
@@ -178,7 +179,7 @@ func marshalFastTimestamps(dst []byte, timestamps []int64) []byte {
 	dst = encoding.MarshalUint32(dst, uint32(len(timestamps)))
 	var timestampsBuf []byte
 	if len(timestamps) > 0 {
-		timestampsBuf = (*[maxByteSliceLen]byte)(unsafe.Pointer(&timestamps[0]))[:len(timestamps)*8]
+		timestampsBuf = int64ToByteSlice(timestamps)
 	}
 	dst = append(dst, timestampsBuf...)
 	return dst
@@ -199,8 +200,7 @@ func unmarshalFastTimestamps(src []byte) ([]byte, []int64, error) {
 	if len(src) < bufSize {
 		return src, nil, fmt.Errorf("cannot unmarshal timestamps; got %d bytes; want at least %d bytes", len(src), bufSize)
 	}
-	timestamps := (*[maxByteSliceLen / 8]int64)(unsafe.Pointer(&src[0]))[:timestampsCount]
-	timestamps = timestamps[:len(timestamps):len(timestamps)]
+	timestamps := byteSliceToInt64(src[:bufSize])
 	src = src[bufSize:]
 
 	return src, timestamps, nil
@@ -229,10 +229,41 @@ func (ts *timeseries) unmarshalFastNoTimestamps(src []byte) ([]byte, error) {
 	if len(src) < bufSize {
 		return src, fmt.Errorf("cannot unmarshal values; got %d bytes; want at least %d bytes", len(src), bufSize)
 	}
-	values := (*[maxByteSliceLen / 8]float64)(unsafe.Pointer(&src[0]))[:valuesCount]
-	ts.Values = values[:len(values):len(values)]
+	ts.Values = byteSliceToFloat64(src[:bufSize])
 
 	return src[bufSize:], nil
+}
+
+func float64ToByteSlice(a []float64) (b []byte) {
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	sh.Data = uintptr(unsafe.Pointer(&a[0]))
+	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return
+}
+
+func int64ToByteSlice(a []int64) (b []byte) {
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	sh.Data = uintptr(unsafe.Pointer(&a[0]))
+	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return
+}
+
+func byteSliceToInt64(b []byte) (a []int64) {
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	sh.Data = uintptr(unsafe.Pointer(&b[0]))
+	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return
+}
+
+func byteSliceToFloat64(b []byte) (a []float64) {
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	sh.Data = uintptr(unsafe.Pointer(&b[0]))
+	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return
 }
 
 // unmarshalMetricNameFast unmarshals mn from src, so mn members

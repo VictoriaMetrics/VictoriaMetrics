@@ -2,6 +2,7 @@ package fastnum
 
 import (
 	"bytes"
+	"reflect"
 	"unsafe"
 )
 
@@ -84,7 +85,7 @@ func isInt64Data(a, data []int64) bool {
 	if len(data) != 8*1024 {
 		panic("len(data) must equal to 8*1024")
 	}
-	b := (*[64 * 1024]byte)(unsafe.Pointer(&data[0]))
+	b := int64ToByteSlice(data)
 	for len(a) > 0 {
 		n := len(data)
 		if n > len(a) {
@@ -92,9 +93,8 @@ func isInt64Data(a, data []int64) bool {
 		}
 		x := a[:n]
 		a = a[n:]
-		xb := (*[64 * 1024]byte)(unsafe.Pointer(&x[0]))
-		xbLen := len(x) * 8
-		if !bytes.Equal(xb[:xbLen], b[:xbLen]) {
+		xb := int64ToByteSlice(x)
+		if !bytes.Equal(xb, b[:len(xb)]) {
 			return false
 		}
 	}
@@ -108,7 +108,7 @@ func isFloat64Data(a, data []float64) bool {
 	if len(data) != 8*1024 {
 		panic("len(data) must equal to 8*1024")
 	}
-	b := (*[64 * 1024]byte)(unsafe.Pointer(&data[0]))
+	b := float64ToByteSlice(data)
 	for len(a) > 0 {
 		n := len(data)
 		if n > len(a) {
@@ -116,13 +116,28 @@ func isFloat64Data(a, data []float64) bool {
 		}
 		x := a[:n]
 		a = a[n:]
-		xb := (*[64 * 1024]byte)(unsafe.Pointer(&x[0]))
-		xbLen := len(x) * 8
-		if !bytes.Equal(xb[:xbLen], b[:xbLen]) {
+		xb := float64ToByteSlice(x)
+		if !bytes.Equal(xb, b[:len(xb)]) {
 			return false
 		}
 	}
 	return true
+}
+
+func int64ToByteSlice(a []int64) (b []byte) {
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	sh.Data = uintptr(unsafe.Pointer(&a[0]))
+	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return
+}
+
+func float64ToByteSlice(a []float64) (b []byte) {
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	sh.Data = uintptr(unsafe.Pointer(&a[0]))
+	sh.Len = len(a) * int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return
 }
 
 var (
