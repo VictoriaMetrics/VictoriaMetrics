@@ -3,6 +3,9 @@
 victoria-metrics:
 	APP_NAME=victoria-metrics $(MAKE) app-local
 
+victoria-metrics-race:
+	APP_NAME=victoria-metrics RACE=-race $(MAKE) app-local
+
 victoria-metrics-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker
 

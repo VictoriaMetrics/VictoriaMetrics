@@ -3,6 +3,9 @@
 vmbackup:
 	APP_NAME=vmbackup $(MAKE) app-local
 
+vmbackup-race:
+	APP_NAME=vmbackup RACE=-race $(MAKE) app-local
+
 vmbackup-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker
 

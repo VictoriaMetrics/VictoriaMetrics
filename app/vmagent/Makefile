@@ -3,6 +3,9 @@
 vmagent:
 	APP_NAME=vmagent $(MAKE) app-local
 
+vmagent-race:
+	APP_NAME=vmagent RACE=-race $(MAKE) app-local
+
 vmagent-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker
 
