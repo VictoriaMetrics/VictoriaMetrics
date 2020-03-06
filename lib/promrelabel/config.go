@@ -28,7 +28,7 @@ func LoadRelabelConfigs(path string) ([]ParsedRelabelConfig, error) {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %s", path, err)
 	}
 	var rcs []RelabelConfig
-	if err := yaml.Unmarshal(data, &rcs); err != nil {
+	if err := yaml.UnmarshalStrict(data, &rcs); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %s", path, err)
 	}
 	return ParseRelabelConfigs(nil, rcs)

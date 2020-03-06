@@ -102,7 +102,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %s", path, err)
 	}
 	var stcs []StaticConfig
-	if err := yaml.Unmarshal(data, &stcs); err != nil {
+	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %s", path, err)
 	}
 	return stcs, nil
