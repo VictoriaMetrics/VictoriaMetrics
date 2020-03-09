@@ -163,14 +163,7 @@ or via [Prometheus datasource in Grafana](http://docs.grafana.org/features/datas
 
 ### Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
 
-Data from all the Prometheus instances is saved in VictoriaMetrics without deduplication.
-
-The deduplication for Prometheus HA pair may be easily implemented on top of VictoriaMetrics with the following steps:
-
-1) Run multiple VictoriaMetrics instances in multiple availability zones (datacenters).
-2) Configure each Prometheus from each HA pair to write data to VictoriaMetrics in distinct availability zone.
-3) Put [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics instances.
-4) Send queries to Promxy - it will deduplicate data from VictoriaMetrics instances behind it.
+Yes. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#deduplication) for details.
 
 
 ### Where is the source code of VictoriaMetrics?
