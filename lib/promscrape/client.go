@@ -46,16 +46,17 @@ func newClient(sw *ScrapeWork) *client {
 		}
 	}
 	hc := &fasthttp.HostClient{
-		Addr:                host,
-		Name:                "vm_promscrape",
-		Dial:                statDial,
-		DialDualStack:       netutil.TCP6Enabled(),
-		IsTLS:               isTLS,
-		TLSConfig:           tlsCfg,
-		MaxIdleConnDuration: 2 * sw.ScrapeInterval,
-		ReadTimeout:         sw.ScrapeTimeout,
-		WriteTimeout:        10 * time.Second,
-		MaxResponseBodySize: *maxScrapeSize,
+		Addr:                      host,
+		Name:                      "vm_promscrape",
+		Dial:                      statDial,
+		DialDualStack:             netutil.TCP6Enabled(),
+		IsTLS:                     isTLS,
+		TLSConfig:                 tlsCfg,
+		MaxIdleConnDuration:       2 * sw.ScrapeInterval,
+		ReadTimeout:               sw.ScrapeTimeout,
+		WriteTimeout:              10 * time.Second,
+		MaxResponseBodySize:       *maxScrapeSize,
+		MaxIdemponentCallAttempts: 1,
 	}
 	return &client{
 		hc: hc,
