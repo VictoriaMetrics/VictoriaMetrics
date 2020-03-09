@@ -57,9 +57,9 @@ func TestAlertManager_Send(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	am := NewAlertManager(srv.URL, func(group, name string) string {
-		return group+name
+		return group + name
 	}, srv.Client())
-	if err := am.Send([]Alert{{},{}}); err == nil {
+	if err := am.Send([]Alert{{}, {}}); err == nil {
 		t.Error("expected connection error got nil")
 	}
 	if err := am.Send([]Alert{}); err == nil {
