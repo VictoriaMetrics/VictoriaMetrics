@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 )
 
 func TestAlertManager_Send(t *testing.T) {
@@ -42,7 +40,7 @@ func TestAlertManager_Send(t *testing.T) {
 			if len(a) != 1 {
 				t.Errorf("expected 1 alert in array got %d", len(a))
 			}
-			if a[0].GeneratorURL != "alert0" {
+			if a[0].GeneratorURL != "group0alert0" {
 				t.Errorf("exptected alert0 as generatorURL got %s", a[0].GeneratorURL)
 			}
 			if a[0].Labels["alertname"] != "alert0" {
@@ -58,20 +56,22 @@ func TestAlertManager_Send(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewAlertManager(srv.URL, func(name string) string {
-		return name
+	am := NewAlertManager(srv.URL, func(group, name string) string {
+		return group+name
 	}, srv.Client())
-	if err := am.Send(&config.Alert{}); err == nil {
+	if err := am.Send([]Alert{{},{}}); err == nil {
 		t.Error("expected connection error got nil")
 	}
-	if err := am.Send(&config.Alert{}); err == nil {
+	if err := am.Send([]Alert{}); err == nil {
 		t.Error("expected wrong http code error got nil")
 	}
-	if err := am.Send(&config.Alert{
-		Name:  "alert0",
-		Start: time.Now().UTC(),
-		End:   time.Now().UTC(),
-	}); err != nil {
+	if err := am.Send([]Alert{{
+		Group:       "group0",
+		Name:        "alert0",
+		Start:       time.Now().UTC(),
+		End:         time.Now().UTC(),
+		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
+	}}); err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if c != 2 {
