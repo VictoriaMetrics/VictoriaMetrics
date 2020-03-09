@@ -25,6 +25,7 @@ type Alert struct {
 	Value float64
 }
 
+// AlertsFromMetrics converts metrics to alerts by alert Rule
 func AlertsFromMetrics(metrics []datasource.Metric, group string, rule config.Rule) []Alert {
 	alerts := make([]Alert, 0, len(metrics))
 	for i, m := range metrics {

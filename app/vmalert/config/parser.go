@@ -2,7 +2,7 @@ package config
 
 import "time"
 
-// Alert basic alert entity rule
+// Rule is basic alert entity
 type Rule struct {
 	Name        string
 	Expr        string
@@ -30,7 +30,7 @@ func Parse(filepath string) ([]Group, error) {
 				"alert_label2": "value2",
 			},
 			Annotations: map[string]string{
-				"summary":"{{ $value }}",
+				"summary":     "{{ $value }}",
 				"description": "LABELS: {{ $labels }}",
 			},
 		}},

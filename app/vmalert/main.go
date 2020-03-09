@@ -27,7 +27,7 @@ var (
 	basicAuthUsername  = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
 	basicAuthPassword  = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
 	evaluationInterval = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
-	providerURL = flag.String("provider.url", "", "Prometheus alertmanager url. Required parameter. e.g. http://127.0.0.1:9093")
+	providerURL        = flag.String("provider.url", "", "Prometheus alertmanager url. Required parameter. e.g. http://127.0.0.1:9093")
 )
 
 func main() {
@@ -97,7 +97,6 @@ func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval t
 				}
 				// todo is alert still active/pending?
 			}
-
 
 		case <-ctx.Done():
 			logger.Infof("%s receive stop signal", a.Name)
