@@ -62,7 +62,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
     if `-graphiteListenAddr` is set.
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol) if `-opentsdbListenAddr` is set.
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
-  * [/api/v1/import](#how-to-import-time-series-data)
+  * [/api/v1/import](#how-to-import-time-series-data).
+  * [Arbitrary CSV data](#how-to-import-csv-data).
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles).
@@ -425,6 +426,55 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
 ```
 
+
+### How to import CSV data
+
+Arbitrary CSV data can be imported via `/api/v1/import/csv`. The CSV data is imported according to the provided `format` query arg.
+The `format` query arg must contain comma-separated list of parsing rules for CSV fields. Each rule consists of three parts delimited by a colon:
+
+```
+<column_pos>:<type>:<context>
+```
+
+* `<column_pos>` is the position of the CSV column (field). Column numbering starts from 1. The order of parsing rules may be arbitrary.
+* `<type>` describes the column type. Supported types are:
+  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value. The metric name is read from the `<context>`.
+    CSV line must have at least a single metric field.
+  * `label` - the corresponding CSV column at `<column_pos>` contains label value. The label name is read from the `<context>`.
+    CSV line may have arbitrary number of label fields. All these fields are attached to all the configured metrics.
+  * `time` - the corresponding CSV column at `<column_pos>` contains metric time. CSV line may contain either one or zero columns with time.
+    If CSV line has no time, then the current time is used. The time is applied to all the configured metrics.
+    The format of the time is configured via `<context>`. Supported time formats are:
+    * `unix_s` - unix timestamp in seconds.
+    * `unix_ms` - unix timestamp in milliseconds.
+    * `unix_ns` - unix timestamp in nanoseconds. Note that VictoriaMetrics rounds the timestamp to milliseconds.
+    * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
+    * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
+
+Each request to `/api/v1/import/csv` can contain arbitrary number of CSV lines.
+
+Example for importing CSV data via `/api/v1/import/csv`:
+
+```bash
+curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+curl -d "MSFT,3.21,1.67,NASDAQ" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+```
+
+After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+
+```bash
+curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
+```
+
+The following response should be returned:
+```bash
+{"metric":{"__name__":"bid","market":"NASDAQ","ticker":"MSFT"},"values":[1.67],"timestamps":[1583865146520]}
+{"metric":{"__name__":"bid","market":"NYSE","ticker":"GOOG"},"values":[4.56],"timestamps":[1583865146495]}
+{"metric":{"__name__":"ask","market":"NASDAQ","ticker":"MSFT"},"values":[3.21],"timestamps":[1583865146520]}
+{"metric":{"__name__":"ask","market":"NYSE","ticker":"GOOG"},"values":[1.23],"timestamps":[1583865146495]}
+```
+
+
 ### Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
@@ -600,6 +650,7 @@ Time series data can be imported via any supported ingestion protocol:
 * [OpenTSDB telnet put protocol](#sending-data-via-telnet-put-protocol)
 * [OpenTSDB http /api/put](#sending-opentsdb-data-via-http-apiput-requests)
 * `/api/v1/import` http POST handler, which accepts data from [/api/v1/export](#how-to-export-time-series).
+* `/api/v1/import/csv` http POST handler, which accepts CSV data. See [these docs](#how-to-import-csv-data) for details.
 
 The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import`. Example for importing data obtained via `/api/v1/export`:
 

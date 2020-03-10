@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
@@ -100,6 +101,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "/api/v1/import/csv":
+		csvimportRequests.Inc()
+		if err := csvimport.InsertHandler(r); err != nil {
+			csvimportErrors.Inc()
+			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	case "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(r); err != nil {
@@ -127,11 +137,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 var (
-	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/write", protocol="prometheus"}`)
-	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/write", protocol="prometheus"}`)
+	prometheusWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/write", protocol="promremotewrite"}`)
+	prometheusWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/write", protocol="promremotewrite"}`)
 
-	vmimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/import", protocol="vm"}`)
-	vmimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/import", protocol="vm"}`)
+	vmimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/import", protocol="vmimport"}`)
+	vmimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/import", protocol="vmimport"}`)
+
+	csvimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/import/csv", protocol="csvimport"}`)
+	csvimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/import/csv", protocol="csvimport"}`)
 
 	influxWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/write", protocol="influx"}`)
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/write", protocol="influx"}`)
