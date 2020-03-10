@@ -187,8 +187,9 @@ func (sc *ScrapeConfig) appendFileSDScrapeWork(dst, prev []ScrapeWork, baseDir s
 		label := promrelabel.GetLabelByName(sw.Labels, "__meta_filepath")
 		if label == nil {
 			logger.Panicf("BUG: missing `__meta_filepath` label")
+		} else {
+			swPrev[label.Value] = append(swPrev[label.Value], *sw)
 		}
-		swPrev[label.Value] = append(swPrev[label.Value], *sw)
 	}
 	for i := range sc.FileSDConfigs {
 		var err error

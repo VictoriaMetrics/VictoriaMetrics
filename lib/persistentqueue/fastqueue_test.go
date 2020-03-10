@@ -155,7 +155,7 @@ func TestFastQueueReadUnblockByWrite(t *testing.T) {
 	mustDeleteDir(path)
 
 	fq := MustOpenFastQueue(path, "foobar", 13, 0)
-	block := fmt.Sprintf("foodsafdsaf sdf")
+	block := "foodsafdsaf sdf"
 	resultCh := make(chan error)
 	go func() {
 		data, ok := fq.MustReadBlock(nil)
