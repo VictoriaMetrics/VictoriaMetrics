@@ -18,7 +18,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
 
 * Can be used as drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
   See [Quick Start](#quick-start) for details.
-* Can add, remove and modify labels via Prometheus relabeling. See [these docs](#relabeling) for details.
+* Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Accepts data via all the ingestion protocols supported by VictoriaMetrics:
   * Influx line protocol via `http://<vmagent>:8429/write`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
   * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
