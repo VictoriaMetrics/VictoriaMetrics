@@ -35,6 +35,25 @@ func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Unlock()
 }
 
+func (tsm *targetStatusMap) RegisterAll(sws []ScrapeWork) {
+	tsm.mu.Lock()
+	for i := range sws {
+		sw := &sws[i]
+		tsm.m[sw.ScrapeURL] = targetStatus{
+			sw: sw,
+		}
+	}
+	tsm.mu.Unlock()
+}
+
+func (tsm *targetStatusMap) UnregisterAll(sws []ScrapeWork) {
+	tsm.mu.Lock()
+	for i := range sws {
+		delete(tsm.m, sws[i].ScrapeURL)
+	}
+	tsm.mu.Unlock()
+}
+
 func (tsm *targetStatusMap) Update(sw *ScrapeWork, up bool, scrapeTime, scrapeDuration int64, err error) {
 	tsm.mu.Lock()
 	tsm.m[sw.ScrapeURL] = targetStatus{
@@ -50,12 +69,7 @@ func (tsm *targetStatusMap) Update(sw *ScrapeWork, up bool, scrapeTime, scrapeDu
 func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
-	for k, st := range tsm.m {
-		if st.getDurationFromLastScrape() > 10*st.sw.ScrapeInterval {
-			// Remove obsolete targets
-			delete(tsm.m, k)
-			continue
-		}
+	for _, st := range tsm.m {
 		job := ""
 		label := promrelabel.GetLabelByName(st.sw.Labels, "job")
 		if label != nil {
