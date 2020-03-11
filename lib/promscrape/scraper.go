@@ -64,8 +64,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	if err != nil {
 		logger.Fatalf("cannot parse `file_sd_config` from %q: %s", configFile, err)
 	}
-	tsmGlobal.RegisterAll(swsStatic)
-	tsmGlobal.RegisterAll(swsFileSD)
 
 	mustStop := false
 	for !mustStop {
@@ -100,13 +98,9 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			if err != nil {
 				logger.Errorf("cannot parse `file_sd_config` from %q: %s; continuing with the previous config", configFile, err)
 			}
-			tsmGlobal.UnregisterAll(swsStatic)
-			tsmGlobal.UnregisterAll(swsFileSD)
 			cfg = cfgNew
 			swsStatic = swsStaticNew
 			swsFileSD = swsFileSDNew
-			tsmGlobal.RegisterAll(swsStatic)
-			tsmGlobal.RegisterAll(swsFileSD)
 		case <-globalStopCh:
 			mustStop = true
 		}
@@ -166,9 +160,7 @@ func runFileSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbma
 				goto waitForChans
 			}
 			logger.Infof("restarting scrapers for changed `file_sd_config` targets")
-			tsmGlobal.UnregisterAll(sws)
 			sws = swsNew
-			tsmGlobal.RegisterAll(sws)
 		case <-stopCh:
 			mustStop = true
 		}
@@ -233,6 +225,7 @@ func equalLabel(a, b *prompbmarshal.Label) bool {
 //
 // This function returns after closing stopCh.
 func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	tsmGlobal.RegisterAll(sws)
 	var wg sync.WaitGroup
 	for i := range sws {
 		cfg := &sws[i]
@@ -248,4 +241,5 @@ func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteReq
 		}()
 	}
 	wg.Wait()
+	tsmGlobal.UnregisterAll(sws)
 }
