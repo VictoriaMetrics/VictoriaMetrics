@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strings"
@@ -13,6 +14,10 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
 )
+
+var maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
+	"By default it is automatically calculated from the median interval between samples. This flag can be useful for tuning "+
+	"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details")
 
 var rollupFuncs = map[string]newRollupFunc{
 	// Standard rollup funcs from PromQL.
@@ -440,6 +445,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
 	scrapeInterval := getScrapeInterval(timestamps)
+	if *maxStalenessInterval > 0 {
+		if si := maxStalenessInterval.Milliseconds(); scrapeInterval > si {
+			scrapeInterval = si
+		}
+	}
 	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
