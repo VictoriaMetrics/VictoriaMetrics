@@ -79,14 +79,14 @@ func TestVMSelectQuery(t *testing.T) {
 		t.Fatalf("exptected 1 metric  got %d in %+v", len(m), m)
 	}
 	expected := Metric{
-		Label:     []Label{{Value: "vm_rows", Name: "__name__"}},
+		Labels:    []Label{{Value: "vm_rows", Name: "__name__"}},
 		Timestamp: 1583786142,
 		Value:     13763,
 	}
 	if m[0].Timestamp != expected.Timestamp &&
 		m[0].Value != expected.Value &&
-		m[0].Label[0].Value != expected.Label[0].Value &&
-		m[0].Label[0].Name != expected.Label[0].Name {
+		m[0].Labels[0].Value != expected.Labels[0].Value &&
+		m[0].Labels[0].Name != expected.Labels[0].Name {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
 

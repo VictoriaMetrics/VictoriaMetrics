@@ -87,13 +87,14 @@ func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval t
 					continue
 				}
 				// todo check for and calculate alert states
-				if len(metrics) > 0 {
-					alerts = provider.AlertsFromMetrics(metrics, a.Name, r)
-					// todo save to storage
-					if err := w.p.Send(alerts); err != nil {
-						logger.Errorf("error sending alerts %s", err)
-						continue
-					}
+				if len(metrics) < 1 {
+					continue
+				}
+				alerts = provider.AlertsFromMetrics(metrics, a.Name, r)
+				// todo save to storage
+				if err := w.p.Send(alerts); err != nil {
+					logger.Errorf("error sending alerts %s", err)
+					continue
 				}
 				// todo is alert still active/pending?
 			}

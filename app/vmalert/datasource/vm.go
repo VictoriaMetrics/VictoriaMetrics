@@ -17,8 +17,8 @@ type response struct {
 	Data   struct {
 		ResultType string `json:"resultType"`
 		Result     []struct {
-			Label map[string]string `json:"metric"`
-			TV    [2]interface{}    `json:"value"`
+			Labels map[string]string `json:"metric"`
+			TV     [2]interface{}    `json:"value"`
 		} `json:"result"`
 	} `json:"data"`
 	ErrorType string `json:"errorType"`
@@ -36,8 +36,9 @@ func (r response) metrics() []Metric {
 			logger.Errorf("Unable to parse float64 from %s: %s", res.TV[1], err)
 			continue
 		}
-		for k, v := range r.Data.Result[i].Label {
-			m.Label = append(m.Label, Label{Name: k, Value: v})
+		m.Labels = nil
+		for k, v := range r.Data.Result[i].Labels {
+			m.Labels = append(m.Labels, Label{Name: k, Value: v})
 		}
 		m.Timestamp = int64(res.TV[0].(float64))
 		m.Value = f

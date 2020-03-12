@@ -32,7 +32,7 @@ func AlertsFromMetrics(metrics []datasource.Metric, group string, rule config.Ru
 		a := Alert{
 			Group:  group,
 			Name:   rule.Name,
-			Labels: metrics[i].Label,
+			Labels: metrics[i].Labels,
 			// todo eval template in annotations
 			Annotations: rule.Annotations,
 			Start:       time.Unix(m.Timestamp, 0),
