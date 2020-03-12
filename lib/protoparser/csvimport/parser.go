@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
@@ -119,6 +120,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 		}
 		if sc.Error != nil {
 			logger.Errorf("error when parsing csv line %q: %s; skipping this line", line, sc.Error)
+			invalidLines.Inc()
 			continue
 		}
 		if len(metrics) == 0 {
@@ -139,3 +141,5 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 	}
 	return dst, tags, metrics
 }
+
+var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="csvimport"}`)
