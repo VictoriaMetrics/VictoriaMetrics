@@ -509,39 +509,26 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 
 func mergeLabels(job, scheme, target, metricsPath string, labels, externalLabels, metaLabels map[string]string, params map[string][]string) ([]prompbmarshal.Label, error) {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := map[string]string{
-		"job":              job,
-		"__address__":      target,
-		"__scheme__":       scheme,
-		"__metrics_path__": metricsPath,
-	}
+	m := make(map[string]string)
 	for k, v := range externalLabels {
-		if vOrig, ok := m[k]; ok {
-			return nil, fmt.Errorf("external label `%q: %q` clashes with the previously set label with value %q", k, v, vOrig)
-		}
 		m[k] = v
 	}
-	for k, v := range metaLabels {
-		if vOrig, ok := m[k]; ok {
-			return nil, fmt.Errorf("meta label `%q: %q` clashes with the previously set label with value %q", k, v, vOrig)
-		}
-		m[k] = v
-	}
-	for k, v := range labels {
-		if vOrig, ok := m[k]; ok {
-			return nil, fmt.Errorf("label `%q: %q` clashes with the previously set label with value %q", k, v, vOrig)
-		}
-		m[k] = v
-	}
+	m["job"] = job
+	m["__address__"] = target
+	m["__scheme__"] = scheme
+	m["__metrics_path__"] = metricsPath
 	for k, args := range params {
 		if len(args) == 0 {
 			continue
 		}
 		k = "__param_" + k
 		v := args[0]
-		if vOrig, ok := m[k]; ok {
-			return nil, fmt.Errorf("param `%q: %q` claches with the previously set label with value %q", k, v, vOrig)
-		}
+		m[k] = v
+	}
+	for k, v := range labels {
+		m[k] = v
+	}
+	for k, v := range metaLabels {
 		m[k] = v
 	}
 	result := make([]prompbmarshal.Label, 0, len(m))
