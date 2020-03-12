@@ -48,6 +48,8 @@ const (
 	maxHashOffset       = 1 << 24
 
 	skipNever = math.MaxInt32
+
+	debugDeflate = false
 )
 
 type compressionLevel struct {
@@ -365,7 +367,7 @@ func (d *compressor) deflateLazy() {
 	// Sanity enables additional runtime tests.
 	// It's intended to be used during development
 	// to supplement the currently ad-hoc unit tests.
-	const sanity = false
+	const sanity = debugDeflate
 
 	if d.windowEnd-s.index < minMatchLength+maxMatchLength && !d.sync {
 		return
