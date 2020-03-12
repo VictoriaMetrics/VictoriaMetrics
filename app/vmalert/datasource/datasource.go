@@ -1,6 +1,7 @@
 package datasource
 
-// Metric represents single metric
+// Metric is the basic entity which should be return by datasource
+// It represents single data point with full list of labels
 type Metric struct {
 	Labels    []Label
 	Timestamp int64

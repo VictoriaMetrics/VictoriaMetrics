@@ -43,8 +43,8 @@ func main() {
 	}
 	addr := getWebServerAddr(*httpListenAddr, false)
 	w := &watchdog{
-		stg: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		p: provider.NewAlertManager(*providerURL, func(group, name string) string {
+		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
+		alertProvider: provider.NewAlertManager(*providerURL, func(group, name string) string {
 			return addr + fmt.Sprintf("/%s/%s/status", group, name)
 		}, &http.Client{}),
 	}
@@ -68,8 +68,8 @@ func main() {
 }
 
 type watchdog struct {
-	stg *datasource.VMStorage
-	p   provider.AlertProvider
+	storage       *datasource.VMStorage
+	alertProvider provider.AlertProvider
 }
 
 func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval time.Duration) {
@@ -82,7 +82,7 @@ func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval t
 		select {
 		case <-t.C:
 			for _, r := range a.Rules {
-				if metrics, err = w.stg.Query(ctx, r.Expr); err != nil {
+				if metrics, err = w.storage.Query(ctx, r.Expr); err != nil {
 					logger.Errorf("error reading metrics %s", err)
 					continue
 				}
@@ -92,7 +92,7 @@ func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval t
 				}
 				alerts = provider.AlertsFromMetrics(metrics, a.Name, r)
 				// todo save to storage
-				if err := w.p.Send(alerts); err != nil {
+				if err := w.alertProvider.Send(alerts); err != nil {
 					logger.Errorf("error sending alerts %s", err)
 					continue
 				}

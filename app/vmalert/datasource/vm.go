@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type response struct {
@@ -25,7 +24,7 @@ type response struct {
 	Error     string `json:"error"`
 }
 
-func (r response) metrics() []Metric {
+func (r response) metrics() ([]Metric, error) {
 	var ms []Metric
 	var m Metric
 	var f float64
@@ -33,8 +32,7 @@ func (r response) metrics() []Metric {
 	for i, res := range r.Data.Result {
 		f, err = strconv.ParseFloat(res.TV[1].(string), 64)
 		if err != nil {
-			logger.Errorf("Unable to parse float64 from %s: %s", res.TV[1], err)
-			continue
+			return nil, fmt.Errorf("metric %v, unable to parse float64 from %s: %s", res, res.TV[1], err)
 		}
 		m.Labels = nil
 		for k, v := range r.Data.Result[i].Labels {
@@ -44,7 +42,7 @@ func (r response) metrics() []Metric {
 		m.Value = f
 		ms = append(ms, m)
 	}
-	return ms
+	return ms, nil
 }
 
 const queryPath = "/api/v1/query?query="
@@ -85,7 +83,8 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error parsing metrics for %s:%s", req.URL, err)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("datasource returns unxeprected response code %d for %s with err %s. Reponse body %s", resp.StatusCode, req.URL, err, body)
 	}
 	r := &response{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
@@ -100,5 +99,5 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	if r.Data.ResultType != rtVector {
 		return nil, fmt.Errorf("unkown restul type:%s. Expected vector", r.Data.ResultType)
 	}
-	return r.metrics(), nil
+	return r.metrics()
 }
