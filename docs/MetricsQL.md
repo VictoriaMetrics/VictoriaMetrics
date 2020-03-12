@@ -46,6 +46,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - Functions for label manipulation:
   - `alias(q, name)` for setting metric name across all the time series `q`.
   - `label_set(q, label1, value1, ... labelN, valueN)` for setting the given values for the given labels on `q`.
+  - `label_map(q, label, srcValue1, dstValue1, ... srcValueN, dstValueN)` for mapping `label` values from `src*` to `dst*`.
   - `label_del(q, label1, ... labelN)` for deleting the given labels from `q`.
   - `label_keep(q, label1, ... labelN)` for deleting all the labels except the given labels from `q`.
   - `label_copy(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for copying label values from `src_*` to `dst_*`.
