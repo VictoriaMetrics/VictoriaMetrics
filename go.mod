@@ -4,7 +4,7 @@ require (
 	cloud.google.com/go/storage v1.6.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/VictoriaMetrics/metrics v1.11.0
-	github.com/aws/aws-sdk-go v1.29.10
+	github.com/aws/aws-sdk-go v1.29.22
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.10.3
