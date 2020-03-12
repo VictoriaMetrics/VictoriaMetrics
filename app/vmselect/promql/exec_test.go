@@ -974,6 +974,49 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_map(match)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(label_map((
+			label_set(time(), "label", "v1"),
+			label_set(time()+100, "label", "v2"),
+			label_set(time()+200, "label", "v3"),
+			label_set(time()+300, "x", "y"),
+		), "label", "v1", "foo", "v2", "bar"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("label"),
+			Value: []byte("foo"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1300, 1500, 1700, 1900, 2100},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("label"),
+			Value: []byte("bar"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1200, 1400, 1600, 1800, 2000, 2200},
+			Timestamps: timestampsExpected,
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1300, 1500, 1700, 1900, 2100, 2300},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("x"),
+			Value: []byte("y"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
 	t.Run(`label_copy(new_tag)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_copy(

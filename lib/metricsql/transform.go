@@ -38,6 +38,7 @@ var transformFuncs = map[string]bool{
 
 	// New funcs from MetricsQL
 	"label_set":          true,
+	"label_map":          true,
 	"label_del":          true,
 	"label_keep":         true,
 	"label_copy":         true,
