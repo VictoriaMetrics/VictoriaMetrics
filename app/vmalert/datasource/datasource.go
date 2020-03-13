@@ -8,7 +8,7 @@ type Metric struct {
 	Value     float64
 }
 
-// Labels represents metric's label
+// Label represents metric's label
 type Label struct {
 	Name  string
 	Value string
