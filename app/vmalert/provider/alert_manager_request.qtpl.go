@@ -6,96 +6,125 @@ package provider
 
 //line app/vmalert/provider/alert_manager_request.qtpl:1
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"time"
 )
 
-//line app/vmalert/provider/alert_manager_request.qtpl:7
+//line app/vmalert/provider/alert_manager_request.qtpl:6
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmalert/provider/alert_manager_request.qtpl:7
+//line app/vmalert/provider/alert_manager_request.qtpl:6
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmalert/provider/alert_manager_request.qtpl:7
-func streamamRequest(qw422016 *qt422016.Writer, alert *config.Alert, generatorURL string) {
-//line app/vmalert/provider/alert_manager_request.qtpl:7
-	qw422016.N().S(`{"startsAt":`)
-//line app/vmalert/provider/alert_manager_request.qtpl:9
-	qw422016.N().Q(alert.Start.Format(time.RFC3339Nano))
-//line app/vmalert/provider/alert_manager_request.qtpl:9
-	qw422016.N().S(`,"generatorURL":`)
+//line app/vmalert/provider/alert_manager_request.qtpl:6
+func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL func(string, string) string) {
+//line app/vmalert/provider/alert_manager_request.qtpl:6
+	qw422016.N().S(`[`)
+//line app/vmalert/provider/alert_manager_request.qtpl:8
+	for i, alert := range alerts {
+//line app/vmalert/provider/alert_manager_request.qtpl:8
+		qw422016.N().S(`{"startsAt":`)
 //line app/vmalert/provider/alert_manager_request.qtpl:10
-	qw422016.N().Q(generatorURL)
+		qw422016.N().Q(alert.Start.Format(time.RFC3339Nano))
 //line app/vmalert/provider/alert_manager_request.qtpl:10
-	qw422016.N().S(`,`)
+		qw422016.N().S(`,"generatorURL":`)
 //line app/vmalert/provider/alert_manager_request.qtpl:11
-	if !alert.End.IsZero() {
+		qw422016.N().Q(generatorURL(alert.Group, alert.Name))
 //line app/vmalert/provider/alert_manager_request.qtpl:11
-		qw422016.N().S(`"endsAt":`)
-//line app/vmalert/provider/alert_manager_request.qtpl:12
-		qw422016.N().Q(alert.End.Format(time.RFC3339Nano))
-//line app/vmalert/provider/alert_manager_request.qtpl:12
 		qw422016.N().S(`,`)
+//line app/vmalert/provider/alert_manager_request.qtpl:12
+		if !alert.End.IsZero() {
+//line app/vmalert/provider/alert_manager_request.qtpl:12
+			qw422016.N().S(`"endsAt":`)
 //line app/vmalert/provider/alert_manager_request.qtpl:13
-	}
+			qw422016.N().Q(alert.End.Format(time.RFC3339Nano))
 //line app/vmalert/provider/alert_manager_request.qtpl:13
-	qw422016.N().S(`"labels": {"alertname":`)
-//line app/vmalert/provider/alert_manager_request.qtpl:15
-	qw422016.N().Q(alert.Name)
+			qw422016.N().S(`,`)
+//line app/vmalert/provider/alert_manager_request.qtpl:14
+		}
+//line app/vmalert/provider/alert_manager_request.qtpl:14
+		qw422016.N().S(`"labels": {"alertname":`)
 //line app/vmalert/provider/alert_manager_request.qtpl:16
-	for k, v := range alert.Labels {
-//line app/vmalert/provider/alert_manager_request.qtpl:16
-		qw422016.N().S(`,`)
+		qw422016.N().Q(alert.Name)
 //line app/vmalert/provider/alert_manager_request.qtpl:17
-		qw422016.N().Q(k)
+		for _, v := range alert.Labels {
 //line app/vmalert/provider/alert_manager_request.qtpl:17
-		qw422016.N().S(`:`)
-//line app/vmalert/provider/alert_manager_request.qtpl:17
-		qw422016.N().Q(v)
+			qw422016.N().S(`,`)
 //line app/vmalert/provider/alert_manager_request.qtpl:18
-	}
+			qw422016.N().Q(v.Name)
 //line app/vmalert/provider/alert_manager_request.qtpl:18
-	qw422016.N().S(`},"annotations": {"summary":`)
-//line app/vmalert/provider/alert_manager_request.qtpl:21
-	qw422016.N().Q(alert.Annotations.Summary)
-//line app/vmalert/provider/alert_manager_request.qtpl:21
-	qw422016.N().S(`,"description":`)
+			qw422016.N().S(`:`)
+//line app/vmalert/provider/alert_manager_request.qtpl:18
+			qw422016.N().Q(v.Value)
+//line app/vmalert/provider/alert_manager_request.qtpl:19
+		}
+//line app/vmalert/provider/alert_manager_request.qtpl:19
+		qw422016.N().S(`},"annotations": {`)
 //line app/vmalert/provider/alert_manager_request.qtpl:22
-	qw422016.N().Q(alert.Annotations.Description)
-//line app/vmalert/provider/alert_manager_request.qtpl:22
-	qw422016.N().S(`}}`)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
-}
+		c := len(alert.Annotations)
+
+//line app/vmalert/provider/alert_manager_request.qtpl:23
+		for k, v := range alert.Annotations {
+//line app/vmalert/provider/alert_manager_request.qtpl:24
+			c = c - 1
 
 //line app/vmalert/provider/alert_manager_request.qtpl:25
-func writeamRequest(qq422016 qtio422016.Writer, alert *config.Alert, generatorURL string) {
+			qw422016.N().Q(k)
 //line app/vmalert/provider/alert_manager_request.qtpl:25
+			qw422016.N().S(`:`)
+//line app/vmalert/provider/alert_manager_request.qtpl:25
+			qw422016.N().Q(v)
+//line app/vmalert/provider/alert_manager_request.qtpl:25
+			if c > 0 {
+//line app/vmalert/provider/alert_manager_request.qtpl:25
+				qw422016.N().S(`,`)
+//line app/vmalert/provider/alert_manager_request.qtpl:25
+			}
+//line app/vmalert/provider/alert_manager_request.qtpl:26
+		}
+//line app/vmalert/provider/alert_manager_request.qtpl:26
+		qw422016.N().S(`}}`)
+//line app/vmalert/provider/alert_manager_request.qtpl:29
+		if i != len(alerts)-1 {
+//line app/vmalert/provider/alert_manager_request.qtpl:29
+			qw422016.N().S(`,`)
+//line app/vmalert/provider/alert_manager_request.qtpl:29
+		}
+//line app/vmalert/provider/alert_manager_request.qtpl:30
+	}
+//line app/vmalert/provider/alert_manager_request.qtpl:30
+	qw422016.N().S(`]`)
+//line app/vmalert/provider/alert_manager_request.qtpl:32
+}
+
+//line app/vmalert/provider/alert_manager_request.qtpl:32
+func writeamRequest(qq422016 qtio422016.Writer, alerts []Alert, generatorURL func(string, string) string) {
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
-	streamamRequest(qw422016, alert, generatorURL)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
+	streamamRequest(qw422016, alerts, generatorURL)
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 }
 
-//line app/vmalert/provider/alert_manager_request.qtpl:25
-func amRequest(alert *config.Alert, generatorURL string) string {
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
+func amRequest(alerts []Alert, generatorURL func(string, string) string) string {
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/provider/alert_manager_request.qtpl:25
-	writeamRequest(qb422016, alert, generatorURL)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
+	writeamRequest(qb422016, alerts, generatorURL)
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 	qs422016 := string(qb422016.B)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 	return qs422016
-//line app/vmalert/provider/alert_manager_request.qtpl:25
+//line app/vmalert/provider/alert_manager_request.qtpl:32
 }

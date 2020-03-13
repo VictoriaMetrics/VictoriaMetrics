@@ -1,14 +1,15 @@
 package datasource
 
-import "context"
+// Metric is the basic entity which should be return by datasource
+// It represents single data point with full list of labels
+type Metric struct {
+	Labels    []Label
+	Timestamp int64
+	Value     float64
+}
 
-// Metrics the data returns from storage
-type Metrics struct{}
-
-// VMStorage represents vmstorage entity with ability to read and write metrics
-type VMStorage struct{}
-
-//Query basic query to the datasource
-func (s *VMStorage) Query(ctx context.Context, query string) ([]Metrics, error) {
-	return nil, nil
+// Labels represents metric's label
+type Label struct {
+	Name  string
+	Value string
 }

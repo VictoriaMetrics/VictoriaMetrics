@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -26,7 +25,7 @@ type AlertManager struct {
 }
 
 // AlertURLGenerator returns URL to single alert by given name
-type AlertURLGenerator func(name string) string
+type AlertURLGenerator func(group, name string) string
 
 // NewAlertManager is a constructor for AlertManager
 func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, c *http.Client) *AlertManager {
@@ -37,19 +36,12 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, c *http.Clien
 	}
 }
 
-const (
-	jsonArrayOpen  byte = 91 // [
-	jsonArrayClose byte = 93 // ]
-)
-
 // Send an alert or resolve message
-func (am *AlertManager) Send(alert *config.Alert) error {
+func (am *AlertManager) Send(alerts []Alert) error {
 	b := pool.Get().(*bytes.Buffer)
 	b.Reset()
 	defer pool.Put(b)
-	b.WriteByte(jsonArrayOpen)
-	writeamRequest(b, alert, am.argFunc(alert.Name))
-	b.WriteByte(jsonArrayClose)
+	writeamRequest(b, alerts, am.argFunc)
 	resp, err := am.client.Post(am.alertURL, "application/json", b)
 	if err != nil {
 		return err
