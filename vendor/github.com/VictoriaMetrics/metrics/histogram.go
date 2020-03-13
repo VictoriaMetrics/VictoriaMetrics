@@ -246,12 +246,20 @@ func (h *Histogram) marshalTo(prefix string, w io.Writer) {
 		return
 	}
 	name, filters := splitMetricName(prefix)
-	if float64(int64(h.sum)) == h.sum {
-		fmt.Fprintf(w, "%s_sum%s %d\n", name, filters, int64(h.sum))
+	sum := h.getSum()
+	if float64(int64(sum)) == sum {
+		fmt.Fprintf(w, "%s_sum%s %d\n", name, filters, int64(sum))
 	} else {
-		fmt.Fprintf(w, "%s_sum%s %g\n", name, filters, h.sum)
+		fmt.Fprintf(w, "%s_sum%s %g\n", name, filters, sum)
 	}
 	fmt.Fprintf(w, "%s_count%s %d\n", name, filters, countTotal)
+}
+
+func (h *Histogram) getSum() float64 {
+	h.mu.Lock()
+	sum := h.sum
+	h.mu.Unlock()
+	return sum
 }
 
 func getBucketIdxAndOffset(v float64) (int, uint) {
