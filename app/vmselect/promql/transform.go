@@ -1048,9 +1048,11 @@ func transformLabelMap(tfa *transformFuncArg) ([]*timeseries, error) {
 	for _, ts := range rvs {
 		mn := &ts.MetricName
 		dstValue := getDstValue(mn, label)
-		value := m[string(*dstValue)]
-		*dstValue = append((*dstValue)[:0], value...)
-		if len(value) == 0 {
+		value, ok := m[string(*dstValue)]
+		if ok {
+			*dstValue = append((*dstValue)[:0], value...)
+		}
+		if len(*dstValue) == 0 {
 			mn.RemoveTag(label)
 		}
 	}
