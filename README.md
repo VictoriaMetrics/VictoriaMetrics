@@ -24,6 +24,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
 * [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
 * [Synthesio](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#synthesio)
+* [MHI Vestas Offshore Wind](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#mhi-vestas-offshore-wind)
 * [Dreamteam](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#dreamteam)
 
 
