@@ -85,6 +85,20 @@ Numbers:
 - Churn rate - 100 new time series per hour
 
 
+### MHI Vestas Offshore Wind
+
+The mission of [MHI Vestas Offshore Wind](http://www.mhivestasoffshore.com) is to co-develop offshore wind as an economically viable and sustainable energy resource to benefit future generations.
+
+MHI Vestas Offshore Wind is using VictoriaMetrics to ingest and visualize sensor data from offshore wind turbines. The very efficient storage and ability to backfill was key in chosing VictoriaMetrics. MHI Vestas Offshore Wind is running the cluster version of VictoriaMetrics on Kubernetes using the Helm charts for deployment to be able to scale up capacity as the solution will be rolled out. Current roll-out is
+
+Numbers with current limited roll out:
+
+- Active time series: 270K
+- Ingestion rate: 70K/sec
+- Total number of datapoints: 850 billions
+- Data size on disk: 800 GiB
+- Retention time: 3 years
+
 
 ### Dreamteam
 
