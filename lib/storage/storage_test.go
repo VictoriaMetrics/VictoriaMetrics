@@ -675,35 +675,43 @@ func checkTagKeys(tks []string, tksExpected map[string]bool) error {
 	return nil
 }
 
-func TestStorageAddRows(t *testing.T) {
-	path := "TestStorageAddRows"
+func TestStorageAddRowsSerial(t *testing.T) {
+	path := "TestStorageAddRowsSerial"
 	s, err := OpenStorage(path, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
-	t.Run("serial", func(t *testing.T) {
-		if err := testStorageAddRows(s); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-	})
-	t.Run("concurrent", func(t *testing.T) {
-		ch := make(chan error, 3)
-		for i := 0; i < cap(ch); i++ {
-			go func() {
-				ch <- testStorageAddRows(s)
-			}()
-		}
-		for i := 0; i < cap(ch); i++ {
-			select {
-			case err := <-ch:
-				if err != nil {
-					t.Fatalf("unexpected error: %s", err)
-				}
-			case <-time.After(3 * time.Second):
-				t.Fatalf("timeout")
+	if err := testStorageAddRows(s); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	s.MustClose()
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+}
+
+func TestStorageAddRowsConcurrent(t *testing.T) {
+	path := "TestStorageAddRowsConcurrent"
+	s, err := OpenStorage(path, 0)
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+	ch := make(chan error, 3)
+	for i := 0; i < cap(ch); i++ {
+		go func() {
+			ch <- testStorageAddRows(s)
+		}()
+	}
+	for i := 0; i < cap(ch); i++ {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
 			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("timeout")
 		}
-	})
+	}
 	s.MustClose()
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)

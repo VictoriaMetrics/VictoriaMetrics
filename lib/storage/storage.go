@@ -80,6 +80,12 @@ type Storage struct {
 	currHourMetricIDsUpdaterWG   sync.WaitGroup
 	retentionWatcherWG           sync.WaitGroup
 	prefetchedMetricIDsCleanerWG sync.WaitGroup
+
+	// The snapshotLock prevents from concurrent creation of snapshots,
+	// since this may result in snapshots without recently added data,
+	// which may be in the process of flushing to disk by concurrently running
+	// snapshot process.
+	snapshotLock sync.Mutex
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.
@@ -177,6 +183,9 @@ func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
 func (s *Storage) CreateSnapshot() (string, error) {
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
+
+	s.snapshotLock.Lock()
+	defer s.snapshotLock.Unlock()
 
 	snapshotName := fmt.Sprintf("%s-%08X", time.Now().UTC().Format("20060102150405"), nextSnapshotIdx())
 	srcDir := s.path
