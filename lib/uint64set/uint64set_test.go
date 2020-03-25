@@ -164,10 +164,29 @@ func TestSetOps(t *testing.T) {
 		a = append(a, uint64(i))
 	}
 	var b []uint64
-	for i := 0; i < 100; i++ {
-		b = append(b, uint64(i+1<<16))
+	for i := 1 << 16; i < 1<<16+1000; i++ {
+		b = append(b, uint64(i))
 	}
 	f(a, b)
+
+	for i := 1<<16 - 100; i < 1<<16+100; i++ {
+		a = append(a, uint64(i))
+	}
+	for i := uint64(1) << 32; i < 1<<32+1<<16+200; i++ {
+		b = append(b, i)
+	}
+	f(a, b)
+
+	rng := rand.New(rand.NewSource(0))
+	for i := 0; i < 10; i++ {
+		a = nil
+		b = nil
+		for j := 0; j < 1000; j++ {
+			a = append(a, uint64(rng.Intn(1e6)))
+			b = append(b, uint64(rng.Intn(1e6)))
+		}
+		f(a, b)
+	}
 }
 
 func expectEqual(s *Set, m map[uint64]bool) error {
@@ -202,7 +221,7 @@ func expectEqual(s *Set, m map[uint64]bool) error {
 }
 
 func TestSetBasicOps(t *testing.T) {
-	for _, itemsCount := range []int{1, 2, 3, 4, 5, 6, 1e2, 1e3, 1e4, 1e5, 1e6, maxUnsortedBuckets * bitsPerBucket * 2} {
+	for _, itemsCount := range []int{1, 2, 3, 4, 5, 6, 1e2, 1e3, 1e4, 1e5, 1e6} {
 		t.Run(fmt.Sprintf("items_%d", itemsCount), func(t *testing.T) {
 			testSetBasicOps(t, itemsCount)
 		})
