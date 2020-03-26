@@ -261,11 +261,12 @@ func (s *Set) union(a *Set, mayOwn bool) {
 	s.sort()
 	i := 0
 	j := 0
+	sBucketsLen := len(s.buckets)
 	for {
-		for i < len(s.buckets) && j < len(a.buckets) && s.buckets[i].hi < a.buckets[j].hi {
+		for i < sBucketsLen && j < len(a.buckets) && s.buckets[i].hi < a.buckets[j].hi {
 			i++
 		}
-		if i >= len(s.buckets) {
+		if i >= sBucketsLen {
 			for j < len(a.buckets) {
 				b32 := s.addBucket32()
 				a.buckets[j].copyTo(b32)
@@ -404,11 +405,12 @@ func (b *bucket32) getLen() int {
 func (b *bucket32) union(a *bucket32, mayOwn bool) {
 	i := 0
 	j := 0
+	bBucketsLen := len(b.buckets)
 	for {
-		for i < len(b.b16his) && j < len(a.b16his) && b.b16his[i] < a.b16his[j] {
+		for i < bBucketsLen && j < len(a.b16his) && b.b16his[i] < a.b16his[j] {
 			i++
 		}
-		if i >= len(b.b16his) {
+		if i >= bBucketsLen {
 			for j < len(a.b16his) {
 				b16 := b.addBucket16(a.b16his[j])
 				if mayOwn {
@@ -481,6 +483,23 @@ func (b *bucket32) intersect(a *bucket32) {
 			j++
 		}
 	}
+	// Remove zero buckets
+	b16his := b.b16his[:0]
+	bs := b.buckets[:0]
+	for i := range b.buckets {
+		b32 := &b.buckets[i]
+		if b32.isZero() {
+			continue
+		}
+		b16his = append(b16his, b.b16his[i])
+		bs = append(bs, *b32)
+	}
+	for i := len(bs); i < len(b.buckets); i++ {
+		b.buckets[i] = bucket16{}
+	}
+	b.hint = 0
+	b.b16his = b16his
+	b.buckets = bs
 }
 
 func (b *bucket32) forEach(f func(part []uint64) bool) bool {
@@ -648,6 +667,10 @@ type bucket16 struct {
 	bits         *[wordsPerBucket]uint64
 	smallPoolLen int
 	smallPool    [56]uint16
+}
+
+func (b *bucket16) isZero() bool {
+	return b.bits == nil && b.smallPoolLen == 0
 }
 
 func (b *bucket16) getLen() int {
