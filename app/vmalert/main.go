@@ -81,6 +81,7 @@ func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval t
 	for {
 		select {
 		case <-t.C:
+			start := time.Now()
 			for _, r := range a.Rules {
 				if metrics, err = w.storage.Query(ctx, r.Expr); err != nil {
 					logger.Errorf("error reading metrics %s", err)
@@ -90,7 +91,8 @@ func (w *watchdog) run(ctx context.Context, a config.Group, evaluationInterval t
 				if len(metrics) < 1 {
 					continue
 				}
-				alerts = provider.AlertsFromMetrics(metrics, a.Name, r)
+				// todo define alert end time
+				alerts = provider.AlertsFromMetrics(metrics, a.Name, r, start, time.Time{})
 				// todo save to storage
 				if err := w.alertProvider.Send(alerts); err != nil {
 					logger.Errorf("error sending alerts %s", err)
