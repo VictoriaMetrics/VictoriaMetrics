@@ -2,17 +2,17 @@
 
 DOCKER_NAMESPACE := docker.io/victoriametrics
 BUILDER_IMAGE := local/builder:go1.14.1
-CERTS_IMAGE := local/certs:1.0.3
+BASE_IMAGE := local/base:1.0.0
 
-package-certs:
-	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(CERTS_IMAGE)$$') \
-		|| docker build -t $(CERTS_IMAGE) deployment/docker/certs
+package-base:
+	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
+		|| docker build -t $(BASE_IMAGE) deployment/docker/base
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
 		|| docker build -t $(BUILDER_IMAGE) deployment/docker/builder
 
-app-via-docker: package-certs package-builder
+app-via-docker: package-base package-builder
 	mkdir -p gocache-for-docker
 	docker run --rm \
 		--user $(shell id -u):$(shell id -g) \
@@ -31,7 +31,7 @@ package-via-docker:
 		$(MAKE) app-via-docker && \
 		docker build \
 			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
-			--build-arg certs_image=$(CERTS_IMAGE) \
+			--build-arg base_image=$(BASE_IMAGE) \
 			-t $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
