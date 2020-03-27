@@ -32,7 +32,9 @@ var (
 	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It overrides httpAuth settings")
 	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof. It overrides httpAuth settings")
 
-	disableResponseCompression = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
+	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
+	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for graceful shutdown of HTTP server. "+
+		"Highly loaded server may require increased value for graceful shutdown")
 )
 
 var (
@@ -130,10 +132,10 @@ func Stop(addr string) error {
 	if s == nil {
 		logger.Panicf("BUG: there is no http server at %q", addr)
 	}
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration)
 	defer cancelFunc()
 	if err := s.Shutdown(ctx); err != nil {
-		return fmt.Errorf("cannot gracefully shutdown http server at %q: %s", addr, err)
+		return fmt.Errorf("cannot gracefully shutdown http server at %q in %.3fs: %s", addr, maxGracefulShutdownDuration.Seconds(), err)
 	}
 	return nil
 }
