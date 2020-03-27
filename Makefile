@@ -106,6 +106,9 @@ check-all: fmt vet lint errcheck golangci-lint
 test:
 	GO111MODULE=on go test -mod=vendor ./lib/... ./app/...
 
+test-race:
+	GO111MODULE=on go test -mod=vendor -race ./lib/... ./app/...
+
 test-pure:
 	GO111MODULE=on CGO_ENABLED=0 go test -mod=vendor ./lib/... ./app/...
 

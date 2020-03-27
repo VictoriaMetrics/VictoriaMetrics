@@ -1,8 +1,6 @@
 package fsnil
 
 import (
-	"fmt"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 )
 
@@ -11,7 +9,7 @@ type FS struct{}
 
 // String returns human-readable string representation for fs.
 func (fs *FS) String() string {
-	return fmt.Sprintf("fsnil")
+	return "fsnil"
 }
 
 // ListParts returns all the parts from fs.

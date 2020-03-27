@@ -3,6 +3,9 @@
 vmrestore:
 	APP_NAME=vmrestore $(MAKE) app-local
 
+vmrestore-race:
+	APP_NAME=vmrestore RACE=-race $(MAKE) app-local
+
 vmrestore-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker
 

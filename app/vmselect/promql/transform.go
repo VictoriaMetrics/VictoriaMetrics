@@ -59,6 +59,7 @@ var transformFuncs = map[string]transformFunc{
 
 	// New funcs
 	"label_set":          transformLabelSet,
+	"label_map":          transformLabelMap,
 	"label_del":          transformLabelDel,
 	"label_keep":         transformLabelKeep,
 	"label_copy":         transformLabelCopy,
@@ -1021,6 +1022,38 @@ func transformLabelSet(tfa *transformFuncArg) ([]*timeseries, error) {
 			if len(value) == 0 {
 				mn.RemoveTag(dstLabel)
 			}
+		}
+	}
+	return rvs, nil
+}
+
+func transformLabelMap(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 2 {
+		return nil, fmt.Errorf(`not enough args; got %d; want at least %d`, len(args), 2)
+	}
+	label, err := getString(args[1], 1)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read label name: %s", err)
+	}
+	srcValues, dstValues, err := getStringPairs(args[2:])
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]string, len(srcValues))
+	for i, srcValue := range srcValues {
+		m[srcValue] = dstValues[i]
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		mn := &ts.MetricName
+		dstValue := getDstValue(mn, label)
+		value, ok := m[string(*dstValue)]
+		if ok {
+			*dstValue = append((*dstValue)[:0], value...)
+		}
+		if len(*dstValue) == 0 {
+			mn.RemoveTag(label)
 		}
 	}
 	return rvs, nil

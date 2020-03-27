@@ -270,43 +270,6 @@ scrape_configs:
   - targets: ["a"]
 `)
 
-	// Clash of external_label with job or instance
-	f(`
-global:
-  external_labels:
-    job: foobar
-scrape_configs:
-- job_name: aaa
-  static_configs:
-  - targets: ["a"]
-`)
-
-	// Clash of external_label with static_configs label
-	f(`
-global:
-  external_labels:
-    xxx: foobar
-scrape_configs:
-- job_name: aaa
-  static_configs:
-  - targets: ["a"]
-    labels:
-      xxx: yyy
-`)
-
-	// Clash of param with external_labels
-	f(`
-global:
-  external_labels:
-    __param_xxx: foobar
-scrape_configs:
-- job_name: aaa
-  params:
-    xxx: [abcd]
-  static_configs:
-  - targets: ["a"]
-`)
-
 	// non-existing ca_file
 	f(`
 scrape_configs:
@@ -1088,6 +1051,62 @@ scrape_configs:
 				},
 			},
 			TLSCertificate: &snakeoilCert,
+		},
+	})
+	f(`
+global:
+  external_labels:
+    job: foobar
+    foo: xx
+    q: qwe
+    __address__: aaasdf
+    __param_a: jlfd
+scrape_configs:
+- job_name: aaa
+  params:
+    a: [b, xy]
+  static_configs:
+  - targets: ["a"]
+    labels:
+      foo: bar
+      __param_a: c
+      __address__: pp
+      job: yyy
+`, []ScrapeWork{
+		{
+			ScrapeURL:      "http://pp:80/metrics?a=c&a=xy",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "__address__",
+					Value: "pp",
+				},
+				{
+					Name:  "__metrics_path__",
+					Value: "/metrics",
+				},
+				{
+					Name:  "__param_a",
+					Value: "c",
+				},
+				{
+					Name:  "__scheme__",
+					Value: "http",
+				},
+				{
+					Name:  "foo",
+					Value: "bar",
+				},
+				{
+					Name:  "job",
+					Value: "yyy",
+				},
+				{
+					Name:  "q",
+					Value: "qwe",
+				},
+			},
 		},
 	})
 	f(`

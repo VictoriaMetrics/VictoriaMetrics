@@ -69,6 +69,7 @@ func newClient(remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQue
 	if readTimeout <= 0 {
 		readTimeout = time.Minute
 	}
+	writeTimeout := readTimeout
 	var u fasthttp.URI
 	u.Update(remoteWriteURL)
 	scheme := string(u.Scheme())
@@ -109,7 +110,7 @@ func newClient(remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQue
 		MaxConns:            maxConns,
 		MaxIdleConnDuration: 10 * readTimeout,
 		ReadTimeout:         readTimeout,
-		WriteTimeout:        10 * time.Second,
+		WriteTimeout:        writeTimeout,
 		MaxResponseBodySize: 1024 * 1024,
 	}
 	c := &client{

@@ -1,7 +1,7 @@
 # All these commands must run from repository root.
 
 DOCKER_NAMESPACE := docker.io/victoriametrics
-BUILDER_IMAGE := local/builder:go1.14.0
+BUILDER_IMAGE := local/builder:go1.14.1
 BASE_IMAGE := local/base:1.0.0
 
 package-base:

@@ -22,3 +22,4 @@
 * [Prometheus storage: tech terms for humans](https://medium.com/@valyala/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
 * [Billy: how VictoriaMetrics deals with more than 500 billion rows](https://medium.com/@valyala/billy-how-victoriametrics-deals-with-more-than-500-billion-rows-e82ff8f725da)
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
+* [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)

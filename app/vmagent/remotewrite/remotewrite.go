@@ -89,7 +89,7 @@ func Stop() {
 // Each timeseries in wr.Timeseries must contain one sample.
 func Push(wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
-	if len(prcsGlobal) > 0 {
+	if len(prcsGlobal) > 0 || len(labelsGlobal) > 0 {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries

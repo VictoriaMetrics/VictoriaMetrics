@@ -222,7 +222,9 @@ func init() {
 	proto.RegisterEnum("google.rpc.Code", Code_name, Code_value)
 }
 
-func init() { proto.RegisterFile("google/rpc/code.proto", fileDescriptor_fe593a732623ccf0) }
+func init() {
+	proto.RegisterFile("google/rpc/code.proto", fileDescriptor_fe593a732623ccf0)
+}
 
 var fileDescriptor_fe593a732623ccf0 = []byte{
 	// 362 bytes of a gzipped FileDescriptorProto

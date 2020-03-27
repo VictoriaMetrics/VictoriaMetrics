@@ -225,6 +225,7 @@ func equalLabel(a, b *prompbmarshal.Label) bool {
 //
 // This function returns after closing stopCh.
 func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	tsmGlobal.RegisterAll(sws)
 	var wg sync.WaitGroup
 	for i := range sws {
 		cfg := &sws[i]
@@ -240,4 +241,5 @@ func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteReq
 		}()
 	}
 	wg.Wait()
+	tsmGlobal.UnregisterAll(sws)
 }
