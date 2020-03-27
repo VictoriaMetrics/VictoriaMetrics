@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.5.2"
+      "version": "6.7.1"
     },
     {
       "type": "panel",
@@ -54,12 +54,12 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.32.8 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.34.0 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1580634787848,
+  "iteration": 1585342925438,
   "links": [
     {
       "icon": "doc",
@@ -143,7 +143,6 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
-      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -228,7 +227,6 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
-      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -313,7 +311,6 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
-      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -367,7 +364,6 @@
         "y": 3
       },
       "id": 26,
-      "options": {},
       "pageSize": null,
       "scroll": true,
       "showHeader": true,
@@ -378,6 +374,7 @@
       "styles": [
         {
           "alias": "uptime",
+          "align": "auto",
           "colorMode": "cell",
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -397,6 +394,7 @@
         },
         {
           "alias": "",
+          "align": "auto",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -413,6 +411,7 @@
         },
         {
           "alias": "",
+          "align": "auto",
           "colorMode": null,
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -422,7 +421,7 @@
           "dateFormat": "YYYY-MM-DD HH:mm:ss",
           "decimals": 2,
           "mappingType": 1,
-          "pattern": ".*",
+          "pattern": "/.*/",
           "thresholds": [],
           "type": "hidden",
           "unit": "short"
@@ -4233,8 +4232,9 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_rows_per_insert{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (instance) > 0",
+              "expr": "histogram_quantile(0.99, sum(increase(vm_rows_per_insert_bucket{job=~\"$job\", instance=~\"$instance\"}[5m])) by (instance, vmrange))",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
               "refId": "A"
@@ -4286,15 +4286,16 @@
       "type": "row"
     }
   ],
-  "schemaVersion": 21,
+  "schemaVersion": 22,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "text": "Prometheus",
-          "value": "Prometheus"
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
@@ -4315,6 +4316,7 @@
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
         "hide": 2,
         "includeAll": false,
+        "index": -1,
         "label": null,
         "multi": false,
         "name": "job_insert",
@@ -4337,6 +4339,7 @@
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
         "hide": 2,
         "includeAll": false,
+        "index": -1,
         "label": null,
         "multi": false,
         "name": "job_select",
@@ -4359,6 +4362,7 @@
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
         "hide": 2,
         "includeAll": false,
+        "index": -1,
         "label": null,
         "multi": false,
         "name": "job_storage",
@@ -4381,6 +4385,7 @@
         "definition": "label_values(vm_app_version{version=~\"^vm.*\"}, job)",
         "hide": 0,
         "includeAll": true,
+        "index": -1,
         "label": null,
         "multi": true,
         "name": "job",
@@ -4403,6 +4408,7 @@
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
+        "index": -1,
         "label": null,
         "multi": true,
         "name": "instance",
@@ -4414,9 +4420,9 @@
         "sort": 0,
         "tagValuesQuery": "label_values(vm_app_version{job=\"$tag\"}, instance)",
         "tags": [
-          "vminsert",
           "vmselect",
-          "vmstorage"
+          "vmstorage",
+          "vminsert"
         ],
         "tagsQuery": "label_values(vm_app_version, job)",
         "type": "query",
@@ -4445,5 +4451,8 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
+  "variables": {
+    "list": []
+  },
   "version": 1
 }
