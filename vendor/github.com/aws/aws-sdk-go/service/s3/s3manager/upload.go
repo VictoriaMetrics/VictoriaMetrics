@@ -625,6 +625,7 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker, cleanup func()) (*UploadO
 		Key:    u.in.Key,
 	})
 	getReq.Config.Credentials = credentials.AnonymousCredentials
+	getReq.SetContext(u.ctx)
 	uploadLocation, _, _ := getReq.PresignRequest(1)
 
 	return &UploadOutput{

@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.54.0
+# cloud.google.com/go v0.55.0
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -14,7 +14,7 @@ github.com/BurntSushi/toml
 github.com/VictoriaMetrics/fastcache
 # github.com/VictoriaMetrics/metrics v1.11.2
 github.com/VictoriaMetrics/metrics
-# github.com/aws/aws-sdk-go v1.29.22
+# github.com/aws/aws-sdk-go v1.29.33
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
 github.com/aws/aws-sdk-go/aws/awserr
@@ -63,7 +63,7 @@ github.com/aws/aws-sdk-go/service/sts/stsiface
 github.com/cespare/xxhash/v2
 # github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 github.com/golang/groupcache/lru
-# github.com/golang/protobuf v1.3.4
+# github.com/golang/protobuf v1.3.5
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go
 github.com/golang/protobuf/protoc-gen-go/descriptor
@@ -79,7 +79,7 @@ github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/snappy
 # github.com/googleapis/gax-go/v2 v2.0.5
 github.com/googleapis/gax-go/v2
-# github.com/jmespath/go-jmespath v0.0.0-20200310193758-2437e8417af5
+# github.com/jmespath/go-jmespath v0.3.0
 github.com/jmespath/go-jmespath
 # github.com/jstemmer/go-junit-report v0.9.1
 github.com/jstemmer/go-junit-report
@@ -136,7 +136,7 @@ golang.org/x/lint/golint
 # golang.org/x/mod v0.2.0
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+# golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -151,14 +151,14 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+# golang.org/x/sys v0.0.0-20200327173247-9dae0f8f5775
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20200312153518-5e2df02acb1e
+# golang.org/x/tools v0.0.0-20200327172716-42235f63843a
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/passes/inspect
@@ -173,6 +173,7 @@ golang.org/x/tools/go/loader
 golang.org/x/tools/go/packages
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/fastwalk
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/gopathwalk
@@ -205,7 +206,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20200312145019-da6875a35672
+# google.golang.org/genproto v0.0.0-20200326112834-f447254575fd
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
