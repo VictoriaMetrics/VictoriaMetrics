@@ -1,7 +1,8 @@
 ## vmagent
 
 `vmagent` is a tiny but brave agent, which helps you collecting metrics from various sources
-and storing them to [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
+and storing them to [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+or any other Prometheus-compatible storage system that supports `remote_write` protocol.
 
 <img alt="vmagent" src="vmagent.png">
 
@@ -103,6 +104,14 @@ See [these docs](#relabeling) for details.
 which is applied independently for each configured `-remoteWrite.url` destination. For instance, it is possible to replicate or split
 data among long-term remote storage, short-term remote storage and real-time analytical system [built on top of Kafka](https://github.com/Telefonica/prometheus-kafka-adapter).
 Note that each destination can receive its own subset of the collected data thanks to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
+
+
+#### Prometheus remote_write proxy
+
+`vmagent` may be used as a proxy for Prometheus data sent via Prometheus `remote_write` protocol. It can accept data via `remote_write` API
+at `/api/v1/write` endpoint, apply relabeling and filtering and then proxy it to another `remote_write` systems.
+The `vmagent` can be configured to encrypt the incoming `remote_write` requests with `-tls*` command-line flags.
+Additionally, Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAuth.*` command-line flags.
 
 
 
