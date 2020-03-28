@@ -3,14 +3,6 @@ FROM alpine:3.10 as base
 
 RUN apk --update --no-cache add ca-certificates
 
-RUN mkdir /future-tmp
-
 FROM scratch
 
-COPY --chown=0:0 ./passwd ./group /etc/
-USER 1000
-
-COPY --from=base --chown=1000:1000 /future-tmp /tmp
-COPY --from=base --chown=1000:1000 /future-tmp /vmstorage-data
-
-COPY --from=base --chown=1000:1000 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

@@ -2,7 +2,7 @@
 
 DOCKER_NAMESPACE := docker.io/victoriametrics
 BUILDER_IMAGE := local/builder:go1.14.1
-BASE_IMAGE := local/base:1.0.0
+BASE_IMAGE := local/base:1.1.0
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
