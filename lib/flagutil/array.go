@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// NewArray returns new Array with the given name and descprition.
+// NewArray returns new Array with the given name and description.
 func NewArray(name, description string) *Array {
 	var a Array
 	flag.Var(&a, name, description)
