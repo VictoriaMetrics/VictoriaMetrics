@@ -8,10 +8,16 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 const alertsPath = "/api/v2/alerts"
+
+// AlertProvider is common interface for alert manager provider
+type AlertProvider interface {
+	Send(alerts []common.Alert) error
+}
 
 var pool = sync.Pool{New: func() interface{} {
 	return &bytes.Buffer{}
@@ -37,7 +43,7 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, c *http.Clien
 }
 
 // Send an alert or resolve message
-func (am *AlertManager) Send(alerts []Alert) error {
+func (am *AlertManager) Send(alerts []common.Alert) error {
 	b := pool.Get().(*bytes.Buffer)
 	b.Reset()
 	defer pool.Put(b)

@@ -1,20 +1,16 @@
-package provider
+package common
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"strings"
 	"text/template"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
-
-// AlertProvider is common interface for alert manager provider
-type AlertProvider interface {
-	Send(alerts []Alert) error
-}
 
 // Alert the triggered alert
 type Alert struct {
@@ -37,8 +33,9 @@ type alertTplData struct {
 const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}{{ $externalLabels := .ExternalLabels }}`
 
 // AlertsFromMetrics converts metrics to alerts by alert Rule
-func AlertsFromMetrics(metrics []datasource.Metric, group string, rule config.Rule, start, end time.Time) []Alert {
+func AlertsFromMetrics(metrics []datasource.Metric, group string, rule Rule, start, end time.Time) []Alert {
 	alerts := make([]Alert, 0, len(metrics))
+	var err error
 	for i, m := range metrics {
 		a := Alert{
 			Group: group,
@@ -49,7 +46,10 @@ func AlertsFromMetrics(metrics []datasource.Metric, group string, rule config.Ru
 		}
 		tplData := alertTplData{Value: m.Value, ExternalLabels: make(map[string]string)}
 		tplData.Labels, a.Labels = mergeLabels(metrics[i].Labels, rule.Labels)
-		a.Annotations = templateAnnotations(rule.Annotations, tplHeader, tplData)
+		a.Annotations, err = templateAnnotations(rule.Annotations, tplHeader, tplData)
+		if err != nil {
+			logger.Errorf("%s", err)
+		}
 		alerts = append(alerts, a)
 	}
 	return alerts
@@ -74,9 +74,10 @@ func mergeLabels(ml []datasource.Label, rl map[string]string) (map[string]string
 	return set, sl
 }
 
-func templateAnnotations(annotations map[string]string, header string, data alertTplData) map[string]string {
+func templateAnnotations(annotations map[string]string, header string, data alertTplData) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
+	eg := errGroup{}
 	r := make(map[string]string, len(annotations))
 	for key, text := range annotations {
 		r[key] = text
@@ -85,17 +86,48 @@ func templateAnnotations(annotations map[string]string, header string, data aler
 		builder.Grow(len(header) + len(text))
 		builder.WriteString(header)
 		builder.WriteString(text)
-		// todo add template helper func from Prometheus
-		tpl, err := template.New("").Option("missingkey=zero").Parse(builder.String())
-		if err != nil {
-			logger.Errorf("error parsing annotation template %q for %q:%s", text, key, err)
-			continue
-		}
-		if err = tpl.Execute(&buf, data); err != nil {
-			logger.Errorf("error evaluating annotation template %s for %s:%s", text, key, err)
+		if err := templateAnnotation(&buf, builder.String(), data); err != nil {
+			eg.errs = append(eg.errs, fmt.Sprintf("key %s, template %s:%w", key, text, err))
 			continue
 		}
 		r[key] = buf.String()
 	}
-	return r
+	return r, eg.err()
+}
+
+// ValidateAnnotations validate annotations for possible template error, uses empty data for template population
+func ValidateAnnotations(annotations map[string]string) error {
+	_, err := templateAnnotations(annotations, tplHeader, alertTplData{
+		Labels:         map[string]string{},
+		ExternalLabels: map[string]string{},
+		Value:          0,
+	})
+	return err
+}
+
+func templateAnnotation(dst io.Writer, text string, data alertTplData) error {
+	// todo add template helper func from Prometheus
+	tpl, err := template.New("").Option("missingkey=zero").Parse(text)
+	if err != nil {
+		return fmt.Errorf("error parsing annotation:%w", err)
+	}
+	if err = tpl.Execute(dst, data); err != nil {
+		return fmt.Errorf("error evaluating annotation template:%w", err)
+	}
+	return nil
+}
+
+type errGroup struct {
+	errs []string
+}
+
+func (eg *errGroup) err() error {
+	if eg == nil || len(eg.errs) == 0 {
+		return nil
+	}
+	return eg
+}
+
+func (eg *errGroup) Error() string {
+	return fmt.Sprintf("errors:%s", strings.Join(eg.errs, "\n"))
 }

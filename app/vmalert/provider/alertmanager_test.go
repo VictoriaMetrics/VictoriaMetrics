@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
 )
 
 func TestAlertManager_Send(t *testing.T) {
@@ -59,13 +61,13 @@ func TestAlertManager_Send(t *testing.T) {
 	am := NewAlertManager(srv.URL, func(group, name string) string {
 		return group + name
 	}, srv.Client())
-	if err := am.Send([]Alert{{}, {}}); err == nil {
+	if err := am.Send([]common.Alert{{}, {}}); err == nil {
 		t.Error("expected connection error got nil")
 	}
-	if err := am.Send([]Alert{}); err == nil {
+	if err := am.Send([]common.Alert{}); err == nil {
 		t.Error("expected wrong http code error got nil")
 	}
-	if err := am.Send([]Alert{{
+	if err := am.Send([]common.Alert{{
 		Group:       "group0",
 		Name:        "alert0",
 		Start:       time.Now().UTC(),
