@@ -17,6 +17,7 @@ type Rule struct {
 	Annotations map[string]string `yaml:"annotations"`
 }
 
+// Validate validates rule
 func (r Rule) Validate() error {
 	if r.Name == "" {
 		return errors.New("rule name can not be empty")
