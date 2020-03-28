@@ -89,7 +89,7 @@ Numbers:
 
 The mission of [MHI Vestas Offshore Wind](http://www.mhivestasoffshore.com) is to co-develop offshore wind as an economically viable and sustainable energy resource to benefit future generations.
 
-MHI Vestas Offshore Wind is using VictoriaMetrics to ingest and visualize sensor data from offshore wind turbines. The very efficient storage and ability to backfill was key in chosing VictoriaMetrics. MHI Vestas Offshore Wind is running the cluster version of VictoriaMetrics on Kubernetes using the Helm charts for deployment to be able to scale up capacity as the solution will be rolled out. Current roll-out is
+MHI Vestas Offshore Wind is using VictoriaMetrics to ingest and visualize sensor data from offshore wind turbines. The very efficient storage and ability to backfill was key in chosing VictoriaMetrics. MHI Vestas Offshore Wind is running the cluster version of VictoriaMetrics on Kubernetes using the Helm charts for deployment to be able to scale up capacity as the solution will be rolled out.
 
 Numbers with current limited roll out:
 
@@ -114,3 +114,48 @@ Numbers:
 VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
 2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
 as load balancer for reads.
+
+
+### Brandwatch
+
+[Brandwatch](https://www.brandwatch.com/) is the world's pioneering digital consumer intelligence suite,
+helping over 2,000 of the world's most admired brands and agencies to make insightful, data-driven business decisions.
+
+The engineering department at Brandwatch has been using InfluxDB for storing application metrics for many years
+and when End-of-Life of InfluxDB version 1.x was announced we decided to re-evaluate our whole metrics collection and storage stack.
+
+Main goals for the new metrics stack were:
+- improved performance
+- lower maintenance
+- support for native clustering in open source version
+- the less metrics shipment had to change, the better
+- achieving longer data retention would be great but not critical
+
+We initially looked at CrateDB and TimescaleDB which both turned out to have limitations or requirements in the open source versions
+that made them unfit for our use case. Prometheus was also considered but push vs. pull metrics was a big change we did not want
+to include in the already significant change.
+
+Once we found VictoriaMetrics it solved the following problems:
+- it is very light weight and we can now run virtual machines instead of dedicated hardware machines for metrics storage
+- very short startup time and any possible gaps in data can easily be filled in by using Promxy
+- we could continue using Telegraf as our metrics agent and ship identical metrics to both InfluxDB and VictoriaMetrics during a migration period (migration just about to start)
+- compression is really good so we can store more metrics and we can spin up new VictoriaMetrics instances
+for new data and keep read-only nodes with older data if we need to extend our retention period further
+than single virtual machine disks allow and we can aggregate all the data from VictoriaMetrics with Promxy
+
+High availability is done the same way we did with InfluxDB, by running parallel single nodes of VictoriaMetrics.
+
+Numbers:
+
+- active time series: up to 25 million
+- ingestion rate: ~300 000
+- total number of datapoints: 380 billion and growing
+- total number of entries in inverted index: 575 million and growing
+- daily time series churn rate: ~550 000
+- data size on disk: ~660GB and growing
+- index size on disk: ~9,3GB and growing
+- average datapoint size on disk: ~1.75 bytes
+
+Query rates are insignificant as we have concentrated on data ingestion so far.
+
+Anders Bomberg, Monitoring and Infrastructure Team Lead, brandwatch.com

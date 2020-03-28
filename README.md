@@ -26,6 +26,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Synthesio](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#synthesio)
 * [MHI Vestas Offshore Wind](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#mhi-vestas-offshore-wind)
 * [Dreamteam](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#dreamteam)
+* [Brandwatch](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#brandwatch)
 
 
 ## Prominent features
