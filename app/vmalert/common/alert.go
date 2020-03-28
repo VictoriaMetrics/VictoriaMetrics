@@ -87,7 +87,7 @@ func templateAnnotations(annotations map[string]string, header string, data aler
 		builder.WriteString(header)
 		builder.WriteString(text)
 		if err := templateAnnotation(&buf, builder.String(), data); err != nil {
-			eg.errs = append(eg.errs, fmt.Sprintf("key %s, template %s:%w", key, text, err))
+			eg.errs = append(eg.errs, fmt.Sprintf("key %s, template %s:%s", key, text, err))
 			continue
 		}
 		r[key] = buf.String()
