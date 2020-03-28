@@ -1,4 +1,4 @@
-package provider
+package common
 
 import (
 	"reflect"
@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 )
 
@@ -30,7 +29,7 @@ func TestAlertsFromMetrics(t *testing.T) {
 			Value:     30,
 		},
 	}
-	rule := config.Rule{
+	rule := Rule{
 		Name: "alertname",
 		Expr: "up==0",
 		Labels: map[string]string{
