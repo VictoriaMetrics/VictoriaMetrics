@@ -923,7 +923,15 @@ func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) 
 			case prometheusMaxTimeFormatted:
 				return maxTimeMsecs, nil
 			}
-			return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
+			// Try parsing duration relative to the current time
+			d, err1 := time.ParseDuration(argValue)
+			if err1 != nil {
+				return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
+			}
+			if d > 0 {
+				d = -d
+			}
+			t = time.Now().Add(d)
 		}
 		secs = float64(t.UnixNano()) / 1e9
 	}
