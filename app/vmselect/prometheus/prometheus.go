@@ -653,8 +653,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	if err != nil {
 		return err
 	}
-	queryOffset := getLatencyOffsetMilliseconds()
-	step, err := getDuration(r, "step", queryOffset)
+	step, err := getDuration(r, "step", defaultStep)
 	if err != nil {
 		return err
 	}
@@ -667,6 +666,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	if len(query) > *maxQueryLen {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
 	}
+	queryOffset := getLatencyOffsetMilliseconds()
 	if !getBool(r, "nocache") && ct-start < queryOffset {
 		// Adjust start time only if `nocache` arg isn't set.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
@@ -974,17 +974,17 @@ func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
 
 func getMaxLookback(r *http.Request) (int64, error) {
-	d := int64(*maxLookback / time.Millisecond)
+	d := maxLookback.Milliseconds()
 	return getDuration(r, "max_lookback", d)
 }
 
 func getDeadlineForQuery(r *http.Request) netstorage.Deadline {
-	dMax := int64(maxQueryDuration.Seconds() * 1e3)
+	dMax := maxQueryDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, dMax, "-search.maxQueryDuration")
 }
 
 func getDeadlineForExport(r *http.Request) netstorage.Deadline {
-	dMax := int64(maxExportDuration.Seconds() * 1e3)
+	dMax := maxExportDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, dMax, "-search.maxExportDuration")
 }
 
@@ -1027,7 +1027,7 @@ func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) 
 }
 
 func getLatencyOffsetMilliseconds() int64 {
-	d := int64(*latencyOffset / time.Millisecond)
+	d := latencyOffset.Milliseconds()
 	if d <= 1000 {
 		d = 1000
 	}
