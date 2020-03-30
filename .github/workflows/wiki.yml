@@ -2,7 +2,7 @@ name: wiki
 on:
   push:
     paths:
-      - 'docs/*.md'
+      - 'docs/*'
     branches:
       - master
 jobs:
@@ -17,11 +17,11 @@ jobs:
         run: |
           cd docs
           git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
-          find ./ -name '*.md' -exec cp -prv '{}' 'wiki' ';'
+          find ./ -name '*' -exec cp -prv '{}' 'wiki' ';'
           cd wiki
           git config --local user.email "info@victoriametrics.com"
           git config --local user.name "Vika"
-          git add "*.md"
+          git add .
           git commit -m "update wiki pages"
           remote_repo="https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git"
           git push "${remote_repo}"
