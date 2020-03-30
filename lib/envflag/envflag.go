@@ -7,9 +7,12 @@ import (
 	"strings"
 )
 
-var enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables additionally to command line. "+
-	"Command line flag values have priority over values from environment vars. "+
-	"Flags are read only from command line if this flag isn't set")
+var (
+	enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables additionally to command line. "+
+		"Command line flag values have priority over values from environment vars. "+
+		"Flags are read only from command line if this flag isn't set")
+	prefix = flag.String("envflag.prefix", "", "Prefix for environment variables if -envflag.enable is set")
+)
 
 // Parse parses environment vars and command-line flags.
 //
@@ -48,5 +51,6 @@ func Parse() {
 func getEnvFlagName(s string) string {
 	// Substitute dots with underscores, since env var names cannot contain dots.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/311#issuecomment-586354129 for details.
-	return strings.ReplaceAll(s, ".", "_")
+	s = strings.ReplaceAll(s, ".", "_")
+	return *prefix + s
 }
