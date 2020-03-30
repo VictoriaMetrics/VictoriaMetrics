@@ -160,6 +160,21 @@ type tagFilter struct {
 	matchesEmptyValue bool
 }
 
+func (tf *tagFilter) Less(other *tagFilter) bool {
+	// Move regexp and negative filters to the end, since they require scanning
+	// all the entries for the given label.
+	if tf.isRegexp != other.isRegexp {
+		return !tf.isRegexp
+	}
+	if tf.isNegative != other.isNegative {
+		return !tf.isNegative
+	}
+	if len(tf.orSuffixes) != len(other.orSuffixes) {
+		return len(tf.orSuffixes) < len(other.orSuffixes)
+	}
+	return bytes.Compare(tf.prefix, other.prefix) < 0
+}
+
 // String returns human-readable tf value.
 func (tf *tagFilter) String() string {
 	op := "="
