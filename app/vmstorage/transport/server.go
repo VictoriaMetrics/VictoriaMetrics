@@ -782,6 +782,7 @@ func (ctx *vmselectRequestCtx) setupTfss() error {
 				return fmt.Errorf("cannot parse tag filter %s: %s", tf, err)
 			}
 		}
+		tfss = append(tfss, tfs.Finalize()...)
 	}
 	ctx.tfss = tfss
 	return nil
