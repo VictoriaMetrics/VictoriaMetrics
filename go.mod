@@ -5,7 +5,7 @@ require (
 	cloud.google.com/go/storage v1.6.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/VictoriaMetrics/metrics v1.11.2
-	github.com/aws/aws-sdk-go v1.29.33
+	github.com/aws/aws-sdk-go v1.29.34
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.1
 	github.com/jmespath/go-jmespath v0.3.0 // indirect
@@ -18,9 +18,9 @@ require (
 	github.com/valyala/quicktemplate v1.4.1
 	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	golang.org/x/sys v0.0.0-20200327173247-9dae0f8f5775
-	golang.org/x/tools v0.0.0-20200327172716-42235f63843a // indirect
+	golang.org/x/tools v0.0.0-20200330040139-fa3cc9eebcfe // indirect
 	google.golang.org/api v0.20.0
-	google.golang.org/genproto v0.0.0-20200326112834-f447254575fd // indirect
+	google.golang.org/genproto v0.0.0-20200330113809-af700f360a68 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 )
 
