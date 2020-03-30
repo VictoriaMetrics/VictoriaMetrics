@@ -15,9 +15,8 @@ jobs:
         env:
           TOKEN: ${{secrets.CI_TOKEN}}
         run: |
-          cd docs
           git clone https://vika:${TOKEN}@github.com/VictoriaMetrics/VictoriaMetrics.wiki.git wiki
-          find ./ -name '*' -exec cp -prv '{}' 'wiki' ';'
+          cp docs/* wiki
           cd wiki
           git config --local user.email "info@victoriametrics.com"
           git config --local user.name "Vika"

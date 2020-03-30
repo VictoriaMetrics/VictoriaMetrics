@@ -1,3 +1,2 @@
 user-agent: *
 allow: /
-
