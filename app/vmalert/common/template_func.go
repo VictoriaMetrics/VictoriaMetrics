@@ -26,7 +26,7 @@ import (
 
 var tmplFunc text_template.FuncMap
 
-// TemplateFunc returns template helper functions
+// InitTemplateFunc returns template helper functions
 func InitTemplateFunc(externalURL *url.URL) {
 	tmplFunc = text_template.FuncMap{
 		"args": func(args ...interface{}) map[string]interface{} {
