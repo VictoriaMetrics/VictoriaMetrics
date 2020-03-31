@@ -1238,7 +1238,40 @@ func mergeTSIDs(a, b []TSID) []TSID {
 	return tsids
 }
 
+func (is *indexSearch) containsTimeRange(tr TimeRange, accountID, projectID uint32) (bool, error) {
+	ts := &is.ts
+	kb := &is.kb
+
+	// Verify whether the maximum date in `ts` covers tr.MinTimestamp.
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID, accountID, projectID)
+	prefix := kb.B
+	kb.B = encoding.MarshalUint64(kb.B, minDate)
+	ts.Seek(kb.B)
+	if !ts.NextItem() {
+		if err := ts.Error(); err != nil {
+			return false, fmt.Errorf("error when searching for minDate=%d, prefix %q: %s", minDate, kb.B, err)
+		}
+		return false, nil
+	}
+	if !bytes.HasPrefix(ts.Item, prefix) {
+		// minDate exceeds max date from ts.
+		return false, nil
+	}
+	return true, nil
+}
+
 func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+	accountID := tfss[0].accountID
+	projectID := tfss[0].projectID
+	ok, err := is.containsTimeRange(tr, accountID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		// Fast path - the index doesn't contain data for the given tr.
+		return nil, nil
+	}
 	metricIDs, err := is.searchMetricIDs(tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
@@ -1251,8 +1284,6 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	// Obtain TSID values for the given metricIDs.
 	tsids := make([]TSID, len(metricIDs))
 	i := 0
-	accountID := tfss[0].accountID
-	projectID := tfss[0].projectID
 	for _, metricID := range metricIDs {
 		// Try obtaining TSIDs from db.tsidCache. This is much faster
 		// than scanning the mergeset if it contains a lot of metricIDs.
