@@ -150,7 +150,7 @@ func gzipHandler(rh RequestHandler) http.HandlerFunc {
 			}
 		}
 	}
-	return http.HandlerFunc(hf)
+	return hf
 }
 
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)

@@ -15,5 +15,5 @@ groups:
         labels:
           label: bar
         annotations:
-          summary: "{{ value|humanize }}"
+          summary: "{{ value|query }}"
           description: "{{$labels}}"
