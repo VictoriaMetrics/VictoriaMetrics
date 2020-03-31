@@ -466,6 +466,8 @@ The following response should be returned:
 {"metric":{"__name__":"ask","market":"NYSE","ticker":"GOOG"},"values":[1.23],"timestamps":[1583865146495]}
 ```
 
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
+
 
 ### Prometheus querying API usage
 
@@ -666,6 +668,8 @@ curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl.gz
 ```
+
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
 and importing them concurrently. Note that the original file must be split on newlines.
