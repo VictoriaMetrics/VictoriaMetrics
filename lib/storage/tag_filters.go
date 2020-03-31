@@ -88,9 +88,13 @@ func (tfs *TagFilters) cloneWithNegativeFilter(tfNegative *tagFilter) *TagFilter
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		if tf == tfNegative {
-			tfsNew.Add(tf.key, []byte(".+"), true, true)
+			if err := tfsNew.Add(tf.key, []byte(".+"), true, true); err != nil {
+				logger.Panicf("BUG: unexpected error when creating a tag filter key=~'.+': %s", err)
+			}
 		} else {
-			tfsNew.Add(tf.key, tf.value, tf.isNegative, tf.isRegexp)
+			if err := tfsNew.Add(tf.key, tf.value, tf.isNegative, tf.isRegexp); err != nil {
+				logger.Panicf("BUG: unexpected error when cloning a tag filter %s: %s", tf, err)
+			}
 		}
 	}
 	return tfsNew
