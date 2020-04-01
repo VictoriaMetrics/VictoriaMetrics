@@ -51,13 +51,6 @@ Docker images for cluster version are available here:
 Source code for cluster version is available at [cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
 
-### Development Builds
-
-1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
-2. Run `make` from the repository root. It should build `vmstorage`, `vmselect`
-   and `vminsert` binaries and put them into the `bin` folder.
-
-
 ### Production builds
 
 There is no need in installing Go on a host system since binaries are built
@@ -78,6 +71,13 @@ vminsert-prod
 vmselect-prod
 vmstorage-prod
 ```
+
+### Development Builds
+
+1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+2. Run `make` from the repository root. It should build `vmstorage`, `vmselect`
+   and `vminsert` binaries and put them into the `bin` folder.
+
 
 ### Building docker images
 
