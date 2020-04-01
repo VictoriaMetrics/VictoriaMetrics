@@ -105,11 +105,11 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Backfilling](#backfilling)
 * [Profiling](#profiling)
 * [Integrations](#integrations)
-* [Roadmap](#roadmap)
+* [Third-party contributions](#third-party-contributions)
 * [Contacts](#contacts)
 * [Community and contributions](#community-and-contributions)
-* [Third-party contributions](#third-party-contributions)
 * [Reporting bugs](#reporting-bugs)
+* [Roadmap](#roadmap)
 * [Victoria Metrics Logo](#victoria-metrics-logo)
   * [Logo Usage Guidelines](#logo-usage-guidelines)
     * [Font used](#font-used)
@@ -934,18 +934,15 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
-  See [this example](/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+  See [this example](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 * [Ansible role for installing VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 
-## Roadmap
+## Third-party contributions
 
-* [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
-* [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
-* [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
-* [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
-* [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
-
-The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
+* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
+* [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
+* [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
+* [Prometheus Oauth proxy](https://gitlab.com/optima_public/prometheus_oauth_proxy) - see [this article](https://medium.com/@richard.holly/powerful-saas-solution-for-detection-metrics-c67b9208d362) for details.
 
 ## Contacts
 
@@ -978,16 +975,20 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
 
-## Third-party contributions
-
-* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
-* [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
-* [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
-* [Prometheus Oauth proxy](https://gitlab.com/optima_public/prometheus_oauth_proxy) - see [this article](https://medium.com/@richard.holly/powerful-saas-solution-for-detection-metrics-c67b9208d362) for details.
-
 ## Reporting bugs
 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+
+## Roadmap
+
+* [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
+* [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
+* [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
+* [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
+* [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
+
+The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
+
 
 ## Victoria Metrics Logo
 
