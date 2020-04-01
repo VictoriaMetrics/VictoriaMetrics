@@ -159,3 +159,63 @@ Numbers:
 Query rates are insignificant as we have concentrated on data ingestion so far.
 
 Anders Bomberg, Monitoring and Infrastructure Team Lead, brandwatch.com
+
+
+### Adsterra
+
+[Adsterra Network](https://adsterra.com) is a leading digital advertising company that offers
+performance-based solutions for advertisers and media partners worldwide.
+
+We used to collect and store our metrics via Prometheus. Over time the amount of our servers
+and metrics increased so we were gradually reducing the retention. When retention became 7 days
+we started to look for alternative solutions. We were choosing among Thanos, VictoriaMetrics and Prometheus federation.
+
+We end up with the following configuration:
+
+- Local Prometheus'es with VictoriaMetrics as remote storage on our backend servers.
+- A single Prometheus on our monitoring server scrapes metrics from other servers and writes to VictoriaMetrics.
+- A separate Prometheus that federates from other Prometheus'es and processes alerts.
+
+Turns out that remote write protocol generates too much traffic and connections. So after 8 months we started to look for alternatives.
+
+Around the same time VictoriaMetrics released [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+We tried to scrape all the metrics via a single insance of vmagent. But that didn't work - vmgent wasn't able to catch up with writes
+into VictoriaMetrics. We tested different options and end up with the following scheme:
+
+- We removed Prometheus from our setup.
+- VictoriaMetrics [can scrape targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-scrape-prometheus-exporters-such-as-node-exporter) as well,
+so we removed vmagent. Now VictoriaMetrics scrapes all the metrics from 110 jobs and 5531 targets.
+- We use [Promxy](https://github.com/jacksontj/promxy) for alerting.
+
+Such a scheme has the following benefits comparing to Prometheus:
+
+- We can store more metrics.
+- We need less RAM and CPU for the same workload.
+
+Cons are the following:
+
+- VictoriaMetrics doesn't support replication - we run extra instance of VictoriaMetrics and Promxy in front of VictoriaMetrics pair for high availability.
+- VictoriaMetrics stores 1 extra month for defined retention (if retention is set to N months, then VM stores N+1 months of data), but this is still better than other solutions.
+
+Some numbers from our single-node VictoriaMetrics setup:
+
+- active time series: 10M
+- ingestion rate: 800K samples/sec
+- total number of datapoints: more than 2 trillion
+- total number of entries in inverted index: more than 1 billion
+- daily time series churn rate: 2.6M
+- data size on disk: 1.5 TB
+- index size on disk: 27 GB
+- average datapoint size on disk: 0.75 bytes
+- range query rate: 16 rps
+- instant query rate: 25 rps
+- range query duration: max: 0.5s; median: 0.05s; 97th percentile: 0.29s
+- instant query duration: max: 2.1s; median: 0.04s; 97th percentile: 0.15s
+
+VictoriaMetrics consumes about 50GiB of RAM.
+
+Setup:
+
+We have 2 single-node instances of VictoriaMetircs. The first instance collects and stores high-resolution metrics (10s scrape interval) for a month.
+The second instance collects and stores low-resolution metrics (300s scrape interval) for a month.
+We use Promxy + Alertmanager for global view and alerts evaluation.
