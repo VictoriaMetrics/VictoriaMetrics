@@ -64,8 +64,7 @@ So [install docker](https://docs.docker.com/install/) and run the following comm
 make vminsert-prod vmselect-prod vmstorage-prod
 ```
 
-Production binaries are built into statically linked binaries for `GOARCH=amd64`, `GOOS=linux`.
-They are put into `bin` folder with `-prod` suffixes:
+Production binaries are built into statically linked binaries. They are put into `bin` folder with `-prod` suffixes:
 ```
 $ make vminsert-prod vmselect-prod vmstorage-prod
 $ ls -1 bin
@@ -76,7 +75,7 @@ vmstorage-prod
 
 ### Development Builds
 
-1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make` from the repository root. It should build `vmstorage`, `vmselect`
    and `vminsert` binaries and put them into the `bin` folder.
 
@@ -122,6 +121,8 @@ Each flag values can be set thru environment variables by following these rules:
 - The `-envflag.enable` flag must be set
 - Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
 - For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
+- It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+
 
 ### Monitoring
 
