@@ -1,8 +1,18 @@
 package config
 
 import (
+	"net/url"
+	"os"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
 )
+
+func TestMain(m *testing.M) {
+	u, _ := url.Parse("https://victoriametrics.com/path")
+	common.InitTemplateFunc(u)
+	os.Exit(m.Run())
+}
 
 func TestParseGood(t *testing.T) {
 	if _, err := Parse([]string{"testdata/*good.rules", "testdata/dir/*good.*"}, true); err != nil {

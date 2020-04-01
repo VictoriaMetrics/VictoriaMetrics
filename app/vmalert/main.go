@@ -4,8 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ Examples:
 	basicAuthPassword        = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
 	evaluationInterval       = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
 	providerURL              = flag.String("provider.url", "", "Prometheus alertmanager url. Required parameter. e.g. http://127.0.0.1:9093")
+	externalURL              = flag.String("external.url", "", "Reachable external url. URL is used to generate sharable alert url and in annotation templates")
 )
 
 func main() {
@@ -42,6 +44,12 @@ func main() {
 	logger.Init()
 	checkFlags()
 	ctx, cancel := context.WithCancel(context.Background())
+	// todo handle secure connection
+	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
+	if err != nil {
+		logger.Fatalf("can not get external url:%s ", err)
+	}
+	common.InitTemplateFunc(eu)
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
 	alertGroups, err := config.Parse(*rulePath, *validateAlertAnnotations)
@@ -49,11 +57,10 @@ func main() {
 		logger.Fatalf("Cannot parse configuration file: %s", err)
 	}
 
-	addr := getWebServerAddr(*httpListenAddr, false)
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
 		alertProvider: provider.NewAlertManager(*providerURL, func(group, name string) string {
-			return addr + fmt.Sprintf("/%s/%s/status", group, name)
+			return fmt.Sprintf("%s://%s/%s/%s/status", eu.Scheme, eu.Host, group, name)
 		}, &http.Client{}),
 	}
 	for id := range alertGroups {
@@ -117,27 +124,23 @@ func (w *watchdog) run(ctx context.Context, a common.Group, evaluationInterval t
 	}
 }
 
-func getWebServerAddr(httpListenAddr string, isSecure bool) string {
-	if strings.Index(httpListenAddr, ":") != 0 {
-		if isSecure {
-			return "https://" + httpListenAddr
-		}
-		return "http://" + httpListenAddr
+func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
+	if externalURL != "" {
+		return url.Parse(externalURL)
 	}
-
-	addrs, err := net.InterfaceAddrs()
+	hname, err := os.Hostname()
 	if err != nil {
-		panic("error getting the interface addresses ")
+		return nil, err
 	}
-	for _, a := range addrs {
-		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return "http://" + ipnet.IP.String() + httpListenAddr
-			}
-		}
+	port := ""
+	if ipport := strings.Split(httpListenAddr, ":"); len(ipport) > 1 {
+		port = ":" + ipport[1]
 	}
-	// no loopback ip return internal address
-	return "http://127.0.0.1" + httpListenAddr
+	schema := "http://"
+	if isSecure {
+		schema = "https://"
+	}
+	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
 }
 
 func (w *watchdog) stop() {

@@ -7,7 +7,7 @@ groups:
         labels:
           label: bar
         annotations:
-          summary: "{{ $value }}"
+          summary: "{{ $value|humanize }}"
           description: "{{$labels}}"
 
 
