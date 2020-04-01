@@ -197,8 +197,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return &sm.IndexDBMetrics
 	}
 
-	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), func() float64 {
-		return float64(fs.MustGetFreeSpace(*DataPath))
+	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *storageDataPath), func() float64 {
+		return float64(fs.MustGetFreeSpace(*storageDataPath))
 	})
 
 	metrics.NewGauge(`vm_active_merges{type="storage/big"}`, func() float64 {
