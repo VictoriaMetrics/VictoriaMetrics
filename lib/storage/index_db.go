@@ -1708,10 +1708,6 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 }
 
 func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
-	// Sort tag filters for faster ts.Seek below.
-	sort.Slice(tfs.tfs, func(i, j int) bool {
-		return tfs.tfs[i].Less(&tfs.tfs[j])
-	})
 	err := is.tryUpdatingMetricIDsForDateRange(metricIDs, tfs, tr, maxMetrics)
 	if err == nil {
 		// Fast path: found metricIDs by date range.
@@ -1722,6 +1718,11 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 	}
 
 	// Slow path - try searching over the whole inverted index.
+
+	// Sort tag filters for faster ts.Seek below.
+	sort.Slice(tfs.tfs, func(i, j int) bool {
+		return tfs.tfs[i].Less(&tfs.tfs[j])
+	})
 	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
 	if err != nil {
 		return err

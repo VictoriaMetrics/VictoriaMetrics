@@ -1050,6 +1050,17 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
+	tfs.Reset()
+	if err := tfs.Add(nil, []byte(".+"), true, true); err != nil {
+		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Shouldn't match")
+	}
 
 	// Positive match by MetricGroup
 	tfs.Reset()
@@ -1088,6 +1099,17 @@ func TestMatchTagFilters(t *testing.T) {
 	tfs.Reset()
 	if err := tfs.Add(nil, []byte("ob.+metric"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !ok {
+		t.Fatalf("Should match")
+	}
+	tfs.Reset()
+	if err := tfs.Add(nil, []byte(".+"), false, true); err != nil {
+		t.Fatalf("cannot add regexp, positive filter: %s", err)
 	}
 	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
 	if err != nil {
@@ -1153,6 +1175,17 @@ func TestMatchTagFilters(t *testing.T) {
 	if !ok {
 		t.Fatalf("Should match")
 	}
+	tfs.Reset()
+	if err := tfs.Add([]byte("non-existing-tag"), []byte(".+"), false, true); err != nil {
+		t.Fatalf("cannot add regexp, non-negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Shouldn't match")
+	}
 
 	// Negative match by existing tag
 	tfs.Reset()
@@ -1199,6 +1232,17 @@ func TestMatchTagFilters(t *testing.T) {
 	if ok {
 		t.Fatalf("Shouldn't match")
 	}
+	tfs.Reset()
+	if err := tfs.Add([]byte("key 3"), []byte(".+"), true, true); err != nil {
+		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Shouldn't match")
+	}
 
 	// Positive match by existing tag
 	tfs.Reset()
@@ -1235,7 +1279,7 @@ func TestMatchTagFilters(t *testing.T) {
 		t.Fatalf("Should match")
 	}
 	tfs.Reset()
-	if err := tfs.Add([]byte("key 3"), []byte("v.+lue 2"), true, true); err != nil {
+	if err := tfs.Add([]byte("key 3"), []byte("v.+lue 2|"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
 	}
 	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
@@ -1248,6 +1292,17 @@ func TestMatchTagFilters(t *testing.T) {
 	tfs.Reset()
 	if err := tfs.Add([]byte("key 3"), []byte(""), true, false); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !ok {
+		t.Fatalf("Should match")
+	}
+	tfs.Reset()
+	if err := tfs.Add([]byte("key 3"), []byte(".+"), false, true); err != nil {
+		t.Fatalf("cannot add regexp, non-negative filter: %s", err)
 	}
 	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
 	if err != nil {
@@ -1319,6 +1374,22 @@ func TestMatchTagFilters(t *testing.T) {
 	}
 	if err := tfs.Add(nil, []byte("o.+metr"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Shouldn't match")
+	}
+
+	// Negative match for multiple non-regexp positive filters
+	tfs.Reset()
+	if err := tfs.Add(nil, []byte("foobar_metric"), false, false); err != nil {
+		t.Fatalf("cannot add non-regexp positive filter for MetricGroup: %s", err)
+	}
+	if err := tfs.Add([]byte("non-existing-metric"), []byte("foobar"), false, false); err != nil {
+		t.Fatalf("cannot add non-regexp positive filter for non-existing tag: %s", err)
 	}
 	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
 	if err != nil {

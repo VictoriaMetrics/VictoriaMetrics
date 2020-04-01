@@ -509,11 +509,11 @@ Additionally VictoriaMetrics provides the following handlers:
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing additional features specific
-to your needs.
+to your needs or when testing bugfixes.
 
 #### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make victoria-metrics` from the root folder of the repository.
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -529,7 +529,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
    It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -545,7 +545,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 This is an experimental mode, which may result in a lower compression ratio and slower decompression performance.
 Use it with caution!
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make victoria-metrics-pure` from the root folder of the repository.
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 

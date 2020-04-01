@@ -141,7 +141,7 @@ func Stop(addr string) error {
 }
 
 func gzipHandler(rh RequestHandler) http.HandlerFunc {
-	hf := func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w = maybeGzipResponseWriter(w, r)
 		handlerWrapper(w, r, rh)
 		if zrw, ok := w.(*gzipResponseWriter); ok {
@@ -150,7 +150,6 @@ func gzipHandler(rh RequestHandler) http.HandlerFunc {
 			}
 		}
 	}
-	return hf
 }
 
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)

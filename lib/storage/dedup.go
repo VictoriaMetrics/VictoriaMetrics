@@ -16,14 +16,14 @@ func SetMinScrapeIntervalForDeduplication(interval time.Duration) {
 var minScrapeInterval = time.Duration(0)
 
 func getMinDelta() int64 {
-	// Divide minScrapeInterval by 2 in order to preserve proper data points.
+	// Use 7/8 of minScrapeInterval in order to preserve proper data points.
 	// For instance, if minScrapeInterval=10, the following time series:
 	//    10 15 19 25 30 34 41
-	// Would be unexpectedly converted to:
+	// Would be unexpectedly converted to if using 100% of minScrapeInterval:
 	//    10 25 41
-	// When dividing minScrapeInterval by 2, it will be converted to the expected:
+	// When using 7/8 of minScrapeInterval, it will be converted to the expected:
 	//    10 19 30 41
-	return minScrapeInterval.Milliseconds() / 2
+	return (minScrapeInterval.Milliseconds() / 8) * 7
 }
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than minScrapeInterval.
