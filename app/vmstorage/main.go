@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -246,6 +247,10 @@ func registerStorageMetrics() {
 		sm := m()
 		return &sm.IndexDBMetrics
 	}
+
+	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), func() float64 {
+		return float64(fs.MustGetFreeSpace(*DataPath))
+	})
 
 	metrics.NewGauge(`vm_active_merges{type="storage/big"}`, func() float64 {
 		return float64(tm().ActiveBigMerges)

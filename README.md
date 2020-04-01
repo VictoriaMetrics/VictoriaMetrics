@@ -874,10 +874,9 @@ The most interesting metrics are:
 * `vm_rows{type="indexdb"}` - the number of rows in inverted index. High value for this number usually mean high churn rate for time series.
 * Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
   in the database.
-* Sum of all the `vm_cache_size_bytes` metrics - the total size of all the caches in the database.
-* `vm_allowed_memory_bytes` - the maximum allowed size for caches in the database. It is calculated as `system_memory * <-memory.allowedPercent> / 100`,
-  where `system_memory` is the amount of system memory and `-memory.allowedPercent` is the corresponding flag value.
 * `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
+* `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
+* `sum(vm_data_size_bytes)` - the total data size on disk.
 
 ### Troubleshooting
 
@@ -893,7 +892,9 @@ The most interesting metrics are:
 
 * VictoriaMetrics requires free disk space for [merging data files to bigger ones](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
   It may slow down when there is no enough free space left. So make sure `-storageDataPath` directory
-  has at least 20% of free space comparing to disk size.
+  has at least 20% of free space comparing to disk size. The remaining amount of free space
+  can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
+  stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. This will recover VictoriaMetrics at the cost
