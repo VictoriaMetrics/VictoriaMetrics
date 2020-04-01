@@ -88,31 +88,32 @@ type scrapeWork struct {
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 	// Randomize start time for the first scrape in order to spread load
 	// when scraping many targets.
-	randSleep := time.Duration(float64(sw.Config.ScrapeInterval) * rand.Float64())
+	scrapeInterval := sw.Config.ScrapeInterval
+	randSleep := time.Duration(float64(scrapeInterval) * rand.Float64())
 	timer := time.NewTimer(randSleep)
+	var timestamp int64
 	var ticker *time.Ticker
 	select {
 	case <-stopCh:
 		timer.Stop()
 		return
-	case t := <-timer.C:
-		ticker = time.NewTicker(sw.Config.ScrapeInterval)
-		timestamp := t.UnixNano() / 1e6
+	case <-timer.C:
+		ticker = time.NewTicker(scrapeInterval)
+		timestamp = time.Now().UnixNano() / 1e6
 		sw.scrapeAndLogError(timestamp)
 	}
 	defer ticker.Stop()
 	for {
-		startTime := time.Now()
+		timestamp += scrapeInterval.Milliseconds()
 		select {
 		case <-stopCh:
 			return
-		case t := <-ticker.C:
-			// Adjust t if it is from the past (i.e. stale tick)
-			// This can be the case if the previous scrape took longer than the scrape interval.
-			if t.Sub(startTime) < 0 {
-				t = startTime
+		case <-ticker.C:
+			t := time.Now().UnixNano() / 1e6
+			if d := t - timestamp; d > 0 && float64(d)/float64(scrapeInterval.Milliseconds()) > 0.1 {
+				// Too big jitter. Adjust timestamp
+				timestamp = t
 			}
-			timestamp := t.UnixNano() / 1e6
 			sw.scrapeAndLogError(timestamp)
 		}
 	}
