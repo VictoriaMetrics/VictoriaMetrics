@@ -44,8 +44,7 @@ func main() {
 	logger.Init()
 	checkFlags()
 	ctx, cancel := context.WithCancel(context.Background())
-	// todo handle secure connection
-	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
+	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
 	if err != nil {
 		logger.Fatalf("can not get external url:%s ", err)
 	}
@@ -60,7 +59,7 @@ func main() {
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
 		alertProvider: provider.NewAlertManager(*providerURL, func(group, name string) string {
-			return fmt.Sprintf("%s://%s/%s/%s/status", eu.Scheme, eu.Host, group, name)
+			return strings.Replace(fmt.Sprintf("%s/%s/%s/status", eu, group, name), "//", "/", -1)
 		}, &http.Client{}),
 	}
 	for id := range alertGroups {

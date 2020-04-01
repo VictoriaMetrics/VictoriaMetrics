@@ -452,3 +452,8 @@ func isTrivialNetworkError(err error) bool {
 	}
 	return false
 }
+
+// IsTLS indicates is tls enabled or not
+func IsTLS() bool {
+	return *tlsEnable
+}
