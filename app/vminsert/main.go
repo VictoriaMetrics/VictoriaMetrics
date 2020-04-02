@@ -96,12 +96,12 @@ func main() {
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
 
-	logger.Infof("gracefully shutting down the service at %q", *httpListenAddr)
+	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
 	startTime = time.Now()
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
-		logger.Fatalf("cannot stop the service: %s", err)
+		logger.Fatalf("cannot stop http service: %s", err)
 	}
-	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*influxListenAddr) > 0 {
 		influxServer.MustStop()
