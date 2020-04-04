@@ -153,6 +153,8 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"geomean_over_time":     true,
 	"hoeffding_bound_lower": true,
 	"hoeffding_bound_upper": true,
+	"first_over_time":       true,
+	"last_over_time":        true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
