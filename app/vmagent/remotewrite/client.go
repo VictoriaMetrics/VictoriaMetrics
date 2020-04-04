@@ -214,6 +214,7 @@ func (c *client) sendBlock(block []byte) {
 	req.Header.SetMethod("POST")
 	req.Header.Add("Content-Type", "application/x-protobuf")
 	req.Header.Add("Content-Encoding", "snappy")
+	req.Header.Add("X-Prometheus-Remote-Write-Version", "0.1.0")
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
 	}
