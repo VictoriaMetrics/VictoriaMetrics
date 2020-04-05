@@ -1,0 +1,16 @@
+{
+  "name": "empty-label-match",
+  "issue": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues/395",
+  "data": [
+    "empty_label_match 1 {TIME_S-1m}",
+    "empty_label_match;foo=bar 2 {TIME_S-1m}",
+    "empty_label_match;foo=baz 3 {TIME_S-1m}"],
+  "query": ["/api/v1/query_range?query=empty_label_match{foo=~'bar|'}&start={TIME_S}&end={TIME_S}&step=60"],
+  "result_query_range": {
+    "status":"success",
+    "data":{"resultType":"matrix",
+      "result":[
+	      {"metric":{"__name__":"empty_label_match"},"values":[["{TIME_S}","1"]]},
+	      {"metric":{"__name__":"empty_label_match","foo":"bar"},"values":[["{TIME_S}","2"]]}
+      ]}}
+}

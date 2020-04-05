@@ -14,7 +14,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-var selfScrapeInterval = flag.Duration("selfScrapeInterval", 0, "Interval for self-scraping own metrics at /metrics page")
+var (
+	selfScrapeInterval = flag.Duration("selfScrapeInterval", 0, "Interval for self-scraping own metrics at /metrics page")
+	selfScrapeInstance = flag.String("selfScrapeInstance", "self", "Value for 'instance' label, which is added to self-scraped metrics")
+	selfScrapeJob      = flag.String("selfScrapeJob", "victoria-metrics", "Value for 'job' label, which is added to self-scraped metrics")
+)
 
 var selfScraperStopCh chan struct{}
 var selfScraperWG sync.WaitGroup
@@ -65,8 +69,8 @@ func selfScraper(scrapeInterval time.Duration) {
 			r := &rows.Rows[i]
 			labels = labels[:0]
 			labels = addLabel(labels, "", r.Metric)
-			labels = addLabel(labels, "job", "victoria-metrics")
-			labels = addLabel(labels, "instance", "self")
+			labels = addLabel(labels, "job", *selfScrapeJob)
+			labels = addLabel(labels, "instance", *selfScrapeInstance)
 			for j := range r.Tags {
 				t := &r.Tags[j]
 				labels = addLabel(labels, t.Key, t.Value)

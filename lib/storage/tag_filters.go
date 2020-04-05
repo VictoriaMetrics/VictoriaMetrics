@@ -33,6 +33,8 @@ func NewTagFilters() *TagFilters {
 // Add adds the given tag filter to tfs.
 //
 // MetricGroup must be encoded with nil key.
+//
+// Finalize must be called after tfs is constructed.
 func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 	// Verify whether tag filter is empty.
 	if len(value) == 0 {
@@ -64,6 +66,38 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 		return fmt.Errorf("cannot initialize tagFilter: %s", err)
 	}
 	return nil
+}
+
+// Finalize finalizes tfs and may return complementary TagFilters,
+// which must be added to the resulting set of tag filters.
+func (tfs *TagFilters) Finalize() []*TagFilters {
+	var tfssNew []*TagFilters
+	for i := range tfs.tfs {
+		tf := &tfs.tfs[i]
+		if tf.matchesEmptyValue {
+			// tf matches empty value, so it must be accompanied with `key!~".+"` tag filter
+			// in order to match time series without the given label.
+			tfssNew = append(tfssNew, tfs.cloneWithNegativeFilter(tf))
+		}
+	}
+	return tfssNew
+}
+
+func (tfs *TagFilters) cloneWithNegativeFilter(tfNegative *tagFilter) *TagFilters {
+	tfsNew := NewTagFilters()
+	for i := range tfs.tfs {
+		tf := &tfs.tfs[i]
+		if tf == tfNegative {
+			if err := tfsNew.Add(tf.key, []byte(".+"), true, true); err != nil {
+				logger.Panicf("BUG: unexpected error when creating a tag filter key=~'.+': %s", err)
+			}
+		} else {
+			if err := tfsNew.Add(tf.key, tf.value, tf.isNegative, tf.isRegexp); err != nil {
+				logger.Panicf("BUG: unexpected error when cloning a tag filter %s: %s", tf, err)
+			}
+		}
+	}
+	return tfsNew
 }
 
 // String returns human-readable value for tfs.
@@ -102,7 +136,7 @@ type tagFilter struct {
 
 	// Prefix always contains {nsPrefixTagToMetricIDs, key}.
 	// Additionally it contains:
-	//  - value ending with tagSeparatorChar if !isRegexp.
+	//  - value if !isRegexp.
 	//  - non-regexp prefix if isRegexp.
 	prefix []byte
 
@@ -111,6 +145,26 @@ type tagFilter struct {
 
 	// Matches regexp suffix.
 	reSuffixMatch func(b []byte) bool
+
+	// Set to true for filter that matches empty value, i.e. "", "|foo" or ".*"
+	//
+	// Such a filter must be applied directly to metricNames.
+	matchesEmptyValue bool
+}
+
+func (tf *tagFilter) Less(other *tagFilter) bool {
+	// Move regexp and negative filters to the end, since they require scanning
+	// all the entries for the given label.
+	if tf.isRegexp != other.isRegexp {
+		return !tf.isRegexp
+	}
+	if tf.isNegative != other.isNegative {
+		return !tf.isNegative
+	}
+	if len(tf.orSuffixes) != len(other.orSuffixes) {
+		return len(tf.orSuffixes) < len(other.orSuffixes)
+	}
+	return bytes.Compare(tf.prefix, other.prefix) < 0
 }
 
 // String returns human-readable tf value.
@@ -170,6 +224,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 
 	tf.orSuffixes = tf.orSuffixes[:0]
 	tf.reSuffixMatch = nil
+	tf.matchesEmptyValue = false
 
 	tf.prefix = append(tf.prefix, commonPrefix...)
 	tf.prefix = marshalTagValue(tf.prefix, key)
@@ -196,6 +251,9 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	}
 	tf.orSuffixes = append(tf.orSuffixes[:0], rcv.orValues...)
 	tf.reSuffixMatch = rcv.reMatch
+	if len(prefix) == 0 && !tf.isNegative && tf.reSuffixMatch(nil) {
+		tf.matchesEmptyValue = true
+	}
 	return nil
 }
 

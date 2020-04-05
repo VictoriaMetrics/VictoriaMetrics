@@ -576,6 +576,7 @@ func setupTfss(tagFilterss [][]storage.TagFilter) ([]*storage.TagFilters, error)
 			}
 		}
 		tfss = append(tfss, tfs)
+		tfss = append(tfss, tfs.Finalize()...)
 	}
 	return tfss, nil
 }

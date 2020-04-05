@@ -115,11 +115,11 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Backfilling](#backfilling)
 * [Profiling](#profiling)
 * [Integrations](#integrations)
-* [Roadmap](#roadmap)
+* [Third-party contributions](#third-party-contributions)
 * [Contacts](#contacts)
 * [Community and contributions](#community-and-contributions)
-* [Third-party contributions](#third-party-contributions)
 * [Reporting bugs](#reporting-bugs)
+* [Roadmap](#roadmap)
 * [Victoria Metrics Logo](#victoria-metrics-logo)
   * [Logo Usage Guidelines](#logo-usage-guidelines)
     * [Font used](#font-used)
@@ -148,6 +148,7 @@ Each flag values can be set thru environment variables by following these rules:
 * The `-envflag.enable` flag must be set
 * Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
 * For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
+* It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
 
 ### Prometheus setup
 
@@ -476,6 +477,8 @@ The following response should be returned:
 {"metric":{"__name__":"ask","market":"NYSE","ticker":"GOOG"},"values":[1.23],"timestamps":[1583865146495]}
 ```
 
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
+
 
 ### Prometheus querying API usage
 
@@ -506,11 +509,11 @@ Additionally VictoriaMetrics provides the following handlers:
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing additional features specific
-to your needs.
+to your needs or when testing bugfixes.
 
 #### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make victoria-metrics` from the root folder of the repository.
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -526,7 +529,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
    It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -542,7 +545,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 This is an experimental mode, which may result in a lower compression ratio and slower decompression performance.
 Use it with caution!
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make victoria-metrics-pure` from the root folder of the repository.
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
@@ -676,6 +679,8 @@ curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl.gz
 ```
+
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
 and importing them concurrently. Note that the original file must be split on newlines.
@@ -869,10 +874,9 @@ The most interesting metrics are:
 * `vm_rows{type="indexdb"}` - the number of rows in inverted index. High value for this number usually mean high churn rate for time series.
 * Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
   in the database.
-* Sum of all the `vm_cache_size_bytes` metrics - the total size of all the caches in the database.
-* `vm_allowed_memory_bytes` - the maximum allowed size for caches in the database. It is calculated as `system_memory * <-memory.allowedPercent> / 100`,
-  where `system_memory` is the amount of system memory and `-memory.allowedPercent` is the corresponding flag value.
 * `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
+* `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
+* `sum(vm_data_size_bytes)` - the total data size on disk.
 
 ### Troubleshooting
 
@@ -888,7 +892,9 @@ The most interesting metrics are:
 
 * VictoriaMetrics requires free disk space for [merging data files to bigger ones](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
   It may slow down when there is no enough free space left. So make sure `-storageDataPath` directory
-  has at least 20% of free space comparing to disk size.
+  has at least 20% of free space comparing to disk size. The remaining amount of free space
+  can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
+  stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. This will recover VictoriaMetrics at the cost
@@ -939,18 +945,15 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
-  See [this example](/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+  See [this example](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 * [Ansible role for installing VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 
-## Roadmap
+## Third-party contributions
 
-* [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
-* [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
-* [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
-* [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
-* [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
-
-The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
+* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
+* [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
+* [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
+* [Prometheus Oauth proxy](https://gitlab.com/optima_public/prometheus_oauth_proxy) - see [this article](https://medium.com/@richard.holly/powerful-saas-solution-for-detection-metrics-c67b9208d362) for details.
 
 ## Contacts
 
@@ -983,16 +986,20 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and verified by many people.
 
-## Third-party contributions
-
-* [Unofficial yum repository](https://copr.fedorainfracloud.org/coprs/antonpatsev/VictoriaMetrics/) ([source code](https://github.com/patsevanton/victoriametrics-rpm))
-* [Prometheus -> VictoriaMetrics exporter #1](https://github.com/ryotarai/prometheus-tsdb-dump)
-* [Prometheus -> VictoriaMetrics exporter #2](https://github.com/AnchorFree/tsdb-remote-write)
-* [Prometheus Oauth proxy](https://gitlab.com/optima_public/prometheus_oauth_proxy) - see [this article](https://medium.com/@richard.holly/powerful-saas-solution-for-detection-metrics-c67b9208d362) for details.
-
 ## Reporting bugs
 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+
+## Roadmap
+
+* [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
+* [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
+* [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
+* [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
+* [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
+
+The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
+
 
 ## Victoria Metrics Logo
 

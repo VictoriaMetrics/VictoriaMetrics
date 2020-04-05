@@ -79,8 +79,7 @@ func templateAnnotations(annotations map[string]string, header string, data aler
 }
 
 func templateAnnotation(dst io.Writer, text string, data alertTplData) error {
-	// todo add template helper func from Prometheus
-	tpl, err := template.New("").Option("missingkey=zero").Parse(text)
+	tpl, err := template.New("").Funcs(tmplFunc).Option("missingkey=zero").Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation:%w", err)
 	}
