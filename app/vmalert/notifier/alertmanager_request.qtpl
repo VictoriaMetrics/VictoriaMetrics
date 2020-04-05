@@ -1,10 +1,9 @@
 {% import (
     "time"
-    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
 ) %}
 {% stripspace %}
 
-{% func amRequest(alerts []common.Alert, generatorURL func(string, string) string) %}
+{% func amRequest(alerts []Alert, generatorURL func(string, string) string) %}
 [
 {% for i, alert := range alerts %}
 {
@@ -15,8 +14,8 @@
     {% endif %}
     "labels": {
         "alertname":{%q= alert.Name %}
-        {% for _,v := range alert.Labels %}
-            ,{%q= v.Name %}:{%q= v.Value %}
+        {% for k,v := range alert.Labels %}
+            ,{%q= k %}:{%q= v %}
         {% endfor %}
     },
     "annotations": {

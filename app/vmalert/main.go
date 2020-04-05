@@ -7,12 +7,11 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/provider"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -36,6 +35,9 @@ Examples:
 	providerURL              = flag.String("provider.url", "", "Prometheus alertmanager url. Required parameter. e.g. http://127.0.0.1:9093")
 )
 
+// TODO: hot configuration reload
+// TODO: alerts state persistence
+// TODO: metrics
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
@@ -44,7 +46,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	alertGroups, err := config.Parse(*rulePath, *validateAlertAnnotations)
+	groups, err := Parse(*rulePath, *validateAlertAnnotations)
 	if err != nil {
 		logger.Fatalf("Cannot parse configuration file: %s", err)
 	}
@@ -52,66 +54,59 @@ func main() {
 	addr := getWebServerAddr(*httpListenAddr, false)
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: provider.NewAlertManager(*providerURL, func(group, name string) string {
-			return addr + fmt.Sprintf("/%s/%s/status", group, name)
+		alertProvider: notifier.NewAlertManager(*providerURL, func(group, name string) string {
+			return fmt.Sprintf("%s/%s/%s/status", addr, group, name)
 		}, &http.Client{}),
 	}
-	for id := range alertGroups {
-		go func(group common.Group) {
+	wg := sync.WaitGroup{}
+	for i := range groups {
+		wg.Add(1)
+		go func(group Group) {
 			w.run(ctx, group, *evaluationInterval)
-		}(alertGroups[id])
+			wg.Done()
+		}(groups[i])
 	}
-	go func() {
-		httpserver.Serve(*httpListenAddr, func(w http.ResponseWriter, r *http.Request) bool {
-			panic("not implemented")
-		})
-	}()
+
+	go httpserver.Serve(*httpListenAddr, func(w http.ResponseWriter, r *http.Request) bool {
+		panic("not implemented")
+	})
+
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	cancel()
-	w.stop()
+	wg.Wait()
 }
 
 type watchdog struct {
 	storage       *datasource.VMStorage
-	alertProvider provider.AlertProvider
+	alertProvider notifier.Notifier
 }
 
-func (w *watchdog) run(ctx context.Context, a common.Group, evaluationInterval time.Duration) {
-	logger.Infof("watchdog for %s has been run", a.Name)
+func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
+	logger.Infof("watchdog for %s has been run", group.Name)
 	t := time.NewTicker(evaluationInterval)
-	var metrics []datasource.Metric
-	var err error
-	var alerts []common.Alert
 	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
-			start := time.Now()
-			for _, r := range a.Rules {
-				if metrics, err = w.storage.Query(ctx, r.Expr); err != nil {
-					logger.Errorf("error reading metrics %s", err)
+			for _, rule := range group.Rules {
+				logger.Infof("run Exec for %s", rule.Name)
+				if err := rule.Exec(ctx, w.storage); err != nil {
+					logger.Errorf("failed to execute rule %q.%q: %s", group.Name, rule.Name, err)
 					continue
 				}
-				// todo check for and calculate alert states
-				if len(metrics) < 1 {
-					continue
-				}
-				// todo define alert end time
-				alerts = common.AlertsFromMetrics(metrics, a.Name, r, start, time.Time{})
-				// todo save to storage
-				if err := w.alertProvider.Send(alerts); err != nil {
-					logger.Errorf("error sending alerts %s", err)
-					continue
-				}
-				// todo is alert still active/pending?
-			}
+				logger.Infof("Exec for %s successful", rule.Name)
 
+				logger.Infof("sending alerts for %s", rule.Name)
+				if err := rule.Send(ctx, w.alertProvider); err != nil {
+					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
+				}
+			}
 		case <-ctx.Done():
-			logger.Infof("%s receive stop signal", a.Name)
+			logger.Infof("%s received stop signal", group.Name)
 			return
 		}
 	}
@@ -138,10 +133,6 @@ func getWebServerAddr(httpListenAddr string, isSecure bool) string {
 	}
 	// no loopback ip return internal address
 	return "http://127.0.0.1" + httpListenAddr
-}
-
-func (w *watchdog) stop() {
-	panic("not implemented")
 }
 
 func checkFlags() {

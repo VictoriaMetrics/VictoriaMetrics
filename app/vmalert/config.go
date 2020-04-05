@@ -1,17 +1,17 @@
-package config
+package main
 
 import (
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
-	"gopkg.in/yaml.v2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
 // Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateAnnotations bool) ([]common.Group, error) {
+func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
 	var fp []string
 	for _, pattern := range pathPatterns {
 		matches, err := filepath.Glob(pattern)
@@ -20,7 +20,7 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]common.Group, err
 		}
 		fp = append(fp, matches...)
 	}
-	var groups []common.Group
+	var groups []Group
 	for _, file := range fp {
 		groupsNames := map[string]struct{}{}
 		gr, err := parseFile(file)
@@ -36,11 +36,14 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]common.Group, err
 				if err = rule.Validate(); err != nil {
 					return nil, fmt.Errorf("invalid rule filepath:%s, group %s:%w", file, group.Name, err)
 				}
+				// TODO: this init looks weird here
+				rule.alerts = make(map[uint64]*notifier.Alert)
 				if validateAnnotations {
-					if err = common.ValidateAnnotations(rule.Annotations); err != nil {
+					if err = notifier.ValidateAnnotations(rule.Annotations); err != nil {
 						return nil, fmt.Errorf("invalida annotations filepath:%s, group %s:%w", file, group.Name, err)
 					}
 				}
+				rule.group = &group
 			}
 		}
 		groups = append(groups, gr...)
@@ -51,13 +54,13 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]common.Group, err
 	return groups, nil
 }
 
-func parseFile(path string) ([]common.Group, error) {
+func parseFile(path string) ([]Group, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading alert rule file: %w", err)
 	}
 	g := struct {
-		Groups []common.Group `yaml:"groups"`
+		Groups []Group `yaml:"groups"`
 	}{}
 	err = yaml.Unmarshal(data, &g)
 	return g.Groups, err
