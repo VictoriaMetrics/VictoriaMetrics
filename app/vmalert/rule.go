@@ -98,10 +98,16 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 		// means it is resolved already
 		if _, ok := updated[h]; !ok {
 			a.State = notifier.StateInactive
+			// set endTime to last execution time
+			// so it can be sent by notifier on next step
+			a.End = r.lastExecTime
 			continue
 		}
 		if a.State == notifier.StatePending && time.Since(a.Start) >= r.For {
 			a.State = notifier.StateFiring
+		}
+		if a.State == notifier.StateFiring {
+			a.End = r.lastExecTime.Add(3 * *evaluationInterval)
 		}
 	}
 	return nil
@@ -110,12 +116,13 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 // https://prometheus.io/docs/alerting/clients/
 // we send only Firing alerts. Alerts supposed to
 // resolve automatically after `endsAt` param.
+// TODO: add tests for endAt value
 func (r *Rule) Send(ctx context.Context, ap notifier.Notifier) error {
 	// copy alerts to new list to avoid locks
 	var alertsCopy []notifier.Alert
 	r.mu.Lock()
 	for _, a := range r.alerts {
-		if a.State != notifier.StateFiring {
+		if a.State == notifier.StatePending {
 			continue
 		}
 		// it is safe to dereference instead of deep-copy
