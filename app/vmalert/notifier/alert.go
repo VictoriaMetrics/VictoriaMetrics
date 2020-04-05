@@ -23,6 +23,7 @@ type Alert struct {
 	Value float64
 }
 
+// AlertState type indicates the Alert state
 type AlertState int
 
 const (
@@ -43,6 +44,8 @@ type alertTplData struct {
 
 const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}`
 
+// ExecTemplate executes the Alert template for give
+// map of annotations.
 func (a *Alert) ExecTemplate(annotations map[string]string) (map[string]string, error) {
 	tplData := alertTplData{Value: a.Value, Labels: a.Labels}
 	return templateAnnotations(annotations, tplHeader, tplData)

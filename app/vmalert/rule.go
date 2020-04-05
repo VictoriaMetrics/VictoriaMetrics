@@ -57,6 +57,8 @@ func (r *Rule) Validate() error {
 	return nil
 }
 
+// Exec executes Rule expression via the given Querier.
+// Based on the Querier results Rule maintains notifier.Alerts
 func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	metrics, err := q.Query(ctx, r.Expr)
 
@@ -113,9 +115,9 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	return nil
 }
 
-// https://prometheus.io/docs/alerting/clients/
-// we send only Firing alerts. Alerts supposed to
-// resolve automatically after `endsAt` param.
+// Send sends the active alerts via given
+// notifier.Notifier.
+// See for reference https://prometheus.io/docs/alerting/clients/
 // TODO: add tests for endAt value
 func (r *Rule) Send(ctx context.Context, ap notifier.Notifier) error {
 	// copy alerts to new list to avoid locks

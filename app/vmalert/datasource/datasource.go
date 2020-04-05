@@ -2,6 +2,9 @@ package datasource
 
 import "context"
 
+// Querier interface wraps Query method which
+// executes given query and returns list of Metrics
+// as result
 type Querier interface {
 	Query(ctx context.Context, query string) ([]Metric, error)
 }
