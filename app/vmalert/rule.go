@@ -44,7 +44,7 @@ type Rule struct {
 }
 
 // Validate validates rule
-func (r Rule) Validate() error {
+func (r *Rule) Validate() error {
 	if r.Name == "" {
 		return errors.New("rule name can not be empty")
 	}
