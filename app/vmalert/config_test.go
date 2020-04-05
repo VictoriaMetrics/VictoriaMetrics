@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
 func TestMain(m *testing.M) {
 	u, _ := url.Parse("https://victoriametrics.com/path")
-	common.InitTemplateFunc(u)
+	notifier.InitTemplateFunc(u)
 	os.Exit(m.Run())
 }
 

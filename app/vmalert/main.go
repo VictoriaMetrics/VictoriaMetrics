@@ -50,7 +50,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can not get external url:%s ", err)
 	}
-	common.InitTemplateFunc(eu)
+	notifier.InitTemplateFunc(eu)
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
 	groups, err := Parse(*rulePath, *validateAlertAnnotations)
@@ -60,7 +60,7 @@ func main() {
 
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: provider.NewAlertManager(*providerURL, func(group, name string) string {
+		alertProvider: notifier.NewAlertManager(*providerURL, func(group, name string) string {
 			return strings.Replace(fmt.Sprintf("%s/%s/%s/status", eu, group, name), "//", "/", -1)
 		}, &http.Client{}),
 	}
@@ -99,14 +99,10 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 		select {
 		case <-t.C:
 			for _, rule := range group.Rules {
-				logger.Infof("run Exec for %s", rule.Name)
 				if err := rule.Exec(ctx, w.storage); err != nil {
 					logger.Errorf("failed to execute rule %q.%q: %s", group.Name, rule.Name, err)
 					continue
 				}
-				logger.Infof("Exec for %s successful", rule.Name)
-
-				logger.Infof("sending alerts for %s", rule.Name)
 				if err := rule.Send(ctx, w.alertProvider); err != nil {
 					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
 				}

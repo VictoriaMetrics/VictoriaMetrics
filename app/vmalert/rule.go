@@ -125,6 +125,7 @@ func (r *Rule) Send(ctx context.Context, ap notifier.Notifier) error {
 	r.mu.Unlock()
 
 	if len(alertsCopy) < 1 {
+		logger.Infof("no alerts to send")
 		return nil
 	}
 
