@@ -441,10 +441,10 @@ The `format` query arg must contain comma-separated list of parsing rules for CS
 
 * `<column_pos>` is the position of the CSV column (field). Column numbering starts from 1. The order of parsing rules may be arbitrary.
 * `<type>` describes the column type. Supported types are:
-  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value. The metric name is read from the `<context>`.
-    CSV line must have at least a single metric field.
+  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value, which must be integer of floating-point number.
+    The metric name is read from the `<context>`. CSV line must have at least a single metric field. Multiple metric fields per CSV line is OK.
   * `label` - the corresponding CSV column at `<column_pos>` contains label value. The label name is read from the `<context>`.
-    CSV line may have arbitrary number of label fields. All these fields are attached to all the configured metrics.
+    CSV line may have arbitrary number of label fields. All these labels are attached to all the configured metrics.
   * `time` - the corresponding CSV column at `<column_pos>` contains metric time. CSV line may contain either one or zero columns with time.
     If CSV line has no time, then the current time is used. The time is applied to all the configured metrics.
     The format of the time is configured via `<context>`. Supported time formats are:
@@ -454,7 +454,7 @@ The `format` query arg must contain comma-separated list of parsing rules for CS
     * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
     * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
 
-Each request to `/api/v1/import/csv` can contain arbitrary number of CSV lines.
+Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
 
 Example for importing CSV data via `/api/v1/import/csv`:
 
