@@ -1,16 +1,16 @@
-## Case studies and talks
+# Case studies and talks
 
 Below are approved public case studies and talks from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
 and feel free asking for references, reviews and additional case studies from real VictoriaMetrics users there.
 
-### Adidas
+## Adidas
 
 See [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
 from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk at [PromCon 2019](https://promcon.io/2019-munich/).
 VictoriaMetrics is compared to Thanos, Corex and M3DB in the talk.
 
 
-### COLOPL
+## COLOPL
 
 [COLOPL](http://www.colopl.co.jp/en/) is Japaneese Game Development company. It started using VictoriaMetrics
 after evaulating the following remote storage solutions for Prometheus:
@@ -24,7 +24,7 @@ See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victori
 from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
 
 
-### Wix.com
+## Wix.com
 
 [Wix.com](https://en.wikipedia.org/wiki/Wix.com) is the leading web development platform.
 
@@ -55,7 +55,7 @@ Numbers:
 Alex Ulstein, Head of Monitoring, Wix.com
 
 
-### Wedos.com
+## Wedos.com
 
 > [Wedos](https://www.wedos.com/) is the Biggest Czech Hosting. We have our own private data center, that holds only our servers and technologies. The second data center, where the servers will be cooled in an oil bath, is being built. We started using [cluster VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md) to store Prometheus metrics from all our infrastructure after receiving positive references from our friends who successfully use VictoriaMetrics.
 
@@ -68,7 +68,7 @@ Numbers:
 > We like configuration simplicity and zero maintenance for VictoriaMetrics - once installed and forgot about it. It works out of the box without any issues.
 
 
-### Synthesio
+## Synthesio
 
 [Synthesio](https://www.synthesio.com/) is the leading social intelligence tool for social media monitoring & social analytics.
 
@@ -85,7 +85,7 @@ Numbers:
 - Churn rate - 100 new time series per hour
 
 
-### MHI Vestas Offshore Wind
+## MHI Vestas Offshore Wind
 
 The mission of [MHI Vestas Offshore Wind](http://www.mhivestasoffshore.com) is to co-develop offshore wind as an economically viable and sustainable energy resource to benefit future generations.
 
@@ -100,7 +100,7 @@ Numbers with current limited roll out:
 - Retention time: 3 years
 
 
-### Dreamteam
+## Dreamteam
 
 [Dreamteam](https://dreamteam.gg/) successfully uses single-node VictoriaMetrics in multiple environments.
 
@@ -116,7 +116,7 @@ VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mod
 as load balancer for reads.
 
 
-### Brandwatch
+## Brandwatch
 
 [Brandwatch](https://www.brandwatch.com/) is the world's pioneering digital consumer intelligence suite,
 helping over 2,000 of the world's most admired brands and agencies to make insightful, data-driven business decisions.
@@ -161,7 +161,7 @@ Query rates are insignificant as we have concentrated on data ingestion so far.
 Anders Bomberg, Monitoring and Infrastructure Team Lead, brandwatch.com
 
 
-### Adsterra
+## Adsterra
 
 [Adsterra Network](https://adsterra.com) is a leading digital advertising company that offers
 performance-based solutions for advertisers and media partners worldwide.
@@ -221,7 +221,7 @@ The second instance collects and stores low-resolution metrics (300s scrape inte
 We use Promxy + Alertmanager for global view and alerts evaluation.
 
 
-### Arnes
+## ARNES
 
 [The Academic and Research Network of Slovenia](https://www.arnes.si/en/) (ARNES) is a public institute that provides network services to research,
 educational and cultural organizations, and enables them to establish connections and cooperation with each other and with related organizations abroad.
@@ -256,6 +256,10 @@ Numbers:
 - Disk usage: 380GB for ~4 months of data
 - Index size: 2,6GB
 
-We are running 1 Prometheus, 1 VictoriaMetrics and 1 Grafana server in each datacenter on baremetal servers, scraping 350+ targets (and 3k+ devices collected via SNMPCollector sending metrics directly to VM). Each prometheus is scraping all targets, so we have all metrics in both VictoriaMetrics instances. We are using Promxy to deduplicate metrics from both instances. Grafana has a LB infront, so if one DC has problems, we can still view all metrics from both DCs on the other Grafana instance.
+We are running 1 Prometheus, 1 VictoriaMetrics and 1 Grafana server in each datacenter on baremetal servers, scraping 350+ targets
+(and 3k+ devices collected via SNMPCollector sending metrics directly to VM). Each Prometheus is scraping all targets,
+so we have all metrics in both VictoriaMetrics instances. We are using [Promxy](https://github.com/jacksontj/promxy) to deduplicate metrics from both instances.
+Grafana has a LB infront, so if one DC has problems, we can still view all metrics from both DCs on the other Grafana instance.
 
-We are still in the process of migration, but we are really happy with the whole stack. It has proven as an essential piece for insight into our services during COVID-19 and has enabled us to provide better service and spot problems faster.
+We are still in the process of migration, but we are really happy with the whole stack. It has proven as an essential piece
+for insight into our services during COVID-19 and has enabled us to provide better service and spot problems faster.
