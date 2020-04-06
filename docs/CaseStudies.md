@@ -219,3 +219,43 @@ Setup:
 We have 2 single-node instances of VictoriaMetircs. The first instance collects and stores high-resolution metrics (10s scrape interval) for a month.
 The second instance collects and stores low-resolution metrics (300s scrape interval) for a month.
 We use Promxy + Alertmanager for global view and alerts evaluation.
+
+
+### Arnes
+
+[The Academic and Research Network of Slovenia](https://www.arnes.si/en/) (ARNES) is a public institute that provides network services to research,
+educational and cultural organizations, and enables them to establish connections and cooperation with each other and with related organizations abroad.
+
+After using Cacti, Graphite and StatsD for years, we wanted to upgrade our monitoring stack to something that:
+
+- has native alerting support
+- can run on-prem
+- has multi-dimension metrics
+- lower hardware requirements
+- is scalable
+- simple client provisioning and discovery with Puppet
+
+We were running Prometheus for about a year in a test environment and it worked great. But there was a need/wish for a few years of retention time,
+like the old systems provided. We tested Thanos, which was a bit resource hungry back then, but it worked great for about half a year
+until we discovered VictoriaMetrics. As our scale is not that big, we don't have on-prem S3 and no Kubernetes, VM's single node instance provided
+the same result with less maintenance overhead and lower hardware requirements.
+
+After testing it a few months and having great support from the maintainers on [Slack](http://slack.victoriametrics.com/),
+we decided to go with it. VM's support for ingesting InfluxDB metrics was an additional bonus, since our hardware team uses
+SNMPCollector to collect metrics from network devices and switching from InfluxDB to VictoriaMetrics was a simple change in the config file for them. 
+
+Numbers:
+
+- 2 single node instances
+- Active time series per VictoriaMetrics instance: 1,7M
+- Ingestion rate per VictoriaMetrics instance: 75K points/second
+- Query duration: median is ~5ms, 99th percentile is ~45ms
+- Total number of datapoints: 1+ Trillion
+- Average time series churn rate: ~350k/day
+- Average datapoint size on drive: 0.4 bytes
+- Disk usage: 380GB for ~4 months of data
+- Index size: 2,6GB
+
+We are running 1 Prometheus, 1 VictoriaMetrics and 1 Grafana server in each datacenter on baremetal servers, scraping 350+ targets (and 3k+ devices collected via SNMPCollector sending metrics directly to VM). Each prometheus is scraping all targets, so we have all metrics in both VictoriaMetrics instances. We are using Promxy to deduplicate metrics from both instances. Grafana has a LB infront, so if one DC has problems, we can still view all metrics from both DCs on the other Grafana instance.
+
+We are still in the process of migration, but we are really happy with the whole stack. It has proven as an essential piece for insight into our services during COVID-19 and has enabled us to provide better service and spot problems faster.
