@@ -8,12 +8,11 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/provider"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -38,6 +37,9 @@ Examples:
 	externalURL              = flag.String("external.url", "", "Reachable external url. URL is used to generate sharable alert url and in annotation templates")
 )
 
+// TODO: hot configuration reload
+// TODO: alerts state persistence
+// TODO: metrics
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
@@ -48,76 +50,65 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can not get external url:%s ", err)
 	}
-	common.InitTemplateFunc(eu)
+	notifier.InitTemplateFunc(eu)
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	alertGroups, err := config.Parse(*rulePath, *validateAlertAnnotations)
+	groups, err := Parse(*rulePath, *validateAlertAnnotations)
 	if err != nil {
 		logger.Fatalf("Cannot parse configuration file: %s", err)
 	}
 
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: provider.NewAlertManager(*providerURL, func(group, name string) string {
+		alertProvider: notifier.NewAlertManager(*providerURL, func(group, name string) string {
 			return strings.Replace(fmt.Sprintf("%s/%s/%s/status", eu, group, name), "//", "/", -1)
 		}, &http.Client{}),
 	}
-	for id := range alertGroups {
-		go func(group common.Group) {
+	wg := sync.WaitGroup{}
+	for i := range groups {
+		wg.Add(1)
+		go func(group Group) {
 			w.run(ctx, group, *evaluationInterval)
-		}(alertGroups[id])
+			wg.Done()
+		}(groups[i])
 	}
-	go func() {
-		httpserver.Serve(*httpListenAddr, func(w http.ResponseWriter, r *http.Request) bool {
-			panic("not implemented")
-		})
-	}()
+
+	go httpserver.Serve(*httpListenAddr, func(w http.ResponseWriter, r *http.Request) bool {
+		panic("not implemented")
+	})
+
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	cancel()
-	w.stop()
+	wg.Wait()
 }
 
 type watchdog struct {
 	storage       *datasource.VMStorage
-	alertProvider provider.AlertProvider
+	alertProvider notifier.Notifier
 }
 
-func (w *watchdog) run(ctx context.Context, a common.Group, evaluationInterval time.Duration) {
-	logger.Infof("watchdog for %s has been run", a.Name)
+func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
+	logger.Infof("watchdog for %s has been run", group.Name)
 	t := time.NewTicker(evaluationInterval)
-	var metrics []datasource.Metric
-	var err error
-	var alerts []common.Alert
 	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
-			start := time.Now()
-			for _, r := range a.Rules {
-				if metrics, err = w.storage.Query(ctx, r.Expr); err != nil {
-					logger.Errorf("error reading metrics %s", err)
+			for _, rule := range group.Rules {
+				if err := rule.Exec(ctx, w.storage); err != nil {
+					logger.Errorf("failed to execute rule %q.%q: %s", group.Name, rule.Name, err)
 					continue
 				}
-				// todo check for and calculate alert states
-				if len(metrics) < 1 {
-					continue
+				if err := rule.Send(ctx, w.alertProvider); err != nil {
+					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
 				}
-				// todo define alert end time
-				alerts = common.AlertsFromMetrics(metrics, a.Name, r, start, time.Time{})
-				// todo save to storage
-				if err := w.alertProvider.Send(alerts); err != nil {
-					logger.Errorf("error sending alerts %s", err)
-					continue
-				}
-				// todo is alert still active/pending?
 			}
-
 		case <-ctx.Done():
-			logger.Infof("%s receive stop signal", a.Name)
+			logger.Infof("%s received stop signal", group.Name)
 			return
 		}
 	}
@@ -140,10 +131,6 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 		schema = "https://"
 	}
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
-}
-
-func (w *watchdog) stop() {
-	panic("not implemented")
 }
 
 func checkFlags() {
