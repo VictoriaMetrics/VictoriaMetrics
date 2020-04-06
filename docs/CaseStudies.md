@@ -246,15 +246,14 @@ SNMPCollector to collect metrics from network devices and switching from InfluxD
 
 Numbers:
 
-- 2 single node instances
-- Active time series per VictoriaMetrics instance: 1,7M
-- Ingestion rate per VictoriaMetrics instance: 75K points/second
+- 2 single node instances per DC (one for prometheus and one for influxdb metrics)
+- Active time series per VictoriaMetrics instance: ~500k (prometheus) + ~320k (influxdb)
+- Ingestion rate per VictoriaMetrics instance: 45k/s (prometheus) / 30k/s (influxdb)
 - Query duration: median is ~5ms, 99th percentile is ~45ms
-- Total number of datapoints: 1+ Trillion
-- Average time series churn rate: ~350k/day
+- Total number of datapoints per instance: 390B (prometheus), 110B (influxdb)
 - Average datapoint size on drive: 0.4 bytes
-- Disk usage: 380GB for ~4 months of data
-- Index size: 2,6GB
+- Disk usage per VictoriaMetrics instance: 125GB (prometheus), 185GB (influxdb)
+- Index size per VictoriaMetrics instance: 1.6GB (prometheus), 1.2GB (influcdb)
 
 We are running 1 Prometheus, 1 VictoriaMetrics and 1 Grafana server in each datacenter on baremetal servers, scraping 350+ targets
 (and 3k+ devices collected via SNMPCollector sending metrics directly to VM). Each Prometheus is scraping all targets,
