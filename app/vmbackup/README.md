@@ -164,7 +164,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 #### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make vmbackup` from the root folder of the repository.
    It builds `vmbackup` binary and puts it into the `bin` folder.
 
