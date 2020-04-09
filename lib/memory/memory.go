@@ -8,7 +8,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var allowedMemPercent = flag.Float64("memory.allowedPercent", 60, "Allowed percent of system memory VictoriaMetrics caches may occupy")
+var allowedMemPercent = flag.Float64("memory.allowedPercent", 60, "Allowed percent of system memory VictoriaMetrics caches may occupy. "+
+	"Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. "+
+	"Too high value may evict too much data from OS page cache, which will result in higher disk IO usage")
 
 var (
 	allowedMemory   int
