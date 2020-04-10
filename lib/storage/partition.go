@@ -23,6 +23,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
+// These are global counters for cache requests and misses for parts
+// which were already merged into another parts.
+var (
+	historicalBigIndexBlocksCacheRequests uint64
+	historicalBigIndexBlocksCacheMisses   uint64
+
+	historicalSmallIndexBlocksCacheRequests uint64
+	historicalSmallIndexBlocksCacheMisses   uint64
+)
+
 func maxRowsPerSmallPart() uint64 {
 	// Small parts are cached in the OS page cache,
 	// so limit the number of rows for small part by the remaining free RAM.
@@ -356,11 +366,11 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	pt.partsLock.Unlock()
 
-	atomic.AddUint64(&m.BigIndexBlocksCacheRequests, atomic.LoadUint64(&bigIndexBlockCacheRequests))
-	atomic.AddUint64(&m.BigIndexBlocksCacheMisses, atomic.LoadUint64(&bigIndexBlockCacheMisses))
+	m.BigIndexBlocksCacheRequests += atomic.LoadUint64(&historicalBigIndexBlocksCacheRequests)
+	m.BigIndexBlocksCacheMisses += atomic.LoadUint64(&historicalBigIndexBlocksCacheMisses)
 
-	atomic.AddUint64(&m.SmallIndexBlocksCacheRequests, atomic.LoadUint64(&smallIndexBlockCacheRequests))
-	atomic.AddUint64(&m.SmallIndexBlocksCacheMisses, atomic.LoadUint64(&smallIndexBlockCacheMisses))
+	m.SmallIndexBlocksCacheRequests += atomic.LoadUint64(&historicalSmallIndexBlocksCacheRequests)
+	m.SmallIndexBlocksCacheMisses += atomic.LoadUint64(&historicalSmallIndexBlocksCacheMisses)
 
 	m.ActiveBigMerges += atomic.LoadUint64(&pt.activeBigMerges)
 	m.ActiveSmallMerges += atomic.LoadUint64(&pt.activeSmallMerges)
@@ -1145,8 +1155,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	removedSmallParts := 0
 	removedBigParts := 0
 	pt.partsLock.Lock()
-	pt.smallParts, removedSmallParts = removeParts(pt.smallParts, m)
-	pt.bigParts, removedBigParts = removeParts(pt.bigParts, m)
+	pt.smallParts, removedSmallParts = removeParts(pt.smallParts, m, false)
+	pt.bigParts, removedBigParts = removeParts(pt.bigParts, m, true)
 	if newPW != nil {
 		if isBigPart {
 			pt.bigParts = append(pt.bigParts, newPW)
@@ -1193,11 +1203,20 @@ func (pt *partition) nextMergeIdx() uint64 {
 	return atomic.AddUint64(&pt.mergeIdx, 1)
 }
 
-func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*partWrapper, int) {
+func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool, isBig bool) ([]*partWrapper, int) {
 	removedParts := 0
 	dst := pws[:0]
 	for _, pw := range pws {
 		if partsToRemove[pw] {
+			requests := pw.p.ibCache.Requests()
+			misses := pw.p.ibCache.Misses()
+			if isBig {
+				atomic.AddUint64(&historicalBigIndexBlocksCacheRequests, requests)
+				atomic.AddUint64(&historicalBigIndexBlocksCacheMisses, misses)
+			} else {
+				atomic.AddUint64(&historicalSmallIndexBlocksCacheRequests, requests)
+				atomic.AddUint64(&historicalSmallIndexBlocksCacheMisses, misses)
+			}
 			removedParts++
 			continue
 		}

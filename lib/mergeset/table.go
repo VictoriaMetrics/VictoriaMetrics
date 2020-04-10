@@ -19,6 +19,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
+// These are global counters for cache requests and misses for parts
+// which were already merged into another parts.
+var (
+	historicalDataBlockCacheRequests uint64
+	historicalDataBlockCacheMisses   uint64
+
+	historicalIndexBlockCacheRequests uint64
+	historicalIndexBlockCacheMisses   uint64
+)
+
 // maxParts is the maximum number of parts in the table.
 //
 // This number may be reached when the insertion pace outreaches merger pace.
@@ -326,11 +336,11 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	}
 	tb.partsLock.Unlock()
 
-	atomic.AddUint64(&m.DataBlocksCacheRequests, atomic.LoadUint64(&inmemoryBlockCacheRequests))
-	atomic.AddUint64(&m.DataBlocksCacheMisses, atomic.LoadUint64(&inmemoryBlockCacheMisses))
+	m.DataBlocksCacheRequests += atomic.LoadUint64(&historicalDataBlockCacheRequests)
+	m.DataBlocksCacheMisses += atomic.LoadUint64(&historicalDataBlockCacheMisses)
 
-	atomic.AddUint64(&m.IndexBlocksCacheRequests, atomic.LoadUint64(&indexBlockCacheRequests))
-	atomic.AddUint64(&m.IndexBlocksCacheMisses, atomic.LoadUint64(&indexBlockCacheMisses))
+	m.IndexBlocksCacheRequests += atomic.LoadUint64(&historicalIndexBlockCacheRequests)
+	m.IndexBlocksCacheMisses += atomic.LoadUint64(&historicalIndexBlockCacheMisses)
 }
 
 // AddItems adds the given items to the tb.
@@ -1300,6 +1310,10 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 	dst := pws[:0]
 	for _, pw := range pws {
 		if partsToRemove[pw] {
+			atomic.AddUint64(&historicalDataBlockCacheRequests, pw.p.ibCache.Requests())
+			atomic.AddUint64(&historicalDataBlockCacheMisses, pw.p.ibCache.Misses())
+			atomic.AddUint64(&historicalIndexBlockCacheRequests, pw.p.idxbCache.Requests())
+			atomic.AddUint64(&historicalIndexBlockCacheMisses, pw.p.idxbCache.Misses())
 			removedParts++
 			continue
 		}
