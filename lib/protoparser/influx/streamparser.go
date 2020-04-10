@@ -1,6 +1,7 @@
 package influx
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"runtime"
@@ -10,6 +11,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	trimTimestamp = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for Influx line protocol data to this duration. "+
+		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
 
 // ParseStream parses r with the given args and calls callback for the parsed rows.
@@ -70,11 +76,13 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 	rowsRead.Add(len(ctx.Rows.Rows))
 
+	rows := ctx.Rows.Rows
+
 	// Adjust timestamps according to tsMultiplier
 	currentTs := time.Now().UnixNano() / 1e6
 	if tsMultiplier >= 1 {
-		for i := range ctx.Rows.Rows {
-			row := &ctx.Rows.Rows[i]
+		for i := range rows {
+			row := &rows[i]
 			if row.Timestamp == 0 {
 				row.Timestamp = currentTs
 			} else {
@@ -84,8 +92,8 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 	} else if tsMultiplier < 0 {
 		tsMultiplier = -tsMultiplier
 		currentTs -= currentTs % tsMultiplier
-		for i := range ctx.Rows.Rows {
-			row := &ctx.Rows.Rows[i]
+		for i := range rows {
+			row := &rows[i]
 			if row.Timestamp == 0 {
 				row.Timestamp = currentTs
 			} else {
@@ -93,6 +101,15 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 			}
 		}
 	}
+
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
 	return true
 }
 

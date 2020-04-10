@@ -1,6 +1,7 @@
 package opentsdb
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +12,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	trimTimestamp = flag.Duration("opentsdbTrimTimestamp", time.Second, "Trim timestamps for OpenTSDB 'telnet put' data to this duration. "+
+		"Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data")
 )
 
 // ParseStream parses OpenTSDB lines from r and calls callback for the parsed rows.
@@ -59,9 +65,10 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 	rowsRead.Add(len(ctx.Rows.Rows))
 
+	rows := ctx.Rows.Rows
+
 	// Fill in missing timestamps
 	currentTimestamp := time.Now().Unix()
-	rows := ctx.Rows.Rows
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp == 0 {
@@ -73,6 +80,15 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	for i := range rows {
 		rows[i].Timestamp *= 1e3
 	}
+
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1000 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
 	return true
 }
 
