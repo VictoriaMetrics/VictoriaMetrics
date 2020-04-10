@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"math"
 	"time"
 )
 
@@ -23,7 +24,15 @@ func getMinDelta() int64 {
 	//    10 25 41
 	// When using 7/8 of minScrapeInterval, it will be converted to the expected:
 	//    10 19 30 41
-	return (minScrapeInterval.Milliseconds() / 8) * 7
+	ms := minScrapeInterval.Milliseconds()
+
+	// Try calculating scrape interval via integer arithmetic.
+	d := (ms / 8) * 7
+	if d > 0 {
+		return d
+	}
+	// Too small scrape interval for integer arithmetic. Calculate d using floating-point arithmetic.
+	return int64(math.Round(float64(ms) / 8 * 7))
 }
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than minScrapeInterval.
@@ -53,7 +62,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 	return dstTimestamps, dstValues
 }
 
-func deduplicateSamplesDuringMerge(srcTimestamps []int64, srcValues []int64) ([]int64, []int64) {
+func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64) ([]int64, []int64) {
 	if minScrapeInterval <= 0 {
 		return srcTimestamps, srcValues
 	}
