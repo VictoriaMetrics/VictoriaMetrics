@@ -206,13 +206,6 @@ func (ibc *indexBlockCache) MustClose(isBig bool) {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
 
-	if isBig {
-		atomic.AddUint64(&bigIndexBlockCacheRequests, ibc.requests)
-		atomic.AddUint64(&bigIndexBlockCacheMisses, ibc.misses)
-	} else {
-		atomic.AddUint64(&smallIndexBlockCacheRequests, ibc.requests)
-		atomic.AddUint64(&smallIndexBlockCacheMisses, ibc.misses)
-	}
 	// It is safe returning ibc.m itemst to the pool, since Reset must
 	// be called only when no other goroutines access ibc entries.
 	for _, ibe := range ibc.m {
@@ -246,14 +239,6 @@ func (ibc *indexBlockCache) cleanByTimeout() {
 	}
 	ibc.mu.Unlock()
 }
-
-var (
-	bigIndexBlockCacheRequests uint64
-	bigIndexBlockCacheMisses   uint64
-
-	smallIndexBlockCacheRequests uint64
-	smallIndexBlockCacheMisses   uint64
-)
 
 func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 	atomic.AddUint64(&ibc.requests, 1)

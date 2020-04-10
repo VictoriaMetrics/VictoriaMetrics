@@ -204,8 +204,6 @@ func (idxbc *indexBlockCache) MustClose() {
 	close(idxbc.cleanerStopCh)
 	idxbc.cleanerWG.Wait()
 
-	atomic.AddUint64(&indexBlockCacheRequests, idxbc.requests)
-	atomic.AddUint64(&indexBlockCacheMisses, idxbc.misses)
 	// It is safe returning idxbc.m to pool, since the Reset must be called
 	// when the idxbc entries are no longer accessed by concurrent goroutines.
 	for _, idxbe := range idxbc.m {
@@ -239,11 +237,6 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	}
 	idxbc.mu.Unlock()
 }
-
-var (
-	indexBlockCacheRequests uint64
-	indexBlockCacheMisses   uint64
-)
 
 func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 	atomic.AddUint64(&idxbc.requests, 1)
@@ -361,8 +354,6 @@ func (ibc *inmemoryBlockCache) MustClose() {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
 
-	atomic.AddUint64(&inmemoryBlockCacheRequests, ibc.requests)
-	atomic.AddUint64(&inmemoryBlockCacheMisses, ibc.misses)
 	// It is safe returning ibc.m entries to pool, since the Reset function may be called
 	// only if no other goroutines access ibc entries.
 	for _, ibe := range ibc.m {
@@ -396,11 +387,6 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 	}
 	ibc.mu.Unlock()
 }
-
-var (
-	inmemoryBlockCacheRequests uint64
-	inmemoryBlockCacheMisses   uint64
-)
 
 func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 	atomic.AddUint64(&ibc.requests, 1)
