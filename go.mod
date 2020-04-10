@@ -9,7 +9,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.1
 	github.com/jmespath/go-jmespath v0.3.0 // indirect
-	github.com/klauspost/compress v1.10.3
+	github.com/klauspost/compress v1.10.4
 	github.com/valyala/fasthttp v1.9.0
 	github.com/valyala/fastjson v1.5.0
 	github.com/valyala/fastrand v1.0.0
