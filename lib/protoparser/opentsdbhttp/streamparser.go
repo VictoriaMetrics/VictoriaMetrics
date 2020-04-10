@@ -14,7 +14,11 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
+var (
+	maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
+	trimTimestamp        = flag.Duration("opentsdbhttpTrimTimestamp", time.Millisecond, "Trim timestamps for OpenTSDB HTTP data to this duration. "+
+		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
+)
 
 // ParseStream parses OpenTSDB http lines from req and calls callback for the parsed rows.
 //
@@ -60,9 +64,10 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	ctx.Rows.Unmarshal(v)
 	rowsRead.Add(len(ctx.Rows.Rows))
 
+	rows := ctx.Rows.Rows
+
 	// Fill in missing timestamps
 	currentTimestamp := time.Now().Unix()
-	rows := ctx.Rows.Rows
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp == 0 {
@@ -79,8 +84,16 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		}
 	}
 
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
 	// Insert ctx.Rows to db.
-	return callback(ctx.Rows.Rows)
+	return callback(rows)
 }
 
 const secondMask int64 = 0x7FFFFFFF00000000

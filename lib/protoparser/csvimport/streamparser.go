@@ -1,6 +1,7 @@
 package csvimport
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	trimTimestamp = flag.Duration("csvTrimTimestamp", time.Millisecond, "Trim timestamps when importing csv data to this duration. "+
+		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
 
 // ParseStream parses csv from req and calls callback for the parsed rows.
@@ -61,14 +67,25 @@ func (ctx *streamContext) Read(r io.Reader, cds []ColumnDescriptor) bool {
 	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf), cds)
 	rowsRead.Add(len(ctx.Rows.Rows))
 
+	rows := ctx.Rows.Rows
+
 	// Set missing timestamps
 	currentTs := time.Now().UnixNano() / 1e6
-	for i := range ctx.Rows.Rows {
-		row := &ctx.Rows.Rows[i]
+	for i := range rows {
+		row := &rows[i]
 		if row.Timestamp == 0 {
 			row.Timestamp = currentTs
 		}
 	}
+
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
 	return true
 }
 
