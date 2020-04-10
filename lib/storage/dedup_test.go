@@ -7,6 +7,9 @@ import (
 )
 
 func TestGetMinDelta(t *testing.T) {
+	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
+	defer SetMinScrapeIntervalForDeduplication(0)
+
 	f := func(scrapeInterval time.Duration, dExpected int64) {
 		t.Helper()
 		SetMinScrapeIntervalForDeduplication(scrapeInterval)
@@ -25,6 +28,9 @@ func TestGetMinDelta(t *testing.T) {
 }
 
 func TestDeduplicateSamples(t *testing.T) {
+	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
+	defer SetMinScrapeIntervalForDeduplication(0)
+
 	f := func(scrapeInterval time.Duration, timestamps, timestampsExpected []int64) {
 		t.Helper()
 		SetMinScrapeIntervalForDeduplication(scrapeInterval)
@@ -72,6 +78,9 @@ func TestDeduplicateSamples(t *testing.T) {
 }
 
 func TestDeduplicateSamplesDuringMerge(t *testing.T) {
+	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
+	defer SetMinScrapeIntervalForDeduplication(0)
+
 	f := func(scrapeInterval time.Duration, timestamps, timestampsExpected []int64) {
 		t.Helper()
 		SetMinScrapeIntervalForDeduplication(scrapeInterval)
