@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/packagesinternal"
+	"golang.org/x/xerrors"
 )
 
 // debug controls verbose logging.
@@ -142,7 +143,7 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 		sizeswg.Add(1)
 		go func() {
 			var sizes types.Sizes
-			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, cfg.BuildFlags, cfg.Env, cfg.Dir, usesExportData(cfg))
+			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, cfg.BuildFlags, cfg.Env, cfg.gocmdRunner, cfg.Dir)
 			// types.SizesFor always returns nil or a *types.StdSizes.
 			response.dr.Sizes, _ = sizes.(*types.StdSizes)
 			sizeswg.Done()
@@ -716,7 +717,7 @@ func golistargs(cfg *Config, words []string) []string {
 func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
 	cfg := state.cfg
 
-	inv := &gocommand.Invocation{
+	inv := gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,
 		BuildFlags: cfg.BuildFlags,
@@ -724,8 +725,11 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 		Logf:       cfg.Logf,
 		WorkingDir: cfg.Dir,
 	}
-
-	stdout, stderr, _, err := inv.RunRaw(cfg.Context)
+	gocmdRunner := cfg.gocmdRunner
+	if gocmdRunner == nil {
+		gocmdRunner = &gocommand.Runner{}
+	}
+	stdout, stderr, _, err := gocmdRunner.RunRaw(cfg.Context, inv)
 	if err != nil {
 		// Check for 'go' executable not being found.
 		if ee, ok := err.(*exec.Error); ok && ee.Err == exec.ErrNotFound {
@@ -736,7 +740,7 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 		if !ok {
 			// Catastrophic error:
 			// - context cancellation
-			return nil, fmt.Errorf("couldn't run 'go': %v", err)
+			return nil, xerrors.Errorf("couldn't run 'go': %w", err)
 		}
 
 		// Old go version?
