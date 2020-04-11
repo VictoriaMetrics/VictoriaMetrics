@@ -29,9 +29,23 @@ type requestHandler struct {
 	groups []Group
 }
 
+var pathList = [][]string{
+	{"/api/v1/alerts", "list all active alerts"},
+	{"/api/v1/groupName/alertID/status", "get alert status by ID"},
+}
+
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	resph := responseHandler{w}
 	switch r.URL.Path {
+	case "/":
+		for _, path := range pathList {
+			p, doc := path[0], path[1]
+			fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
+		}
+		return true
+	case "/api/v1/alerts":
+		resph.handle(rh.list())
+		return true
 	default:
 		// /api/v1/<groupName>/<alertID>/status
 		if strings.HasSuffix(r.URL.Path, "/status") {
@@ -39,9 +53,6 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return false
-	case "/api/v1/alerts":
-		resph.handle(rh.list())
-		return true
 	}
 }
 
@@ -87,7 +98,7 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 	id, err := strconv.ParseUint(idStr, 10, 0)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`cannot parse int from %s"`, idStr),
+			Err:        fmt.Errorf(`cannot parse int from %q`, idStr),
 			StatusCode: http.StatusBadRequest,
 		}
 	}
