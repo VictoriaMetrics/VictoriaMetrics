@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,53 +14,66 @@ import (
 
 // apiAlert has info for an alert.
 type apiAlert struct {
+	ID          uint64            `json:"id"`
+	Name        string            `json:"name"`
+	Group       string            `json:"group"`
+	Expression  string            `json:"expression"`
+	State       string            `json:"state"`
+	Value       string            `json:"value"`
 	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
-	State       string            `json:"state"`
 	ActiveAt    time.Time         `json:"activeAt"`
-	Value       string            `json:"value"`
 }
 
 type requestHandler struct {
 	groups []Group
 }
 
+var pathList = [][]string{
+	{"/api/v1/alerts", "list all active alerts"},
+	{"/api/v1/groupName/alertID/status", "get alert status by ID"},
+}
+
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	resph := responseHandler{w}
 	switch r.URL.Path {
+	case "/":
+		for _, path := range pathList {
+			p, doc := path[0], path[1]
+			fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
+		}
+		return true
+	case "/api/v1/alerts":
+		resph.handle(rh.list())
+		return true
 	default:
+		// /api/v1/<groupName>/<alertID>/status
 		if strings.HasSuffix(r.URL.Path, "/status") {
 			resph.handle(rh.alert(r.URL.Path))
 			return true
 		}
 		return false
-	case "/api/v1/alerts":
-		resph.handle(rh.listActiveAlerts())
-		return true
 	}
 }
 
-func (rh *requestHandler) listActiveAlerts() ([]byte, error) {
+func (rh *requestHandler) list() ([]byte, error) {
 	type listAlertsResponse struct {
 		Data struct {
-			Alerts []apiAlert `json:"alerts"`
+			Alerts []*apiAlert `json:"alerts"`
 		} `json:"data"`
 		Status string `json:"status"`
 	}
 	lr := listAlertsResponse{Status: "success"}
 	for _, g := range rh.groups {
-		alerts := g.ActiveAlerts()
-		for i := range alerts {
-			alert := alerts[i]
-			lr.Data.Alerts = append(lr.Data.Alerts, apiAlert{
-				Labels:      alert.Labels,
-				Annotations: alert.Annotations,
-				State:       alert.State.String(),
-				ActiveAt:    alert.Start,
-				Value:       strconv.FormatFloat(alert.Value, 'e', -1, 64),
-			})
+		for _, r := range g.Rules {
+			lr.Data.Alerts = append(lr.Data.Alerts, r.AlertsAPI()...)
 		}
 	}
+
+	// sort list of alerts for deterministic output
+	sort.Slice(lr.Data.Alerts, func(i, j int) bool {
+		return lr.Data.Alerts[i].Name < lr.Data.Alerts[j].Name
+	})
 
 	b, err := json.Marshal(lr)
 	if err != nil {
@@ -84,27 +98,22 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 	id, err := strconv.ParseUint(idStr, 10, 0)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`cannot parse int from %s"`, idStr),
+			Err:        fmt.Errorf(`cannot parse int from %q`, idStr),
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	for _, g := range rh.groups {
-		if g.Name == group {
-			for i := range g.Rules {
-				if alert := g.Rules[i].Alert(id); alert != nil {
-					return json.Marshal(apiAlert{
-						Labels:      alert.Labels,
-						Annotations: alert.Annotations,
-						State:       alert.State.String(),
-						ActiveAt:    alert.Start,
-						Value:       strconv.FormatFloat(alert.Value, 'e', -1, 64),
-					})
-				}
+		if g.Name != group {
+			continue
+		}
+		for i := range g.Rules {
+			if apiAlert := g.Rules[i].AlertAPI(id); apiAlert != nil {
+				return json.Marshal(apiAlert)
 			}
 		}
 	}
 	return nil, &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf(`cannot find alert %s in %s"`, idStr, group),
+		Err:        fmt.Errorf(`cannot find alert %s in %q`, idStr, group),
 		StatusCode: http.StatusNotFound,
 	}
 }
