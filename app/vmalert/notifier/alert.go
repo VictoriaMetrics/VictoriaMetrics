@@ -21,6 +21,7 @@ type Alert struct {
 	Start time.Time
 	End   time.Time
 	Value float64
+	ID    uint64
 }
 
 // AlertState type indicates the Alert state
@@ -36,6 +37,17 @@ const (
 	// the configured threshold duration.
 	StateFiring
 )
+
+// String stringer for AlertState
+func (as AlertState) String() string {
+	switch as {
+	case StateFiring:
+		return "firing"
+	case StatePending:
+		return "pending"
+	}
+	return "inactive"
+}
 
 type alertTplData struct {
 	Labels map[string]string

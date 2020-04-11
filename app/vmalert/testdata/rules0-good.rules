@@ -2,7 +2,7 @@ groups:
   - name: groupGorSingleAlert
     rules:
       - alert: VMRows
-        for: 5m
+        for: 10s
         expr: vm_rows > 0
         labels:
           label: bar

@@ -1,4 +1,5 @@
 {% import (
+    "strconv"
     "time"
 ) %}
 {% stripspace %}
@@ -8,7 +9,7 @@
 {% for i, alert := range alerts %}
 {
 	"startsAt":{%q= alert.Start.Format(time.RFC3339Nano) %},
-	"generatorURL": {%q= generatorURL(alert.Group, alert.Name) %},
+	"generatorURL": {%q= generatorURL(alert.Group, strconv.FormatUint(alert.ID, 10)) %},
     {% if !alert.End.IsZero() %}
     "endsAt":{%q= alert.End.Format(time.RFC3339Nano) %},
     {% endif %}
