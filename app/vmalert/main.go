@@ -33,8 +33,8 @@ Examples:
 	basicAuthUsername        = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
 	basicAuthPassword        = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
 	evaluationInterval       = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
-	providerURL              = flag.String("provider.url", "", "Prometheus alertmanager url. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL              = flag.String("external.url", "", "Reachable external url. URL is used to generate sharable alert url and in annotation templates")
+	notifierURL              = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	externalURL              = flag.String("external.url", "", "URL is used to generate sharable alert URL")
 )
 
 // TODO: hot configuration reload
@@ -60,7 +60,7 @@ func main() {
 
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: notifier.NewAlertManager(*providerURL, func(group, name string) string {
+		alertProvider: notifier.NewAlertManager(*notifierURL, func(group, name string) string {
 			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
 		}, &http.Client{}),
 	}
@@ -132,9 +132,9 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 }
 
 func checkFlags() {
-	if *providerURL == "" {
+	if *notifierURL == "" {
 		flag.PrintDefaults()
-		logger.Fatalf("provider.url is empty")
+		logger.Fatalf("notifier.url is empty")
 	}
 	if *datasourceURL == "" {
 		flag.PrintDefaults()

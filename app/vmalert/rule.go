@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,15 +22,6 @@ type Group struct {
 	Rules []*Rule
 }
 
-// ActiveAlerts returns list of active alert for all rules
-func (g *Group) ActiveAlerts() []*notifier.Alert {
-	var list []*notifier.Alert
-	for i := range g.Rules {
-		list = append(list, g.Rules[i].listActiveAlerts()...)
-	}
-	return list
-}
-
 // Rule is basic alert entity
 type Rule struct {
 	Name        string            `yaml:"alert"`
@@ -41,7 +33,7 @@ type Rule struct {
 	group *Group
 
 	// guard status fields
-	mu sync.Mutex
+	mu sync.RWMutex
 	// stores list of active alerts
 	alerts map[uint64]*notifier.Alert
 	// stores last moment of time Exec was called
@@ -188,22 +180,38 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 	return a, err
 }
 
-func (r *Rule) listActiveAlerts() []*notifier.Alert {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	var list []*notifier.Alert
-	for _, a := range r.alerts {
-		a := a
-		if a.State == notifier.StateFiring {
-			list = append(list, a)
-		}
+// AlertAPI generates apiAlert object from alert by its id(hash)
+func (r *Rule) AlertAPI(id uint64) *apiAlert {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	a, ok := r.alerts[id]
+	if !ok {
+		return nil
 	}
-	return list
+	return r.newAlertAPI(*a)
 }
 
-// Alert returns single alert by its id(hash)
-func (r *Rule) Alert(id uint64) *notifier.Alert {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.alerts[id]
+// AlertAPI generates list of apiAlert objects from existing alerts
+func (r *Rule) AlertsAPI() []*apiAlert {
+	var alerts []*apiAlert
+	r.mu.RLock()
+	for _, a := range r.alerts {
+		alerts = append(alerts, r.newAlertAPI(*a))
+	}
+	r.mu.RUnlock()
+	return alerts
+}
+
+func (r *Rule) newAlertAPI(a notifier.Alert) *apiAlert {
+	return &apiAlert{
+		ID:          a.ID,
+		Name:        a.Name,
+		Group:       a.Group,
+		Expression:  r.Expr,
+		Labels:      a.Labels,
+		Annotations: a.Annotations,
+		State:       a.State.String(),
+		ActiveAt:    a.Start,
+		Value:       strconv.FormatFloat(a.Value, 'e', -1, 64),
+	}
 }
