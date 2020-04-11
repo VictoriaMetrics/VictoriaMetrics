@@ -32,6 +32,8 @@ type requestHandler struct {
 var pathList = [][]string{
 	{"/api/v1/alerts", "list all active alerts"},
 	{"/api/v1/groupName/alertID/status", "get alert status by ID"},
+	// /metrics is served by httpserver by default
+	{"/metrics", "list of application metrics"},
 }
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
