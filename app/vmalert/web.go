@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,11 @@ func (rh *requestHandler) list() ([]byte, error) {
 			lr.Data.Alerts = append(lr.Data.Alerts, r.AlertsAPI()...)
 		}
 	}
+
+	// sort list of alerts for deterministic output
+	sort.Slice(lr.Data.Alerts, func(i, j int) bool {
+		return lr.Data.Alerts[i].Name < lr.Data.Alerts[j].Name
+	})
 
 	b, err := json.Marshal(lr)
 	if err != nil {
