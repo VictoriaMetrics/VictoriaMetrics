@@ -61,7 +61,7 @@ func main() {
 	w := &watchdog{
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
 		alertProvider: notifier.NewAlertManager(*providerURL, func(group, name string) string {
-			return strings.Replace(fmt.Sprintf("%s/%s/%s/status", eu, group, name), "//", "/", -1)
+			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
 		}, &http.Client{}),
 	}
 	wg := sync.WaitGroup{}
@@ -73,9 +73,7 @@ func main() {
 		}(groups[i])
 	}
 
-	go httpserver.Serve(*httpListenAddr, func(w http.ResponseWriter, r *http.Request) bool {
-		panic("not implemented")
-	})
+	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)

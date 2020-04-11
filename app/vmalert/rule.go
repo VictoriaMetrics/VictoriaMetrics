@@ -21,6 +21,15 @@ type Group struct {
 	Rules []*Rule
 }
 
+// ActiveAlerts returns list of active alert for all rules
+func (g *Group) ActiveAlerts() []*notifier.Alert {
+	var list []*notifier.Alert
+	for i := range g.Rules {
+		list = append(list, g.Rules[i].listActiveAlerts()...)
+	}
+	return list
+}
+
 // Rule is basic alert entity
 type Rule struct {
 	Name        string            `yaml:"alert"`
@@ -61,7 +70,6 @@ func (r *Rule) Validate() error {
 // Based on the Querier results Rule maintains notifier.Alerts
 func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	metrics, err := q.Query(ctx, r.Expr)
-
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -91,6 +99,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 			r.lastExecError = err
 			return fmt.Errorf("failed to create alert: %s", err)
 		}
+		a.ID = h
 		a.State = notifier.StatePending
 		r.alerts[h] = a
 	}
@@ -119,7 +128,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 // notifier.Notifier.
 // See for reference https://prometheus.io/docs/alerting/clients/
 // TODO: add tests for endAt value
-func (r *Rule) Send(ctx context.Context, ap notifier.Notifier) error {
+func (r *Rule) Send(_ context.Context, ap notifier.Notifier) error {
 	// copy alerts to new list to avoid locks
 	var alertsCopy []notifier.Alert
 	r.mu.Lock()
@@ -177,4 +186,24 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 	var err error
 	a.Annotations, err = a.ExecTemplate(r.Annotations)
 	return a, err
+}
+
+func (r *Rule) listActiveAlerts() []*notifier.Alert {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var list []*notifier.Alert
+	for _, a := range r.alerts {
+		a := a
+		if a.State == notifier.StateFiring {
+			list = append(list, a)
+		}
+	}
+	return list
+}
+
+// Alert returns single alert by its id(hash)
+func (r *Rule) Alert(id uint64) *notifier.Alert {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.alerts[id]
 }

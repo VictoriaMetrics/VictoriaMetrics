@@ -37,7 +37,7 @@ func (am *AlertManager) Send(alerts []Alert) error {
 }
 
 // AlertURLGenerator returns URL to single alert by given name
-type AlertURLGenerator func(group, name string) string
+type AlertURLGenerator func(group, id string) string
 
 const alertManagerPath = "/api/v2/alerts"
 
