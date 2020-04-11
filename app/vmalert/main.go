@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -39,7 +40,6 @@ Examples:
 
 // TODO: hot configuration reload
 // TODO: alerts state persistence
-// TODO: metrics
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
@@ -89,22 +89,43 @@ type watchdog struct {
 	alertProvider notifier.Notifier
 }
 
+var (
+	iterationTotal    = metrics.NewCounter(`vmalert_iteration_total`)
+	iterationDuration = metrics.NewSummary(`vmalert_iteration_duration_seconds`)
+
+	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
+	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
+	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+)
+
 func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
-	logger.Infof("watchdog for %s has been run", group.Name)
+	logger.Infof("watchdog for %s has been started", group.Name)
 	t := time.NewTicker(evaluationInterval)
 	defer t.Stop()
 	for {
+
 		select {
 		case <-t.C:
+			iterationTotal.Inc()
+			iterationStart := time.Now()
 			for _, rule := range group.Rules {
-				if err := rule.Exec(ctx, w.storage); err != nil {
+				execTotal.Inc()
+
+				execStart := time.Now()
+				err := rule.Exec(ctx, w.storage)
+				execDuration.UpdateDuration(execStart)
+
+				if err != nil {
+					execErrors.Inc()
 					logger.Errorf("failed to execute rule %q.%q: %s", group.Name, rule.Name, err)
 					continue
 				}
+
 				if err := rule.Send(ctx, w.alertProvider); err != nil {
 					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
 				}
 			}
+			iterationDuration.UpdateDuration(iterationStart)
 		case <-ctx.Done():
 			logger.Infof("%s received stop signal", group.Name)
 			return

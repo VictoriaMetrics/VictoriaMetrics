@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // apiAlert has info for an alert.
@@ -32,6 +33,7 @@ type requestHandler struct {
 var pathList = [][]string{
 	{"/api/v1/alerts", "list all active alerts"},
 	{"/api/v1/groupName/alertID/status", "get alert status by ID"},
+	{"/metrics", "list of application metrics"},
 }
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
@@ -42,6 +44,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			p, doc := path[0], path[1]
 			fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
 		}
+		return true
+	case "/metrics":
+		metrics.WritePrometheus(w, true)
 		return true
 	case "/api/v1/alerts":
 		resph.handle(rh.list())

@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // Group grouping array of alert
@@ -61,7 +62,7 @@ func (r *Rule) Validate() error {
 // Exec executes Rule expression via the given Querier.
 // Based on the Querier results Rule maintains notifier.Alerts
 func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
-	metrics, err := q.Query(ctx, r.Expr)
+	qMetrics, err := q.Query(ctx, r.Expr)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -80,7 +81,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
-	for _, m := range metrics {
+	for _, m := range qMetrics {
 		h := hash(m)
 		updated[h] = struct{}{}
 		if _, ok := r.alerts[h]; ok {
@@ -108,6 +109,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 		}
 		if a.State == notifier.StatePending && time.Since(a.Start) >= r.For {
 			a.State = notifier.StateFiring
+			alertsFired.Inc()
 		}
 		if a.State == notifier.StateFiring {
 			a.End = r.lastExecTime.Add(3 * *evaluationInterval)
@@ -138,10 +140,14 @@ func (r *Rule) Send(_ context.Context, ap notifier.Notifier) error {
 		logger.Infof("no alerts to send")
 		return nil
 	}
-
-	logger.Infof("sending %d alerts", len(alertsCopy))
+	alertsSent.Add(len(alertsCopy))
 	return ap.Send(alertsCopy)
 }
+
+var (
+	alertsFired = metrics.NewCounter(`vmalert_alerts_fired_total`)
+	alertsSent  = metrics.NewCounter(`vmalert_alerts_sent_total`)
+)
 
 // TODO: consider hashing algorithm in VM
 func hash(m datasource.Metric) uint64 {
