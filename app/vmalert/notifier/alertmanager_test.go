@@ -40,7 +40,7 @@ func TestAlertManager_Send(t *testing.T) {
 			if len(a) != 1 {
 				t.Errorf("expected 1 alert in array got %d", len(a))
 			}
-			if a[0].GeneratorURL != "group0alert0" {
+			if a[0].GeneratorURL != "group0" {
 				t.Errorf("exptected alert0 as generatorURL got %s", a[0].GeneratorURL)
 			}
 			if a[0].Labels["alertname"] != "alert0" {
@@ -66,7 +66,7 @@ func TestAlertManager_Send(t *testing.T) {
 		t.Error("expected wrong http code error got nil")
 	}
 	if err := am.Send([]Alert{{
-		Group:       "group0",
+		Group:       "group",
 		Name:        "alert0",
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
