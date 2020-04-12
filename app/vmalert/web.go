@@ -58,13 +58,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+type listAlertsResponse struct {
+	Data struct {
+		Alerts []*apiAlert `json:"alerts"`
+	} `json:"data"`
+	Status string `json:"status"`
+}
+
 func (rh *requestHandler) list() ([]byte, error) {
-	type listAlertsResponse struct {
-		Data struct {
-			Alerts []*apiAlert `json:"alerts"`
-		} `json:"data"`
-		Status string `json:"status"`
-	}
 	lr := listAlertsResponse{Status: "success"}
 	for _, g := range rh.groups {
 		for _, r := range g.Rules {
