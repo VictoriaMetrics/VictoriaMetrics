@@ -53,7 +53,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/group/0/status", func(t *testing.T) {
-		alert := &apiAlert{}
+		alert := &APIAlert{}
 		getResp(ts.URL+"/api/v1/group/0/status", alert, 200)
 		expAlert := rule.newAlertAPI(*rule.alerts[0])
 		if !reflect.DeepEqual(alert, expAlert) {

@@ -186,8 +186,8 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 	return a, err
 }
 
-// AlertAPI generates apiAlert object from alert by its id(hash)
-func (r *Rule) AlertAPI(id uint64) *apiAlert {
+// AlertAPI generates APIAlert object from alert by its id(hash)
+func (r *Rule) AlertAPI(id uint64) *APIAlert {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	a, ok := r.alerts[id]
@@ -197,9 +197,9 @@ func (r *Rule) AlertAPI(id uint64) *apiAlert {
 	return r.newAlertAPI(*a)
 }
 
-// AlertAPI generates list of apiAlert objects from existing alerts
-func (r *Rule) AlertsAPI() []*apiAlert {
-	var alerts []*apiAlert
+// AlertsAPI generates list of APIAlert objects from existing alerts
+func (r *Rule) AlertsAPI() []*APIAlert {
+	var alerts []*APIAlert
 	r.mu.RLock()
 	for _, a := range r.alerts {
 		alerts = append(alerts, r.newAlertAPI(*a))
@@ -208,8 +208,8 @@ func (r *Rule) AlertsAPI() []*apiAlert {
 	return alerts
 }
 
-func (r *Rule) newAlertAPI(a notifier.Alert) *apiAlert {
-	return &apiAlert{
+func (r *Rule) newAlertAPI(a notifier.Alert) *APIAlert {
+	return &APIAlert{
 		ID:          a.ID,
 		Name:        a.Name,
 		Group:       a.Group,

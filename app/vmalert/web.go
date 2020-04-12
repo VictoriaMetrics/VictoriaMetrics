@@ -12,8 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 )
 
-// apiAlert has info for an alert.
-type apiAlert struct {
+// APIAlert has info for an alert.
+type APIAlert struct {
 	ID          uint64            `json:"id"`
 	Name        string            `json:"name"`
 	Group       string            `json:"group"`
@@ -60,7 +60,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 
 type listAlertsResponse struct {
 	Data struct {
-		Alerts []*apiAlert `json:"alerts"`
+		Alerts []*APIAlert `json:"alerts"`
 	} `json:"data"`
 	Status string `json:"status"`
 }
