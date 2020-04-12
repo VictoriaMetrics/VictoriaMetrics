@@ -23,11 +23,12 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArray("rule", `Path to file with alert rules, accepts patterns. 
-Flag can be specified multiple time. 
+	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules. 
+Supports patterns. Flag can be specified multiple times. 
 Examples:
- -rule /path/to/file. Path to single file with alerting rules
- -rule dir/*.yaml -rule /*.yaml. Paths to all yaml files in relative dir folder and absolute yaml file in a root.`)
+ -rule /path/to/file. Path to a single file with alerting rules
+ -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
+absolute path to all .yaml files in root.`)
 	validateAlertAnnotations = flag.Bool("rule.validateAnnotations", true, "Indicates to validate annotation templates")
 	httpListenAddr           = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 	datasourceURL            = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
@@ -35,7 +36,7 @@ Examples:
 	basicAuthPassword        = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
 	evaluationInterval       = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
 	notifierURL              = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL              = flag.String("external.url", "", "URL is used to generate sharable alert URL")
+	externalURL              = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
 // TODO: hot configuration reload

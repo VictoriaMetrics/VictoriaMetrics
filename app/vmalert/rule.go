@@ -12,7 +12,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -137,7 +136,6 @@ func (r *Rule) Send(_ context.Context, ap notifier.Notifier) error {
 	r.mu.Unlock()
 
 	if len(alertsCopy) < 1 {
-		logger.Infof("no alerts to send")
 		return nil
 	}
 	alertsSent.Add(len(alertsCopy))
