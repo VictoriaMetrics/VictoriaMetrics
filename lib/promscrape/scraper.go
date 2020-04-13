@@ -14,8 +14,11 @@ import (
 )
 
 var (
-	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
+	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config")
+	kubernetesSDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
+		"This works only if `kubernetes_sd_configs` is configured in '-promscrape.config' file. "+
+		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config for details")
 )
@@ -58,6 +61,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	}
 	swsStatic := cfg.getStaticScrapeWork()
 	swsFileSD := cfg.getFileSDScrapeWork(nil)
+	swsK8S := cfg.getKubernetesSDScrapeWork()
 
 	mustStop := false
 	for !mustStop {
@@ -73,6 +77,11 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			defer wg.Done()
 			runFileSDScrapers(swsFileSD, cfg, pushData, stopCh)
 		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runKubernetesSDScrapers(swsK8S, cfg, pushData, stopCh)
+		}()
 
 	waitForChans:
 		select {
@@ -86,6 +95,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			cfg = cfgNew
 			swsStatic = cfg.getStaticScrapeWork()
 			swsFileSD = cfg.getFileSDScrapeWork(swsFileSD)
+			swsK8S = cfg.getKubernetesSDScrapeWork()
 		case <-globalStopCh:
 			mustStop = true
 		}
@@ -113,6 +123,50 @@ func runStaticScrapers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRe
 }
 
 var staticTargets = metrics.NewCounter(`vm_promscrape_targets{type="static"}`)
+
+func runKubernetesSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	if cfg.kubernetesSDConfigsCount() == 0 {
+		return
+	}
+	ticker := time.NewTicker(*kubernetesSDCheckInterval)
+	defer ticker.Stop()
+	mustStop := false
+	for !mustStop {
+		localStopCh := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func(sws []ScrapeWork) {
+			defer wg.Done()
+			logger.Infof("starting %d scrapers for `kubernetes_sd_config` targets", len(sws))
+			kubernetesSDTargets.Set(uint64(len(sws)))
+			runScrapeWorkers(sws, pushData, localStopCh)
+			kubernetesSDTargets.Set(0)
+			logger.Infof("stopped all the %d scrapers for `kubernetes_sd_config` targets", len(sws))
+		}(sws)
+	waitForChans:
+		select {
+		case <-ticker.C:
+			swsNew := cfg.getKubernetesSDScrapeWork()
+			if equalStaticConfigForScrapeWorks(swsNew, sws) {
+				// Nothing changed, continue waiting for updated scrape work
+				goto waitForChans
+			}
+			logger.Infof("restarting scrapers for changed `kubernetes_sd_config` targets")
+			sws = swsNew
+		case <-stopCh:
+			mustStop = true
+		}
+
+		close(localStopCh)
+		wg.Wait()
+		kubernetesSDReloads.Inc()
+	}
+}
+
+var (
+	kubernetesSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="kubernetes_sd"}`)
+	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
+)
 
 func runFileSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
 	if cfg.fileSDConfigsCount() == 0 {
