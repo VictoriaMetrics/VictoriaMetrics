@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"gopkg.in/yaml.v2"
 )
 
@@ -57,6 +58,7 @@ type ScrapeConfig struct {
 	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config"`
 	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
+	KubernetesSDConfigs  []KubernetesSDConfig        `yaml:"kubernetes_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
 	ScrapeLimit          int                         `yaml:"scrape_limit"`
@@ -71,6 +73,25 @@ type ScrapeConfig struct {
 type FileSDConfig struct {
 	Files []string `yaml:"files"`
 	// `refresh_interval` is ignored. See `-prometheus.fileSDCheckInterval`
+}
+
+// KubernetesSDConfig represents kubernetes-based service discovery config.
+//
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
+type KubernetesSDConfig struct {
+	APIServer       string                    `yaml:"api_server"`
+	Role            string                    `yaml:"role"`
+	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth"`
+	BearerToken     string                    `yaml:"bearer_token"`
+	BearerTokenFile string                    `yaml:"bearer_token_file"`
+	TLSConfig       *promauth.TLSConfig       `yaml:"tls_config"`
+	Namespaces      KubernetesNamespaces      `yaml:"namespaces"`
+	Selectors       []kubernetes.Selector     `yaml:"selectors"`
+}
+
+// KubernetesNamespaces represents namespaces for KubernetesSDConfig
+type KubernetesNamespaces struct {
+	Names []string `yaml:"names"`
 }
 
 // StaticConfig represents essential parts for `static_config` section of Prometheus config.
@@ -136,12 +157,31 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	return err
 }
 
+func (cfg *Config) kubernetesSDConfigsCount() int {
+	n := 0
+	for i := range cfg.ScrapeConfigs {
+		n += len(cfg.ScrapeConfigs[i].KubernetesSDConfigs)
+	}
+	return n
+}
+
 func (cfg *Config) fileSDConfigsCount() int {
 	n := 0
 	for i := range cfg.ScrapeConfigs {
 		n += len(cfg.ScrapeConfigs[i].FileSDConfigs)
 	}
 	return n
+}
+
+// getKubernetesSDcrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for _, sc := range cfg.ScrapeConfigs {
+		for _, sdc := range sc.KubernetesSDConfigs {
+			dst = sdc.appendScrapeWork(dst, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
@@ -257,6 +297,74 @@ type scrapeWorkConfig struct {
 	relabelConfigs       []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
 	scrapeLimit          int
+}
+
+func (sdc *KubernetesSDConfig) appendScrapeWork(dst []ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
+	if err != nil {
+		logger.Errorf("cannot parse auth config for `kubernetes_sd_config` for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst
+	}
+	cfg := &kubernetes.APIConfig{
+		Server:     sdc.APIServer,
+		AuthConfig: ac,
+		Namespaces: sdc.Namespaces.Names,
+		Selectors:  sdc.Selectors,
+	}
+	switch sdc.Role {
+	case "node":
+		targetLabels, err := kubernetes.GetNodesLabels(cfg)
+		if err != nil {
+			logger.Errorf("error when discovering kubernetes nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
+			return dst
+		}
+		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
+	case "service":
+		targetLabels, err := kubernetes.GetServicesLabels(cfg)
+		if err != nil {
+			logger.Errorf("error when discovering kubernetes services for `job_name` %q: %s; skipping it", swc.jobName, err)
+			return dst
+		}
+		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
+	case "pod":
+		targetLabels, err := kubernetes.GetPodsLabels(cfg)
+		if err != nil {
+			logger.Errorf("error when discovering kubernetes pods for `job_name` %q: %s; skipping it", swc.jobName, err)
+			return dst
+		}
+		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
+	case "endpoints":
+		targetLabels, err := kubernetes.GetEndpointsLabels(cfg)
+		if err != nil {
+			logger.Errorf("error when discovering kubernetes endpoints for `job_name` %q: %s; skipping it", swc.jobName, err)
+			return dst
+		}
+		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
+	case "ingress":
+		targetLabels, err := kubernetes.GetIngressesLabels(cfg)
+		if err != nil {
+			logger.Errorf("error when discovering kubernetes ingresses for `job_name` %q: %s; skipping it", swc.jobName, err)
+			return dst
+		}
+		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
+	default:
+		logger.Errorf("unexpected `role`: %q; must be one of `node`, `service`, `pod`, `endpoints` or `ingress`; skipping it", sdc.Role)
+		return dst
+	}
+}
+
+func appendKubernetesScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, role string) []ScrapeWork {
+	for _, metaLabels := range targetLabels {
+		target := metaLabels["__address__"]
+		var err error
+		dst, err = appendScrapeWork(dst, swc, target, nil, metaLabels)
+		if err != nil {
+			logger.Errorf("error when parsing `kubernetes_sd_config` target %q with role %q for `job_name` %q: %s; skipping it",
+				target, role, swc.jobName, err)
+			continue
+		}
+	}
+	return dst
 }
 
 func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
