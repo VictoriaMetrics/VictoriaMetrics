@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -13,6 +14,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"gopkg.in/yaml.v2"
+)
+
+var (
+	strictParse = flag.Bool("promscrape.config.strictParse", false, "Whether to allow only supported fields in '-promscrape.config'. "+
+		"This option may be used for errors detection in '-promscrape.config' file")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -101,7 +107,7 @@ func loadConfig(path string) (cfg *Config, err error) {
 }
 
 func (cfg *Config) parse(data []byte, path string) error {
-	if err := yaml.Unmarshal(data, cfg); err != nil {
+	if err := unmarshalMaybeStrict(data, cfg); err != nil {
 		return fmt.Errorf("cannot unmarshal data: %s", err)
 	}
 	absPath, err := filepath.Abs(path)
@@ -118,6 +124,16 @@ func (cfg *Config) parse(data []byte, path string) error {
 		sc.swc = swc
 	}
 	return nil
+}
+
+func unmarshalMaybeStrict(data []byte, dst interface{}) error {
+	var err error
+	if *strictParse {
+		err = yaml.UnmarshalStrict(data, dst)
+	} else {
+		err = yaml.Unmarshal(data, dst)
+	}
+	return err
 }
 
 func (cfg *Config) fileSDConfigsCount() int {
