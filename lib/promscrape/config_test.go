@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -79,10 +80,7 @@ scrape_configs:
 	if err := cfg.parse([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parase data: %s", err)
 	}
-	sws, err := cfg.getFileSDScrapeWork(nil)
-	if err != nil {
-		t.Fatalf("cannot obtain `file_sd_config`: %s", err)
-	}
+	sws := cfg.getFileSDScrapeWork(nil)
 	if !equalStaticConfigForScrapeWorks(sws, sws) {
 		t.Fatalf("unexpected non-equal static configs;\nsws:\n%#v", sws)
 	}
@@ -98,10 +96,7 @@ scrape_configs:
 	if err := cfgNew.parse([]byte(dataNew), "sss"); err != nil {
 		t.Fatalf("cannot parse data: %s", err)
 	}
-	swsNew, err := cfgNew.getFileSDScrapeWork(sws)
-	if err != nil {
-		t.Fatalf("cannot obtain `file_sd_config`: %s", err)
-	}
+	swsNew := cfgNew.getFileSDScrapeWork(sws)
 	if equalStaticConfigForScrapeWorks(swsNew, sws) {
 		t.Fatalf("unexpected equal static configs;\nswsNew:\n%#v\nsws:\n%#v", swsNew, sws)
 	}
@@ -116,10 +111,7 @@ scrape_configs:
 	if err := cfg.parse([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parse data: %s", err)
 	}
-	sws, err = cfg.getFileSDScrapeWork(swsNew)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	sws = cfg.getFileSDScrapeWork(swsNew)
 	if len(sws) != 0 {
 		t.Fatalf("unexpected non-empty sws:\n%#v", sws)
 	}
@@ -134,10 +126,7 @@ scrape_configs:
 	if err := cfg.parse([]byte(data), "sss"); err != nil {
 		t.Fatalf("cannot parse data: %s", err)
 	}
-	sws, err = cfg.getFileSDScrapeWork(swsNew)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	sws = cfg.getFileSDScrapeWork(swsNew)
 	if len(sws) != 0 {
 		t.Fatalf("unexpected non-empty sws:\n%#v", sws)
 	}
@@ -148,7 +137,7 @@ func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	if err := cfg.parse(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse data: %s", err)
 	}
-	return cfg.getFileSDScrapeWork(nil)
+	return cfg.getFileSDScrapeWork(nil), nil
 }
 
 func getStaticScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
@@ -156,7 +145,7 @@ func getStaticScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	if err := cfg.parse(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse data: %s", err)
 	}
-	return cfg.getStaticScrapeWork()
+	return cfg.getStaticScrapeWork(), nil
 }
 
 func TestGetStaticScrapeWorkFailure(t *testing.T) {
@@ -188,22 +177,6 @@ scrape_configs:
   scheme: asdf
   static_configs:
   - targets: ["foo"]
-`)
-
-	// Empty target
-	f(`
-scrape_configs:
-- job_name: x
-  static_configs:
-  - targets: ["foo", ""]
-`)
-
-	// Invalid url
-	f(`
-scrape_configs:
-- job_name: x
-  static_configs:
-  - targets: ["a b"]
 `)
 
 	// Missing username in `basic_auth`
@@ -456,6 +429,7 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 		{
 			ScrapeURL:       "http://host2:80/abc/de",
@@ -489,6 +463,7 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 		{
 			ScrapeURL:       "http://localhost:9090/abc/de",
@@ -522,6 +497,7 @@ scrape_configs:
 					Value: "test",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 }
@@ -568,6 +544,7 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 	f(`
@@ -612,6 +589,7 @@ scrape_configs:
 					Value: "xxx",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 	f(`
@@ -676,7 +654,9 @@ scrape_configs:
 					Value: "y",
 				},
 			},
-			Authorization: "Bearer xyz",
+			AuthConfig: &promauth.Config{
+				Authorization: "Bearer xyz",
+			},
 		},
 		{
 			ScrapeURL:       "https://aaa:443/foo/bar?p=x%26y&p=%3D",
@@ -710,7 +690,9 @@ scrape_configs:
 					Value: "y",
 				},
 			},
-			Authorization: "Bearer xyz",
+			AuthConfig: &promauth.Config{
+				Authorization: "Bearer xyz",
+			},
 		},
 		{
 			ScrapeURL:       "http://1.2.3.4:80/metrics",
@@ -736,9 +718,11 @@ scrape_configs:
 					Value: "qwer",
 				},
 			},
-			Authorization:         "Basic dXNlcjpwYXNz",
-			TLSServerName:         "foobar",
-			TLSInsecureSkipVerify: true,
+			AuthConfig: &promauth.Config{
+				Authorization:         "Basic dXNlcjpwYXNz",
+				TLSServerName:         "foobar",
+				TLSInsecureSkipVerify: true,
+			},
 		},
 	})
 	f(`
@@ -807,6 +791,7 @@ scrape_configs:
 					Value: "http://foo.bar:1234/metrics",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 	f(`
@@ -867,6 +852,7 @@ scrape_configs:
 					Value: "https",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 	f(`
@@ -904,6 +890,7 @@ scrape_configs:
 					Value: "3",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 	f(`
@@ -937,6 +924,7 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 			MetricRelabelConfigs: []promrelabel.ParsedRelabelConfig{
 				{
 					SourceLabels: []string{"foo"},
@@ -980,7 +968,9 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			Authorization: "Basic eHl6OnNlY3JldC1wYXNz",
+			AuthConfig: &promauth.Config{
+				Authorization: "Basic eHl6OnNlY3JldC1wYXNz",
+			},
 		},
 	})
 	f(`
@@ -1012,7 +1002,9 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			Authorization: "Bearer secret-pass",
+			AuthConfig: &promauth.Config{
+				Authorization: "Bearer secret-pass",
+			},
 		},
 	})
 	snakeoilCert, err := tls.LoadX509KeyPair("testdata/ssl-cert-snakeoil.pem", "testdata/ssl-cert-snakeoil.key")
@@ -1050,7 +1042,9 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			TLSCertificate: &snakeoilCert,
+			AuthConfig: &promauth.Config{
+				TLSCertificate: &snakeoilCert,
+			},
 		},
 	})
 	f(`
@@ -1107,6 +1101,7 @@ scrape_configs:
 					Value: "qwe",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 	f(`
@@ -1160,6 +1155,7 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
+			AuthConfig: &promauth.Config{},
 		},
 	})
 }

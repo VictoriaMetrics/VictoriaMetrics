@@ -56,14 +56,8 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
-	swsStatic, err := cfg.getStaticScrapeWork()
-	if err != nil {
-		logger.Fatalf("cannot parse `static_configs` from %q: %s", configFile, err)
-	}
-	swsFileSD, err := cfg.getFileSDScrapeWork(nil)
-	if err != nil {
-		logger.Fatalf("cannot parse `file_sd_config` from %q: %s", configFile, err)
-	}
+	swsStatic := cfg.getStaticScrapeWork()
+	swsFileSD := cfg.getFileSDScrapeWork(nil)
 
 	mustStop := false
 	for !mustStop {
@@ -89,18 +83,9 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
-			swsStaticNew, err := cfgNew.getStaticScrapeWork()
-			if err != nil {
-				logger.Errorf("cannot parse `static_configs` from %q: %s; continuing with the previous config", configFile, err)
-				goto waitForChans
-			}
-			swsFileSDNew, err := cfgNew.getFileSDScrapeWork(swsFileSD)
-			if err != nil {
-				logger.Errorf("cannot parse `file_sd_config` from %q: %s; continuing with the previous config", configFile, err)
-			}
 			cfg = cfgNew
-			swsStatic = swsStaticNew
-			swsFileSD = swsFileSDNew
+			swsStatic = cfg.getStaticScrapeWork()
+			swsFileSD = cfg.getFileSDScrapeWork(swsFileSD)
 		case <-globalStopCh:
 			mustStop = true
 		}
@@ -151,10 +136,7 @@ func runFileSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbma
 	waitForChans:
 		select {
 		case <-ticker.C:
-			swsNew, err := cfg.getFileSDScrapeWork(sws)
-			if err != nil {
-				logger.Panicf("BUG: error when re-reading `file_sd_config` targets the second time: %s", err)
-			}
+			swsNew := cfg.getFileSDScrapeWork(sws)
 			if equalStaticConfigForScrapeWorks(swsNew, sws) {
 				// Nothing changed, continue waiting for updated scrape work
 				goto waitForChans
@@ -173,7 +155,7 @@ func runFileSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbma
 
 var (
 	fileSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="file_sd"}`)
-	fileSDReloads = metrics.NewCounter(`vm_promscrape_file_sd_reloads_total`)
+	fileSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="file_sd"}`)
 )
 
 func equalStaticConfigForScrapeWorks(as, bs []ScrapeWork) bool {
