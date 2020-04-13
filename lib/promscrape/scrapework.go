@@ -1,13 +1,12 @@
 package promscrape
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"math/rand"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -48,16 +47,8 @@ type ScrapeWork struct {
 	// See also https://prometheus.io/docs/concepts/jobs_instances/
 	Labels []prompbmarshal.Label
 
-	// Optional `Authorization` header.
-	//
-	// It may contain `Basic ....` or `Bearer ....` string.
-	Authorization string
-
-	// Optional TLS config
-	TLSRootCA             *x509.CertPool
-	TLSCertificate        *tls.Certificate
-	TLSServerName         string
-	TLSInsecureSkipVerify bool
+	// Auth config
+	AuthConfig *promauth.Config
 
 	// Optional `metric_relabel_configs`.
 	MetricRelabelConfigs []promrelabel.ParsedRelabelConfig

@@ -36,7 +36,7 @@ func newClient(sw *ScrapeWork) *client {
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
-		tlsCfg = getTLSConfig(sw)
+		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
 	if !strings.Contains(host, ":") {
 		if !isTLS {
@@ -64,7 +64,7 @@ func newClient(sw *ScrapeWork) *client {
 		scrapeURL:  sw.ScrapeURL,
 		host:       host,
 		requestURI: requestURI,
-		authHeader: sw.Authorization,
+		authHeader: sw.AuthConfig.Authorization,
 	}
 }
 
@@ -120,16 +120,3 @@ var (
 	scrapesGunzipped    = metrics.NewCounter(`vm_promscrape_scrapes_gunziped_total`)
 	scrapesGunzipFailed = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
 )
-
-func getTLSConfig(sw *ScrapeWork) *tls.Config {
-	tlsCfg := &tls.Config{
-		RootCAs:            sw.TLSRootCA,
-		ClientSessionCache: tls.NewLRUClientSessionCache(0),
-	}
-	if sw.TLSCertificate != nil {
-		tlsCfg.Certificates = []tls.Certificate{*sw.TLSCertificate}
-	}
-	tlsCfg.ServerName = sw.TLSServerName
-	tlsCfg.InsecureSkipVerify = sw.TLSInsecureSkipVerify
-	return tlsCfg
-}

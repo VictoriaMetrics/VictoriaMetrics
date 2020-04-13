@@ -1,18 +1,15 @@
 package promscrape
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"gopkg.in/yaml.v2"
@@ -48,10 +45,10 @@ type ScrapeConfig struct {
 	HonorTimestamps      bool                        `yaml:"honor_timestamps"`
 	Scheme               string                      `yaml:"scheme"`
 	Params               map[string][]string         `yaml:"params"`
-	BasicAuth            *BasicAuthConfig            `yaml:"basic_auth"`
+	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth"`
 	BearerToken          string                      `yaml:"bearer_token"`
 	BearerTokenFile      string                      `yaml:"bearer_token_file"`
-	TLSConfig            *TLSConfig                  `yaml:"tls_config"`
+	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config"`
 	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
@@ -68,24 +65,6 @@ type ScrapeConfig struct {
 type FileSDConfig struct {
 	Files []string `yaml:"files"`
 	// `refresh_interval` is ignored. See `-prometheus.fileSDCheckInterval`
-}
-
-// TLSConfig represents TLS config.
-//
-// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
-type TLSConfig struct {
-	CAFile             string `yaml:"ca_file"`
-	CertFile           string `yaml:"cert_file"`
-	KeyFile            string `yaml:"key_file"`
-	ServerName         string `yaml:"server_name"`
-	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
-}
-
-// BasicAuthConfig represents basic auth config.
-type BasicAuthConfig struct {
-	Username     string `yaml:"username"`
-	Password     string `yaml:"password"`
-	PasswordFile string `yaml:"password_file"`
 }
 
 // StaticConfig represents essential parts for `static_config` section of Prometheus config.
@@ -150,36 +129,7 @@ func (cfg *Config) fileSDConfigsCount() int {
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) ([]ScrapeWork, error) {
-	var sws []ScrapeWork
-	for i := range cfg.ScrapeConfigs {
-		var err error
-		sws, err = cfg.ScrapeConfigs[i].appendFileSDScrapeWork(sws, prev, cfg.baseDir)
-		if err != nil {
-			return nil, fmt.Errorf("error when parsing `scrape_config` #%d: %s", i+1, err)
-		}
-	}
-	return sws, nil
-}
-
-// getStaticScrapeWork returns `static_configs` ScrapeWork from from cfg.
-func (cfg *Config) getStaticScrapeWork() ([]ScrapeWork, error) {
-	var sws []ScrapeWork
-	for i := range cfg.ScrapeConfigs {
-		var err error
-		sws, err = cfg.ScrapeConfigs[i].appendStaticScrapeWork(sws)
-		if err != nil {
-			return nil, fmt.Errorf("error when parsing `scrape_config` #%d: %s", i+1, err)
-		}
-	}
-	return sws, nil
-}
-
-func (sc *ScrapeConfig) appendFileSDScrapeWork(dst, prev []ScrapeWork, baseDir string) ([]ScrapeWork, error) {
-	if len(sc.FileSDConfigs) == 0 {
-		// Fast path - no `file_sd_configs`
-		return dst, nil
-	}
+func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	// Create a map for the previous scrape work.
 	swPrev := make(map[string][]ScrapeWork)
 	for i := range prev {
@@ -191,25 +141,24 @@ func (sc *ScrapeConfig) appendFileSDScrapeWork(dst, prev []ScrapeWork, baseDir s
 			swPrev[label.Value] = append(swPrev[label.Value], *sw)
 		}
 	}
-	for i := range sc.FileSDConfigs {
-		var err error
-		dst, err = sc.FileSDConfigs[i].appendScrapeWork(dst, swPrev, baseDir, sc.swc)
-		if err != nil {
-			return nil, fmt.Errorf("error when parsing `file_sd_config` #%d: %s", i+1, err)
+	var dst []ScrapeWork
+	for _, sc := range cfg.ScrapeConfigs {
+		for _, sdc := range sc.FileSDConfigs {
+			dst = sdc.appendScrapeWork(dst, swPrev, cfg.baseDir, sc.swc)
 		}
 	}
-	return dst, nil
+	return dst
 }
 
-func (sc *ScrapeConfig) appendStaticScrapeWork(dst []ScrapeWork) ([]ScrapeWork, error) {
-	for i := range sc.StaticConfigs {
-		var err error
-		dst, err = sc.StaticConfigs[i].appendScrapeWork(dst, sc.swc)
-		if err != nil {
-			return nil, fmt.Errorf("error when parsing `static_config` #%d: %s", i+1, err)
+// getStaticScrapeWork returns `static_configs` ScrapeWork from from cfg.
+func (cfg *Config) getStaticScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for _, sc := range cfg.ScrapeConfigs {
+		for _, stc := range sc.StaticConfigs {
+			dst = stc.appendScrapeWork(dst, sc.swc, nil)
 		}
 	}
-	return dst, nil
+	return dst
 }
 
 func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConfig) (*scrapeWorkConfig, error) {
@@ -245,79 +194,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		return nil, fmt.Errorf("unexpected `scheme` for `job_name` %q: %q; supported values: http or https", jobName, scheme)
 	}
 	params := sc.Params
-	var authorization string
-	if sc.BasicAuth != nil {
-		if sc.BasicAuth.Username == "" {
-			return nil, fmt.Errorf("missing `username` in `basic_auth` section for `job_name` %q", jobName)
-		}
-		username := sc.BasicAuth.Username
-		password := sc.BasicAuth.Password
-		if sc.BasicAuth.PasswordFile != "" {
-			if sc.BasicAuth.Password != "" {
-				return nil, fmt.Errorf("both `password`=%q and `password_file`=%q are set in `basic_auth` section for `job_name` %q",
-					sc.BasicAuth.Password, sc.BasicAuth.PasswordFile, jobName)
-			}
-			path := getFilepath(baseDir, sc.BasicAuth.PasswordFile)
-			pass, err := readPasswordFromFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section for `job_name` %q: %s",
-					sc.BasicAuth.PasswordFile, jobName, err)
-			}
-			password = pass
-		}
-		// See https://en.wikipedia.org/wiki/Basic_access_authentication
-		token := username + ":" + password
-		token64 := base64.StdEncoding.EncodeToString([]byte(token))
-		authorization = "Basic " + token64
+	ac, err := promauth.NewConfig(baseDir, sc.BasicAuth, sc.BearerToken, sc.BearerTokenFile, sc.TLSConfig)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %s", jobName, err)
 	}
-	bearerToken := sc.BearerToken
-	if sc.BearerTokenFile != "" {
-		if sc.BearerToken != "" {
-			return nil, fmt.Errorf("both `bearer_token`=%q and `bearer_token_file`=%q are set for `job_name` %q", sc.BearerToken, sc.BearerTokenFile, jobName)
-		}
-		path := getFilepath(baseDir, sc.BearerTokenFile)
-		token, err := readPasswordFromFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q for `job_name` %q: %s", sc.BearerTokenFile, jobName, err)
-		}
-		bearerToken = token
-	}
-	if bearerToken != "" {
-		if authorization != "" {
-			return nil, fmt.Errorf("cannot use both `basic_auth` and `bearer_token` for `job_name` %q", jobName)
-		}
-		authorization = "Bearer " + bearerToken
-	}
-	var tlsRootCA *x509.CertPool
-	var tlsCertificate *tls.Certificate
-	tlsServerName := ""
-	tlsInsecureSkipVerify := false
-	if sc.TLSConfig != nil {
-		tlsServerName = sc.TLSConfig.ServerName
-		tlsInsecureSkipVerify = sc.TLSConfig.InsecureSkipVerify
-		if sc.TLSConfig.CertFile != "" || sc.TLSConfig.KeyFile != "" {
-			certPath := getFilepath(baseDir, sc.TLSConfig.CertFile)
-			keyPath := getFilepath(baseDir, sc.TLSConfig.KeyFile)
-			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-			if err != nil {
-				return nil, fmt.Errorf("cannot load TLS certificate for `job_name` %q from `cert_file`=%q, `key_file`=%q: %s",
-					jobName, sc.TLSConfig.CertFile, sc.TLSConfig.KeyFile, err)
-			}
-			tlsCertificate = &cert
-		}
-		if sc.TLSConfig.CAFile != "" {
-			path := getFilepath(baseDir, sc.TLSConfig.CAFile)
-			data, err := ioutil.ReadFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("cannot read `ca_file` %q for `job_name` %q: %s", sc.TLSConfig.CAFile, jobName, err)
-			}
-			tlsRootCA = x509.NewCertPool()
-			if !tlsRootCA.AppendCertsFromPEM(data) {
-				return nil, fmt.Errorf("cannot parse data from `ca_file` %q for `job_name` %q", sc.TLSConfig.CAFile, jobName)
-			}
-		}
-	}
-	var err error
 	var relabelConfigs []promrelabel.ParsedRelabelConfig
 	relabelConfigs, err = promrelabel.ParseRelabelConfigs(relabelConfigs[:0], sc.RelabelConfigs)
 	if err != nil {
@@ -330,49 +210,40 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	}
 	scrapeLimit := sc.ScrapeLimit
 	swc := &scrapeWorkConfig{
-		scrapeInterval:        scrapeInterval,
-		scrapeTimeout:         scrapeTimeout,
-		jobName:               jobName,
-		metricsPath:           metricsPath,
-		scheme:                scheme,
-		params:                params,
-		authorization:         authorization,
-		honorLabels:           honorLabels,
-		honorTimestamps:       honorTimestamps,
-		externalLabels:        globalCfg.ExternalLabels,
-		tlsRootCA:             tlsRootCA,
-		tlsCertificate:        tlsCertificate,
-		tlsServerName:         tlsServerName,
-		tlsInsecureSkipVerify: tlsInsecureSkipVerify,
-		relabelConfigs:        relabelConfigs,
-		metricRelabelConfigs:  metricRelabelConfigs,
-		scrapeLimit:           scrapeLimit,
+		scrapeInterval:       scrapeInterval,
+		scrapeTimeout:        scrapeTimeout,
+		jobName:              jobName,
+		metricsPath:          metricsPath,
+		scheme:               scheme,
+		params:               params,
+		authConfig:           ac,
+		honorLabels:          honorLabels,
+		honorTimestamps:      honorTimestamps,
+		externalLabels:       globalCfg.ExternalLabels,
+		relabelConfigs:       relabelConfigs,
+		metricRelabelConfigs: metricRelabelConfigs,
+		scrapeLimit:          scrapeLimit,
 	}
 	return swc, nil
 }
 
 type scrapeWorkConfig struct {
-	scrapeInterval        time.Duration
-	scrapeTimeout         time.Duration
-	jobName               string
-	metricsPath           string
-	scheme                string
-	params                map[string][]string
-	authorization         string
-	honorLabels           bool
-	honorTimestamps       bool
-	externalLabels        map[string]string
-	tlsRootCA             *x509.CertPool
-	tlsCertificate        *tls.Certificate
-	tlsServerName         string
-	tlsInsecureSkipVerify bool
-	relabelConfigs        []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs  []promrelabel.ParsedRelabelConfig
-	scrapeLimit           int
-	metaLabels            map[string]string
+	scrapeInterval       time.Duration
+	scrapeTimeout        time.Duration
+	jobName              string
+	metricsPath          string
+	scheme               string
+	params               map[string][]string
+	authConfig           *promauth.Config
+	honorLabels          bool
+	honorTimestamps      bool
+	externalLabels       map[string]string
+	relabelConfigs       []promrelabel.ParsedRelabelConfig
+	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
+	scrapeLimit          int
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, error) {
+func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
 	for _, file := range sdc.Files {
 		pathPattern := getFilepath(baseDir, file)
 		paths := []string{pathPattern}
@@ -380,7 +251,9 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 			var err error
 			paths, err = filepath.Glob(pathPattern)
 			if err != nil {
-				return nil, fmt.Errorf("invalid pattern %q in `files` section: %s", file, err)
+				// Do not return this error, since other files may contain valid scrape configs.
+				logger.Errorf("invalid pattern %q in `files` section: %s; skipping it", file, err)
+				continue
 			}
 		}
 		for _, path := range paths {
@@ -396,7 +269,6 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 				}
 				continue
 			}
-			swcCopy := *swc
 			pathShort := path
 			if strings.HasPrefix(pathShort, baseDir) {
 				pathShort = path[len(baseDir):]
@@ -404,88 +276,89 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 					pathShort = pathShort[1:]
 				}
 			}
-			swcCopy.metaLabels = map[string]string{
+			metaLabels := map[string]string{
 				"__meta_filepath": pathShort,
 			}
 			for i := range stcs {
-				dst, err = stcs[i].appendScrapeWork(dst, &swcCopy)
-				if err != nil {
-					// Do not return this error, since other paths may contain valid scrape configs.
-					logger.Errorf("error when parsing `static_config` #%d from %q: %s", i+1, path, err)
-					continue
-				}
+				dst = stcs[i].appendScrapeWork(dst, swc, metaLabels)
 			}
 		}
 	}
-	return dst, nil
+	return dst
 }
 
-func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig) ([]ScrapeWork, error) {
+func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, metaLabels map[string]string) []ScrapeWork {
 	for _, target := range stc.Targets {
 		if target == "" {
-			return nil, fmt.Errorf("`static_configs` target for `job_name` %q cannot be empty", swc.jobName)
+			// Do not return this error, since other targets may be valid
+			logger.Errorf("`static_configs` target for `job_name` %q cannot be empty; skipping it", swc.jobName)
+			continue
 		}
-		labels, err := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, stc.Labels, swc.externalLabels, swc.metaLabels, swc.params)
+		var err error
+		dst, err = appendScrapeWork(dst, swc, target, stc.Labels, metaLabels)
 		if err != nil {
-			return nil, fmt.Errorf("cannot merge labels for `static_configs` target for `job_name` %q: %s", swc.jobName, err)
-		}
-		labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
-		if len(labels) == 0 {
-			// Drop target without labels.
+			// Do not return this error, since other targets may be valid
+			logger.Errorf("error when parsing `static_configs` target %q for `job_name` %q: %s; skipping it", target, swc.jobName, err)
 			continue
 		}
-		// See https://www.robustperception.io/life-of-a-label
-		schemeRelabeled := ""
-		if schemeLabel := promrelabel.GetLabelByName(labels, "__scheme__"); schemeLabel != nil {
-			schemeRelabeled = schemeLabel.Value
-		}
-		if schemeRelabeled == "" {
-			schemeRelabeled = "http"
-		}
-		addressLabel := promrelabel.GetLabelByName(labels, "__address__")
-		if addressLabel == nil || addressLabel.Name == "" {
-			// Drop target without scrape address.
-			continue
-		}
-		targetRelabeled := addMissingPort(schemeRelabeled, addressLabel.Value)
-		if strings.Contains(targetRelabeled, "/") {
-			// Drop target with '/'
-			continue
-		}
-		metricsPathRelabeled := ""
-		if metricsPathLabel := promrelabel.GetLabelByName(labels, "__metrics_path__"); metricsPathLabel != nil {
-			metricsPathRelabeled = metricsPathLabel.Value
-		}
-		if metricsPathRelabeled == "" {
-			metricsPathRelabeled = "/metrics"
-		}
-		paramsRelabeled := getParamsFromLabels(labels, swc.params)
-		optionalQuestion := "?"
-		if len(paramsRelabeled) == 0 || strings.Contains(metricsPathRelabeled, "?") {
-			optionalQuestion = ""
-		}
-		paramsStr := url.Values(paramsRelabeled).Encode()
-		scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, targetRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
-		if _, err := url.Parse(scrapeURL); err != nil {
-			return nil, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
-				scrapeURL, swc.scheme, schemeRelabeled, target, targetRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
-		}
-		dst = append(dst, ScrapeWork{
-			ScrapeURL:             scrapeURL,
-			ScrapeInterval:        swc.scrapeInterval,
-			ScrapeTimeout:         swc.scrapeTimeout,
-			HonorLabels:           swc.honorLabels,
-			HonorTimestamps:       swc.honorTimestamps,
-			Labels:                labels,
-			Authorization:         swc.authorization,
-			TLSRootCA:             swc.tlsRootCA,
-			TLSCertificate:        swc.tlsCertificate,
-			TLSServerName:         swc.tlsServerName,
-			TLSInsecureSkipVerify: swc.tlsInsecureSkipVerify,
-			MetricRelabelConfigs:  swc.metricRelabelConfigs,
-			ScrapeLimit:           swc.scrapeLimit,
-		})
 	}
+	return dst
+}
+
+func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]ScrapeWork, error) {
+	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
+	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
+	if len(labels) == 0 {
+		// Drop target without labels.
+		return dst, nil
+	}
+	// See https://www.robustperception.io/life-of-a-label
+	schemeRelabeled := ""
+	if schemeLabel := promrelabel.GetLabelByName(labels, "__scheme__"); schemeLabel != nil {
+		schemeRelabeled = schemeLabel.Value
+	}
+	if schemeRelabeled == "" {
+		schemeRelabeled = "http"
+	}
+	addressLabel := promrelabel.GetLabelByName(labels, "__address__")
+	if addressLabel == nil || addressLabel.Name == "" {
+		// Drop target without scrape address.
+		return dst, nil
+	}
+	targetRelabeled := addMissingPort(schemeRelabeled, addressLabel.Value)
+	if strings.Contains(targetRelabeled, "/") {
+		// Drop target with '/'
+		return dst, nil
+	}
+	metricsPathRelabeled := ""
+	if metricsPathLabel := promrelabel.GetLabelByName(labels, "__metrics_path__"); metricsPathLabel != nil {
+		metricsPathRelabeled = metricsPathLabel.Value
+	}
+	if metricsPathRelabeled == "" {
+		metricsPathRelabeled = "/metrics"
+	}
+	paramsRelabeled := getParamsFromLabels(labels, swc.params)
+	optionalQuestion := "?"
+	if len(paramsRelabeled) == 0 || strings.Contains(metricsPathRelabeled, "?") {
+		optionalQuestion = ""
+	}
+	paramsStr := url.Values(paramsRelabeled).Encode()
+	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, targetRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
+	if _, err := url.Parse(scrapeURL); err != nil {
+		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
+			scrapeURL, swc.scheme, schemeRelabeled, target, targetRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
+	}
+	dst = append(dst, ScrapeWork{
+		ScrapeURL:            scrapeURL,
+		ScrapeInterval:       swc.scrapeInterval,
+		ScrapeTimeout:        swc.scrapeTimeout,
+		HonorLabels:          swc.honorLabels,
+		HonorTimestamps:      swc.honorTimestamps,
+		Labels:               labels,
+		AuthConfig:           swc.authConfig,
+		MetricRelabelConfigs: swc.metricRelabelConfigs,
+		ScrapeLimit:          swc.scrapeLimit,
+	})
 	return dst, nil
 }
 
@@ -507,7 +380,7 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 	return m
 }
 
-func mergeLabels(job, scheme, target, metricsPath string, labels, externalLabels, metaLabels map[string]string, params map[string][]string) ([]prompbmarshal.Label, error) {
+func mergeLabels(job, scheme, target, metricsPath string, extraLabels, externalLabels, metaLabels map[string]string, params map[string][]string) []prompbmarshal.Label {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 	m := make(map[string]string)
 	for k, v := range externalLabels {
@@ -525,7 +398,7 @@ func mergeLabels(job, scheme, target, metricsPath string, labels, externalLabels
 		v := args[0]
 		m[k] = v
 	}
-	for k, v := range labels {
+	for k, v := range extraLabels {
 		m[k] = v
 	}
 	for k, v := range metaLabels {
@@ -538,7 +411,7 @@ func mergeLabels(job, scheme, target, metricsPath string, labels, externalLabels
 			Value: v,
 		})
 	}
-	return result, nil
+	return result
 }
 
 func getFilepath(baseDir, path string) string {
@@ -546,15 +419,6 @@ func getFilepath(baseDir, path string) string {
 		return path
 	}
 	return filepath.Join(baseDir, path)
-}
-
-func readPasswordFromFile(path string) (string, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	pass := strings.TrimRightFunc(string(data), unicode.IsSpace)
-	return pass, nil
 }
 
 func addMissingPort(scheme, target string) string {
