@@ -373,6 +373,12 @@ scrape_configs:
 `)
 }
 
+func resetScrapeWorkIDs(sws []ScrapeWork) {
+	for i := range sws {
+		sws[i].ID = 0
+	}
+}
+
 func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 	f := func(data string, expectedSws []ScrapeWork) {
 		t.Helper()
@@ -380,6 +386,7 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		resetScrapeWorkIDs(sws)
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
 		}
@@ -509,6 +516,7 @@ func TestGetStaticScrapeWorkSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		resetScrapeWorkIDs(sws)
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
 		}
