@@ -280,3 +280,14 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 	}
 	return nil
 }
+
+// GetLabelValueByName returns value for label with the given name from labels.
+//
+// It returns empty string for non-existing label.
+func GetLabelValueByName(labels []prompbmarshal.Label, name string) string {
+	label := GetLabelByName(labels, name)
+	if label == nil {
+		return ""
+	}
+	return label.Value
+}
