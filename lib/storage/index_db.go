@@ -1389,6 +1389,11 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 		var err error
 		metricName.B, err = is.searchMetricName(metricName.B[:0], metricID, accountID, projectID)
 		if err != nil {
+			if err == io.EOF {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
 			return fmt.Errorf("cannot find metricName by metricID %d: %s", metricID, err)
 		}
 		if err := mn.Unmarshal(metricName.B); err != nil {
