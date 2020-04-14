@@ -60,6 +60,15 @@ type ScrapeWork struct {
 	SampleLimit int
 }
 
+// Job returns job for the ScrapeWork
+func (sw *ScrapeWork) Job() string {
+	label := promrelabel.GetLabelByName(sw.Labels, "job")
+	if label == nil {
+		return ""
+	}
+	return label.Value
+}
+
 type scrapeWork struct {
 	// Config for the scrape.
 	Config ScrapeWork
@@ -114,12 +123,12 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 }
 
 func (sw *scrapeWork) logError(s string) {
-	logger.ErrorfSkipframes(1, "error when scraping %q: %s", sw.Config.ScrapeURL, s)
+	logger.ErrorfSkipframes(1, "error when scraping %q from job %q: %s", sw.Config.ScrapeURL, sw.Config.Job(), s)
 }
 
 func (sw *scrapeWork) scrapeAndLogError(timestamp int64) {
 	if err := sw.scrapeInternal(timestamp); err != nil {
-		logger.Errorf("error when scraping %q: %s", sw.Config.ScrapeURL, err)
+		logger.Errorf("error when scraping %q from job %q: %s", sw.Config.ScrapeURL, sw.Config.Job(), err)
 	}
 }
 

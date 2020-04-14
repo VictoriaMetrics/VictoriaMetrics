@@ -70,11 +70,7 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
-		job := ""
-		label := promrelabel.GetLabelByName(st.sw.Labels, "job")
-		if label != nil {
-			job = label.Value
-		}
+		job := st.sw.Job()
 		byJob[job] = append(byJob[job], st)
 	}
 	tsm.mu.Unlock()
