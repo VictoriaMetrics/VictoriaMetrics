@@ -628,3 +628,50 @@ func TestFinalizeLabels(t *testing.T) {
 		},
 	})
 }
+
+func TestRemoveMetaLabels(t *testing.T) {
+	f := func(labels, resultExpected []prompbmarshal.Label) {
+		t.Helper()
+		result := RemoveMetaLabels(nil, labels)
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result of RemoveMetaLabels;\ngot\n%v\nwant\n%v", result, resultExpected)
+		}
+	}
+	f(nil, nil)
+	f([]prompbmarshal.Label{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, []prompbmarshal.Label{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	})
+	f([]prompbmarshal.Label{
+		{
+			Name:  "__meta_foo",
+			Value: "bar",
+		},
+	}, nil)
+	f([]prompbmarshal.Label{
+		{
+			Name:  "__meta_foo",
+			Value: "bdffr",
+		},
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "__meta_xxx",
+			Value: "basd",
+		},
+	}, []prompbmarshal.Label{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	})
+}
