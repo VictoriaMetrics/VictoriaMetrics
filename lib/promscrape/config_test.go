@@ -409,16 +409,16 @@ scrape_configs:
 					Value: "host1",
 				},
 				{
-					Name:  "__meta_filepath",
-					Value: "testdata/file_sd.json",
-				},
-				{
 					Name:  "__metrics_path__",
 					Value: "/abc/de",
 				},
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "__vm_filepath",
+					Value: "testdata/file_sd.json",
 				},
 				{
 					Name:  "job",
@@ -443,16 +443,16 @@ scrape_configs:
 					Value: "host2",
 				},
 				{
-					Name:  "__meta_filepath",
-					Value: "testdata/file_sd.json",
-				},
-				{
 					Name:  "__metrics_path__",
 					Value: "/abc/de",
 				},
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "__vm_filepath",
+					Value: "testdata/file_sd.json",
 				},
 				{
 					Name:  "job",
@@ -477,16 +477,16 @@ scrape_configs:
 					Value: "localhost:9090",
 				},
 				{
-					Name:  "__meta_filepath",
-					Value: "testdata/file_sd_1.yml",
-				},
-				{
 					Name:  "__metrics_path__",
 					Value: "/abc/de",
 				},
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "__vm_filepath",
+					Value: "testdata/file_sd_1.yml",
 				},
 				{
 					Name:  "job",

@@ -69,6 +69,20 @@ func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbm
 	return dst
 }
 
+// RemoveMetaLabels removes all the `__meta_` labels from src and puts the rest of labels to dst.
+//
+// See https://www.robustperception.io/life-of-a-label fo details.
+func RemoveMetaLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
+	for i := range src {
+		label := &src[i]
+		if strings.HasPrefix(label.Name, "__meta_") {
+			continue
+		}
+		dst = append(dst, *label)
+	}
+	return dst
+}
+
 // FinalizeLabels finalizes labels according to relabel_config rules.
 //
 // It renames `__address__` to `instance` and removes labels with "__" in the beginning.

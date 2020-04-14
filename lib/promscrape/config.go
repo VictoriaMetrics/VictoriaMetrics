@@ -190,9 +190,9 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swPrev := make(map[string][]ScrapeWork)
 	for i := range prev {
 		sw := &prev[i]
-		label := promrelabel.GetLabelByName(sw.Labels, "__meta_filepath")
+		label := promrelabel.GetLabelByName(sw.Labels, "__vm_filepath")
 		if label == nil {
-			logger.Panicf("BUG: missing `__meta_filepath` label")
+			logger.Panicf("BUG: missing `__vm_filepath` label")
 		} else {
 			swPrev[label.Value] = append(swPrev[label.Value], *sw)
 		}
@@ -401,6 +401,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 			}
 			metaLabels := map[string]string{
 				"__meta_filepath": pathShort,
+				"__vm_filepath":   pathShort, // This label is needed for internal promscrape logic
 			}
 			for i := range stcs {
 				dst = stcs[i].appendScrapeWork(dst, swc, metaLabels)
@@ -431,6 +432,7 @@ func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfi
 func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
 	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
+	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	if len(labels) == 0 {
 		// Drop target without labels.
 		return dst, nil
