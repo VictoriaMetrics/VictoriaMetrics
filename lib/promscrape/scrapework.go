@@ -54,7 +54,7 @@ type ScrapeWork struct {
 	MetricRelabelConfigs []promrelabel.ParsedRelabelConfig
 
 	// The maximum number of metrics to scrape after relabeling.
-	ScrapeLimit int
+	SampleLimit int
 }
 
 type scrapeWork struct {
@@ -124,7 +124,7 @@ var (
 	scrapeDuration              = metrics.NewHistogram("vm_promscrape_scrape_duration_seconds")
 	scrapeResponseSize          = metrics.NewHistogram("vm_promscrape_scrape_response_size_bytes")
 	scrapedSamples              = metrics.NewHistogram("vm_promscrape_scraped_samples")
-	scrapesSkippedByScrapeLimit = metrics.NewCounter("vm_promscrape_scrapes_skipped_by_scrape_limit_total")
+	scrapesSkippedBySampleLimit = metrics.NewCounter("vm_promscrape_scrapes_skipped_by_sample_limit_total")
 	scrapesFailed               = metrics.NewCounter("vm_promscrape_scrapes_failed_total")
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
 )
@@ -151,10 +151,10 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 		sw.addRowToTimeseries(&srcRows[i], timestamp)
 	}
 	sw.rows.Reset()
-	if sw.Config.ScrapeLimit > 0 && len(sw.writeRequest.Timeseries) > sw.Config.ScrapeLimit {
+	if sw.Config.SampleLimit > 0 && len(sw.writeRequest.Timeseries) > sw.Config.SampleLimit {
 		prompbmarshal.ResetWriteRequest(&sw.writeRequest)
 		up = 0
-		scrapesSkippedByScrapeLimit.Inc()
+		scrapesSkippedBySampleLimit.Inc()
 	}
 	samplesPostRelabeling := len(sw.writeRequest.Timeseries)
 	sw.addAutoTimeseries("up", float64(up), timestamp)
