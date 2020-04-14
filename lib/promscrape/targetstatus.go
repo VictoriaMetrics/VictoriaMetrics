@@ -86,6 +86,7 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 		return jss[i].job < jss[j].job
 	})
 
+	targetsByEndpoint := make(map[string]int)
 	for _, js := range jss {
 		sts := js.statuses
 		sort.Slice(sts, func(i, j int) bool {
@@ -115,7 +116,19 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 			}
 			fmt.Fprintf(w, "\tstate=%s, endpoint=%s, labels=%s, last_scrape=%.3fs ago, scrape_duration=%.3fs, error=%q\n",
 				state, st.sw.ScrapeURL, labelsStr, lastScrape.Seconds(), float64(st.scrapeDuration)/1000, errMsg)
+			key := fmt.Sprintf("endpoint=%s, labels=%s", st.sw.ScrapeURL, labelsStr)
+			targetsByEndpoint[key]++
 		}
+	}
+	fmt.Fprintf(w, "\n")
+
+	// Check whether there are targets with duplicate endpoints and labels.
+	for key, n := range targetsByEndpoint {
+		if n <= 1 {
+			continue
+		}
+		fmt.Fprintf(w, "!!! Scrape config error: %d duplicate targets with identical endpoint and labels found:\n", n)
+		fmt.Fprintf(w, "\t%s\n", key)
 	}
 }
 

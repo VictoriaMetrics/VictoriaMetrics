@@ -183,7 +183,7 @@ Read more about relabeling in the following articles:
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. It is recommended setting up regular scraping of this page
 either via `vmagent` itself or via Prometheus, so the exported metrics could be analyzed later.
 
-`vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format.
+`vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format. This page also exports information on improperly configured scrape configs.
 
 
 ### Troubleshooting
