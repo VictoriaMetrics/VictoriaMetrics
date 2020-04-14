@@ -191,11 +191,11 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swPrev := make(map[string][]ScrapeWork)
 	for i := range prev {
 		sw := &prev[i]
-		label := promrelabel.GetLabelByName(sw.Labels, "__vm_filepath")
-		if label == nil {
+		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
+		if len(filepath) == 0 {
 			logger.Panicf("BUG: missing `__vm_filepath` label")
 		} else {
-			swPrev[label.Value] = append(swPrev[label.Value], *sw)
+			swPrev[filepath] = append(swPrev[filepath], *sw)
 		}
 	}
 	var dst []ScrapeWork
@@ -439,27 +439,21 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		return dst, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
-	schemeRelabeled := ""
-	if schemeLabel := promrelabel.GetLabelByName(labels, "__scheme__"); schemeLabel != nil {
-		schemeRelabeled = schemeLabel.Value
-	}
-	if schemeRelabeled == "" {
+	schemeRelabeled := promrelabel.GetLabelValueByName(labels, "__scheme__")
+	if len(schemeRelabeled) == 0 {
 		schemeRelabeled = "http"
 	}
-	addressLabel := promrelabel.GetLabelByName(labels, "__address__")
-	if addressLabel == nil || addressLabel.Name == "" {
+	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
+	if len(addressRelabeled) == 0 {
 		// Drop target without scrape address.
 		return dst, nil
 	}
-	targetRelabeled := addMissingPort(schemeRelabeled, addressLabel.Value)
+	targetRelabeled := addMissingPort(schemeRelabeled, addressRelabeled)
 	if strings.Contains(targetRelabeled, "/") {
 		// Drop target with '/'
 		return dst, nil
 	}
-	metricsPathRelabeled := ""
-	if metricsPathLabel := promrelabel.GetLabelByName(labels, "__metrics_path__"); metricsPathLabel != nil {
-		metricsPathRelabeled = metricsPathLabel.Value
-	}
+	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
 	}

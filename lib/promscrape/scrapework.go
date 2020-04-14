@@ -62,11 +62,7 @@ type ScrapeWork struct {
 
 // Job returns job for the ScrapeWork
 func (sw *ScrapeWork) Job() string {
-	label := promrelabel.GetLabelByName(sw.Labels, "job")
-	if label == nil {
-		return ""
-	}
-	return label.Value
+	return promrelabel.GetLabelValueByName(sw.Labels, "job")
 }
 
 type scrapeWork struct {
