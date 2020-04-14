@@ -20,18 +20,18 @@ func WriteHumanReadableTargetsStatus(w io.Writer) {
 
 type targetStatusMap struct {
 	mu sync.Mutex
-	m  map[string]targetStatus
+	m  map[uint64]targetStatus
 }
 
 func newTargetStatusMap() *targetStatusMap {
 	return &targetStatusMap{
-		m: make(map[string]targetStatus),
+		m: make(map[uint64]targetStatus),
 	}
 }
 
 func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Lock()
-	tsm.m = make(map[string]targetStatus)
+	tsm.m = make(map[uint64]targetStatus)
 	tsm.mu.Unlock()
 }
 
@@ -39,7 +39,7 @@ func (tsm *targetStatusMap) RegisterAll(sws []ScrapeWork) {
 	tsm.mu.Lock()
 	for i := range sws {
 		sw := &sws[i]
-		tsm.m[sw.ScrapeURL] = targetStatus{
+		tsm.m[sw.ID] = targetStatus{
 			sw: sw,
 		}
 	}
@@ -49,14 +49,14 @@ func (tsm *targetStatusMap) RegisterAll(sws []ScrapeWork) {
 func (tsm *targetStatusMap) UnregisterAll(sws []ScrapeWork) {
 	tsm.mu.Lock()
 	for i := range sws {
-		delete(tsm.m, sws[i].ScrapeURL)
+		delete(tsm.m, sws[i].ID)
 	}
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Update(sw *ScrapeWork, up bool, scrapeTime, scrapeDuration int64, err error) {
 	tsm.mu.Lock()
-	tsm.m[sw.ScrapeURL] = targetStatus{
+	tsm.m[sw.ID] = targetStatus{
 		sw:             sw,
 		up:             up,
 		scrapeTime:     scrapeTime,

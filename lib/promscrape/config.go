@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -474,6 +475,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 			scrapeURL, swc.scheme, schemeRelabeled, target, targetRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
 	}
 	dst = append(dst, ScrapeWork{
+		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       swc.scrapeInterval,
 		ScrapeTimeout:        swc.scrapeTimeout,
@@ -486,6 +488,9 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	})
 	return dst, nil
 }
+
+// Each ScrapeWork has an ID, which is used for locating it when updating its status.
+var nextScrapeWorkID uint64
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {
 	// See https://www.robustperception.io/life-of-a-label

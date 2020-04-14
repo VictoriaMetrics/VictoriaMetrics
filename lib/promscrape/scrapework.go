@@ -15,6 +15,9 @@ import (
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
 type ScrapeWork struct {
+	// Unique ID for the ScrapeWork.
+	ID uint64
+
 	// Full URL (including query args) for the scrape.
 	ScrapeURL string
 
