@@ -243,7 +243,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		bar{a="b",c="d"} -3e4
 	`, &ScrapeWork{
 		HonorLabels: true,
-		ScrapeLimit: 1,
+		SampleLimit: 1,
 	}, `
 		up 0 123
 		scrape_samples_scraped 2 123

@@ -61,7 +61,7 @@ type ScrapeConfig struct {
 	KubernetesSDConfigs  []KubernetesSDConfig        `yaml:"kubernetes_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
-	ScrapeLimit          int                         `yaml:"scrape_limit"`
+	SampleLimit          int                         `yaml:"sample_limit"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -264,7 +264,6 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %s", jobName, err)
 	}
-	scrapeLimit := sc.ScrapeLimit
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeTimeout:        scrapeTimeout,
@@ -278,7 +277,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		externalLabels:       globalCfg.ExternalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
-		scrapeLimit:          scrapeLimit,
+		sampleLimit:          sc.SampleLimit,
 	}
 	return swc, nil
 }
@@ -296,7 +295,7 @@ type scrapeWorkConfig struct {
 	externalLabels       map[string]string
 	relabelConfigs       []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
-	scrapeLimit          int
+	sampleLimit          int
 }
 
 func (sdc *KubernetesSDConfig) appendScrapeWork(dst []ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
@@ -481,7 +480,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		Labels:               labels,
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
-		ScrapeLimit:          swc.scrapeLimit,
+		SampleLimit:          swc.sampleLimit,
 	})
 	return dst, nil
 }
