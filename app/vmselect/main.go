@@ -233,7 +233,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.Errorf("error in %q: %s", r.RequestURI, err)
+	logger.Warnf("error in %q: %s", r.RequestURI, err)
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
