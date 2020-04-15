@@ -59,9 +59,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
-	swsStatic := cfg.getStaticScrapeWork()
-	swsFileSD := cfg.getFileSDScrapeWork(nil)
-	swsK8S := cfg.getKubernetesSDScrapeWork()
 
 	mustStop := false
 	for !mustStop {
@@ -70,17 +67,17 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runStaticScrapers(swsStatic, pushData, stopCh)
+			runStaticScrapers(cfg, pushData, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runFileSDScrapers(swsFileSD, cfg, pushData, stopCh)
+			runFileSDScrapers(cfg, pushData, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runKubernetesSDScrapers(swsK8S, cfg, pushData, stopCh)
+			runKubernetesSDScrapers(cfg, pushData, stopCh)
 		}()
 
 	waitForChans:
@@ -93,9 +90,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				goto waitForChans
 			}
 			cfg = cfgNew
-			swsStatic = cfg.getStaticScrapeWork()
-			swsFileSD = cfg.getFileSDScrapeWork(swsFileSD)
-			swsK8S = cfg.getKubernetesSDScrapeWork()
 		case <-globalStopCh:
 			mustStop = true
 		}
@@ -111,7 +105,8 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 
 var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
 
-func runStaticScrapers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+func runStaticScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	sws := cfg.getStaticScrapeWork()
 	if len(sws) == 0 {
 		return
 	}
@@ -124,10 +119,11 @@ func runStaticScrapers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRe
 
 var staticTargets = metrics.NewCounter(`vm_promscrape_targets{type="static"}`)
 
-func runKubernetesSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+func runKubernetesSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
 	if cfg.kubernetesSDConfigsCount() == 0 {
 		return
 	}
+	sws := cfg.getKubernetesSDScrapeWork()
 	ticker := time.NewTicker(*kubernetesSDCheckInterval)
 	defer ticker.Stop()
 	mustStop := false
@@ -168,10 +164,11 @@ var (
 	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
 )
 
-func runFileSDScrapers(sws []ScrapeWork, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+func runFileSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
 	if cfg.fileSDConfigsCount() == 0 {
 		return
 	}
+	sws := cfg.getFileSDScrapeWork(nil)
 	ticker := time.NewTicker(*fileSDCheckInterval)
 	defer ticker.Stop()
 	mustStop := false
