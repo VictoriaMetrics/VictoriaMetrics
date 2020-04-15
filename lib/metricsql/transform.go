@@ -32,9 +32,9 @@ var transformFuncs = map[string]bool{
 	"sort_desc":          true,
 	"sqrt":               true,
 	"time":               true,
-	"timestamp":          true,
-	"vector":             true,
-	"year":               true,
+	// "timestamp" has been moved to rollup funcs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415
+	"vector": true,
+	"year":   true,
 
 	// New funcs from MetricsQL
 	"label_set":          true,

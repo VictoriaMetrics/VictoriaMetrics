@@ -53,9 +53,9 @@ var transformFuncs = map[string]transformFunc{
 	"sort_desc":          newTransformFuncSort(true),
 	"sqrt":               newTransformFuncOneArg(transformSqrt),
 	"time":               transformTime,
-	"timestamp":          transformTimestamp,
-	"vector":             transformVector,
-	"year":               newTransformFuncDateTime(transformYear),
+	// "timestamp" has been moved to rollup funcs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415
+	"vector": transformVector,
+	"year":   newTransformFuncDateTime(transformYear),
 
 	// New funcs
 	"label_set":          transformLabelSet,
@@ -1514,25 +1514,6 @@ func transformTime(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	return evalTime(tfa.ec), nil
-}
-
-func transformTimestamp(tfa *transformFuncArg) ([]*timeseries, error) {
-	args := tfa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
-		return nil, err
-	}
-	rvs := args[0]
-	for _, ts := range rvs {
-		ts.MetricName.ResetMetricGroup()
-		values := ts.Values
-		for i, t := range ts.Timestamps {
-			v := values[i]
-			if !math.IsNaN(v) {
-				values[i] = float64(t) / 1e3
-			}
-		}
-	}
-	return rvs, nil
 }
 
 func transformVector(tfa *transformFuncArg) ([]*timeseries, error) {
