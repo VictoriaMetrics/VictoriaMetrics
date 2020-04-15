@@ -119,7 +119,7 @@ func gzipHandler(rh RequestHandler) http.HandlerFunc {
 		handlerWrapper(w, r, rh)
 		if zrw, ok := w.(*gzipResponseWriter); ok {
 			if err := zrw.Close(); err != nil && !isTrivialNetworkError(err) {
-				logger.Errorf("gzipResponseWriter.Close: %s", err)
+				logger.Warnf("gzipResponseWriter.Close: %s", err)
 			}
 		}
 	}
@@ -276,10 +276,10 @@ func (zrw *gzipResponseWriter) WriteHeader(statusCode int) {
 // Implements http.Flusher
 func (zrw *gzipResponseWriter) Flush() {
 	if err := zrw.bw.Flush(); err != nil && !isTrivialNetworkError(err) {
-		logger.Errorf("gzipResponseWriter.Flush (buffer): %s", err)
+		logger.Warnf("gzipResponseWriter.Flush (buffer): %s", err)
 	}
 	if err := zrw.zw.Flush(); err != nil && !isTrivialNetworkError(err) {
-		logger.Errorf("gzipResponseWriter.Flush (gzip): %s", err)
+		logger.Warnf("gzipResponseWriter.Flush (gzip): %s", err)
 	}
 	if fw, ok := zrw.ResponseWriter.(http.Flusher); ok {
 		fw.Flush()
@@ -366,7 +366,7 @@ var (
 // Errorf writes formatted error message to w and to logger.
 func Errorf(w http.ResponseWriter, format string, args ...interface{}) {
 	errStr := fmt.Sprintf(format, args...)
-	logger.ErrorfSkipframes(1, "%s", errStr)
+	logger.WarnfSkipframes(1, "%s", errStr)
 
 	// Extract statusCode from args
 	statusCode := http.StatusBadRequest

@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC")
+	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WRAN, ERROR, FATAL, PANIC")
 	loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 )
@@ -51,10 +51,10 @@ var output io.Writer = os.Stderr
 
 func validateLoggerLevel() {
 	switch *loggerLevel {
-	case "INFO", "ERROR", "FATAL", "PANIC":
+	case "INFO", "WARN", "ERROR", "FATAL", "PANIC":
 	default:
 		// We cannot use logger.Panicf here, since the logger isn't initialized yet.
-		panic(fmt.Errorf("FATAL: unsupported `-loggerLevel` value: %q; supported values are: INFO, ERROR, FATAL, PANIC", *loggerLevel))
+		panic(fmt.Errorf("FATAL: unsupported `-loggerLevel` value: %q; supported values are: INFO, WARN, ERROR, FATAL, PANIC", *loggerLevel))
 	}
 }
 
@@ -79,9 +79,19 @@ func Infof(format string, args ...interface{}) {
 	logLevel("INFO", format, args...)
 }
 
+// Warnf logs warn message.
+func Warnf(format string, args ...interface{}) {
+	logLevel("WARN", format, args...)
+}
+
 // Errorf logs error message.
 func Errorf(format string, args ...interface{}) {
 	logLevel("ERROR", format, args...)
+}
+
+// WarnfSkipframes logs warn message and skips the given number of frames for the caller.
+func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
+	logLevelSkipframes(skipframes, "WARN", format, args...)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
@@ -185,6 +195,13 @@ var mu sync.Mutex
 
 func shouldSkipLog(level string) bool {
 	switch *loggerLevel {
+	case "WARN":
+		switch level {
+		case "WARN", "ERROR", "FATAL", "PANIC":
+			return false
+		default:
+			return true
+		}
 	case "ERROR":
 		switch level {
 		case "ERROR", "FATAL", "PANIC":
