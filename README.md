@@ -909,7 +909,7 @@ The most interesting metrics are:
 
 ### Backfilling
 
-VictoriaMetrics accepts historical data in arbitrary order of time.
+VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
 Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
 
 It is recommended disabling query cache with `-search.disableCache` command-line flag when writing
