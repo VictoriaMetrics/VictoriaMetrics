@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WRAN, ERROR, FATAL, PANIC")
+	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 )
