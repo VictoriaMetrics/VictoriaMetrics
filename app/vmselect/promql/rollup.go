@@ -72,6 +72,11 @@ var rollupFuncs = map[string]newRollupFunc{
 	"aggr_over_time":        newRollupFuncTwoArgs(rollupFake),
 	"hoeffding_bound_upper": newRollupHoeffdingBoundUpper,
 	"hoeffding_bound_lower": newRollupHoeffdingBoundLower,
+
+	// `timestamp` function must return timestamp for the last datapoint on the current window
+	// in order to properly handle offset and timestamps unaligned to the current step.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
+	"timestamp": newRollupFuncOneArg(rollupTimestamp),
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -1507,6 +1512,19 @@ func rollupLow(rfa *rollupFuncArg) float64 {
 		}
 	}
 	return min
+}
+
+func rollupTimestamp(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	timestamps := rfa.timestamps
+	if len(timestamps) == 0 {
+		// Do not take into account rfa.prevTimestamp, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
+	}
+	return float64(timestamps[len(timestamps)-1]) / 1e3
 }
 
 func rollupFirst(rfa *rollupFuncArg) float64 {

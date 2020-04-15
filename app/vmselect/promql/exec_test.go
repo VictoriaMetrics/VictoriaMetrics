@@ -348,7 +348,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `timestamp(123)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -359,7 +359,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `timestamp(time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -370,7 +370,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `timestamp(456/time()+123)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Values:     []float64{900, 1100, 1300, 1500, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -381,7 +381,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `timestamp(time()>=1600)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Values:     []float64{nan, nan, nan, nan, 1700, 1900},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
