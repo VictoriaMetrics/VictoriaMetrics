@@ -444,7 +444,7 @@ The `format` query arg must contain comma-separated list of parsing rules for CS
 
 * `<column_pos>` is the position of the CSV column (field). Column numbering starts from 1. The order of parsing rules may be arbitrary.
 * `<type>` describes the column type. Supported types are:
-  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value, which must be integer of floating-point number.
+  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value, which must be integer or floating-point number.
     The metric name is read from the `<context>`. CSV line must have at least a single metric field. Multiple metric fields per CSV line is OK.
   * `label` - the corresponding CSV column at `<column_pos>` contains label value. The label name is read from the `<context>`.
     CSV line may have arbitrary number of label fields. All these labels are attached to all the configured metrics.
