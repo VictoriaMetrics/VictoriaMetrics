@@ -272,7 +272,8 @@ For instance, put the following lines into `Telegraf` config, so it sends data t
 
 Do not forget substituting `<victoriametrics-addr>` with the real address where VictoriaMetrics runs.
 
-Another option is to enable TCP and UDP receiver for Influx line protocol via `-influxListenAddr` command-line flag.
+Another option is to enable TCP and UDP receiver for Influx line protocol via `-influxListenAddr` command-line flag
+and stream plain Influx line protocol data to the configured TCP and/or UDP addresses.
 
 VictoriaMetrics maps Influx data using the following rules:
 
