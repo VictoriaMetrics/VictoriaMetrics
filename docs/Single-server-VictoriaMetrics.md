@@ -602,7 +602,7 @@ Steps for restoring from a snapshot:
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
-the deleted time series isn't freed instantly - it is freed during subsequent merges of data files.
+the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
 before actually deleting the metrics.
@@ -617,9 +617,10 @@ The delete API is intended mainly for the following cases:
 It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
 
 * Regular cleanups for unneded data. Just prevent writing unneeded data into VictoriaMetrics.
+  This can be done with relabeling in [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
   See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
 * Reducing disk space usage by deleting unneded time series. This doesn't work as expected, since the deleted
-  time series occupy disk space until the next merge operation, which can never occur.
+  time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
 
 It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
 
