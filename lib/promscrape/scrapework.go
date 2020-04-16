@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -13,6 +14,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	suppressScrapeErrors = flag.Bool("promscrape.suppressScrapeErrors", false, "Whether to suppress scrape errors logging. "+
+		"The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -130,11 +136,13 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 }
 
 func (sw *scrapeWork) logError(s string) {
-	logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
+	if !*suppressScrapeErrors {
+		logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
+	}
 }
 
 func (sw *scrapeWork) scrapeAndLogError(timestamp int64) {
-	if err := sw.scrapeInternal(timestamp); err != nil {
+	if err := sw.scrapeInternal(timestamp); err != nil && !*suppressScrapeErrors {
 		logger.Errorf("error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
 	}
 }
