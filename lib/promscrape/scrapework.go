@@ -1,7 +1,9 @@
 package promscrape
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -65,6 +67,15 @@ func (sw *ScrapeWork) Job() string {
 	return promrelabel.GetLabelValueByName(sw.Labels, "job")
 }
 
+// LabelsString returns labels in Prometheus format for the given sw.
+func (sw *ScrapeWork) LabelsString() string {
+	labels := make([]string, 0, len(sw.Labels))
+	for _, label := range promrelabel.FinalizeLabels(nil, sw.Labels) {
+		labels = append(labels, fmt.Sprintf("%s=%q", label.Name, label.Value))
+	}
+	return "{" + strings.Join(labels, ", ") + "}"
+}
+
 type scrapeWork struct {
 	// Config for the scrape.
 	Config ScrapeWork
@@ -119,12 +130,12 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 }
 
 func (sw *scrapeWork) logError(s string) {
-	logger.ErrorfSkipframes(1, "error when scraping %q from job %q: %s", sw.Config.ScrapeURL, sw.Config.Job(), s)
+	logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
 }
 
 func (sw *scrapeWork) scrapeAndLogError(timestamp int64) {
 	if err := sw.scrapeInternal(timestamp); err != nil {
-		logger.Errorf("error when scraping %q from job %q: %s", sw.Config.ScrapeURL, sw.Config.Job(), err)
+		logger.Errorf("error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
 	}
 }
 
