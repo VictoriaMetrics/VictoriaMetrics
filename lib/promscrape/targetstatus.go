@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 var tsmGlobal = newTargetStatusMap()
@@ -104,11 +101,7 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 			if !st.up {
 				state = "down"
 			}
-			var labels []string
-			for _, label := range promrelabel.FinalizeLabels(nil, st.sw.Labels) {
-				labels = append(labels, fmt.Sprintf("%s=%q", label.Name, label.Value))
-			}
-			labelsStr := "{" + strings.Join(labels, ", ") + "}"
+			labelsStr := st.sw.LabelsString()
 			lastScrape := st.getDurationFromLastScrape()
 			errMsg := ""
 			if st.err != nil {
