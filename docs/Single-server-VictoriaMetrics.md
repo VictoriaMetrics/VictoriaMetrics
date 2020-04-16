@@ -255,6 +255,7 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 
 * [static_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config)
 * [file_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config)
+* [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config)
 
 In the future other `*_sd_config` types will be supported.
 
