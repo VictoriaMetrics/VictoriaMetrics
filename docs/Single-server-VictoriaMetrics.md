@@ -607,6 +607,8 @@ the deleted time series isn't freed instantly - it is freed during subsequent me
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
 before actually deleting the metrics.
 
+The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
+
 The delete API is intended mainly for the following cases:
 
 * One-off deleting of accidentally written invalid (or undesired) time series.
