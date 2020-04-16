@@ -79,8 +79,8 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		req.Header.Set("Authorization", c.authHeader)
 	}
 	resp := fasthttp.AcquireResponse()
-	// There is no need in calling DoTimeout, since the timeout is already set in c.hc.ReadTimeout.
-	err := c.hc.Do(req, resp)
+	err := doRequestWithPossibleRetry(c.hc, req, resp)
+
 	fasthttp.ReleaseRequest(req)
 	if err != nil {
 		fasthttp.ReleaseResponse(resp)
@@ -120,3 +120,16 @@ var (
 	scrapesGunzipped    = metrics.NewCounter(`vm_promscrape_scrapes_gunziped_total`)
 	scrapesGunzipFailed = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
 )
+
+func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
+	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
+	err := hc.Do(req, resp)
+	if err == nil {
+		return nil
+	}
+	if err != fasthttp.ErrConnectionClosed {
+		return err
+	}
+	// Retry request if the server closed the keep-alive connection during the first attempt.
+	return hc.Do(req, resp)
+}
