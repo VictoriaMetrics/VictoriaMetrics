@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// GetServicesLabels returns labels for k8s services obtained from the given apiServer
+// GetServicesLabels returns labels for k8s services obtained from the given cfg.
 func GetServicesLabels(cfg *APIConfig) ([]map[string]string, error) {
 	svcs, err := getServices(cfg)
 	if err != nil {
