@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmbackup/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
@@ -16,6 +17,7 @@ import (
 var (
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage")
 	snapshotName    = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots")
+	snapshotURL     = flag.String("snapshotURL", "", "vmstorage endpoint. When this is given an snapshot will automatically be created and removed for a backup")
 	dst             = flag.String("dst", "", "Where to put the backup on the remote storage. "+
 		"Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir\n"+
 		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded")
@@ -29,6 +31,14 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 
+	if len(*snapshotURL) > 0 {
+		name, err := snapshot.TakeSnapshot(*snapshotURL)
+		if err != nil {
+			logger.Fatalf("%s", err)
+		}
+		defer snapshot.DeleteSnapshot(*snapshotURL, name)
+		flag.Set("snapshotName", name)
+	}
 	srcFS, err := newSrcFS()
 	if err != nil {
 		logger.Fatalf("%s", err)
@@ -67,7 +77,7 @@ See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/a
 
 func newSrcFS() (*fslocal.FS, error) {
 	if len(*snapshotName) == 0 {
-		return nil, fmt.Errorf("`-snapshotName` cannot be empty")
+		return nil, fmt.Errorf("`-snapshotName` or `-snapshotURL` cannot be blank")
 	}
 	snapshotPath := *storageDataPath + "/snapshots/" + *snapshotName
 
