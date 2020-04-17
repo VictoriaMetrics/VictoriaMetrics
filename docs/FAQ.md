@@ -74,7 +74,7 @@ VictoriaMetrics is similar to Cortex in the following aspects:
   i.e. there is no need in running sidecars unlike in [Thanos](https://github.com/thanos-io/thanos) case.
 - Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format).
 
-The main differences between Corex and VictoriaMetrics:
+The main differences between Cortex and VictoriaMetrics:
 - Cortex re-uses Prometheus source code, while VictoriaMetrics is written from scratch.
 - Cortex provides [Ruler](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md#ruler) and [Alertmanager](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md#alertmanager) components,
   which are currently missing in VictoriaMetrics. However, these components can be substituted by [Promxy](https://github.com/jacksontj/promxy#how-do-i-use-alertingrecording-rules-in-promxy).
