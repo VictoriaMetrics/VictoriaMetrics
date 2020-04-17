@@ -280,6 +280,7 @@ with fasthttp support:
   * [fasthttprouter](https://github.com/buaazp/fasthttprouter)
   * [lu](https://github.com/vincentLiuxiang/lu)
   * [atreugo](https://github.com/savsgio/atreugo)
+  * [Fiber](https://github.com/gofiber/fiber)
 
   Net/http code with simple ServeMux is trivially converted to fasthttp code:
 
@@ -485,6 +486,8 @@ uintBuf := fasthttp.AppendUint(nil, 1234)
     powerful routing package for fasthttp servers.
   * [fasthttprouter](https://github.com/buaazp/fasthttprouter) - a high
     performance fasthttp request router that scales well.
+  * [fastws](https://github.com/fasthttp/fastws) - Bloatless WebSocket package made for fasthttp
+    to handle Read/Write operations concurrently.
   * [gramework](https://github.com/gramework/gramework) - a web framework made by one of fasthttp maintainers
   * [lu](https://github.com/vincentLiuxiang/lu) - a high performance
     go middleware web framework which is based on fasthttp.
@@ -494,6 +497,7 @@ uintBuf := fasthttp.AppendUint(nil, 1234)
   * [atreugo](https://github.com/savsgio/atreugo) - High performance and extensible micro web framework with zero memory allocations in hot paths.
   * [kratgo](https://github.com/savsgio/kratgo) - Simple, lightweight and ultra-fast HTTP Cache to speed up your websites.
   * [kit-plugins](https://github.com/wencan/kit-plugins/tree/master/transport/fasthttp) - go-kit transport implementation for fasthttp.
+  * [Fiber](https://github.com/gofiber/fiber) - An Expressjs inspired web framework running on Fasthttp
 
 
 # FAQ
@@ -565,6 +569,7 @@ uintBuf := fasthttp.AppendUint(nil, 1234)
     * [gramework](https://github.com/gramework/gramework)
     * [lu](https://github.com/vincentLiuxiang/lu)
     * [atreugo](https://github.com/savsgio/atreugo)
+    * [Fiber](https://github.com/gofiber/fiber)
 
   See also [this issue](https://github.com/valyala/fasthttp/issues/9) for more info.
 

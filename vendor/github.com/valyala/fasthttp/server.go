@@ -280,6 +280,14 @@ type Server struct {
 	// Server accepts all the requests by default.
 	GetOnly bool
 
+	// Will not pre parse Multipart Form data if set to true.
+	//
+	// This option is useful for servers that desire to treat
+	// multipart form data as a binary blob, or choose when to parse the data.
+	//
+	// Server pre parses multipart form data by default.
+	DisablePreParseMultipartForm bool
+
 	// Logs all errors, including the most frequent
 	// 'connection reset by peer', 'broken pipe' and 'connection timeout'
 	// errors. Such errors are common in production serving real-world
@@ -321,6 +329,13 @@ type Server struct {
 	// the only time a Server header will be sent is if a non-zero length
 	// value is explicitly provided during a request.
 	NoDefaultServerHeader bool
+
+	// NoDefaultDate, when set to true, causes the default Date
+	// header to be excluded from the Response.
+	//
+	// The default Date header value is the current date value. When
+	// set to true, the Date will not be present.
+	NoDefaultDate bool
 
 	// NoDefaultContentType, when set to true, causes the default Content-Type
 	// header to be excluded from the Response.
@@ -876,16 +891,21 @@ func (ctx *RequestCtx) FormFile(key string) (*multipart.FileHeader, error) {
 var ErrMissingFile = errors.New("there is no uploaded file associated with the given key")
 
 // SaveMultipartFile saves multipart file fh under the given filename path.
-func SaveMultipartFile(fh *multipart.FileHeader, path string) error {
-	f, err := fh.Open()
+func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
+	var (
+		f  multipart.File
+		ff *os.File
+	)
+	f, err = fh.Open()
 	if err != nil {
-		return err
+		return
 	}
 
-	if ff, ok := f.(*os.File); ok {
+	var ok bool
+	if ff, ok = f.(*os.File); ok {
 		// Windows can't rename files that are opened.
-		if err := f.Close(); err != nil {
-			return err
+		if err = f.Close(); err != nil {
+			return
 		}
 
 		// If renaming fails we try the normal copying method.
@@ -895,21 +915,29 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) error {
 		}
 
 		// Reopen f for the code below.
-		f, err = fh.Open()
-		if err != nil {
-			return err
+		if f, err = fh.Open(); err != nil {
+			return
 		}
 	}
 
-	defer f.Close()
+	defer func() {
+		e := f.Close()
+		if err == nil {
+			err = e
+		}
+	}()
 
-	ff, err := os.Create(path)
-	if err != nil {
-		return err
+	if ff, err = os.Create(path); err != nil {
+		return
 	}
-	defer ff.Close()
+	defer func() {
+		e := ff.Close()
+		if err == nil {
+			err = e
+		}
+	}()
 	_, err = copyZeroAlloc(ff, f)
-	return err
+	return
 }
 
 // FormValue returns form value associated with the given key.
@@ -1822,7 +1850,15 @@ func (s *Server) GetCurrentConcurrency() uint32 {
 //
 // This function is intended be used by monitoring systems
 func (s *Server) GetOpenConnectionsCount() int32 {
-	return atomic.LoadInt32(&s.open) - 1
+	if atomic.LoadInt32(&s.stop) == 0 {
+		// Decrement by one to avoid reporting the extra open value that gets
+		// counted while the server is listening.
+		return atomic.LoadInt32(&s.open) - 1
+	}
+	// This is not perfect, because s.stop could have changed to zero
+	// before we load the value of s.open. However, in the common case
+	// this avoids underreporting open connections by 1 during server shutdown.
+	return atomic.LoadInt32(&s.open)
 }
 
 func (s *Server) getConcurrency() int {
@@ -1930,6 +1966,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 
 		ctx.Request.isTLS = isTLS
 		ctx.Response.Header.noDefaultContentType = s.NoDefaultContentType
+		ctx.Response.Header.noDefaultDate = s.NoDefaultDate
 
 		if err == nil {
 			if s.ReadTimeout > 0 {
@@ -1959,7 +1996,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 					}
 				}
 				//read body
-				err = ctx.Request.readLimitBody(br, maxRequestBodySize, s.GetOnly)
+				err = ctx.Request.readLimitBody(br, maxRequestBodySize, s.GetOnly, !s.DisablePreParseMultipartForm)
 			}
 			if err == nil {
 				// If we read any bytes off the wire, we're active.
@@ -2018,7 +2055,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 			if br == nil {
 				br = acquireReader(ctx)
 			}
-			err = ctx.Request.ContinueReadBody(br, maxRequestBodySize)
+			err = ctx.Request.ContinueReadBody(br, maxRequestBodySize, !s.DisablePreParseMultipartForm)
 			if (s.ReduceMemoryUsage && br.Buffered() == 0) || err != nil {
 				releaseReader(s, br)
 				br = nil
@@ -2058,7 +2095,7 @@ func (s *Server) serveConn(c net.Conn) (err error) {
 
 		hijackHandler = ctx.hijackHandler
 		ctx.hijackHandler = nil
-		hijackNoResponse = ctx.hijackNoResponse
+		hijackNoResponse = ctx.hijackNoResponse && hijackHandler != nil
 		ctx.hijackNoResponse = false
 
 		ctx.userValues.Reset()
@@ -2492,16 +2529,20 @@ func (s *Server) writeFastError(w io.Writer, statusCode int, msg string) {
 		server = fmt.Sprintf("Server: %s\r\n", s.getServerName())
 	}
 
-	serverDateOnce.Do(updateServerDate)
+	date := ""
+	if !s.NoDefaultDate {
+		serverDateOnce.Do(updateServerDate)
+		date = fmt.Sprintf("Date: %s\r\n", serverDate.Load())
+	}
 
 	fmt.Fprintf(w, "Connection: close\r\n"+
 		server+
-		"Date: %s\r\n"+
+		date+
 		"Content-Type: text/plain\r\n"+
 		"Content-Length: %d\r\n"+
 		"\r\n"+
 		"%s",
-		serverDate.Load(), len(msg), msg)
+		len(msg), msg)
 }
 
 func defaultErrorHandler(ctx *RequestCtx, err error) {

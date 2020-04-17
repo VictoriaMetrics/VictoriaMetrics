@@ -5,7 +5,10 @@
 package event
 
 import (
+	"fmt"
+	"io"
 	"math"
+	"strconv"
 )
 
 var (
@@ -17,20 +20,20 @@ var (
 	Err = NewErrorKey("error", "an error that occurred")
 )
 
-// Key is the interface shared by all key implementations.
+// Key is used as the identity of a Tag.
+// Keys are intended to be compared by pointer only, the name should be unique
+// for communicating with external systems, but it is not required or enforced.
 type Key interface {
 	// Name returns the key name.
 	Name() string
 	// Description returns a string that can be used to describe the value.
 	Description() string
-}
 
-// key is used as the identity of a Tag.
-// Keys are intended to be compared by pointer only, the name should be unique
-// for communicating with external systems, but it is not required or enforced.
-type key struct {
-	name        string
-	description string
+	// Format is used in formatting to append the value of the tag to the
+	// supplied buffer.
+	// The formatter may use the supplied buf as a scratch area to avoid
+	// allocations.
+	Format(w io.Writer, buf []byte, tag Tag)
 }
 
 // ValueKey represents a key for untyped values.
@@ -47,6 +50,10 @@ func NewKey(name, description string) *ValueKey {
 func (k *ValueKey) Name() string        { return k.name }
 func (k *ValueKey) Description() string { return k.description }
 
+func (k *ValueKey) Format(w io.Writer, buf []byte, tag Tag) {
+	fmt.Fprint(w, k.From(tag))
+}
+
 // Get can be used to get a tag for the key from a TagMap.
 func (k *ValueKey) Get(tags TagMap) interface{} {
 	if t := tags.Find(k); t.Valid() {
@@ -56,10 +63,10 @@ func (k *ValueKey) Get(tags TagMap) interface{} {
 }
 
 // From can be used to get a value from a Tag.
-func (k *ValueKey) From(t Tag) interface{} { return t.untyped }
+func (k *ValueKey) From(t Tag) interface{} { return t.UnpackValue() }
 
 // Of creates a new Tag with this key and the supplied value.
-func (k *ValueKey) Of(value interface{}) Tag { return Tag{Key: k, untyped: value} }
+func (k *ValueKey) Of(value interface{}) Tag { return TagOfValue(k, value) }
 
 // IntKey represents a key
 type IntKey struct {
@@ -75,8 +82,12 @@ func NewIntKey(name, description string) *IntKey {
 func (k *IntKey) Name() string        { return k.name }
 func (k *IntKey) Description() string { return k.description }
 
+func (k *IntKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *IntKey) Of(v int) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *IntKey) Of(v int) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *IntKey) Get(tags TagMap) int {
@@ -87,7 +98,7 @@ func (k *IntKey) Get(tags TagMap) int {
 }
 
 // From can be used to get a value from a Tag.
-func (k *IntKey) From(t Tag) int { return int(t.packed) }
+func (k *IntKey) From(t Tag) int { return int(t.Unpack64()) }
 
 // Int8Key represents a key
 type Int8Key struct {
@@ -103,8 +114,12 @@ func NewInt8Key(name, description string) *Int8Key {
 func (k *Int8Key) Name() string        { return k.name }
 func (k *Int8Key) Description() string { return k.description }
 
+func (k *Int8Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *Int8Key) Of(v int8) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *Int8Key) Of(v int8) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int8Key) Get(tags TagMap) int8 {
@@ -115,7 +130,7 @@ func (k *Int8Key) Get(tags TagMap) int8 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *Int8Key) From(t Tag) int8 { return int8(t.packed) }
+func (k *Int8Key) From(t Tag) int8 { return int8(t.Unpack64()) }
 
 // Int16Key represents a key
 type Int16Key struct {
@@ -131,8 +146,12 @@ func NewInt16Key(name, description string) *Int16Key {
 func (k *Int16Key) Name() string        { return k.name }
 func (k *Int16Key) Description() string { return k.description }
 
+func (k *Int16Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *Int16Key) Of(v int16) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *Int16Key) Of(v int16) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int16Key) Get(tags TagMap) int16 {
@@ -143,7 +162,7 @@ func (k *Int16Key) Get(tags TagMap) int16 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *Int16Key) From(t Tag) int16 { return int16(t.packed) }
+func (k *Int16Key) From(t Tag) int16 { return int16(t.Unpack64()) }
 
 // Int32Key represents a key
 type Int32Key struct {
@@ -159,8 +178,12 @@ func NewInt32Key(name, description string) *Int32Key {
 func (k *Int32Key) Name() string        { return k.name }
 func (k *Int32Key) Description() string { return k.description }
 
+func (k *Int32Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *Int32Key) Of(v int32) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *Int32Key) Of(v int32) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int32Key) Get(tags TagMap) int32 {
@@ -171,7 +194,7 @@ func (k *Int32Key) Get(tags TagMap) int32 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *Int32Key) From(t Tag) int32 { return int32(t.packed) }
+func (k *Int32Key) From(t Tag) int32 { return int32(t.Unpack64()) }
 
 // Int64Key represents a key
 type Int64Key struct {
@@ -187,8 +210,12 @@ func NewInt64Key(name, description string) *Int64Key {
 func (k *Int64Key) Name() string        { return k.name }
 func (k *Int64Key) Description() string { return k.description }
 
+func (k *Int64Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, k.From(tag), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *Int64Key) Of(v int64) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *Int64Key) Of(v int64) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int64Key) Get(tags TagMap) int64 {
@@ -199,7 +226,7 @@ func (k *Int64Key) Get(tags TagMap) int64 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *Int64Key) From(t Tag) int64 { return int64(t.packed) }
+func (k *Int64Key) From(t Tag) int64 { return int64(t.Unpack64()) }
 
 // UIntKey represents a key
 type UIntKey struct {
@@ -215,8 +242,12 @@ func NewUIntKey(name, description string) *UIntKey {
 func (k *UIntKey) Name() string        { return k.name }
 func (k *UIntKey) Description() string { return k.description }
 
+func (k *UIntKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *UIntKey) Of(v uint) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *UIntKey) Of(v uint) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UIntKey) Get(tags TagMap) uint {
@@ -227,7 +258,7 @@ func (k *UIntKey) Get(tags TagMap) uint {
 }
 
 // From can be used to get a value from a Tag.
-func (k *UIntKey) From(t Tag) uint { return uint(t.packed) }
+func (k *UIntKey) From(t Tag) uint { return uint(t.Unpack64()) }
 
 // UInt8Key represents a key
 type UInt8Key struct {
@@ -243,8 +274,12 @@ func NewUInt8Key(name, description string) *UInt8Key {
 func (k *UInt8Key) Name() string        { return k.name }
 func (k *UInt8Key) Description() string { return k.description }
 
+func (k *UInt8Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *UInt8Key) Of(v uint8) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *UInt8Key) Of(v uint8) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt8Key) Get(tags TagMap) uint8 {
@@ -255,7 +290,7 @@ func (k *UInt8Key) Get(tags TagMap) uint8 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *UInt8Key) From(t Tag) uint8 { return uint8(t.packed) }
+func (k *UInt8Key) From(t Tag) uint8 { return uint8(t.Unpack64()) }
 
 // UInt16Key represents a key
 type UInt16Key struct {
@@ -271,8 +306,12 @@ func NewUInt16Key(name, description string) *UInt16Key {
 func (k *UInt16Key) Name() string        { return k.name }
 func (k *UInt16Key) Description() string { return k.description }
 
+func (k *UInt16Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *UInt16Key) Of(v uint16) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *UInt16Key) Of(v uint16) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt16Key) Get(tags TagMap) uint16 {
@@ -283,7 +322,7 @@ func (k *UInt16Key) Get(tags TagMap) uint16 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *UInt16Key) From(t Tag) uint16 { return uint16(t.packed) }
+func (k *UInt16Key) From(t Tag) uint16 { return uint16(t.Unpack64()) }
 
 // UInt32Key represents a key
 type UInt32Key struct {
@@ -299,8 +338,12 @@ func NewUInt32Key(name, description string) *UInt32Key {
 func (k *UInt32Key) Name() string        { return k.name }
 func (k *UInt32Key) Description() string { return k.description }
 
+func (k *UInt32Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *UInt32Key) Of(v uint32) Tag { return Tag{Key: k, packed: uint64(v)} }
+func (k *UInt32Key) Of(v uint32) Tag { return TagOf64(k, uint64(v)) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt32Key) Get(tags TagMap) uint32 {
@@ -311,7 +354,7 @@ func (k *UInt32Key) Get(tags TagMap) uint32 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *UInt32Key) From(t Tag) uint32 { return uint32(t.packed) }
+func (k *UInt32Key) From(t Tag) uint32 { return uint32(t.Unpack64()) }
 
 // UInt64Key represents a key
 type UInt64Key struct {
@@ -327,8 +370,12 @@ func NewUInt64Key(name, description string) *UInt64Key {
 func (k *UInt64Key) Name() string        { return k.name }
 func (k *UInt64Key) Description() string { return k.description }
 
+func (k *UInt64Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, k.From(tag), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *UInt64Key) Of(v uint64) Tag { return Tag{Key: k, packed: v} }
+func (k *UInt64Key) Of(v uint64) Tag { return TagOf64(k, v) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt64Key) Get(tags TagMap) uint64 {
@@ -339,7 +386,7 @@ func (k *UInt64Key) Get(tags TagMap) uint64 {
 }
 
 // From can be used to get a value from a Tag.
-func (k *UInt64Key) From(t Tag) uint64 { return t.packed }
+func (k *UInt64Key) From(t Tag) uint64 { return t.Unpack64() }
 
 // Float32Key represents a key
 type Float32Key struct {
@@ -355,9 +402,13 @@ func NewFloat32Key(name, description string) *Float32Key {
 func (k *Float32Key) Name() string        { return k.name }
 func (k *Float32Key) Description() string { return k.description }
 
+func (k *Float32Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendFloat(buf, float64(k.From(tag)), 'E', -1, 32))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *Float32Key) Of(v float32) Tag {
-	return Tag{Key: k, packed: uint64(math.Float32bits(v))}
+	return TagOf64(k, uint64(math.Float32bits(v)))
 }
 
 // Get can be used to get a tag for the key from a TagMap.
@@ -370,7 +421,7 @@ func (k *Float32Key) Get(tags TagMap) float32 {
 
 // From can be used to get a value from a Tag.
 func (k *Float32Key) From(t Tag) float32 {
-	return math.Float32frombits(uint32(t.packed))
+	return math.Float32frombits(uint32(t.Unpack64()))
 }
 
 // Float64Key represents a key
@@ -387,9 +438,13 @@ func NewFloat64Key(name, description string) *Float64Key {
 func (k *Float64Key) Name() string        { return k.name }
 func (k *Float64Key) Description() string { return k.description }
 
+func (k *Float64Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendFloat(buf, k.From(tag), 'E', -1, 64))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *Float64Key) Of(v float64) Tag {
-	return Tag{Key: k, packed: math.Float64bits(v)}
+	return TagOf64(k, math.Float64bits(v))
 }
 
 // Get can be used to get a tag for the key from a TagMap.
@@ -402,7 +457,7 @@ func (k *Float64Key) Get(tags TagMap) float64 {
 
 // From can be used to get a value from a Tag.
 func (k *Float64Key) From(t Tag) float64 {
-	return math.Float64frombits(t.packed)
+	return math.Float64frombits(t.Unpack64())
 }
 
 // StringKey represents a key
@@ -419,8 +474,12 @@ func NewStringKey(name, description string) *StringKey {
 func (k *StringKey) Name() string        { return k.name }
 func (k *StringKey) Description() string { return k.description }
 
+func (k *StringKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendQuote(buf, k.From(tag)))
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *StringKey) Of(v string) Tag { return Tag{Key: k, str: v} }
+func (k *StringKey) Of(v string) Tag { return TagOfString(k, v) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *StringKey) Get(tags TagMap) string {
@@ -431,7 +490,7 @@ func (k *StringKey) Get(tags TagMap) string {
 }
 
 // From can be used to get a value from a Tag.
-func (k *StringKey) From(t Tag) string { return t.str }
+func (k *StringKey) From(t Tag) string { return t.UnpackString() }
 
 // BooleanKey represents a key
 type BooleanKey struct {
@@ -447,13 +506,16 @@ func NewBooleanKey(name, description string) *BooleanKey {
 func (k *BooleanKey) Name() string        { return k.name }
 func (k *BooleanKey) Description() string { return k.description }
 
+func (k *BooleanKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendBool(buf, k.From(tag)))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *BooleanKey) Of(v bool) Tag {
-	t := Tag{Key: k}
 	if v {
-		t.packed = 1
+		return TagOf64(k, 1)
 	}
-	return t
+	return TagOf64(k, 0)
 }
 
 // Get can be used to get a tag for the key from a TagMap.
@@ -465,7 +527,7 @@ func (k *BooleanKey) Get(tags TagMap) bool {
 }
 
 // From can be used to get a value from a Tag.
-func (k *BooleanKey) From(t Tag) bool { return t.packed > 0 }
+func (k *BooleanKey) From(t Tag) bool { return t.Unpack64() > 0 }
 
 // ErrorKey represents a key
 type ErrorKey struct {
@@ -481,8 +543,12 @@ func NewErrorKey(name, description string) *ErrorKey {
 func (k *ErrorKey) Name() string        { return k.name }
 func (k *ErrorKey) Description() string { return k.description }
 
+func (k *ErrorKey) Format(w io.Writer, buf []byte, tag Tag) {
+	io.WriteString(w, k.From(tag).Error())
+}
+
 // Of creates a new Tag with this key and the supplied value.
-func (k *ErrorKey) Of(v error) Tag { return Tag{Key: k, untyped: v} }
+func (k *ErrorKey) Of(v error) Tag { return TagOfValue(k, v) }
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *ErrorKey) Get(tags TagMap) error {
@@ -494,6 +560,6 @@ func (k *ErrorKey) Get(tags TagMap) error {
 
 // From can be used to get a value from a Tag.
 func (k *ErrorKey) From(t Tag) error {
-	err, _ := t.untyped.(error)
+	err, _ := t.UnpackValue().(error)
 	return err
 }
