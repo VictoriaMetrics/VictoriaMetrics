@@ -198,7 +198,7 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   and `vmagent_remotewrite_pending_data_bytes` metric exported by `vmagent` at `/metrics` page constantly grows.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
-  The directory can grow big when remote storage is unvailable during extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
+  The directory can grow big when remote storage is unavailable during extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want sending all the data from the directory to remote storage, just stop `vmagent` and delete the directory.
 
 
