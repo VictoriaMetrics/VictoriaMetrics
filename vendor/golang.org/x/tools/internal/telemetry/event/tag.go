@@ -6,21 +6,23 @@ package event
 
 import (
 	"fmt"
+	"io"
+	"reflect"
+	"unsafe"
 )
 
 // Tag holds a key and value pair.
 // It is normally used when passing around lists of tags.
 type Tag struct {
-	Key     Key
+	key     Key
 	packed  uint64
-	str     string
 	untyped interface{}
 }
 
 // TagMap is the interface to a collection of Tags indexed by key.
 type TagMap interface {
 	// Find returns the tag that matches the supplied key.
-	Find(key interface{}) Tag
+	Find(key Key) Tag
 }
 
 // TagList is the interface to something that provides an iterable
@@ -55,51 +57,69 @@ type tagMapChain struct {
 	maps []TagMap
 }
 
+// TagOfValue creates a new tag from the key and value.
+// This method is for implementing new key types, tag creation should
+// normally be done with the Of method of the key.
+func TagOfValue(k Key, value interface{}) Tag { return Tag{key: k, untyped: value} }
+
+// UnpackValue assumes the tag was built using TagOfValue and returns the value
+// that was passed to that constructor.
+// This method is for implementing new key types, for type safety normal
+// access should be done with the From method of the key.
+func (t Tag) UnpackValue() interface{} { return t.untyped }
+
+// TagOf64 creates a new tag from a key and a uint64. This is often
+// used for non uint64 values that can be packed into a uint64.
+// This method is for implementing new key types, tag creation should
+// normally be done with the Of method of the key.
+func TagOf64(k Key, v uint64) Tag { return Tag{key: k, packed: v} }
+
+// Unpack64 assumes the tag was built using TagOf64 and returns the value that
+// was passed to that constructor.
+// This method is for implementing new key types, for type safety normal
+// access should be done with the From method of the key.
+func (t Tag) Unpack64() uint64 { return t.packed }
+
+// TagOfString creates a new tag from a key and a string.
+// This method is for implementing new key types, tag creation should
+// normally be done with the Of method of the key.
+func TagOfString(k Key, v string) Tag {
+	hdr := (*reflect.StringHeader)(unsafe.Pointer(&v))
+	return Tag{
+		key:     k,
+		packed:  uint64(hdr.Len),
+		untyped: unsafe.Pointer(hdr.Data),
+	}
+}
+
+// UnpackString assumes the tag was built using TagOfString and returns the
+// value that was passed to that constructor.
+// This method is for implementing new key types, for type safety normal
+// access should be done with the From method of the key.
+func (t Tag) UnpackString() string {
+	var v string
+	hdr := (*reflect.StringHeader)(unsafe.Pointer(&v))
+	hdr.Data = uintptr(t.untyped.(unsafe.Pointer))
+	hdr.Len = int(t.packed)
+	return *(*string)(unsafe.Pointer(hdr))
+}
+
 // Valid returns true if the Tag is a valid one (it has a key).
-func (t Tag) Valid() bool { return t.Key != nil }
+func (t Tag) Valid() bool { return t.key != nil }
+
+// Key returns the key of this Tag.
+func (t Tag) Key() Key { return t.key }
 
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
 	if !t.Valid() {
-		fmt.Fprintf(f, `nil`)
+		io.WriteString(f, `nil`)
 		return
 	}
-	switch key := t.Key.(type) {
-	case *IntKey:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int8Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int16Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int32Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int64Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UIntKey:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt8Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt16Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt32Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt64Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Float32Key:
-		fmt.Fprintf(f, "%s=%g", key.Name(), key.From(t))
-	case *Float64Key:
-		fmt.Fprintf(f, "%s=%g", key.Name(), key.From(t))
-	case *BooleanKey:
-		fmt.Fprintf(f, "%s=%t", key.Name(), key.From(t))
-	case *StringKey:
-		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
-	case *ErrorKey:
-		fmt.Fprintf(f, "%s=%v", key.Name(), key.From(t))
-	case *ValueKey:
-		fmt.Fprintf(f, "%s=%v", key.Name(), key.From(t))
-	default:
-		fmt.Fprintf(f, `%s="invalid type %T"`, key.Name(), key)
-	}
+	io.WriteString(f, t.Key().Name())
+	io.WriteString(f, "=")
+	var buf [128]byte
+	t.Key().Format(f, buf[:0], t)
 }
 
 func (l *tagList) Valid(index int) bool {
@@ -117,23 +137,23 @@ func (f *tagFilter) Valid(index int) bool {
 func (f *tagFilter) Tag(index int) Tag {
 	tag := f.underlying.Tag(index)
 	for _, f := range f.keys {
-		if tag.Key == f {
+		if tag.Key() == f {
 			return Tag{}
 		}
 	}
 	return tag
 }
 
-func (l tagMap) Find(key interface{}) Tag {
+func (l tagMap) Find(key Key) Tag {
 	for _, tag := range l.tags {
-		if tag.Key == key {
+		if tag.Key() == key {
 			return tag
 		}
 	}
 	return Tag{}
 }
 
-func (c tagMapChain) Find(key interface{}) Tag {
+func (c tagMapChain) Find(key Key) Tag {
 	for _, src := range c.maps {
 		tag := src.Find(key)
 		if tag.Valid() {
