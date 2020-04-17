@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// GetEndpointsLabels returns labels for k8s endpoints obtained from the given apiServer
+// GetEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
 func GetEndpointsLabels(cfg *APIConfig) ([]map[string]string, error) {
 	data, err := getAPIResponse(cfg, "endpoints", "/api/v1/endpoints")
 	if err != nil {
