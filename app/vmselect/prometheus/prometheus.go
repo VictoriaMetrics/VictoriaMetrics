@@ -576,15 +576,18 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return err
 	}
-	step, err := getDuration(r, "step", defaultStep)
-	if err != nil {
-		return err
-	}
-	deadline := getDeadlineForQuery(r)
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
 	}
+	step, err := getDuration(r, "step", lookbackDelta)
+	if err != nil {
+		return err
+	}
+	if step <= 0 {
+		step = defaultStep
+	}
+	deadline := getDeadlineForQuery(r)
 
 	if len(query) > *maxQueryLen {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
