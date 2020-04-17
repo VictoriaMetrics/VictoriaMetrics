@@ -233,8 +233,7 @@ again:
 	}
 
 	startTime := time.Now()
-	// There is no need in calling DoTimeout, since the timeout is set in c.hc.ReadTimeout.
-	err := c.hc.Do(req, resp)
+	err := doRequestWithPossibleRetry(c.hc, req, resp)
 	c.requestDuration.UpdateDuration(startTime)
 	if err != nil {
 		c.errorsCount.Inc()
@@ -266,4 +265,17 @@ again:
 	// The block has been successfully sent to the remote storage.
 	fasthttp.ReleaseResponse(resp)
 	fasthttp.ReleaseRequest(req)
+}
+
+func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
+	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
+	err := hc.Do(req, resp)
+	if err == nil {
+		return nil
+	}
+	if err != fasthttp.ErrConnectionClosed {
+		return err
+	}
+	// Retry request if the server closed the keep-alive connection during the first attempt.
+	return hc.Do(req, resp)
 }
