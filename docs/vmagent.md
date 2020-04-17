@@ -191,6 +191,9 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
 * It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping big number of targets,
   since `vmagent` establishes at least a single TCP connection per each target.
 
+* When `vmagent` scrapes many unreliable targets, it can flood error log with scrape errors. These errors can be suppressed
+  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
+
 * It is recommended increasing `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
   and `vmagent_remotewrite_pending_data_bytes` metric exported by `vmagent` at `/metrics` page constantly grows.
 
