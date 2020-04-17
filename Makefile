@@ -146,7 +146,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run --exclude '(SA4003|SA1019):' -D errcheck -D structcheck
+	golangci-lint run --exclude '(SA4003|SA1019):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
 	which golangci-lint || GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
