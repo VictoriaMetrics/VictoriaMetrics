@@ -1,16 +1,25 @@
 # All these commands must run from repository root.
 
-DOCKER_NAMESPACE := docker.io/victoriametrics
-BUILDER_IMAGE := local/builder:go1.14.2
-BASE_IMAGE := local/base:1.1.0
+DOCKER_NAMESPACE := victoriametrics
+
+ROOT_IMAGE ?= scratch
+CERTS_IMAGE := alpine:3.11
+GO_BUILDER_IMAGE := golang:1.14.2
+BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
+BASE_IMAGE := local/base:1.1.1-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
-		|| docker build -t $(BASE_IMAGE) deployment/docker/base
+		|| docker build -t $(BASE_IMAGE) \
+			--build-arg root_image=$(ROOT_IMAGE) \
+			--build-arg certs_image=$(CERTS_IMAGE) \
+			deployment/docker/base
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
-		|| docker build -t $(BUILDER_IMAGE) deployment/docker/builder
+		|| docker build -t $(BUILDER_IMAGE) \
+			--build-arg go_builder_image=$(GO_BUILDER_IMAGE) \
+			deployment/docker/builder
 
 app-via-docker: package-base package-builder
 	mkdir -p gocache-for-docker

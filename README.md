@@ -91,7 +91,12 @@ Run `make package`. It will build the following docker images locally:
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
 
+By default images are built on top of `scratch` image. It is possible to build on top of any other base image
+by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds images on top of `alpine:3.11` image:
 
+```bash
+ROOT_IMAGE=alpine:3.11 make package
+```
 
 ## Operation
 
