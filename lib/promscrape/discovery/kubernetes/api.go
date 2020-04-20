@@ -57,6 +57,10 @@ func getAPIResponse(cfg *APIConfig, role, path string) ([]byte, error) {
 }
 
 func getHostClient(apiServer string, ac *promauth.Config) (*hcValue, error) {
+	if len(apiServer) == 0 {
+		// ac is ignored when apiServer should be auto-discovered when running inside k8s pod.
+		ac = nil
+	}
 	k := hcKey{
 		apiServer: apiServer,
 		ac:        ac,
