@@ -183,7 +183,7 @@ func ParseBestEffort(s string) float64 {
 			}
 			break
 		}
-		if i <= k {
+		if i < k {
 			return 0
 		}
 		// Convert the entire mantissa to a float at once to avoid rounding errors.
