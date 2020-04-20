@@ -26,6 +26,7 @@ type cMemPtr *[1 << 30]byte
 type Writer struct {
 	w                io.Writer
 	compressionLevel int
+	wlog             int
 	cs               *C.ZSTD_CStream
 	cd               *CDict
 
@@ -43,7 +44,7 @@ type Writer struct {
 //
 // Call Release when the Writer is no longer needed.
 func NewWriter(w io.Writer) *Writer {
-	return newWriterDictLevel(w, nil, DefaultCompressionLevel)
+	return NewWriterParams(w, nil)
 }
 
 // NewWriterLevel returns new zstd writer writing compressed data to w
@@ -54,7 +55,10 @@ func NewWriter(w io.Writer) *Writer {
 //
 // Call Release when the Writer is no longer needed.
 func NewWriterLevel(w io.Writer, compressionLevel int) *Writer {
-	return newWriterDictLevel(w, nil, compressionLevel)
+	params := &WriterParams{
+		CompressionLevel: compressionLevel,
+	}
+	return NewWriterParams(w, params)
 }
 
 // NewWriterDict returns new zstd writer writing compressed data to w
@@ -65,12 +69,59 @@ func NewWriterLevel(w io.Writer, compressionLevel int) *Writer {
 //
 // Call Release when the Writer is no longer needed.
 func NewWriterDict(w io.Writer, cd *CDict) *Writer {
-	return newWriterDictLevel(w, cd, 0)
+	params := &WriterParams{
+		Dict: cd,
+	}
+	return NewWriterParams(w, params)
 }
 
-func newWriterDictLevel(w io.Writer, cd *CDict, compressionLevel int) *Writer {
+const (
+	// WindowLogMin is the minimum value of the windowLog parameter.
+	WindowLogMin = 10 // from zstd.h
+	// WindowLogMax32 is the maximum value of the windowLog parameter on 32-bit architectures.
+	WindowLogMax32 = 30 // from zstd.h
+	// WindowLogMax64 is the maximum value of the windowLog parameter on 64-bit architectures.
+	WindowLogMax64 = 31 // from zstd.h
+
+	// DefaultWindowLog is the default value of the windowLog parameter.
+	DefaultWindowLog = 0
+)
+
+// A WriterParams allows users to specify compression parameters by calling
+// NewWriterParams.
+//
+// Calling NewWriterParams with a nil WriterParams is equivalent to calling
+// NewWriter.
+type WriterParams struct {
+	// Compression level. Special value 0 means 'default compression level'.
+	CompressionLevel int
+
+	// WindowLog. Must be clamped between WindowLogMin and WindowLogMin32/64.
+	// Special value 0 means 'use default windowLog'.
+	//
+	// Note: enabling log distance matching increases memory usage for both
+	// compressor and decompressor. When set to a value greater than 27, the
+	// decompressor requires special treatment.
+	WindowLog int
+
+	// Dict is optional dictionary used for compression.
+	Dict *CDict
+}
+
+// NewWriterParams returns new zstd writer writing compressed data to w
+// using the given set of parameters.
+//
+// The returned writer must be closed with Close call in order
+// to finalize the compressed stream.
+//
+// Call Release when the Writer is no longer needed.
+func NewWriterParams(w io.Writer, params *WriterParams) *Writer {
+	if params == nil {
+		params = &WriterParams{}
+	}
+
 	cs := C.ZSTD_createCStream()
-	initCStream(cs, cd, compressionLevel)
+	initCStream(cs, *params)
 
 	inBuf := (*C.ZSTD_inBuffer)(C.malloc(C.sizeof_ZSTD_inBuffer))
 	inBuf.src = C.malloc(cstreamInBufSize)
@@ -84,9 +135,10 @@ func newWriterDictLevel(w io.Writer, cd *CDict, compressionLevel int) *Writer {
 
 	zw := &Writer{
 		w:                w,
-		compressionLevel: compressionLevel,
+		compressionLevel: params.CompressionLevel,
+		wlog:             params.WindowLog,
 		cs:               cs,
-		cd:               cd,
+		cd:               params.Dict,
 		inBuf:            inBuf,
 		outBuf:           outBuf,
 	}
@@ -99,27 +151,41 @@ func newWriterDictLevel(w io.Writer, cd *CDict, compressionLevel int) *Writer {
 }
 
 // Reset resets zw to write to w using the given dictionary cd and the given
-// compressionLevel.
+// compressionLevel. Use ResetWriterParams if you wish to change other
+// parameters that were set via WriterParams.
 func (zw *Writer) Reset(w io.Writer, cd *CDict, compressionLevel int) {
+	params := WriterParams{
+		CompressionLevel: compressionLevel,
+		WindowLog:        zw.wlog,
+		Dict:             cd,
+	}
+	zw.ResetWriterParams(w, &params)
+}
+
+// ResetWriterParams resets zw to write to w using the given set of parameters.
+func (zw *Writer) ResetWriterParams(w io.Writer, params *WriterParams) {
 	zw.inBuf.size = 0
 	zw.inBuf.pos = 0
 	zw.outBuf.size = cstreamOutBufSize
 	zw.outBuf.pos = 0
 
-	zw.cd = cd
-	initCStream(zw.cs, zw.cd, compressionLevel)
+	zw.cd = params.Dict
+	initCStream(zw.cs, *params)
 
 	zw.w = w
 }
 
-func initCStream(cs *C.ZSTD_CStream, cd *CDict, compressionLevel int) {
-	if cd != nil {
-		result := C.ZSTD_initCStream_usingCDict(cs, cd.p)
+func initCStream(cs *C.ZSTD_CStream, params WriterParams) {
+	if params.Dict != nil {
+		result := C.ZSTD_initCStream_usingCDict(cs, params.Dict.p)
 		ensureNoError("ZSTD_initCStream_usingCDict", result)
 	} else {
-		result := C.ZSTD_initCStream(cs, C.int(compressionLevel))
+		result := C.ZSTD_initCStream(cs, C.int(params.CompressionLevel))
 		ensureNoError("ZSTD_initCStream", result)
 	}
+
+	result := C.ZSTD_CCtx_setParameter(cs, C.ZSTD_cParameter(C.ZSTD_c_windowLog), C.int(params.WindowLog))
+	ensureNoError("ZSTD_CCtx_setParameter", result)
 }
 
 func freeCStream(v interface{}) {

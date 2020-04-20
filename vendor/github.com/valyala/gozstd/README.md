@@ -55,6 +55,22 @@ The easiest way is just to use [Decompress](https://godoc.org/github.com/valyala
 There is also [StreamDecompress](https://godoc.org/github.com/valyala/gozstd#StreamDecompress)
 and [Reader](https://godoc.org/github.com/valyala/gozstd#Reader) for stream decompression.
 
+### How to cross-compile gozstd?
+
+If you're cross-compiling some code that uses gozstd and you stumble upon the following error:
+```
+# github.com/valyala/gozstd
+/go/pkg/mod/github.com/valyala/gozstd@v1.6.2/stream.go:31:59: undefined: CDict
+/go/pkg/mod/github.com/valyala/gozstd@v1.6.2/stream.go:35:64: undefined: CDict
+/go/pkg/mod/github.com/valyala/gozstd@v1.6.2/stream.go:47:20: undefined: Writer
+```
+
+You can easily fix it by enabling [CGO](https://golang.org/cmd/cgo/) and using a cross-compiler (e.g. `arm-linux-gnueabi-gcc`):
+```bash
+env CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm CGO_ENABLED=1 go build ./main.go 
+```
+
+**NOTE**: Check [#21](https://github.com/valyala/gozstd/issues/21) for more info.
 
 ### Who uses gozstd?
 
