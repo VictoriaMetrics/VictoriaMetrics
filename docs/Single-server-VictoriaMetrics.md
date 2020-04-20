@@ -208,6 +208,10 @@ Read more about tuning remote write for Prometheus [here](https://prometheus.io/
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer,
 since the previous versions may have issues with `remote_write`.
 
+Take a look also at [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md),
+which can be used as faster and less resource-hungry alternative to Prometheus in certain cases.
+
+
 ### Grafana setup
 
 Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following Url:
