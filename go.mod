@@ -13,7 +13,7 @@ require (
 	github.com/valyala/fasthttp v1.10.0
 	github.com/valyala/fastjson v1.5.0
 	github.com/valyala/fastrand v1.0.0
-	github.com/valyala/gozstd v1.6.4
+	github.com/valyala/gozstd v1.7.0
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.4.1
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4

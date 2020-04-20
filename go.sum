@@ -150,8 +150,8 @@ github.com/valyala/fastjson v1.5.0 h1:DGrb4wEYso2HdGLyLmNoyNCQnCWfjd8yhghPv5/5YQ
 github.com/valyala/fastjson v1.5.0/go.mod h1:CLCAqky6SMuOcxStkYQvblddUtoRxhYMGLrsQns1aXY=
 github.com/valyala/fastrand v1.0.0 h1:LUKT9aKer2dVQNUi3waewTbKV+7H17kvWFNKs2ObdkI=
 github.com/valyala/fastrand v1.0.0/go.mod h1:HWqCzkrkg6QXT8V2EXWvXCoow7vLwOFN002oeRzjapQ=
-github.com/valyala/gozstd v1.6.4 h1:nFLddjEf90SFl5cVWyElSHozQDsbvLljPK703/skBS0=
-github.com/valyala/gozstd v1.6.4/go.mod h1:y5Ew47GLlP37EkTB+B4s7r6A5rdaeB7ftbl9zoYiIPQ=
+github.com/valyala/gozstd v1.7.0 h1:Ljh5c9zboqLhwTI33al32R72iCZfn0mCbVGcFWbGwRQ=
+github.com/valyala/gozstd v1.7.0/go.mod h1:y5Ew47GLlP37EkTB+B4s7r6A5rdaeB7ftbl9zoYiIPQ=
 github.com/valyala/histogram v1.0.1 h1:FzA7n2Tz/wKRMejgu3PV1vw3htAklTjjuoI6z3d4KDg=
 github.com/valyala/histogram v1.0.1/go.mod h1:lQy0xA4wUz2+IUnf97SivorsJIp8FxsnRd6x25q7Mto=
 github.com/valyala/quicktemplate v1.4.1 h1:tEtkSN6mTCJlYVT7As5x4wjtkk2hj2thsb0M+AcAVeM=
