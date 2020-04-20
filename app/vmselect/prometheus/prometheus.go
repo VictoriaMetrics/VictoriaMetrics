@@ -35,7 +35,7 @@ var (
 		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. "+
 		"See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons")
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
-		"By default it is automatically calculated from the median interval between samples. This flag can be useful for tuning "+
+		"By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
 		"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. "+
 		"See also '-search.maxLookback' flag, which has the same meanining due to historical reasons")
 	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses when some of vmstorage nodes are unavailable. This trades consistency over availability")

@@ -923,6 +923,9 @@ The most interesting metrics are:
   If this removes gaps on the graphs, then it is likely data with timestamps older than `-search.cacheTimestampOffset`
   is ingested into VictoriaMetrics. Make sure that data sources have synchronized time with VictoriaMetrics.
 
+  If the gaps are related to irregular intervals between samples, then try adjusting `-search.minStalenessInterval` command-line flag
+  to value close to the maximum interval between samples.
+
 ### Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
