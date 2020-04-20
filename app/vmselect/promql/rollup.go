@@ -1,6 +1,7 @@
 package promql
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strings"
@@ -13,6 +14,10 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
 )
+
+var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The mimimum interval for staleness calculations. "+
+	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
+	"See also '-search.maxStalenessInterval'")
 
 var rollupFuncs = map[string]newRollupFunc{
 	// Standard rollup funcs from PromQL.
@@ -450,6 +455,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
+	}
+	if *minStalenessInterval > 0 {
+		if msi := minStalenessInterval.Milliseconds(); msi > 0 && maxPrevInterval < msi {
+			maxPrevInterval = msi
+		}
 	}
 	window := rc.Window
 	if window <= 0 {
