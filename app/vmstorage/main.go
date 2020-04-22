@@ -120,6 +120,14 @@ func SearchTagEntries(maxTagKeys, maxTagValues int) ([]storage.TagEntry, error) 
 	return tagEntries, err
 }
 
+// GetTSDBStatusForDate returns TSDB status for the given date.
+func GetTSDBStatusForDate(date uint64, topN int) (*storage.TSDBStatus, error) {
+	WG.Add(1)
+	status, err := Storage.GetTSDBStatusForDate(date, topN)
+	WG.Done()
+	return status, err
+}
+
 // GetSeriesCount returns the number of time series in the storage.
 func GetSeriesCount() (uint64, error) {
 	WG.Add(1)

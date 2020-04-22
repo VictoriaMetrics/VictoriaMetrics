@@ -179,6 +179,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/api/v1/status/tsdb":
+		tsdbStatusRequests.Inc()
+		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
+			tsdbStatusErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, w, r); err != nil {
@@ -191,7 +199,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		federateRequests.Inc()
 		if err := prometheus.FederateHandler(startTime, w, r); err != nil {
 			federateErrors.Inc()
-			httpserver.Errorf(w, "error int %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
@@ -265,6 +273,9 @@ var (
 
 	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/labels/count"}`)
 	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/labels/count"}`)
+
+	tsdbStatusRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/tsdb"}`)
+	tsdbStatusErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/tsdb"}`)
 
 	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/admin/tsdb/delete_series"}`)
 	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/tsdb/delete_series"}`)

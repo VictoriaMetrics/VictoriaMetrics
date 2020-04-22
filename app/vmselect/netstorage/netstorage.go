@@ -449,6 +449,15 @@ func GetLabelEntries(deadline Deadline) ([]storage.TagEntry, error) {
 	return labelEntries, nil
 }
 
+// GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+func GetTSDBStatusForDate(deadline Deadline, date uint64, topN int) (*storage.TSDBStatus, error) {
+	status, err := vmstorage.GetTSDBStatusForDate(date, topN)
+	if err != nil {
+		return nil, fmt.Errorf("error during tsdb status request: %s", err)
+	}
+	return status, nil
+}
+
 // GetSeriesCount returns the number of unique series.
 func GetSeriesCount(deadline Deadline) (uint64, error) {
 	n, err := vmstorage.GetSeriesCount()

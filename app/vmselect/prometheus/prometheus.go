@@ -377,7 +377,6 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %s`, err)
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	WriteLabelsCountResponse(w, labelEntries)
 	labelsCountDuration.UpdateDuration(startTime)
@@ -385,6 +384,52 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 }
 
 var labelsCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels/count"}`)
+
+const secsPerDay = 3600 * 24
+
+// TSDBStatusHandler processes /api/v1/status/tsdb request.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	deadline := getDeadlineForQuery(r)
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse form values: %s", err)
+	}
+	date := time.Now().Unix() / secsPerDay
+	dateStr := r.FormValue("date")
+	if len(dateStr) > 0 {
+		t, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return fmt.Errorf("cannot parse `date` arg %q: %s", dateStr, err)
+		}
+		date = t.Unix() / secsPerDay
+	}
+	topN := 10
+	topNStr := r.FormValue("topN")
+	if len(topNStr) > 0 {
+		n, err := strconv.Atoi(topNStr)
+		if err != nil {
+			return fmt.Errorf("cannot parse `topN` arg %q: %s", topNStr, err)
+		}
+		if n <= 0 {
+			n = 1
+		}
+		if n > 1000 {
+			n = 1000
+		}
+		topN = n
+	}
+	status, err := netstorage.GetTSDBStatusForDate(deadline, uint64(date), topN)
+	if err != nil {
+		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %s`, date, topN, err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	WriteTSDBStatusResponse(w, status)
+	tsdbStatusDuration.UpdateDuration(startTime)
+	return nil
+}
+
+var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)
 
 // LabelsHandler processes /api/v1/labels request.
 //

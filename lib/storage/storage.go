@@ -780,6 +780,13 @@ func (s *Storage) GetSeriesCount() (uint64, error) {
 	return s.idb().GetSeriesCount()
 }
 
+// GetTSDBStatusForDate returns TSDB status data for /api/v1/status/tsdb.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+func (s *Storage) GetTSDBStatusForDate(date uint64, topN int) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusForDate(date, topN)
+}
+
 // MetricRow is a metric to insert into storage.
 type MetricRow struct {
 	// MetricNameRaw contains raw metric name, which must be decoded

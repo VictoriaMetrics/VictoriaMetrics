@@ -497,6 +497,7 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
+* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 
@@ -925,6 +926,12 @@ The most interesting metrics are:
 
   If the gaps are related to irregular intervals between samples, then try adjusting `-search.minStalenessInterval` command-line flag
   to value close to the maximum interval between samples.
+
+* Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page.
+  See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
+  VictoriaMetrics accepts optional `date=YYYY-MM-DD` and `topN=42` args on this page. By default `date` equals to the current date,
+  while `topN` equals to 10.
+
 
 ### Backfilling
 
