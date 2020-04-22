@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// GetNodesLabels returns labels for k8s nodes obtained from the given cfg.
-func GetNodesLabels(cfg *APIConfig) ([]map[string]string, error) {
+// getNodesLabels returns labels for k8s nodes obtained from the given cfg.
+func getNodesLabels(cfg *APIConfig) ([]map[string]string, error) {
 	data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain nodes data from API server: %s", err)

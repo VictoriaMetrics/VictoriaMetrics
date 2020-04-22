@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// GetIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
-func GetIngressesLabels(cfg *APIConfig) ([]map[string]string, error) {
+// getIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
+func getIngressesLabels(cfg *APIConfig) ([]map[string]string, error) {
 	data, err := getAPIResponse(cfg, "ingress", "/apis/extensions/v1beta1/ingresses")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain ingresses data from API server: %s", err)
