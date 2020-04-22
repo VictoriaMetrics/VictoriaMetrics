@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"container/heap"
 	"errors"
 	"fmt"
 	"io"
@@ -897,9 +898,230 @@ func (db *indexDB) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error when searching in extDB: %s", err)
 	}
 	return n + nExt, nil
+}
+
+func (is *indexSearch) getSeriesCount(accountID, projectID uint32) (uint64, error) {
+	ts := &is.ts
+	kb := &is.kb
+	mp := &is.mp
+	var metricIDsLen uint64
+	// Extract the number of series from ((__name__=value): metricIDs) rows
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	kb.B = marshalTagValue(kb.B, nil)
+	ts.Seek(kb.B)
+	for ts.NextItem() {
+		item := ts.Item
+		if !bytes.HasPrefix(item, kb.B) {
+			break
+		}
+		tail := item[len(kb.B):]
+		n := bytes.IndexByte(tail, tagSeparatorChar)
+		if n < 0 {
+			return 0, fmt.Errorf("invalid tag->metricIDs line %q: cannot find tagSeparatorChar %d", item, tagSeparatorChar)
+		}
+		tail = tail[n+1:]
+		if err := mp.InitOnlyTail(item, tail); err != nil {
+			return 0, err
+		}
+		// Take into account deleted timeseries too.
+		// It is OK if series can be counted multiple times in rare cases -
+		// the returned number is an estimation.
+		metricIDsLen += uint64(mp.MetricIDsLen())
+	}
+	if err := ts.Error(); err != nil {
+		return 0, fmt.Errorf("error when counting unique timeseries: %s", err)
+	}
+	return metricIDsLen, nil
+}
+
+// GetTSDBStatusForDate returns topN entries for tsdb status for the given date, accountID and projectID.
+func (db *indexDB) GetTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int) (*TSDBStatus, error) {
+	is := db.getIndexSearch()
+	status, err := is.getTSDBStatusForDate(accountID, projectID, date, topN)
+	db.putIndexSearch(is)
+	if err != nil {
+		return nil, err
+	}
+	if status.hasEntries() {
+		// The entries were found in the db. There is no need in searching them in extDB.
+		return status, nil
+	}
+
+	// The entries weren't found in the db. Try searching them in extDB.
+	ok := db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch()
+		status, err = is.getTSDBStatusForDate(accountID, projectID, date, topN)
+		extDB.putIndexSearch(is)
+	})
+	if ok && err != nil {
+		return nil, fmt.Errorf("error when obtaining TSDB status from extDB: %s", err)
+	}
+	return status, nil
+}
+
+func (is *indexSearch) getTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int) (*TSDBStatus, error) {
+	ts := &is.ts
+	kb := &is.kb
+	mp := &is.mp
+	thLabelValueCountByLabelName := newTopHeap(topN)
+	thSeriesCountByLabelValuePair := newTopHeap(topN)
+	thSeriesCountByMetricName := newTopHeap(topN)
+	var tmp, labelName, labelNameValue []byte
+	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
+	nameEqualBytes := []byte("__name__=")
+
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	prefix := kb.B
+	ts.Seek(prefix)
+	for ts.NextItem() {
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			break
+		}
+		tail := item[len(prefix):]
+		var err error
+		tail, tmp, err = unmarshalTagValue(tmp[:0], tail)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal tag key from line %q: %s", item, err)
+		}
+		if len(tmp) == 0 {
+			tmp = append(tmp, "__name__"...)
+		}
+		if !bytes.Equal(tmp, labelName) {
+			thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
+			labelValueCountByLabelName = 0
+			labelName = append(labelName[:0], tmp...)
+		}
+		tmp = append(tmp, '=')
+		tail, tmp, err = unmarshalTagValue(tmp, tail)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal tag value from line %q: %s", item, err)
+		}
+		if !bytes.Equal(tmp, labelNameValue) {
+			thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
+			if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
+				thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
+			}
+			seriesCountByLabelValuePair = 0
+			labelValueCountByLabelName++
+			labelNameValue = append(labelNameValue[:0], tmp...)
+		}
+		if err := mp.InitOnlyTail(item, tail); err != nil {
+			return nil, err
+		}
+		// Take into account deleted timeseries too.
+		// It is OK if series can be counted multiple times in rare cases -
+		// the returned number is an estimation.
+		seriesCountByLabelValuePair += uint64(mp.MetricIDsLen())
+	}
+	if err := ts.Error(); err != nil {
+		return nil, fmt.Errorf("error when counting time series by metric names: %s", err)
+	}
+	thLabelValueCountByLabelName.pushIfNonEmpty(labelName, labelValueCountByLabelName)
+	thSeriesCountByLabelValuePair.pushIfNonEmpty(labelNameValue, seriesCountByLabelValuePair)
+	if bytes.HasPrefix(labelNameValue, nameEqualBytes) {
+		thSeriesCountByMetricName.pushIfNonEmpty(labelNameValue[len(nameEqualBytes):], seriesCountByLabelValuePair)
+	}
+	status := &TSDBStatus{
+		SeriesCountByMetricName:     thSeriesCountByMetricName.getSortedResult(),
+		LabelValueCountByLabelName:  thLabelValueCountByLabelName.getSortedResult(),
+		SeriesCountByLabelValuePair: thSeriesCountByLabelValuePair.getSortedResult(),
+	}
+	return status, nil
+}
+
+// TSDBStatus contains TSDB status data for /api/v1/status/tsdb.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+type TSDBStatus struct {
+	SeriesCountByMetricName     []TopHeapEntry
+	LabelValueCountByLabelName  []TopHeapEntry
+	SeriesCountByLabelValuePair []TopHeapEntry
+}
+
+func (status *TSDBStatus) hasEntries() bool {
+	return len(status.SeriesCountByLabelValuePair) > 0
+}
+
+// topHeap maintains a heap of topHeapEntries with the maximum TopHeapEntry.n values.
+type topHeap struct {
+	topN int
+	a    []TopHeapEntry
+}
+
+// newTopHeap returns topHeap for topN items.
+func newTopHeap(topN int) *topHeap {
+	return &topHeap{
+		topN: topN,
+	}
+}
+
+// TopHeapEntry represents an entry from `top heap` used in stats.
+type TopHeapEntry struct {
+	Name  string
+	Count uint64
+}
+
+func (th *topHeap) pushIfNonEmpty(name []byte, count uint64) {
+	if count == 0 {
+		return
+	}
+	if len(th.a) < th.topN {
+		th.a = append(th.a, TopHeapEntry{
+			Name:  string(name),
+			Count: count,
+		})
+		heap.Fix(th, len(th.a)-1)
+		return
+	}
+	if count <= th.a[0].Count {
+		return
+	}
+	th.a[0] = TopHeapEntry{
+		Name:  string(name),
+		Count: count,
+	}
+	heap.Fix(th, 0)
+}
+
+func (th *topHeap) getSortedResult() []TopHeapEntry {
+	result := append([]TopHeapEntry{}, th.a...)
+	sort.Slice(result, func(i, j int) bool {
+		a, b := result[i], result[j]
+		if a.Count != b.Count {
+			return a.Count > b.Count
+		}
+		return a.Name < b.Name
+	})
+	return result
+}
+
+// heap.Interface implementation for topHeap.
+
+func (th *topHeap) Len() int {
+	return len(th.a)
+}
+
+func (th *topHeap) Less(i, j int) bool {
+	a := th.a
+	return a[i].Count < a[j].Count
+}
+
+func (th *topHeap) Swap(i, j int) {
+	a := th.a
+	a[j], a[i] = a[i], a[j]
+}
+
+func (th *topHeap) Push(x interface{}) {
+	panic(fmt.Errorf("BUG: Push shouldn't be called"))
+}
+
+func (th *topHeap) Pop() interface{} {
+	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
 // searchMetricName appends metric name for the given metricID to dst
@@ -1339,40 +1561,6 @@ func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64, accountID, 
 		return fmt.Errorf("unexpected non-zero tail left after unmarshaling TSID: %X", tail)
 	}
 	return nil
-}
-
-func (is *indexSearch) getSeriesCount(accountID, projectID uint32) (uint64, error) {
-	ts := &is.ts
-	kb := &is.kb
-	mp := &is.mp
-	var metricIDsLen uint64
-	// Extract the number of series from ((__name__=value): metricIDs) rows
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
-	kb.B = marshalTagValue(kb.B, nil)
-	ts.Seek(kb.B)
-	for ts.NextItem() {
-		item := ts.Item
-		if !bytes.HasPrefix(item, kb.B) {
-			break
-		}
-		tail := item[len(kb.B):]
-		n := bytes.IndexByte(tail, tagSeparatorChar)
-		if n < 0 {
-			return 0, fmt.Errorf("invalid tag->metricIDs line %q: cannot find tagSeparatorChar %d", item, tagSeparatorChar)
-		}
-		tail = tail[n+1:]
-		if err := mp.InitOnlyTail(item, tail); err != nil {
-			return 0, err
-		}
-		// Take into account deleted timeseries too.
-		// It is OK if series can be counted multiple times in rare cases -
-		// the returned number is an estimation.
-		metricIDsLen += uint64(mp.MetricIDsLen())
-	}
-	if err := ts.Error(); err != nil {
-		return 0, fmt.Errorf("error when counting unique timeseries: %s", err)
-	}
-	return metricIDsLen, nil
 }
 
 // updateMetricIDsByMetricNameMatch matches metricName values for the given srcMetricIDs against tfs

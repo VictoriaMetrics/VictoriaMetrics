@@ -454,7 +454,7 @@ func GetLabels(at *auth.Token, deadline Deadline) ([]string, bool, error) {
 	}
 	isPartialResult := false
 	if len(errors) > 0 {
-		if len(labels) == 0 {
+		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
 			return nil, true, fmt.Errorf("error occured during fetching labels: %s", errors[0])
 		}
@@ -527,7 +527,7 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 	}
 	isPartialResult := false
 	if len(errors) > 0 {
-		if len(labelValues) == 0 {
+		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
 			return nil, true, fmt.Errorf("error occured during fetching label values: %s", errors[0])
 		}
@@ -588,7 +588,7 @@ func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, boo
 	}
 	isPartialResult := false
 	if len(errors) > 0 {
-		if len(labelEntries) == 0 {
+		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
 			return nil, true, fmt.Errorf("error occured during fetching label entries: %s", errors[0])
 		}
@@ -655,6 +655,107 @@ func deduplicateStrings(a []string) []string {
 	return a
 }
 
+// GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+func GetTSDBStatusForDate(at *auth.Token, deadline Deadline, date uint64, topN int) (*storage.TSDBStatus, bool, error) {
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		status *storage.TSDBStatus
+		err    error
+	}
+	resultsCh := make(chan nodeResult, len(storageNodes))
+	for _, sn := range storageNodes {
+		go func(sn *storageNode) {
+			sn.tsdbStatusRequests.Inc()
+			status, err := sn.getTSDBStatusForDate(at.AccountID, at.ProjectID, date, topN, deadline)
+			if err != nil {
+				sn.tsdbStatusRequestErrors.Inc()
+				err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %s", sn.connPool.Addr(), err)
+			}
+			resultsCh <- nodeResult{
+				status: status,
+				err:    err,
+			}
+		}(sn)
+	}
+
+	// Collect results.
+	var statuses []*storage.TSDBStatus
+	var errors []error
+	for i := 0; i < len(storageNodes); i++ {
+		// There is no need in timer here, since all the goroutines executing
+		// sn.getTSDBStatusForDate must be finished until the deadline.
+		nr := <-resultsCh
+		if nr.err != nil {
+			errors = append(errors, nr.err)
+			continue
+		}
+		statuses = append(statuses, nr.status)
+	}
+	isPartialResult := false
+	if len(errors) > 0 {
+		if len(errors) == len(storageNodes) {
+			// Return only the first error, since it has no sense in returning all errors.
+			return nil, true, fmt.Errorf("error occured during fetching tsdb stats: %s", errors[0])
+		}
+		// Just log errors and return partial results.
+		// This allows gracefully degrade vmselect in the case
+		// if certain storageNodes are temporarily unavailable.
+		partialTSDBStatusResults.Inc()
+		// Log only the first error, since it has no sense in returning all errors.
+		logger.Errorf("certain storageNodes are unhealthy when fetching tsdb stats: %s", errors[0])
+		isPartialResult = true
+	}
+
+	status := mergeTSDBStatuses(statuses, topN)
+	return status, isPartialResult, nil
+}
+
+func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBStatus {
+	seriesCountByMetricName := make(map[string]uint64)
+	labelValueCountByLabelName := make(map[string]uint64)
+	seriesCountByLabelValuePair := make(map[string]uint64)
+	for _, st := range statuses {
+		for _, e := range st.SeriesCountByMetricName {
+			seriesCountByMetricName[e.Name] += e.Count
+		}
+		for _, e := range st.LabelValueCountByLabelName {
+			// Label values are copied among vmstorage nodes,
+			// so select the maximum label values count.
+			if e.Count > labelValueCountByLabelName[e.Name] {
+				labelValueCountByLabelName[e.Name] = e.Count
+			}
+		}
+		for _, e := range st.SeriesCountByLabelValuePair {
+			seriesCountByLabelValuePair[e.Name] += e.Count
+		}
+	}
+	return &storage.TSDBStatus{
+		SeriesCountByMetricName:     toTopHeapEntries(seriesCountByMetricName, topN),
+		LabelValueCountByLabelName:  toTopHeapEntries(labelValueCountByLabelName, topN),
+		SeriesCountByLabelValuePair: toTopHeapEntries(seriesCountByLabelValuePair, topN),
+	}
+}
+
+func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
+	a := make([]storage.TopHeapEntry, 0, len(m))
+	for name, count := range m {
+		a = append(a, storage.TopHeapEntry{
+			Name:  name,
+			Count: count,
+		})
+	}
+	sort.Slice(a, func(i, j int) bool {
+		if a[i].Count != a[j].Count {
+			return a[i].Count > a[j].Count
+		}
+		return a[i].Name < a[j].Name
+	})
+	if len(a) > topN {
+		a = a[:topN]
+	}
+	return a
+}
+
 // GetSeriesCount returns the number of unique series for the given at.
 func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
 	// Send the query to all the storage nodes in parallel.
@@ -693,11 +794,10 @@ func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
 	}
 	isPartialResult := false
 	if len(errors) > 0 {
-		if n == 0 {
+		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
 			return 0, true, fmt.Errorf("error occured during fetching series count: %s", errors[0])
 		}
-
 		// Just log errors and return partial results.
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
@@ -769,7 +869,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 	}
 	isPartialResult := false
 	if len(errors) > 0 {
-		if len(tbfw.m) == 0 {
+		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
 			putTmpBlocksFile(tbfw.tbf)
 			return nil, true, fmt.Errorf("error occured during search: %s", errors[0])
@@ -843,6 +943,12 @@ type storageNode struct {
 
 	// The number of errors during requests to labelEntries.
 	labelEntriesRequestErrors *metrics.Counter
+
+	// The number of requests to tsdb status.
+	tsdbStatusRequests *metrics.Counter
+
+	// The number of errors during requests to tsdb status.
+	tsdbStatusRequestErrors *metrics.Counter
 
 	// The number of requests to seriesCount.
 	seriesCountRequests *metrics.Counter
@@ -941,6 +1047,26 @@ func (sn *storageNode) getLabelEntries(accountID, projectID uint32, deadline Dea
 		}
 	}
 	return tagEntries, nil
+}
+
+func (sn *storageNode) getTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int, deadline Deadline) (*storage.TSDBStatus, error) {
+	var status *storage.TSDBStatus
+	f := func(bc *handshake.BufferedConn) error {
+		st, err := sn.getTSDBStatusForDateOnConn(bc, accountID, projectID, date, topN)
+		if err != nil {
+			return err
+		}
+		status = st
+		return nil
+	}
+	if err := sn.execOnConn("tsdbStatus", f, deadline); err != nil {
+		// Try again before giving up.
+		status = nil
+		if err = sn.execOnConn("tsdbStatus", f, deadline); err != nil {
+			return nil, err
+		}
+	}
+	return status, nil
 }
 
 func (sn *storageNode) getSeriesCount(accountID, projectID uint32, deadline Deadline) (uint64, error) {
@@ -1192,6 +1318,80 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 	}
 }
 
+func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN int) (*storage.TSDBStatus, error) {
+	// Send the request to sn.
+	if err := writeUint32(bc, accountID); err != nil {
+		return nil, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+	}
+	if err := writeUint32(bc, projectID); err != nil {
+		return nil, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+	}
+	// date shouldn't exceed 32 bits, so send it as uint32.
+	if err := writeUint32(bc, uint32(date)); err != nil {
+		return nil, fmt.Errorf("cannot send date=%d to conn: %s", date, err)
+	}
+	// topN shouldn't exceed 32 bits, so send it as uint32.
+	if err := writeUint32(bc, uint32(topN)); err != nil {
+		return nil, fmt.Errorf("cannot send topN=%d to conn: %s", topN, err)
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush tsdbStatus args to conn: %s", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %s", err)
+	}
+	if len(buf) > 0 {
+		return nil, &errRemote{msg: string(buf)}
+	}
+
+	// Read response
+	seriesCountByMetricName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %s", err)
+	}
+	labelValueCountByLabelName, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %s", err)
+	}
+	seriesCountByLabelValuePair, err := readTopHeapEntries(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %s", err)
+	}
+	status := &storage.TSDBStatus{
+		SeriesCountByMetricName:     seriesCountByMetricName,
+		LabelValueCountByLabelName:  labelValueCountByLabelName,
+		SeriesCountByLabelValuePair: seriesCountByLabelValuePair,
+	}
+	return status, nil
+}
+
+func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, error) {
+	n, err := readUint64(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the number of topHeapEntries: %s", err)
+	}
+	var a []storage.TopHeapEntry
+	var buf []byte
+	for i := uint64(0); i < n; i++ {
+		buf, err = readBytes(buf[:0], bc, maxLabelSize)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read label name: %s", err)
+		}
+		count, err := readUint64(bc)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read label count: %s", err)
+		}
+		a = append(a, storage.TopHeapEntry{
+			Name:  string(buf),
+			Count: count,
+		})
+	}
+	return a, nil
+}
+
 func (sn *storageNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) (uint64, error) {
 	// Send the request to sn.
 	if err := writeUint32(bc, accountID); err != nil {
@@ -1201,7 +1401,7 @@ func (sn *storageNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountI
 		return 0, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return 0, fmt.Errorf("cannot flush labelName to conn: %s", err)
+		return 0, fmt.Errorf("cannot flush seriesCount args to conn: %s", err)
 	}
 
 	// Read response error.
@@ -1362,6 +1562,8 @@ func InitStorageNodes(addrs []string) {
 			labelValuesRequestErrors:  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			labelEntriesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			labelEntriesRequestErrors: metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequests:        metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequestErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequestErrors:  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
@@ -1385,6 +1587,7 @@ var (
 	partialLabelsResults       = metrics.NewCounter(`vm_partial_labels_results_total{name="vmselect"}`)
 	partialLabelValuesResults  = metrics.NewCounter(`vm_partial_label_values_results_total{name="vmselect"}`)
 	partialLabelEntriesResults = metrics.NewCounter(`vm_partial_label_entries_results_total{name="vmselect"}`)
+	partialTSDBStatusResults   = metrics.NewCounter(`vm_partial_tsdb_status_results_total{name="vmselect"}`)
 	partialSeriesCountResults  = metrics.NewCounter(`vm_partial_series_count_results_total{name="vmselect"}`)
 	partialSearchResults       = metrics.NewCounter(`vm_partial_search_results_total{name="vmselect"}`)
 )

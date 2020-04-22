@@ -1,0 +1,28 @@
+{% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage" %}
+
+{% stripspace %}
+TSDBStatusResponse generates response for /api/v1/status/tsdb .
+{% func TSDBStatusResponse(status *storage.TSDBStatus) %}
+{
+	"status":"success",
+	"data":{
+		"seriesCountByMetricName":{%= tsdbStatusEntries(status.SeriesCountByMetricName) %},
+		"labelValueCountByLabelName":{%= tsdbStatusEntries(status.LabelValueCountByLabelName) %},
+		"seriesCountByLabelValuePair":{%= tsdbStatusEntries(status.SeriesCountByLabelValuePair) %}
+	}
+}
+{% endfunc %}
+
+{% func tsdbStatusEntries(a []storage.TopHeapEntry) %}
+[
+	{% for i, e := range a %}
+		{
+			"name":{%q= e.Name %},
+			"value":{%d= int(e.Count) %}
+		}
+		{% if i+1 < len(a) %},{% endif %}
+	{% endfor %}
+]
+{% endfunc %}
+
+{% endstripspace %}
