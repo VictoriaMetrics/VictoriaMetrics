@@ -311,46 +311,12 @@ func (sdc *KubernetesSDConfig) appendScrapeWork(dst []ScrapeWork, baseDir string
 		Namespaces: sdc.Namespaces.Names,
 		Selectors:  sdc.Selectors,
 	}
-	switch sdc.Role {
-	case "node":
-		targetLabels, err := kubernetes.GetNodesLabels(cfg)
-		if err != nil {
-			logger.Errorf("error when discovering kubernetes nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
-			return dst
-		}
-		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
-	case "service":
-		targetLabels, err := kubernetes.GetServicesLabels(cfg)
-		if err != nil {
-			logger.Errorf("error when discovering kubernetes services for `job_name` %q: %s; skipping it", swc.jobName, err)
-			return dst
-		}
-		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
-	case "pod":
-		targetLabels, err := kubernetes.GetPodsLabels(cfg)
-		if err != nil {
-			logger.Errorf("error when discovering kubernetes pods for `job_name` %q: %s; skipping it", swc.jobName, err)
-			return dst
-		}
-		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
-	case "endpoints":
-		targetLabels, err := kubernetes.GetEndpointsLabels(cfg)
-		if err != nil {
-			logger.Errorf("error when discovering kubernetes endpoints for `job_name` %q: %s; skipping it", swc.jobName, err)
-			return dst
-		}
-		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
-	case "ingress":
-		targetLabels, err := kubernetes.GetIngressesLabels(cfg)
-		if err != nil {
-			logger.Errorf("error when discovering kubernetes ingresses for `job_name` %q: %s; skipping it", swc.jobName, err)
-			return dst
-		}
-		return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
-	default:
-		logger.Errorf("unexpected `role`: %q; must be one of `node`, `service`, `pod`, `endpoints` or `ingress`; skipping it", sdc.Role)
+	targetLabels, err := kubernetes.GetLabels(cfg, sdc.Role)
+	if err != nil {
+		logger.Errorf("error when discovering kubernetes nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
 		return dst
 	}
+	return appendKubernetesScrapeWork(dst, swc, targetLabels, sdc.Role)
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, role string) []ScrapeWork {

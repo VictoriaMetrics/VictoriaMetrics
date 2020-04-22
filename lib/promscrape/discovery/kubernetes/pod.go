@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// GetPodsLabels returns labels for k8s pods obtained from the given cfg
-func GetPodsLabels(cfg *APIConfig) ([]map[string]string, error) {
+// getPodsLabels returns labels for k8s pods obtained from the given cfg
+func getPodsLabels(cfg *APIConfig) ([]map[string]string, error) {
 	pods, err := getPods(cfg)
 	if err != nil {
 		return nil, err
