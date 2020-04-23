@@ -155,12 +155,13 @@ func (cfg *Config) fileSDConfigsCount() int {
 	return n
 }
 
-// getKubernetesSDcrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
+// getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 	var dst []ScrapeWork
-	for _, sc := range cfg.ScrapeConfigs {
-		for i := range sc.KubernetesSDConfigs {
-			sdc := &sc.KubernetesSDConfigs[i]
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.KubernetesSDConfigs {
+			sdc := &sc.KubernetesSDConfigs[j]
 			dst = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
 		}
 	}
@@ -181,8 +182,10 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 		}
 	}
 	var dst []ScrapeWork
-	for _, sc := range cfg.ScrapeConfigs {
-		for _, sdc := range sc.FileSDConfigs {
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.FileSDConfigs {
+			sdc := &sc.FileSDConfigs[j]
 			dst = sdc.appendScrapeWork(dst, swPrev, cfg.baseDir, sc.swc)
 		}
 	}
@@ -192,8 +195,10 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getStaticScrapeWork returns `static_configs` ScrapeWork from from cfg.
 func (cfg *Config) getStaticScrapeWork() []ScrapeWork {
 	var dst []ScrapeWork
-	for _, sc := range cfg.ScrapeConfigs {
-		for _, stc := range sc.StaticConfigs {
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.StaticConfigs {
+			stc := &sc.StaticConfigs[j]
 			dst = stc.appendScrapeWork(dst, sc.swc, nil)
 		}
 	}
