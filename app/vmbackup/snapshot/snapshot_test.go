@@ -10,7 +10,10 @@ import (
 func TestCreateSnapshot(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/snapshot/create" {
-			io.WriteString(w, `{"status":"ok","snapshot":"mysnapshot"}`)
+			_, err := io.WriteString(w, `{"status":"ok","snapshot":"mysnapshot"}`)
+			if err != nil {
+				t.Fatalf("Failed to write response output: %v", err)
+			}
 		} else {
 			t.Fatalf("Invalid path, got %v", r.URL.Path)
 		}
@@ -32,7 +35,10 @@ func TestCreateSnapshot(t *testing.T) {
 func TestCreateSnapshotFailed(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/snapshot/create" {
-			io.WriteString(w, `{"status":"error","msg":"I am unwell"}`)
+			_, err := io.WriteString(w, `{"status":"error","msg":"I am unwell"}`)
+			if err != nil {
+				t.Fatalf("Failed to write response output: %v", err)
+			}
 		} else {
 			t.Fatalf("Invalid path, got %v", r.URL.Path)
 		}
@@ -52,7 +58,10 @@ func TestDeleteSnapshot(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/snapshot/delete" {
-			io.WriteString(w, `{"status":"ok"}`)
+			_, err := io.WriteString(w, `{"status":"ok"}`)
+			if err != nil {
+				t.Fatalf("Failed to write response output: %v", err)
+			}
 		} else {
 			t.Fatalf("Invalid path, got %v", r.URL.Path)
 		}
@@ -75,7 +84,10 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/snapshot/delete" {
-			io.WriteString(w, `{"status":"error", "msg":"failed to delete"}`)
+			_, err := io.WriteString(w, `{"status":"error", "msg":"failed to delete"}`)
+			if err != nil {
+				t.Fatalf("Failed to write response output: %v", err)
+			}
 		} else {
 			t.Fatalf("Invalid path, got %v", r.URL.Path)
 		}

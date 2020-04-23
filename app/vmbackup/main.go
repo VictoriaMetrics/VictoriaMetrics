@@ -39,7 +39,10 @@ func main() {
 		logger.Infof("%s", "Snapshots enabled")
 		logger.Infof("Snapshot create url %s", *snapshotCreateURL)
 		if len(*snapshotDeleteURL) <= 0 {
-			flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
+			err := flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
+			if err != nil {
+				logger.Fatalf("Failed to set snapshot.deleteURL flag: %v", err)
+			}
 		}
 		logger.Infof("Snapshot delete url %s", *snapshotDeleteURL)
 
@@ -47,7 +50,10 @@ func main() {
 		if err != nil {
 			logger.Fatalf("%s", err)
 		}
-		flag.Set("snapshotName", name)
+		err = flag.Set("snapshotName", name)
+		if err != nil {
+			logger.Fatalf("Failed to set snapshotName flag: %v", err)
+		}
 
 		defer func() {
 			err := snapshot.Delete(*snapshotDeleteURL, name)
