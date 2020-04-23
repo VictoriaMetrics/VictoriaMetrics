@@ -97,16 +97,16 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 }
 
 // loadConfig loads Prometheus config from the given path.
-func loadConfig(path string) (cfg *Config, err error) {
-	data, err := ioutil.ReadFile(path)
+func loadConfig(path string) (cfg *Config, data []byte, err error) {
+	data, err = ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read Prometheus config from %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %s", path, err)
 	}
 	var cfgObj Config
 	if err := cfgObj.parse(data, path); err != nil {
-		return nil, fmt.Errorf("cannot parse Prometheus config from %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %s", path, err)
 	}
-	return &cfgObj, nil
+	return &cfgObj, data, nil
 }
 
 func (cfg *Config) parse(data []byte, path string) error {

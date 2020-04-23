@@ -42,7 +42,7 @@ func TestLoadStaticConfigs(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	cfg, err := loadConfig("testdata/prometheus.yml")
+	cfg, _, err := loadConfig("testdata/prometheus.yml")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -51,7 +51,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	// Try loading non-existing file
-	cfg, err = loadConfig("testdata/non-existing-file")
+	cfg, _, err = loadConfig("testdata/non-existing-file")
 	if err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
@@ -60,7 +60,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	// Try loading invalid file
-	cfg, err = loadConfig("testdata/file_sd_1.yml")
+	cfg, _, err = loadConfig("testdata/file_sd_1.yml")
 	if err == nil {
 		t.Fatalf("expecting non-nil error")
 	}

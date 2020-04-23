@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"bytes"
 	"flag"
 	"os"
 	"os/signal"
@@ -14,6 +15,8 @@ import (
 )
 
 var (
+	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
+		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config")
 	kubernetesSDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
@@ -55,9 +58,16 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	signal.Notify(sighupCh, syscall.SIGHUP)
 
 	logger.Infof("reading Prometheus configs from %q", configFile)
-	cfg, err := loadConfig(configFile)
+	cfg, data, err := loadConfig(configFile)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
+	}
+
+	var tickerCh <-chan time.Time
+	if *configCheckInterval > 0 {
+		ticker := time.NewTicker(*configCheckInterval)
+		tickerCh = ticker.C
+		defer ticker.Stop()
 	}
 
 	mustStop := false
@@ -84,16 +94,36 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
-			cfgNew, err := loadConfig(configFile)
+			cfgNew, dataNew, err := loadConfig(configFile)
+			if err != nil {
+				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
+				goto waitForChans
+			}
+			if bytes.Equal(data, dataNew) {
+				logger.Infof("nothing changed in %q", configFile)
+				goto waitForChans
+			}
+			cfg = cfgNew
+			data = dataNew
+		case <-tickerCh:
+			cfgNew, dataNew, err := loadConfig(configFile)
 			if err != nil {
 				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
 				goto waitForChans
 			}
+			if bytes.Equal(data, dataNew) {
+				// Nothing changed since the previous loadConfig
+				goto waitForChans
+			}
 			cfg = cfgNew
+			data = dataNew
 		case <-globalStopCh:
 			mustStop = true
 		}
 
+		if !mustStop {
+			logger.Infof("found changes in %q; applying these changes", configFile)
+		}
 		logger.Infof("stopping Prometheus scrapers")
 		startTime := time.Now()
 		close(stopCh)
