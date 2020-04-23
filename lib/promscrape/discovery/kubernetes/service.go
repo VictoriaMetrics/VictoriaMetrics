@@ -3,10 +3,12 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getServicesLabels returns labels for k8s services obtained from the given cfg.
-func getServicesLabels(cfg *APIConfig) ([]map[string]string, error) {
+func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	svcs, err := getServices(cfg)
 	if err != nil {
 		return nil, err
@@ -18,7 +20,7 @@ func getServicesLabels(cfg *APIConfig) ([]map[string]string, error) {
 	return ms, nil
 }
 
-func getServices(cfg *APIConfig) ([]Service, error) {
+func getServices(cfg *apiConfig) ([]Service, error) {
 	data, err := getAPIResponse(cfg, "service", "/api/v1/services")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain services data from API server: %s", err)
@@ -79,7 +81,7 @@ func parseServiceList(data []byte) (*ServiceList, error) {
 func (s *Service) appendTargetLabels(ms []map[string]string) []map[string]string {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
 	for _, sp := range s.Spec.Ports {
-		addr := joinHostPort(host, sp.Port)
+		addr := discoveryutils.JoinHostPort(host, sp.Port)
 		m := map[string]string{
 			"__address__":                             addr,
 			"__meta_kubernetes_service_port_name":     sp.Name,

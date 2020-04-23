@@ -3,10 +3,12 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getNodesLabels returns labels for k8s nodes obtained from the given cfg.
-func getNodesLabels(cfg *APIConfig) ([]map[string]string, error) {
+func getNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain nodes data from API server: %s", err)
@@ -79,7 +81,7 @@ func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
 		// Skip node without address
 		return ms
 	}
-	addr = joinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
+	addr = discoveryutils.JoinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
 	m := map[string]string{
 		"__address__":                 addr,
 		"instance":                    n.Metadata.Name,
@@ -92,7 +94,7 @@ func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
 			continue
 		}
 		addrTypesUsed[a.Type] = true
-		ln := sanitizeLabelName(a.Type)
+		ln := discoveryutils.SanitizeLabelName(a.Type)
 		m[fmt.Sprintf("__meta_kubernetes_node_address_%s", ln)] = a.Address
 	}
 	ms = append(ms, m)
