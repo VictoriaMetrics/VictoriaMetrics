@@ -7,7 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type snapshot struct {
@@ -16,14 +17,15 @@ type snapshot struct {
 	Msg      string `json:"msg"`
 }
 
-// TakeSnapshot creates a snapshot and the provided api endpoint and returns
+// Create creates a snapshot and the provided api endpoint and returns
 // the snapshot name
-func TakeSnapshot(endpoint string) (string, error) {
-	u, err := url.Parse(endpoint)
+func Create(createSnapshotURL string) (string, error) {
+	logger.Infof("%s", "Creating snapshot")
+	u, err := url.Parse(createSnapshotURL)
 	if err != nil {
 		return "", err
 	}
-	u.Path = path.Join(u.Path, "/snapshot/create")
+
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return "", err
@@ -41,6 +43,7 @@ func TakeSnapshot(endpoint string) (string, error) {
 	}
 
 	if snap.Status == "ok" {
+		logger.Infof("Snapshot %s created", snap.Snapshot)
 		return snap.Snapshot, nil
 	} else if snap.Status == "error" {
 		return "", errors.New(snap.Msg)
@@ -49,16 +52,18 @@ func TakeSnapshot(endpoint string) (string, error) {
 	}
 }
 
-// DeleteSnapshot deletes a snapshot and the provided api endpoint returns any failure
-func DeleteSnapshot(endpoint string, snapshotName string) error {
+// Delete deletes a snapshot and the provided api endpoint returns any failure
+func Delete(deleteSnapshotURL string, snapshotName string) error {
+	logger.Infof("Deleting snapshot %s", snapshotName)
 	formData := url.Values{
 		"snapshot": {snapshotName},
 	}
-	u, err := url.Parse(endpoint)
+
+	u, err := url.Parse(deleteSnapshotURL)
 	if err != nil {
 		return err
 	}
-	u.Path = path.Join(u.Path, "/snapshot/delete")
+
 	resp, err := http.PostForm(u.String(), formData)
 	if err != nil {
 		return err
@@ -76,6 +81,7 @@ func DeleteSnapshot(endpoint string, snapshotName string) error {
 	}
 
 	if snap.Status == "ok" {
+		logger.Infof("Snapshot %s deleted", snapshotName)
 		return nil
 	} else if snap.Status == "error" {
 		return errors.New(snap.Msg)

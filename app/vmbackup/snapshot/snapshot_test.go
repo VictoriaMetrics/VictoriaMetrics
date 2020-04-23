@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestTakeSnapshot(t *testing.T) {
+func TestCreateSnapshot(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/snapshot/create" {
 			io.WriteString(w, `{"status":"ok","snapshot":"mysnapshot"}`)
@@ -19,7 +19,7 @@ func TestTakeSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	snapshotName, err := TakeSnapshot(server.URL)
+	snapshotName, err := Create(server.URL + "/snapshot/create")
 	if err != nil {
 		t.Fatalf("Failed taking snapshot: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestTakeSnapshot(t *testing.T) {
 	}
 }
 
-func TestTakeSnapshotFailed(t *testing.T) {
+func TestCreateSnapshotFailed(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/snapshot/create" {
 			io.WriteString(w, `{"status":"error","msg":"I am unwell"}`)
@@ -41,7 +41,7 @@ func TestTakeSnapshotFailed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	snapshotName, err := TakeSnapshot(server.URL)
+	snapshotName, err := Create(server.URL + "/snapshot/create")
 	if err == nil {
 		t.Fatalf("Snapshot did not fail, got snapshot: %v", snapshotName)
 	}
@@ -64,7 +64,7 @@ func TestDeleteSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	err := DeleteSnapshot(server.URL, snapshotName)
+	err := Delete(server.URL+"/snapshot/delete", snapshotName)
 	if err != nil {
 		t.Fatalf("Failed to delete snapshot: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestDeleteSnapshotFailed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	err := DeleteSnapshot(server.URL, snapshotName)
+	err := Delete(server.URL+"/snapshot/delete", snapshotName)
 	if err == nil {
 		t.Fatalf("Snapshot should have failed, got: %v", err)
 	}
