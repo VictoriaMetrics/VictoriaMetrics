@@ -5,7 +5,7 @@ require (
 	cloud.google.com/go/storage v1.6.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/VictoriaMetrics/metrics v1.11.2
-	github.com/aws/aws-sdk-go v1.30.8
+	github.com/aws/aws-sdk-go v1.30.12
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/golang/snappy v0.0.1
