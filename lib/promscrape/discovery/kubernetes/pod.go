@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getPodsLabels returns labels for k8s pods obtained from the given cfg
-func getPodsLabels(cfg *APIConfig) ([]map[string]string, error) {
+func getPodsLabels(cfg *apiConfig) ([]map[string]string, error) {
 	pods, err := getPods(cfg)
 	if err != nil {
 		return nil, err
@@ -20,7 +22,7 @@ func getPodsLabels(cfg *APIConfig) ([]map[string]string, error) {
 	return ms, nil
 }
 
-func getPods(cfg *APIConfig) ([]Pod, error) {
+func getPods(cfg *apiConfig) ([]Pod, error) {
 	data, err := getAPIResponse(cfg, "pod", "/api/v1/pods")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain pods data from API server: %s", err)
@@ -129,7 +131,7 @@ func appendPodLabels(ms []map[string]string, p *Pod, cs []Container, isInit stri
 func getPodLabels(p *Pod, c Container, cp *ContainerPort, isInit string) map[string]string {
 	addr := p.Status.PodIP
 	if cp != nil {
-		addr = joinHostPort(addr, cp.ContainerPort)
+		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
 	}
 	m := map[string]string{
 		"__address__":                          addr,

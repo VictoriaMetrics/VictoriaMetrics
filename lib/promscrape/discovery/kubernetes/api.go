@@ -14,7 +14,15 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func getAPIResponse(cfg *APIConfig, role, path string) ([]byte, error) {
+// apiConfig contains config for API server
+type apiConfig struct {
+	Server     string
+	AuthConfig *promauth.Config
+	Namespaces []string
+	Selectors  []Selector
+}
+
+func getAPIResponse(cfg *apiConfig, role, path string) ([]byte, error) {
 	hcv, err := getHostClient(cfg.Server, cfg.AuthConfig)
 	if err != nil {
 		return nil, err
@@ -122,7 +130,8 @@ func newHostClient(apiServer string, ac *promauth.Config) (*hcValue, error) {
 		// Assume we run at k8s pod.
 		// Discover apiServer and auth config according to k8s docs.
 		// See https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#service-account-admission-controller
-		host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
+		host := os.Getenv("KUBERNETES_SERVICE_HOST")
+		port := os.Getenv("KUBERNETES_SERVICE_PORT")
 		if len(host) == 0 {
 			return nil, fmt.Errorf("cannot find KUBERNETES_SERVICE_HOST env var; it must be defined when running in k8s; " +
 				"probably, `kubernetes_sd_config->api_server` is missing in Prometheus configs?")

@@ -3,10 +3,12 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
-func getEndpointsLabels(cfg *APIConfig) ([]map[string]string, error) {
+func getEndpointsLabels(cfg *apiConfig) ([]map[string]string, error) {
 	data, err := getAPIResponse(cfg, "endpoints", "/api/v1/endpoints")
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %s", err)
@@ -120,7 +122,7 @@ func (eps *Endpoints) appendTargetLabels(ms []map[string]string, pods []Pod, svc
 				if portSeen(cp.ContainerPort, ports) {
 					continue
 				}
-				addr := joinHostPort(p.Status.PodIP, cp.ContainerPort)
+				addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
 				m := map[string]string{
 					"__address__": addr,
 				}
@@ -165,7 +167,7 @@ func getEndpointLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, eps *Endpoi
 }
 
 func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, ready string) map[string]string {
-	addr := joinHostPort(ea.IP, epp.Port)
+	addr := discoveryutils.JoinHostPort(ea.IP, epp.Port)
 	m := map[string]string{
 		"__address__":                      addr,
 		"__meta_kubernetes_namespace":      om.Namespace,
