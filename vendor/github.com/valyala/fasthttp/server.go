@@ -180,6 +180,9 @@ type Server struct {
 	// The maximum number of concurrent connections the server may serve.
 	//
 	// DefaultConcurrency is used if not set.
+	//
+	// Concurrency only works if you either call Serve once, or only ServeConn multiple times.
+	// It works with ListenAndServe as well.
 	Concurrency int
 
 	// Whether to disable keep-alive connections.
@@ -1888,8 +1891,14 @@ func (s *Server) idleTimeout() time.Duration {
 	return s.ReadTimeout
 }
 
+func (s *Server) serveConnCleanup() {
+	atomic.AddInt32(&s.open, -1)
+	atomic.AddUint32(&s.concurrency, ^uint32(0))
+}
+
 func (s *Server) serveConn(c net.Conn) (err error) {
-	defer atomic.AddInt32(&s.open, -1)
+	defer s.serveConnCleanup()
+	atomic.AddUint32(&s.concurrency, 1)
 
 	var proto string
 	if proto, err = s.getNextProto(c); err != nil {
