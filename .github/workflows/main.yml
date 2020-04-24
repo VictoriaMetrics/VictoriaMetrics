@@ -18,8 +18,6 @@ jobs:
         with:
           go-version: 1.14
         id: go
-      - name: Code checkout
-        uses: actions/checkout@master
       - name: Dependencies
         env:
           GO111MODULE: on
@@ -27,6 +25,8 @@ jobs:
           go get -u golang.org/x/lint/golint
           go get -u github.com/kisielk/errcheck
           go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+      - name: Code checkout
+        uses: actions/checkout@master
       - name: Build
         env:
           GO111MODULE: on
