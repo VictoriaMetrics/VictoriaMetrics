@@ -133,11 +133,12 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details.
 * `kubernetes_sd_configs` - for scraping targets in Kubernetes (k8s).
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
+* `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
+  See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
 
 The following service discovery mechanisms will be added to `vmagent` soon:
 
 * [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config)
-* [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config)
 * [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
 * [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
 

@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"gopkg.in/yaml.v2"
 )
@@ -60,6 +61,7 @@ type ScrapeConfig struct {
 	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
 	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
+	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
 	SampleLimit          int                         `yaml:"sample_limit"`
@@ -147,6 +149,14 @@ func (cfg *Config) kubernetesSDConfigsCount() int {
 	return n
 }
 
+func (cfg *Config) gceSDConfigsCount() int {
+	n := 0
+	for i := range cfg.ScrapeConfigs {
+		n += len(cfg.ScrapeConfigs[i].GCESDConfigs)
+	}
+	return n
+}
+
 func (cfg *Config) fileSDConfigsCount() int {
 	n := 0
 	for i := range cfg.ScrapeConfigs {
@@ -163,6 +173,19 @@ func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
 			dst = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
+}
+
+// getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getGCESDScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.GCESDConfigs {
+			sdc := &sc.GCESDConfigs[j]
+			dst = appendGCEScrapeWork(dst, sdc, sc.swc)
 		}
 	}
 	return dst
@@ -297,13 +320,25 @@ func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, base
 		logger.Errorf("error when discovering kubernetes nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
 		return dst
 	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config")
+}
+
+func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
+	targetLabels, err := gce.GetLabels(sdc)
+	if err != nil {
+		logger.Errorf("error when discovering gce nodes for `job_name` %q: %s; skippint it", swc.jobName, err)
+		return dst
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config")
+}
+
+func appendScrapeWorkForTargetLabels(dst []ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []ScrapeWork {
 	for _, metaLabels := range targetLabels {
 		target := metaLabels["__address__"]
 		var err error
 		dst, err = appendScrapeWork(dst, swc, target, nil, metaLabels)
 		if err != nil {
-			logger.Errorf("error when parsing `kubernetes_sd_config` target %q with role %q for `job_name` %q: %s; skipping it",
-				target, sdc.Role, swc.jobName, err)
+			logger.Errorf("error when parsing `%s` target %q for `job_name` %q: %s; skipping it", sectionName, target, swc.jobName, err)
 			continue
 		}
 	}
