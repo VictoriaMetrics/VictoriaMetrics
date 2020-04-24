@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@master
       - name: Dependencies
         env:
-          GO111MODULE: off
+          GO111MODULE: on
         run: |
           go get -u golang.org/x/lint/golint
           go get -u github.com/kisielk/errcheck
