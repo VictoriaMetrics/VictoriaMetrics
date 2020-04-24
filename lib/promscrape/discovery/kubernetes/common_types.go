@@ -1,13 +1,10 @@
 package kubernetes
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"sort"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -18,8 +15,8 @@ type ObjectMeta struct {
 	Name            string
 	Namespace       string
 	UID             string
-	Labels          SortedLabels
-	Annotations     SortedLabels
+	Labels          discoveryutils.SortedLabels
+	Annotations     discoveryutils.SortedLabels
 	OwnerReferences []OwnerReference
 }
 
@@ -34,33 +31,6 @@ func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m map[string]s
 		m[fmt.Sprintf("%s_annotation_%s", prefix, an)] = a.Value
 		m[fmt.Sprintf("%s_annotationpresent_%s", prefix, an)] = "true"
 	}
-}
-
-// SortedLabels represents sorted labels.
-type SortedLabels []prompbmarshal.Label
-
-// UnmarshalJSON unmarshals JSON from data.
-func (sls *SortedLabels) UnmarshalJSON(data []byte) error {
-	var m map[string]string
-	if err := json.Unmarshal(data, &m); err != nil {
-		return err
-	}
-	*sls = getSortedLabels(m)
-	return nil
-}
-
-func getSortedLabels(m map[string]string) SortedLabels {
-	a := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		a = append(a, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
-	}
-	sort.Slice(a, func(i, j int) bool {
-		return a[i].Name < a[j].Name
-	})
-	return a
 }
 
 // OwnerReference represents OwnerReferense from k8s API.
