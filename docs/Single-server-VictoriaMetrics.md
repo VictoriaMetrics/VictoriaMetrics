@@ -927,6 +927,10 @@ The most interesting metrics are:
   If the gaps are related to irregular intervals between samples, then try adjusting `-search.minStalenessInterval` command-line flag
   to value close to the maximum interval between samples.
 
+* If you are switching from InfluxDB or TimescaleDB, then take a look at `-search.maxStalenessInterval` command-line flag.
+  It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
+  each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
+
 * Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page.
   See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
   VictoriaMetrics accepts optional `date=YYYY-MM-DD` and `topN=42` args on this page. By default `date` equals to the current date,
