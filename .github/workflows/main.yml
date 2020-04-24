@@ -24,8 +24,9 @@ jobs:
         env:
           GO111MODULE: off
         run: |
-          go get -v golang.org/x/lint/golint
+          go get -u golang.org/x/lint/golint
           go get -u github.com/kisielk/errcheck
+          go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
       - name: Build
         env:
           GO111MODULE: on
