@@ -54,7 +54,9 @@ func getInstancesPage(cfg *apiConfig, pageToken string) ([]Instance, string, err
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot obtain instances data from API server: %s", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot read instances data from API server: %s", err)
