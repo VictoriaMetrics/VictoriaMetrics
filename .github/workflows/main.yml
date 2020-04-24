@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@master
         with:
           go-version: 1.13
         id: go
       - name: Code checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@master
       - name: Dependencies
         env:
           GO111MODULE: off
