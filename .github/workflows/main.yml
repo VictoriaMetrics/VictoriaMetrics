@@ -16,7 +16,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@master
         with:
-          go-version: 1.13
+          go-version: 1.14
         id: go
       - name: Code checkout
         uses: actions/checkout@master
