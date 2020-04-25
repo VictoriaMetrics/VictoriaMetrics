@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -39,45 +40,91 @@ absolute path to all .yaml files in root.`)
 	externalURL              = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
-// TODO: hot configuration reload
 // TODO: alerts state persistence
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
 	checkFlags()
-	ctx, cancel := context.WithCancel(context.Background())
 	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
 	if err != nil {
 		logger.Fatalf("can not get external url:%s ", err)
 	}
 	notifier.InitTemplateFunc(eu)
 
-	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
+	wg := sync.WaitGroup{}
+	reloadCh := make(chan bool, 1)
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	loadGroups := func(groups []Group) bool {
+		ctx, cancel = context.WithCancel(context.Background())
+		logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
+
+		w := &watchdog{
+			storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
+			alertProvider: notifier.NewAlertManager(*notifierURL, func(group, name string) string {
+				return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
+			}, &http.Client{}),
+		}
+		for i := range groups {
+			wg.Add(1)
+			go func(group Group) {
+				w.run(ctx, group, *evaluationInterval)
+				wg.Done()
+			}(groups[i])
+		}
+		go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups, reloadCh: reloadCh}).handler)
+		return true
+	}
+
+	reloadGroups := func() bool {
+		// when reload failed, not fatal, just print log
+		groups, err := Parse(*rulePath, *validateAlertAnnotations)
+		if err != nil {
+			logger.Errorf("Cannot parse configuration file: %s", err)
+			return false
+		}
+		if err := httpserver.Stop(*httpListenAddr); err != nil {
+			logger.Warnf("cannot stop the webservice: %s", err)
+			return false
+		}
+		cancel()
+		wg.Wait()
+		return loadGroups(groups)
+	}
+
 	groups, err := Parse(*rulePath, *validateAlertAnnotations)
 	if err != nil {
 		logger.Fatalf("Cannot parse configuration file: %s", err)
 	}
 
-	w := &watchdog{
-		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: notifier.NewAlertManager(*notifierURL, func(group, name string) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
-		}, &http.Client{}),
-	}
-	wg := sync.WaitGroup{}
-	for i := range groups {
-		wg.Add(1)
-		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval)
-			wg.Done()
-		}(groups[i])
+	loadGroups(groups)
+	go func() {
+		for {
+			select {
+			case <-reloadCh:
+				logger.Infof("start reload rule config")
+				if reloadGroups() {
+					logger.Infof("reload rule config ok")
+				} else {
+					logger.Warnf("reload rule config failed")
+				}
+			}
+		}
+	}()
+
+	var sig os.Signal
+	for {
+		sig = procutil.WaitForSigterm()
+		logger.Infof("service received signal %s", sig)
+		if sig == syscall.SIGHUP {
+			reloadCh <- true
+		} else {
+			break
+		}
 	}
 
-	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
-
-	sig := procutil.WaitForSigterm()
-	logger.Infof("service received signal %s", sig)
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}

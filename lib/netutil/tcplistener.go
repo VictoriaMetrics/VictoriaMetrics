@@ -25,8 +25,8 @@ func NewTCPListener(name, addr string) (*TCPListener, error) {
 	tln := &TCPListener{
 		Listener: ln,
 
-		accepts:      metrics.NewCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
-		acceptErrors: metrics.NewCounter(fmt.Sprintf(`vm_tcplistener_errors_total{name=%q, addr=%q, type="accept"}`, name, addr)),
+		accepts:      metrics.GetOrCreateCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
+		acceptErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_tcplistener_errors_total{name=%q, addr=%q, type="accept"}`, name, addr)),
 	}
 	tln.connMetrics.init("vm_tcplistener", name, addr)
 	return tln, err

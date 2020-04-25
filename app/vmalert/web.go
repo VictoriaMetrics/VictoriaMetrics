@@ -26,7 +26,8 @@ type APIAlert struct {
 }
 
 type requestHandler struct {
-	groups []Group
+	groups   []Group
+	reloadCh chan bool
 }
 
 var pathList = [][]string{
@@ -47,6 +48,9 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/alerts":
 		resph.handle(rh.list())
+		return true
+	case "/-/reload":
+		rh.reloadCh <- true
 		return true
 	default:
 		// /api/v1/<groupName>/<alertID>/status
