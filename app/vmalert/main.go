@@ -101,15 +101,12 @@ func main() {
 
 	loadGroups(groups)
 	go func() {
-		for {
-			select {
-			case <-reloadCh:
-				logger.Infof("start reload rule config")
-				if reloadGroups() {
-					logger.Infof("reload rule config ok")
-				} else {
-					logger.Warnf("reload rule config failed")
-				}
+		for range reloadCh {
+			logger.Infof("start reload rule config")
+			if reloadGroups() {
+				logger.Infof("reload rule config ok")
+			} else {
+				logger.Warnf("reload rule config failed")
 			}
 		}
 	}()
