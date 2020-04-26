@@ -11,6 +11,12 @@ import (
 // Returns the caught signal.
 func WaitForSigterm() os.Signal {
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	return <-ch
+}
+
+func WaitForSighup() os.Signal {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGHUP)
 	return <-ch
 }

@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -111,20 +110,18 @@ func main() {
 		}
 	}()
 
-	var sig os.Signal
-	for {
-		sig = procutil.WaitForSigterm()
-		logger.Infof("service received signal %s", sig)
-		if sig == syscall.SIGHUP {
+	go func() {
+		for {
+			procutil.WaitForSighup()
 			reloadCh <- true
-		} else {
-			break
 		}
-	}
+	}()
 
+	procutil.WaitForSigterm()
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
+
 	cancel()
 	wg.Wait()
 }
