@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"math"
 	"time"
 )
 
@@ -11,53 +10,39 @@ import (
 //
 // This function must be called before initializing the storage.
 func SetMinScrapeIntervalForDeduplication(interval time.Duration) {
-	minScrapeInterval = interval
+	minScrapeInterval = interval.Milliseconds()
 }
 
-var minScrapeInterval = time.Duration(0)
-
-func getMinDelta() int64 {
-	// Use 7/8 of minScrapeInterval in order to preserve proper data points.
-	// For instance, if minScrapeInterval=10, the following time series:
-	//    10 15 19 25 30 34 41
-	// Would be unexpectedly converted to if using 100% of minScrapeInterval:
-	//    10 25 41
-	// When using 7/8 of minScrapeInterval, it will be converted to the expected:
-	//    10 19 30 41
-	ms := minScrapeInterval.Milliseconds()
-
-	// Try calculating scrape interval via integer arithmetic.
-	d := (ms / 8) * 7
-	if d > 0 {
-		return d
-	}
-	// Too small scrape interval for integer arithmetic. Calculate d using floating-point arithmetic.
-	return int64(math.Round(float64(ms) / 8 * 7))
-}
+var minScrapeInterval = int64(0)
 
 // DeduplicateSamples removes samples from src* if they are closer to each other than minScrapeInterval.
 func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []float64) {
 	if minScrapeInterval <= 0 {
 		return srcTimestamps, srcValues
 	}
-	minDelta := getMinDelta()
-	if !needsDedup(srcTimestamps, minDelta) {
+	if !needsDedup(srcTimestamps, minScrapeInterval) {
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
 
 	// Slow path - dedup data points.
-	prevTimestamp := srcTimestamps[0]
+	tsNext := (srcTimestamps[0] - srcTimestamps[0] % minScrapeInterval) + minScrapeInterval
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
 	for i := 1; i < len(srcTimestamps); i++ {
 		ts := srcTimestamps[i]
-		if ts-prevTimestamp < minDelta {
+		if ts < tsNext {
 			continue
 		}
 		dstTimestamps = append(dstTimestamps, ts)
 		dstValues = append(dstValues, srcValues[i])
-		prevTimestamp = ts
+
+		// Update tsNext
+		tsNext += minScrapeInterval
+		if ts >= tsNext {
+			// Slow path for updating ts.
+			tsNext = (ts - ts % minScrapeInterval) + minScrapeInterval
+		}
 	}
 	return dstTimestamps, dstValues
 }
@@ -66,29 +51,29 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64) ([]int64, [
 	if minScrapeInterval <= 0 {
 		return srcTimestamps, srcValues
 	}
-	if len(srcTimestamps) < 32 {
-		// Do not de-duplicate small number of samples during merge
-		// in order to improve deduplication accuracy on later stages.
-		return srcTimestamps, srcValues
-	}
-	minDelta := getMinDelta()
-	if !needsDedup(srcTimestamps, minDelta) {
+	if !needsDedup(srcTimestamps, minScrapeInterval) {
 		// Fast path - nothing to deduplicate
 		return srcTimestamps, srcValues
 	}
 
 	// Slow path - dedup data points.
-	prevTimestamp := srcTimestamps[0]
+	tsNext := (srcTimestamps[0] - srcTimestamps[0] % minScrapeInterval) + minScrapeInterval
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
 	for i := 1; i < len(srcTimestamps); i++ {
 		ts := srcTimestamps[i]
-		if ts-prevTimestamp < minDelta {
+		if ts < tsNext {
 			continue
 		}
 		dstTimestamps = append(dstTimestamps, ts)
 		dstValues = append(dstValues, srcValues[i])
-		prevTimestamp = ts
+
+		// Update tsNext
+		tsNext += minScrapeInterval
+		if ts >= tsNext {
+			// Slow path for updating ts.
+			tsNext = (ts - ts % minScrapeInterval) + minScrapeInterval
+		}
 	}
 	return dstTimestamps, dstValues
 }
