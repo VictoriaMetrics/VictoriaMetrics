@@ -3,8 +3,10 @@ package gce
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,8 +15,9 @@ import (
 
 type apiConfig struct {
 	client       *http.Client
-	apiURL       string
+	zones        []string
 	project      string
+	filter       string
 	tagSeparator string
 	port         int
 }
@@ -74,10 +77,16 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create oauth2 client for gce: %s", err)
 	}
-	// See https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
-	apiURL := fmt.Sprintf("https://compute.googleapis.com/compute/v1/projects/%s/zones/%s/instances", sdc.Project, sdc.Zone)
-	if len(sdc.Filter) > 0 {
-		apiURL += fmt.Sprintf("?filter=%s", url.QueryEscape(sdc.Filter))
+	var zones []string
+	if len(sdc.Zone) == 0 {
+		// Autodetect zones for sdc.Project.
+		zs, err := getZonesForProject(client, sdc.Project, sdc.Filter)
+		if err != nil {
+			return nil, fmt.Errorf("cannot obtain zones for project %q: %s", sdc.Project, err)
+		}
+		zones = zs
+	} else {
+		zones = []string{sdc.Zone}
 	}
 	tagSeparator := ","
 	if sdc.TagSeparator != nil {
@@ -89,9 +98,40 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	}
 	return &apiConfig{
 		client:       client,
-		apiURL:       apiURL,
+		zones:        zones,
 		project:      sdc.Project,
+		filter:       sdc.Filter,
 		tagSeparator: tagSeparator,
 		port:         port,
 	}, nil
+}
+
+func getAPIResponse(client *http.Client, apiURL, filter, pageToken string) ([]byte, error) {
+	apiURL = appendNonEmptyQueryArg(apiURL, filter)
+	apiURL = appendNonEmptyQueryArg(apiURL, pageToken)
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("cannot query %q: %s", apiURL, err)
+	}
+	data, err := ioutil.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("cannot read response from %q: %s", apiURL, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code for %q; got %d; want %d; response body: %q",
+			apiURL, resp.StatusCode, http.StatusOK, data)
+	}
+	return data, nil
+}
+
+func appendNonEmptyQueryArg(apiURL, arg string) string {
+	if len(arg) == 0 {
+		return apiURL
+	}
+	prefix := "?"
+	if strings.Contains(apiURL, "?") {
+		prefix = "&"
+	}
+	return apiURL + fmt.Sprintf("%spageToken=%s", prefix, url.QueryEscape(arg))
 }
