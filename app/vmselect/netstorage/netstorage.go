@@ -811,9 +811,10 @@ func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
 }
 
 type tmpBlocksFileWrapper struct {
-	mu  sync.Mutex
-	tbf *tmpBlocksFile
-	m   map[string][]tmpBlockAddr
+	mu                 sync.Mutex
+	tbf                *tmpBlocksFile
+	m                  map[string][]tmpBlockAddr
+	orderedMetricNames []string
 }
 
 func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
@@ -824,7 +825,11 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 	tmpBufPool.Put(bb)
 	if err == nil {
 		metricName := mb.MetricName
-		tbfw.m[string(metricName)] = append(tbfw.m[string(metricName)], addr)
+		addrs := tbfw.m[string(metricName)]
+		if len(addrs) == 0 {
+			tbfw.orderedMetricNames = append(tbfw.orderedMetricNames, string(metricName))
+		}
+		tbfw.m[string(metricName)] = append(addrs, addr)
 	}
 	tbfw.mu.Unlock()
 	return err
@@ -889,28 +894,19 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 	}
 
 	var rss Results
-	rss.packedTimeseries = make([]packedTimeseries, len(tbfw.m))
 	rss.at = at
 	rss.tr = tr
 	rss.fetchData = fetchData
 	rss.deadline = deadline
 	rss.tbf = tbfw.tbf
-	i := 0
-	for metricName, addrs := range tbfw.m {
-		pts := &rss.packedTimeseries[i]
-		i++
-		pts.metricName = metricName
-		pts.addrs = addrs
+	pts := make([]packedTimeseries, len(tbfw.orderedMetricNames))
+	for i, metricName := range tbfw.orderedMetricNames {
+		pts[i] = packedTimeseries{
+			metricName: metricName,
+			addrs:      tbfw.m[metricName],
+		}
 	}
-
-	// Sort rss.packedTimeseries by the first addr offset in order
-	// to reduce the number of disk seeks during unpacking in RunParallel.
-	// In this case tmpBlocksFile must be read almost sequentially.
-	sort.Slice(rss.packedTimeseries, func(i, j int) bool {
-		pts := rss.packedTimeseries
-		return pts[i].addrs[0].offset < pts[j].addrs[0].offset
-	})
-
+	rss.packedTimeseries = pts
 	return &rss, isPartialResult, nil
 }
 
