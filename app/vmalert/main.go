@@ -29,7 +29,7 @@ Examples:
  -rule /path/to/file. Path to a single file with alerting rules
  -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
 absolute path to all .yaml files in root.`)
-	validateAlertAnnotations = flag.Bool("rule.validateAnnotations", true, "Indicates to validate annotation templates")
+	validateAlertAnnotations = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
 	httpListenAddr           = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 	datasourceURL            = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
 	basicAuthUsername        = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
