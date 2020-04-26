@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
-	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Group grouping array of alert
@@ -117,36 +117,6 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	return nil
 }
 
-// Send sends the active alerts via given
-// notifier.Notifier.
-// See for reference https://prometheus.io/docs/alerting/clients/
-// TODO: add tests for endAt value
-func (r *Rule) Send(_ context.Context, ap notifier.Notifier) error {
-	// copy alerts to new list to avoid locks
-	var alertsCopy []notifier.Alert
-	r.mu.Lock()
-	for _, a := range r.alerts {
-		if a.State == notifier.StatePending {
-			continue
-		}
-		// it is safe to dereference instead of deep-copy
-		// because only simple types may be changed during rule.Exec
-		alertsCopy = append(alertsCopy, *a)
-	}
-	r.mu.Unlock()
-
-	if len(alertsCopy) < 1 {
-		return nil
-	}
-	alertsSent.Add(len(alertsCopy))
-	return ap.Send(alertsCopy)
-}
-
-var (
-	alertsFired = metrics.NewCounter(`vmalert_alerts_fired_total`)
-	alertsSent  = metrics.NewCounter(`vmalert_alerts_sent_total`)
-)
-
 // TODO: consider hashing algorithm in VM
 func hash(m datasource.Metric) uint64 {
 	hash := fnv.New64a()
@@ -218,4 +188,65 @@ func (r *Rule) newAlertAPI(a notifier.Alert) *APIAlert {
 		ActiveAt:    a.Start,
 		Value:       strconv.FormatFloat(a.Value, 'e', -1, 64),
 	}
+}
+
+const (
+	// AlertMetricName is the metric name for synthetic alert timeseries.
+	alertMetricName = "ALERTS"
+	// AlertForStateMetricName is the metric name for 'for' state of alert.
+	alertForStateMetricName = "ALERTS_FOR_STATE"
+
+	// AlertNameLabel is the label name indicating the name of an alert.
+	alertNameLabel = "alertname"
+	// AlertStateLabel is the label name indicating the state of an alert.
+	alertStateLabel = "alertstate"
+)
+
+func (r *Rule) AlertToTimeSeries(a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
+	if r.For > 0 {
+		return alertForToTimeSeries(r.Name, a, timestamp)
+	}
+	return alertToTimeSeries(r.Name, a, timestamp)
+}
+
+func alertToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
+	labels := make(map[string]string)
+	for k, v := range a.Labels {
+		labels[k] = v
+	}
+	labels["__name__"] = alertMetricName
+	labels[alertNameLabel] = name
+	labels[alertStateLabel] = a.State.String()
+	return newTimeSeries(1, labels, timestamp)
+}
+
+func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
+	labels := make(map[string]string)
+	for k, v := range a.Labels {
+		labels[k] = v
+	}
+	labels["__name__"] = alertForStateMetricName
+	labels[alertNameLabel] = name
+	labels[alertStateLabel] = a.State.String()
+	return newTimeSeries(float64(a.Start.Unix()), labels, timestamp)
+}
+
+func newTimeSeries(value float64, labels map[string]string, timestamp time.Time) prompbmarshal.TimeSeries {
+	ts := prompbmarshal.TimeSeries{}
+	ts.Samples = append(ts.Samples, prompbmarshal.Sample{
+		Value:     value,
+		Timestamp: timestamp.UnixNano() / 1e6,
+	})
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		ts.Labels = append(ts.Labels, prompbmarshal.Label{
+			Name:  key,
+			Value: labels[key],
+		})
+	}
+	return ts
 }

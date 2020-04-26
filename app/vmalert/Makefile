@@ -57,7 +57,7 @@ test-vmalert:
 run-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/testdata/rules0-good.rules \
 		-datasource.url=http://localhost:8428 -notifier.url=http://localhost:9093 \
-		-evaluationInterval=3s
+		-evaluationInterval=3s -asd
 
 vmalert-amd64:
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmalert-amd64 ./app/vmalert

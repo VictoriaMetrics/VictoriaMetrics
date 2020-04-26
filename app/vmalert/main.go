@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -34,9 +35,11 @@ absolute path to all .yaml files in root.`)
 	datasourceURL            = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
 	basicAuthUsername        = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
 	basicAuthPassword        = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
-	evaluationInterval       = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
-	notifierURL              = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL              = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	remoteWriteURL           = flag.String("remotewrite.url", "", "Optional URL to remote-write compatible storage where to write timeseries"+
+		"based on active alerts. E.g. http://127.0.0.1:8428")
+	evaluationInterval = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
+	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
 // TODO: hot configuration reload
@@ -56,7 +59,7 @@ func main() {
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
 	groups, err := Parse(*rulePath, *validateAlertAnnotations)
 	if err != nil {
-		logger.Fatalf("Cannot parse configuration file: %s", err)
+		logger.Fatalf("cannot parse configuration file: %s", err)
 	}
 
 	w := &watchdog{
@@ -65,6 +68,18 @@ func main() {
 			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
 		}, &http.Client{}),
 	}
+
+	if *remoteWriteURL != "" {
+		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
+			Addr:          *remoteWriteURL,
+			FlushInterval: *evaluationInterval,
+		})
+		if err != nil {
+			logger.Fatalf("failed to init remotewrite client: %s", err)
+		}
+		w.rw = c
+	}
+
 	wg := sync.WaitGroup{}
 	for i := range groups {
 		wg.Add(1)
@@ -82,12 +97,19 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	cancel()
+	if w.rw != nil {
+		err := w.rw.Close()
+		if err != nil {
+			logger.Fatalf("cannot stop the remotewrite: %s", err)
+		}
+	}
 	wg.Wait()
 }
 
 type watchdog struct {
 	storage       *datasource.VMStorage
 	alertProvider notifier.Notifier
+	rw            *remotewrite.Client
 }
 
 var (
@@ -97,6 +119,13 @@ var (
 	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
 	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
 	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+
+	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
+	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
+	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
+
+	remoteWriteSent   = metrics.NewCounter(`vmalert_remotewrite_sent_total`)
+	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
 func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
@@ -122,7 +151,23 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 					continue
 				}
 
-				if err := rule.Send(ctx, w.alertProvider); err != nil {
+				var alertsToSend []notifier.Alert
+				for _, a := range rule.alerts {
+					if a.State != notifier.StatePending {
+						alertsToSend = append(alertsToSend, *a)
+					}
+					if a.State == notifier.StateInactive || w.rw == nil {
+						continue
+					}
+					remoteWriteSent.Inc()
+					if err := w.rw.Push(rule.AlertToTimeSeries(a, time.Now())); err != nil {
+						remoteWriteErrors.Inc()
+						logger.Errorf("failed to push timeseries to remotewrite: %s", err)
+					}
+				}
+				alertsSent.Add(len(alertsToSend))
+				if err := w.alertProvider.Send(alertsToSend); err != nil {
+					alertsSendErrors.Inc()
 					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
 				}
 			}
