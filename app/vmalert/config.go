@@ -40,7 +40,10 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
 				rule.alerts = make(map[uint64]*notifier.Alert)
 				if validateAnnotations {
 					if err = notifier.ValidateAnnotations(rule.Annotations); err != nil {
-						return nil, fmt.Errorf("invalida annotations filepath:%s, group %s:%w", file, group.Name, err)
+						return nil, fmt.Errorf("invalid annotations filepath:%s, group %s:%w", file, group.Name, err)
+					}
+					if err = notifier.ValidateAnnotations(rule.Labels); err != nil {
+						return nil, fmt.Errorf("invalid labels filepath:%s, group %s:%w", file, group.Name, err)
 					}
 				}
 				rule.group = &group
