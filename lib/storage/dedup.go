@@ -26,7 +26,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 	}
 
 	// Slow path - dedup data points.
-	tsNext := (srcTimestamps[0] - srcTimestamps[0] % minScrapeInterval) + minScrapeInterval
+	tsNext := (srcTimestamps[0] - srcTimestamps[0]%minScrapeInterval) + minScrapeInterval
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
 	for i := 1; i < len(srcTimestamps); i++ {
@@ -41,7 +41,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64) ([]int64, []
 		tsNext += minScrapeInterval
 		if ts >= tsNext {
 			// Slow path for updating ts.
-			tsNext = (ts - ts % minScrapeInterval) + minScrapeInterval
+			tsNext = (ts - ts%minScrapeInterval) + minScrapeInterval
 		}
 	}
 	return dstTimestamps, dstValues
@@ -57,7 +57,7 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64) ([]int64, [
 	}
 
 	// Slow path - dedup data points.
-	tsNext := (srcTimestamps[0] - srcTimestamps[0] % minScrapeInterval) + minScrapeInterval
+	tsNext := (srcTimestamps[0] - srcTimestamps[0]%minScrapeInterval) + minScrapeInterval
 	dstTimestamps := srcTimestamps[:1]
 	dstValues := srcValues[:1]
 	for i := 1; i < len(srcTimestamps); i++ {
@@ -72,7 +72,7 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64) ([]int64, [
 		tsNext += minScrapeInterval
 		if ts >= tsNext {
 			// Slow path for updating ts.
-			tsNext = (ts - ts % minScrapeInterval) + minScrapeInterval
+			tsNext = (ts - ts%minScrapeInterval) + minScrapeInterval
 		}
 	}
 	return dstTimestamps, dstValues
