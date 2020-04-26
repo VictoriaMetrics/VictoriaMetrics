@@ -63,8 +63,8 @@ func (a *Alert) ExecTemplate(annotations map[string]string) (map[string]string, 
 	return templateAnnotations(annotations, tplHeader, tplData)
 }
 
-// ValidateAnnotations validate annotations for possible template error, uses empty data for template population
-func ValidateAnnotations(annotations map[string]string) error {
+// ValidateTemplates validate annotations for possible template error, uses empty data for template population
+func ValidateTemplates(annotations map[string]string) error {
 	_, err := templateAnnotations(annotations, tplHeader, alertTplData{
 		Labels: map[string]string{},
 		Value:  0,

@@ -141,15 +141,31 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 		Start:  time.Now(),
 		// TODO: support End time
 	}
+
+	// 1. use data labels
 	for _, l := range m.Labels {
 		a.Labels[l.Name] = l.Value
 	}
+
+	// 2. template rule labels with data labels
+	rLabels, err := a.ExecTemplate(r.Labels)
+	if err != nil {
+		return a, err
+	}
+
+	// 3. merge data labels and rule labels
 	// metric labels may be overridden by
 	// rule labels
-	for k, v := range r.Labels {
+	for k, v := range rLabels {
 		a.Labels[k] = v
 	}
-	var err error
+
+	// 4. template merged labels
+	a.Labels, err = a.ExecTemplate(a.Labels)
+	if err != nil {
+		return a, err
+	}
+
 	a.Annotations, err = a.ExecTemplate(r.Annotations)
 	return a, err
 }

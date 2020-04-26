@@ -135,6 +135,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
 * `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
+  `vmagent` supports empty `zone` arg inside `gce_sd_config` - in this case it autodetects all the zones for the given project.
 
 The following service discovery mechanisms will be added to `vmagent` soon:
 

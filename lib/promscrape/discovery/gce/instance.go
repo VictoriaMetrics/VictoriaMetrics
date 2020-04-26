@@ -3,9 +3,7 @@ package gce
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -25,51 +23,37 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 }
 
 func getInstances(cfg *apiConfig) ([]Instance, error) {
-	var result []Instance
-	pageToken := ""
-	for {
-		insts, nextPageToken, err := getInstancesPage(cfg, pageToken)
+	var insts []Instance
+	for _, zone := range cfg.zones {
+		zoneInsts, err := getInstancesForProjectAndZone(cfg.client, cfg.project, zone, cfg.filter)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, insts...)
-		if len(nextPageToken) == 0 {
-			return result, nil
-		}
-		pageToken = nextPageToken
+		insts = append(insts, zoneInsts...)
 	}
+	return insts, nil
 }
 
-func getInstancesPage(cfg *apiConfig, pageToken string) ([]Instance, string, error) {
-	apiURL := cfg.apiURL
-	if len(pageToken) > 0 {
-		// See https://cloud.google.com/compute/docs/reference/rest/v1/instances/list about pageToken
-		prefix := "?"
-		if strings.Contains(apiURL, "?") {
-			prefix = "&"
+func getInstancesForProjectAndZone(client *http.Client, project, zone, filter string) ([]Instance, error) {
+	// See https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
+	instsURL := fmt.Sprintf("https://compute.googleapis.com/compute/v1/projects/%s/zones/%s/instances", project, zone)
+	var insts []Instance
+	pageToken := ""
+	for {
+		data, err := getAPIResponse(client, instsURL, filter, pageToken)
+		if err != nil {
+			return nil, fmt.Errorf("cannot obtain instances: %s", err)
 		}
-		apiURL += fmt.Sprintf("%spageToken=%s", prefix, url.QueryEscape(pageToken))
+		il, err := parseInstanceList(data)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse instance list from %q: %s", instsURL, err)
+		}
+		insts = append(insts, il.Items...)
+		if len(il.NextPageToken) == 0 {
+			return insts, nil
+		}
+		pageToken = il.NextPageToken
 	}
-	resp, err := cfg.client.Get(apiURL)
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot obtain instances data from API server: %s", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot read instances data from API server: %s", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("unexpected status code when reading instances data from API server; got %d; want %d; response body: %q",
-			resp.StatusCode, http.StatusOK, data)
-	}
-	il, err := parseInstanceList(data)
-	if err != nil {
-		return nil, "", fmt.Errorf("cannot parse instances response from API server: %s", err)
-	}
-	return il.Items, il.NextPageToken, nil
 }
 
 // InstanceList is response to https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
