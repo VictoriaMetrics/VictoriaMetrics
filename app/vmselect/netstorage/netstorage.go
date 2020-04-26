@@ -503,6 +503,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 
 	tbf := getTmpBlocksFile()
 	m := make(map[string][]tmpBlockAddr)
+	var orderedMetricNames []string
 	blocksRead := 0
 	bb := tmpBufPool.Get()
 	defer tmpBufPool.Put(bb)
@@ -519,7 +520,11 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		metricName := sr.MetricBlock.MetricName
-		m[string(metricName)] = append(m[string(metricName)], addr)
+		addrs := m[string(metricName)]
+		if len(addrs) == 0 {
+			orderedMetricNames = append(orderedMetricNames, string(metricName))
+		}
+		m[string(metricName)] = append(addrs, addr)
 	}
 	if err := sr.Error(); err != nil {
 		putTmpBlocksFile(tbf)
@@ -531,27 +536,18 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 	}
 
 	var rss Results
-	rss.packedTimeseries = make([]packedTimeseries, len(m))
 	rss.tr = tr
 	rss.fetchData = fetchData
 	rss.deadline = deadline
 	rss.tbf = tbf
-	i := 0
-	for metricName, addrs := range m {
-		pts := &rss.packedTimeseries[i]
-		i++
-		pts.metricName = metricName
-		pts.addrs = addrs
+	pts := make([]packedTimeseries, len(orderedMetricNames))
+	for i, metricName := range orderedMetricNames {
+		pts[i] = packedTimeseries{
+			metricName: metricName,
+			addrs:      m[metricName],
+		}
 	}
-
-	// Sort rss.packedTimeseries by the first addr offset in order
-	// to reduce the number of disk seeks during unpacking in RunParallel.
-	// In this case tmpBlocksFile must be read almost sequentially.
-	sort.Slice(rss.packedTimeseries, func(i, j int) bool {
-		pts := rss.packedTimeseries
-		return pts[i].addrs[0].offset < pts[j].addrs[0].offset
-	})
-
+	rss.packedTimeseries = pts
 	return &rss, nil
 }
 
