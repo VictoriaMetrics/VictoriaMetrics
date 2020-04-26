@@ -24,22 +24,35 @@ type Client struct {
 	baUser, baPass string
 	flushInterval  time.Duration
 	maxBatchSize   int
+	maxQueueSize   int
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
 }
 
 type Config struct {
-	Addr          string
+	// Addr of remote storage
+	Addr string
+
 	BasicAuthUser string
 	BasicAuthPass string
-	MaxBatchSize  int
+
+	// MaxBatchSize defines max number of timeseries
+	// to be flushed at once
+	MaxBatchSize int
+	// MaxQueueSize defines max length of input queue
+	// populated by Push method
+	MaxQueueSize int
+	// FlushInterval defines time interval for flushing batches
 	FlushInterval time.Duration
-	WriteTimeout  time.Duration
+	// WriteTimeout defines timeout for HTTP write request
+	// to remote storage
+	WriteTimeout time.Duration
 }
 
 const (
 	defaultMaxBatchSize  = 1e3
+	defaultMaxQueueSize  = 100
 	defaultFlushInterval = 5 * time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
@@ -54,6 +67,9 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	}
 	if cfg.MaxBatchSize == 0 {
 		cfg.MaxBatchSize = defaultMaxBatchSize
+	}
+	if cfg.MaxQueueSize == 0 {
+		cfg.MaxQueueSize = defaultMaxQueueSize
 	}
 	if cfg.FlushInterval == 0 {
 		cfg.FlushInterval = defaultFlushInterval
@@ -71,9 +87,10 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		flushInterval: cfg.FlushInterval,
 		maxBatchSize:  cfg.MaxBatchSize,
 		doneCh:        make(chan struct{}),
+		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
 	}
-	return c, c.run(ctx)
-
+	c.run(ctx)
+	return c, nil
 }
 
 // Push adds timeseries into queue for writing into remote storage.
@@ -85,7 +102,8 @@ func (c *Client) Push(s prompbmarshal.TimeSeries) error {
 	case c.input <- s:
 		return nil
 	default:
-		return fmt.Errorf("failed to push timeseries - queue is full")
+		return fmt.Errorf("failed to push timeseries - queue is full (%d entries)",
+			c.maxQueueSize)
 	}
 }
 
@@ -101,10 +119,8 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) run(ctx context.Context) error {
-	c.input = make(chan prompbmarshal.TimeSeries, 100)
-	ticker := time.Tick(c.flushInterval)
-
+func (c *Client) run(ctx context.Context) {
+	ticker := time.NewTicker(c.flushInterval)
 	wr := prompbmarshal.WriteRequest{}
 	shutdown := func() {
 		for ts := range c.input {
@@ -117,6 +133,7 @@ func (c *Client) run(ctx context.Context) error {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
+		defer ticker.Stop()
 		for {
 			select {
 			case <-c.doneCh:
@@ -125,7 +142,7 @@ func (c *Client) run(ctx context.Context) error {
 			case <-ctx.Done():
 				shutdown()
 				return
-			case <-ticker:
+			case <-ticker.C:
 				c.flush(ctx, wr)
 				wr = prompbmarshal.WriteRequest{}
 			case ts := <-c.input:
@@ -137,7 +154,6 @@ func (c *Client) run(ctx context.Context) error {
 			}
 		}
 	}()
-	return nil
 }
 
 func (c *Client) flush(ctx context.Context, wr prompbmarshal.WriteRequest) {

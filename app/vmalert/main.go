@@ -30,12 +30,12 @@ Examples:
  -rule /path/to/file. Path to a single file with alerting rules
  -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
 absolute path to all .yaml files in root.`)
-	validateTemplates  = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
-	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
-	datasourceURL      = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
-	basicAuthUsername  = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
-	basicAuthPassword  = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
-	remoteWriteURL           = flag.String("remotewrite.url", "", "Optional URL to remote-write compatible storage where to write timeseries"+
+	validateTemplates = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
+	httpListenAddr    = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+	datasourceURL     = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
+	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
+	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
+	remoteWriteURL    = flag.String("remotewrite.url", "", "Optional URL to remote-write compatible storage where to write timeseries"+
 		"based on active alerts. E.g. http://127.0.0.1:8428")
 	evaluationInterval = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
 	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
@@ -160,7 +160,7 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 						continue
 					}
 					remoteWriteSent.Inc()
-					if err := w.rw.Push(rule.AlertToTimeSeries(a, time.Now())); err != nil {
+					if err := w.rw.Push(rule.AlertToTimeSeries(a, execStart)); err != nil {
 						remoteWriteErrors.Inc()
 						logger.Errorf("failed to push timeseries to remotewrite: %s", err)
 					}
