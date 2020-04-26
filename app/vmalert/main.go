@@ -29,14 +29,14 @@ Examples:
  -rule /path/to/file. Path to a single file with alerting rules
  -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
 absolute path to all .yaml files in root.`)
-	validateAlertAnnotations = flag.Bool("rule.validateAnnotations", true, "Indicates to validate annotation templates")
-	httpListenAddr           = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
-	datasourceURL            = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
-	basicAuthUsername        = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
-	basicAuthPassword        = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
-	evaluationInterval       = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
-	notifierURL              = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL              = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	validateTemplates  = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
+	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+	datasourceURL      = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
+	basicAuthUsername  = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
+	basicAuthPassword  = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
+	evaluationInterval = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
+	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
 // TODO: hot configuration reload
@@ -54,7 +54,7 @@ func main() {
 	notifier.InitTemplateFunc(eu)
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	groups, err := Parse(*rulePath, *validateAlertAnnotations)
+	groups, err := Parse(*rulePath, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("Cannot parse configuration file: %s", err)
 	}

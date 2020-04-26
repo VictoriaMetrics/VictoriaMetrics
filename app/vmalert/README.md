@@ -77,8 +77,8 @@ Usage of vmalert:
          -rule /path/to/file. Path to a single file with alerting rules
          -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
         absolute path to all .yaml files in root.
-  -rule.validateAnnotations
-        Indicates to validate annotation templates (default true)
+  -rule.validateTemplates
+        Indicates to validate annotation and label templates (default true)
 ```
 
 Pass `-help` to `vmalert` in order to see the full list of supported 
