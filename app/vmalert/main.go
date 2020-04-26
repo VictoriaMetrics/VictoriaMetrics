@@ -52,7 +52,7 @@ func main() {
 	notifier.InitTemplateFunc(eu)
 
 	wg := sync.WaitGroup{}
-	reloadCh := make(chan bool, 1)
+	reloadCh := make(chan struct{}, 1)
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -113,7 +113,7 @@ func main() {
 	go func() {
 		for {
 			procutil.WaitForSighup()
-			reloadCh <- true
+			reloadCh <- struct{}{}
 		}
 	}()
 
