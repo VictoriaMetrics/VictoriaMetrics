@@ -272,9 +272,11 @@ func setLabelValue(labels []prompbmarshal.Label, labelsOffset int, name, value s
 
 // GetLabelByName returns label with the given name from labels.
 func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.Label {
+	var label *prompbmarshal.Label
 	for _, j := range labels {
-		if j.Name == name {
-			return &j
+		label = &j
+		if label.Name == name {
+			return label
 		}
 	}
 	return nil
