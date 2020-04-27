@@ -819,7 +819,7 @@ type tmpBlocksFileWrapper struct {
 
 func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 	bb := tmpBufPool.Get()
-	bb.B = storage.MarshalBlock(bb.B[:0], mb.Block)
+	bb.B = storage.MarshalBlock(bb.B[:0], &mb.Block)
 	tbfw.mu.Lock()
 	addr, err := tbfw.tbf.WriteBlockData(bb.B)
 	tmpBufPool.Put(bb)
@@ -1450,6 +1450,7 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
+	var mb storage.MetricBlock
 	for {
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
@@ -1459,8 +1460,6 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 			// Reached the end of the response
 			return blocksRead, nil
 		}
-		var mb storage.MetricBlock
-		mb.Block = &storage.Block{}
 		tail, err := mb.Unmarshal(buf)
 		if err != nil {
 			return blocksRead, fmt.Errorf("cannot unmarshal MetricBlock #%d: %s", blocksRead, err)

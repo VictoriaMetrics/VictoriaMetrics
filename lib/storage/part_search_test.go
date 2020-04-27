@@ -1247,11 +1247,11 @@ func testPartSearch(t *testing.T, p *part, tsids []TSID, tr TimeRange, expectedR
 
 func testPartSearchSerial(p *part, tsids []TSID, tr TimeRange, expectedRawBlocks []rawBlock) error {
 	var ps partSearch
-	ps.Init(p, tsids, tr, true)
+	ps.Init(p, tsids, tr)
 	var bs []Block
 	for ps.NextBlock() {
 		var b Block
-		b.CopyFrom(&ps.Block)
+		ps.BlockRef.MustReadBlock(&b, true)
 		bs = append(bs, b)
 	}
 	if err := ps.Error(); err != nil {

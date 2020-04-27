@@ -94,7 +94,6 @@ func OpenReaderAt(path string) (*ReaderAt, error) {
 		}
 		r.mmapData = data
 	}
-	r.MustFadviseSequentialRead(false)
 	readersCount.Inc()
 	return &r, nil
 }

@@ -351,6 +351,7 @@ type vmselectRequestCtx struct {
 	sq   storage.SearchQuery
 	tfss []*storage.TagFilters
 	sr   storage.Search
+	mb   storage.MetricBlock
 }
 
 func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
@@ -783,7 +784,7 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 		MinTimestamp: ctx.sq.MinTimestamp,
 		MaxTimestamp: ctx.sq.MaxTimestamp,
 	}
-	ctx.sr.Init(s.storage, ctx.tfss, tr, fetchData, *maxMetricsPerSearch)
+	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -796,12 +797,13 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 
 	// Send found blocks to vmselect.
 	for ctx.sr.NextMetricBlock() {
-		mb := ctx.sr.MetricBlock
+		ctx.mb.MetricName = ctx.sr.MetricBlockRef.MetricName
+		ctx.sr.MetricBlockRef.BlockRef.MustReadBlock(&ctx.mb.Block, fetchData)
 
 		vmselectMetricBlocksRead.Inc()
-		vmselectMetricRowsRead.Add(mb.Block.RowsCount())
+		vmselectMetricRowsRead.Add(ctx.mb.Block.RowsCount())
 
-		ctx.dataBuf = mb.Marshal(ctx.dataBuf[:0])
+		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {
 			return fmt.Errorf("cannot send MetricBlock: %s", err)
 		}
