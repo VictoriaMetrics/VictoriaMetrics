@@ -124,6 +124,15 @@ var (
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
 	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
 	err := hc.Do(req, resp)
+	if err == nil && (resp.Header.StatusCode() == 301 || resp.Header.StatusCode() == 302) {
+		l := string(resp.Header.Peek("Location"))
+		if l != "" {
+			req.URI().Update(l)
+			// only redirect once
+			err = hc.Do(req, resp)
+		}
+	}
+
 	if err == nil {
 		return nil
 	}
