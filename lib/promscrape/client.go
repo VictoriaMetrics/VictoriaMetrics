@@ -80,7 +80,17 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	}
 	resp := fasthttp.AcquireResponse()
 	err := doRequestWithPossibleRetry(c.hc, req, resp)
-
+	statusCode := resp.StatusCode()
+	if statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound {
+		// Allow a single redirect.
+		// It is expected that the redirect is made on the same host.
+		// Otherwise it won't work.
+		if location := resp.Header.Peek("Location"); len(location) > 0 {
+			req.URI().UpdateBytes(location)
+			err = c.hc.Do(req, resp)
+			statusCode = resp.StatusCode()
+		}
+	}
 	fasthttp.ReleaseRequest(req)
 	if err != nil {
 		fasthttp.ReleaseResponse(resp)
@@ -103,7 +113,6 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	} else {
 		dst = append(dst, resp.Body()...)
 	}
-	statusCode := resp.StatusCode()
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
@@ -124,15 +133,6 @@ var (
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
 	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
 	err := hc.Do(req, resp)
-	if err == nil && (resp.Header.StatusCode() == 301 || resp.Header.StatusCode() == 302) {
-		l := string(resp.Header.Peek("Location"))
-		if l != "" {
-			req.URI().Update(l)
-			// only redirect once
-			err = hc.Do(req, resp)
-		}
-	}
-
 	if err == nil {
 		return nil
 	}
