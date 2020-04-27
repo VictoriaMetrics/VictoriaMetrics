@@ -29,11 +29,11 @@ func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 	var zones []string
-	switch v.(type) {
+	switch t := v.(type) {
 	case string:
-		zones = []string{v.(string)}
+		zones = []string{t}
 	case []interface{}:
-		for _, vv := range v.([]interface{}) {
+		for _, vv := range t {
 			zone, ok := vv.(string)
 			if !ok {
 				return fmt.Errorf("unexpected zone type detected: %T; contents: %#v", vv, vv)
