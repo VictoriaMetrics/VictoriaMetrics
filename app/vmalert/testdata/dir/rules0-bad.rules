@@ -1,0 +1,19 @@
+groups:
+  - name: group
+    rules:
+      - alert: InvalidAnnotations
+        for: 5m
+        expr: vm_rows > 0
+        labels:
+          label: bar
+        annotations:
+          summary: "{{ $value }"
+          description: "{{$labels}}"
+      - alert: UnkownAnnotationsFunction
+        for: 5m
+        expr: vm_rows > 0
+        labels:
+          label: bar
+        annotations:
+          summary: "{{ value|query }}"
+          description: "{{$labels}}"
