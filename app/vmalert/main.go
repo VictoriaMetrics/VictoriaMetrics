@@ -159,10 +159,13 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 					if a.State == notifier.StateInactive || w.rw == nil {
 						continue
 					}
-					remoteWriteSent.Inc()
-					if err := w.rw.Push(rule.AlertToTimeSeries(a, execStart)); err != nil {
-						remoteWriteErrors.Inc()
-						logger.Errorf("failed to push timeseries to remotewrite: %s", err)
+					tss := rule.AlertToTimeSeries(a, execStart)
+					for _, ts := range tss {
+						remoteWriteSent.Inc()
+						if err := w.rw.Push(ts); err != nil {
+							remoteWriteErrors.Inc()
+							logger.Errorf("failed to push timeseries to remotewrite: %s", err)
+						}
 					}
 				}
 				alertsSent.Add(len(alertsToSend))

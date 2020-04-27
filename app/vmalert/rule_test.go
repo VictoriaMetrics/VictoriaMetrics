@@ -30,16 +30,18 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 	testCases := []struct {
 		rule  *Rule
 		alert *notifier.Alert
-		expTS prompbmarshal.TimeSeries
+		expTS []prompbmarshal.TimeSeries
 	}{
 		{
 			newTestRule("instant", 0),
 			&notifier.Alert{State: notifier.StateFiring},
-			newTimeSeries(1, map[string]string{
-				"__name__":      alertMetricName,
-				alertStateLabel: notifier.StateFiring.String(),
-				alertNameLabel:  "instant",
-			}, timestamp),
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "instant",
+				}, timestamp),
+			},
 		},
 		{
 			newTestRule("instant extra labels", 0),
@@ -47,13 +49,15 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 				"job":      "foo",
 				"instance": "bar",
 			}},
-			newTimeSeries(1, map[string]string{
-				"__name__":      alertMetricName,
-				alertStateLabel: notifier.StateFiring.String(),
-				alertNameLabel:  "instant extra labels",
-				"job":           "foo",
-				"instance":      "bar",
-			}, timestamp),
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "instant extra labels",
+					"job":           "foo",
+					"instance":      "bar",
+				}, timestamp),
+			},
 		},
 		{
 			newTestRule("instant labels override", 0),
@@ -61,56 +65,76 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 				alertStateLabel: "foo",
 				"__name__":      "bar",
 			}},
-			newTimeSeries(1, map[string]string{
-				"__name__":      alertMetricName,
-				alertStateLabel: notifier.StateFiring.String(),
-				alertNameLabel:  "instant labels override",
-			}, timestamp),
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "instant labels override",
+				}, timestamp),
+			},
 		},
 		{
 			newTestRule("for", time.Second),
 			&notifier.Alert{State: notifier.StateFiring, Start: timestamp.Add(time.Second)},
-			newTimeSeries(float64(timestamp.Add(time.Second).Unix()), map[string]string{
-				"__name__":      alertForStateMetricName,
-				alertStateLabel: notifier.StateFiring.String(),
-				alertNameLabel:  "for",
-			}, timestamp),
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "for",
+				}, timestamp),
+				newTimeSeries(float64(timestamp.Add(time.Second).Unix()), map[string]string{
+					"__name__":     alertForStateMetricName,
+					alertNameLabel: "for",
+				}, timestamp),
+			},
 		},
 		{
 			newTestRule("for pending", 10*time.Second),
 			&notifier.Alert{State: notifier.StatePending, Start: timestamp.Add(time.Second)},
-			newTimeSeries(float64(timestamp.Add(time.Second).Unix()), map[string]string{
-				"__name__":      alertForStateMetricName,
-				alertStateLabel: notifier.StatePending.String(),
-				alertNameLabel:  "for pending",
-			}, timestamp),
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StatePending.String(),
+					alertNameLabel:  "for pending",
+				}, timestamp),
+				newTimeSeries(float64(timestamp.Add(time.Second).Unix()), map[string]string{
+					"__name__":     alertForStateMetricName,
+					alertNameLabel: "for pending",
+				}, timestamp),
+			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
-			ts := tc.rule.AlertToTimeSeries(tc.alert, timestamp)
-			if len(tc.expTS.Samples) != len(ts.Samples) {
-				t.Fatalf("expected number of samples %d; got %d", len(tc.expTS.Samples), len(ts.Samples))
+			tss := tc.rule.AlertToTimeSeries(tc.alert, timestamp)
+			if len(tc.expTS) != len(tss) {
+				t.Fatalf("expected number of timeseries %d; got %d", len(tc.expTS), len(tss))
 			}
-			for i, exp := range tc.expTS.Samples {
-				got := ts.Samples[i]
-				if got.Value != exp.Value {
-					t.Errorf("expected value %.2f; got %.2f", exp.Value, got.Value)
+			for i := range tc.expTS {
+				expTS, gotTS := tc.expTS[i], tss[i]
+				if len(expTS.Samples) != len(gotTS.Samples) {
+					t.Fatalf("expected number of samples %d; got %d", len(expTS.Samples), len(gotTS.Samples))
 				}
-				if got.Timestamp != exp.Timestamp {
-					t.Errorf("expected timestamp %d; got %d", exp.Timestamp, got.Timestamp)
+				for i, exp := range expTS.Samples {
+					got := gotTS.Samples[i]
+					if got.Value != exp.Value {
+						t.Errorf("expected value %.2f; got %.2f", exp.Value, got.Value)
+					}
+					if got.Timestamp != exp.Timestamp {
+						t.Errorf("expected timestamp %d; got %d", exp.Timestamp, got.Timestamp)
+					}
 				}
-			}
-			if len(tc.expTS.Labels) != len(ts.Labels) {
-				t.Fatalf("expected number of labels %d; got %d", len(tc.expTS.Labels), len(ts.Labels))
-			}
-			for i, exp := range tc.expTS.Labels {
-				got := ts.Labels[i]
-				if got.Name != exp.Name {
-					t.Errorf("expected label name %q; got %q", exp.Name, got.Name)
+				if len(expTS.Labels) != len(gotTS.Labels) {
+					t.Fatalf("expected number of labels %d; got %d", len(expTS.Labels), len(gotTS.Labels))
 				}
-				if got.Value != exp.Value {
-					t.Errorf("expected label value %q; got %q", exp.Value, got.Value)
+				for i, exp := range expTS.Labels {
+					got := gotTS.Labels[i]
+					if got.Name != exp.Name {
+						t.Errorf("expected label name %q; got %q", exp.Name, got.Name)
+					}
+					if got.Value != exp.Value {
+						t.Errorf("expected label value %q; got %q", exp.Value, got.Value)
+					}
 				}
 			}
 		})

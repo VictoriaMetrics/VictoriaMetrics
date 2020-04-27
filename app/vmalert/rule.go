@@ -218,11 +218,13 @@ const (
 	alertStateLabel = "alertstate"
 )
 
-func (r *Rule) AlertToTimeSeries(a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
+func (r *Rule) AlertToTimeSeries(a *notifier.Alert, timestamp time.Time) []prompbmarshal.TimeSeries {
+	var tss []prompbmarshal.TimeSeries
+	tss = append(tss, alertToTimeSeries(r.Name, a, timestamp))
 	if r.For > 0 {
-		return alertForToTimeSeries(r.Name, a, timestamp)
+		tss = append(tss, alertForToTimeSeries(r.Name, a, timestamp))
 	}
-	return alertToTimeSeries(r.Name, a, timestamp)
+	return tss
 }
 
 func alertToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
@@ -243,7 +245,6 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 	}
 	labels["__name__"] = alertForStateMetricName
 	labels[alertNameLabel] = name
-	labels[alertStateLabel] = a.State.String()
 	return newTimeSeries(float64(a.Start.Unix()), labels, timestamp)
 }
 
