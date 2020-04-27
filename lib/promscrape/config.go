@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"gopkg.in/yaml.v2"
@@ -61,6 +62,7 @@ type ScrapeConfig struct {
 	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
 	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
+	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
 	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
@@ -149,6 +151,14 @@ func (cfg *Config) kubernetesSDConfigsCount() int {
 	return n
 }
 
+func (cfg *Config) ec2SDConfigsCount() int {
+	n := 0
+	for i := range cfg.ScrapeConfigs {
+		n += len(cfg.ScrapeConfigs[i].EC2SDConfigs)
+	}
+	return n
+}
+
 func (cfg *Config) gceSDConfigsCount() int {
 	n := 0
 	for i := range cfg.ScrapeConfigs {
@@ -173,6 +183,19 @@ func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
 			dst = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
+}
+
+// getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getEC2SDScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.EC2SDConfigs {
+			sdc := &sc.EC2SDConfigs[j]
+			dst = appendEC2ScrapeWork(dst, sdc, sc.swc)
 		}
 	}
 	return dst
@@ -321,6 +344,15 @@ func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, base
 		return dst
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config")
+}
+
+func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
+	targetLabels, err := ec2.GetLabels(sdc)
+	if err != nil {
+		logger.Errorf("error when discovering ec2 nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config")
 }
 
 func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
