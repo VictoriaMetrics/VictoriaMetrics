@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func TestRule_Validate(t *testing.T) {
@@ -21,6 +22,122 @@ func TestRule_Validate(t *testing.T) {
 	}
 	if err := (&Rule{Name: "alert", Expr: "test>0"}).Validate(); err != nil {
 		t.Errorf("exptected valid rule got %s", err)
+	}
+}
+
+func TestRule_AlertToTimeSeries(t *testing.T) {
+	timestamp := time.Now()
+	testCases := []struct {
+		rule  *Rule
+		alert *notifier.Alert
+		expTS []prompbmarshal.TimeSeries
+	}{
+		{
+			newTestRule("instant", 0),
+			&notifier.Alert{State: notifier.StateFiring},
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "instant",
+				}, timestamp),
+			},
+		},
+		{
+			newTestRule("instant extra labels", 0),
+			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
+				"job":      "foo",
+				"instance": "bar",
+			}},
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "instant extra labels",
+					"job":           "foo",
+					"instance":      "bar",
+				}, timestamp),
+			},
+		},
+		{
+			newTestRule("instant labels override", 0),
+			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
+				alertStateLabel: "foo",
+				"__name__":      "bar",
+			}},
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "instant labels override",
+				}, timestamp),
+			},
+		},
+		{
+			newTestRule("for", time.Second),
+			&notifier.Alert{State: notifier.StateFiring, Start: timestamp.Add(time.Second)},
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StateFiring.String(),
+					alertNameLabel:  "for",
+				}, timestamp),
+				newTimeSeries(float64(timestamp.Add(time.Second).Unix()), map[string]string{
+					"__name__":     alertForStateMetricName,
+					alertNameLabel: "for",
+				}, timestamp),
+			},
+		},
+		{
+			newTestRule("for pending", 10*time.Second),
+			&notifier.Alert{State: notifier.StatePending, Start: timestamp.Add(time.Second)},
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":      alertMetricName,
+					alertStateLabel: notifier.StatePending.String(),
+					alertNameLabel:  "for pending",
+				}, timestamp),
+				newTimeSeries(float64(timestamp.Add(time.Second).Unix()), map[string]string{
+					"__name__":     alertForStateMetricName,
+					alertNameLabel: "for pending",
+				}, timestamp),
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.rule.Name, func(t *testing.T) {
+			tss := tc.rule.AlertToTimeSeries(tc.alert, timestamp)
+			if len(tc.expTS) != len(tss) {
+				t.Fatalf("expected number of timeseries %d; got %d", len(tc.expTS), len(tss))
+			}
+			for i := range tc.expTS {
+				expTS, gotTS := tc.expTS[i], tss[i]
+				if len(expTS.Samples) != len(gotTS.Samples) {
+					t.Fatalf("expected number of samples %d; got %d", len(expTS.Samples), len(gotTS.Samples))
+				}
+				for i, exp := range expTS.Samples {
+					got := gotTS.Samples[i]
+					if got.Value != exp.Value {
+						t.Errorf("expected value %.2f; got %.2f", exp.Value, got.Value)
+					}
+					if got.Timestamp != exp.Timestamp {
+						t.Errorf("expected timestamp %d; got %d", exp.Timestamp, got.Timestamp)
+					}
+				}
+				if len(expTS.Labels) != len(gotTS.Labels) {
+					t.Fatalf("expected number of labels %d; got %d", len(expTS.Labels), len(gotTS.Labels))
+				}
+				for i, exp := range expTS.Labels {
+					got := gotTS.Labels[i]
+					if got.Name != exp.Name {
+						t.Errorf("expected label name %q; got %q", exp.Name, got.Name)
+					}
+					if got.Value != exp.Value {
+						t.Errorf("expected label value %q; got %q", exp.Value, got.Value)
+					}
+				}
+			}
+		})
 	}
 }
 

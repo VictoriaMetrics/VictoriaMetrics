@@ -42,7 +42,7 @@ Then configure `vmalert` accordingly:
         -notifier.url=http://localhost:9093
 ```
 
-Example for `.rules` file bay be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata/rules0-good.rules)
+Example for `.rules` file may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata/rules0-good.rules)
 
 `vmalert` runs evaluation for every group in a separate goroutine.
 Rules in group evaluated one-by-one sequentially. 
@@ -68,8 +68,12 @@ Usage of vmalert:
         How often to evaluate the rules. Default 1m (default 1m0s)
   -external.url string
         External URL is used as alert's source for sent alerts to the notifier
+  -httpListenAddr string
+        Address to listen for http connections (default ":8880")
   -notifier.url string
         Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
+  -remotewrite.url string
+        Optional URL to remote-write compatible storage where to write timeseriesbased on active alerts. E.g. http://127.0.0.1:8428
   -rule value
         Path to the file with alert rules. 
         Supports patterns. Flag can be specified multiple times. 
