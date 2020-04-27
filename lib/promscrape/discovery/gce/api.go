@@ -124,8 +124,8 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 }
 
 func getAPIResponse(client *http.Client, apiURL, filter, pageToken string) ([]byte, error) {
-	apiURL = appendNonEmptyQueryArg(apiURL, filter)
-	apiURL = appendNonEmptyQueryArg(apiURL, pageToken)
+	apiURL = appendNonEmptyQueryArg(apiURL, "filter", filter)
+	apiURL = appendNonEmptyQueryArg(apiURL, "pageToken", pageToken)
 	resp, err := client.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query %q: %s", apiURL, err)
@@ -146,15 +146,15 @@ func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 	return data, nil
 }
 
-func appendNonEmptyQueryArg(apiURL, arg string) string {
-	if len(arg) == 0 {
+func appendNonEmptyQueryArg(apiURL, argName, argValue string) string {
+	if len(argValue) == 0 {
 		return apiURL
 	}
 	prefix := "?"
 	if strings.Contains(apiURL, "?") {
 		prefix = "&"
 	}
-	return apiURL + fmt.Sprintf("%spageToken=%s", prefix, url.QueryEscape(arg))
+	return apiURL + fmt.Sprintf("%s%s=%s", prefix, url.QueryEscape(argName), url.QueryEscape(argValue))
 }
 
 func getCurrentZone() (string, error) {
