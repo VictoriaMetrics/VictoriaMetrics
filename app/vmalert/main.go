@@ -50,7 +50,7 @@ func main() {
 	logger.Init()
 	checkFlags()
 	ctx, cancel := context.WithCancel(context.Background())
-	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
+	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
 	if err != nil {
 		logger.Fatalf("can not get external url:%s ", err)
 	}
