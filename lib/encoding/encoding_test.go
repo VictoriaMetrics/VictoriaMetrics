@@ -214,6 +214,6 @@ func testMarshalInt64ArraySize(t *testing.T, va []int64, precisionBits uint8, mi
 		t.Fatalf("too big size for marshaled %d items with precisionBits %d: got %d; expecting %d", len(va), precisionBits, len(b), maxSizeExpected)
 	}
 	if len(b) < minSizeExpected {
-		t.Fatalf("too small size for marshaled %d items with precisionBits %d: got %d; epxecting %d", len(va), precisionBits, len(b), minSizeExpected)
+		t.Fatalf("too small size for marshaled %d items with precisionBits %d: got %d; expecting %d", len(va), precisionBits, len(b), minSizeExpected)
 	}
 }
