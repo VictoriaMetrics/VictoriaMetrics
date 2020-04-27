@@ -9,77 +9,55 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// MetricBlock is a time series block for a single metric.
-type MetricBlock struct {
+// BlockRef references a Block.
+//
+// BlockRef is valid only until the corresponding Search is valid,
+// i.e. it becomes invalid after Search.MustClose is called.
+type BlockRef struct {
+	p  *part
+	bh blockHeader
+}
+
+func (br *BlockRef) reset() {
+	br.p = nil
+	br.bh = blockHeader{}
+}
+
+func (br *BlockRef) init(p *part, bh *blockHeader) {
+	br.p = p
+	br.bh = *bh
+}
+
+// MustReadBlock reads block from br to dst.
+//
+// if fetchData is false, then only block header is read, otherwise all the data is read.
+func (br *BlockRef) MustReadBlock(dst *Block, fetchData bool) {
+	dst.Reset()
+	dst.bh = br.bh
+	if !fetchData {
+		return
+	}
+
+	dst.timestampsData = bytesutil.Resize(dst.timestampsData[:0], int(br.bh.TimestampsBlockSize))
+	br.p.timestampsFile.MustReadAt(dst.timestampsData, int64(br.bh.TimestampsBlockOffset))
+
+	dst.valuesData = bytesutil.Resize(dst.valuesData[:0], int(br.bh.ValuesBlockSize))
+	br.p.valuesFile.MustReadAt(dst.valuesData, int64(br.bh.ValuesBlockOffset))
+}
+
+// MetricBlockRef contains reference to time series block for a single metric.
+type MetricBlockRef struct {
+	// The metric name
 	MetricName []byte
 
-	Block *Block
-}
-
-// Marshal marshals MetricBlock to dst
-func (mb *MetricBlock) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalBytes(dst, mb.MetricName)
-	return MarshalBlock(dst, mb.Block)
-}
-
-// MarshalBlock marshals b to dst.
-//
-// b.MarshalData must be called on b before calling MarshalBlock.
-func MarshalBlock(dst []byte, b *Block) []byte {
-	dst = b.bh.Marshal(dst)
-	dst = encoding.MarshalBytes(dst, b.timestampsData)
-	dst = encoding.MarshalBytes(dst, b.valuesData)
-	return dst
-}
-
-// Unmarshal unmarshals MetricBlock from src
-func (mb *MetricBlock) Unmarshal(src []byte) ([]byte, error) {
-	if mb.Block == nil {
-		logger.Panicf("BUG: MetricBlock.Block must be non-nil when calling Unmarshal!")
-	} else {
-		mb.Block.Reset()
-	}
-	tail, mn, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %s", err)
-	}
-	mb.MetricName = append(mb.MetricName[:0], mn...)
-	src = tail
-
-	return UnmarshalBlock(mb.Block, src)
-}
-
-// UnmarshalBlock unmarshal Block from src to dst.
-//
-// dst.UnmarshalData isn't called on the block.
-func UnmarshalBlock(dst *Block, src []byte) ([]byte, error) {
-	tail, err := dst.bh.Unmarshal(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal blockHeader: %s", err)
-	}
-	src = tail
-
-	tail, tds, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal timestampsData: %s", err)
-	}
-	dst.timestampsData = append(dst.timestampsData[:0], tds...)
-	src = tail
-
-	tail, vd, err := encoding.UnmarshalBytes(src)
-	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal valuesData: %s", err)
-	}
-	dst.valuesData = append(dst.valuesData[:0], vd...)
-	src = tail
-
-	return src, nil
+	// The block reference. Call BlockRef.MustReadBlock in order to obtain the block.
+	BlockRef *BlockRef
 }
 
 // Search is a search for time series.
 type Search struct {
-	// MetricBlock is updated with each Search.NextMetricBlock call.
-	MetricBlock MetricBlock
+	// MetricBlockRef is updated with each Search.NextMetricBlock call.
+	MetricBlockRef MetricBlockRef
 
 	storage *Storage
 
@@ -91,8 +69,8 @@ type Search struct {
 }
 
 func (s *Search) reset() {
-	s.MetricBlock.MetricName = s.MetricBlock.MetricName[:0]
-	s.MetricBlock.Block = nil
+	s.MetricBlockRef.MetricName = s.MetricBlockRef.MetricName[:0]
+	s.MetricBlockRef.BlockRef = nil
 
 	s.storage = nil
 	s.ts.reset()
@@ -103,7 +81,7 @@ func (s *Search) reset() {
 // Init initializes s from the given storage, tfss and tr.
 //
 // MustClose must be called when the search is done.
-func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, fetchData bool, maxMetrics int) {
+func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int) {
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
@@ -118,7 +96,7 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, fetchD
 	// It is ok to call Init on error from storage.searchTSIDs.
 	// Init must be called before returning because it will fail
 	// on Seach.MustClose otherwise.
-	s.ts.Init(storage.tb, tsids, tr, fetchData)
+	s.ts.Init(storage.tb, tsids, tr)
 
 	if err != nil {
 		s.err = err
@@ -145,15 +123,15 @@ func (s *Search) Error() error {
 	return s.err
 }
 
-// NextMetricBlock proceeds to the next MetricBlock.
+// NextMetricBlock proceeds to the next MetricBlockRef.
 func (s *Search) NextMetricBlock() bool {
 	if s.err != nil {
 		return false
 	}
 	for s.ts.NextBlock() {
-		tsid := &s.ts.Block.bh.TSID
+		tsid := &s.ts.BlockRef.bh.TSID
 		var err error
-		s.MetricBlock.MetricName, err = s.storage.searchMetricName(s.MetricBlock.MetricName[:0], tsid.MetricID)
+		s.MetricBlockRef.MetricName, err = s.storage.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
 		if err != nil {
 			if err == io.EOF {
 				// Skip missing metricName for tsid.MetricID.
@@ -163,7 +141,7 @@ func (s *Search) NextMetricBlock() bool {
 			s.err = err
 			return false
 		}
-		s.MetricBlock.Block = s.ts.Block
+		s.MetricBlockRef.BlockRef = s.ts.BlockRef
 		return true
 	}
 	if err := s.ts.Error(); err != nil {
