@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/oauth2/google"
 )
 
@@ -77,16 +78,32 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create oauth2 client for gce: %s", err)
 	}
-	var zones []string
-	if len(sdc.Zone) == 0 {
-		// Autodetect zones for sdc.Project.
-		zs, err := getZonesForProject(client, sdc.Project, sdc.Filter)
+	project := sdc.Project
+	if len(project) == 0 {
+		proj, err := getCurrentProject()
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain zones for project %q: %s", sdc.Project, err)
+			return nil, fmt.Errorf("cannot determine the current project; make sure `vmagent` runs inside GCE; error: %s", err)
+		}
+		project = proj
+		logger.Infof("autodetected the current GCE project: %q", project)
+	}
+	zones := sdc.Zone.zones
+	if len(zones) == 0 {
+		// Autodetect the current zone.
+		zone, err := getCurrentZone()
+		if err != nil {
+			return nil, fmt.Errorf("cannot determine the current zone; make sure `vmagent` runs inside GCE; error: %s", err)
+		}
+		zones = append(zones, zone)
+		logger.Infof("autodetected the current GCE zone: %q", zone)
+	} else if len(zones) == 1 && zones[0] == "*" {
+		// Autodetect zones for project.
+		zs, err := getZonesForProject(client, project, sdc.Filter)
+		if err != nil {
+			return nil, fmt.Errorf("cannot obtain zones for project %q: %s", project, err)
 		}
 		zones = zs
-	} else {
-		zones = []string{sdc.Zone}
+		logger.Infof("autodetected all the zones for the GCE project %q: %q", project, zones)
 	}
 	tagSeparator := ","
 	if sdc.TagSeparator != nil {
@@ -99,7 +116,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	return &apiConfig{
 		client:       client,
 		zones:        zones,
-		project:      sdc.Project,
+		project:      project,
 		filter:       sdc.Filter,
 		tagSeparator: tagSeparator,
 		port:         port,
@@ -113,6 +130,10 @@ func getAPIResponse(client *http.Client, apiURL, filter, pageToken string) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("cannot query %q: %s", apiURL, err)
 	}
+	return readResponseBody(resp, apiURL)
+}
+
+func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 	data, err := ioutil.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
@@ -134,4 +155,41 @@ func appendNonEmptyQueryArg(apiURL, arg string) string {
 		prefix = "&"
 	}
 	return apiURL + fmt.Sprintf("%spageToken=%s", prefix, url.QueryEscape(arg))
+}
+
+func getCurrentZone() (string, error) {
+	// See https://cloud.google.com/compute/docs/storing-retrieving-metadata#default
+	data, err := getGCEMetadata("instance/zone")
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Split(string(data), "/")
+	if len(parts) != 4 {
+		return "", fmt.Errorf("unexpected data returned from GCE; it must contain something like `projects/projectnum/zones/zone`; data: %q", data)
+	}
+	return parts[3], nil
+}
+
+func getCurrentProject() (string, error) {
+	// See https://cloud.google.com/compute/docs/storing-retrieving-metadata#default
+	data, err := getGCEMetadata("project/project-id")
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func getGCEMetadata(path string) ([]byte, error) {
+	// See https://cloud.google.com/compute/docs/storing-retrieving-metadata#default
+	metadataURL := "http://metadata.google.internal/computeMetadata/v1/" + path
+	req, err := http.NewRequest("GET", metadataURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create http request for %q: %s", metadataURL, err)
+	}
+	req.Header.Set("Metadata-Flavor", "Google")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain response to %q: %s", metadataURL, err)
+	}
+	return readResponseBody(resp, metadataURL)
 }
