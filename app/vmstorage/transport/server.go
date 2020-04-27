@@ -274,12 +274,12 @@ func (s *Server) isStopping() bool {
 	return atomic.LoadUint64(&s.stopFlag) != 0
 }
 
-func (s *Server) processVMInsertConn(r io.Reader) error {
+func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 	sizeBuf := make([]byte, 8)
 	var buf []byte
 	var mrs []storage.MetricRow
 	for {
-		if _, err := io.ReadFull(r, sizeBuf); err != nil {
+		if _, err := io.ReadFull(bc, sizeBuf); err != nil {
 			if err == io.EOF {
 				// Remote end gracefully closed the connection.
 				return nil
@@ -291,8 +291,20 @@ func (s *Server) processVMInsertConn(r io.Reader) error {
 			return fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSize)
 		}
 		buf = bytesutil.Resize(buf, int(packetSize))
-		if n, err := io.ReadFull(r, buf); err != nil {
+		if n, err := io.ReadFull(bc, buf); err != nil {
 			return fmt.Errorf("cannot read packet with size %d: %s; read only %d bytes", packetSize, err, n)
+		}
+		// Send `ack` to vminsert that we recevied the packet.
+		deadline := time.Now().Add(5 * time.Second)
+		if err := bc.SetWriteDeadline(deadline); err != nil {
+			return fmt.Errorf("cannot set write deadline for sending `ack` to vminsert: %s", err)
+		}
+		sizeBuf[0] = 1
+		if _, err := bc.Write(sizeBuf[:1]); err != nil {
+			return fmt.Errorf("cannot send `ack` to vminsert: %s", err)
+		}
+		if err := bc.Flush(); err != nil {
+			return fmt.Errorf("cannot flush `ack` to vminsert: %s", err)
 		}
 		vminsertPacketsRead.Inc()
 

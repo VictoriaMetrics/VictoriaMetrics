@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	vminsertHello = "vminsert.01"
+	vminsertHello = "vminsert.02"
 	vmselectHello = "vmselect.01"
 
 	successResponse = "ok"

@@ -3,6 +3,7 @@ package netstorage
 import (
 	"flag"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -119,31 +120,48 @@ func (sn *storageNode) sendBufLocked(buf []byte) error {
 			return fmt.Errorf("cannot dial %q: %s", sn.dialer.Addr(), err)
 		}
 	}
+	if err := sn.sendToConn(sn.bc, buf); err != nil {
+		sn.closeBrokenConn()
+		return err
+	}
+	return nil
+}
+
+func (sn *storageNode) sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	timeoutSeconds := len(buf) / 3e5
 	if timeoutSeconds < 60 {
 		timeoutSeconds = 60
 	}
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
-	if err := sn.bc.SetWriteDeadline(deadline); err != nil {
-		sn.closeBrokenConn()
+	if err := bc.SetWriteDeadline(deadline); err != nil {
 		return fmt.Errorf("cannot set write deadline to %s: %s", deadline, err)
 	}
 	// sizeBuf guarantees that the rows batch will be either fully
 	// read or fully discarded on the vmstorage side.
 	// sizeBuf is used for read optimization in vmstorage.
 	sn.sizeBuf = encoding.MarshalUint64(sn.sizeBuf[:0], uint64(len(buf)))
-	if _, err := sn.bc.Write(sn.sizeBuf); err != nil {
-		sn.closeBrokenConn()
+	if _, err := bc.Write(sn.sizeBuf); err != nil {
 		return fmt.Errorf("cannot write data size %d: %s", len(buf), err)
 	}
-	if _, err := sn.bc.Write(buf); err != nil {
-		sn.closeBrokenConn()
+	if _, err := bc.Write(buf); err != nil {
 		return fmt.Errorf("cannot write data with size %d: %s", len(buf), err)
 	}
-	if err := sn.bc.Flush(); err != nil {
-		sn.closeBrokenConn()
+	if err := bc.Flush(); err != nil {
 		return fmt.Errorf("cannot flush data with size %d: %s", len(buf), err)
+	}
+
+	// Wait for `ack` from vmstorage.
+	// This guarantees that the message has been fully received by vmstorage.
+	deadline = time.Now().Add(5 * time.Second)
+	if err := bc.SetReadDeadline(deadline); err != nil {
+		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %s", err)
+	}
+	if _, err := io.ReadFull(bc, sn.sizeBuf[:1]); err != nil {
+		return fmt.Errorf("cannot read `ack` from vmstorage: %s", err)
+	}
+	if sn.sizeBuf[0] != 1 {
+		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want %d", sn.sizeBuf[0], 1)
 	}
 	return nil
 }
