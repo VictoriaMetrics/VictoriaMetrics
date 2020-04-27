@@ -15,6 +15,7 @@ all: \
 	vmselect \
 	vmstorage \
 	vmagent \
+	vmalert \
 	vmbackup \
 	vmrestore
 
@@ -23,6 +24,7 @@ all-pure: \
 	vmselect-pure \
 	vmstorage-pure \
 	vmagent-pure \
+	vmalert-pure \
 	vmbackup-pure \
 	vmrestore-pure
 
@@ -37,6 +39,7 @@ publish: \
 	publish-vmselect \
 	publish-vmstorage \
 	publish-vmagent \
+	publish-vmalert \
 	publish-vmbackup \
 	publish-vmrestore
 
@@ -45,11 +48,13 @@ package: \
 	package-vmselect \
 	package-vmstorage \
 	package-vmagent \
+	package-vmalert \
 	package-vmbackup \
 	package-vmrestore
 
 vmutils: \
 	vmagent \
+	vmalert \
 	vmbackup \
 	vmrestore
 
@@ -66,9 +71,10 @@ release-vmcluster: \
 
 release-vmutils: \
 	vmagent-prod \
+	vmalert-prod \
 	vmbackup-prod \
 	vmrestore-prod
-	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmbackup-prod vmrestore-prod && \
+	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmbackup-prod vmrestore-prod && \
 		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
@@ -95,6 +101,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmagent/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
 
