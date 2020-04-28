@@ -47,12 +47,24 @@ Run `vmrestore -help` in order to see all the available options:
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -customS3Endpoint string
     	Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
+  -envflag.enable
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+  -envflag.prefix string
+    	Prefix for environment variables if -envflag.enable is set
+  -fs.disableMmap
+    	Whether to use pread() instead of mmap() for reading data files
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
-    	Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC (default "INFO")
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
   -maxBytesPerSecond int
     	The maximum download speed. There is no limit if it is set to 0
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy (default 60)
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+  -skipBackupCompleteCheck
+    	Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
     	Source path with backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -storageDataPath string

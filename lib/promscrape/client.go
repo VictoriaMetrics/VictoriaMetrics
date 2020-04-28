@@ -80,7 +80,17 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	}
 	resp := fasthttp.AcquireResponse()
 	err := doRequestWithPossibleRetry(c.hc, req, resp)
-
+	statusCode := resp.StatusCode()
+	if statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound {
+		// Allow a single redirect.
+		// It is expected that the redirect is made on the same host.
+		// Otherwise it won't work.
+		if location := resp.Header.Peek("Location"); len(location) > 0 {
+			req.URI().UpdateBytes(location)
+			err = c.hc.Do(req, resp)
+			statusCode = resp.StatusCode()
+		}
+	}
 	fasthttp.ReleaseRequest(req)
 	if err != nil {
 		fasthttp.ReleaseResponse(resp)
@@ -103,7 +113,6 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	} else {
 		dst = append(dst, resp.Body()...)
 	}
-	statusCode := resp.StatusCode()
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",

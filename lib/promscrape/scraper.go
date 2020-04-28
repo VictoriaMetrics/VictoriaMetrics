@@ -113,6 +113,16 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			defer wg.Done()
 			runSDScrapers("gce", cfg, pushData, k8sReloadCh, stopCh)
 		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runEC2SDScrapers(cfg, pushData, stopCh)
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runGCESDScrapers(cfg, pushData, stopCh)
+		}()
 
 		reloadConfigFile := func() {
 			cfgNew, dataNew, err := loadConfig(configFile)
@@ -340,46 +350,6 @@ var (
 	gceSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="gce_sd"}`)
 	gceSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="gce_sd"}`)
 )
-
-func runFileSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.fileSDConfigsCount() == 0 {
-		return
-	}
-	sws := cfg.getFileSDScrapeWork(nil)
-	ticker := time.NewTicker(*fileSDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `file_sd_config` targets", len(sws))
-			fileSDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			fileSDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `file_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getFileSDScrapeWork(sws)
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
-			}
-			logger.Infof("restarting scrapers for changed `file_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
-		}
-
-		close(localStopCh)
-		wg.Wait()
-		fileSDReloads.Inc()
-	}
-}
 
 var (
 	fileSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="file_sd"}`)

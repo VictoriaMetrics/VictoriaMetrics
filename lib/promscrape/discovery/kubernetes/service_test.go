@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 func TestParseServiceListFailure(t *testing.T) {
@@ -100,7 +101,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 	if meta.Name != "kube-dns" {
 		t.Fatalf("unexpected ObjectMeta.Name; got %q; want %q", meta.Name, "kube-dns")
 	}
-	expectedLabels := getSortedLabels(map[string]string{
+	expectedLabels := discoveryutils.GetSortedLabels(map[string]string{
 		"k8s-app":                       "kube-dns",
 		"kubernetes.io/cluster-service": "true",
 		"kubernetes.io/name":            "KubeDNS",
@@ -108,7 +109,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 	if !reflect.DeepEqual(meta.Labels, expectedLabels) {
 		t.Fatalf("unexpected ObjectMeta.Labels\ngot\n%v\nwant\n%v", meta.Labels, expectedLabels)
 	}
-	expectedAnnotations := getSortedLabels(map[string]string{
+	expectedAnnotations := discoveryutils.GetSortedLabels(map[string]string{
 		"prometheus.io/port":   "9153",
 		"prometheus.io/scrape": "true",
 	})
@@ -148,10 +149,10 @@ func TestParseServiceListSuccess(t *testing.T) {
 	labelss := service.appendTargetLabels(nil)
 	var sortedLabelss [][]prompbmarshal.Label
 	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, getSortedLabels(labels))
+		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
 	}
 	expectedLabelss := [][]prompbmarshal.Label{
-		getSortedLabels(map[string]string{
+		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:53",
 			"__meta_kubernetes_namespace":             "kube-system",
 			"__meta_kubernetes_service_name":          "kube-dns",
@@ -174,7 +175,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_port":   "true",
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_scrape": "true",
 		}),
-		getSortedLabels(map[string]string{
+		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:53",
 			"__meta_kubernetes_namespace":             "kube-system",
 			"__meta_kubernetes_service_name":          "kube-dns",
@@ -197,7 +198,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_port":   "true",
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_scrape": "true",
 		}),
-		getSortedLabels(map[string]string{
+		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:9153",
 			"__meta_kubernetes_namespace":             "kube-system",
 			"__meta_kubernetes_service_name":          "kube-dns",

@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -24,7 +22,7 @@ var (
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
 	maxQueueDuration  = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
-	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetCache call")
+	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -43,9 +41,6 @@ func getDefaultMaxConcurrentRequests() int {
 
 // Init initializes vmselect
 func Init() {
-	tmpDirPath := *vmstorage.DataPath + "/tmp"
-	fs.RemoveDirContents(tmpDirPath)
-	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
