@@ -13,10 +13,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (

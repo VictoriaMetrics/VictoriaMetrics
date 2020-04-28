@@ -3,8 +3,8 @@ package promql
 import (
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 // IsRollup verifies whether s is a rollup with non-empty window.

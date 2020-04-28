@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql/binaryop"
+	"github.com/VictoriaMetrics/metricsql/binaryop"
 )
 
 var binaryOps = map[string]bool{
