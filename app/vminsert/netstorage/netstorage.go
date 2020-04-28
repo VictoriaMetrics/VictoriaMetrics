@@ -153,7 +153,7 @@ func (sn *storageNode) sendToConn(bc *handshake.BufferedConn, buf []byte) error 
 
 	// Wait for `ack` from vmstorage.
 	// This guarantees that the message has been fully received by vmstorage.
-	deadline = time.Now().Add(5 * time.Second)
+	deadline = time.Now().Add(timeout)
 	if err := bc.SetReadDeadline(deadline); err != nil {
 		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %s", err)
 	}
