@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "description": "Valid auth options are parsed correctly",
+      "uri": "mongodb://foo:bar@example.com/?authMechanism=GSSAPI&authMechanismProperties=SERVICE_NAME:other,CANONICALIZE_HOST_NAME:true&authSource=$external",
+      "valid": true,
+      "warning": false,
+      "hosts": null,
+      "auth": null,
+      "options": {
+        "authMechanism": "GSSAPI",
+        "authMechanismProperties": {
+          "SERVICE_NAME": "other",
+          "CANONICALIZE_HOST_NAME": true
+        },
+        "authSource": "$external"
+      }
+    }
+  ]
+}

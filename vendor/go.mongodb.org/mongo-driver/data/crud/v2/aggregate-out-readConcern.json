@@ -1,0 +1,385 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.1.0",
+      "topology": [
+        "replicaset",
+        "sharded"
+      ]
+    }
+  ],
+  "data": [
+    {
+      "_id": 1,
+      "x": 11
+    },
+    {
+      "_id": 2,
+      "x": 22
+    },
+    {
+      "_id": 3,
+      "x": 33
+    }
+  ],
+  "collection_name": "test_aggregate_out_readconcern",
+  "tests": [
+    {
+      "description": "readConcern majority with out stage",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$out": "other_test_collection"
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_out_readconcern",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$out": "other_test_collection"
+                }
+              ],
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "readConcern local with out stage",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "local"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$out": "other_test_collection"
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_out_readconcern",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$out": "other_test_collection"
+                }
+              ],
+              "readConcern": {
+                "level": "local"
+              }
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "readConcern available with out stage",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "available"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$out": "other_test_collection"
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_out_readconcern",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$out": "other_test_collection"
+                }
+              ],
+              "readConcern": {
+                "level": "available"
+              }
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "readConcern linearizable with out stage",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "linearizable"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$out": "other_test_collection"
+              }
+            ]
+          },
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_out_readconcern",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$out": "other_test_collection"
+                }
+              ],
+              "readConcern": {
+                "level": "linearizable"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "invalid readConcern with out stage",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "!invalid123"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$out": "other_test_collection"
+              }
+            ]
+          },
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_out_readconcern",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$out": "other_test_collection"
+                }
+              ],
+              "readConcern": {
+                "level": "!invalid123"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

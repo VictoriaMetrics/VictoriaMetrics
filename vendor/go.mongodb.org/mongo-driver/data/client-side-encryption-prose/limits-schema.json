@@ -1,0 +1,1405 @@
+{
+  "properties": {
+    "00": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "01": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "02": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "03": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "04": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "05": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "06": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "07": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "08": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "09": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "10": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "11": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "12": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "13": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "14": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "15": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "16": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "17": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "18": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "19": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "20": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "21": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "22": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "23": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "24": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "25": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "26": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "27": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "28": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "29": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "30": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "31": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "32": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "33": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "34": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "35": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "36": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "37": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "38": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "39": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "40": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "41": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "42": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "43": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "44": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "45": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "46": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "47": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "48": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "49": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "50": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "51": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "52": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "53": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "54": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "55": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "56": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "57": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "58": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "59": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "60": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "61": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "62": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "63": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "64": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "65": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "66": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "67": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "68": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "69": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "70": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "71": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "72": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "73": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "74": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "75": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "76": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "77": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "78": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "79": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "80": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "81": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "82": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "83": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "84": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "85": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "86": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "87": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "88": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "89": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "90": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "91": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "92": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "93": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "94": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "95": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "96": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "97": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "98": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    },
+    "99": {
+      "encrypt": {
+        "keyId": [
+          {
+            "$binary": {
+              "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+              "subType": "04"
+            }
+          }
+        ],
+        "bsonType": "string",
+        "algorithm": "AEAD_AES_256_CBC_HMAC_SHA_512-Deterministic"
+      }
+    }
+  },
+  "bsonType": "object"
+}

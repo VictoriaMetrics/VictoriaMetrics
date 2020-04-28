@@ -1,0 +1,910 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.0",
+      "topology": [
+        "single",
+        "replicaset"
+      ]
+    },
+    {
+      "minServerVersion": "4.1.7",
+      "topology": [
+        "sharded"
+      ]
+    }
+  ],
+  "database_name": "retryable-reads-tests",
+  "collection_name": "coll",
+  "data": [
+    {
+      "_id": 1,
+      "x": 11
+    },
+    {
+      "_id": 2,
+      "x": 22
+    }
+  ],
+  "tests": [
+    {
+      "description": "CountDocuments succeeds after InterruptedAtShutdown",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 11600
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after InterruptedDueToReplStateChange",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 11602
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after NotMaster",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 10107
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after NotMasterNoSlaveOk",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 13435
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after NotMasterOrSecondary",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 13436
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after PrimarySteppedDown",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 189
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after ShutdownInProgress",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 91
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after HostNotFound",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 7
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after HostUnreachable",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 6
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after NetworkTimeout",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 89
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments succeeds after SocketException",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 9001
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "result": 2
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments fails after two NotMaster errors",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 2
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 10107
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "CountDocuments fails after NotMaster when retryReads is false",
+      "clientOptions": {
+        "retryReads": false
+      },
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "aggregate"
+          ],
+          "errorCode": 10107
+        }
+      },
+      "operations": [
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "arguments": {
+            "filter": {}
+          },
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "coll",
+              "pipeline": [
+                {
+                  "$match": {}
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    }
+  ]
+}

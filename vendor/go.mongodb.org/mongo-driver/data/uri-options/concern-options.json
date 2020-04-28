@@ -1,0 +1,76 @@
+{
+  "tests": [
+    {
+      "description": "Valid read and write concern are parsed correctly",
+      "uri": "mongodb://example.com/?readConcernLevel=majority&w=5&wTimeoutMS=30000&journal=false",
+      "valid": true,
+      "warning": false,
+      "hosts": null,
+      "auth": null,
+      "options": {
+        "readConcernLevel": "majority",
+        "w": 5,
+        "wTimeoutMS": 30000,
+        "journal": false
+      }
+    },
+    {
+      "description": "Arbitrary string readConcernLevel does not cause a warning",
+      "uri": "mongodb://example.com/?readConcernLevel=arbitraryButStillValid",
+      "valid": true,
+      "warning": false,
+      "hosts": null,
+      "auth": null,
+      "options": {
+        "readConcernLevel": "arbitraryButStillValid"
+      }
+    },
+    {
+      "description": "Arbitrary string w doesn't cause a warning",
+      "uri": "mongodb://example.com/?w=arbitraryButStillValid",
+      "valid": true,
+      "warning": false,
+      "hosts": null,
+      "auth": null,
+      "options": {
+        "w": "arbitraryButStillValid"
+      }
+    },
+    {
+      "description": "Too low w causes a warning",
+      "uri": "mongodb://example.com/?w=-2",
+      "valid": true,
+      "warning": true,
+      "hosts": null,
+      "auth": null,
+      "options": {}
+    },
+    {
+      "description": "Non-numeric wTimeoutMS causes a warning",
+      "uri": "mongodb://example.com/?wTimeoutMS=invalid",
+      "valid": true,
+      "warning": true,
+      "hosts": null,
+      "auth": null,
+      "options": {}
+    },
+    {
+      "description": "Too low wTimeoutMS causes a warning",
+      "uri": "mongodb://example.com/?wTimeoutMS=-2",
+      "valid": true,
+      "warning": true,
+      "hosts": null,
+      "auth": null,
+      "options": {}
+    },
+    {
+      "description": "Invalid journal causes a warning",
+      "uri": "mongodb://example.com/?journal=invalid",
+      "valid": true,
+      "warning": true,
+      "hosts": null,
+      "auth": null,
+      "options": {}
+    }
+  ]
+}

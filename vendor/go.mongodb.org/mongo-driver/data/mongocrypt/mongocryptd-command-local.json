@@ -1,0 +1,22 @@
+{
+  "find": "test",
+  "filter": {
+    "ssn": "457-55-5462"
+  },
+  "jsonSchema": {
+    "properties": {
+      "ssn": {
+        "encrypt": {
+          "keyId": {
+            "$binary": "YWFhYWFhYWFhYWFhYWFhYQ==",
+            "$type": "04"
+          },
+          "type": "string",
+          "algorithm": "AEAD_AES_CBC_HMAC_SHA512-Deterministic"
+        }
+      }
+    },
+    "bsonType": "object"
+  },
+  "isRemoteSchema": false
+}

@@ -1,0 +1,110 @@
+{
+  "data": [
+    {
+      "_id": 1,
+      "x": 11
+    },
+    {
+      "_id": 2,
+      "x": 22
+    },
+    {
+      "_id": 3,
+      "x": 33
+    }
+  ],
+  "collection_name": "test",
+  "database_name": "command-monitoring-tests",
+  "tests": [
+    {
+      "description": "A successful mixed bulk write",
+      "operation": {
+        "name": "bulkWrite",
+        "arguments": {
+          "requests": [
+            {
+              "name": "insertOne",
+              "arguments": {
+                "document": {
+                  "_id": 4,
+                  "x": 44
+                }
+              }
+            },
+            {
+              "name": "updateOne",
+              "arguments": {
+                "filter": {
+                  "_id": 3
+                },
+                "update": {
+                  "$set": {
+                    "x": 333
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 4,
+                  "x": 44
+                }
+              ],
+              "ordered": true
+            },
+            "command_name": "insert",
+            "database_name": "command-monitoring-tests"
+          }
+        },
+        {
+          "command_succeeded_event": {
+            "reply": {
+              "ok": 1,
+              "n": 1
+            },
+            "command_name": "insert"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "update": "test",
+              "updates": [
+                {
+                  "q": {
+                    "_id": 3
+                  },
+                  "u": {
+                    "$set": {
+                      "x": 333
+                    }
+                  }
+                }
+              ],
+              "ordered": true
+            },
+            "command_name": "update",
+            "database_name": "command-monitoring-tests"
+          }
+        },
+        {
+          "command_succeeded_event": {
+            "reply": {
+              "ok": 1,
+              "n": 1
+            },
+            "command_name": "update"
+          }
+        }
+      ]
+    }
+  ]
+}

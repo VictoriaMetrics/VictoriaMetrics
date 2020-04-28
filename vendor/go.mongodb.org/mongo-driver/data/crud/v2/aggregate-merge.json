@@ -1,0 +1,415 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.1.11"
+    }
+  ],
+  "data": [
+    {
+      "_id": 1,
+      "x": 11
+    },
+    {
+      "_id": 2,
+      "x": 22
+    },
+    {
+      "_id": 3,
+      "x": 33
+    }
+  ],
+  "collection_name": "test_aggregate_merge",
+  "tests": [
+    {
+      "description": "Aggregate with $merge",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$merge": {
+                  "into": "other_test_collection"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_merge",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$merge": {
+                    "into": "other_test_collection"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Aggregate with $merge and batch size of 0",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$merge": {
+                  "into": "other_test_collection"
+                }
+              }
+            ],
+            "batchSize": 0
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_merge",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$merge": {
+                    "into": "other_test_collection"
+                  }
+                }
+              ],
+              "cursor": {}
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Aggregate with $merge and majority readConcern",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$merge": {
+                  "into": "other_test_collection"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_merge",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$merge": {
+                    "into": "other_test_collection"
+                  }
+                }
+              ],
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Aggregate with $merge and local readConcern",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "local"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$merge": {
+                  "into": "other_test_collection"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_merge",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$merge": {
+                    "into": "other_test_collection"
+                  }
+                }
+              ],
+              "readConcern": {
+                "level": "local"
+              }
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "Aggregate with $merge and available readConcern",
+      "operations": [
+        {
+          "object": "collection",
+          "name": "aggregate",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "available"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$sort": {
+                  "x": 1
+                }
+              },
+              {
+                "$match": {
+                  "_id": {
+                    "$gt": 1
+                  }
+                }
+              },
+              {
+                "$merge": {
+                  "into": "other_test_collection"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test_aggregate_merge",
+              "pipeline": [
+                {
+                  "$sort": {
+                    "x": 1
+                  }
+                },
+                {
+                  "$match": {
+                    "_id": {
+                      "$gt": 1
+                    }
+                  }
+                },
+                {
+                  "$merge": {
+                    "into": "other_test_collection"
+                  }
+                }
+              ],
+              "readConcern": {
+                "level": "available"
+              }
+            }
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "name": "other_test_collection",
+          "data": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

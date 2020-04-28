@@ -1,0 +1,14 @@
+{
+  "$or": [
+    {
+      "_id": {
+        "$in": []
+      }
+    },
+    {
+      "keyAltNames": {
+        "$in": ["altKeyName"]
+      }
+    }
+  ]
+}

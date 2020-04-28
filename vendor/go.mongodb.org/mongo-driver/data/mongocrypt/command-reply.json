@@ -1,0 +1,13 @@
+{
+  "cursor": {
+    "firstBatch": [
+      {
+        "_id": 1,
+        "ssn": "457-55-5462"
+      }
+    ],
+    "id": 0,
+    "ns": "test.test"
+  },
+  "ok": 1
+}

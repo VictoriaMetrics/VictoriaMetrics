@@ -1,0 +1,731 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.0",
+      "topology": [
+        "single",
+        "replicaset"
+      ]
+    },
+    {
+      "minServerVersion": "4.1.7",
+      "topology": [
+        "sharded"
+      ]
+    }
+  ],
+  "database_name": "retryable-reads-tests",
+  "collection_name": "coll",
+  "data": [
+    {
+      "_id": 1,
+      "x": 11
+    },
+    {
+      "_id": 2,
+      "x": 22
+    },
+    {
+      "_id": 3,
+      "x": 33
+    },
+    {
+      "_id": 4,
+      "x": 44
+    },
+    {
+      "_id": 5,
+      "x": 55
+    }
+  ],
+  "tests": [
+    {
+      "description": "FindOne succeeds after InterruptedAtShutdown",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 11600
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after InterruptedDueToReplStateChange",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 11602
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after NotMaster",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 10107
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after NotMasterNoSlaveOk",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 13435
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after NotMasterOrSecondary",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 13436
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after PrimarySteppedDown",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 189
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after ShutdownInProgress",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 91
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after HostNotFound",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 7
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after HostUnreachable",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 6
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after NetworkTimeout",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 89
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne succeeds after SocketException",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 9001
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "_id": 1,
+            "x": 11
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne fails after two NotMaster errors",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 2
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 10107
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    },
+    {
+      "description": "FindOne fails after NotMaster when retryReads is false",
+      "clientOptions": {
+        "retryReads": false
+      },
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "find"
+          ],
+          "errorCode": 10107
+        }
+      },
+      "operations": [
+        {
+          "name": "findOne",
+          "object": "collection",
+          "arguments": {
+            "filter": {
+              "_id": 1
+            }
+          },
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "coll",
+              "filter": {
+                "_id": 1
+              }
+            },
+            "database_name": "retryable-reads-tests"
+          }
+        }
+      ]
+    }
+  ]
+}

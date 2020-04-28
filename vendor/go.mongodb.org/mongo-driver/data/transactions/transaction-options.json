@@ -1,0 +1,1404 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.0",
+      "topology": [
+        "replicaset"
+      ]
+    },
+    {
+      "minServerVersion": "4.1.8",
+      "topology": [
+        "sharded"
+      ]
+    }
+  ],
+  "database_name": "transaction-tests",
+  "collection_name": "test",
+  "data": [],
+  "tests": [
+    {
+      "description": "no transaction options set",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 2
+            }
+          },
+          "result": {
+            "insertedId": 2
+          }
+        },
+        {
+          "name": "abortTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "afterClusterTime": 42
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "transaction options inherited from client",
+      "clientOptions": {
+        "w": 1,
+        "readConcernLevel": "local"
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 2
+            }
+          },
+          "result": {
+            "insertedId": 2
+          }
+        },
+        {
+          "name": "abortTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "local"
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": 1
+              },
+              "maxTimeMS": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "local",
+                "afterClusterTime": 42
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": 1
+              },
+              "maxTimeMS": null
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "transaction options inherited from defaultTransactionOptions",
+      "sessionOptions": {
+        "session0": {
+          "defaultTransactionOptions": {
+            "readConcern": {
+              "level": "majority"
+            },
+            "writeConcern": {
+              "w": 1
+            },
+            "maxCommitTimeMS": 60000
+          }
+        }
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 2
+            }
+          },
+          "result": {
+            "insertedId": 2
+          }
+        },
+        {
+          "name": "abortTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "majority"
+              },
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": 1
+              },
+              "maxTimeMS": 60000
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "majority",
+                "afterClusterTime": 42
+              },
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": 1
+              }
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "startTransaction options override defaults",
+      "clientOptions": {
+        "readConcernLevel": "local",
+        "w": 1
+      },
+      "sessionOptions": {
+        "session0": {
+          "defaultTransactionOptions": {
+            "readConcern": {
+              "level": "snapshot"
+            },
+            "writeConcern": {
+              "w": 1
+            },
+            "maxCommitTimeMS": 30000
+          }
+        }
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              },
+              "writeConcern": {
+                "w": "majority"
+              },
+              "maxCommitTimeMS": 60000
+            }
+          }
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              },
+              "writeConcern": {
+                "w": "majority"
+              }
+            }
+          }
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 2
+            }
+          },
+          "result": {
+            "insertedId": 2
+          }
+        },
+        {
+          "name": "abortTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "majority"
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": "majority"
+              },
+              "maxTimeMS": 60000
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "majority",
+                "afterClusterTime": 42
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": "majority"
+              },
+              "maxTimeMS": null
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "defaultTransactionOptions override client options",
+      "clientOptions": {
+        "readConcernLevel": "local",
+        "w": 1
+      },
+      "sessionOptions": {
+        "session0": {
+          "defaultTransactionOptions": {
+            "readConcern": {
+              "level": "majority"
+            },
+            "writeConcern": {
+              "w": "majority"
+            },
+            "maxCommitTimeMS": 60000
+          }
+        }
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 2
+            }
+          },
+          "result": {
+            "insertedId": 2
+          }
+        },
+        {
+          "name": "abortTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "majority"
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": "majority"
+              },
+              "maxTimeMS": 60000
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "majority",
+                "afterClusterTime": 42
+              },
+              "writeConcern": null,
+              "maxTimeMS": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": "majority"
+              },
+              "maxTimeMS": null
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "readConcern local in defaultTransactionOptions",
+      "clientOptions": {
+        "w": 1
+      },
+      "sessionOptions": {
+        "session0": {
+          "defaultTransactionOptions": {
+            "readConcern": {
+              "level": "local"
+            }
+          }
+        }
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 2
+            }
+          },
+          "result": {
+            "insertedId": 2
+          }
+        },
+        {
+          "name": "abortTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "local"
+              },
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": 1
+              }
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": {
+                "level": "local",
+                "afterClusterTime": 42
+              },
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "2"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": {
+                "w": 1
+              }
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "client writeConcern ignored for bulk",
+      "clientOptions": {
+        "w": "majority"
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "writeConcern": {
+                "w": 1
+              }
+            }
+          }
+        },
+        {
+          "name": "bulkWrite",
+          "object": "collection",
+          "arguments": {
+            "requests": [
+              {
+                "name": "insertOne",
+                "arguments": {
+                  "document": {
+                    "_id": 1
+                  }
+                }
+              }
+            ],
+            "session": "session0"
+          },
+          "result": {
+            "deletedCount": 0,
+            "insertedCount": 1,
+            "insertedIds": {
+              "0": 1
+            },
+            "matchedCount": 0,
+            "modifiedCount": 0,
+            "upsertedCount": 0,
+            "upsertedIds": {}
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "readConcern": null,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": {
+                "w": 1
+              }
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "readPreference inherited from client",
+      "clientOptions": {
+        "readPreference": "secondary"
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "errorContains": "read preference in a transaction must be primary"
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "readPreference inherited from defaultTransactionOptions",
+      "clientOptions": {
+        "readPreference": "primary"
+      },
+      "sessionOptions": {
+        "session0": {
+          "defaultTransactionOptions": {
+            "readPreference": {
+              "mode": "Secondary"
+            }
+          }
+        }
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "errorContains": "read preference in a transaction must be primary"
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "startTransaction overrides readPreference",
+      "clientOptions": {
+        "readPreference": "primary"
+      },
+      "sessionOptions": {
+        "session0": {
+          "defaultTransactionOptions": {
+            "readPreference": {
+              "mode": "Primary"
+            }
+          }
+        }
+      },
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readPreference": {
+                "mode": "Secondary"
+              }
+            }
+          }
+        },
+        {
+          "name": "insertOne",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "document": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "insertedId": 1
+          }
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": 1
+            }
+          },
+          "result": {
+            "errorContains": "read preference in a transaction must be primary"
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

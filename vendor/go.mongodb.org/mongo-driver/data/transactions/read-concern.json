@@ -1,0 +1,1628 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.0",
+      "topology": [
+        "replicaset"
+      ]
+    },
+    {
+      "minServerVersion": "4.1.8",
+      "topology": [
+        "sharded"
+      ]
+    }
+  ],
+  "database_name": "transaction-tests",
+  "collection_name": "test",
+  "data": [
+    {
+      "_id": 1
+    },
+    {
+      "_id": 2
+    },
+    {
+      "_id": 3
+    },
+    {
+      "_id": 4
+    }
+  ],
+  "tests": [
+    {
+      "description": "only first countDocuments includes readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        },
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": {
+                "$gte": 2
+              }
+            }
+          },
+          "result": 3
+        },
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": {
+                "$gte": 2
+              }
+            }
+          },
+          "result": 3
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$match": {
+                    "_id": {
+                      "$gte": 2
+                    }
+                  }
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ],
+              "cursor": {},
+              "lsid": "session0",
+              "readConcern": {
+                "level": "majority"
+              },
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$match": {
+                    "_id": {
+                      "$gte": 2
+                    }
+                  }
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ],
+              "cursor": {},
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "only first find includes readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "batchSize": 3
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "batchSize": 3
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": {
+                "level": "majority"
+              },
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "only first aggregate includes readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        },
+        {
+          "name": "aggregate",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$project": {
+                  "_id": 1
+                }
+              }
+            ],
+            "batchSize": 3,
+            "session": "session0"
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "aggregate",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$project": {
+                  "_id": 1
+                }
+              }
+            ],
+            "batchSize": 3,
+            "session": "session0"
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$project": {
+                    "_id": 1
+                  }
+                }
+              ],
+              "cursor": {
+                "batchSize": 3
+              },
+              "lsid": "session0",
+              "readConcern": {
+                "level": "majority"
+              },
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$project": {
+                    "_id": 1
+                  }
+                }
+              ],
+              "cursor": {
+                "batchSize": 3
+              },
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "only first distinct includes readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        },
+        {
+          "name": "distinct",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "fieldName": "_id"
+          },
+          "result": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "name": "distinct",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "fieldName": "_id"
+          },
+          "result": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "distinct": "test",
+              "key": "_id",
+              "lsid": "session0",
+              "readConcern": {
+                "level": "majority"
+              },
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "distinct",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "distinct": "test",
+              "key": "_id",
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "distinct",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "only first runCommand includes readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0",
+          "arguments": {
+            "options": {
+              "readConcern": {
+                "level": "majority"
+              }
+            }
+          }
+        },
+        {
+          "name": "runCommand",
+          "object": "database",
+          "command_name": "find",
+          "arguments": {
+            "session": "session0",
+            "command": {
+              "find": "test"
+            }
+          }
+        },
+        {
+          "name": "runCommand",
+          "object": "database",
+          "command_name": "find",
+          "arguments": {
+            "session": "session0",
+            "command": {
+              "find": "test"
+            }
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "lsid": "session0",
+              "readConcern": {
+                "level": "majority"
+              },
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "countDocuments ignores collection readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": {
+                "$gte": 2
+              }
+            }
+          },
+          "result": 3
+        },
+        {
+          "name": "countDocuments",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "filter": {
+              "_id": {
+                "$gte": 2
+              }
+            }
+          },
+          "result": 3
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$match": {
+                    "_id": {
+                      "$gte": 2
+                    }
+                  }
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ],
+              "cursor": {},
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$match": {
+                    "_id": {
+                      "$gte": 2
+                    }
+                  }
+                },
+                {
+                  "$group": {
+                    "_id": 1,
+                    "n": {
+                      "$sum": 1
+                    }
+                  }
+                }
+              ],
+              "cursor": {},
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "find ignores collection readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "batchSize": 3
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "find",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "batchSize": 3
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "aggregate ignores collection readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "aggregate",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$project": {
+                  "_id": 1
+                }
+              }
+            ],
+            "batchSize": 3,
+            "session": "session0"
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "aggregate",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "pipeline": [
+              {
+                "$project": {
+                  "_id": 1
+                }
+              }
+            ],
+            "batchSize": 3,
+            "session": "session0"
+          },
+          "result": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$project": {
+                    "_id": 1
+                  }
+                }
+              ],
+              "cursor": {
+                "batchSize": 3
+              },
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "aggregate": "test",
+              "pipeline": [
+                {
+                  "$project": {
+                    "_id": 1
+                  }
+                }
+              ],
+              "cursor": {
+                "batchSize": 3
+              },
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "aggregate",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "getMore": {
+                "$numberLong": "42"
+              },
+              "collection": "test",
+              "batchSize": 3,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false
+            },
+            "command_name": "getMore",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "distinct ignores collection readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "distinct",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "fieldName": "_id"
+          },
+          "result": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "name": "distinct",
+          "object": "collection",
+          "collectionOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "arguments": {
+            "session": "session0",
+            "fieldName": "_id"
+          },
+          "result": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "distinct": "test",
+              "key": "_id",
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "distinct",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "distinct": "test",
+              "key": "_id",
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "distinct",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "runCommand ignores database readConcern",
+      "operations": [
+        {
+          "name": "startTransaction",
+          "object": "session0"
+        },
+        {
+          "name": "runCommand",
+          "object": "database",
+          "databaseOptions": {
+            "readConcern": {
+              "level": "majority"
+            }
+          },
+          "command_name": "find",
+          "arguments": {
+            "session": "session0",
+            "command": {
+              "find": "test"
+            }
+          }
+        },
+        {
+          "name": "runCommand",
+          "object": "database",
+          "command_name": "find",
+          "arguments": {
+            "session": "session0",
+            "command": {
+              "find": "test"
+            }
+          }
+        },
+        {
+          "name": "commitTransaction",
+          "object": "session0"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "find": "test",
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "find",
+            "database_name": "transaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "commitTransaction": 1,
+              "lsid": "session0",
+              "readConcern": null,
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": null,
+              "autocommit": false,
+              "writeConcern": null
+            },
+            "command_name": "commitTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 1
+            },
+            {
+              "_id": 2
+            },
+            {
+              "_id": 3
+            },
+            {
+              "_id": 4
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

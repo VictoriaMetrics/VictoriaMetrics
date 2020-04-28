@@ -1,0 +1,156 @@
+{
+  "data": [
+    {
+      "_id": 1,
+      "x": 11
+    }
+  ],
+  "minServerVersion": "3.6",
+  "tests": [
+    {
+      "description": "InsertMany succeeds after one network error",
+      "failPoint": {
+        "configureFailPoint": "onPrimaryTransactionalWrite",
+        "mode": {
+          "times": 1
+        }
+      },
+      "operation": {
+        "name": "insertMany",
+        "arguments": {
+          "documents": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ],
+          "options": {
+            "ordered": true
+          }
+        }
+      },
+      "outcome": {
+        "result": {
+          "insertedIds": {
+            "0": 2,
+            "1": 3
+          }
+        },
+        "collection": {
+          "data": [
+            {
+              "_id": 1,
+              "x": 11
+            },
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "InsertMany with unordered execution",
+      "failPoint": {
+        "configureFailPoint": "onPrimaryTransactionalWrite",
+        "mode": {
+          "times": 1
+        }
+      },
+      "operation": {
+        "name": "insertMany",
+        "arguments": {
+          "documents": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ],
+          "options": {
+            "ordered": false
+          }
+        }
+      },
+      "outcome": {
+        "result": {
+          "insertedIds": {
+            "0": 2,
+            "1": 3
+          }
+        },
+        "collection": {
+          "data": [
+            {
+              "_id": 1,
+              "x": 11
+            },
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "InsertMany fails after multiple network errors",
+      "failPoint": {
+        "configureFailPoint": "onPrimaryTransactionalWrite",
+        "mode": "alwaysOn",
+        "data": {
+          "failBeforeCommitExceptionCode": 1
+        }
+      },
+      "operation": {
+        "name": "insertMany",
+        "arguments": {
+          "documents": [
+            {
+              "_id": 2,
+              "x": 22
+            },
+            {
+              "_id": 3,
+              "x": 33
+            },
+            {
+              "_id": 4,
+              "x": 44
+            }
+          ],
+          "options": {
+            "ordered": true
+          }
+        }
+      },
+      "outcome": {
+        "error": true,
+        "collection": {
+          "data": [
+            {
+              "_id": 1,
+              "x": 11
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

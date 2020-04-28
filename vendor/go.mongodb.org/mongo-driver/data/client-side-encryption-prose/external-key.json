@@ -1,0 +1,31 @@
+{
+  "status": {
+    "$numberInt": "1"
+  },
+  "_id": {
+    "$binary": {
+      "base64": "LOCALAAAAAAAAAAAAAAAAA==",
+      "subType": "04"
+    }
+  },
+  "masterKey": {
+    "provider": "local"
+  },
+  "updateDate": {
+    "$date": {
+      "$numberLong": "1557827033449"
+    }
+  },
+  "keyMaterial": {
+    "$binary": {
+      "base64": "Ce9HSz/HKKGkIt4uyy+jDuKGA+rLC2cycykMo6vc8jXxqa1UVDYHWq1r+vZKbnnSRBfB981akzRKZCFpC05CTyFqDhXv6OnMjpG97OZEREGIsHEYiJkBW0jJJvfLLgeLsEpBzsro9FztGGXASxyxFRZFhXvHxyiLOKrdWfs7X1O/iK3pEoHMx6uSNSfUOgbebLfIqW7TO++iQS5g1xovXA==",
+      "subType": "00"
+    }
+  },
+  "creationDate": {
+    "$date": {
+      "$numberLong": "1557827033449"
+    }
+  },
+  "keyAltNames": [ "local" ]
+}

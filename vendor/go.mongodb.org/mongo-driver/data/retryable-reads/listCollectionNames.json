@@ -1,0 +1,149 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.0",
+      "topology": [
+        "single",
+        "replicaset"
+      ]
+    },
+    {
+      "minServerVersion": "4.1.7",
+      "topology": [
+        "sharded"
+      ]
+    }
+  ],
+  "database_name": "retryable-reads-tests",
+  "collection_name": "coll",
+  "data": [],
+  "tests": [
+    {
+      "description": "ListCollectionNames succeeds on first attempt",
+      "operations": [
+        {
+          "name": "listCollectionNames",
+          "object": "database"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "listCollections": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "ListCollectionNames succeeds on second attempt",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "listCollections"
+          ],
+          "closeConnection": true
+        }
+      },
+      "operations": [
+        {
+          "name": "listCollectionNames",
+          "object": "database"
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "listCollections": 1
+            }
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "listCollections": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "ListCollectionNames fails on first attempt",
+      "clientOptions": {
+        "retryReads": false
+      },
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 1
+        },
+        "data": {
+          "failCommands": [
+            "listCollections"
+          ],
+          "closeConnection": true
+        }
+      },
+      "operations": [
+        {
+          "name": "listCollectionNames",
+          "object": "database",
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "listCollections": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "description": "ListCollectionNames fails on second attempt",
+      "failPoint": {
+        "configureFailPoint": "failCommand",
+        "mode": {
+          "times": 2
+        },
+        "data": {
+          "failCommands": [
+            "listCollections"
+          ],
+          "closeConnection": true
+        }
+      },
+      "operations": [
+        {
+          "name": "listCollectionNames",
+          "object": "database",
+          "error": true
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "listCollections": 1
+            }
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "listCollections": 1
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

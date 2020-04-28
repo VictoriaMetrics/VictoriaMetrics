@@ -1,0 +1,244 @@
+{
+  "runOn": [
+    {
+      "minServerVersion": "4.0",
+      "topology": [
+        "replicaset"
+      ]
+    },
+    {
+      "minServerVersion": "4.1.8",
+      "topology": [
+        "sharded"
+      ]
+    }
+  ],
+  "database_name": "withTransaction-tests",
+  "collection_name": "test",
+  "data": [],
+  "tests": [
+    {
+      "description": "withTransaction succeeds if callback aborts",
+      "useMultipleMongoses": true,
+      "operations": [
+        {
+          "name": "withTransaction",
+          "object": "session0",
+          "arguments": {
+            "callback": {
+              "operations": [
+                {
+                  "name": "insertOne",
+                  "object": "collection",
+                  "arguments": {
+                    "session": "session0",
+                    "document": {
+                      "_id": 1
+                    }
+                  },
+                  "result": {
+                    "insertedId": 1
+                  }
+                },
+                {
+                  "name": "abortTransaction",
+                  "object": "session0"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "withTransaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "autocommit": false,
+              "readConcern": null,
+              "startTransaction": null,
+              "writeConcern": null
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": []
+        }
+      }
+    },
+    {
+      "description": "withTransaction succeeds if callback aborts with no ops",
+      "useMultipleMongoses": true,
+      "operations": [
+        {
+          "name": "withTransaction",
+          "object": "session0",
+          "arguments": {
+            "callback": {
+              "operations": [
+                {
+                  "name": "abortTransaction",
+                  "object": "session0"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expectations": [],
+      "outcome": {
+        "collection": {
+          "data": []
+        }
+      }
+    },
+    {
+      "description": "withTransaction still succeeds if callback aborts and runs extra op",
+      "useMultipleMongoses": true,
+      "operations": [
+        {
+          "name": "withTransaction",
+          "object": "session0",
+          "arguments": {
+            "callback": {
+              "operations": [
+                {
+                  "name": "insertOne",
+                  "object": "collection",
+                  "arguments": {
+                    "session": "session0",
+                    "document": {
+                      "_id": 1
+                    }
+                  },
+                  "result": {
+                    "insertedId": 1
+                  }
+                },
+                {
+                  "name": "abortTransaction",
+                  "object": "session0"
+                },
+                {
+                  "name": "insertOne",
+                  "object": "collection",
+                  "arguments": {
+                    "session": "session0",
+                    "document": {
+                      "_id": 2
+                    }
+                  },
+                  "result": {
+                    "insertedId": 2
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expectations": [
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 1
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "startTransaction": true,
+              "autocommit": false,
+              "readConcern": null,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "withTransaction-tests"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "abortTransaction": 1,
+              "lsid": "session0",
+              "txnNumber": {
+                "$numberLong": "1"
+              },
+              "autocommit": false,
+              "readConcern": null,
+              "startTransaction": null,
+              "writeConcern": null
+            },
+            "command_name": "abortTransaction",
+            "database_name": "admin"
+          }
+        },
+        {
+          "command_started_event": {
+            "command": {
+              "insert": "test",
+              "documents": [
+                {
+                  "_id": 2
+                }
+              ],
+              "ordered": true,
+              "lsid": "session0",
+              "autocommit": null,
+              "readConcern": null,
+              "startTransaction": null,
+              "writeConcern": null
+            },
+            "command_name": "insert",
+            "database_name": "withTransaction-tests"
+          }
+        }
+      ],
+      "outcome": {
+        "collection": {
+          "data": [
+            {
+              "_id": 2
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
