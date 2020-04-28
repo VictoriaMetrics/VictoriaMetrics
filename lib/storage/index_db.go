@@ -2557,6 +2557,14 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64) error {
 	defer PutMetricName(mn)
 	kb.B, err = db.searchMetricName(kb.B[:0], metricID)
 	if err != nil {
+		if err == io.EOF {
+			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
+				"deleting the metricID, so it could be re-created next time", metricID)
+			if err := db.deleteMetricIDs([]uint64{metricID}); err != nil {
+				return fmt.Errorf("cannot delete metricID %d after unclean shutdown: %s", metricID, err)
+			}
+			return nil
+		}
 		return fmt.Errorf("cannot find metricName by metricID %d: %s", metricID, err)
 	}
 	if err = mn.Unmarshal(kb.B); err != nil {
