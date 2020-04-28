@@ -32,6 +32,20 @@ func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Unlock()
 }
 
+func (tsm *targetStatusMap) Register(sw ScrapeWork) {
+	tsm.mu.Lock()
+	tsm.m[sw.ID] = targetStatus{
+		sw: &sw,
+	}
+	tsm.mu.Unlock()
+}
+
+func (tsm *targetStatusMap) Unregister(sw ScrapeWork) {
+	tsm.mu.Lock()
+	delete(tsm.m, sw.ID)
+	tsm.mu.Unlock()
+}
+
 func (tsm *targetStatusMap) RegisterAll(sws []ScrapeWork) {
 	tsm.mu.Lock()
 	for i := range sws {

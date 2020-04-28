@@ -2,7 +2,9 @@ package promscrape
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -12,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
@@ -73,51 +76,55 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	mustStop := false
 	for !mustStop {
 		stopCh := make(chan struct{})
+		staticReloadCh := make(chan struct{})
+		fileReloadCh := make(chan struct{})
+		k8sReloadCh := make(chan struct{})
+
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runStaticScrapers(cfg, pushData, stopCh)
+			runSDScrapers("static", cfg, pushData, staticReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runFileSDScrapers(cfg, pushData, stopCh)
+			runSDScrapers("file", cfg, pushData, fileReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runKubernetesSDScrapers(cfg, pushData, stopCh)
+			runSDScrapers("k8s", cfg, pushData, k8sReloadCh, stopCh)
 		}()
 
+		reloadConfigFile := func() {
+			cfgNew, dataNew, err := loadConfig(configFile)
+			if err != nil {
+				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
+				return
+			}
+			if bytes.Equal(data, dataNew) {
+				logger.Infof("nothing changed in %q", configFile)
+			}
+			*cfg = *cfgNew
+			data = dataNew
+			staticReloadCh <- struct{}{}
+			fileReloadCh <- struct{}{}
+			k8sReloadCh <- struct{}{}
+			configReloads.Inc()
+
+		}
 	waitForChans:
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
-			cfgNew, dataNew, err := loadConfig(configFile)
-			if err != nil {
-				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
-				goto waitForChans
-			}
-			if bytes.Equal(data, dataNew) {
-				logger.Infof("nothing changed in %q", configFile)
-				goto waitForChans
-			}
-			cfg = cfgNew
-			data = dataNew
+			reloadConfigFile()
+			goto waitForChans
 		case <-tickerCh:
-			cfgNew, dataNew, err := loadConfig(configFile)
-			if err != nil {
-				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
-				goto waitForChans
-			}
-			if bytes.Equal(data, dataNew) {
-				// Nothing changed since the previous loadConfig
-				goto waitForChans
-			}
-			cfg = cfgNew
-			data = dataNew
+			reloadConfigFile()
+			goto waitForChans
 		case <-globalStopCh:
+			close(stopCh)
 			mustStop = true
 		}
 
@@ -126,7 +133,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		}
 		logger.Infof("stopping Prometheus scrapers")
 		startTime := time.Now()
-		close(stopCh)
 		wg.Wait()
 		logger.Infof("stopped Prometheus scrapers in %.3f seconds", time.Since(startTime).Seconds())
 		configReloads.Inc()
@@ -135,103 +141,169 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 
 var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
 
-func runStaticScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	sws := cfg.getStaticScrapeWork()
-	if len(sws) == 0 {
-		return
-	}
-	logger.Infof("starting %d scrapers for `static_config` targets", len(sws))
-	staticTargets.Set(uint64(len(sws)))
-	runScrapeWorkers(sws, pushData, stopCh)
-	staticTargets.Set(0)
-	logger.Infof("stopped all the %d scrapers for `static_config` targets", len(sws))
-}
-
 var staticTargets = metrics.NewCounter(`vm_promscrape_targets{type="static"}`)
-
-func runKubernetesSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.kubernetesSDConfigsCount() == 0 {
-		return
-	}
-	sws := cfg.getKubernetesSDScrapeWork()
-	ticker := time.NewTicker(*kubernetesSDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `kubernetes_sd_config` targets", len(sws))
-			kubernetesSDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			kubernetesSDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `kubernetes_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getKubernetesSDScrapeWork()
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
-			}
-			logger.Infof("restarting scrapers for changed `kubernetes_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
-		}
-
-		close(localStopCh)
-		wg.Wait()
-		kubernetesSDReloads.Inc()
-	}
-}
+var staticReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="static"}`)
 
 var (
 	kubernetesSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="kubernetes_sd"}`)
 	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
 )
 
-func runFileSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.fileSDConfigsCount() == 0 {
+type SwWithStopCh struct {
+	sw     ScrapeWork
+	stopCh chan struct{}
+}
+
+func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), reloadCh <-chan struct{}, stopCh <-chan struct{}) {
+	var sws []ScrapeWork
+	var sdTargets *metrics.Counter
+	var sdReloader *metrics.Counter
+	swsWithStopCh := make(map[string]*SwWithStopCh)
+
+	switch t {
+	case "file":
+		sdTargets = fileSDTargets
+		sdReloader = fileSDReloads
+	case "static":
+		sdTargets = staticTargets
+		sdReloader = staticReloads
+	case "k8s":
+		sdTargets = kubernetesSDTargets
+		sdReloader = kubernetesSDReloads
+	default:
 		return
 	}
-	sws := cfg.getFileSDScrapeWork(nil)
-	ticker := time.NewTicker(*fileSDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `file_sd_config` targets", len(sws))
-			fileSDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			fileSDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `file_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getFileSDScrapeWork(sws)
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
+
+	loadSwsByType := func(t string, sws []ScrapeWork) []ScrapeWork {
+		switch t {
+		case "file":
+			if cfg.fileSDConfigsCount() == 0 {
+				logger.Infof("no fileSDConfigs found, exists...")
+				return []ScrapeWork{}
 			}
-			logger.Infof("restarting scrapers for changed `file_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
+			newSws := cfg.getFileSDScrapeWork(sws)
+			return newSws
+		case "static":
+			newSws := cfg.getStaticScrapeWork()
+			if len(sws) == 0 {
+				return []ScrapeWork{}
+			}
+			return newSws
+		case "k8s":
+			if cfg.kubernetesSDConfigsCount() == 0 {
+				return []ScrapeWork{}
+			}
+			newSws := cfg.getKubernetesSDScrapeWork()
+			return newSws
+		default:
+			return []ScrapeWork{}
 		}
 
-		close(localStopCh)
-		wg.Wait()
-		fileSDReloads.Inc()
 	}
+	sws = loadSwsByType(t, nil)
+
+	ticker := time.NewTicker(*fileSDCheckInterval)
+	defer ticker.Stop()
+	var wg sync.WaitGroup
+
+	runChangedSws := func() {
+		newSwsWithStopCh := make(map[string]*SwWithStopCh)
+		for _, sw := range sws {
+			swHash, err := hashScrapeWork(sw)
+			if err != nil {
+				logger.Warnf("hash for sw: %v failed, err is: %v", sw, err)
+				continue
+			}
+			logger.Infof("hash for sw: %v success, hash is: %v", sw, swHash)
+			newSwsWithStopCh[swHash] = &SwWithStopCh{
+				sw:     sw,
+				stopCh: make(chan struct{}),
+			}
+		}
+		// 1. run new sw worker
+		for newSwHash, _ := range newSwsWithStopCh {
+			if swWithStopCh, exists := swsWithStopCh[newSwHash]; exists {
+				// same sw worker exists, copy ch
+				newSwsWithStopCh[newSwHash].stopCh = swWithStopCh.stopCh
+				logger.Infof("old exists sw: %v keep running with hash: %s", swWithStopCh.sw, newSwHash)
+				continue
+			} else {
+				logger.Infof("new sw: %v start running with hash: %s", newSwsWithStopCh[newSwHash].sw, newSwHash)
+			}
+			// new sw, run it
+			wg.Add(1)
+			sdTargets.Inc()
+			go func(swWithStopCh *SwWithStopCh) {
+				defer wg.Done()
+				defer sdTargets.Dec()
+				runScrapeWorker(swWithStopCh.sw, pushData, swWithStopCh.stopCh)
+			}(newSwsWithStopCh[newSwHash])
+
+		}
+		// 2. clear old sw worker
+		for oldSwHash, swWithStopCh := range swsWithStopCh {
+			if _, exists := newSwsWithStopCh[oldSwHash]; exists {
+				continue
+			}
+			logger.Infof("clear old sw: %v start with hash: %s", swWithStopCh.sw, oldSwHash)
+			close(swWithStopCh.stopCh)
+		}
+
+		// replace swsWithStopCh with new swsWithStopCh
+		swsWithStopCh = newSwsWithStopCh
+	}
+
+	loadCfg := func(swsNew []ScrapeWork) {
+		logger.Infof("reloading scrapers for changed `file_sd_config` targets")
+		logger.Infof("begore reload cfg, fd targets number is: %d", fileSDTargets.Get())
+		sws = swsNew
+		runChangedSws()
+		logger.Infof("after reload cfg, fd targets number is: %d", fileSDTargets.Get())
+
+	}
+
+	reloadCfg := func() {
+		swsNew := loadSwsByType(t, sws)
+		if equalStaticConfigForScrapeWorks(swsNew, sws) {
+			return
+		}
+		loadCfg(swsNew)
+	}
+
+	loadCfg(sws)
+
+waitForChans:
+	for {
+		select {
+		case <-ticker.C:
+			reloadCfg()
+			sdReloader.Inc()
+		case <-stopCh:
+			break waitForChans
+		case <-reloadCh:
+			reloadCfg()
+			sdReloader.Inc()
+		}
+	}
+
+	for _, swWithStopCh := range swsWithStopCh {
+		close(swWithStopCh.stopCh)
+	}
+
+	wg.Wait()
+
+}
+
+func hashScrapeWork(sw ScrapeWork) (string, error) {
+	// make ID 0 before hash
+	sw.ID = 0
+	b, err := bson.Marshal(sw)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	h.Write(b)
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 var (
@@ -305,4 +377,15 @@ func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteReq
 	}
 	wg.Wait()
 	tsmGlobal.UnregisterAll(sws)
+}
+
+func runScrapeWorker(sw ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	tsmGlobal.Register(sw)
+	c := newClient(&sw)
+	var lsw scrapeWork
+	lsw.Config = sw
+	lsw.ReadData = c.ReadData
+	lsw.PushData = pushData
+	lsw.run(stopCh)
+	tsmGlobal.Unregister(sw)
 }

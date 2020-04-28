@@ -16,6 +16,7 @@ require (
 	github.com/valyala/gozstd v1.7.0
 	github.com/valyala/histogram v1.0.1
 	github.com/valyala/quicktemplate v1.4.1
+	go.mongodb.org/mongo-driver v1.3.2
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4
 	golang.org/x/tools v0.0.0-20200416214402-fc959738d646 // indirect
 	google.golang.org/api v0.22.0

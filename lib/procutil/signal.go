@@ -14,3 +14,9 @@ func WaitForSigterm() os.Signal {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	return <-ch
 }
+
+func WaitForSighup() os.Signal {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGHUP)
+	return <-ch
+}
