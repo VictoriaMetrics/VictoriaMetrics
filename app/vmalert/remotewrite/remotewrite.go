@@ -30,6 +30,7 @@ type Client struct {
 	doneCh chan struct{}
 }
 
+// Config is config for remote write.
 type Config struct {
 	// Addr of remote storage
 	Addr string

@@ -218,6 +218,7 @@ const (
 	alertStateLabel = "alertstate"
 )
 
+// AlertToTimeSeries converts the given alert with the given timestamp to timeseries
 func (r *Rule) AlertToTimeSeries(a *notifier.Alert, timestamp time.Time) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	tss = append(tss, alertToTimeSeries(r.Name, a, timestamp))
