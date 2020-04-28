@@ -106,22 +106,12 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers("ec2", cfg, pushData, k8sReloadCh, stopCh)
+			runSDScrapers("ec2", cfg, pushData, ec2ReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers("gce", cfg, pushData, k8sReloadCh, stopCh)
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			runEC2SDScrapers(cfg, pushData, stopCh)
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			runGCESDScrapers(cfg, pushData, stopCh)
+			runSDScrapers("gce", cfg, pushData, gceReloadCh, stopCh)
 		}()
 
 		reloadConfigFile := func() {
