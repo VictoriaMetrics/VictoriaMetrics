@@ -175,22 +175,29 @@ func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteR
 	var sdReloader *metrics.Counter
 	swsWithStopCh := make(map[string]*SwWithStopCh)
 
+	var checkInterval *time.Duration
+
 	switch t {
 	case "file":
 		sdTargets = fileSDTargets
 		sdReloader = fileSDReloads
+		checkInterval = fileSDCheckInterval
 	case "static":
 		sdTargets = staticTargets
 		sdReloader = staticReloads
+		checkInterval = fileSDCheckInterval
 	case "k8s":
 		sdTargets = kubernetesSDTargets
 		sdReloader = kubernetesSDReloads
+		checkInterval = kubernetesSDCheckInterval
 	case "ec2":
 		sdTargets = ec2SDTargets
 		sdReloader = ec2SDReloads
+		checkInterval = ec2SDCheckInterval
 	case "gce":
 		sdTargets = gceSDTargets
 		sdReloader = gceSDReloads
+		checkInterval = gceSDCheckInterval
 	default:
 		return
 	}
@@ -235,7 +242,7 @@ func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteR
 	}
 	sws = loadSwsByType(t, nil)
 
-	ticker := time.NewTicker(*fileSDCheckInterval)
+	ticker := time.NewTicker(*checkInterval)
 	defer ticker.Stop()
 	var wg sync.WaitGroup
 
@@ -390,29 +397,6 @@ func equalLabel(a, b *prompbmarshal.Label) bool {
 		return false
 	}
 	return true
-}
-
-// runScrapeWorkers runs sws.
-//
-// This function returns after closing stopCh.
-func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	tsmGlobal.RegisterAll(sws)
-	var wg sync.WaitGroup
-	for i := range sws {
-		cfg := &sws[i]
-		c := newClient(cfg)
-		var sw scrapeWork
-		sw.Config = *cfg
-		sw.ReadData = c.ReadData
-		sw.PushData = pushData
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sw.run(stopCh)
-		}()
-	}
-	wg.Wait()
-	tsmGlobal.UnregisterAll(sws)
 }
 
 func hashScrapeWork(sw ScrapeWork) (string, error) {
