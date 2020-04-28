@@ -131,6 +131,8 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			staticReloadCh <- struct{}{}
 			fileReloadCh <- struct{}{}
 			k8sReloadCh <- struct{}{}
+			ec2ReloadCh <- struct{}{}
+			gceReloadCh <- struct{}{}
 			configReloads.Inc()
 		}
 	waitForChans:
