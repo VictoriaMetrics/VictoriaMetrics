@@ -14,17 +14,22 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
 	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config")
+		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
 	kubernetesSDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
 		"This works only if `kubernetes_sd_configs` is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details")
+	ec2SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute, "Interval for checking for changes in ec2. "+
+		"This works only if `ec2_sd_configs` is configured in '-promscrape.config' file. "+
+		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details")
+	gceSDCheckInterval = flag.Duration("promscrape.gceSDCheckInterval", time.Minute, "Interval for checking for changes in gce. "+
+		"This works only if `gce_sd_configs` is configured in '-promscrape.config' file. "+
+		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config for details")
 )
@@ -79,6 +84,8 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		staticReloadCh := make(chan struct{})
 		fileReloadCh := make(chan struct{})
 		k8sReloadCh := make(chan struct{})
+		ec2ReloadCh := make(chan struct{})
+		gceReloadCh := make(chan struct{})
 
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -96,6 +103,16 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			defer wg.Done()
 			runSDScrapers("k8s", cfg, pushData, k8sReloadCh, stopCh)
 		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runSDScrapers("ec2", cfg, pushData, k8sReloadCh, stopCh)
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runSDScrapers("gce", cfg, pushData, k8sReloadCh, stopCh)
+		}()
 
 		reloadConfigFile := func() {
 			cfgNew, dataNew, err := loadConfig(configFile)
@@ -105,23 +122,26 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 			}
 			if bytes.Equal(data, dataNew) {
 				logger.Infof("nothing changed in %q", configFile)
+				return
 			}
+			cfg = cfgNew
 			*cfg = *cfgNew
 			data = dataNew
 			staticReloadCh <- struct{}{}
 			fileReloadCh <- struct{}{}
 			k8sReloadCh <- struct{}{}
 			configReloads.Inc()
-
 		}
 	waitForChans:
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
 			reloadConfigFile()
+			configReloads.Inc()
 			goto waitForChans
 		case <-tickerCh:
 			reloadConfigFile()
+			configReloads.Inc()
 			goto waitForChans
 		case <-globalStopCh:
 			close(stopCh)
@@ -135,7 +155,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		startTime := time.Now()
 		wg.Wait()
 		logger.Infof("stopped Prometheus scrapers in %.3f seconds", time.Since(startTime).Seconds())
-		configReloads.Inc()
 	}
 }
 
@@ -143,11 +162,6 @@ var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
 
 var staticTargets = metrics.NewCounter(`vm_promscrape_targets{type="static"}`)
 var staticReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="static"}`)
-
-var (
-	kubernetesSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="kubernetes_sd"}`)
-	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
-)
 
 type SwWithStopCh struct {
 	sw     ScrapeWork
@@ -170,6 +184,12 @@ func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteR
 	case "k8s":
 		sdTargets = kubernetesSDTargets
 		sdReloader = kubernetesSDReloads
+	case "ec2":
+		sdTargets = ec2SDTargets
+		sdReloader = ec2SDReloads
+	case "gce":
+		sdTargets = gceSDTargets
+		sdReloader = gceSDReloads
 	default:
 		return
 	}
@@ -194,6 +214,18 @@ func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteR
 				return []ScrapeWork{}
 			}
 			newSws := cfg.getKubernetesSDScrapeWork()
+			return newSws
+		case "ec2":
+			if cfg.ec2SDConfigsCount() == 0 {
+				return []ScrapeWork{}
+			}
+			newSws := cfg.getEC2SDScrapeWork()
+			return newSws
+		case "gce":
+			if cfg.gceSDConfigsCount() == 0 {
+				return []ScrapeWork{}
+			}
+			newSws := cfg.getGCESDScrapeWork()
 			return newSws
 		default:
 			return []ScrapeWork{}
@@ -294,16 +326,59 @@ waitForChans:
 
 }
 
-func hashScrapeWork(sw ScrapeWork) (string, error) {
-	// make ID 0 before hash
-	sw.ID = 0
-	b, err := bson.Marshal(sw)
-	if err != nil {
-		return "", err
+var (
+	kubernetesSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="kubernetes_sd"}`)
+	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
+)
+
+var (
+	ec2SDTargets = metrics.NewCounter(`vm_promscrape_targets{type="ec2_sd"}`)
+	ec2SDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="ec2_sd"}`)
+)
+
+var (
+	gceSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="gce_sd"}`)
+	gceSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="gce_sd"}`)
+)
+
+func runFileSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	if cfg.fileSDConfigsCount() == 0 {
+		return
 	}
-	h := sha256.New()
-	h.Write(b)
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	sws := cfg.getFileSDScrapeWork(nil)
+	ticker := time.NewTicker(*fileSDCheckInterval)
+	defer ticker.Stop()
+	mustStop := false
+	for !mustStop {
+		localStopCh := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func(sws []ScrapeWork) {
+			defer wg.Done()
+			logger.Infof("starting %d scrapers for `file_sd_config` targets", len(sws))
+			fileSDTargets.Set(uint64(len(sws)))
+			runScrapeWorkers(sws, pushData, localStopCh)
+			fileSDTargets.Set(0)
+			logger.Infof("stopped all the %d scrapers for `file_sd_config` targets", len(sws))
+		}(sws)
+	waitForChans:
+		select {
+		case <-ticker.C:
+			swsNew := cfg.getFileSDScrapeWork(sws)
+			if equalStaticConfigForScrapeWorks(swsNew, sws) {
+				// Nothing changed, continue waiting for updated scrape work
+				goto waitForChans
+			}
+			logger.Infof("restarting scrapers for changed `file_sd_config` targets")
+			sws = swsNew
+		case <-stopCh:
+			mustStop = true
+		}
+
+		close(localStopCh)
+		wg.Wait()
+		fileSDReloads.Inc()
+	}
 }
 
 var (
@@ -377,6 +452,18 @@ func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteReq
 	}
 	wg.Wait()
 	tsmGlobal.UnregisterAll(sws)
+}
+
+func hashScrapeWork(sw ScrapeWork) (string, error) {
+	// make ID 0 before hash
+	sw.ID = 0
+	b, err := bson.Marshal(sw)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	h.Write(b)
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func runScrapeWorker(sw ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
