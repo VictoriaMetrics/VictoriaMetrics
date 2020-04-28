@@ -254,7 +254,7 @@ func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteR
 			}
 		}
 		// 1. run new sw worker
-		for newSwHash, _ := range newSwsWithStopCh {
+		for newSwHash := range newSwsWithStopCh {
 			if swWithStopCh, exists := swsWithStopCh[newSwHash]; exists {
 				// same sw worker exists, copy ch
 				newSwsWithStopCh[newSwHash].stopCh = swWithStopCh.stopCh
