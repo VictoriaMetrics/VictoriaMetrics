@@ -7,7 +7,41 @@ import (
 
 // getIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
 func getIngressesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	data, err := getAPIResponse(cfg, "ingress", "/apis/extensions/v1beta1/ingresses")
+	igs, err := getIngresses(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var ms []map[string]string
+	for _, ig := range igs {
+		ms = ig.appendTargetLabels(ms)
+	}
+	return ms, nil
+}
+
+func getIngresses(cfg *apiConfig) ([]Ingress, error) {
+	if len(cfg.Namespaces) == 0 {
+		return getIngressesByPath(cfg, "/apis/extensions/v1beta1/ingresses")
+	}
+	// Query /api/v1/namespaces/* for each namespace.
+	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
+	cfgCopy := *cfg
+	namespaces := cfgCopy.Namespaces
+	cfgCopy.Namespaces = nil
+	cfg = &cfgCopy
+	var result []Ingress
+	for _, ns := range namespaces {
+		path := fmt.Sprintf("/apis/extensions/v1beta1/namespaces/%s/ingresses", ns)
+		igs, err := getIngressesByPath(cfg, path)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, igs...)
+	}
+	return result, nil
+}
+
+func getIngressesByPath(cfg *apiConfig, path string) ([]Ingress, error) {
+	data, err := getAPIResponse(cfg, "ingress", path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain ingresses data from API server: %s", err)
 	}
@@ -15,11 +49,7 @@ func getIngressesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse ingresses response from API server: %s", err)
 	}
-	var ms []map[string]string
-	for _, ig := range igl.Items {
-		ms = ig.appendTargetLabels(ms)
-	}
-	return ms, nil
+	return igl.Items, nil
 }
 
 // IngressList represents ingress list in k8s.

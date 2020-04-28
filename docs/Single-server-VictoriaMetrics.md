@@ -260,6 +260,8 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [static_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config)
 * [file_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config)
 * [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config)
+* [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config)
+* [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config)
 
 In the future other `*_sd_config` types will be supported.
 
@@ -823,6 +825,10 @@ There is no downsampling support at the moment, but:
 These properties reduce the need of downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
+It is possible to (ab)use [-dedup.minScrapeInterval](#deduplication) for basic downsampling.
+For instance, if interval between the ingested data points is 15s, then `-dedup.minScrapeInterval=5m` will leave
+only a single data point out of 20 initial data points per each 5m interval.
+
 ### Multi-tenancy
 
 Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) instead.
@@ -855,6 +861,7 @@ Consider setting the following command-line flags:
   with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
 * `-deleteAuthKey` for protecting `/api/v1/admin/tsdb/delete_series` endpoint. See [how to delete time series](#how-to-delete-time-series).
 * `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](#how-to-work-with-snapshots).
+* `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](#backfilling) for more details.
 
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
@@ -926,6 +933,10 @@ The most interesting metrics are:
 
   If the gaps are related to irregular intervals between samples, then try adjusting `-search.minStalenessInterval` command-line flag
   to value close to the maximum interval between samples.
+
+* If you are switching from InfluxDB or TimescaleDB, then take a look at `-search.maxStalenessInterval` command-line flag.
+  It may be needed in order to suppress default gap filling algorithm used by VictoriaMetrics - by default it assumes
+  each time series is continuous instead of discrete, so it fills gaps between real samples with regular intervals.
 
 * Metrics and labels leading to high cardinality or high churn rate can be determined at `/api/v1/status/tsdb` page.
   See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.

@@ -208,15 +208,20 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 			expectedMrs = append(expectedMrs, *mr)
 		}
 
+		type metricBlock struct {
+			MetricName []byte
+			Block      *Block
+		}
+
 		// Search
-		s.Init(st, []*TagFilters{tfs}, tr, true, 1e5)
-		var mbs []MetricBlock
+		s.Init(st, []*TagFilters{tfs}, tr, 1e5)
+		var mbs []metricBlock
 		for s.NextMetricBlock() {
 			var b Block
-			b.CopyFrom(s.MetricBlock.Block)
+			s.MetricBlockRef.BlockRef.MustReadBlock(&b, true)
 
-			var mb MetricBlock
-			mb.MetricName = append(mb.MetricName, s.MetricBlock.MetricName...)
+			var mb metricBlock
+			mb.MetricName = append(mb.MetricName, s.MetricBlockRef.MetricName...)
 			mb.Block = &b
 			mbs = append(mbs, mb)
 		}

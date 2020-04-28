@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 func TestParseNodeListFailure(t *testing.T) {
@@ -236,7 +238,7 @@ func TestParseNodeListSuccess(t *testing.T) {
 	if meta.Name != "m01" {
 		t.Fatalf("unexpected ObjectMeta.Name; got %q; want %q", meta.Name, "m01")
 	}
-	expectedLabels := getSortedLabels(map[string]string{
+	expectedLabels := discoveryutils.GetSortedLabels(map[string]string{
 		"beta.kubernetes.io/arch":        "amd64",
 		"beta.kubernetes.io/os":          "linux",
 		"kubernetes.io/arch":             "amd64",
@@ -251,7 +253,7 @@ func TestParseNodeListSuccess(t *testing.T) {
 	if !reflect.DeepEqual(meta.Labels, expectedLabels) {
 		t.Fatalf("unexpected ObjectMeta.Labels\ngot\n%v\nwant\n%v", meta.Labels, expectedLabels)
 	}
-	expectedAnnotations := getSortedLabels(map[string]string{
+	expectedAnnotations := discoveryutils.GetSortedLabels(map[string]string{
 		"kubeadm.alpha.kubernetes.io/cri-socket":                 "/var/run/dockershim.sock",
 		"node.alpha.kubernetes.io/ttl":                           "0",
 		"volumes.kubernetes.io/controller-managed-attach-detach": "true",
@@ -275,8 +277,8 @@ func TestParseNodeListSuccess(t *testing.T) {
 	}
 
 	// Check node.appendTargetLabels()
-	labels := getSortedLabels(node.appendTargetLabels(nil)[0])
-	expectedLabels = getSortedLabels(map[string]string{
+	labels := discoveryutils.GetSortedLabels(node.appendTargetLabels(nil)[0])
+	expectedLabels = discoveryutils.GetSortedLabels(map[string]string{
 		"instance":                    "m01",
 		"__address__":                 "172.17.0.2:10250",
 		"__meta_kubernetes_node_name": "m01",

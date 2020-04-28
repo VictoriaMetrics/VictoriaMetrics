@@ -63,8 +63,8 @@ func (a *Alert) ExecTemplate(annotations map[string]string) (map[string]string, 
 	return templateAnnotations(annotations, tplHeader, tplData)
 }
 
-// ValidateAnnotations validate annotations for possible template error, uses empty data for template population
-func ValidateAnnotations(annotations map[string]string) error {
+// ValidateTemplates validate annotations for possible template error, uses empty data for template population
+func ValidateTemplates(annotations map[string]string) error {
 	_, err := templateAnnotations(annotations, tplHeader, alertTplData{
 		Labels: map[string]string{},
 		Value:  0,
@@ -102,19 +102,4 @@ func templateAnnotation(dst io.Writer, text string, data alertTplData) error {
 		return fmt.Errorf("error evaluating annotation template:%w", err)
 	}
 	return nil
-}
-
-type errGroup struct {
-	errs []string
-}
-
-func (eg *errGroup) err() error {
-	if eg == nil || len(eg.errs) == 0 {
-		return nil
-	}
-	return eg
-}
-
-func (eg *errGroup) Error() string {
-	return fmt.Sprintf("errors:%s", strings.Join(eg.errs, "\n"))
 }

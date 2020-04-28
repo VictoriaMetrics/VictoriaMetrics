@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
@@ -106,12 +107,12 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers("ec2", cfg, pushData, k8sReloadCh, stopCh)
+			runSDScrapers("ec2", cfg, pushData, ec2ReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers("gce", cfg, pushData, k8sReloadCh, stopCh)
+			runSDScrapers("gce", cfg, pushData, gceReloadCh, stopCh)
 		}()
 
 		reloadConfigFile := func() {
@@ -340,46 +341,6 @@ var (
 	gceSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="gce_sd"}`)
 	gceSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="gce_sd"}`)
 )
-
-func runFileSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.fileSDConfigsCount() == 0 {
-		return
-	}
-	sws := cfg.getFileSDScrapeWork(nil)
-	ticker := time.NewTicker(*fileSDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `file_sd_config` targets", len(sws))
-			fileSDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			fileSDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `file_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getFileSDScrapeWork(sws)
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
-			}
-			logger.Infof("restarting scrapers for changed `file_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
-		}
-
-		close(localStopCh)
-		wg.Wait()
-		fileSDReloads.Inc()
-	}
-}
 
 var (
 	fileSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="file_sd"}`)

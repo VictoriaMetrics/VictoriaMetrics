@@ -14,18 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@master
         with:
-          go-version: 1.13
+          go-version: 1.14
         id: go
-      - name: Code checkout
-        uses: actions/checkout@v1
       - name: Dependencies
         env:
-          GO111MODULE: off
+          GO111MODULE: on
         run: |
-          go get -v golang.org/x/lint/golint
+          go get -u golang.org/x/lint/golint
           go get -u github.com/kisielk/errcheck
+          go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+      - name: Code checkout
+        uses: actions/checkout@master
       - name: Build
         env:
           GO111MODULE: on

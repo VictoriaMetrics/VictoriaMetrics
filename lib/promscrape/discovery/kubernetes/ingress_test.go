@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 func TestParseIngressListFailure(t *testing.T) {
@@ -83,10 +84,10 @@ func TestParseIngressListSuccess(t *testing.T) {
 	labelss := ig.appendTargetLabels(nil)
 	var sortedLabelss [][]prompbmarshal.Label
 	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, getSortedLabels(labels))
+		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
 	}
 	expectedLabelss := [][]prompbmarshal.Label{
-		getSortedLabels(map[string]string{
+		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "foobar",
 			"__meta_kubernetes_ingress_annotation_kubectl_kubernetes_io_last_applied_configuration":        `{"apiVersion":"networking.k8s.io/v1beta1","kind":"Ingress","metadata":{"annotations":{},"name":"test-ingress","namespace":"default"},"spec":{"backend":{"serviceName":"testsvc","servicePort":80}}}` + "\n",
 			"__meta_kubernetes_ingress_annotationpresent_kubectl_kubernetes_io_last_applied_configuration": "true",

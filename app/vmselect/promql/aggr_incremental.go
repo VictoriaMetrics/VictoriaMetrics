@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions

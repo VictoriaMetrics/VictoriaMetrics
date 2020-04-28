@@ -140,14 +140,28 @@ Run `vmbackup -help` in order to see all the available options:
   -dst string
     	Where to put the backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
     	-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
+  -envflag.enable
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+  -envflag.prefix string
+    	Prefix for environment variables if -envflag.enable is set
+  -fs.disableMmap
+    	Whether to use pread() instead of mmap() for reading data files
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
-    	Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC (default "INFO")
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
   -maxBytesPerSecond int
     	The maximum upload speed. There is no limit if it is set to 0
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy (default 60)
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
   -origin string
     	Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups
+  -snapshot.createURL string
+    	VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snaphsot/create
+  -snapshot.deleteURL string
+    	VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshotCreateURL if not provided. All created snaphosts will be automatically deleted.Example: http://victoriametrics:8428/snaphsot/delete
   -snapshotName string
     	Name for the snapshot to backup. See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots
   -storageDataPath string

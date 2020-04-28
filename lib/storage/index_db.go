@@ -2398,19 +2398,36 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	})
 
 	// Populate metricIDs with the first non-negative filter.
-	var tfFirst *tagFilter
+	var tfsPostponed []*tagFilter
+	var metricIDs *uint64set.Set
+	maxDateMetrics := maxMetrics * 50
+	tfsRemainingWithCount := tfsWithCount[:0]
 	for i := range tfsWithCount {
 		tf := tfsWithCount[i].tf
 		if tf.isNegative {
+			tfsRemainingWithCount = append(tfsRemainingWithCount, tfsWithCount[i])
 			continue
 		}
-		tfFirst = tf
+		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, maxDateMetrics)
+		if err != nil {
+			return nil, err
+		}
+		if m.Len() >= maxDateMetrics {
+			// Too many time series found by a single tag filter. Postpone applying this filter via metricName match.
+			tfsPostponed = append(tfsPostponed, tf)
+			continue
+		}
+		metricIDs = m
+		i++
+		for i < len(tfsWithCount) {
+			tfsRemainingWithCount = append(tfsRemainingWithCount, tfsWithCount[i])
+			i++
+		}
 		break
 	}
-	var metricIDs *uint64set.Set
-	maxDateMetrics := maxMetrics * 50
-	if tfFirst == nil {
-		// All the filters in tfs are negative. Populate all the metricIDs for the given (date),
+	if metricIDs == nil {
+		// All the filters in tfs are negative or match too many time series.
+		// Populate all the metricIDs for the given (date),
 		// so later they can be filtered out with negative filters.
 		m, err := is.getMetricIDsForDate(date, maxDateMetrics)
 		if err != nil {
@@ -2422,52 +2439,34 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			}
 			return nil, fmt.Errorf("cannot obtain all the metricIDs: %s", err)
 		}
-		metricIDs = m
-	} else {
-		// Populate metricIDs for the given tfFirst on the given (date)
-		m, err := is.getMetricIDsForDateTagFilter(tfFirst, date, tfs.commonPrefix, maxDateMetrics)
-		if err != nil {
-			return nil, err
+		if m.Len() >= maxDateMetrics {
+			// Too many time series found for the given (date). Fall back to global search.
+			return nil, errFallbackToMetricNameMatch
 		}
 		metricIDs = m
-	}
-	if metricIDs.Len() >= maxDateMetrics {
-		// Too many time series found by a single tag filter. Fall back to global search.
-		return nil, errFallbackToMetricNameMatch
 	}
 
 	// Intersect metricIDs with the rest of filters.
-	for i := range tfsWithCount {
-		tfWithCount := &tfsWithCount[i]
-		tf := tfWithCount.tf
-		if tf == tfFirst {
-			continue
-		}
-		if n := uint64(metricIDs.Len()); n < 1000 || n < tfWithCount.count/maxIndexScanLoopsPerMetric {
+	for i := range tfsRemainingWithCount {
+		tfWithCount := tfsRemainingWithCount[i]
+		if n := uint64(metricIDs.Len()); n < 1000 || (n < tfWithCount.count/maxIndexScanLoopsPerMetric && n < uint64(maxMetrics)/10) {
 			// It should be faster performing metricName match on the remaining filters
 			// instead of scanning big number of entries in the inverted index for these filters.
-			tfsRemaining := tfsWithCount[i:]
-			tfsPostponed := make([]*tagFilter, 0, len(tfsRemaining))
-			for j := range tfsRemaining {
-				tf := tfsRemaining[j].tf
-				if tf == tfFirst {
-					continue
-				}
-				tfsPostponed = append(tfsPostponed, tf)
+			for i < len(tfsRemainingWithCount) {
+				tfsPostponed = append(tfsPostponed, tfsRemainingWithCount[i].tf)
+				i++
 			}
-			var m uint64set.Set
-			if err := is.updateMetricIDsByMetricNameMatch(&m, metricIDs, tfsPostponed); err != nil {
-				return nil, err
-			}
-			return &m, nil
+			break
 		}
+		tf := tfWithCount.tf
 		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, maxDateMetrics)
 		if err != nil {
 			return nil, err
 		}
 		if m.Len() >= maxDateMetrics {
-			// Too many time series found by a single tag filter. Fall back to global search.
-			return nil, errFallbackToMetricNameMatch
+			// Too many time series found by a single tag filter. Postpone applying this filter via metricName match.
+			tfsPostponed = append(tfsPostponed, tf)
+			continue
 		}
 		if tf.isNegative {
 			metricIDs.Subtract(m)
@@ -2478,6 +2477,19 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			// Short circuit - there is no need in applying the remaining filters to empty set.
 			return nil, nil
 		}
+	}
+	if len(tfsPostponed) > 0 {
+		if n := metricIDs.Len(); n > 50000 && n > maxMetrics/10 {
+			// It will be slow to perform metricName match on this number of time series.
+			// Fall back to global search.
+			return nil, errFallbackToMetricNameMatch
+		}
+		// Apply the postponed filters via metricName match.
+		var m uint64set.Set
+		if err := is.updateMetricIDsByMetricNameMatch(&m, metricIDs, tfsPostponed); err != nil {
+			return nil, err
+		}
+		return &m, nil
 	}
 	return metricIDs, nil
 }
@@ -2545,6 +2557,14 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64) error {
 	defer PutMetricName(mn)
 	kb.B, err = db.searchMetricName(kb.B[:0], metricID)
 	if err != nil {
+		if err == io.EOF {
+			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
+				"deleting the metricID, so it could be re-created next time", metricID)
+			if err := db.deleteMetricIDs([]uint64{metricID}); err != nil {
+				return fmt.Errorf("cannot delete metricID %d after unclean shutdown: %s", metricID, err)
+			}
+			return nil
+		}
 		return fmt.Errorf("cannot find metricName by metricID %d: %s", metricID, err)
 	}
 	if err = mn.Unmarshal(kb.B); err != nil {

@@ -23,7 +23,29 @@ func getPodsLabels(cfg *apiConfig) ([]map[string]string, error) {
 }
 
 func getPods(cfg *apiConfig) ([]Pod, error) {
-	data, err := getAPIResponse(cfg, "pod", "/api/v1/pods")
+	if len(cfg.Namespaces) == 0 {
+		return getPodsByPath(cfg, "/api/v1/pods")
+	}
+	// Query /api/v1/namespaces/* for each namespace.
+	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
+	cfgCopy := *cfg
+	namespaces := cfgCopy.Namespaces
+	cfgCopy.Namespaces = nil
+	cfg = &cfgCopy
+	var result []Pod
+	for _, ns := range namespaces {
+		path := fmt.Sprintf("/api/v1/namespaces/%s/pods", ns)
+		pods, err := getPodsByPath(cfg, path)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, pods...)
+	}
+	return result, nil
+}
+
+func getPodsByPath(cfg *apiConfig, path string) ([]Pod, error) {
+	data, err := getAPIResponse(cfg, "pod", path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain pods data from API server: %s", err)
 	}

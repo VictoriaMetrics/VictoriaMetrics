@@ -6,30 +6,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
-// GetLabels returns labels for the given k8s role and the given cfg.
-func GetLabels(ac *promauth.Config, sdc *SDConfig) ([]map[string]string, error) {
-	cfg := &apiConfig{
-		Server:     sdc.APIServer,
-		AuthConfig: ac,
-		Namespaces: sdc.Namespaces.Names,
-		Selectors:  sdc.Selectors,
-	}
-	switch sdc.Role {
-	case "node":
-		return getNodesLabels(cfg)
-	case "service":
-		return getServicesLabels(cfg)
-	case "pod":
-		return getPodsLabels(cfg)
-	case "endpoints":
-		return getEndpointsLabels(cfg)
-	case "ingress":
-		return getIngressesLabels(cfg)
-	default:
-		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `service`, `pod`, `endpoints` or `ingress`; skipping it", sdc.Role)
-	}
-}
-
 // SDConfig represents kubernetes-based service discovery config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
@@ -57,4 +33,28 @@ type Selector struct {
 	Role  string `yaml:"role"`
 	Label string `yaml:"label"`
 	Field string `yaml:"field"`
+}
+
+// GetLabels returns labels for the given k8s role and the given ac and sdc.
+func GetLabels(ac *promauth.Config, sdc *SDConfig) ([]map[string]string, error) {
+	cfg := &apiConfig{
+		Server:     sdc.APIServer,
+		AuthConfig: ac,
+		Namespaces: sdc.Namespaces.Names,
+		Selectors:  sdc.Selectors,
+	}
+	switch sdc.Role {
+	case "node":
+		return getNodesLabels(cfg)
+	case "service":
+		return getServicesLabels(cfg)
+	case "pod":
+		return getPodsLabels(cfg)
+	case "endpoints":
+		return getEndpointsLabels(cfg)
+	case "ingress":
+		return getIngressesLabels(cfg)
+	default:
+		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `service`, `pod`, `endpoints` or `ingress`; skipping it", sdc.Role)
+	}
 }

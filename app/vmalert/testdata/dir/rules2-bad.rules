@@ -1,0 +1,11 @@
+groups:
+  - name: group
+    rules:
+      - alert: UnkownLabelFunction
+        for: 5m
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          summary: "{{ value|query }}"
+        annotations:
+          description: "{{$labels}}"

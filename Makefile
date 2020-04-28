@@ -13,6 +13,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date 
 all: \
 	victoria-metrics-prod \
 	vmagent-prod \
+	vmalert-prot \
 	vmbackup-prod \
 	vmrestore-prod
 
@@ -25,17 +26,20 @@ clean:
 publish: \
 	publish-victoria-metrics \
 	publish-vmagent \
+	publish-vmalert \
 	publish-vmbackup \
 	publish-vmrestore
 
 package: \
 	package-victoria-metrics \
 	package-vmagent \
+	package-vmalert \
 	package-vmbackup \
 	package-vmrestore
 
 vmutils: \
 	vmagent \
+	vmalert \
 	vmbackup \
 	vmrestore
 
@@ -49,9 +53,10 @@ release-victoria-metrics: victoria-metrics-prod
 
 release-vmutils: \
 	vmagent-prod \
+	vmalert-prod \
 	vmbackup-prod \
 	vmrestore-prod
-	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmbackup-prod vmrestore-prod && \
+	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmbackup-prod vmrestore-prod && \
 		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
@@ -78,6 +83,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmagent/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
