@@ -825,6 +825,10 @@ There is no downsampling support at the moment, but:
 These properties reduce the need of downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
+It is possible to (ab)use [-dedup.minScrapeInterval](#deduplication) for basic downsampling.
+For instance, if interval between the ingested data points is 15s, then `-dedup.minScrapeInterval=5m` will leave
+only a single data point out of 20 initial data points per each 5m interval.
+
 ### Multi-tenancy
 
 Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) instead.
