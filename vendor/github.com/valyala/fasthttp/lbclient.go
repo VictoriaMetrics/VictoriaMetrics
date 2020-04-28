@@ -17,7 +17,7 @@ type BalancingClient interface {
 //
 // It has the following features:
 //
-//   - Balances load among available clients using 'least loaded' + 'least total'
+//   - Balances load among available clients using 'least loaded' + 'round robin'
 //     hybrid technique.
 //   - Dynamically decreases load on unhealthy clients.
 //
@@ -25,7 +25,7 @@ type BalancingClient interface {
 //
 // It is safe calling LBClient methods from concurrently running goroutines.
 type LBClient struct {
-	noCopy noCopy //nolint:unused,structcheck
+	noCopy noCopy
 
 	// Clients must contain non-zero clients list.
 	// Incoming requests are balanced among these clients.
@@ -48,6 +48,10 @@ type LBClient struct {
 	Timeout time.Duration
 
 	cs []*lbClient
+
+	// nextIdx is for spreading requests among equally loaded clients
+	// in a round-robin fashion.
+	nextIdx uint32
 
 	once sync.Once
 }
@@ -89,23 +93,42 @@ func (cc *LBClient) init() {
 			healthCheck: cc.HealthCheck,
 		})
 	}
+
+	// Randomize nextIdx in order to prevent initial servers'
+	// hammering from a cluster of identical LBClients.
+	cc.nextIdx = uint32(time.Now().UnixNano())
 }
 
 func (cc *LBClient) get() *lbClient {
 	cc.once.Do(cc.init)
 
 	cs := cc.cs
+	idx := atomic.AddUint32(&cc.nextIdx, 1)
+	idx %= uint32(len(cs))
 
-	minC := cs[0]
+	minC := cs[idx]
 	minN := minC.PendingRequests()
-	minT := atomic.LoadUint64(&minC.total)
-	for _, c := range cs[1:] {
+	if minN == 0 {
+		return minC
+	}
+	for _, c := range cs[idx+1:] {
 		n := c.PendingRequests()
-		t := atomic.LoadUint64(&c.total)
-		if n < minN || (n == minN && t < minT) {
+		if n == 0 {
+			return c
+		}
+		if n < minN {
 			minC = c
 			minN = n
-			minT = t
+		}
+	}
+	for _, c := range cs[:idx] {
+		n := c.PendingRequests()
+		if n == 0 {
+			return c
+		}
+		if n < minN {
+			minC = c
+			minN = n
 		}
 	}
 	return minC
@@ -115,9 +138,6 @@ type lbClient struct {
 	c           BalancingClient
 	healthCheck func(req *Request, resp *Response, err error) bool
 	penalty     uint32
-
-	// total amount of requests handled.
-	total uint64
 }
 
 func (c *lbClient) DoDeadline(req *Request, resp *Response, deadline time.Time) error {
@@ -126,8 +146,6 @@ func (c *lbClient) DoDeadline(req *Request, resp *Response, deadline time.Time) 
 		// Penalize the client returning error, so the next requests
 		// are routed to another clients.
 		time.AfterFunc(penaltyDuration, c.decPenalty)
-	} else {
-		atomic.AddUint64(&c.total, 1)
 	}
 	return err
 }

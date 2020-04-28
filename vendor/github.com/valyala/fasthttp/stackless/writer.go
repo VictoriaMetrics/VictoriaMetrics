@@ -75,7 +75,7 @@ func (w *writer) Close() error {
 
 func (w *writer) Reset(dstW io.Writer) {
 	w.xw.Reset()
-	w.do(opReset) //nolint:errcheck
+	w.do(opReset)
 	w.dstW = dstW
 }
 
@@ -125,7 +125,8 @@ func (w *xWriter) Write(p []byte) (int, error) {
 	if w.bb == nil {
 		w.bb = bufferPool.Get()
 	}
-	return w.bb.Write(p)
+	w.bb.Write(p)
+	return len(p), nil
 }
 
 func (w *xWriter) Reset() {
