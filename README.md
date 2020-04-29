@@ -845,7 +845,7 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 
 ### Alerting
 
-[vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalertt/README.md)
+[vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md)
 can evaluate alerting rules, store them in TSDB and send to alert notifier (e.g. alertmanager) 
 
 ### Security
