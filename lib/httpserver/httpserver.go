@@ -108,7 +108,8 @@ func Stop(addr string) error {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration)
 	defer cancelFunc()
 	if err := s.Shutdown(ctx); err != nil {
-		return fmt.Errorf("cannot gracefully shutdown http server at %q in %.3fs: %s", addr, maxGracefulShutdownDuration.Seconds(), err)
+		return fmt.Errorf("cannot gracefully shutdown http server at %q in %.3fs; "+
+			"probably, `-http.maxGracefulShutdownDuration` command-line flag value must be increased; error: %s", addr, maxGracefulShutdownDuration.Seconds(), err)
 	}
 	return nil
 }
