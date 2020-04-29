@@ -845,8 +845,14 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 
 ### Alerting
 
-[vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md)
-can evaluate alerting rules, store them in TSDB and send to alert notifier (e.g. alertmanager) 
+It is recommended using [vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md) for alerting.
+
+Additionally, alerting can be set up with the following tools:
+
+* With Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
+* With Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
+* With Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
+
 
 ### Security
 
