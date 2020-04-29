@@ -4,6 +4,10 @@ require (
 	cloud.google.com/go v0.56.0 // indirect
 	cloud.google.com/go/storage v1.6.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
+
+	// Do not use the original github.com/valyala/fasthttp because of issues
+	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
+	github.com/VictoriaMetrics/fasthttp v1.0.1
 	github.com/VictoriaMetrics/metrics v1.11.2
 	github.com/VictoriaMetrics/metricsql v0.1.0
 	github.com/aws/aws-sdk-go v1.30.13
@@ -12,7 +16,6 @@ require (
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.10.5
 	github.com/lithammer/go-jump-consistent-hash v1.0.1
-	github.com/valyala/fasthttp v1.12.0
 	github.com/valyala/fastjson v1.5.1
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.7.0
