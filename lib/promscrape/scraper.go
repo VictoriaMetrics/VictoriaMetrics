@@ -215,7 +215,7 @@ func runSDScrapers(t string, cfg *Config, pushData func(wr *prompbmarshal.WriteR
 			return newSws
 		case "static":
 			newSws := cfg.getStaticScrapeWork()
-			if len(sws) == 0 {
+			if len(newSws) == 0 {
 				return []ScrapeWork{}
 			}
 			return newSws
