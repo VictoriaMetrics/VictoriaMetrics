@@ -162,7 +162,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeConfigReloadRequests.Inc()
 		if err := syscall.Kill(syscall.Getpid(), syscall.SIGHUP); err != nil {
 			promscrapeConfigReloadErrors.Inc()
-			logger.Errorf("Fail to reload config file, %s", err)
+			httpserver.Errorf(w, "Fail to reload config file, %s", err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
