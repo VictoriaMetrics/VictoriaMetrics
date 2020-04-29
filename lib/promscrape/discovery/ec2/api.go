@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 type apiConfig struct {
@@ -142,6 +144,8 @@ type IdentityDocument struct {
 func getMetadataByPath(apiPath string) ([]byte, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
 
+	client := discoveryutils.GetHTTPClient()
+
 	// Obtain session token
 	sessionTokenURL := "http://169.254.169.254/latest/api/token"
 	req, err := http.NewRequest("PUT", sessionTokenURL, nil)
@@ -149,7 +153,7 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %s", sessionTokenURL, err)
 	}
 	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "60")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain IMDSv2 session token from %q; probably, `region` is missing in `ec2_sd_config`; error: %s", sessionTokenURL, err)
 	}
@@ -165,7 +169,7 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot create request to %q: %s", apiURL, err)
 	}
 	req.Header.Set("X-aws-ec2-metadata-token", string(token))
-	resp, err = http.DefaultClient.Do(req)
+	resp, err = client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain response for %q: %s", apiURL, err)
 	}
@@ -197,7 +201,7 @@ func getAPIResponse(cfg *apiConfig, action, nextPageToken string) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("cannot create signed request: %s", err)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := discoveryutils.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot perform http request to %q: %s", apiURL, err)
 	}
