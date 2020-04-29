@@ -38,10 +38,12 @@ func ApplyRelabelConfigs(labels []prompbmarshal.Label, labelsOffset int, prcs []
 		}
 		labels = tmp
 	}
-	labels = removeEmptyLabels(labels, labelsOffset)
 	if isFinalize {
 		labels = FinalizeLabels(labels[:labelsOffset], labels[labelsOffset:])
 	}
+	// remove empty empty labels after finalize, or we can't tell if the label value
+	// is null character or not set when finalize labels
+	labels = removeEmptyLabels(labels, labelsOffset)
 	SortLabels(labels[labelsOffset:])
 	return labels
 }
