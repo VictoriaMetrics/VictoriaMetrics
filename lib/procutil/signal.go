@@ -4,6 +4,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // WaitForSigterm waits for either SIGTERM or SIGINT
@@ -22,5 +24,12 @@ func WaitForSigterm() os.Signal {
 			continue
 		}
 		return sig
+	}
+}
+
+// SelfSIGHUP sends SIGHUP signal to the current process.
+func SelfSIGHUP() {
+	if err := syscall.Kill(syscall.Getpid(), syscall.SIGHUP); err != nil {
+		logger.Panicf("FATAL: cannot send SIGHUP to itself: %s", err)
 	}
 }
