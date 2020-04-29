@@ -4,8 +4,8 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fasthttp"
 )
 
 func statDial(addr string) (net.Conn, error) {

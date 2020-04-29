@@ -11,7 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/valyala/fasthttp"
+	"github.com/VictoriaMetrics/fasthttp"
 )
 
 // apiConfig contains config for API server
