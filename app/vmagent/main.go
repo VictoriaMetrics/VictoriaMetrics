@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
@@ -157,6 +158,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "text/plain")
 		promscrape.WriteHumanReadableTargetsStatus(w)
 		return true
+	case "/-/reload":
+		promscrapeConfigReloadRequests.Inc()
+		if err := syscall.Kill(syscall.Getpid(), syscall.SIGHUP); err != nil {
+			promscrapeConfigReloadErrors.Inc()
+			logger.Errorf("Fail to reload config file, %s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	}
 	return false
 }
@@ -177,4 +187,7 @@ var (
 	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query", protocol="influx"}`)
 
 	promscrapeTargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+
+	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+	promscrapeConfigReloadErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/-/reload"}`)
 )
