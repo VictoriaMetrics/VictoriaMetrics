@@ -845,11 +845,14 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 
 ### Alerting
 
-VictoriaMetrics doesn't support rule evaluation and alerting yet, so these actions can be performed at the following places:
+It is recommended using [vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md) for alerting.
 
-* At Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
-* At Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
-* At Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
+Additionally, alerting can be set up with the following tools:
+
+* With Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
+* With Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
+* With Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
+
 
 ### Security
 
