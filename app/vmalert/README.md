@@ -3,8 +3,6 @@
 `vmalert` executes a list of given MetricsQL expressions (rules) and
 sends alerts to [Alert Manager](https://github.com/prometheus/alertmanager).   
 
-NOTE: `vmalert` is in early alpha and wasn't tested in production systems yet.
-
 ### Features:
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
 * VictoriaMetrics [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL)
