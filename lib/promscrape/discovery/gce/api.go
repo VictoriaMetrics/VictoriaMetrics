@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"golang.org/x/oauth2/google"
 )
 
@@ -187,7 +188,7 @@ func getGCEMetadata(path string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot create http request for %q: %s", metadataURL, err)
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := discoveryutils.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain response to %q: %s", metadataURL, err)
 	}
