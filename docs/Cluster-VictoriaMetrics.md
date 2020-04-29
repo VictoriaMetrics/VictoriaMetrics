@@ -243,6 +243,9 @@ The recommended hardware for `vmselect` instances highly depends on the type of 
 small number of vCPU cores and small amount of RAM on `vmselect`, while heavy queries over big number of time series (>10K) usually require
 bigger number of vCPU cores and bigger amounts of RAM.
 
+In general it is recommended increasing the number of vCPU cores and RAM per `vmselect` node for higher query performance,
+while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
+
 
 ### Helm
 
