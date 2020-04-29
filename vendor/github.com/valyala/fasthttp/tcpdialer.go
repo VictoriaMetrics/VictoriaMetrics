@@ -1,7 +1,6 @@
 package fasthttp
 
 import (
-	"context"
 	"errors"
 	"net"
 	"strconv"
@@ -120,11 +119,6 @@ var (
 	defaultDialer = &TCPDialer{Concurrency: 1000}
 )
 
-// Resolver represents interface of the tcp resolver.
-type Resolver interface {
-	LookupIPAddr(context.Context, string) (names []net.IPAddr, err error)
-}
-
 // TCPDialer contains options to control a group of Dial calls.
 type TCPDialer struct {
 	// Concurrency controls the maximum number of concurrent Dails
@@ -134,24 +128,6 @@ type TCPDialer struct {
 	// WARNING: This can only be changed before the first Dial.
 	// Changes made after the first Dial will not affect anything.
 	Concurrency int
-
-	// LocalAddr is the local address to use when dialing an
-	// address.
-	// If nil, a local address is automatically chosen.
-	LocalAddr *net.TCPAddr
-
-	// This may be used to override DNS resolving policy, like this:
-	// var dialer = &fasthttp.TCPDialer{
-	// 	Resolver: &net.Resolver{
-	// 		PreferGo:     true,
-	// 		StrictErrors: false,
-	// 		Dial: func (ctx context.Context, network, address string) (net.Conn, error) {
-	// 			d := net.Dialer{}
-	// 			return d.DialContext(ctx, "udp", "8.8.8.8:53")
-	// 		},
-	// 	},
-	// }
-	Resolver Resolver
 
 	tcpAddrsLock sync.Mutex
 	tcpAddrsMap  map[string]*tcpAddrEntry
@@ -289,7 +265,7 @@ func (d *TCPDialer) dial(addr string, dualStack bool, timeout time.Duration) (ne
 	n := uint32(len(addrs))
 	deadline := time.Now().Add(timeout)
 	for n > 0 {
-		conn, err = d.tryDial(network, &addrs[idx%n], deadline, d.concurrencyCh)
+		conn, err = tryDial(network, &addrs[idx%n], deadline, d.concurrencyCh)
 		if err == nil {
 			return conn, nil
 		}
@@ -302,7 +278,7 @@ func (d *TCPDialer) dial(addr string, dualStack bool, timeout time.Duration) (ne
 	return nil, err
 }
 
-func (d *TCPDialer) tryDial(network string, addr *net.TCPAddr, deadline time.Time, concurrencyCh chan struct{}) (net.Conn, error) {
+func tryDial(network string, addr *net.TCPAddr, deadline time.Time, concurrencyCh chan struct{}) (net.Conn, error) {
 	timeout := -time.Since(deadline)
 	if timeout <= 0 {
 		return nil, ErrDialTimeout
@@ -333,7 +309,7 @@ func (d *TCPDialer) tryDial(network string, addr *net.TCPAddr, deadline time.Tim
 	ch := chv.(chan dialResult)
 	go func() {
 		var dr dialResult
-		dr.conn, dr.err = net.DialTCP(network, d.LocalAddr, addr)
+		dr.conn, dr.err = net.DialTCP(network, nil, addr)
 		ch <- dr
 		if concurrencyCh != nil {
 			<-concurrencyCh
@@ -411,7 +387,7 @@ func (d *TCPDialer) getTCPAddrs(addr string, dualStack bool) ([]net.TCPAddr, uin
 	d.tcpAddrsLock.Unlock()
 
 	if e == nil {
-		addrs, err := resolveTCPAddrs(addr, dualStack, d.Resolver)
+		addrs, err := resolveTCPAddrs(addr, dualStack)
 		if err != nil {
 			d.tcpAddrsLock.Lock()
 			e = d.tcpAddrsMap[addr]
@@ -436,7 +412,7 @@ func (d *TCPDialer) getTCPAddrs(addr string, dualStack bool) ([]net.TCPAddr, uin
 	return e.addrs, idx, nil
 }
 
-func resolveTCPAddrs(addr string, dualStack bool, resolver Resolver) ([]net.TCPAddr, error) {
+func resolveTCPAddrs(addr string, dualStack bool) ([]net.TCPAddr, error) {
 	host, portS, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
@@ -446,27 +422,21 @@ func resolveTCPAddrs(addr string, dualStack bool, resolver Resolver) ([]net.TCPA
 		return nil, err
 	}
 
-	if resolver == nil {
-		resolver = net.DefaultResolver
-	}
-
-	ctx := context.Background()
-	ipaddrs, err := resolver.LookupIPAddr(ctx, host)
+	ips, err := net.LookupIP(host)
 	if err != nil {
 		return nil, err
 	}
 
-	n := len(ipaddrs)
+	n := len(ips)
 	addrs := make([]net.TCPAddr, 0, n)
 	for i := 0; i < n; i++ {
-		ip := ipaddrs[i]
-		if !dualStack && ip.IP.To4() == nil {
+		ip := ips[i]
+		if !dualStack && ip.To4() == nil {
 			continue
 		}
 		addrs = append(addrs, net.TCPAddr{
-			IP:   ip.IP,
+			IP:   ip,
 			Port: port,
-			Zone: ip.Zone,
 		})
 	}
 	if len(addrs) == 0 {

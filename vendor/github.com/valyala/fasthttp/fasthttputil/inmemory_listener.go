@@ -1,13 +1,10 @@
 package fasthttputil
 
 import (
-	"errors"
+	"fmt"
 	"net"
 	"sync"
 )
-
-// ErrInmemoryListenerClosed indicates that the InmemoryListener is already closed.
-var ErrInmemoryListenerClosed = errors.New("InmemoryListener is already closed: use of closed network connection")
 
 // InmemoryListener provides in-memory dialer<->net.Listener implementation.
 //
@@ -39,7 +36,7 @@ func NewInmemoryListener() *InmemoryListener {
 func (ln *InmemoryListener) Accept() (net.Conn, error) {
 	c, ok := <-ln.conns
 	if !ok {
-		return nil, ErrInmemoryListenerClosed
+		return nil, fmt.Errorf("InmemoryListener is already closed: use of closed network connection")
 	}
 	close(c.accepted)
 	return c.conn, nil
@@ -54,7 +51,7 @@ func (ln *InmemoryListener) Close() error {
 		close(ln.conns)
 		ln.closed = true
 	} else {
-		err = ErrInmemoryListenerClosed
+		err = fmt.Errorf("InmemoryListener is already closed")
 	}
 	ln.lock.Unlock()
 	return err
@@ -84,14 +81,14 @@ func (ln *InmemoryListener) Dial() (net.Conn, error) {
 		// Wait until the connection has been accepted.
 		<-accepted
 	} else {
-		sConn.Close() //nolint:errcheck
-		cConn.Close() //nolint:errcheck
+		sConn.Close()
+		cConn.Close()
 		cConn = nil
 	}
 	ln.lock.Unlock()
 
 	if cConn == nil {
-		return nil, ErrInmemoryListenerClosed
+		return nil, fmt.Errorf("InmemoryListener is already closed")
 	}
 	return cConn, nil
 }

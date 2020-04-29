@@ -11,7 +11,10 @@ require (
 	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.10.5
-	github.com/valyala/fasthttp v1.12.0
+
+	// do not update fasthttp releases because of issues like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
+	// in the new code.
+	github.com/valyala/fasthttp v1.2.0
 	github.com/valyala/fastjson v1.5.1
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.7.0
