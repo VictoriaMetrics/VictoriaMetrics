@@ -6,27 +6,6 @@ import (
 	"time"
 )
 
-func TestGetMinDelta(t *testing.T) {
-	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
-	defer SetMinScrapeIntervalForDeduplication(0)
-
-	f := func(scrapeInterval time.Duration, dExpected int64) {
-		t.Helper()
-		SetMinScrapeIntervalForDeduplication(scrapeInterval)
-		d := getMinDelta()
-		if d != dExpected {
-			t.Fatalf("unexpected getMinDelta(%s); got %d; want %d", scrapeInterval, d, dExpected)
-		}
-	}
-	f(0, 0)
-	f(time.Millisecond, 1)
-	f(5*time.Millisecond, 4)
-	f(8*time.Millisecond, 7)
-	f(100*time.Millisecond, 84)
-	f(time.Second, 875)
-	f(10*time.Second, 8750)
-}
-
 func TestDeduplicateSamples(t *testing.T) {
 	// Disable deduplication before exit, since the rest of tests expect disabled dedup.
 	defer SetMinScrapeIntervalForDeduplication(0)
@@ -73,8 +52,8 @@ func TestDeduplicateSamples(t *testing.T) {
 	f(time.Millisecond, []int64{123, 456}, []int64{123, 456})
 	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 1, 2, 3, 4})
 	f(0, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4})
-	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 200, 300, 1000})
-	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 21e3, 30e3, 39e3})
+	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 205, 300, 1000}, []int64{0, 100, 205, 300, 1000})
+	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 21e3, 30e3, 45e3})
 }
 
 func TestDeduplicateSamplesDuringMerge(t *testing.T) {
@@ -121,9 +100,9 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 	f(time.Millisecond, nil, []int64{})
 	f(time.Millisecond, []int64{123}, []int64{123})
 	f(time.Millisecond, []int64{123, 456}, []int64{123, 456})
-	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4})
-	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000})
-	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3})
+	f(time.Millisecond, []int64{0, 0, 0, 1, 1, 2, 3, 3, 3, 4}, []int64{0, 1, 2, 3, 4})
+	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 200, 300, 1000})
+	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 21e3, 30e3, 45e3})
 
 	var timestamps, timestampsExpected []int64
 	for i := 0; i < 40; i++ {

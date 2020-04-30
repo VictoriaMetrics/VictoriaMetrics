@@ -15,8 +15,8 @@ import (
 // partSearch represents blocks stream for the given search args
 // passed to Init.
 type partSearch struct {
-	// Block contains the found block after NextBlock call.
-	Block Block
+	// BlockRef contains the reference to the found block after NextBlock call.
+	BlockRef BlockRef
 
 	// p is the part to search.
 	p *part
@@ -29,9 +29,6 @@ type partSearch struct {
 
 	// tr is a time range to search.
 	tr TimeRange
-
-	// Skip populating timestampsData and valuesData in Block if fetchData=false.
-	fetchData bool
 
 	metaindex []metaindexRow
 
@@ -49,11 +46,10 @@ type partSearch struct {
 }
 
 func (ps *partSearch) reset() {
-	ps.Block.Reset()
+	ps.BlockRef.reset()
 	ps.p = nil
 	ps.tsids = nil
 	ps.tsidIdx = 0
-	ps.fetchData = true
 	ps.metaindex = nil
 	ps.ibCache = nil
 	ps.bhs = nil
@@ -74,7 +70,7 @@ var isInTest = func() bool {
 //
 // tsids must be sorted.
 // tsids cannot be modified after the Init call, since it is owned by ps.
-func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange, fetchData bool) {
+func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange) {
 	ps.reset()
 	ps.p = p
 
@@ -86,7 +82,6 @@ func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange, fetchData bool) 
 		ps.tsids = tsids
 	}
 	ps.tr = tr
-	ps.fetchData = fetchData
 	ps.metaindex = p.metaindex
 	ps.ibCache = p.ibCache
 
@@ -95,7 +90,7 @@ func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange, fetchData bool) 
 	ps.nextTSID()
 }
 
-// NextBlock advances to the next Block.
+// NextBlock advances to the next BlockRef.
 //
 // Returns true on success.
 //
@@ -130,7 +125,7 @@ func (ps *partSearch) nextTSID() bool {
 		ps.err = io.EOF
 		return false
 	}
-	ps.Block.bh.TSID = ps.tsids[ps.tsidIdx]
+	ps.BlockRef.bh.TSID = ps.tsids[ps.tsidIdx]
 	ps.tsidIdx++
 	return true
 }
@@ -139,20 +134,20 @@ func (ps *partSearch) nextBHS() bool {
 	for len(ps.metaindex) > 0 {
 		// Optimization: skip tsid values smaller than the minimum value
 		// from ps.metaindex.
-		for ps.Block.bh.TSID.Less(&ps.metaindex[0].TSID) {
+		for ps.BlockRef.bh.TSID.Less(&ps.metaindex[0].TSID) {
 			if !ps.nextTSID() {
 				return false
 			}
 		}
-		// Invariant: ps.Block.bh.TSID >= ps.metaindex[0].TSID
+		// Invariant: ps.BlockRef.bh.TSID >= ps.metaindex[0].TSID
 
-		ps.metaindex = skipSmallMetaindexRows(ps.metaindex, &ps.Block.bh.TSID)
-		// Invariant: len(ps.metaindex) > 0 && ps.Block.bh.TSID >= ps.metaindex[0].TSID
+		ps.metaindex = skipSmallMetaindexRows(ps.metaindex, &ps.BlockRef.bh.TSID)
+		// Invariant: len(ps.metaindex) > 0 && ps.BlockRef.bh.TSID >= ps.metaindex[0].TSID
 
 		mr := &ps.metaindex[0]
 		ps.metaindex = ps.metaindex[1:]
-		if ps.Block.bh.TSID.Less(&mr.TSID) {
-			logger.Panicf("BUG: invariant violation: ps.Block.bh.TSID cannot be smaller than mr.TSID; got %+v vs %+v", &ps.Block.bh.TSID, &mr.TSID)
+		if ps.BlockRef.bh.TSID.Less(&mr.TSID) {
+			logger.Panicf("BUG: invariant violation: ps.BlockRef.bh.TSID cannot be smaller than mr.TSID; got %+v vs %+v", &ps.BlockRef.bh.TSID, &mr.TSID)
 		}
 
 		if mr.MaxTimestamp < ps.tr.MinTimestamp {
@@ -165,7 +160,7 @@ func (ps *partSearch) nextBHS() bool {
 		}
 
 		// Found the index block which may contain the required data
-		// for the ps.Block.bh.TSID and the given timestamp range.
+		// for the ps.BlockRef.bh.TSID and the given timestamp range.
 		if ps.indexBlockReuse != nil {
 			putIndexBlock(ps.indexBlockReuse)
 			ps.indexBlockReuse = nil
@@ -249,15 +244,15 @@ func (ps *partSearch) searchBHS() bool {
 		bh := &ps.bhs[i]
 
 	nextTSID:
-		if bh.TSID.Less(&ps.Block.bh.TSID) {
+		if bh.TSID.Less(&ps.BlockRef.bh.TSID) {
 			// Skip blocks with small tsid values.
 			continue
 		}
 
-		// Invariant: ps.Block.bh.TSID <= bh.TSID
+		// Invariant: ps.BlockRef.bh.TSID <= bh.TSID
 
-		if bh.TSID.MetricID != ps.Block.bh.TSID.MetricID {
-			// ps.Block.bh.TSID < bh.TSID: no more blocks with the given tsid.
+		if bh.TSID.MetricID != ps.BlockRef.bh.TSID.MetricID {
+			// ps.BlockRef.bh.TSID < bh.TSID: no more blocks with the given tsid.
 			// Proceed to the next (bigger) tsid.
 			if !ps.nextTSID() {
 				return false
@@ -284,7 +279,7 @@ func (ps *partSearch) searchBHS() bool {
 
 		// Found the tsid block with the matching timestamp range.
 		// Read it.
-		ps.readBlock(bh)
+		ps.BlockRef.init(ps.p, bh)
 
 		ps.bhs = ps.bhs[i+1:]
 		return true
@@ -292,18 +287,4 @@ func (ps *partSearch) searchBHS() bool {
 
 	ps.bhs = nil
 	return false
-}
-
-func (ps *partSearch) readBlock(bh *blockHeader) {
-	ps.Block.Reset()
-	ps.Block.bh = *bh
-	if !ps.fetchData {
-		return
-	}
-
-	ps.Block.timestampsData = bytesutil.Resize(ps.Block.timestampsData[:0], int(bh.TimestampsBlockSize))
-	ps.p.timestampsFile.MustReadAt(ps.Block.timestampsData, int64(bh.TimestampsBlockOffset))
-
-	ps.Block.valuesData = bytesutil.Resize(ps.Block.valuesData[:0], int(bh.ValuesBlockSize))
-	ps.p.valuesFile.MustReadAt(ps.Block.valuesData, int64(bh.ValuesBlockOffset))
 }

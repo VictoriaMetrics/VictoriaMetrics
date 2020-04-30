@@ -70,9 +70,9 @@ func TestMarshalInt64ArraySize(t *testing.T) {
 		v += 30e3 + int64(rand.NormFloat64()*1e3)
 	}
 
-	testMarshalInt64ArraySize(t, va, 1, 500, 1300)
-	testMarshalInt64ArraySize(t, va, 2, 500, 1400)
-	testMarshalInt64ArraySize(t, va, 3, 800, 1800)
+	testMarshalInt64ArraySize(t, va, 1, 180, 1400)
+	testMarshalInt64ArraySize(t, va, 2, 250, 1550)
+	testMarshalInt64ArraySize(t, va, 3, 600, 1800)
 	testMarshalInt64ArraySize(t, va, 4, 1300, 2100)
 	testMarshalInt64ArraySize(t, va, 5, 2000, 3200)
 	testMarshalInt64ArraySize(t, va, 6, 3000, 4800)

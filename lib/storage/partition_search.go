@@ -10,8 +10,8 @@ import (
 
 // partitionSearch represents a search in the partition.
 type partitionSearch struct {
-	// Block is the block found after NextBlock call.
-	Block *Block
+	// BlockRef is the block found after NextBlock call.
+	BlockRef *BlockRef
 
 	// pt is a partition to search.
 	pt *partition
@@ -30,7 +30,7 @@ type partitionSearch struct {
 }
 
 func (pts *partitionSearch) reset() {
-	pts.Block = nil
+	pts.BlockRef = nil
 	pts.pt = nil
 
 	for i := range pts.pws {
@@ -59,7 +59,7 @@ func (pts *partitionSearch) reset() {
 // tsids cannot be modified after the Init call, since it is owned by pts.
 //
 /// MustClose must be called when partition search is done.
-func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange, fetchData bool) {
+func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	if pts.needClosing {
 		logger.Panicf("BUG: missing partitionSearch.MustClose call before the next call to Init")
 	}
@@ -88,7 +88,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange, fetc
 	}
 	pts.psPool = pts.psPool[:len(pts.pws)]
 	for i, pw := range pts.pws {
-		pts.psPool[i].Init(pw.p, tsids, tr, fetchData)
+		pts.psPool[i].Init(pw.p, tsids, tr)
 	}
 
 	// Initialize the psHeap.
@@ -114,7 +114,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange, fetc
 		return
 	}
 	heap.Init(&pts.psHeap)
-	pts.Block = &pts.psHeap[0].Block
+	pts.BlockRef = &pts.psHeap[0].BlockRef
 	pts.nextBlockNoop = true
 }
 
@@ -145,7 +145,7 @@ func (pts *partitionSearch) nextBlock() error {
 	psMin := pts.psHeap[0]
 	if psMin.NextBlock() {
 		heap.Fix(&pts.psHeap, 0)
-		pts.Block = &pts.psHeap[0].Block
+		pts.BlockRef = &pts.psHeap[0].BlockRef
 		return nil
 	}
 
@@ -159,7 +159,7 @@ func (pts *partitionSearch) nextBlock() error {
 		return io.EOF
 	}
 
-	pts.Block = &pts.psHeap[0].Block
+	pts.BlockRef = &pts.psHeap[0].BlockRef
 	return nil
 }
 
@@ -188,7 +188,7 @@ func (psh *partSearchHeap) Len() int {
 
 func (psh *partSearchHeap) Less(i, j int) bool {
 	x := *psh
-	return x[i].Block.bh.Less(&x[j].Block.bh)
+	return x[i].BlockRef.bh.Less(&x[j].BlockRef.bh)
 }
 
 func (psh *partSearchHeap) Swap(i, j int) {

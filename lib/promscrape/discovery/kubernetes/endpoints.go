@@ -9,13 +9,9 @@ import (
 
 // getEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
 func getEndpointsLabels(cfg *apiConfig) ([]map[string]string, error) {
-	data, err := getAPIResponse(cfg, "endpoints", "/api/v1/endpoints")
+	eps, err := getEndpoints(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %s", err)
-	}
-	epl, err := parseEndpointsList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse endpoints response from API server: %s", err)
+		return nil, err
 	}
 	pods, err := getPods(cfg)
 	if err != nil {
@@ -26,10 +22,44 @@ func getEndpointsLabels(cfg *apiConfig) ([]map[string]string, error) {
 		return nil, err
 	}
 	var ms []map[string]string
-	for _, ep := range epl.Items {
+	for _, ep := range eps {
 		ms = ep.appendTargetLabels(ms, pods, svcs)
 	}
 	return ms, nil
+}
+
+func getEndpoints(cfg *apiConfig) ([]Endpoints, error) {
+	if len(cfg.Namespaces) == 0 {
+		return getEndpointsByPath(cfg, "/api/v1/endpoints")
+	}
+	// Query /api/v1/namespaces/* for each namespace.
+	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
+	cfgCopy := *cfg
+	namespaces := cfgCopy.Namespaces
+	cfgCopy.Namespaces = nil
+	cfg = &cfgCopy
+	var result []Endpoints
+	for _, ns := range namespaces {
+		path := fmt.Sprintf("/api/v1/namespaces/%s/endpoints", ns)
+		eps, err := getEndpointsByPath(cfg, path)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, eps...)
+	}
+	return result, nil
+}
+
+func getEndpointsByPath(cfg *apiConfig, path string) ([]Endpoints, error) {
+	data, err := getAPIResponse(cfg, "endpoints", path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %s", err)
+	}
+	epl, err := parseEndpointsList(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse endpoints response from API server: %s", err)
+	}
+	return epl.Items, nil
 }
 
 // EndpointsList implements k8s endpoints list.

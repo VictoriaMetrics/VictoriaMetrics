@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 func TestParsePodListFailure(t *testing.T) {
@@ -240,10 +241,10 @@ func TestParsePodListSuccess(t *testing.T) {
 	labelss := pod.appendTargetLabels(nil)
 	var sortedLabelss [][]prompbmarshal.Label
 	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, getSortedLabels(labels))
+		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
 	}
 	expectedLabels := [][]prompbmarshal.Label{
-		getSortedLabels(map[string]string{
+		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.17.0.2:1234",
 
 			"__meta_kubernetes_namespace":                   "kube-system",

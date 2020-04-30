@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -46,17 +46,17 @@ func newClient(sw *ScrapeWork) *client {
 		}
 	}
 	hc := &fasthttp.HostClient{
-		Addr:                      host,
-		Name:                      "vm_promscrape",
-		Dial:                      statDial,
-		DialDualStack:             netutil.TCP6Enabled(),
-		IsTLS:                     isTLS,
-		TLSConfig:                 tlsCfg,
-		MaxIdleConnDuration:       2 * sw.ScrapeInterval,
-		ReadTimeout:               sw.ScrapeTimeout,
-		WriteTimeout:              10 * time.Second,
-		MaxResponseBodySize:       *maxScrapeSize,
-		MaxIdemponentCallAttempts: 1,
+		Addr:                         host,
+		Name:                         "vm_promscrape",
+		Dial:                         statDial,
+		DialDualStack:                netutil.TCP6Enabled(),
+		IsTLS:                        isTLS,
+		TLSConfig:                    tlsCfg,
+		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
+		ReadTimeout:                  sw.ScrapeTimeout,
+		WriteTimeout:                 10 * time.Second,
+		MaxResponseBodySize:          *maxScrapeSize,
+		MaxIdempotentRequestAttempts: 1,
 	}
 	return &client{
 		hc: hc,
@@ -80,7 +80,17 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	}
 	resp := fasthttp.AcquireResponse()
 	err := doRequestWithPossibleRetry(c.hc, req, resp)
-
+	statusCode := resp.StatusCode()
+	if statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound {
+		// Allow a single redirect.
+		// It is expected that the redirect is made on the same host.
+		// Otherwise it won't work.
+		if location := resp.Header.Peek("Location"); len(location) > 0 {
+			req.URI().UpdateBytes(location)
+			err = c.hc.Do(req, resp)
+			statusCode = resp.StatusCode()
+		}
+	}
 	fasthttp.ReleaseRequest(req)
 	if err != nil {
 		fasthttp.ReleaseResponse(resp)
@@ -103,7 +113,6 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	} else {
 		dst = append(dst, resp.Body()...)
 	}
-	statusCode := resp.StatusCode()
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",

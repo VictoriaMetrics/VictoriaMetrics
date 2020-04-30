@@ -19,6 +19,7 @@ import (
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -130,6 +131,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "text/plain")
 		promscrape.WriteHumanReadableTargetsStatus(w)
 		return true
+	case "/-/reload":
+		promscrapeConfigReloadRequests.Inc()
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	default:
 		// This is not our link
 		return false
@@ -152,4 +158,6 @@ var (
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/query", protocol="influx"}`)
 
 	promscrapeTargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
+
+	promscrapeConfigReloadRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/reload"}`)
 )

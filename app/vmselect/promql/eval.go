@@ -11,9 +11,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -668,8 +668,11 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		if iafc.ae.Modifier.Op != "" {
 			// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
 			// since each group can have own set of time series in memory.
-			// Estimate the number of such groups is lower than 1000 :)
 			timeseriesLen *= 1000
+		}
+		// The maximum number of output time series is limited by rssLen.
+		if timeseriesLen > rssLen {
+			timeseriesLen = rssLen
 		}
 	}
 	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
@@ -680,7 +683,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
 			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
 			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
-			rollupPoints, rssLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
+			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
 	}
 	defer rml.Put(uint64(rollupMemorySize))
 

@@ -30,6 +30,9 @@ func TestParseBad(t *testing.T) {
 	if _, err := Parse([]string{"testdata/dir/rules1-bad.rules"}, true); err == nil {
 		t.Errorf("expected same group error")
 	}
+	if _, err := Parse([]string{"testdata/dir/rules2-bad.rules"}, true); err == nil {
+		t.Errorf("expected template label error")
+	}
 	if _, err := Parse([]string{"testdata/*.yaml"}, true); err == nil {
 		t.Errorf("expected empty group")
 	}
