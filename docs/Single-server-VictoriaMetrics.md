@@ -312,7 +312,7 @@ to local VictoriaMetrics using `curl`:
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-An arbitrary number of lines delimited by '\n' may be sent in a single request.
+An arbitrary number of lines delimited by '\n' (aka newline char) may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -348,7 +348,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
 VictoriaMetrics sets the current time if the timestamp is omitted.
-An arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -389,7 +389,7 @@ Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-An arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
