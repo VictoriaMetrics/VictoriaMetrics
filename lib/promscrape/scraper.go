@@ -81,74 +81,79 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 
 	mustStop := false
 	for !mustStop {
+		staticReloadCh := make(chan struct{})
+		fileSDReloadCh := make(chan struct{})
+		kubernetesSDReloadCh := make(chan struct{})
+		EC2SDReloadCh := make(chan struct{})
+		GCESDReloadCh := make(chan struct{})
+
 		stopCh := make(chan struct{})
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers(Static, cfg, pushData, stopCh)
+			runSDScrapers(Static, cfg, pushData, staticReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers(FileSD, cfg, pushData, stopCh)
+			runSDScrapers(FileSD, cfg, pushData, fileSDReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers(KubernetesSD, cfg, pushData, stopCh)
+			runSDScrapers(KubernetesSD, cfg, pushData, kubernetesSDReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers(EC2SD, cfg, pushData, stopCh)
+			runSDScrapers(EC2SD, cfg, pushData, EC2SDReloadCh, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runSDScrapers(GCESD, cfg, pushData, stopCh)
+			runSDScrapers(GCESD, cfg, pushData, GCESDReloadCh, stopCh)
 		}()
+
+		reloadConfig := func() {
+			cfgNew, dataNew, err := loadConfig(configFile)
+			if err != nil {
+				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
+				return
+			}
+			if bytes.Equal(data, dataNew) {
+				logger.Infof("nothing changed in %q", configFile)
+				return
+			}
+			logger.Infof("found changes in %q; applying these changes", configFile)
+			*cfg = *cfgNew
+			data = dataNew
+			staticReloadCh <- struct{}{}
+			fileSDReloadCh <- struct{}{}
+			kubernetesSDReloadCh <- struct{}{}
+			EC2SDReloadCh <- struct{}{}
+			GCESDReloadCh <- struct{}{}
+			configReloads.Inc()
+		}
 
 	waitForChans:
 		select {
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; reloading Prometheus configs from %q", configFile)
-			cfgNew, dataNew, err := loadConfig(configFile)
-			if err != nil {
-				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
-				goto waitForChans
-			}
-			if bytes.Equal(data, dataNew) {
-				logger.Infof("nothing changed in %q", configFile)
-				goto waitForChans
-			}
-			cfg = cfgNew
-			data = dataNew
+			reloadConfig()
+			goto waitForChans
 		case <-tickerCh:
-			cfgNew, dataNew, err := loadConfig(configFile)
-			if err != nil {
-				logger.Errorf("cannot read %q: %s; continuing with the previous config", configFile, err)
-				goto waitForChans
-			}
-			if bytes.Equal(data, dataNew) {
-				// Nothing changed since the previous loadConfig
-				goto waitForChans
-			}
-			cfg = cfgNew
-			data = dataNew
+			reloadConfig()
+			goto waitForChans
 		case <-globalStopCh:
+			close(stopCh)
 			mustStop = true
 		}
 
-		if !mustStop {
-			logger.Infof("found changes in %q; applying these changes", configFile)
-		}
 		logger.Infof("stopping Prometheus scrapers")
 		startTime := time.Now()
-		close(stopCh)
 		wg.Wait()
 		logger.Infof("stopped Prometheus scrapers in %.3f seconds", time.Since(startTime).Seconds())
-		configReloads.Inc()
 	}
 }
 
@@ -180,12 +185,18 @@ const (
 	GCESD
 )
 
-func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+type SwWithStopCh struct {
+	sw     ScrapeWork
+	stopCh chan struct{}
+}
+
+func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), reloadCh <-chan struct{}, stopCh <-chan struct{}) {
 	var sws []ScrapeWork
 	var sdTargets *metrics.Counter
 	var sdReloader *metrics.Counter
 	var reloadInterval *time.Duration
-	var sdName = ""
+	sdName := ""
+	swsWithStopCh := make(map[string]*SwWithStopCh)
 
 	switch t {
 	case Static:
@@ -237,36 +248,93 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 	sws = loadSwsByType(t, nil)
 	ticker := time.NewTicker(*reloadInterval)
 	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `%s_sd_config` targets", len(sws), sdName)
-			sdTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			sdTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `%s_sd_config` targets", len(sws), sdName)
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := loadSwsByType(t, sws)
-			if equalScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
+	var wg sync.WaitGroup
+
+	runChangedSws := func() {
+		newSwsWithStopCh := make(map[string]*SwWithStopCh)
+		for _, sw := range sws {
+			swHash, err := hashForScrapeWork(&sw)
+			if err != nil {
+				logger.Warnf("hash for sw: %v failed, err is: %v", sw, err)
+				continue
 			}
-			logger.Infof("restarting scrapers for changed `%s_sd_config` targets", sdName)
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
+			logger.Infof("hash for sw: %v success, hash is: %v", sw, swHash)
+			newSwsWithStopCh[swHash] = &SwWithStopCh{
+				sw:     sw,
+				stopCh: make(chan struct{}),
+			}
+		}
+		// 1. run new sw worker
+		for newSwHash, _ := range newSwsWithStopCh {
+			if swWithStopCh, exists := swsWithStopCh[newSwHash]; exists {
+				// same sw worker exists, copy ch
+				newSwsWithStopCh[newSwHash].stopCh = swWithStopCh.stopCh
+				logger.Infof("old exists sw: %v keep running with hash: %s", swWithStopCh.sw, newSwHash)
+				continue
+			} else {
+				logger.Infof("new sw: %v start running with hash: %s", newSwsWithStopCh[newSwHash].sw, newSwHash)
+			}
+			// new sw, run it
+			wg.Add(1)
+			sdTargets.Inc()
+			go func(swWithStopCh *SwWithStopCh) {
+				defer wg.Done()
+				defer sdTargets.Dec()
+				runScrapeWorker(swWithStopCh.sw, pushData, swWithStopCh.stopCh)
+			}(newSwsWithStopCh[newSwHash])
+
+		}
+		// 2. clear old sw worker
+		for oldSwHash, swWithStopCh := range swsWithStopCh {
+			if _, exists := newSwsWithStopCh[oldSwHash]; exists {
+				continue
+			}
+			logger.Infof("clear old sw: %v start with hash: %s", swWithStopCh.sw, oldSwHash)
+			close(swWithStopCh.stopCh)
+			logger.Infof("starting %d scrapers for `%s_sd_config` targets", len(sws), sdName)
 		}
 
-		close(localStopCh)
+		// replace swsWithStopCh with new swsWithStopCh
+		swsWithStopCh = newSwsWithStopCh
+	}
+
+	loadCfg := func(swsNew []ScrapeWork) {
+		logger.Infof("reloading scrapers for changed `file_sd_config` targets")
+		logger.Infof("begore reload cfg, fd targets number is: %d", fileSDTargets.Get())
+		sws = swsNew
+		runChangedSws()
+		logger.Infof("after reload cfg, fd targets number is: %d", fileSDTargets.Get())
+
+	}
+
+	reloadCfg := func() {
+		swsNew := loadSwsByType(t, sws)
+		if equalScrapeWorks(swsNew, sws) {
+			return
+		}
+		loadCfg(swsNew)
+	}
+
+	loadCfg(sws)
+
+waitForChans:
+	for {
+		select {
+		case <-ticker.C:
+			reloadCfg()
+			sdReloader.Inc()
+		case <-reloadCh:
+			reloadCfg()
+			sdReloader.Inc()
+		case <-stopCh:
+			break waitForChans
+		}
+
+		for _, swWithStopCh := range swsWithStopCh {
+			close(swWithStopCh.stopCh)
+		}
+
 		wg.Wait()
-		sdReloader.Inc()
 	}
 }
 
@@ -354,25 +422,13 @@ func hashForScrapeWork(sw *ScrapeWork) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-// runScrapeWorkers runs sws.
-//
-// This function returns after closing stopCh.
-func runScrapeWorkers(sws []ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	tsmGlobal.RegisterAll(sws)
-	var wg sync.WaitGroup
-	for i := range sws {
-		cfg := &sws[i]
-		c := newClient(cfg)
-		var sw scrapeWork
-		sw.Config = *cfg
-		sw.ReadData = c.ReadData
-		sw.PushData = pushData
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sw.run(stopCh)
-		}()
-	}
-	wg.Wait()
-	tsmGlobal.UnregisterAll(sws)
+func runScrapeWorker(sw ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	tsmGlobal.Register(sw)
+	c := newClient(&sw)
+	var lsw scrapeWork
+	lsw.Config = sw
+	lsw.ReadData = c.ReadData
+	lsw.PushData = pushData
+	lsw.run(stopCh)
+	tsmGlobal.Unregister(sw)
 }
