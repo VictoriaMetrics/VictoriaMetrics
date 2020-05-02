@@ -110,3 +110,5 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   would calculate `min_over_time`, `max_over_time` and `rate` for `m[d]`.
 - `hoeffding_bound_upper(phi, m[d])` and `hoeffding_bound_lower(phi, m[d])` - return upper and lower [Hoeffding bounds](https://en.wikipedia.org/wiki/Hoeffding%27s_inequality)
   for the given `phi` in the range `[0..1]`.
+- `last_over_time(m[d])` - returns the last value for `m` on the time range `d`.
+- `first_over_time(m[d])` - returns the first value for `m` on the time range `d`.
