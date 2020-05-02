@@ -143,30 +143,6 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	return err
 }
 
-func (cfg *Config) kubernetesSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].KubernetesSDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) ec2SDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].EC2SDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) gceSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].GCESDConfigs)
-	}
-	return n
-}
-
 func (cfg *Config) fileSDConfigsCount() int {
 	n := 0
 	for i := range cfg.ScrapeConfigs {
