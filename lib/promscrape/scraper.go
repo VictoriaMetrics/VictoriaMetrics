@@ -242,11 +242,11 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 		wg.Add(1)
 		go func(sws []ScrapeWork) {
 			defer wg.Done()
-			logger.Infof("starting %d scrapers for `%s_sd_config` targets", sdName, len(sws))
+			logger.Infof("starting %d scrapers for `%s_sd_config` targets", len(sws), sdName)
 			sdTargets.Set(uint64(len(sws)))
 			runScrapeWorkers(sws, pushData, localStopCh)
 			sdTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `%s_sd_config` targets", sdName, len(sws))
+			logger.Infof("stopped all the %d scrapers for `%s_sd_config` targets", len(sws), sdName)
 		}(sws)
 	waitForChans:
 		select {
