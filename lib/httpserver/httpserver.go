@@ -27,6 +27,7 @@ var (
 	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow")
 	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set")
 
+	httpExternalURL  = flag.String("http.externalURL", "", "The URL under which the http service is externally reachable")
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
 	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty")
 	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It overrides httpAuth settings")
@@ -61,6 +62,15 @@ func Serve(addr string, rh RequestHandler) {
 	scheme := "http"
 	if *tlsEnable {
 		scheme = "https"
+	}
+	// parse and format `httpExternalURL` to /<defined_string>` ,
+	if *httpExternalURL != "" {
+		if !strings.HasPrefix(*httpExternalURL, "/") {
+			*httpExternalURL = "/" + *httpExternalURL
+		}
+		if strings.HasSuffix(*httpExternalURL, "/") {
+			*httpExternalURL = strings.TrimRight(*httpExternalURL, "/")
+		}
 	}
 	logger.Infof("starting http server at %s://%s/", scheme, addr)
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, addr)
@@ -157,6 +167,8 @@ var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seco
 
 func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
+	// delete extra url string, extra is a string formated as `/<defined_string>` when server start up
+	r.URL.Path = strings.Replace(r.URL.Path, *httpExternalURL, "", 1)
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain")
