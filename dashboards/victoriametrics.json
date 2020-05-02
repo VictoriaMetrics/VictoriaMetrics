@@ -4265,7 +4265,8 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": true,
+              "decimals": 2
             },
             {
               "format": "short",
