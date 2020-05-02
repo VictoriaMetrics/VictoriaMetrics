@@ -183,28 +183,34 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 	var sdTargets *metrics.Counter
 	var sdReloader *metrics.Counter
 	var reloadInterval *time.Duration
+	var sdName = ""
 
 	switch t {
 	case Static:
 		sdTargets = staticTargets
 		sdReloader = staticReloads
 		reloadInterval = staticCheckInterval
+		sdName = "static"
 	case FileSD:
 		sdTargets = fileSDTargets
 		sdReloader = fileSDReloads
 		reloadInterval = fileSDCheckInterval
+		sdName = "file"
 	case KubernetesSD:
 		sdTargets = kubernetesSDTargets
 		sdReloader = kubernetesSDReloads
 		reloadInterval = kubernetesSDCheckInterval
+		sdName = "kubernetes"
 	case EC2SD:
 		sdTargets = ec2SDTargets
 		sdReloader = ec2SDReloads
 		reloadInterval = ec2SDCheckInterval
+		sdName = "ec2"
 	case GCESD:
 		sdTargets = gceSDTargets
 		sdReloader = gceSDReloads
 		reloadInterval = gceSDCheckInterval
+		sdName = "gce"
 	default:
 		return
 	}
@@ -236,11 +242,11 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 		wg.Add(1)
 		go func(sws []ScrapeWork) {
 			defer wg.Done()
-			logger.Infof("starting %d scrapers for `kubernetes_sd_config` targets", len(sws))
+			logger.Infof("starting %d scrapers for `%s_sd_config` targets", sdName, len(sws))
 			sdTargets.Set(uint64(len(sws)))
 			runScrapeWorkers(sws, pushData, localStopCh)
 			sdTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `kubernetes_sd_config` targets", len(sws))
+			logger.Infof("stopped all the %d scrapers for `%s_sd_config` targets", sdName, len(sws))
 		}(sws)
 	waitForChans:
 		select {
@@ -250,7 +256,7 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 				// Nothing changed, continue waiting for updated scrape work
 				goto waitForChans
 			}
-			logger.Infof("restarting scrapers for changed `kubernetes_sd_config` targets")
+			logger.Infof("restarting scrapers for changed `%s_sd_config` targets", sdName)
 			sws = swsNew
 		case <-stopCh:
 			mustStop = true
