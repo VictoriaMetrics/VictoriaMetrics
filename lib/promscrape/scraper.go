@@ -2,7 +2,9 @@ package promscrape
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -252,7 +254,7 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 		select {
 		case <-ticker.C:
 			swsNew := loadSwsByType(t, sws)
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
+			if equalScrapeWorks(swsNew, sws) {
 				// Nothing changed, continue waiting for updated scrape work
 				goto waitForChans
 			}
@@ -268,49 +270,88 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 	}
 }
 
-func equalStaticConfigForScrapeWorks(as, bs []ScrapeWork) bool {
+func equalScrapeWorks(as, bs []ScrapeWork) bool {
 	if len(as) != len(bs) {
 		return false
 	}
 	for i := range as {
-		if !equalStaticConfigForScrapeWork(&as[i], &bs[i]) {
+		if !equalScrapeWork(&as[i], &bs[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-func equalStaticConfigForScrapeWork(a, b *ScrapeWork) bool {
-	// `static_config` can change only ScrapeURL and Labels. So compare only them.
-	if a.ScrapeURL != b.ScrapeURL {
+func equalScrapeWork(a, b *ScrapeWork) bool {
+	aHash, err := hashForScrapeWork(a)
+	if err != nil {
 		return false
 	}
-	if !equalLabels(a.Labels, b.Labels) {
+	bHash, err := hashForScrapeWork(b)
+	if err != nil {
+		return false
+	}
+	if aHash != bHash {
 		return false
 	}
 	return true
 }
 
-func equalLabels(as, bs []prompbmarshal.Label) bool {
-	if len(as) != len(bs) {
-		return false
+func hashForScrapeWork(sw *ScrapeWork) (string, error) {
+	if sw == nil {
+		return "", nil
 	}
-	for i := range as {
-		if !equalLabel(&as[i], &bs[i]) {
-			return false
+
+	buff := bytes.NewBuffer([]byte{})
+	buff.WriteString(sw.ScrapeURL)
+	buff.WriteString(fmt.Sprintf("%d|", sw.ScrapeInterval))
+	buff.WriteString(fmt.Sprintf("%d|", sw.ScrapeTimeout))
+	buff.WriteString(fmt.Sprintf("%t|", sw.HonorLabels))
+	buff.WriteString(fmt.Sprintf("%t|", sw.HonorTimestamps))
+	for _, label := range sw.Labels {
+		buff.WriteString(fmt.Sprintf("%s:%s|", label.Name, label.Value))
+	}
+	if sw.AuthConfig != nil {
+		buff.WriteString(fmt.Sprintf("%s|", sw.AuthConfig.Authorization))
+		if sw.AuthConfig.TLSRootCA != nil {
+			certs := sw.AuthConfig.TLSRootCA.Subjects()
+			for _, cert := range certs {
+				buff.Write(cert)
+			}
 		}
+		if sw.AuthConfig.TLSCertificate != nil {
+			if sw.AuthConfig.TLSCertificate.Leaf != nil {
+				buff.Write(sw.AuthConfig.TLSCertificate.Leaf.Raw)
+			}
+		}
+		buff.WriteString(fmt.Sprintf("%s|", sw.AuthConfig.TLSServerName))
+		buff.WriteString(fmt.Sprintf("%t|", sw.AuthConfig.TLSInsecureSkipVerify))
 	}
-	return true
-}
+	for _, relabelConfig := range sw.MetricRelabelConfigs {
+		for _, sourceLabel := range relabelConfig.SourceLabels {
+			buff.WriteString(fmt.Sprintf("%s|", sourceLabel))
+		}
+		buff.WriteString(fmt.Sprintf("%s|", relabelConfig.Separator))
+		buff.WriteString(fmt.Sprintf("%s|", relabelConfig.TargetLabel))
 
-func equalLabel(a, b *prompbmarshal.Label) bool {
-	if a.Name != b.Name {
-		return false
+		if relabelConfig.Regex != nil {
+			buff.WriteString(fmt.Sprintf("%s|", relabelConfig.Regex.String()))
+		}
+
+		buff.WriteString(fmt.Sprintf("%d|", relabelConfig.Modulus))
+		buff.WriteString(fmt.Sprintf("%s|", relabelConfig.Replacement))
+		buff.WriteString(fmt.Sprintf("%s|", relabelConfig.Action))
 	}
-	if a.Value != b.Value {
-		return false
+	buff.WriteString(fmt.Sprintf("%d|", sw.SampleLimit))
+	h := sha256.New()
+	n, err := h.Write(buff.Bytes())
+	if n != buff.Len() {
+		return "", fmt.Errorf("hash for sw failed, as write to sha256 expected %d, but only %s done", buff.Len(), n)
 	}
-	return true
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 // runScrapeWorkers runs sws.
