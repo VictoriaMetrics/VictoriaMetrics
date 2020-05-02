@@ -23,7 +23,9 @@ import (
 )
 
 var (
-	httpExternalURL  = flag.String("http.externalURL", "", "The URL under which the http service is externally reachable")
+	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
+		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
+		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for graceful shutdown of HTTP server. "+
 		"Highly loaded server may require increased value for graceful shutdown")
@@ -48,16 +50,6 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
-	// parse and format `httpExternalURL` to /<defined_string>` ,
-	if *httpExternalURL != "" {
-		if !strings.HasPrefix(*httpExternalURL, "/") {
-			*httpExternalURL = "/" + *httpExternalURL
-		}
-		if strings.HasSuffix(*httpExternalURL, "/") {
-			*httpExternalURL = strings.TrimRight(*httpExternalURL, "/")
-		}
-	}
-
 	logger.Infof("starting http server at http://%s/", addr)
 	logger.Infof("pprof handlers are exposed at http://%s/debug/pprof/", addr)
 	ln, err := netutil.NewTCPListener("http", addr)
@@ -141,8 +133,13 @@ var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seco
 
 func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
-	// delete extra url string, extra is a string formated as `/<defined_string>` when server start up
-	r.URL.Path = strings.Replace(r.URL.Path, *httpExternalURL, "", 1)
+	path, err := getCanonicalPath(r.URL.Path)
+	if err != nil {
+		Errorf(w, "cannot get canonical path: %s", err)
+		unsupportedRequestErrors.Inc()
+		return
+	}
+	r.URL.Path = path
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain")
@@ -183,6 +180,21 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		unsupportedRequestErrors.Inc()
 		return
 	}
+}
+
+func getCanonicalPath(path string) (string, error) {
+	if len(*pathPrefix) == 0 {
+		return path, nil
+	}
+	prefix := *pathPrefix
+	if !strings.HasSuffix(prefix, "/") {
+		prefix = prefix + "/"
+	}
+	if !strings.HasPrefix(path, prefix) {
+		return "", fmt.Errorf("missing `-pathPrefix=%q` in the requested path: %q", *pathPrefix, path)
+	}
+	path = path[len(prefix)-1:]
+	return path, nil
 }
 
 func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
