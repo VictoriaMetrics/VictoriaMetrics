@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	httpExternalURL  = flag.String("http.externalURL", "", "The URL under which the http service is externally reachable")
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for graceful shutdown of HTTP server. "+
 		"Highly loaded server may require increased value for graceful shutdown")
@@ -47,6 +48,16 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
+	// parse and format `httpExternalURL` to /<defined_string>` ,
+	if *httpExternalURL != "" {
+		if !strings.HasPrefix(*httpExternalURL, "/") {
+			*httpExternalURL = "/" + *httpExternalURL
+		}
+		if strings.HasSuffix(*httpExternalURL, "/") {
+			*httpExternalURL = strings.TrimRight(*httpExternalURL, "/")
+		}
+	}
+
 	logger.Infof("starting http server at http://%s/", addr)
 	logger.Infof("pprof handlers are exposed at http://%s/debug/pprof/", addr)
 	ln, err := netutil.NewTCPListener("http", addr)
@@ -130,6 +141,8 @@ var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seco
 
 func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
+	// delete extra url string, extra is a string formated as `/<defined_string>` when server start up
+	r.URL.Path = strings.Replace(r.URL.Path, *httpExternalURL, "", 1)
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain")
