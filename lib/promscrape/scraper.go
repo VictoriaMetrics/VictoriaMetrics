@@ -195,7 +195,7 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 	var sdTargets *metrics.Counter
 	var sdReloader *metrics.Counter
 	var reloadInterval *time.Duration
-	sdName := ""
+	var sdName string = ""
 	swsWithStopCh := make(map[string]*SwWithStopCh)
 
 	switch t {
