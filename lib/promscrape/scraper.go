@@ -17,6 +17,7 @@ import (
 var (
 	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+	staticCheckInterval = flag.Duration("promscrape.staticCheckInterval", 30*time.Second, "Interval for checking for changes in static config file. ")
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
 	kubernetesSDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
@@ -83,27 +84,27 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runStaticScrapers(cfg, pushData, stopCh)
+			runSDScrapers(Static, cfg, pushData, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runFileSDScrapers(cfg, pushData, stopCh)
+			runSDScrapers(FileSD, cfg, pushData, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runKubernetesSDScrapers(cfg, pushData, stopCh)
+			runSDScrapers(KubernetesSD, cfg, pushData, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runEC2SDScrapers(cfg, pushData, stopCh)
+			runSDScrapers(EC2SD, cfg, pushData, stopCh)
 		}()
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			runGCESDScrapers(cfg, pushData, stopCh)
+			runSDScrapers(GCESD, cfg, pushData, stopCh)
 		}()
 
 	waitForChans:
@@ -150,27 +151,83 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 }
 
 var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
+var (
+	staticTargets = metrics.NewCounter(`vm_promscrape_targets{type="static"}`)
+	staticReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="static"}`)
 
-func runStaticScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	sws := cfg.getStaticScrapeWork()
-	if len(sws) == 0 {
+	kubernetesSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="kubernetes_sd"}`)
+	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
+
+	ec2SDTargets = metrics.NewCounter(`vm_promscrape_targets{type="ec2_sd"}`)
+	ec2SDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="ec2_sd"}`)
+
+	gceSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="gce_sd"}`)
+	gceSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="gce_sd"}`)
+
+	fileSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="file_sd"}`)
+	fileSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="file_sd"}`)
+)
+
+type SDScraperType int
+
+const (
+	Static SDScraperType = iota
+	FileSD
+	KubernetesSD
+	EC2SD
+	GCESD
+)
+
+func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
+	var sws []ScrapeWork
+	var sdTargets *metrics.Counter
+	var sdReloader *metrics.Counter
+	var reloadInterval *time.Duration
+
+	switch t {
+	case Static:
+		sdTargets = staticTargets
+		sdReloader = staticReloads
+		reloadInterval = staticCheckInterval
+	case FileSD:
+		sdTargets = fileSDTargets
+		sdReloader = fileSDReloads
+		reloadInterval = fileSDCheckInterval
+	case KubernetesSD:
+		sdTargets = kubernetesSDTargets
+		sdReloader = kubernetesSDReloads
+		reloadInterval = kubernetesSDCheckInterval
+	case EC2SD:
+		sdTargets = ec2SDTargets
+		sdReloader = ec2SDReloads
+		reloadInterval = ec2SDCheckInterval
+	case GCESD:
+		sdTargets = gceSDTargets
+		sdReloader = gceSDReloads
+		reloadInterval = gceSDCheckInterval
+	default:
 		return
 	}
-	logger.Infof("starting %d scrapers for `static_config` targets", len(sws))
-	staticTargets.Set(uint64(len(sws)))
-	runScrapeWorkers(sws, pushData, stopCh)
-	staticTargets.Set(0)
-	logger.Infof("stopped all the %d scrapers for `static_config` targets", len(sws))
-}
 
-var staticTargets = metrics.NewCounter(`vm_promscrape_targets{type="static"}`)
-
-func runKubernetesSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.kubernetesSDConfigsCount() == 0 {
-		return
+	loadSwsByType := func(t SDScraperType, sws []ScrapeWork) []ScrapeWork {
+		switch t {
+		case Static:
+			return cfg.getStaticScrapeWork()
+		case FileSD:
+			return cfg.getFileSDScrapeWork(sws)
+		case KubernetesSD:
+			return cfg.getKubernetesSDScrapeWork()
+		case EC2SD:
+			return cfg.getEC2SDScrapeWork()
+		case GCESD:
+			return cfg.getGCESDScrapeWork()
+		default:
+			return []ScrapeWork{}
+		}
 	}
-	sws := cfg.getKubernetesSDScrapeWork()
-	ticker := time.NewTicker(*kubernetesSDCheckInterval)
+
+	sws = loadSwsByType(t, nil)
+	ticker := time.NewTicker(*reloadInterval)
 	defer ticker.Stop()
 	mustStop := false
 	for !mustStop {
@@ -180,15 +237,15 @@ func runKubernetesSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteR
 		go func(sws []ScrapeWork) {
 			defer wg.Done()
 			logger.Infof("starting %d scrapers for `kubernetes_sd_config` targets", len(sws))
-			kubernetesSDTargets.Set(uint64(len(sws)))
+			sdTargets.Set(uint64(len(sws)))
 			runScrapeWorkers(sws, pushData, localStopCh)
-			kubernetesSDTargets.Set(0)
+			sdTargets.Set(0)
 			logger.Infof("stopped all the %d scrapers for `kubernetes_sd_config` targets", len(sws))
 		}(sws)
 	waitForChans:
 		select {
 		case <-ticker.C:
-			swsNew := cfg.getKubernetesSDScrapeWork()
+			swsNew := loadSwsByType(t, sws)
 			if equalStaticConfigForScrapeWorks(swsNew, sws) {
 				// Nothing changed, continue waiting for updated scrape work
 				goto waitForChans
@@ -201,149 +258,9 @@ func runKubernetesSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteR
 
 		close(localStopCh)
 		wg.Wait()
-		kubernetesSDReloads.Inc()
+		sdReloader.Inc()
 	}
 }
-
-var (
-	kubernetesSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="kubernetes_sd"}`)
-	kubernetesSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="kubernetes_sd"}`)
-)
-
-func runEC2SDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.ec2SDConfigsCount() == 0 {
-		return
-	}
-	sws := cfg.getEC2SDScrapeWork()
-	ticker := time.NewTicker(*ec2SDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `ec2_sd_config` targets", len(sws))
-			ec2SDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			ec2SDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `ec2_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getEC2SDScrapeWork()
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
-			}
-			logger.Infof("restarting scrapers for changed `ec2_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
-		}
-
-		close(localStopCh)
-		wg.Wait()
-		ec2SDReloads.Inc()
-	}
-}
-
-var (
-	ec2SDTargets = metrics.NewCounter(`vm_promscrape_targets{type="ec2_sd"}`)
-	ec2SDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="ec2_sd"}`)
-)
-
-func runGCESDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.gceSDConfigsCount() == 0 {
-		return
-	}
-	sws := cfg.getGCESDScrapeWork()
-	ticker := time.NewTicker(*gceSDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `gce_sd_config` targets", len(sws))
-			gceSDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			gceSDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `gce_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getGCESDScrapeWork()
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
-			}
-			logger.Infof("restarting scrapers for changed `gce_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
-		}
-
-		close(localStopCh)
-		wg.Wait()
-		gceSDReloads.Inc()
-	}
-}
-
-var (
-	gceSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="gce_sd"}`)
-	gceSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="gce_sd"}`)
-)
-
-func runFileSDScrapers(cfg *Config, pushData func(wr *prompbmarshal.WriteRequest), stopCh <-chan struct{}) {
-	if cfg.fileSDConfigsCount() == 0 {
-		return
-	}
-	sws := cfg.getFileSDScrapeWork(nil)
-	ticker := time.NewTicker(*fileSDCheckInterval)
-	defer ticker.Stop()
-	mustStop := false
-	for !mustStop {
-		localStopCh := make(chan struct{})
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func(sws []ScrapeWork) {
-			defer wg.Done()
-			logger.Infof("starting %d scrapers for `file_sd_config` targets", len(sws))
-			fileSDTargets.Set(uint64(len(sws)))
-			runScrapeWorkers(sws, pushData, localStopCh)
-			fileSDTargets.Set(0)
-			logger.Infof("stopped all the %d scrapers for `file_sd_config` targets", len(sws))
-		}(sws)
-	waitForChans:
-		select {
-		case <-ticker.C:
-			swsNew := cfg.getFileSDScrapeWork(sws)
-			if equalStaticConfigForScrapeWorks(swsNew, sws) {
-				// Nothing changed, continue waiting for updated scrape work
-				goto waitForChans
-			}
-			logger.Infof("restarting scrapers for changed `file_sd_config` targets")
-			sws = swsNew
-		case <-stopCh:
-			mustStop = true
-		}
-
-		close(localStopCh)
-		wg.Wait()
-		fileSDReloads.Inc()
-	}
-}
-
-var (
-	fileSDTargets = metrics.NewCounter(`vm_promscrape_targets{type="file_sd"}`)
-	fileSDReloads = metrics.NewCounter(`vm_promscrape_reloads_total{type="file_sd"}`)
-)
 
 func equalStaticConfigForScrapeWorks(as, bs []ScrapeWork) bool {
 	if len(as) != len(bs) {
