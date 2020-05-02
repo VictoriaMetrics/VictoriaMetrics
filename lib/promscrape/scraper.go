@@ -185,7 +185,7 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 	var sdTargets *metrics.Counter
 	var sdReloader *metrics.Counter
 	var reloadInterval *time.Duration
-	var sdName = ""
+	var sdName string = ""
 
 	switch t {
 	case Static:
