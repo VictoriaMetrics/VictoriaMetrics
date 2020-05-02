@@ -27,7 +27,9 @@ var (
 	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow")
 	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set")
 
-	httpExternalURL  = flag.String("http.externalURL", "", "The URL under which the http service is externally reachable")
+	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
+		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
+		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
 	httpAuthUsername = flag.String("httpAuth.username", "", "Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password")
 	httpAuthPassword = flag.String("httpAuth.password", "", "Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty")
 	metricsAuthKey   = flag.String("metricsAuthKey", "", "Auth key for /metrics. It overrides httpAuth settings")
@@ -62,15 +64,6 @@ func Serve(addr string, rh RequestHandler) {
 	scheme := "http"
 	if *tlsEnable {
 		scheme = "https"
-	}
-	// parse and format `httpExternalURL` to /<defined_string>` ,
-	if *httpExternalURL != "" {
-		if !strings.HasPrefix(*httpExternalURL, "/") {
-			*httpExternalURL = "/" + *httpExternalURL
-		}
-		if strings.HasSuffix(*httpExternalURL, "/") {
-			*httpExternalURL = strings.TrimRight(*httpExternalURL, "/")
-		}
 	}
 	logger.Infof("starting http server at %s://%s/", scheme, addr)
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, addr)
@@ -167,8 +160,13 @@ var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seco
 
 func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
-	// delete extra url string, extra is a string formated as `/<defined_string>` when server start up
-	r.URL.Path = strings.Replace(r.URL.Path, *httpExternalURL, "", 1)
+	path, err := getCanonicalPath(r.URL.Path)
+	if err != nil {
+		Errorf(w, "cannot get canonical path: %s", err)
+		unsupportedRequestErrors.Inc()
+		return
+	}
+	r.URL.Path = path
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain")
@@ -221,6 +219,21 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		unsupportedRequestErrors.Inc()
 		return
 	}
+}
+
+func getCanonicalPath(path string) (string, error) {
+	if len(*pathPrefix) == 0 {
+		return path, nil
+	}
+	prefix := *pathPrefix
+	if !strings.HasSuffix(prefix, "/") {
+		prefix = prefix + "/"
+	}
+	if !strings.HasPrefix(path, prefix) {
+		return "", fmt.Errorf("missing `-pathPrefix=%q` in the requested path: %q", *pathPrefix, path)
+	}
+	path = path[len(prefix)-1:]
+	return path, nil
 }
 
 func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
