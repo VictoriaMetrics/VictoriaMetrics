@@ -426,11 +426,20 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		// Drop target without scrape address.
 		return dst, nil
 	}
-	targetRelabeled := addMissingPort(schemeRelabeled, addressRelabeled)
-	if strings.Contains(targetRelabeled, "/") {
+	if strings.Contains(addressRelabeled, "/") {
 		// Drop target with '/'
 		return dst, nil
 	}
+	instanceRelabeled := promrelabel.GetLabelValueByName(labels, "instance")
+	if instanceRelabeled == "" {
+		// After relabeling, the instance label is set to the value of __address__ by default
+		// if it was not set during relabeling.
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "instance",
+			Value: addressRelabeled,
+		})
+	}
+
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
@@ -441,10 +450,10 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		optionalQuestion = ""
 	}
 	paramsStr := url.Values(paramsRelabeled).Encode()
-	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, targetRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
+	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, addressRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
 	if _, err := url.Parse(scrapeURL); err != nil {
 		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
-			scrapeURL, swc.scheme, schemeRelabeled, target, targetRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
+			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
 	}
 	dst = append(dst, ScrapeWork{
 		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),
@@ -489,7 +498,7 @@ func mergeLabels(job, scheme, target, metricsPath string, extraLabels, externalL
 		m[k] = v
 	}
 	m["job"] = job
-	m["__address__"] = target
+	m["__address__"] = addMissingPort(scheme, target)
 	m["__scheme__"] = scheme
 	m["__metrics_path__"] = metricsPath
 	for k, args := range params {
