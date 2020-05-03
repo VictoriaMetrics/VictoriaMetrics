@@ -33,21 +33,23 @@ absolute path to all .yaml files in root.`)
 	validateTemplates = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
 	httpListenAddr    = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 
-	datasourceURL     = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
+	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
+		" E.g. http://127.0.0.1:8428")
 	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
 	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 
-	remoteWriteURL = flag.String("remotewrite.url", "", "Optional URL to remote-write compatible storage where to write timeseries"+
-		"based on active alerts. E.g. http://127.0.0.1:8428")
+	remoteWriteURL = flag.String("remotewrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
+		" in form of timeseries. E.g. http://127.0.0.1:8428")
 	remoteWriteUsername = flag.String("remotewrite.basicAuth.username", "", "Optional basic auth username for -remotewrite.url")
 	remoteWritePassword = flag.String("remotewrite.basicAuth.password", "", "Optional basic auth password for -remotewrite.url")
 
-	remoteReadURL = flag.String("remoteread.url", "", "Optional URL to datasource that will be used to restore alerts state."+
-		"This configuration makes sense only if vmalert was configured with `remotewrite.url` before and has been successfully stored its state.")
-	remoteReadUsername = flag.String("remoteread.basicAuth.username", "", "Optional basic auth username for -remotewrite.url")
-	remoteReadPassword = flag.String("remoteread.basicAuth.password", "", "Optional basic auth password for -remotewrite.url")
-	remoteReadLookBack = flag.Duration("remoteread.lookback", time.Hour, "Lookback defines how far to look into past for alerts metrics."+
-		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	remoteReadURL = flag.String("remoteread.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
+		" state. This configuration makes sense only if `vmalert` was configured with `remotewrite.url` before and has been successfully persisted its state."+
+		" E.g. http://127.0.0.1:8428")
+	remoteReadUsername = flag.String("remoteread.basicAuth.username", "", "Optional basic auth username for -remoteread.url")
+	remoteReadPassword = flag.String("remoteread.basicAuth.password", "", "Optional basic auth password for -remoteread.url")
+	remoteReadLookBack = flag.Duration("remoteread.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
+		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules. Default 1m")
 	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")

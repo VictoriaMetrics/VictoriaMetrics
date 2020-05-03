@@ -300,7 +300,9 @@ func newTimeSeries(value float64, labels map[string]string, timestamp time.Time)
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Eval, as well as Value field.
 func (r *Rule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
-	// get the last datapoint in range
+	// Get the last datapoint in range via MetricsQL `last_over_time`.
+	// We don't use plain PromQL since Prometheus doesn't support
+	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q}[%ds])",
 		alertForStateMetricName, r.Name, int(lookback.Seconds()))
 	qMetrics, err := q.Query(ctx, expr)
