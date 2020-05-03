@@ -230,7 +230,8 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			}
 			s = s[n+1:]
 		}
-		if len(key) > 0 && len(value) > 0 {
+		// keep null character label value
+		if len(key) > 0 {
 			if cap(dst) > len(dst) {
 				dst = dst[:len(dst)+1]
 			} else {
