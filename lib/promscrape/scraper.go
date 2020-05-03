@@ -67,7 +67,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	signal.Notify(sighupCh, syscall.SIGHUP)
 
 	logger.Infof("reading Prometheus configs from %q", configFile)
-	cfg, data, err := loadConfig(configFile)
+	cfg, _, err := loadConfig(configFile)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
@@ -116,13 +116,12 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 		}()
 
 		reloadConfig := func() {
-			cfgNew, dataNew, err := loadConfig(configFile)
+			cfgNew, _, err := loadConfig(configFile)
 			if err != nil {
 				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
 				return
 			}
 			*cfg = *cfgNew
-			data = dataNew
 			staticReloadCh <- struct{}{}
 			fileSDReloadCh <- struct{}{}
 			kubernetesSDReloadCh <- struct{}{}
@@ -260,7 +259,7 @@ func runSDScrapers(t SDScraperType, cfg *Config, pushData func(wr *prompbmarshal
 			}
 		}
 		// 1. run new sw worker
-		for newSwHash, _ := range newSwsWithStopCh {
+		for newSwHash := range newSwsWithStopCh {
 			if swWithStopCh, exists := swsWithStopCh[newSwHash]; exists {
 				// same sw worker exists, copy ch
 				newSwsWithStopCh[newSwHash].stopCh = swWithStopCh.stopCh
@@ -408,7 +407,7 @@ func hashForScrapeWork(sw *ScrapeWork) (string, error) {
 	h := sha256.New()
 	n, err := h.Write(buff.Bytes())
 	if n != buff.Len() {
-		return "", fmt.Errorf("hash for sw failed, as write to sha256 expected %d, but only %s done", buff.Len(), n)
+		return "", fmt.Errorf("hash for sw failed, as write to sha256 expected %d, but only %d done", buff.Len(), n)
 	}
 	if err != nil {
 		return "", err
