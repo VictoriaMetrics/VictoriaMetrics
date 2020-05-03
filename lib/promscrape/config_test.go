@@ -46,8 +46,8 @@ func TestLoadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if n := cfg.fileSDConfigsCount(); n != 2 {
-		t.Fatalf("unexpected number of `file_sd_configs`; got %d; want %d; cfg:\n%#v", n, 2, cfg)
+	if cfg == nil {
+		t.Fatalf("expecting non-nil config")
 	}
 
 	// Try loading non-existing file
@@ -1169,3 +1169,17 @@ scrape_configs:
 }
 
 var defaultRegexForRelabelConfig = regexp.MustCompile("^(.*)$")
+
+func equalStaticConfigForScrapeWorks(a, b []ScrapeWork) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		keyA := a[i].key()
+		keyB := b[i].key()
+		if keyA != keyB {
+			return false
+		}
+	}
+	return true
+}

@@ -1,6 +1,7 @@
 package promrelabel
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +23,12 @@ type ParsedRelabelConfig struct {
 	Modulus      uint64
 	Replacement  string
 	Action       string
+}
+
+// String returns human-readable representation for prc.
+func (prc *ParsedRelabelConfig) String() string {
+	return fmt.Sprintf("SourceLabels=%s, Separator=%s, TargetLabel=%s, Regex=%s, Modulus=%d, Replacement=%s, Action=%s",
+		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex.String(), prc.Modulus, prc.Replacement, prc.Action)
 }
 
 // ApplyRelabelConfigs applies prcs to labels starting from the labelsOffset.
