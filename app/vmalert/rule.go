@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -22,6 +23,19 @@ type Group struct {
 	Rules []*Rule
 }
 
+// Restore restores alerts state for all group rules with For > 0
+func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+	for _, rule := range g.Rules {
+		if rule.For == 0 {
+			return nil
+		}
+		if err := rule.Restore(ctx, q, lookback); err != nil {
+			return fmt.Errorf("error while restoring rule %q: %s", rule.Name, err)
+		}
+	}
+	return nil
+}
+
 // Rule is basic alert entity
 type Rule struct {
 	Name        string            `yaml:"alert"`
@@ -30,7 +44,7 @@ type Rule struct {
 	Labels      map[string]string `yaml:"labels"`
 	Annotations map[string]string `yaml:"annotations"`
 
-	group *Group
+	group Group
 
 	// guard status fields
 	mu sync.RWMutex
@@ -83,7 +97,9 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	for _, m := range qMetrics {
 		h := hash(m)
 		updated[h] = struct{}{}
-		if _, ok := r.alerts[h]; ok {
+		if a, ok := r.alerts[h]; ok {
+			// update Value field with latest value
+			a.Value = m.Value
 			continue
 		}
 		a, err := r.newAlert(m)
@@ -125,6 +141,10 @@ func hash(m datasource.Metric) uint64 {
 		return labels[i].Name < labels[j].Name
 	})
 	for _, l := range labels {
+		// drop __name__ to be consistent with Prometheus alerting
+		if l.Name == "__name__" {
+			continue
+		}
 		hash.Write([]byte(l.Name))
 		hash.Write([]byte(l.Value))
 		hash.Write([]byte("\xff"))
@@ -144,6 +164,10 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 
 	// 1. use data labels
 	for _, l := range m.Labels {
+		// drop __name__ to be consistent with Prometheus alerting
+		if l.Name == "__name__" {
+			continue
+		}
 		a.Labels[l.Name] = l.Value
 	}
 
@@ -194,7 +218,8 @@ func (r *Rule) AlertsAPI() []*APIAlert {
 
 func (r *Rule) newAlertAPI(a notifier.Alert) *APIAlert {
 	return &APIAlert{
-		ID:          a.ID,
+		// encode as string to avoid rounding
+		ID:          fmt.Sprintf("%d", a.ID),
 		Name:        a.Name,
 		Group:       a.Group,
 		Expression:  r.Expr,
@@ -239,6 +264,8 @@ func alertToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prom
 	return newTimeSeries(1, labels, timestamp)
 }
 
+// alertForToTimeSeries returns a timeseries that represents
+// state of active alerts, where value is time when alert become active
 func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
 	labels := make(map[string]string)
 	for k, v := range a.Labels {
@@ -267,4 +294,45 @@ func newTimeSeries(value float64, labels map[string]string, timestamp time.Time)
 		})
 	}
 	return ts
+}
+
+// Restore restores the state of active alerts basing on previously written timeseries.
+// Restore restores only Start field. Field State will be always Pending and supposed
+// to be updated on next Eval, as well as Value field.
+func (r *Rule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+	// get the last datapoint in range
+	expr := fmt.Sprintf("last_over_time(%s{alertname=%q}[%ds])",
+		alertForStateMetricName, r.Name, int(lookback.Seconds()))
+	qMetrics, err := q.Query(ctx, expr)
+	if err != nil {
+		return err
+	}
+
+	for _, m := range qMetrics {
+		labels := m.Labels
+		m.Labels = make([]datasource.Label, 0)
+		// drop all extra labels, so hash key will
+		// be identical to timeseries received in Eval
+		for _, l := range labels {
+			if l.Name == alertNameLabel {
+				continue
+			}
+			// drop all overridden labels
+			if _, ok := r.Labels[l.Name]; ok {
+				continue
+			}
+			m.Labels = append(m.Labels, l)
+		}
+
+		a, err := r.newAlert(m)
+		if err != nil {
+			return fmt.Errorf("failed to create alert: %s", err)
+		}
+		a.ID = hash(m)
+		a.State = notifier.StatePending
+		a.Start = time.Unix(int64(m.Value), 0)
+		r.alerts[a.ID] = a
+		logger.Infof("alert %q.%q restored to state at %v", a.Group, a.Name, a.Start)
+	}
+	return nil
 }
