@@ -222,6 +222,10 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 					Value: "baz",
 				},
 				{
+					Key:   "aa",
+					Value: "",
+				},
+				{
 					Key:   "x",
 					Value: "y",
 				},
