@@ -907,10 +907,14 @@ The most interesting metrics are:
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
 * `sum(vm_data_size_bytes)` - the total data size on disk.
 
+
 ### Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
   of tweaking these flag values arises.
+
+* It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+  since the issue could be already fixed there.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
