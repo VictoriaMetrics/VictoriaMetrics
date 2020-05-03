@@ -45,12 +45,10 @@ func ApplyRelabelConfigs(labels []prompbmarshal.Label, labelsOffset int, prcs []
 		}
 		labels = tmp
 	}
+	labels = removeEmptyLabels(labels, labelsOffset)
 	if isFinalize {
 		labels = FinalizeLabels(labels[:labelsOffset], labels[labelsOffset:])
 	}
-	// remove empty empty labels after finalize, or we can't tell if the label value
-	// is null character or not set when finalize labels
-	labels = removeEmptyLabels(labels, labelsOffset)
 	SortLabels(labels[labelsOffset:])
 	return labels
 }
@@ -92,29 +90,15 @@ func RemoveMetaLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 	return dst
 }
 
-// FinalizeLabels finalizes labels according to relabel_config rules.
-//
-// It renames `__address__` to `instance` and removes labels with "__" in the beginning.
-//
-// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+// FinalizeLabels removes labels with "__" in the beginning (except of "__name__").
 func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 	for i := range src {
 		label := &src[i]
 		name := label.Name
-		if !strings.HasPrefix(name, "__") || name == "__name__" {
-			dst = append(dst, *label)
+		if strings.HasPrefix(name, "__") && name != "__name__" {
 			continue
 		}
-		if name == "__address__" {
-			if GetLabelByName(src, "instance") != nil {
-				// The `instance` label is already set. Skip `__address__` label.
-				continue
-			}
-			// Rename `__address__` label to `instance`.
-			labelCopy := *label
-			labelCopy.Name = "instance"
-			dst = append(dst, labelCopy)
-		}
+		dst = append(dst, *label)
 	}
 	return dst
 }

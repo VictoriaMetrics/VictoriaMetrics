@@ -430,16 +430,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		// Drop target with '/'
 		return dst, nil
 	}
-	instanceRelabeled := promrelabel.GetLabelValueByName(labels, "instance")
-	if instanceRelabeled == "" {
-		// After relabeling, the instance label is set to the value of __address__ by default
-		// if it was not set during relabeling.
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "instance",
-			Value: addressRelabeled,
-		})
-	}
-
+	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
@@ -454,6 +445,14 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	if _, err := url.Parse(scrapeURL); err != nil {
 		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
 			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
+	}
+	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
+	if promrelabel.GetLabelByName(labels, "instance") == nil {
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "instance",
+			Value: addressRelabeled,
+		})
+		promrelabel.SortLabels(labels)
 	}
 	dst = append(dst, ScrapeWork{
 		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),
@@ -498,7 +497,7 @@ func mergeLabels(job, scheme, target, metricsPath string, extraLabels, externalL
 		m[k] = v
 	}
 	m["job"] = job
-	m["__address__"] = addMissingPort(scheme, target)
+	m["__address__"] = target
 	m["__scheme__"] = scheme
 	m["__metrics_path__"] = metricsPath
 	for k, args := range params {

@@ -439,6 +439,10 @@ scrape_configs:
 					Value: "",
 				},
 				{
+					Name:  "instance",
+					Value: "host1:80",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -473,6 +477,10 @@ scrape_configs:
 					Value: "",
 				},
 				{
+					Name:  "instance",
+					Value: "host2:80",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -505,6 +513,10 @@ scrape_configs:
 				{
 					Name:  "__vm_filepath",
 					Value: "",
+				},
+				{
+					Name:  "instance",
+					Value: "localhost:9090",
 				},
 				{
 					Name:  "job",
@@ -559,6 +571,10 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -598,6 +614,10 @@ scrape_configs:
 				{
 					Name:  "datacenter",
 					Value: "foobar",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -665,6 +685,10 @@ scrape_configs:
 					Value: "https",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:443",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -701,6 +725,10 @@ scrape_configs:
 					Value: "https",
 				},
 				{
+					Name:  "instance",
+					Value: "aaa:443",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -731,6 +759,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "1.2.3.4:80",
 				},
 				{
 					Name:  "job",
@@ -804,6 +836,10 @@ scrape_configs:
 				{
 					Name:  "hash",
 					Value: "82",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "prefix:url",
@@ -905,6 +941,10 @@ scrape_configs:
 					Value: "foo.bar:1234",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
 					Name:  "job",
 					Value: "3",
 				},
@@ -937,6 +977,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -983,6 +1027,10 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -1015,6 +1063,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -1055,6 +1107,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -1110,6 +1166,10 @@ scrape_configs:
 				{
 					Name:  "foo",
 					Value: "bar",
+				},
+				{
+					Name:  "instance",
+					Value: "pp:80",
 				},
 				{
 					Name:  "job",
