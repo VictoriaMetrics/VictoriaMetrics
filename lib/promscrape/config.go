@@ -143,38 +143,6 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	return err
 }
 
-func (cfg *Config) kubernetesSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].KubernetesSDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) ec2SDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].EC2SDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) gceSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].GCESDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) fileSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].FileSDConfigs)
-	}
-	return n
-}
-
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 	var dst []ScrapeWork
@@ -215,16 +183,16 @@ func (cfg *Config) getGCESDScrapeWork() []ScrapeWork {
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getFileSDScrapeWork(swsPrev []ScrapeWork) []ScrapeWork {
 	// Create a map for the previous scrape work.
-	swPrev := make(map[string][]ScrapeWork)
-	for i := range prev {
-		sw := &prev[i]
+	swsMapPrev := make(map[string][]ScrapeWork)
+	for i := range swsPrev {
+		sw := &swsPrev[i]
 		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
 		if len(filepath) == 0 {
 			logger.Panicf("BUG: missing `__vm_filepath` label")
 		} else {
-			swPrev[filepath] = append(swPrev[filepath], *sw)
+			swsMapPrev[filepath] = append(swsMapPrev[filepath], *sw)
 		}
 	}
 	var dst []ScrapeWork
@@ -232,7 +200,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.FileSDConfigs {
 			sdc := &sc.FileSDConfigs[j]
-			dst = sdc.appendScrapeWork(dst, swPrev, cfg.baseDir, sc.swc)
+			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
 		}
 	}
 	return dst
@@ -377,7 +345,7 @@ func appendScrapeWorkForTargetLabels(dst []ScrapeWork, swc *scrapeWorkConfig, ta
 	return dst
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swsMapPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
 	for _, file := range sdc.Files {
 		pathPattern := getFilepath(baseDir, file)
 		paths := []string{pathPattern}
@@ -394,7 +362,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 			stcs, err := loadStaticConfigs(path)
 			if err != nil {
 				// Do not return this error, since other paths may contain valid scrape configs.
-				if sws := swPrev[path]; sws != nil {
+				if sws := swsMapPrev[path]; sws != nil {
 					// Re-use the previous valid scrape work for this path.
 					logger.Errorf("keeping the previously loaded `static_configs` from %q because of error when re-loading the file: %s", path, err)
 					dst = append(dst, sws...)
@@ -412,7 +380,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 			}
 			metaLabels := map[string]string{
 				"__meta_filepath": pathShort,
-				"__vm_filepath":   pathShort, // This label is needed for internal promscrape logic
+				"__vm_filepath":   path, // This label is needed for internal promscrape logic
 			}
 			for i := range stcs {
 				dst = stcs[i].appendScrapeWork(dst, swc, metaLabels)

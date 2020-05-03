@@ -68,6 +68,25 @@ type ScrapeWork struct {
 	SampleLimit int
 }
 
+// key returns unique identifier for the given sw.
+//
+// it can be used for comparing for equality two ScrapeWork objects.
+func (sw *ScrapeWork) key() string {
+	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d",
+		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
+		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit)
+	return key
+}
+
+func (sw *ScrapeWork) metricRelabelConfigsString() string {
+	var sb strings.Builder
+	for _, prc := range sw.MetricRelabelConfigs {
+		fmt.Fprintf(&sb, "%s", prc.String())
+	}
+	return sb.String()
+}
+
 // Job returns job for the ScrapeWork
 func (sw *ScrapeWork) Job() string {
 	return promrelabel.GetLabelValueByName(sw.Labels, "job")
