@@ -131,7 +131,6 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 	h := uint32(xxhash.Sum64([]byte(key)))
 	randSleep := uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
 	sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
-	logger.Infof("randsleep=%d, sleepOffset=%d", randSleep, sleepOffset)
 	if randSleep < sleepOffset {
 		randSleep += uint64(scrapeInterval)
 	}
