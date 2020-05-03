@@ -32,6 +32,7 @@ Inspired by the [Mako templates](http://www.makotemplates.org/) philosophy.
     are compiled into a single binary.
     Take a look at [fasttemplate](https://github.com/valyala/fasttemplate)
     if you need a fast template engine for simple dynamically updated templates.
+    [There are ways](https://www.reddit.com/r/golang/comments/f290ja/hot_reloading_with_quicktemplates_sqlc_and/) to dynamically update the templates during development.
 
 # Performance comparison with html/template
 
@@ -81,6 +82,15 @@ and [quicktemplate compiler](https://github.com/valyala/quicktemplate/tree/maste
 ```
 go get -u github.com/valyala/quicktemplate
 go get -u github.com/valyala/quicktemplate/qtc
+```
+
+If you using `go generate`, you just need put following into your `main.go`
+
+Important: please specify your own folder (-dir) to generate template file
+
+```
+//go:generate go get -u github.com/valyala/quicktemplate/qtc
+//go:generate qtc -dir=app/views  
 ```
 
 Let's start with a minimal template example:
@@ -621,7 +631,7 @@ BenchmarkMarshalXMLQuickTemplate1000-4    	   30000	     53000 ns/op	      32 B/
     `Gorazor` is similar to `quicktemplate` in the sense it converts templates into Go code.
     But it misses the following useful features:
 
-      * Clear syntax insead of hard-to-understand magic stuff related
+      * Clear syntax instead of hard-to-understand magic stuff related
         to template arguments, template inheritance and embedding function
         templates into other templates.
 
