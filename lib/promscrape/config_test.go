@@ -387,6 +387,17 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		resetScrapeWorkIDs(sws)
+
+		// Remove `__vm_filepath` label, since its value depends on the current working dir.
+		for i := range sws {
+			sw := &sws[i]
+			for j := range sw.Labels {
+				label := &sw.Labels[j]
+				if label.Name == "__vm_filepath" {
+					label.Value = ""
+				}
+			}
+		}
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
 		}
@@ -425,7 +436,7 @@ scrape_configs:
 				},
 				{
 					Name:  "__vm_filepath",
-					Value: "testdata/file_sd.json",
+					Value: "",
 				},
 				{
 					Name:  "job",
@@ -459,7 +470,7 @@ scrape_configs:
 				},
 				{
 					Name:  "__vm_filepath",
-					Value: "testdata/file_sd.json",
+					Value: "",
 				},
 				{
 					Name:  "job",
@@ -493,7 +504,7 @@ scrape_configs:
 				},
 				{
 					Name:  "__vm_filepath",
-					Value: "testdata/file_sd_1.yml",
+					Value: "",
 				},
 				{
 					Name:  "job",
