@@ -121,11 +121,6 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				logger.Errorf("cannot read %q on SIGHUP: %s; continuing with the previous config", configFile, err)
 				return
 			}
-			if bytes.Equal(data, dataNew) {
-				logger.Infof("nothing changed in %q", configFile)
-				return
-			}
-			logger.Infof("found changes in %q; applying these changes", configFile)
 			*cfg = *cfgNew
 			data = dataNew
 			staticReloadCh <- struct{}{}
@@ -329,13 +324,12 @@ waitForChans:
 		case <-stopCh:
 			break waitForChans
 		}
-
-		for _, swWithStopCh := range swsWithStopCh {
-			close(swWithStopCh.stopCh)
-		}
-
-		wg.Wait()
 	}
+
+	for _, swWithStopCh := range swsWithStopCh {
+		close(swWithStopCh.stopCh)
+	}
+	wg.Wait()
 }
 
 func equalScrapeWorks(as, bs []ScrapeWork) bool {
