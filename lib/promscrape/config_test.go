@@ -81,7 +81,7 @@ scrape_configs:
 		t.Fatalf("cannot parase data: %s", err)
 	}
 	sws := cfg.getFileSDScrapeWork(nil)
-	if !equalStaticConfigForScrapeWorks(sws, sws) {
+	if !equalScrapeWorks(sws, sws) {
 		t.Fatalf("unexpected non-equal static configs;\nsws:\n%#v", sws)
 	}
 
@@ -97,7 +97,7 @@ scrape_configs:
 		t.Fatalf("cannot parse data: %s", err)
 	}
 	swsNew := cfgNew.getFileSDScrapeWork(sws)
-	if equalStaticConfigForScrapeWorks(swsNew, sws) {
+	if equalScrapeWorks(swsNew, sws) {
 		t.Fatalf("unexpected equal static configs;\nswsNew:\n%#v\nsws:\n%#v", swsNew, sws)
 	}
 

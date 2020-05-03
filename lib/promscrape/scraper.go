@@ -346,7 +346,7 @@ func hashForScrapeWork(sw *ScrapeWork) (string, error) {
 	h := sha256.New()
 	n, err := h.Write(buff.Bytes())
 	if n != buff.Len() {
-		return "", fmt.Errorf("hash for sw failed, as write to sha256 expected %d, but only %s done", buff.Len(), n)
+		return "", fmt.Errorf("hash for sw failed, as write to sha256 expected %d, but only %d done", buff.Len(), n)
 	}
 	if err != nil {
 		return "", err
