@@ -35,13 +35,11 @@ type Selector struct {
 	Field string `yaml:"field"`
 }
 
-// GetLabels returns labels for the given k8s role and the given ac and sdc.
-func GetLabels(ac *promauth.Config, sdc *SDConfig) ([]map[string]string, error) {
-	cfg := &apiConfig{
-		Server:     sdc.APIServer,
-		AuthConfig: ac,
-		Namespaces: sdc.Namespaces.Names,
-		Selectors:  sdc.Selectors,
+// GetLabels returns labels for the given sdc and baseDir.
+func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
+	cfg, err := getAPIConfig(sdc, baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create API config: %s", err)
 	}
 	switch sdc.Role {
 	case "node":
