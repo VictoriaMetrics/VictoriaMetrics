@@ -6,11 +6,11 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/fasthttp"
 )
 
@@ -24,54 +24,15 @@ type apiConfig struct {
 	selectors  []Selector
 }
 
+var configMap = discoveryutils.NewConfigMap()
+
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	apiConfigMapLock.Lock()
-	defer apiConfigMapLock.Unlock()
-
-	if !hasAPIConfigMapCleaner {
-		hasAPIConfigMapCleaner = true
-		go apiConfigMapCleaner()
-	}
-
-	e := apiConfigMap[sdc]
-	if e != nil {
-		e.lastAccessTime = time.Now()
-		return e.cfg, nil
-	}
-	cfg, err := newAPIConfig(sdc, baseDir)
+	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
 	if err != nil {
 		return nil, err
 	}
-	apiConfigMap[sdc] = &apiConfigMapEntry{
-		cfg:            cfg,
-		lastAccessTime: time.Now(),
-	}
-	return cfg, nil
+	return v.(*apiConfig), nil
 }
-
-func apiConfigMapCleaner() {
-	tc := time.NewTicker(15 * time.Minute)
-	for currentTime := range tc.C {
-		apiConfigMapLock.Lock()
-		for k, e := range apiConfigMap {
-			if currentTime.Sub(e.lastAccessTime) > 10*time.Minute {
-				delete(apiConfigMap, k)
-			}
-		}
-		apiConfigMapLock.Unlock()
-	}
-}
-
-type apiConfigMapEntry struct {
-	cfg            *apiConfig
-	lastAccessTime time.Time
-}
-
-var (
-	apiConfigMap           = make(map[*SDConfig]*apiConfigMapEntry)
-	apiConfigMapLock       sync.Mutex
-	hasAPIConfigMapCleaner bool
-)
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
