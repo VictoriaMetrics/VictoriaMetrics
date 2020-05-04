@@ -14,7 +14,7 @@ import (
 
 // APIAlert has info for an alert.
 type APIAlert struct {
-	ID          uint64            `json:"id"`
+	ID          string            `json:"id"`
 	Name        string            `json:"name"`
 	Group       string            `json:"group"`
 	Expression  string            `json:"expression"`
@@ -75,7 +75,7 @@ func (rh *requestHandler) list() ([]byte, error) {
 
 	// sort list of alerts for deterministic output
 	sort.Slice(lr.Data.Alerts, func(i, j int) bool {
-		return lr.Data.Alerts[i].Name < lr.Data.Alerts[j].Name
+		return lr.Data.Alerts[i].ID < lr.Data.Alerts[j].ID
 	})
 
 	b, err := json.Marshal(lr)
@@ -109,8 +109,8 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 		if g.Name != group {
 			continue
 		}
-		for i := range g.Rules {
-			if apiAlert := g.Rules[i].AlertAPI(id); apiAlert != nil {
+		for _, rule := range g.Rules {
+			if apiAlert := rule.AlertAPI(id); apiAlert != nil {
 				return json.Marshal(apiAlert)
 			}
 		}

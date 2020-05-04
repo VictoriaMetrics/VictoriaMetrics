@@ -13,8 +13,6 @@ sends alerts to [Alert Manager](https://github.com/prometheus/alertmanager).
 * Lightweight without extra dependencies.
 
 ### TODO:
-* Persist alerts state as timeseries in TSDB. Currently, alerts state is stored
-in process memory only and will be lost on restart;
 * Configuration hot reload.
 
 ### QuickStart
@@ -51,27 +49,52 @@ Rules in group evaluated one-by-one sequentially.
 Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 
+`vmalert` may be configured with `-remotewrite` flag to write alerts state in form of timeseries
+via remote write protocol. Alerts state will be written as `ALERTS` timeseries. These timeseries
+may be used to recover alerts state on `vmalert` restarts if `-remoteread` is configured.
+
+
 ### Configuration
 
 The shortlist of configuration flags is the following:
 ```
 Usage of vmalert:
-  -datasource.url string
-        Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428
   -datasource.basicAuth.password string
-        Optional basic auth password to use for -datasource.url
+        Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
-        Optional basic auth username to use for -datasource.url
+        Optional basic auth username for -datasource.url
+  -datasource.url string
+        Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
+  -enableTCP6
+        Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
   -evaluationInterval duration
         How often to evaluate the rules. Default 1m (default 1m0s)
   -external.url string
         External URL is used as alert's source for sent alerts to the notifier
+  -http.maxGracefulShutdownDuration duration
+        The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
+  -httpAuth.password string
+        Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+        Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
         Address to listen for http connections (default ":8880")
   -notifier.url string
         Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
+  -remoteread.basicAuth.password string
+        Optional basic auth password for -remoteread.url
+  -remoteread.basicAuth.username string
+        Optional basic auth username for -remoteread.url
+  -remoteread.lookback duration
+        Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
+  -remoteread.url vmalert
+        Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remotewrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
+  -remotewrite.basicAuth.password string
+        Optional basic auth password for -remotewrite.url
+  -remotewrite.basicAuth.username string
+        Optional basic auth username for -remotewrite.url
   -remotewrite.url string
-        Optional URL to remote-write compatible storage where to write timeseriesbased on active alerts. E.g. http://127.0.0.1:8428
+        Optional URL to Victoria Metrics or VMInsert where to persist alerts state in form of timeseries. E.g. http://127.0.0.1:8428
   -rule value
         Path to the file with alert rules. 
         Supports patterns. Flag can be specified multiple times. 

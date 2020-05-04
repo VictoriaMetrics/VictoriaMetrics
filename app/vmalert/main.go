@@ -32,18 +32,31 @@ Examples:
 absolute path to all .yaml files in root.`)
 	validateTemplates = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
 	httpListenAddr    = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
-	datasourceURL     = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
-	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
-	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
-	remoteWriteURL    = flag.String("remotewrite.url", "", "Optional URL to remote-write compatible storage where to write timeseries"+
-		"based on active alerts. E.g. http://127.0.0.1:8428")
-	evaluationInterval = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
+
+	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
+		" E.g. http://127.0.0.1:8428")
+	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+
+	remoteWriteURL = flag.String("remotewrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
+		" in form of timeseries. E.g. http://127.0.0.1:8428")
+	remoteWriteUsername = flag.String("remotewrite.basicAuth.username", "", "Optional basic auth username for -remotewrite.url")
+	remoteWritePassword = flag.String("remotewrite.basicAuth.password", "", "Optional basic auth password for -remotewrite.url")
+
+	remoteReadURL = flag.String("remoteread.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
+		" state. This configuration makes sense only if `vmalert` was configured with `remotewrite.url` before and has been successfully persisted its state."+
+		" E.g. http://127.0.0.1:8428")
+	remoteReadUsername = flag.String("remoteread.basicAuth.username", "", "Optional basic auth username for -remoteread.url")
+	remoteReadPassword = flag.String("remoteread.basicAuth.password", "", "Optional basic auth password for -remoteread.url")
+	remoteReadLookBack = flag.Duration("remoteread.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
+		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+
+	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules. Default 1m")
 	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
 	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
 // TODO: hot configuration reload
-// TODO: alerts state persistence
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
@@ -73,6 +86,8 @@ func main() {
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
 			Addr:          *remoteWriteURL,
 			FlushInterval: *evaluationInterval,
+			BasicAuthUser: *remoteWriteUsername,
+			BasicAuthPass: *remoteWritePassword,
 		})
 		if err != nil {
 			logger.Fatalf("failed to init remotewrite client: %s", err)
@@ -80,13 +95,24 @@ func main() {
 		w.rw = c
 	}
 
+	var restoreDS *datasource.VMStorage
+	if *remoteReadURL != "" {
+		restoreDS = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
+	}
+
 	wg := sync.WaitGroup{}
-	for i := range groups {
+	for _, g := range groups {
+		if restoreDS != nil {
+			err := g.Restore(ctx, restoreDS, *remoteReadLookBack)
+			if err != nil {
+				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
+			}
+		}
 		wg.Add(1)
 		go func(group Group) {
 			w.run(ctx, group, *evaluationInterval)
 			wg.Done()
-		}(groups[i])
+		}(g)
 	}
 
 	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
