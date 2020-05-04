@@ -46,7 +46,7 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
 						return nil, fmt.Errorf("invalid labels filepath:%s, group %s:%w", file, group.Name, err)
 					}
 				}
-				rule.group = &group
+				rule.group = group
 			}
 		}
 		groups = append(groups, gr...)
