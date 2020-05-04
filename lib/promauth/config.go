@@ -69,7 +69,9 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 		ClientSessionCache: tls.NewLRUClientSessionCache(0),
 	}
 	if ac.TLSCertificate != nil {
-		tlsCfg.Certificates = []tls.Certificate{*ac.TLSCertificate}
+		tlsCfg.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return ac.TLSCertificate, nil
+		}
 	}
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
