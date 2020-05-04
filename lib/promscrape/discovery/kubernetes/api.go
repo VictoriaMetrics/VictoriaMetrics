@@ -16,34 +16,101 @@ import (
 
 // apiConfig contains config for API server
 type apiConfig struct {
-	Server     string
-	AuthConfig *promauth.Config
-	Namespaces []string
-	Selectors  []Selector
+	client     *fasthttp.HostClient
+	server     string
+	hostPort   string
+	authConfig *promauth.Config
+	namespaces []string
+	selectors  []Selector
 }
 
-func getAPIResponse(cfg *apiConfig, role, path string) ([]byte, error) {
-	hcv, err := getHostClient(cfg.Server, cfg.AuthConfig)
+func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	apiConfigMapLock.Lock()
+	defer apiConfigMapLock.Unlock()
+
+	if !hasAPIConfigMapCleaner {
+		hasAPIConfigMapCleaner = true
+		go apiConfigMapCleaner()
+	}
+
+	e := apiConfigMap[sdc]
+	if e != nil {
+		e.lastAccessTime = time.Now()
+		return e.cfg, nil
+	}
+	cfg, err := newAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, err
 	}
-	query := joinSelectors(role, cfg.Namespaces, cfg.Selectors)
+	apiConfigMap[sdc] = &apiConfigMapEntry{
+		cfg:            cfg,
+		lastAccessTime: time.Now(),
+	}
+	return cfg, nil
+}
+
+func apiConfigMapCleaner() {
+	tc := time.NewTicker(15 * time.Minute)
+	for currentTime := range tc.C {
+		apiConfigMapLock.Lock()
+		for k, e := range apiConfigMap {
+			if currentTime.Sub(e.lastAccessTime) > 10*time.Minute {
+				delete(apiConfigMap, k)
+			}
+		}
+		apiConfigMapLock.Unlock()
+	}
+}
+
+type apiConfigMapEntry struct {
+	cfg            *apiConfig
+	lastAccessTime time.Time
+}
+
+var (
+	apiConfigMap           = make(map[*SDConfig]*apiConfigMapEntry)
+	apiConfigMapLock       sync.Mutex
+	hasAPIConfigMapCleaner bool
+)
+
+func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse auth config: %s", err)
+	}
+	hcv, err := newHostClient(sdc.APIServer, ac)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create HTTP client for %q: %s", sdc.APIServer, err)
+	}
+	cfg := &apiConfig{
+		client:     hcv.hc,
+		server:     hcv.apiServer,
+		hostPort:   hcv.hostPort,
+		authConfig: hcv.ac,
+		namespaces: sdc.Namespaces.Names,
+		selectors:  sdc.Selectors,
+	}
+	return cfg, nil
+}
+
+func getAPIResponse(cfg *apiConfig, role, path string) ([]byte, error) {
+	query := joinSelectors(role, cfg.namespaces, cfg.selectors)
 	if len(query) > 0 {
 		path += "?" + query
 	}
-	requestURL := hcv.apiServer + path
+	requestURL := cfg.server + path
 	var u fasthttp.URI
 	u.Update(requestURL)
 	var req fasthttp.Request
 	req.SetRequestURIBytes(u.RequestURI())
-	req.SetHost(hcv.hostPort)
+	req.SetHost(cfg.hostPort)
 	req.Header.Set("Accept-Encoding", "gzip")
-	if hcv.ac != nil && hcv.ac.Authorization != "" {
-		req.Header.Set("Authorization", hcv.ac.Authorization)
+	if cfg.authConfig != nil && cfg.authConfig.Authorization != "" {
+		req.Header.Set("Authorization", cfg.authConfig.Authorization)
 	}
 	var resp fasthttp.Response
 	// There is no need in calling DoTimeout, since the timeout is already set in hc.ReadTimeout above.
-	if err := hcv.hc.Do(&req, &resp); err != nil {
+	if err := cfg.client.Do(&req, &resp); err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %s", requestURL, err)
 	}
 	var data []byte
@@ -64,66 +131,12 @@ func getAPIResponse(cfg *apiConfig, role, path string) ([]byte, error) {
 	return data, nil
 }
 
-func getHostClient(apiServer string, ac *promauth.Config) (*hcValue, error) {
-	if len(apiServer) == 0 {
-		// ac is ignored when apiServer should be auto-discovered when running inside k8s pod.
-		ac = nil
-	}
-	k := hcKey{
-		apiServer: apiServer,
-		ac:        ac,
-	}
-	hcMapLock.Lock()
-	defer hcMapLock.Unlock()
-
-	if !hasHCMapCleaner {
-		go hcMapCleaner()
-		hasHCMapCleaner = true
-	}
-	hcv := hcMap[k]
-	if hcv == nil {
-		hcvNew, err := newHostClient(apiServer, ac)
-		if err != nil {
-			return hcv, fmt.Errorf("cannot create new HTTP client for %q: %s", apiServer, err)
-		}
-		hcMap[k] = hcvNew
-		hcv = hcvNew
-	}
-	hcv.lastAccessTime = time.Now()
-	return hcv, nil
-}
-
-func hcMapCleaner() {
-	tc := time.NewTicker(15 * time.Minute)
-	for currentTime := range tc.C {
-		hcMapLock.Lock()
-		for k, v := range hcMap {
-			if currentTime.Sub(v.lastAccessTime) > 10*time.Minute {
-				delete(hcMap, k)
-			}
-		}
-		hcMapLock.Unlock()
-	}
-}
-
-type hcKey struct {
-	apiServer string
-	ac        *promauth.Config
-}
-
 type hcValue struct {
-	hc             *fasthttp.HostClient
-	ac             *promauth.Config
-	apiServer      string
-	hostPort       string
-	lastAccessTime time.Time
+	hc        *fasthttp.HostClient
+	ac        *promauth.Config
+	apiServer string
+	hostPort  string
 }
-
-var (
-	hasHCMapCleaner bool
-	hcMap           = make(map[hcKey]*hcValue)
-	hcMapLock       sync.Mutex
-)
 
 func newHostClient(apiServer string, ac *promauth.Config) (*hcValue, error) {
 	if len(apiServer) == 0 {

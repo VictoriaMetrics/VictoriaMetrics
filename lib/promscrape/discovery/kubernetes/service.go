@@ -21,14 +21,14 @@ func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
 }
 
 func getServices(cfg *apiConfig) ([]Service, error) {
-	if len(cfg.Namespaces) == 0 {
+	if len(cfg.namespaces) == 0 {
 		return getServicesByPath(cfg, "/api/v1/services")
 	}
 	// Query /api/v1/namespaces/* for each namespace.
 	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
 	cfgCopy := *cfg
-	namespaces := cfgCopy.Namespaces
-	cfgCopy.Namespaces = nil
+	namespaces := cfgCopy.namespaces
+	cfgCopy.namespaces = nil
 	cfg = &cfgCopy
 	var result []Service
 	for _, ns := range namespaces {
