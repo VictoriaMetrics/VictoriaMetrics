@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
@@ -62,6 +63,7 @@ type ScrapeConfig struct {
 	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
 	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
+	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs"`
 	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
 	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
@@ -151,6 +153,19 @@ func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
 			dst = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
+}
+
+// getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getConsulSDScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.ConsulSDConfigs {
+			sdc := &sc.ConsulSDConfigs[j]
+			dst = appendConsulScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
 		}
 	}
 	return dst
@@ -307,6 +322,15 @@ func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, base
 		return dst
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config")
+}
+
+func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+	targetLabels, err := consul.GetLabels(sdc, baseDir)
+	if err != nil {
+		logger.Errorf("error when discovering consul nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config")
 }
 
 func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
