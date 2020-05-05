@@ -11,7 +11,7 @@ import (
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 type SDConfig struct {
 	Server       string              `yaml:"server"`
-	Token        string              `yaml:"token"`
+	Token        *string             `yaml:"token"`
 	Datacenter   string              `yaml:"datacenter"`
 	Scheme       string              `yaml:"scheme"`
 	Username     string              `yaml:"username"`
