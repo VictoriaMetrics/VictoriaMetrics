@@ -85,9 +85,9 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return cfg, nil
 }
 
-func getToken(token string) (string, error) {
-	if token != "" {
-		return token, nil
+func getToken(token *string) (string, error) {
+	if token != nil {
+		return *token, nil
 	}
 	if tokenFile := os.Getenv("CONSUL_HTTP_TOKEN_FILE"); tokenFile != "" {
 		data, err := ioutil.ReadFile(tokenFile)
@@ -96,9 +96,9 @@ func getToken(token string) (string, error) {
 		}
 		return string(data), nil
 	}
-	token = os.Getenv("CONSUL_HTTP_TOKEN")
+	t := os.Getenv("CONSUL_HTTP_TOKEN")
 	// Allow empty token - it shouls work if authorization is disabled in Consul
-	return token, nil
+	return t, nil
 }
 
 func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
