@@ -4,12 +4,17 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func statDial(addr string) (net.Conn, error) {
-	conn, err := fasthttp.Dial(addr)
+func statDial(addr string) (conn net.Conn, err error) {
+	if netutil.TCP6Enabled() {
+		conn, err = fasthttp.DialDualStack(addr)
+	} else {
+		conn, err = fasthttp.Dial(addr)
+	}
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
