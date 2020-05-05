@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -19,7 +18,7 @@ var (
 )
 
 func main() {
-	envflag.Parse()
+	flag.Parse()
 	buildinfo.Init()
 	logger.Init()
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
