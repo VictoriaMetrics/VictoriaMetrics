@@ -114,13 +114,13 @@ ROOT_IMAGE=alpine:3.11 make package-vmauth
 * Memory profile. It can be collected with the following command:
 
 ```bash
-curl -s http://<vmauth-host>:8428/debug/pprof/heap > mem.pprof
+curl -s http://<vmauth-host>:8427/debug/pprof/heap > mem.pprof
 ```
 
 * CPU profile. It can be collected with the following command:
 
 ```bash
-curl -s http://<vmauth-host>:8428/debug/pprof/profile > cpu.pprof
+curl -s http://<vmauth-host>:8427/debug/pprof/profile > cpu.pprof
 ```
 
 The command for collecting CPU profile waits for 30 seconds before returning.
