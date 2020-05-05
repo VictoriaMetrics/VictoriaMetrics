@@ -138,17 +138,15 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   `vmagent` doesn't support `role_arn` config param yet.
 * `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
-  `vmagent` provides the following additional functionality `gce_sd_config`:
+  `vmagent` provides the following additional functionality for `gce_sd_config`:
   * if `project` arg is missing, then `vmagent` uses the project for the instance where it runs;
   * if `zone` arg is missing, then `vmagent` uses the zone for the instance where it runs;
   * if `zone` arg equals to `"*"`, then `vmagent` discovers all the zones for the given project;
   * `zone` may contain arbitrary number of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
 * `consul_sd_configs` - for scraping targets registered in Consul.
   See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
-
-The following service discovery mechanisms will be added to `vmagent` soon:
-
-* [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
+* `dns_sd_configs` - for scraping targets discovered from DNS records (SRV, A and AAAA).
+  See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
 
 
 File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
