@@ -1,6 +1,7 @@
 ## vmauth
 
-`vmauth` is a simple auth proxy and router. It reads username and password from [Basic Auth headers](https://en.wikipedia.org/wiki/Basic_access_authentication)
+`vmauth` is a simple auth proxy and router for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
+It reads username and password from [Basic Auth headers](https://en.wikipedia.org/wiki/Basic_access_authentication)
 and matches them against configs pointed by `-auth.config` command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 
 
@@ -19,6 +20,8 @@ The port can be modified via `-httpListenAddr` command-line flag.
 The auth config can be reloaded by passing `SIGHUP` signal to `vmauth`.
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
+
+Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, accounting, limits, etc.
 
 
 ### Auth config
