@@ -240,3 +240,24 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ```bash
 ROOT_IMAGE=alpine:3.11 make package-vmagent
 ```
+
+
+### Profiling
+
+`vmagent` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command:
+
+```bash
+curl -s http://<vmagent-host>:8428/debug/pprof/heap > mem.pprof
+```
+
+* CPU profile. It can be collected with the following command:
+
+```bash
+curl -s http://<vmagent-host>:8428/debug/pprof/profile > cpu.pprof
+```
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
