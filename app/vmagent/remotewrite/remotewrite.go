@@ -69,7 +69,7 @@ func Init() {
 		if *showRemoteWriteURL {
 			urlLabelValue = remoteWriteURL
 		}
-		rwctx := newRemoteWriteCtx(remoteWriteURL, relabelConfigPath, maxInmemoryBlocks, urlLabelValue)
+		rwctx := newRemoteWriteCtx(i, remoteWriteURL, relabelConfigPath, maxInmemoryBlocks, urlLabelValue)
 		rwctxs = append(rwctxs, rwctx)
 	}
 }
@@ -131,7 +131,7 @@ type remoteWriteCtx struct {
 	relabelMetricsDropped *metrics.Counter
 }
 
-func newRemoteWriteCtx(remoteWriteURL, relabelConfigPath string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
+func newRemoteWriteCtx(argIdx int, remoteWriteURL, relabelConfigPath string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
 	h := xxhash.Sum64([]byte(remoteWriteURL))
 	path := fmt.Sprintf("%s/persistent-queue/%016X", *tmpDataPath, h)
 	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, *maxPendingBytesPerURL)
@@ -141,7 +141,7 @@ func newRemoteWriteCtx(remoteWriteURL, relabelConfigPath string, maxInmemoryBloc
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
-	c := newClient(remoteWriteURL, urlLabelValue, fq, *queues)
+	c := newClient(argIdx, remoteWriteURL, urlLabelValue, fq, *queues)
 	var prcs []promrelabel.ParsedRelabelConfig
 	if len(relabelConfigPath) > 0 {
 		var err error

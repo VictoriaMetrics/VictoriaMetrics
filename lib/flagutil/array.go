@@ -26,3 +26,15 @@ func (a *Array) Set(value string) error {
 	*a = append(*a, values...)
 	return nil
 }
+
+// GetOptionalArg returns optional arg under the given argIdx.
+func (a *Array) GetOptionalArg(argIdx int) string {
+	x := *a
+	if argIdx >= len(x) {
+		if len(x) == 1 {
+			return x[0]
+		}
+		return ""
+	}
+	return x[argIdx]
+}
