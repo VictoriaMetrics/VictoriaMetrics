@@ -6,32 +6,48 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getInstancesLabels returns labels for gce instances obtained from the given cfg
-func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	insts, err := getInstances(cfg)
-	if err != nil {
-		return nil, err
-	}
+func getInstancesLabels(cfg *apiConfig) []map[string]string {
+	insts := getInstances(cfg)
 	var ms []map[string]string
 	for _, inst := range insts {
 		ms = inst.appendTargetLabels(ms, cfg.project, cfg.tagSeparator, cfg.port)
 	}
-	return ms, nil
+	return ms
 }
 
-func getInstances(cfg *apiConfig) ([]Instance, error) {
-	var insts []Instance
-	for _, zone := range cfg.zones {
-		zoneInsts, err := getInstancesForProjectAndZone(cfg.client, cfg.project, zone, cfg.filter)
-		if err != nil {
-			return nil, err
-		}
-		insts = append(insts, zoneInsts...)
+func getInstances(cfg *apiConfig) []Instance {
+	// Collect instances for each zone in parallel
+	type result struct {
+		zone  string
+		insts []Instance
+		err   error
 	}
-	return insts, nil
+	ch := make(chan result, len(cfg.zones))
+	for _, zone := range cfg.zones {
+		go func(zone string) {
+			insts, err := getInstancesForProjectAndZone(cfg.client, cfg.project, zone, cfg.filter)
+			ch <- result{
+				zone:  zone,
+				insts: insts,
+				err:   err,
+			}
+		}(zone)
+	}
+	var insts []Instance
+	for range cfg.zones {
+		r := <-ch
+		if r.err != nil {
+			logger.Errorf("cannot collect instances from zone %q: %s", r.zone, r.err)
+			continue
+		}
+		insts = append(insts, r.insts...)
+	}
+	return insts
 }
 
 func getInstancesForProjectAndZone(client *http.Client, project, zone, filter string) ([]Instance, error) {
