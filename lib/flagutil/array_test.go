@@ -38,7 +38,7 @@ func TestArraySet(t *testing.T) {
 	f := func(s string, expectedValues []string) {
 		t.Helper()
 		var a Array
-		a.Set(s)
+		_ = a.Set(s)
 		if !reflect.DeepEqual([]string(a), expectedValues) {
 			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", a, expectedValues)
 		}
@@ -58,7 +58,7 @@ func TestArrayGetOptionalArg(t *testing.T) {
 	f := func(s string, argIdx int, expectedValue string) {
 		t.Helper()
 		var a Array
-		a.Set(s)
+		_ = a.Set(s)
 		v := a.GetOptionalArg(argIdx)
 		if v != expectedValue {
 			t.Fatalf("unexpected value; got %q; want %q", v, expectedValue)
@@ -77,7 +77,7 @@ func TestArrayString(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var a Array
-		a.Set(s)
+		_ = a.Set(s)
 		result := a.String()
 		if result != s {
 			t.Fatalf("unexpected string;\ngot\n%s\nwant\n%s", result, s)
