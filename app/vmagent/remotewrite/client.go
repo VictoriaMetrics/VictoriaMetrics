@@ -169,7 +169,9 @@ func getTLSConfig() (*tls.Config, error) {
 		ClientSessionCache: tls.NewLRUClientSessionCache(0),
 	}
 	if tlsCertificate != nil {
-		tlsCfg.Certificates = []tls.Certificate{*tlsCertificate}
+		tlsCfg.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return tlsCertificate, nil
+		}
 	}
 	tlsCfg.InsecureSkipVerify = *tlsInsecureSkipVerify
 	return tlsCfg, nil
