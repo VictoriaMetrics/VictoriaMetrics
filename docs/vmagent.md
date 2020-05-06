@@ -133,7 +133,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details.
 * `kubernetes_sd_configs` - for scraping targets in Kubernetes (k8s).
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
-* `ec2_sd_configs` - for scraping targets in Amazone EC2.
+* `ec2_sd_configs` - for scraping targets in Amazon EC2.
   See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
   `vmagent` doesn't support `role_arn` config param yet.
 * `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
@@ -170,9 +170,8 @@ Additionally it provides the following extra actions:
 
 The relabeling can be defined in the following places:
 
-* At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to targets when parsing the file during `vmagent` startup
-  or during config reload after sending `SIGHUP` signal to `vmagent`  via `kill -HUP`.
-* At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to metrics after each scrape for the configured targets.
+* At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to target labels.
+* At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to all the scraped metrics in the given `scrape_config`.
 * At `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to remote storage.
 * At `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`.
 
@@ -202,7 +201,7 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
 
 * It is recommended increasing `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
-  and `vmagent_remotewrite_pending_data_bytes` metric exported by `vmagent` at `/metrics` page constantly grows.
+  and `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow big when remote storage is unavailable during extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
