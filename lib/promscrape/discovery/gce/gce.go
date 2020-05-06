@@ -53,9 +53,6 @@ func GetLabels(sdc *SDConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %s", err)
 	}
-	ms, err := getInstancesLabels(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error when fetching instances data from GCE: %s", err)
-	}
+	ms := getInstancesLabels(cfg)
 	return ms, nil
 }
