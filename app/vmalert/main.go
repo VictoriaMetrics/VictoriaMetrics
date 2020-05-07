@@ -56,7 +56,6 @@ absolute path to all .yaml files in root.`)
 	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
-// TODO: hot configuration reload
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
@@ -100,32 +99,19 @@ func main() {
 		restoreDS = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
 	}
 
-	groupUpdateStorage := map[string]chan Group{}
-
 	wg := sync.WaitGroup{}
-	for _, g := range groups {
-		if restoreDS != nil {
-			err := g.Restore(ctx, restoreDS, *remoteReadLookBack)
-			if err != nil {
-				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
-			}
-		}
 
-		groupUpdateChan := make(chan Group, 0)
-		groupUpdateStorage[g.Name] = groupUpdateChan
+	groupUpdateStorage := startInitGroups(ctx, w, restoreDS, groups, &wg)
 
-		wg.Add(1)
-		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval, groupUpdateChan)
-			wg.Done()
-		}(g)
-	}
+	rh := &requestHandler{groups: groups, mu: sync.RWMutex{}}
 
 	//run config updater
 	wg.Add(1)
-	go runConfigUpdater(ctx, groupUpdateStorage, w, &wg)
+	sigHup := procutil.NewSighupChan()
 
-	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
+	go rh.runConfigUpdater(ctx, sigHup, groupUpdateStorage, w, &wg)
+
+	go httpserver.Serve(*httpListenAddr, (rh).handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
@@ -233,61 +219,6 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 	}
 }
 
-//listen for sighup and update config
-func runConfigUpdater(ctx context.Context, groupUpdateStorage map[string]chan Group, w *watchdog, wg *sync.WaitGroup) {
-	logger.Infof("starting config updater")
-	defer wg.Done()
-	sigHup := procutil.NewSighupChan()
-	for {
-		select {
-		case <-sigHup:
-			logger.Infof("get sighup signal, updating config")
-			configReloadTotal.Inc()
-			newRules, err := readRules()
-			if err != nil {
-				logger.Errorf("sighup, cannot read new rules: %v", err)
-				ConfigReloadErrorTotal.Inc()
-				continue
-			}
-			configReloadOkTotal.Inc()
-			//send new group to running watchers
-			for _, group := range newRules {
-				//update or start new group
-				if updateChan, ok := groupUpdateStorage[group.Name]; ok {
-					updateChan <- group
-				} else {
-					//its new group, we need to start it
-					updateChan := make(chan Group, 0)
-					groupUpdateStorage[group.Name] = updateChan
-					wg.Add(1)
-					go func() {
-						w.run(ctx, group, *evaluationInterval, updateChan)
-						wg.Done()
-					}()
-				}
-			}
-			//we have to check, if group is missing and remove it
-			for groupName, updateChan := range groupUpdateStorage {
-				var exist bool
-				for _, newGroup := range newRules {
-					if groupName == newGroup.Name {
-						exist = true
-					}
-				}
-				if !exist {
-					logger.Infof("group not exists in new rules, remove it, group: %s", groupName)
-					delete(groupUpdateStorage, groupName)
-					updateChan <- Group{Rules: []*Rule{}}
-				}
-			}
-		case <-ctx.Done():
-			logger.Infof("exiting config updater")
-			return
-
-		}
-	}
-}
-
 func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
 	if externalURL != "" {
 		return url.Parse(externalURL)
@@ -316,6 +247,28 @@ func checkFlags() {
 		flag.PrintDefaults()
 		logger.Fatalf("datasource.url is empty")
 	}
+}
+
+func startInitGroups(ctx context.Context, w *watchdog, restoreDS *datasource.VMStorage, groups []Group, wg *sync.WaitGroup) map[string]chan Group {
+	groupUpdateStorage := map[string]chan Group{}
+	for _, g := range groups {
+		if restoreDS != nil {
+			err := g.Restore(ctx, restoreDS, *remoteReadLookBack)
+			if err != nil {
+				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
+			}
+		}
+
+		groupUpdateChan := make(chan Group, 1)
+		groupUpdateStorage[g.Name] = groupUpdateChan
+
+		wg.Add(1)
+		go func(group Group) {
+			w.run(ctx, group, *evaluationInterval, groupUpdateChan)
+			wg.Done()
+		}(g)
+	}
+	return groupUpdateStorage
 }
 
 //wrapper
