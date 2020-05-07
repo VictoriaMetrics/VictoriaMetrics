@@ -1,8 +1,8 @@
 ## vmauth
 
 `vmauth` is a simple auth proxy and router for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
-It reads username and password from [Basic Auth headers](https://en.wikipedia.org/wiki/Basic_access_authentication)
-and matches them against configs pointed by `-auth.config` command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
+It reads username and password from [Basic Auth headers](https://en.wikipedia.org/wiki/Basic_access_authentication),
+matches them against configs pointed by `-auth.config` command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 
 
 ### Quick start
@@ -18,6 +18,8 @@ After that `vmauth` starts accepting HTTP requests on port `8427` and routing th
 The port can be modified via `-httpListenAddr` command-line flag.
 
 The auth config can be reloaded by passing `SIGHUP` signal to `vmauth`.
+
+Docker images for `vmauth` are available at [https://hub.docker.com/r/victoriametrics/vmauth/tags].
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
@@ -35,22 +37,31 @@ Auth config is represented in the following simple `yml` format:
 
 users:
 
-  # The user for querying local single-node VictoriaMetrics
+  # The user for querying local single-node VictoriaMetrics.
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://localhost:8428 .
+  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query
 - username: "local-single-node"
   password: "***"
   url_prefix: "http://localhost:8428"
 
   # The user for querying account 123 in VictoriaMetrics cluster
   # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://vmselect:8481/select/123/prometheus .
+  # For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8481/select/123/prometheus/api/v1/select
 - username: "cluster-select-account-123"
   password: "***"
   url_prefix: "http://vmselect:8481/select/123/prometheus"
 
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
   # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format
+  # All the reuqests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://vminsert:8480/insert/42/prometheus .
+  # For example, http://vmauth:8427/api/v1/write is routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "cluster-insert-account-42"
   password: "***"
-  url_prefix: "http://localhost:8480/insert/42/prometheus"
+  url_prefix: "http://vminsert:8480/insert/42/prometheus"
 ```
 
 

@@ -57,7 +57,7 @@ If you need collecting only Influx data, then the following command line would b
 
 Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
 
-`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/).
+`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
