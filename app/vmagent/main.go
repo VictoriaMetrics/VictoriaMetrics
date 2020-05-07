@@ -160,7 +160,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 		return true
 	}
 	return false
