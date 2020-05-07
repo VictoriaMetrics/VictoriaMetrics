@@ -86,14 +86,6 @@ func NewServer(vminsertAddr, vmselectAddr string, storage *storage.Storage) (*Se
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		return nil, fmt.Errorf("invalid -precisionBits: %s", err)
 	}
-
-	// Set network-level write timeouts to reasonable values in order to protect
-	// from broken networks.
-	// Do not set read timeouts, since they are managed separately -
-	// search for SetReadDeadline in this file.
-	vminsertLN.WriteTimeout = time.Minute
-	vmselectLN.WriteTimeout = time.Minute
-
 	s := &Server{
 		storage: storage,
 
