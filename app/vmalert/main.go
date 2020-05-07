@@ -100,7 +100,6 @@ func main() {
 		restoreDS = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
 	}
 
-
 	groupUpdateStorage := map[string]chan Group{}
 
 	wg := sync.WaitGroup{}
@@ -112,19 +111,19 @@ func main() {
 			}
 		}
 
-		groupUpdateChan := make(chan Group,0)
+		groupUpdateChan := make(chan Group, 0)
 		groupUpdateStorage[g.Name] = groupUpdateChan
 
 		wg.Add(1)
 		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval,groupUpdateChan)
+			w.run(ctx, group, *evaluationInterval, groupUpdateChan)
 			wg.Done()
 		}(g)
 	}
 
 	//run config updater
 	wg.Add(1)
-	go runConfigUpdater(ctx,groupUpdateStorage,w,&wg)
+	go runConfigUpdater(ctx, groupUpdateStorage, w, &wg)
 
 	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
 
@@ -164,29 +163,28 @@ var (
 	remoteWriteSent   = metrics.NewCounter(`vmalert_remotewrite_sent_total`)
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 
-	configReloadTotal    = metrics.NewCounter(`vmalert_config_reload_total`)
+	configReloadTotal      = metrics.NewCounter(`vmalert_config_reload_total`)
 	configReloadOkTotal    = metrics.NewCounter(`vmalert_config_reload_ok_total`)
-	ConfigReloadErrorTotal    = metrics.NewCounter(`vmalert_config_reload_error_total`)
-
+	ConfigReloadErrorTotal = metrics.NewCounter(`vmalert_config_reload_error_total`)
 )
 
-func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration,groupUpdate chan Group) {
+func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration, groupUpdate chan Group) {
 	logger.Infof("watchdog for %s has been started", group.Name)
 	t := time.NewTicker(evaluationInterval)
 	defer t.Stop()
 	for {
 
 		select {
-		case newGroup := <- groupUpdate:
+		case newGroup := <-groupUpdate:
 			if newGroup.Rules == nil || len(newGroup.Rules) == 0 {
 				//empty rules for group
 				//need to exit
-				logger.Infof("stopping group: %s, it contains 0 rules now",group.Name)
+				logger.Infof("stopping group: %s, it contains 0 rules now", group.Name)
 				return
 			}
-			logger.Infof("new group update received, group: %s",group.Name)
+			logger.Infof("new group update received, group: %s", group.Name)
 			group.Update(newGroup)
-			logger.Infof("group was reconciled, group: %s",group.Name)
+			logger.Infof("group was reconciled, group: %s", group.Name)
 
 		case <-t.C:
 			iterationTotal.Inc()
@@ -236,53 +234,53 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 }
 
 //listen for sighup and update config
-func runConfigUpdater(ctx context.Context,groupUpdateStorage map[string] chan Group,w *watchdog, wg *sync.WaitGroup){
+func runConfigUpdater(ctx context.Context, groupUpdateStorage map[string]chan Group, w *watchdog, wg *sync.WaitGroup) {
 	logger.Infof("starting config updater")
 	defer wg.Done()
 	sigHup := procutil.NewSighupChan()
 	for {
 		select {
-		case <- sigHup:
+		case <-sigHup:
 			logger.Infof("get sighup signal, updating config")
 			configReloadTotal.Inc()
-			newRules,err := readRules()
+			newRules, err := readRules()
 			if err != nil {
-				logger.Errorf("sighup, cannot read new rules: %v",err)
+				logger.Errorf("sighup, cannot read new rules: %v", err)
 				ConfigReloadErrorTotal.Inc()
 				continue
 			}
 			configReloadOkTotal.Inc()
 			//send new group to running watchers
-			for _,group := range newRules{
+			for _, group := range newRules {
 				//update or start new group
-				if updateChan,ok := groupUpdateStorage[group.Name];ok {
+				if updateChan, ok := groupUpdateStorage[group.Name]; ok {
 					updateChan <- group
-				}else{
+				} else {
 					//its new group, we need to start it
-					updateChan := make(chan Group,0)
+					updateChan := make(chan Group, 0)
 					groupUpdateStorage[group.Name] = updateChan
 					wg.Add(1)
-					go func(){
-						w.run(ctx,group,*evaluationInterval,updateChan)
+					go func() {
+						w.run(ctx, group, *evaluationInterval, updateChan)
 						wg.Done()
 					}()
 				}
 			}
 			//we have to check, if group is missing and remove it
-			for groupName, updateChan := range groupUpdateStorage{
+			for groupName, updateChan := range groupUpdateStorage {
 				var exist bool
-				for _,newGroup := range newRules{
-					if groupName == newGroup.Name{
+				for _, newGroup := range newRules {
+					if groupName == newGroup.Name {
 						exist = true
 					}
 				}
-				if !exist{
-					logger.Infof("group not exists in new rules, remove it, group: %s",groupName)
-					delete(groupUpdateStorage,groupName)
-					updateChan <- Group{Rules:[]*Rule{}}
+				if !exist {
+					logger.Infof("group not exists in new rules, remove it, group: %s", groupName)
+					delete(groupUpdateStorage, groupName)
+					updateChan <- Group{Rules: []*Rule{}}
 				}
 			}
-		case <- ctx.Done():
+		case <-ctx.Done():
 			logger.Infof("exiting config updater")
 			return
 
@@ -321,7 +319,7 @@ func checkFlags() {
 }
 
 //wrapper
-func readRules()([]Group,error){
+func readRules() ([]Group, error) {
 	return Parse(*rulePath, *validateTemplates)
 
 }
