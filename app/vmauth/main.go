@@ -54,7 +54,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	info.requests.Inc()
 
-	targetURL := info.URLPrefix + r.RequestURI
+	targetURL := createTargetURL(info.URLPrefix, r.URL)
 	if _, err := url.Parse(targetURL); err != nil {
 		httpserver.Errorf(w, "Invalid targetURL=%q: %s", targetURL, err)
 		return true
