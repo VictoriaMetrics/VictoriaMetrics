@@ -36,14 +36,13 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 	return nil
 }
 
-
 // Update group
-func (g *Group)Update(newGroup Group)*Group{
+func (g *Group) Update(newGroup Group) *Group {
 	//check if old rule exists at new rules
-	for _, newRule := range newGroup.Rules{
-		for _, oldRule := range g.Rules{
-			if newRule.Name == oldRule.Name{
-	            //is lock nessesary?
+	for _, newRule := range newGroup.Rules {
+		for _, oldRule := range g.Rules {
+			if newRule.Name == oldRule.Name {
+				//is lock nessesary?
 				oldRule.mu.Lock()
 				//we copy only rules related values
 				//it`s safe to add additional fields to rule

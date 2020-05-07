@@ -122,13 +122,13 @@ func Test_requestHandler_runConfigUpdater(t *testing.T) {
 			want: []Group{
 				{
 					Name: "duplicatedGroupDiffFiles", Rules: []*Rule{
-					newTestRule("VMRows", time.Second*10),
-				}},
+						newTestRule("VMRows", time.Second*10),
+					}},
 				{
 					Name: "TestGroup", Rules: []*Rule{
-					newTestRule("Conns", time.Duration(0)),
-					newTestRule("ExampleAlertAlwaysFiring", time.Duration(0)),
-				}},
+						newTestRule("Conns", time.Duration(0)),
+						newTestRule("ExampleAlertAlwaysFiring", time.Duration(0)),
+					}},
 			},
 		},
 	}

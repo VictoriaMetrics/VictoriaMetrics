@@ -151,7 +151,7 @@ var (
 
 	configReloadTotal      = metrics.NewCounter(`vmalert_config_reload_total`)
 	configReloadOkTotal    = metrics.NewCounter(`vmalert_config_reload_ok_total`)
-	ConfigReloadErrorTotal = metrics.NewCounter(`vmalert_config_reload_error_total`)
+	configReloadErrorTotal = metrics.NewCounter(`vmalert_config_reload_error_total`)
 )
 
 func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration, groupUpdate chan Group) {

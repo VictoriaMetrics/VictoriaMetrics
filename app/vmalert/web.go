@@ -46,7 +46,7 @@ func (rh *requestHandler) runConfigUpdater(ctx context.Context, reloadChan <-cha
 			newRules, err := readRules()
 			if err != nil {
 				logger.Errorf("sighup, cannot read new rules: %v", err)
-				ConfigReloadErrorTotal.Inc()
+				configReloadErrorTotal.Inc()
 				continue
 			}
 
