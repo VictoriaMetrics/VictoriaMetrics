@@ -71,7 +71,6 @@ func Serve(addr string, rh RequestHandler) {
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
 	}
-	setNetworkTimeouts(lnTmp)
 	ln := net.Listener(lnTmp)
 
 	if *tlsEnable {
@@ -87,29 +86,18 @@ func Serve(addr string, rh RequestHandler) {
 	serveWithListener(addr, ln, rh)
 }
 
-func setNetworkTimeouts(ln *netutil.TCPListener) {
-	// Set network-level read and write timeouts to reasonable values
-	// in order to protect from DoS or broken networks.
-	// Application-level timeouts must be set by the authors of request handlers.
-	//
-	// The read timeout limits the life of idle connection
-	ln.ReadTimeout = time.Minute
-	ln.WriteTimeout = time.Minute
-}
-
 func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 	s := &http.Server{
 		Handler: gzipHandler(rh),
 
-		// Disable http/2
+		// Disable http/2, since it doesn't give any advantages for VictoriaMetrics services.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 
-		// Do not set ReadTimeout and WriteTimeout here.
-		// Network-level timeouts are set in setNetworkTimeouts.
-		// Application-level timeouts must be set in the app.
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       time.Minute,
 
-		// Do not set IdleTimeout, since it is equivalent to read timeout
-		// set in setNetworkTimeouts.
+		// Do not set ReadTimeout and WriteTimeout here,
+		// since these timeouts must be controlled by request handlers.
 
 		ErrorLog: logger.StdErrorLogger(),
 	}

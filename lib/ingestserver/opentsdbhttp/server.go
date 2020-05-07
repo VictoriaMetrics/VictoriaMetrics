@@ -43,9 +43,11 @@ func MustStart(addr string, insertHandler func(req *http.Request) error) *Server
 func MustServe(ln net.Listener, insertHandler func(req *http.Request) error) *Server {
 	h := newRequestHandler(insertHandler)
 	hs := &http.Server{
-		Handler:      h,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Handler:           h,
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       time.Minute,
+		// Do not set ReadTimeout and WriteTimeout here,
+		// since these timeouts must be controlled by request handler.
 	}
 	s := &Server{
 		s:  hs,
