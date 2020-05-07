@@ -70,7 +70,7 @@ func main() {
 	notifier.InitTemplateFunc(eu)
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	groups, err := Parse(*rulePath, *validateTemplates)
+	groups, err := readRules()
 	if err != nil {
 		logger.Fatalf("cannot parse configuration file: %s", err)
 	}
@@ -100,6 +100,9 @@ func main() {
 		restoreDS = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
 	}
 
+
+	groupUpdateStorage := map[string]chan Group{}
+
 	wg := sync.WaitGroup{}
 	for _, g := range groups {
 		if restoreDS != nil {
@@ -108,12 +111,20 @@ func main() {
 				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
 			}
 		}
+
+		groupUpdateChan := make(chan Group,0)
+		groupUpdateStorage[g.Name] = groupUpdateChan
+
 		wg.Add(1)
 		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval)
+			w.run(ctx, group, *evaluationInterval,groupUpdateChan)
 			wg.Done()
 		}(g)
 	}
+
+	//run config updater
+	wg.Add(1)
+	go runConfigUpdater(ctx,groupUpdateStorage,w,&wg)
 
 	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
 
@@ -152,15 +163,31 @@ var (
 
 	remoteWriteSent   = metrics.NewCounter(`vmalert_remotewrite_sent_total`)
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
+
+	configReloadTotal    = metrics.NewCounter(`vmalert_config_reload_total`)
+	configReloadOkTotal    = metrics.NewCounter(`vmalert_config_reload_ok_total`)
+	ConfigReloadErrorTotal    = metrics.NewCounter(`vmalert_config_reload_error_total`)
+
 )
 
-func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
+func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration,groupUpdate chan Group) {
 	logger.Infof("watchdog for %s has been started", group.Name)
 	t := time.NewTicker(evaluationInterval)
 	defer t.Stop()
 	for {
 
 		select {
+		case newGroup := <- groupUpdate:
+			if newGroup.Rules == nil || len(newGroup.Rules) == 0 {
+				//empty rules for group
+				//need to exit
+				logger.Infof("stopping group: %s, it contains 0 rules now",group.Name)
+				return
+			}
+			logger.Infof("new group update received, group: %s",group.Name)
+			group.Update(newGroup)
+			logger.Infof("group was reconciled, group: %s",group.Name)
+
 		case <-t.C:
 			iterationTotal.Inc()
 			iterationStart := time.Now()
@@ -208,6 +235,61 @@ func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time
 	}
 }
 
+//listen for sighup and update config
+func runConfigUpdater(ctx context.Context,groupUpdateStorage map[string] chan Group,w *watchdog, wg *sync.WaitGroup){
+	logger.Infof("starting config updater")
+	defer wg.Done()
+	sigHup := procutil.NewSighupChan()
+	for {
+		select {
+		case <- sigHup:
+			logger.Infof("get sighup signal, updating config")
+			configReloadTotal.Inc()
+			newRules,err := readRules()
+			if err != nil {
+				logger.Errorf("sighup, cannot read new rules: %v",err)
+				ConfigReloadErrorTotal.Inc()
+				continue
+			}
+			configReloadOkTotal.Inc()
+			//send new group to running watchers
+			for _,group := range newRules{
+				//update or start new group
+				if updateChan,ok := groupUpdateStorage[group.Name];ok {
+					updateChan <- group
+				}else{
+					//its new group, we need to start it
+					updateChan := make(chan Group,0)
+					groupUpdateStorage[group.Name] = updateChan
+					wg.Add(1)
+					go func(){
+						w.run(ctx,group,*evaluationInterval,updateChan)
+						wg.Done()
+					}()
+				}
+			}
+			//we have to check, if group is missing and remove it
+			for groupName, updateChan := range groupUpdateStorage{
+				var exist bool
+				for _,newGroup := range newRules{
+					if groupName == newGroup.Name{
+						exist = true
+					}
+				}
+				if !exist{
+					logger.Infof("group not exists in new rules, remove it, group: %s",groupName)
+					delete(groupUpdateStorage,groupName)
+					updateChan <- Group{Rules:[]*Rule{}}
+				}
+			}
+		case <- ctx.Done():
+			logger.Infof("exiting config updater")
+			return
+
+		}
+	}
+}
+
 func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
 	if externalURL != "" {
 		return url.Parse(externalURL)
@@ -236,4 +318,10 @@ func checkFlags() {
 		flag.PrintDefaults()
 		logger.Fatalf("datasource.url is empty")
 	}
+}
+
+//wrapper
+func readRules()([]Group,error){
+	return Parse(*rulePath, *validateTemplates)
+
 }

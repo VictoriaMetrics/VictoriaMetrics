@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -532,4 +533,66 @@ func metricWithValueAndLabels(t *testing.T, value float64, labels ...string) dat
 	m := metricWithLabels(t, labels...)
 	m.Value = value
 	return m
+}
+
+func TestGroup_Update(t *testing.T) {
+	type fields struct {
+		Name  string
+		Rules []*Rule
+	}
+	type args struct {
+		newGroup Group
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *Group
+	}{
+		{
+			name:"update group with replace one value",
+			args:args{newGroup:Group{Name:"base-group",Rules:[]*Rule{
+				{Annotations:map[string]string{"different":"annotation"},For: time.Second*30},
+			}}},
+			fields:fields{
+				Name:  "base-group",
+				Rules: []*Rule{{Annotations:map[string]string{"one":"annotations"}}},
+			},
+			want:&Group{
+				Name:  "base-group",
+				Rules: []*Rule{
+					{Annotations:map[string]string{"different":"annotation"},For: time.Second*30},
+				},
+			},
+		},
+		{
+			name:"update group with change one value for rule",
+			args:args{newGroup:Group{Name:"base-group-2",Rules:[]*Rule{
+				{Annotations:map[string]string{"different":"annotation","replace-value":"new-one"},For: time.Second*30},
+			}}},
+			fields:fields{
+				Name:  "base-group-2",
+				Rules: []*Rule{
+					{Annotations:map[string]string{"different":"annotation","replace-value":"old-one"},For: time.Second*50},
+				},
+			},
+			want:&Group{
+				Name:  "base-group-2",
+				Rules: []*Rule{
+					{Annotations:map[string]string{"different":"annotation","replace-value":"new-one"},For: time.Second*30},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := &Group{
+				Name:  tt.fields.Name,
+				Rules: tt.fields.Rules,
+			}
+			if got := g.Update(tt.args.newGroup); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Update() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

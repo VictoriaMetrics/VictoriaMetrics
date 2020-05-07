@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"net/http"
 	"sort"
 	"strconv"
@@ -48,6 +50,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/alerts":
 		resph.handle(rh.list())
 		return true
+	case "/-/reload":
+		logger.Infof("api config reload was called, sending sighup")
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusOK)
+		return true
+
 	default:
 		// /api/v1/<groupName>/<alertID>/status
 		if strings.HasSuffix(r.URL.Path, "/status") {
