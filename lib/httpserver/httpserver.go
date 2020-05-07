@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -38,12 +39,19 @@ var (
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for graceful shutdown of HTTP server. "+
 		"Highly loaded server may require increased value for graceful shutdown")
+	shutdownDelay = flag.Duration("http.shutdownDelay", 0, "Optional delay before http server shutdown. During this dealy the servier returns non-OK responses "+
+		"from /health page, so load balancers can route new requests to other servers")
 )
 
 var (
-	servers     = make(map[string]*http.Server)
+	servers     = make(map[string]*server)
 	serversLock sync.Mutex
 )
+
+type server struct {
+	shutdownDelayDeadline int64
+	s                     *http.Server
+}
 
 // RequestHandler must serve the given request r and write response to w.
 //
@@ -87,8 +95,9 @@ func Serve(addr string, rh RequestHandler) {
 }
 
 func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
-	s := &http.Server{
-		Handler: gzipHandler(rh),
+	var s server
+	s.s = &http.Server{
+		Handler: gzipHandler(&s, rh),
 
 		// Disable http/2, since it doesn't give any advantages for VictoriaMetrics services.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
@@ -102,9 +111,9 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		ErrorLog: logger.StdErrorLogger(),
 	}
 	serversLock.Lock()
-	servers[addr] = s
+	servers[addr] = &s
 	serversLock.Unlock()
-	if err := s.Serve(ln); err != nil {
+	if err := s.s.Serve(ln); err != nil {
 		if err == http.ErrServerClosed {
 			// The server gracefully closed.
 			return
@@ -123,19 +132,31 @@ func Stop(addr string) error {
 	if s == nil {
 		logger.Panicf("BUG: there is no http server at %q", addr)
 	}
-	ctx, cancelFunc := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration)
-	defer cancelFunc()
-	if err := s.Shutdown(ctx); err != nil {
+
+	deadline := time.Now().Add(*shutdownDelay).UnixNano()
+	atomic.StoreInt64(&s.shutdownDelayDeadline, deadline)
+	if *shutdownDelay > 0 {
+		// Sleep for a while until load balancer in front of the server
+		// notifies that "/health" endpoint returns non-OK responses.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/463 .
+		logger.Infof("Waiting for %.3fs before shutdown of http server %q, so load balancers could re-route requests to other servers", shutdownDelay.Seconds(), addr)
+		time.Sleep(*shutdownDelay)
+		logger.Infof("Starting shutdown for http server %q", addr)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), *maxGracefulShutdownDuration)
+	defer cancel()
+	if err := s.s.Shutdown(ctx); err != nil {
 		return fmt.Errorf("cannot gracefully shutdown http server at %q in %.3fs; "+
 			"probably, `-http.maxGracefulShutdownDuration` command-line flag value must be increased; error: %s", addr, maxGracefulShutdownDuration.Seconds(), err)
 	}
 	return nil
 }
 
-func gzipHandler(rh RequestHandler) http.HandlerFunc {
+func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w = maybeGzipResponseWriter(w, r)
-		handlerWrapper(w, r, rh)
+		handlerWrapper(s, w, r, rh)
 		if zrw, ok := w.(*gzipResponseWriter); ok {
 			if err := zrw.Close(); err != nil && !isTrivialNetworkError(err) {
 				logger.Warnf("gzipResponseWriter.Close: %s", err)
@@ -146,7 +167,7 @@ func gzipHandler(rh RequestHandler) http.HandlerFunc {
 
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
 
-func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
+func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
 	path, err := getCanonicalPath(r.URL.Path)
 	if err != nil {
@@ -158,7 +179,20 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("OK"))
+		deadline := atomic.LoadInt64(&s.shutdownDelayDeadline)
+		if deadline <= 0 {
+			w.Write([]byte("OK"))
+			return
+		}
+		// Return non-OK response during grace period before shutting down the server.
+		// Load balancers must notify these responses and re-route new requests to other servers.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/463 .
+		d := time.Until(time.Unix(0, deadline))
+		if d < 0 {
+			d = 0
+		}
+		errMsg := fmt.Sprintf("The server is in delayed shutdown mode, which will end in %.3fs", d.Seconds())
+		http.Error(w, errMsg, http.StatusServiceUnavailable)
 		return
 	case "/ping":
 		// This is needed for compatibility with Influx agents.
