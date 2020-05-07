@@ -50,6 +50,8 @@ func (g *Group) Update(newGroup Group) *Group {
 				oldRule.Annotations = newRule.Annotations
 				oldRule.Labels = newRule.Labels
 				oldRule.For = newRule.For
+				oldRule.Expr = newRule.Expr
+				oldRule.group = newRule.group
 				newRule = oldRule
 				oldRule.mu.Unlock()
 			}

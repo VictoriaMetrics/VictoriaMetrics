@@ -552,11 +552,18 @@ func TestGroup_Update(t *testing.T) {
 		{
 			name: "update group with replace one value",
 			args: args{newGroup: Group{Name: "base-group", Rules: []*Rule{
-				{Annotations: map[string]string{"different": "annotation"}, For: time.Second * 30},
+				{
+					Annotations: map[string]string{"different": "annotation"},
+					For:         time.Second * 30,
+				},
 			}}},
 			fields: fields{
-				Name:  "base-group",
-				Rules: []*Rule{{Annotations: map[string]string{"one": "annotations"}}},
+				Name: "base-group",
+				Rules: []*Rule{
+					{
+						Annotations: map[string]string{"one": "annotations"},
+					},
+				},
 			},
 			want: &Group{
 				Name: "base-group",
@@ -568,18 +575,32 @@ func TestGroup_Update(t *testing.T) {
 		{
 			name: "update group with change one value for rule",
 			args: args{newGroup: Group{Name: "base-group-2", Rules: []*Rule{
-				{Annotations: map[string]string{"different": "annotation", "replace-value": "new-one"}, For: time.Second * 30},
+				{
+					Annotations: map[string]string{"different": "annotation", "replace-value": "new-one"},
+					For:         time.Second * 30,
+					Labels:      map[string]string{"label-1": "value-1"},
+					Expr:        "rate(vm) > 1",
+				},
 			}}},
 			fields: fields{
 				Name: "base-group-2",
 				Rules: []*Rule{
-					{Annotations: map[string]string{"different": "annotation", "replace-value": "old-one"}, For: time.Second * 50},
+					{
+						Annotations: map[string]string{"different": "annotation", "replace-value": "old-one"},
+						For:         time.Second * 50,
+						Expr:        "rate(vm) > 5",
+					},
 				},
 			},
 			want: &Group{
 				Name: "base-group-2",
 				Rules: []*Rule{
-					{Annotations: map[string]string{"different": "annotation", "replace-value": "new-one"}, For: time.Second * 30},
+					{
+						Annotations: map[string]string{"different": "annotation", "replace-value": "new-one"},
+						For:         time.Second * 30,
+						Labels:      map[string]string{"label-1": "value-1"},
+						Expr:        "rate(vm) > 1",
+					},
 				},
 			},
 		},
