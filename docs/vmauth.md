@@ -19,7 +19,7 @@ The port can be modified via `-httpListenAddr` command-line flag.
 
 The auth config can be reloaded by passing `SIGHUP` signal to `vmauth`.
 
-Docker images for `vmauth` are available at [https://hub.docker.com/r/victoriametrics/vmauth/tags].
+Docker images for `vmauth` are available [here](https://hub.docker.com/r/victoriametrics/vmauth/tags).
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
