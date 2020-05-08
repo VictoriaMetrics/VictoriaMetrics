@@ -139,6 +139,8 @@ The following command-line flags are used the most:
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
 
+Other flags have good enough default values, so set them only if you really need this.
+
 Pass `-help` to see all the available flags with description and default values.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
@@ -890,7 +892,8 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ### Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
-These metrics may be collected via Prometheus by adding the corresponding scrape config to it.
+These metrics may be collected by [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md)
+or Prometheus by adding the corresponding scrape config to it.
 Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
 For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
 
@@ -901,13 +904,11 @@ The most interesting metrics are:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
   aka active time series.
-* `rate(vm_new_timeseries_created_total[5m])` - time series churn rate.
-* `vm_rows{type="indexdb"}` - the number of rows in inverted index. High value for this number usually mean high churn rate for time series.
-* Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
-  in the database.
-* `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
+* `increase(vm_new_timeseries_created_total[1h])` - time series churn rate during the previous hour.
+* `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
+* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
-* `sum(vm_data_size_bytes)` - the total data size on disk.
+* `sum(vm_data_size_bytes)` - the total size of data on disk.
 
 
 ### Troubleshooting
