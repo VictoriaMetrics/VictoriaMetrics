@@ -56,7 +56,6 @@ absolute path to all .yaml files in root.`)
 	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
-// TODO: hot configuration reload
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
@@ -70,7 +69,7 @@ func main() {
 	notifier.InitTemplateFunc(eu)
 
 	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	groups, err := Parse(*rulePath, *validateTemplates)
+	groups, err := readRules()
 	if err != nil {
 		logger.Fatalf("cannot parse configuration file: %s", err)
 	}
@@ -101,21 +100,18 @@ func main() {
 	}
 
 	wg := sync.WaitGroup{}
-	for _, g := range groups {
-		if restoreDS != nil {
-			err := g.Restore(ctx, restoreDS, *remoteReadLookBack)
-			if err != nil {
-				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
-			}
-		}
-		wg.Add(1)
-		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval)
-			wg.Done()
-		}(g)
-	}
 
-	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
+	groupUpdateStorage := startInitGroups(ctx, w, restoreDS, groups, &wg)
+
+	rh := &requestHandler{groups: groups, mu: sync.RWMutex{}}
+
+	//run config updater
+	wg.Add(1)
+	sigHup := procutil.NewSighupChan()
+
+	go rh.runConfigUpdater(ctx, sigHup, groupUpdateStorage, w, &wg)
+
+	go httpserver.Serve(*httpListenAddr, (rh).handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
@@ -152,15 +148,30 @@ var (
 
 	remoteWriteSent   = metrics.NewCounter(`vmalert_remotewrite_sent_total`)
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
+
+	configReloadTotal      = metrics.NewCounter(`vmalert_config_reload_total`)
+	configReloadOkTotal    = metrics.NewCounter(`vmalert_config_reload_ok_total`)
+	configReloadErrorTotal = metrics.NewCounter(`vmalert_config_reload_error_total`)
 )
 
-func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
+func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration, groupUpdate chan Group) {
 	logger.Infof("watchdog for %s has been started", group.Name)
 	t := time.NewTicker(evaluationInterval)
 	defer t.Stop()
 	for {
 
 		select {
+		case newGroup := <-groupUpdate:
+			if newGroup.Rules == nil || len(newGroup.Rules) == 0 {
+				//empty rules for group
+				//need to exit
+				logger.Infof("stopping group: %s, it contains 0 rules now", group.Name)
+				return
+			}
+			logger.Infof("new group update received, group: %s", group.Name)
+			group.Update(newGroup)
+			logger.Infof("group was reconciled, group: %s", group.Name)
+
 		case <-t.C:
 			iterationTotal.Inc()
 			iterationStart := time.Now()
@@ -236,4 +247,32 @@ func checkFlags() {
 		flag.PrintDefaults()
 		logger.Fatalf("datasource.url is empty")
 	}
+}
+
+func startInitGroups(ctx context.Context, w *watchdog, restoreDS *datasource.VMStorage, groups []Group, wg *sync.WaitGroup) map[string]chan Group {
+	groupUpdateStorage := map[string]chan Group{}
+	for _, g := range groups {
+		if restoreDS != nil {
+			err := g.Restore(ctx, restoreDS, *remoteReadLookBack)
+			if err != nil {
+				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
+			}
+		}
+
+		groupUpdateChan := make(chan Group, 1)
+		groupUpdateStorage[g.Name] = groupUpdateChan
+
+		wg.Add(1)
+		go func(group Group) {
+			w.run(ctx, group, *evaluationInterval, groupUpdateChan)
+			wg.Done()
+		}(g)
+	}
+	return groupUpdateStorage
+}
+
+//wrapper
+func readRules() ([]Group, error) {
+	return Parse(*rulePath, *validateTemplates)
+
 }
