@@ -36,6 +36,32 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 	return nil
 }
 
+// Update group
+func (g *Group) Update(newGroup Group) *Group {
+	//check if old rule exists at new rules
+	for _, newRule := range newGroup.Rules {
+		for _, oldRule := range g.Rules {
+			if newRule.Name == oldRule.Name {
+				//is lock nessesary?
+				oldRule.mu.Lock()
+				//we copy only rules related values
+				//it`s safe to add additional fields to rule
+				//struct
+				oldRule.Annotations = newRule.Annotations
+				oldRule.Labels = newRule.Labels
+				oldRule.For = newRule.For
+				oldRule.Expr = newRule.Expr
+				oldRule.group = newRule.group
+				newRule = oldRule
+				oldRule.mu.Unlock()
+			}
+		}
+	}
+	//swap rules
+	g.Rules = newGroup.Rules
+	return g
+}
+
 // Rule is basic alert entity
 type Rule struct {
 	Name        string            `yaml:"alert"`
