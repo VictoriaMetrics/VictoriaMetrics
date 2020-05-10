@@ -48,6 +48,7 @@ Rules in group evaluated one-by-one sequentially.
 * `http://<vmalert-addr>/api/v1/<groupName>/<alertID>/status" ` - get alert status by ID.
 Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
+* `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
 `vmalert` may be configured with `-remotewrite` flag to write alerts state in form of timeseries
 via remote write protocol. Alerts state will be written as `ALERTS` timeseries. These timeseries
@@ -108,6 +109,9 @@ Usage of vmalert:
 
 Pass `-help` to `vmalert` in order to see the full list of supported 
 command-line flags with their descriptions.
+
+To reload configuration without `vmalert` restart send SIGHUP signal
+or send GET request to `/-/reload` endpoint.
 
 ### Contributing
 

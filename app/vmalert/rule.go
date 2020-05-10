@@ -17,51 +17,6 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-// Group grouping array of alert
-type Group struct {
-	Name  string
-	Rules []*Rule
-}
-
-// Restore restores alerts state for all group rules with For > 0
-func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
-	for _, rule := range g.Rules {
-		if rule.For == 0 {
-			return nil
-		}
-		if err := rule.Restore(ctx, q, lookback); err != nil {
-			return fmt.Errorf("error while restoring rule %q: %s", rule.Name, err)
-		}
-	}
-	return nil
-}
-
-// Update group
-func (g *Group) Update(newGroup Group) *Group {
-	//check if old rule exists at new rules
-	for _, newRule := range newGroup.Rules {
-		for _, oldRule := range g.Rules {
-			if newRule.Name == oldRule.Name {
-				//is lock nessesary?
-				oldRule.mu.Lock()
-				//we copy only rules related values
-				//it`s safe to add additional fields to rule
-				//struct
-				oldRule.Annotations = newRule.Annotations
-				oldRule.Labels = newRule.Labels
-				oldRule.For = newRule.For
-				oldRule.Expr = newRule.Expr
-				oldRule.group = newRule.group
-				newRule = oldRule
-				oldRule.mu.Unlock()
-			}
-		}
-	}
-	//swap rules
-	g.Rules = newGroup.Rules
-	return g
-}
-
 // Rule is basic alert entity
 type Rule struct {
 	Name        string            `yaml:"alert"`
@@ -82,6 +37,10 @@ type Rule struct {
 	// resets on every successful Exec
 	// may be used as Health state
 	lastExecError error
+}
+
+func (r *Rule) id() string {
+	return r.Name
 }
 
 // Validate validates rule
@@ -124,8 +83,16 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 		h := hash(m)
 		updated[h] = struct{}{}
 		if a, ok := r.alerts[h]; ok {
-			// update Value field with latest value
-			a.Value = m.Value
+			if a.Value != m.Value {
+				// update Value field with latest value
+				a.Value = m.Value
+				// and re-exec template since Value can be used
+				// in templates
+				err = r.template(a)
+				if err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		a, err := r.newAlert(m)
@@ -180,15 +147,13 @@ func hash(m datasource.Metric) uint64 {
 
 func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 	a := &notifier.Alert{
-		Group:  r.group.Name,
-		Name:   r.Name,
-		Labels: map[string]string{},
-		Value:  m.Value,
-		Start:  time.Now(),
+		GroupID: r.group.ID(),
+		Name:    r.Name,
+		Labels:  map[string]string{},
+		Value:   m.Value,
+		Start:   time.Now(),
 		// TODO: support End time
 	}
-
-	// 1. use data labels
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
 		if l.Name == "__name__" {
@@ -196,28 +161,31 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 		}
 		a.Labels[l.Name] = l.Value
 	}
+	return a, r.template(a)
+}
 
-	// 2. template rule labels with data labels
+func (r *Rule) template(a *notifier.Alert) error {
+	// 1. template rule labels with data labels
 	rLabels, err := a.ExecTemplate(r.Labels)
 	if err != nil {
-		return a, err
+		return err
 	}
 
-	// 3. merge data labels and rule labels
+	// 2. merge data labels and rule labels
 	// metric labels may be overridden by
 	// rule labels
 	for k, v := range rLabels {
 		a.Labels[k] = v
 	}
 
-	// 4. template merged labels
+	// 3. template merged labels
 	a.Labels, err = a.ExecTemplate(a.Labels)
 	if err != nil {
-		return a, err
+		return err
 	}
 
 	a.Annotations, err = a.ExecTemplate(r.Annotations)
-	return a, err
+	return err
 }
 
 // AlertAPI generates APIAlert object from alert by its id(hash)
@@ -244,10 +212,11 @@ func (r *Rule) AlertsAPI() []*APIAlert {
 
 func (r *Rule) newAlertAPI(a notifier.Alert) *APIAlert {
 	return &APIAlert{
-		// encode as string to avoid rounding
-		ID:          fmt.Sprintf("%d", a.ID),
+		// encode as strings to avoid rounding
+		ID:      fmt.Sprintf("%d", a.ID),
+		GroupID: fmt.Sprintf("%d", a.GroupID),
+
 		Name:        a.Name,
-		Group:       a.Group,
 		Expression:  r.Expr,
 		Labels:      a.Labels,
 		Annotations: a.Annotations,
@@ -360,7 +329,7 @@ func (r *Rule) Restore(ctx context.Context, q datasource.Querier, lookback time.
 		a.State = notifier.StatePending
 		a.Start = time.Unix(int64(m.Value), 0)
 		r.alerts[a.ID] = a
-		logger.Infof("alert %q.%q restored to state at %v", a.Group, a.Name, a.Start)
+		logger.Infof("alert %q(%d) restored to state at %v", a.Name, a.ID, a.Start)
 	}
 	return nil
 }
