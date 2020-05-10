@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -17,13 +18,21 @@ type AlertManager struct {
 }
 
 // Send an alert or resolve message
-func (am *AlertManager) Send(alerts []Alert) error {
+func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc)
-	resp, err := am.client.Post(am.alertURL, "application/json", b)
+
+	req, err := http.NewRequest("POST", am.alertURL, b)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctx)
+	resp, err := am.client.Do(req)
+	if err != nil {
+		return err
+	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
@@ -37,7 +46,7 @@ func (am *AlertManager) Send(alerts []Alert) error {
 }
 
 // AlertURLGenerator returns URL to single alert by given name
-type AlertURLGenerator func(group, id string) string
+type AlertURLGenerator func(group, alert string) string
 
 const alertManagerPath = "/api/v2/alerts"
 

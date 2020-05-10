@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -64,23 +63,17 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
 	if err != nil {
-		logger.Fatalf("can not get external url:%s ", err)
+		logger.Fatalf("can not get external url: %s ", err)
 	}
 	notifier.InitTemplateFunc(eu)
 
-	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	groups, err := readRules()
-	if err != nil {
-		logger.Fatalf("cannot parse configuration file: %s", err)
-	}
-
-	w := &watchdog{
+	manager := &manager{
+		groups:  make(map[uint64]*Group),
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: notifier.NewAlertManager(*notifierURL, func(group, name string) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
+		notifier: notifier.NewAlertManager(*notifierURL, func(group, alert string) string {
+			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, alert)
 		}, &http.Client{}),
 	}
-
 	if *remoteWriteURL != "" {
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
 			Addr:          *remoteWriteURL,
@@ -91,26 +84,38 @@ func main() {
 		if err != nil {
 			logger.Fatalf("failed to init remotewrite client: %s", err)
 		}
-		w.rw = c
+		manager.rw = c
 	}
-
-	var restoreDS *datasource.VMStorage
 	if *remoteReadURL != "" {
-		restoreDS = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
+		manager.rr = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
 	}
 
-	wg := sync.WaitGroup{}
+	if err := manager.start(ctx, *rulePath, *validateTemplates); err != nil {
+		logger.Fatalf("failed to start: %s", err)
+	}
 
-	groupUpdateStorage := startInitGroups(ctx, w, restoreDS, groups, &wg)
+	go func() {
+		// init reload metrics with positive values to improve alerting conditions
+		configSuccess.Set(1)
+		configTimestamp.Set(uint64(time.Now().UnixNano()) / 1e9)
+		sigHup := procutil.NewSighupChan()
+		for {
+			<-sigHup
+			configReloads.Inc()
+			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
+			if err := manager.update(ctx, *rulePath, *validateTemplates, false); err != nil {
+				configReloadErrors.Inc()
+				configSuccess.Set(0)
+				logger.Errorf("error while reloading rules: %s", err)
+				continue
+			}
+			configSuccess.Set(1)
+			configTimestamp.Set(uint64(time.Now().UnixNano()) / 1e9)
+			logger.Infof("Rules reloaded successfully from %q", *rulePath)
+		}
+	}()
 
-	rh := &requestHandler{groups: groups, mu: sync.RWMutex{}}
-
-	//run config updater
-	wg.Add(1)
-	sigHup := procutil.NewSighupChan()
-
-	go rh.runConfigUpdater(ctx, sigHup, groupUpdateStorage, w, &wg)
-
+	rh := &requestHandler{m: manager}
 	go httpserver.Serve(*httpListenAddr, (rh).handler)
 
 	sig := procutil.WaitForSigterm()
@@ -119,105 +124,15 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	cancel()
-	if w.rw != nil {
-		err := w.rw.Close()
-		if err != nil {
-			logger.Fatalf("cannot stop the remotewrite: %s", err)
-		}
-	}
-	wg.Wait()
-}
-
-type watchdog struct {
-	storage       *datasource.VMStorage
-	alertProvider notifier.Notifier
-	rw            *remotewrite.Client
+	manager.close()
 }
 
 var (
-	iterationTotal    = metrics.NewCounter(`vmalert_iteration_total`)
-	iterationDuration = metrics.NewSummary(`vmalert_iteration_duration_seconds`)
-
-	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
-	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
-	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
-
-	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
-	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
-	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
-
-	remoteWriteSent   = metrics.NewCounter(`vmalert_remotewrite_sent_total`)
-	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
-
-	configReloadTotal      = metrics.NewCounter(`vmalert_config_reload_total`)
-	configReloadOkTotal    = metrics.NewCounter(`vmalert_config_reload_ok_total`)
-	configReloadErrorTotal = metrics.NewCounter(`vmalert_config_reload_error_total`)
+	configReloads      = metrics.NewCounter(`vmalert_config_last_reload_total`)
+	configReloadErrors = metrics.NewCounter(`vmalert_config_last_reload_errors_total`)
+	configSuccess      = metrics.NewCounter(`vmalert_config_last_reload_successful`)
+	configTimestamp    = metrics.NewCounter(`vmalert_config_last_reload_success_timestamp_seconds`)
 )
-
-func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration, groupUpdate chan Group) {
-	logger.Infof("watchdog for %s has been started", group.Name)
-	t := time.NewTicker(evaluationInterval)
-	defer t.Stop()
-	for {
-
-		select {
-		case newGroup := <-groupUpdate:
-			if newGroup.Rules == nil || len(newGroup.Rules) == 0 {
-				//empty rules for group
-				//need to exit
-				logger.Infof("stopping group: %s, it contains 0 rules now", group.Name)
-				return
-			}
-			logger.Infof("new group update received, group: %s", group.Name)
-			group.Update(newGroup)
-			logger.Infof("group was reconciled, group: %s", group.Name)
-
-		case <-t.C:
-			iterationTotal.Inc()
-			iterationStart := time.Now()
-			for _, rule := range group.Rules {
-				execTotal.Inc()
-
-				execStart := time.Now()
-				err := rule.Exec(ctx, w.storage)
-				execDuration.UpdateDuration(execStart)
-
-				if err != nil {
-					execErrors.Inc()
-					logger.Errorf("failed to execute rule %q.%q: %s", group.Name, rule.Name, err)
-					continue
-				}
-
-				var alertsToSend []notifier.Alert
-				for _, a := range rule.alerts {
-					if a.State != notifier.StatePending {
-						alertsToSend = append(alertsToSend, *a)
-					}
-					if a.State == notifier.StateInactive || w.rw == nil {
-						continue
-					}
-					tss := rule.AlertToTimeSeries(a, execStart)
-					for _, ts := range tss {
-						remoteWriteSent.Inc()
-						if err := w.rw.Push(ts); err != nil {
-							remoteWriteErrors.Inc()
-							logger.Errorf("failed to push timeseries to remotewrite: %s", err)
-						}
-					}
-				}
-				alertsSent.Add(len(alertsToSend))
-				if err := w.alertProvider.Send(alertsToSend); err != nil {
-					alertsSendErrors.Inc()
-					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
-				}
-			}
-			iterationDuration.UpdateDuration(iterationStart)
-		case <-ctx.Done():
-			logger.Infof("%s received stop signal", group.Name)
-			return
-		}
-	}
-}
 
 func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
 	if externalURL != "" {
@@ -247,32 +162,4 @@ func checkFlags() {
 		flag.PrintDefaults()
 		logger.Fatalf("datasource.url is empty")
 	}
-}
-
-func startInitGroups(ctx context.Context, w *watchdog, restoreDS *datasource.VMStorage, groups []Group, wg *sync.WaitGroup) map[string]chan Group {
-	groupUpdateStorage := map[string]chan Group{}
-	for _, g := range groups {
-		if restoreDS != nil {
-			err := g.Restore(ctx, restoreDS, *remoteReadLookBack)
-			if err != nil {
-				logger.Errorf("error while restoring state for group %q: %s", g.Name, err)
-			}
-		}
-
-		groupUpdateChan := make(chan Group, 1)
-		groupUpdateStorage[g.Name] = groupUpdateChan
-
-		wg.Add(1)
-		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval, groupUpdateChan)
-			wg.Done()
-		}(g)
-	}
-	return groupUpdateStorage
-}
-
-//wrapper
-func readRules() ([]Group, error) {
-	return Parse(*rulePath, *validateTemplates)
-
 }

@@ -1,0 +1,11 @@
+groups:
+  - name: groupTest
+    rules:
+      - alert: VMRows
+        for: 1ms
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"

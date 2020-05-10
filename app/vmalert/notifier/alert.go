@@ -12,7 +12,7 @@ import (
 // Alert the triggered alert
 // TODO: Looks like alert name isn't unique
 type Alert struct {
-	Group       string
+	GroupID     uint64
 	Name        string
 	Labels      map[string]string
 	Annotations map[string]string
