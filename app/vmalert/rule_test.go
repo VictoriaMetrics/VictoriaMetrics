@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -393,19 +393,28 @@ func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
 }
 
 type fakeQuerier struct {
+	sync.Mutex
 	metrics []datasource.Metric
 }
 
 func (fq *fakeQuerier) reset() {
+	fq.Lock()
 	fq.metrics = fq.metrics[:0]
+	fq.Unlock()
 }
 
 func (fq *fakeQuerier) add(metrics ...datasource.Metric) {
+	fq.Lock()
 	fq.metrics = append(fq.metrics, metrics...)
+	fq.Unlock()
 }
 
-func (fq fakeQuerier) Query(ctx context.Context, query string) ([]datasource.Metric, error) {
-	return fq.metrics, nil
+func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
+	fq.Lock()
+	cpy := make([]datasource.Metric, len(fq.metrics))
+	copy(cpy, fq.metrics)
+	fq.Unlock()
+	return cpy, nil
 }
 
 func TestRule_Restore(t *testing.T) {
@@ -533,87 +542,4 @@ func metricWithValueAndLabels(t *testing.T, value float64, labels ...string) dat
 	m := metricWithLabels(t, labels...)
 	m.Value = value
 	return m
-}
-
-func TestGroup_Update(t *testing.T) {
-	type fields struct {
-		Name  string
-		Rules []*Rule
-	}
-	type args struct {
-		newGroup Group
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *Group
-	}{
-		{
-			name: "update group with replace one value",
-			args: args{newGroup: Group{Name: "base-group", Rules: []*Rule{
-				{
-					Annotations: map[string]string{"different": "annotation"},
-					For:         time.Second * 30,
-				},
-			}}},
-			fields: fields{
-				Name: "base-group",
-				Rules: []*Rule{
-					{
-						Annotations: map[string]string{"one": "annotations"},
-					},
-				},
-			},
-			want: &Group{
-				Name: "base-group",
-				Rules: []*Rule{
-					{Annotations: map[string]string{"different": "annotation"}, For: time.Second * 30},
-				},
-			},
-		},
-		{
-			name: "update group with change one value for rule",
-			args: args{newGroup: Group{Name: "base-group-2", Rules: []*Rule{
-				{
-					Annotations: map[string]string{"different": "annotation", "replace-value": "new-one"},
-					For:         time.Second * 30,
-					Labels:      map[string]string{"label-1": "value-1"},
-					Expr:        "rate(vm) > 1",
-				},
-			}}},
-			fields: fields{
-				Name: "base-group-2",
-				Rules: []*Rule{
-					{
-						Annotations: map[string]string{"different": "annotation", "replace-value": "old-one"},
-						For:         time.Second * 50,
-						Expr:        "rate(vm) > 5",
-					},
-				},
-			},
-			want: &Group{
-				Name: "base-group-2",
-				Rules: []*Rule{
-					{
-						Annotations: map[string]string{"different": "annotation", "replace-value": "new-one"},
-						For:         time.Second * 30,
-						Labels:      map[string]string{"label-1": "value-1"},
-						Expr:        "rate(vm) > 1",
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := &Group{
-				Name:  tt.fields.Name,
-				Rules: tt.fields.Rules,
-			}
-			if got := g.Update(tt.args.newGroup); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Update() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
