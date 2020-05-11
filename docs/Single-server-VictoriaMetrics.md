@@ -20,6 +20,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ## Case studies and talks
 
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
+* [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
 * [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
 * [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
