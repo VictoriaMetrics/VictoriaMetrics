@@ -3,11 +3,26 @@
 Below are approved public case studies and talks from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
 and feel free asking for references, reviews and additional case studies from real VictoriaMetrics users there.
 
+
 ## Adidas
 
 See [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
 from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk at [PromCon 2019](https://promcon.io/2019-munich/).
 VictoriaMetrics is compared to Thanos, Corex and M3DB in the talk.
+
+
+## CERN
+
+The European Organization for Nuclear Research known as [CERN](https://home.cern/) uses VictoriaMetrics for real-time monitoring
+of the [CMS](https://home.cern/science/experiments/cms) detector system.
+According to [published talk](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
+VictoriaMetrics is used for the following purposes as a part of "CMS Monitoring cluster":
+
+* As long-term storage for messages consumed from the [NATS messaging system](https://nats.io/). Consumed messages are pushed directly to VictoriaMetrics via HTTP protocol
+* As long-term storage for Prometheus monitoring system (30 days retention policy, there are plans to increase it up to ½ year)
+* As a data source for visualizing metrics in Grafana.
+
+R&D topic: Evaluate VictoraMetrics vs InfluxDB for large cardinality data.
 
 
 ## COLOPL
