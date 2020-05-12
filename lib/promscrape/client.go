@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -49,7 +48,6 @@ func newClient(sw *ScrapeWork) *client {
 		Addr:                         host,
 		Name:                         "vm_promscrape",
 		Dial:                         statDial,
-		DialDualStack:                netutil.TCP6Enabled(),
 		IsTLS:                        isTLS,
 		TLSConfig:                    tlsCfg,
 		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
