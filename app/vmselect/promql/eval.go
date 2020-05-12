@@ -18,10 +18,7 @@ import (
 )
 
 var (
-	maxPointsPerTimeseries               = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from the search")
-	estimatedSeriesCountAfterAggregation = flag.Int("search.estimatedSeriesCountAfterAggregation", 1000, "Estimated number of series returned by aggregation with grouping "+
-		"such as `sum(...) by (...)`. Increase this value in order to reduce the probability of OOMs. Reduce this value in order to reduce 'not enough memory' errors "+
-		"for queries containing aggregation with grouping")
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from the search")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -682,7 +679,8 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		if iafc.ae.Modifier.Op != "" {
 			// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
 			// since each group can have own set of time series in memory.
-			timeseriesLen *= *estimatedSeriesCountAfterAggregation
+			// Estimate the number of such groups is lower than 1000 :)
+			timeseriesLen *= 1000
 		}
 	}
 	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
@@ -692,8 +690,8 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		rss.Cancel()
 		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
 			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
-			"increasing -memory.allowedPercent; increasing `step` query arg (%gs); reducing -search.estimatedSeriesCountAfterAggregation",
-			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
+			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
+			rollupPoints, rssLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
 	}
 	defer rml.Put(uint64(rollupMemorySize))
 
