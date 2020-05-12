@@ -46,8 +46,8 @@ func TestLoadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if n := cfg.fileSDConfigsCount(); n != 2 {
-		t.Fatalf("unexpected number of `file_sd_configs`; got %d; want %d; cfg:\n%#v", n, 2, cfg)
+	if cfg == nil {
+		t.Fatalf("expecting non-nil config")
 	}
 
 	// Try loading non-existing file
@@ -387,6 +387,17 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		resetScrapeWorkIDs(sws)
+
+		// Remove `__vm_filepath` label, since its value depends on the current working dir.
+		for i := range sws {
+			sw := &sws[i]
+			for j := range sw.Labels {
+				label := &sw.Labels[j]
+				if label.Name == "__vm_filepath" {
+					label.Value = ""
+				}
+			}
+		}
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
 		}
@@ -425,7 +436,11 @@ scrape_configs:
 				},
 				{
 					Name:  "__vm_filepath",
-					Value: "testdata/file_sd.json",
+					Value: "",
+				},
+				{
+					Name:  "instance",
+					Value: "host1:80",
 				},
 				{
 					Name:  "job",
@@ -459,7 +474,11 @@ scrape_configs:
 				},
 				{
 					Name:  "__vm_filepath",
-					Value: "testdata/file_sd.json",
+					Value: "",
+				},
+				{
+					Name:  "instance",
+					Value: "host2:80",
 				},
 				{
 					Name:  "job",
@@ -493,7 +512,11 @@ scrape_configs:
 				},
 				{
 					Name:  "__vm_filepath",
-					Value: "testdata/file_sd_1.yml",
+					Value: "",
+				},
+				{
+					Name:  "instance",
+					Value: "localhost:9090",
 				},
 				{
 					Name:  "job",
@@ -548,6 +571,10 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -587,6 +614,10 @@ scrape_configs:
 				{
 					Name:  "datacenter",
 					Value: "foobar",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -654,6 +685,10 @@ scrape_configs:
 					Value: "https",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:443",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -690,6 +725,10 @@ scrape_configs:
 					Value: "https",
 				},
 				{
+					Name:  "instance",
+					Value: "aaa:443",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -720,6 +759,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "1.2.3.4:80",
 				},
 				{
 					Name:  "job",
@@ -793,6 +836,10 @@ scrape_configs:
 				{
 					Name:  "hash",
 					Value: "82",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "prefix:url",
@@ -894,6 +941,10 @@ scrape_configs:
 					Value: "foo.bar:1234",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
 					Name:  "job",
 					Value: "3",
 				},
@@ -926,6 +977,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -972,6 +1027,10 @@ scrape_configs:
 					Value: "http",
 				},
 				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
 					Name:  "job",
 					Value: "foo",
 				},
@@ -1004,6 +1063,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -1044,6 +1107,10 @@ scrape_configs:
 				{
 					Name:  "__scheme__",
 					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
@@ -1099,6 +1166,10 @@ scrape_configs:
 				{
 					Name:  "foo",
 					Value: "bar",
+				},
+				{
+					Name:  "instance",
+					Value: "pp:80",
 				},
 				{
 					Name:  "job",
@@ -1169,3 +1240,17 @@ scrape_configs:
 }
 
 var defaultRegexForRelabelConfig = regexp.MustCompile("^(.*)$")
+
+func equalStaticConfigForScrapeWorks(a, b []ScrapeWork) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		keyA := a[i].key()
+		keyB := b[i].key()
+		if keyA != keyB {
+			return false
+		}
+	}
+	return true
+}

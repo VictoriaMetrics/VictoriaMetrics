@@ -32,7 +32,9 @@ app-via-docker: package-base package-builder
 		--env GO111MODULE=on \
 		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
-		go build $(RACE) -mod=vendor -trimpath -ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" -tags 'netgo osusergo' \
+		go build $(RACE) -mod=vendor -trimpath \
+			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
+			-tags 'netgo osusergo nethttpomithttp2' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker:

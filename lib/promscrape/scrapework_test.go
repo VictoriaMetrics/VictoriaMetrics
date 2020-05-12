@@ -99,7 +99,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_post_metric_relabeling 0 123
 	`)
 	f(`
-		foo{bar="baz"} 34.45 3
+		foo{bar="baz",empty_label=""} 34.45 3
 		abc -2
 	`, &ScrapeWork{}, `
 		foo{bar="baz"} 34.45 123
@@ -146,6 +146,53 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{job="override"} 2 123
 		scrape_duration_seconds{job="override"} 0 123
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
+	`)
+	// Empty instance override. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
+	f(`
+		no_instance{instance="",job="some_job",label="val1",test=""} 5555
+		test_with_instance{instance="some_instance",job="some_job",label="val2",test=""} 1555
+	`, &ScrapeWork{
+		HonorLabels: true,
+		Labels: []prompbmarshal.Label{
+			{
+				Name:  "instance",
+				Value: "foobar",
+			},
+			{
+				Name:  "job",
+				Value: "xxx",
+			},
+		},
+	}, `
+		no_instance{job="some_job",label="val1"} 5555 123
+		test_with_instance{instance="some_instance",job="some_job",label="val2"} 1555 123
+		up{instance="foobar",job="xxx"} 1 123
+		scrape_samples_scraped{instance="foobar",job="xxx"} 2 123
+		scrape_duration_seconds{instance="foobar",job="xxx"} 0 123
+		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
+	`)
+	f(`
+		no_instance{instance="",job="some_job",label="val1",test=""} 5555
+		test_with_instance{instance="some_instance",job="some_job",label="val2",test=""} 1555
+	`, &ScrapeWork{
+		HonorLabels: false,
+		Labels: []prompbmarshal.Label{
+			{
+				Name:  "instance",
+				Value: "foobar",
+			},
+			{
+				Name:  "job",
+				Value: "xxx",
+			},
+		},
+	}, `
+		no_instance{exported_job="some_job",instance="foobar",job="xxx",label="val1"} 5555 123
+		test_with_instance{exported_instance="some_instance",exported_job="some_job",instance="foobar",job="xxx",label="val2"} 1555 123
+		up{instance="foobar",job="xxx"} 1 123
+		scrape_samples_scraped{instance="foobar",job="xxx"} 2 123
+		scrape_duration_seconds{instance="foobar",job="xxx"} 0 123
+		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
 	`)
 	f(`
 		foo{job="orig",bar="baz"} 34.45
@@ -205,7 +252,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`)
 	f(`
 		foo{bar="baz"} 34.44
-		bar{a="b",c="d"} -3e4
+		bar{a="b",c="d",} -3e4
 		dropme{foo="bar"} 334
 		dropme{xxx="yy",ss="dsf"} 843
 	`, &ScrapeWork{
@@ -216,7 +263,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 				Value: "xx",
 			},
 			{
-				Name:  "__address__",
+				Name:  "instance",
 				Value: "foo.com",
 			},
 		},

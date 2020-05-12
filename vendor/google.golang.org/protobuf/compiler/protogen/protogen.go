@@ -104,6 +104,11 @@ type Plugin struct {
 	Files       []*File
 	FilesByPath map[string]*File
 
+	// SupportedFeatures is the set of protobuf language features supported by
+	// this generator plugin. See the documentation for
+	// google.protobuf.CodeGeneratorResponse.supported_features for details.
+	SupportedFeatures uint64
+
 	fileReg        *protoregistry.Files
 	enumsByName    map[protoreflect.FullName]*Enum
 	messagesByName map[protoreflect.FullName]*Message
@@ -437,6 +442,9 @@ func (gen *Plugin) Response() *pluginpb.CodeGeneratorResponse {
 				Content: proto.String(meta),
 			})
 		}
+	}
+	if gen.SupportedFeatures > 0 {
+		resp.SupportedFeatures = proto.Uint64(gen.SupportedFeatures)
 	}
 	return resp
 }

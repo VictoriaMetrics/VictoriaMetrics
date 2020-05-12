@@ -32,22 +32,17 @@ func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) RegisterAll(sws []ScrapeWork) {
+func (tsm *targetStatusMap) Register(sw *ScrapeWork) {
 	tsm.mu.Lock()
-	for i := range sws {
-		sw := &sws[i]
-		tsm.m[sw.ID] = targetStatus{
-			sw: sw,
-		}
+	tsm.m[sw.ID] = targetStatus{
+		sw: sw,
 	}
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) UnregisterAll(sws []ScrapeWork) {
+func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 	tsm.mu.Lock()
-	for i := range sws {
-		delete(tsm.m, sws[i].ID)
-	}
+	delete(tsm.m, sw.ID)
 	tsm.mu.Unlock()
 }
 
@@ -83,7 +78,6 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 		return jss[i].job < jss[j].job
 	})
 
-	targetsByEndpoint := make(map[string]int)
 	for _, js := range jss {
 		sts := js.statuses
 		sort.Slice(sts, func(i, j int) bool {
@@ -109,20 +103,9 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 			}
 			fmt.Fprintf(w, "\tstate=%s, endpoint=%s, labels=%s, last_scrape=%.3fs ago, scrape_duration=%.3fs, error=%q\n",
 				state, st.sw.ScrapeURL, labelsStr, lastScrape.Seconds(), float64(st.scrapeDuration)/1000, errMsg)
-			key := fmt.Sprintf("endpoint=%s, labels=%s", st.sw.ScrapeURL, labelsStr)
-			targetsByEndpoint[key]++
 		}
 	}
 	fmt.Fprintf(w, "\n")
-
-	// Check whether there are targets with duplicate endpoints and labels.
-	for key, n := range targetsByEndpoint {
-		if n <= 1 {
-			continue
-		}
-		fmt.Fprintf(w, "!!! Scrape config error: %d duplicate targets with identical endpoint and labels found:\n", n)
-		fmt.Fprintf(w, "\t%s\n", key)
-	}
 }
 
 type jobStatus struct {

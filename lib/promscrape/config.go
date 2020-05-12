@@ -14,6 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
@@ -62,6 +64,8 @@ type ScrapeConfig struct {
 	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
 	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
+	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs"`
+	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs"`
 	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
 	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
@@ -143,38 +147,6 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	return err
 }
 
-func (cfg *Config) kubernetesSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].KubernetesSDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) ec2SDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].EC2SDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) gceSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].GCESDConfigs)
-	}
-	return n
-}
-
-func (cfg *Config) fileSDConfigsCount() int {
-	n := 0
-	for i := range cfg.ScrapeConfigs {
-		n += len(cfg.ScrapeConfigs[i].FileSDConfigs)
-	}
-	return n
-}
-
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 	var dst []ScrapeWork
@@ -183,6 +155,32 @@ func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
 			dst = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
+}
+
+// getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getConsulSDScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.ConsulSDConfigs {
+			sdc := &sc.ConsulSDConfigs[j]
+			dst = appendConsulScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+		}
+	}
+	return dst
+}
+
+// getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDNSSDScrapeWork() []ScrapeWork {
+	var dst []ScrapeWork
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		for j := range sc.DNSSDConfigs {
+			sdc := &sc.DNSSDConfigs[j]
+			dst = appendDNSScrapeWork(dst, sdc, sc.swc)
 		}
 	}
 	return dst
@@ -215,16 +213,16 @@ func (cfg *Config) getGCESDScrapeWork() []ScrapeWork {
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getFileSDScrapeWork(swsPrev []ScrapeWork) []ScrapeWork {
 	// Create a map for the previous scrape work.
-	swPrev := make(map[string][]ScrapeWork)
-	for i := range prev {
-		sw := &prev[i]
+	swsMapPrev := make(map[string][]ScrapeWork)
+	for i := range swsPrev {
+		sw := &swsPrev[i]
 		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
 		if len(filepath) == 0 {
 			logger.Panicf("BUG: missing `__vm_filepath` label")
 		} else {
-			swPrev[filepath] = append(swPrev[filepath], *sw)
+			swsMapPrev[filepath] = append(swsMapPrev[filepath], *sw)
 		}
 	}
 	var dst []ScrapeWork
@@ -232,7 +230,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.FileSDConfigs {
 			sdc := &sc.FileSDConfigs[j]
-			dst = sdc.appendScrapeWork(dst, swPrev, cfg.baseDir, sc.swc)
+			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
 		}
 	}
 	return dst
@@ -333,23 +331,36 @@ type scrapeWorkConfig struct {
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
-	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
+	targetLabels, err := kubernetes.GetLabels(sdc, baseDir)
 	if err != nil {
-		logger.Errorf("cannot parse auth config for `kubernetes_sd_config` for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst
-	}
-	targetLabels, err := kubernetes.GetLabels(ac, sdc)
-	if err != nil {
-		logger.Errorf("error when discovering kubernetes nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
+		logger.Errorf("error when discovering kubernetes targets for `job_name` %q: %s; skipping it", swc.jobName, err)
 		return dst
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config")
 }
 
+func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+	targetLabels, err := consul.GetLabels(sdc, baseDir)
+	if err != nil {
+		logger.Errorf("error when discovering consul targets for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config")
+}
+
+func appendDNSScrapeWork(dst []ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
+	targetLabels, err := dns.GetLabels(sdc)
+	if err != nil {
+		logger.Errorf("error when discovering dns targets for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dns_sd_config")
+}
+
 func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
 	targetLabels, err := ec2.GetLabels(sdc)
 	if err != nil {
-		logger.Errorf("error when discovering ec2 nodes for `job_name` %q: %s; skipping it", swc.jobName, err)
+		logger.Errorf("error when discovering ec2 targets for `job_name` %q: %s; skipping it", swc.jobName, err)
 		return dst
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config")
@@ -358,7 +369,7 @@ func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkCon
 func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
 	targetLabels, err := gce.GetLabels(sdc)
 	if err != nil {
-		logger.Errorf("error when discovering gce nodes for `job_name` %q: %s; skippint it", swc.jobName, err)
+		logger.Errorf("error when discovering gce targets for `job_name` %q: %s; skippint it", swc.jobName, err)
 		return dst
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config")
@@ -377,7 +388,7 @@ func appendScrapeWorkForTargetLabels(dst []ScrapeWork, swc *scrapeWorkConfig, ta
 	return dst
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swsMapPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
 	for _, file := range sdc.Files {
 		pathPattern := getFilepath(baseDir, file)
 		paths := []string{pathPattern}
@@ -394,7 +405,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 			stcs, err := loadStaticConfigs(path)
 			if err != nil {
 				// Do not return this error, since other paths may contain valid scrape configs.
-				if sws := swPrev[path]; sws != nil {
+				if sws := swsMapPrev[path]; sws != nil {
 					// Re-use the previous valid scrape work for this path.
 					logger.Errorf("keeping the previously loaded `static_configs` from %q because of error when re-loading the file: %s", path, err)
 					dst = append(dst, sws...)
@@ -412,7 +423,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swPrev map[string][]
 			}
 			metaLabels := map[string]string{
 				"__meta_filepath": pathShort,
-				"__vm_filepath":   pathShort, // This label is needed for internal promscrape logic
+				"__vm_filepath":   path, // This label is needed for internal promscrape logic
 			}
 			for i := range stcs {
 				dst = stcs[i].appendScrapeWork(dst, swc, metaLabels)
@@ -458,11 +469,11 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		// Drop target without scrape address.
 		return dst, nil
 	}
-	targetRelabeled := addMissingPort(schemeRelabeled, addressRelabeled)
-	if strings.Contains(targetRelabeled, "/") {
+	if strings.Contains(addressRelabeled, "/") {
 		// Drop target with '/'
 		return dst, nil
 	}
+	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
@@ -473,10 +484,18 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		optionalQuestion = ""
 	}
 	paramsStr := url.Values(paramsRelabeled).Encode()
-	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, targetRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
+	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, addressRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
 	if _, err := url.Parse(scrapeURL); err != nil {
 		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
-			scrapeURL, swc.scheme, schemeRelabeled, target, targetRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
+			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
+	}
+	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
+	if promrelabel.GetLabelByName(labels, "instance") == nil {
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "instance",
+			Value: addressRelabeled,
+		})
+		promrelabel.SortLabels(labels)
 	}
 	dst = append(dst, ScrapeWork{
 		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),

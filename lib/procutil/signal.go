@@ -16,8 +16,8 @@ import (
 // since this signal is frequently used for config reloading.
 func WaitForSigterm() os.Signal {
 	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	for {
-		signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 		sig := <-ch
 		if sig == syscall.SIGHUP {
 			// Prevent from the program stop on SIGHUP
@@ -32,4 +32,11 @@ func SelfSIGHUP() {
 	if err := syscall.Kill(syscall.Getpid(), syscall.SIGHUP); err != nil {
 		logger.Panicf("FATAL: cannot send SIGHUP to itself: %s", err)
 	}
+}
+
+// NewSighupChan returns a channel, which is triggered on every SIGHUP.
+func NewSighupChan() <-chan os.Signal {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGHUP)
+	return ch
 }

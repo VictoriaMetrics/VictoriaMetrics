@@ -1866,7 +1866,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 				return nil, err
 			}
 			if metricIDs.Len() > maxMetrics {
-				return nil, fmt.Errorf("the number or unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+				return nil, fmt.Errorf("the number of unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 			}
 			// Stop the iteration, since we cannot find more metric ids with the remaining tfss.
 			break
@@ -1875,7 +1875,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number or matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 		}
 	}
 	if metricIDs.Len() == 0 {

@@ -57,7 +57,7 @@ If you need collecting only Influx data, then the following command line would b
 
 Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
 
-`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/).
+`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
@@ -133,21 +133,20 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details.
 * `kubernetes_sd_configs` - for scraping targets in Kubernetes (k8s).
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
-* `ec2_sd_configs` - for scraping targets in Amazone EC2.
+* `ec2_sd_configs` - for scraping targets in Amazon EC2.
   See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
   `vmagent` doesn't support `role_arn` config param yet.
 * `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
-  `vmagent` provides the following additional functionality `gce_sd_config`:
+  `vmagent` provides the following additional functionality for `gce_sd_config`:
   * if `project` arg is missing, then `vmagent` uses the project for the instance where it runs;
   * if `zone` arg is missing, then `vmagent` uses the zone for the instance where it runs;
   * if `zone` arg equals to `"*"`, then `vmagent` discovers all the zones for the given project;
   * `zone` may contain arbitrary number of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
-
-The following service discovery mechanisms will be added to `vmagent` soon:
-
-* [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
-* [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
+* `consul_sd_configs` - for scraping targets registered in Consul.
+  See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
+* `dns_sd_configs` - for scraping targets discovered from DNS records (SRV, A and AAAA).
+  See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
 
 
 File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
@@ -171,9 +170,8 @@ Additionally it provides the following extra actions:
 
 The relabeling can be defined in the following places:
 
-* At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to targets when parsing the file during `vmagent` startup
-  or during config reload after sending `SIGHUP` signal to `vmagent`  via `kill -HUP`.
-* At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to metrics after each scrape for the configured targets.
+* At `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is applied to target labels.
+* At `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is applied to all the scraped metrics in the given `scrape_config`.
 * At `-remoteWrite.relabelConfig` file. This relabeling is aplied to all the collected metrics before sending them to remote storage.
 * At `-remoteWrite.urlRelabelConfig` files. This relabeling is applied to metrics before sending them to the corresponding `-remoteWrite.url`.
 
@@ -191,7 +189,7 @@ Read more about relabeling in the following articles:
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. It is recommended setting up regular scraping of this page
 either via `vmagent` itself or via Prometheus, so the exported metrics could be analyzed later.
 
-`vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format. This page also exports information on improperly configured scrape configs.
+`vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format.
 
 
 ### Troubleshooting
@@ -203,7 +201,7 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
 
 * It is recommended increasing `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
-  and `vmagent_remotewrite_pending_data_bytes` metric exported by `vmagent` at `/metrics` page constantly grows.
+  and `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow big when remote storage is unavailable during extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
@@ -239,3 +237,24 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ```bash
 ROOT_IMAGE=alpine:3.11 make package-vmagent
 ```
+
+
+### Profiling
+
+`vmagent` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command:
+
+```bash
+curl -s http://<vmagent-host>:8429/debug/pprof/heap > mem.pprof
+```
+
+* CPU profile. It can be collected with the following command:
+
+```bash
+curl -s http://<vmagent-host>:8429/debug/pprof/profile > cpu.pprof
+```
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).

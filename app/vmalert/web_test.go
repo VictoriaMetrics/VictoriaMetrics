@@ -17,12 +17,14 @@ func TestHandler(t *testing.T) {
 			0: {},
 		},
 	}
-	rh := &requestHandler{
-		groups: []Group{{
-			Name:  "group",
-			Rules: []*Rule{rule},
-		}},
+	g := &Group{
+		Name:  "group",
+		Rules: []*Rule{rule},
 	}
+	m := &manager{groups: make(map[uint64]*Group)}
+	m.groups[0] = g
+	rh := &requestHandler{m: m}
+
 	getResp := func(url string, to interface{}, code int) {
 		t.Helper()
 		resp, err := http.Get(url)
@@ -52,19 +54,19 @@ func TestHandler(t *testing.T) {
 			t.Errorf("expected 1 alert got %d", length)
 		}
 	})
-	t.Run("/api/v1/group/0/status", func(t *testing.T) {
+	t.Run("/api/v1/0/0/status", func(t *testing.T) {
 		alert := &APIAlert{}
-		getResp(ts.URL+"/api/v1/group/0/status", alert, 200)
+		getResp(ts.URL+"/api/v1/0/0/status", alert, 200)
 		expAlert := rule.newAlertAPI(*rule.alerts[0])
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
 		}
 	})
-	t.Run("/api/v1/group/1/status", func(t *testing.T) {
-		getResp(ts.URL+"/api/v1/group/1/status", nil, 404)
+	t.Run("/api/v1/0/1/status", func(t *testing.T) {
+		getResp(ts.URL+"/api/v1/0/1/status", nil, 404)
 	})
-	t.Run("/api/v1/unknown-group/0/status", func(t *testing.T) {
-		getResp(ts.URL+"/api/v1/unknown-group/0/status", nil, 404)
+	t.Run("/api/v1/1/0/status", func(t *testing.T) {
+		getResp(ts.URL+"/api/v1/1/0/status", nil, 404)
 	})
 	t.Run("/", func(t *testing.T) {
 		getResp(ts.URL, nil, 200)

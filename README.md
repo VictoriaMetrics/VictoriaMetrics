@@ -20,6 +20,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 ## Case studies and talks
 
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
+* [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
 * [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
 * [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
@@ -138,6 +139,8 @@ The following command-line flags are used the most:
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
+
+Other flags have good enough default values, so set them only if you really need this.
 
 Pass `-help` to see all the available flags with description and default values.
 
@@ -262,6 +265,8 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config)
 * [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config)
 * [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config)
+* [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
+* [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
 
 In the future other `*_sd_config` types will be supported.
 
@@ -312,7 +317,7 @@ to local VictoriaMetrics using `curl`:
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-An arbitrary number of lines delimited by '\n' may be sent in a single request.
+An arbitrary number of lines delimited by '\n' (aka newline char) may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -348,7 +353,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
 VictoriaMetrics sets the current time if the timestamp is omitted.
-An arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -389,7 +394,7 @@ Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-An arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -888,7 +893,8 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ### Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
-These metrics may be collected via Prometheus by adding the corresponding scrape config to it.
+These metrics may be collected by [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md)
+or Prometheus by adding the corresponding scrape config to it.
 Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
 For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
 
@@ -899,18 +905,20 @@ The most interesting metrics are:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
   aka active time series.
-* `rate(vm_new_timeseries_created_total[5m])` - time series churn rate.
-* `vm_rows{type="indexdb"}` - the number of rows in inverted index. High value for this number usually mean high churn rate for time series.
-* Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
-  in the database.
-* `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
+* `increase(vm_new_timeseries_created_total[1h])` - time series churn rate during the previous hour.
+* `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
+* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
-* `sum(vm_data_size_bytes)` - the total data size on disk.
+* `sum(vm_data_size_bytes)` - the total size of data on disk.
+
 
 ### Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
   of tweaking these flag values arises.
+
+* It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+  since the issue could be already fixed there.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.

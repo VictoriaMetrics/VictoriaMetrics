@@ -12,15 +12,10 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metricsql"
 )
-
-// Group grouping array of alert
-type Group struct {
-	Name  string
-	Rules []*Rule
-}
 
 // Rule is basic alert entity
 type Rule struct {
@@ -30,7 +25,7 @@ type Rule struct {
 	Labels      map[string]string `yaml:"labels"`
 	Annotations map[string]string `yaml:"annotations"`
 
-	group *Group
+	group Group
 
 	// guard status fields
 	mu sync.RWMutex
@@ -42,6 +37,10 @@ type Rule struct {
 	// resets on every successful Exec
 	// may be used as Health state
 	lastExecError error
+}
+
+func (r *Rule) id() string {
+	return r.Name
 }
 
 // Validate validates rule
@@ -83,7 +82,17 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	for _, m := range qMetrics {
 		h := hash(m)
 		updated[h] = struct{}{}
-		if _, ok := r.alerts[h]; ok {
+		if a, ok := r.alerts[h]; ok {
+			if a.Value != m.Value {
+				// update Value field with latest value
+				a.Value = m.Value
+				// and re-exec template since Value can be used
+				// in templates
+				err = r.template(a)
+				if err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		a, err := r.newAlert(m)
@@ -125,6 +134,10 @@ func hash(m datasource.Metric) uint64 {
 		return labels[i].Name < labels[j].Name
 	})
 	for _, l := range labels {
+		// drop __name__ to be consistent with Prometheus alerting
+		if l.Name == "__name__" {
+			continue
+		}
 		hash.Write([]byte(l.Name))
 		hash.Write([]byte(l.Value))
 		hash.Write([]byte("\xff"))
@@ -134,40 +147,45 @@ func hash(m datasource.Metric) uint64 {
 
 func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 	a := &notifier.Alert{
-		Group:  r.group.Name,
-		Name:   r.Name,
-		Labels: map[string]string{},
-		Value:  m.Value,
-		Start:  time.Now(),
+		GroupID: r.group.ID(),
+		Name:    r.Name,
+		Labels:  map[string]string{},
+		Value:   m.Value,
+		Start:   time.Now(),
 		// TODO: support End time
 	}
-
-	// 1. use data labels
 	for _, l := range m.Labels {
+		// drop __name__ to be consistent with Prometheus alerting
+		if l.Name == "__name__" {
+			continue
+		}
 		a.Labels[l.Name] = l.Value
 	}
+	return a, r.template(a)
+}
 
-	// 2. template rule labels with data labels
+func (r *Rule) template(a *notifier.Alert) error {
+	// 1. template rule labels with data labels
 	rLabels, err := a.ExecTemplate(r.Labels)
 	if err != nil {
-		return a, err
+		return err
 	}
 
-	// 3. merge data labels and rule labels
+	// 2. merge data labels and rule labels
 	// metric labels may be overridden by
 	// rule labels
 	for k, v := range rLabels {
 		a.Labels[k] = v
 	}
 
-	// 4. template merged labels
+	// 3. template merged labels
 	a.Labels, err = a.ExecTemplate(a.Labels)
 	if err != nil {
-		return a, err
+		return err
 	}
 
 	a.Annotations, err = a.ExecTemplate(r.Annotations)
-	return a, err
+	return err
 }
 
 // AlertAPI generates APIAlert object from alert by its id(hash)
@@ -194,9 +212,11 @@ func (r *Rule) AlertsAPI() []*APIAlert {
 
 func (r *Rule) newAlertAPI(a notifier.Alert) *APIAlert {
 	return &APIAlert{
-		ID:          a.ID,
+		// encode as strings to avoid rounding
+		ID:      fmt.Sprintf("%d", a.ID),
+		GroupID: fmt.Sprintf("%d", a.GroupID),
+
 		Name:        a.Name,
-		Group:       a.Group,
 		Expression:  r.Expr,
 		Labels:      a.Labels,
 		Annotations: a.Annotations,
@@ -239,6 +259,8 @@ func alertToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prom
 	return newTimeSeries(1, labels, timestamp)
 }
 
+// alertForToTimeSeries returns a timeseries that represents
+// state of active alerts, where value is time when alert become active
 func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) prompbmarshal.TimeSeries {
 	labels := make(map[string]string)
 	for k, v := range a.Labels {
@@ -267,4 +289,47 @@ func newTimeSeries(value float64, labels map[string]string, timestamp time.Time)
 		})
 	}
 	return ts
+}
+
+// Restore restores the state of active alerts basing on previously written timeseries.
+// Restore restores only Start field. Field State will be always Pending and supposed
+// to be updated on next Eval, as well as Value field.
+func (r *Rule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+	// Get the last datapoint in range via MetricsQL `last_over_time`.
+	// We don't use plain PromQL since Prometheus doesn't support
+	// remote write protocol which is used for state persistence in vmalert.
+	expr := fmt.Sprintf("last_over_time(%s{alertname=%q}[%ds])",
+		alertForStateMetricName, r.Name, int(lookback.Seconds()))
+	qMetrics, err := q.Query(ctx, expr)
+	if err != nil {
+		return err
+	}
+
+	for _, m := range qMetrics {
+		labels := m.Labels
+		m.Labels = make([]datasource.Label, 0)
+		// drop all extra labels, so hash key will
+		// be identical to timeseries received in Eval
+		for _, l := range labels {
+			if l.Name == alertNameLabel {
+				continue
+			}
+			// drop all overridden labels
+			if _, ok := r.Labels[l.Name]; ok {
+				continue
+			}
+			m.Labels = append(m.Labels, l)
+		}
+
+		a, err := r.newAlert(m)
+		if err != nil {
+			return fmt.Errorf("failed to create alert: %s", err)
+		}
+		a.ID = hash(m)
+		a.State = notifier.StatePending
+		a.Start = time.Unix(int64(m.Value), 0)
+		r.alerts[a.ID] = a
+		logger.Infof("alert %q(%d) restored to state at %v", a.Name, a.ID, a.Start)
+	}
+	return nil
 }

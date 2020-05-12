@@ -230,7 +230,8 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			}
 			s = s[n+1:]
 		}
-		if len(key) > 0 && len(value) > 0 {
+		if len(key) > 0 {
+			// Allow empty values (len(value)==0) - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
 			if cap(dst) > len(dst) {
 				dst = dst[:len(dst)+1]
 			} else {

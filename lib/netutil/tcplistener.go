@@ -49,20 +49,6 @@ func getNetwork() string {
 //
 // It also gathers various stats for the accepted connections.
 type TCPListener struct {
-	// ReadTimeout is timeout for each Read call on accepted conns.
-	//
-	// By default it isn't set.
-	//
-	// Set ReadTimeout before calling Accept the first time.
-	ReadTimeout time.Duration
-
-	// WriteTimeout is timeout for each Write call on accepted conns.
-	//
-	// By default it isn't set.
-	//
-	// Set WriteTimeout before calling Accept the first time.
-	WriteTimeout time.Duration
-
 	net.Listener
 
 	accepts      *metrics.Counter
@@ -87,9 +73,6 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 		}
 		ln.conns.Inc()
 		sc := &statConn{
-			readTimeout:  ln.ReadTimeout,
-			writeTimeout: ln.WriteTimeout,
-
 			Conn: conn,
 			cm:   &ln.connMetrics,
 		}
