@@ -535,12 +535,10 @@ func (p *parser) parseAggrFuncExpr() (*AggrFuncExpr, error) {
 	if isIdentPrefix(p.lex.Token) {
 		goto funcPrefixLabel
 	}
-	switch p.lex.Token {
-	case "(":
+	if p.lex.Token == "(" {
 		goto funcArgsLabel
-	default:
-		return nil, fmt.Errorf(`AggrFuncExpr: unexpected token %q; want "("`, p.lex.Token)
 	}
+	return nil, fmt.Errorf(`AggrFuncExpr: unexpected token %q; want "("`, p.lex.Token)
 
 funcPrefixLabel:
 	{
@@ -550,7 +548,6 @@ funcPrefixLabel:
 		if err := p.parseModifierExpr(&ae.Modifier); err != nil {
 			return nil, err
 		}
-		goto funcArgsLabel
 	}
 
 funcArgsLabel:
@@ -562,11 +559,25 @@ funcArgsLabel:
 		ae.Args = args
 
 		// Verify whether func suffix exists.
-		if ae.Modifier.Op != "" || !isAggrFuncModifier(p.lex.Token) {
-			return &ae, nil
+		if ae.Modifier.Op == "" && isAggrFuncModifier(p.lex.Token) {
+			if err := p.parseModifierExpr(&ae.Modifier); err != nil {
+				return nil, err
+			}
 		}
-		if err := p.parseModifierExpr(&ae.Modifier); err != nil {
-			return nil, err
+
+		// Check for optional limit.
+		if strings.ToLower(p.lex.Token) == "limit" {
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			limit, err := strconv.Atoi(p.lex.Token)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse limit %q: %s", p.lex.Token, err)
+			}
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			ae.Limit = limit
 		}
 		return &ae, nil
 	}
@@ -640,6 +651,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 			Name:     t.Name,
 			Args:     args,
 			Modifier: t.Modifier,
+			Limit:    t.Limit,
 		}
 		ae.Modifier.Args = modifierArgs
 		return ae, nil
@@ -1495,6 +1507,12 @@ type AggrFuncExpr struct {
 
 	// Modifier is optional modifier such as `by (...)` or `without (...)`.
 	Modifier ModifierExpr
+
+	// Optional limit for the number of output time series.
+	// This is MetricsQL extension.
+	//
+	// Example: `sum(...) by (...) limit 10` would return maximum 10 time series.
+	Limit int
 }
 
 // AppendString appends string representation of ae to dst and returns the result.
@@ -1504,6 +1522,10 @@ func (ae *AggrFuncExpr) AppendString(dst []byte) []byte {
 	if ae.Modifier.Op != "" {
 		dst = append(dst, ' ')
 		dst = ae.Modifier.AppendString(dst)
+	}
+	if ae.Limit > 0 {
+		dst = append(dst, " limit "...)
+		dst = strconv.AppendInt(dst, int64(ae.Limit), 10)
 	}
 	return dst
 }

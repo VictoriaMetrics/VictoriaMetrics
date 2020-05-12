@@ -663,12 +663,17 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	pointsPerTimeseries := 1 + (ec.End-ec.Start)/ec.Step
 	timeseriesLen := rssLen
 	if iafc != nil {
-		// Incremental aggregates require hold only GOMAXPROCS timeseries in memory.
+		// Incremental aggregates require holding only GOMAXPROCS timeseries in memory.
 		timeseriesLen = runtime.GOMAXPROCS(-1)
 		if iafc.ae.Modifier.Op != "" {
-			// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
-			// since each group can have own set of time series in memory.
-			timeseriesLen *= 1000
+			if iafc.ae.Limit > 0 {
+				// There is an explicit limit on the number of output time series.
+				timeseriesLen *= iafc.ae.Limit
+			} else {
+				// Increase the number of timeseries for non-empty group list: `aggr() by (something)`,
+				// since each group can have own set of time series in memory.
+				timeseriesLen *= 1000
+			}
 		}
 		// The maximum number of output time series is limited by rssLen.
 		if timeseriesLen > rssLen {
