@@ -13,7 +13,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -113,7 +112,6 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 		Addr:                host,
 		Name:                "vmagent",
 		Dial:                statDial,
-		DialDualStack:       netutil.TCP6Enabled(),
 		IsTLS:               isTLS,
 		TLSConfig:           tlsCfg,
 		MaxConns:            maxConns,
