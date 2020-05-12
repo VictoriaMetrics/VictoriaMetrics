@@ -117,6 +117,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.indexFile = indexFile
 
 	p.metaindex = metaindex
+	p.ibCache = newIndexBlockCache()
 
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
@@ -124,8 +125,6 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 		p.MustClose()
 		return nil, err
 	}
-
-	p.ibCache = newIndexBlockCache()
 
 	return &p, nil
 }
