@@ -30,6 +30,10 @@ var (
 
 // Server processes connections from vminsert and vmselect.
 type Server struct {
+	// Move stopFlag to the top of the struct in order to fix atomic access to it on 32-bit arches.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
+	stopFlag uint64
+
 	storage *storage.Storage
 
 	vminsertLN net.Listener
@@ -40,8 +44,6 @@ type Server struct {
 
 	vminsertConnsMap connsMap
 	vmselectConnsMap connsMap
-
-	stopFlag uint64
 }
 
 type connsMap struct {
