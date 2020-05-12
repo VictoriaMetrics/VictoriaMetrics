@@ -47,6 +47,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery",
     "release_level": "ga"
   },
+  "cloud.google.com/go/bigquery/connection/apiv1": {
+    "distribution_name": "cloud.google.com/go/bigquery/connection/apiv1",
+    "description": "BigQuery Connection API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery/connection/apiv1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/bigquery/connection/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/bigquery/connection/apiv1beta1",
     "description": "BigQuery Connection API",
@@ -63,13 +71,21 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery/datatransfer/apiv1",
     "release_level": "ga"
   },
+  "cloud.google.com/go/bigquery/reservation/apiv1": {
+    "distribution_name": "cloud.google.com/go/bigquery/reservation/apiv1",
+    "description": "BigQuery Reservation API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery/reservation/apiv1",
+    "release_level": "ga"
+  },
   "cloud.google.com/go/bigquery/reservation/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/bigquery/reservation/apiv1beta1",
     "description": "BigQuery Reservation API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery/reservation/apiv1beta1",
-    "release_level": "alpha"
+    "release_level": "beta"
   },
   "cloud.google.com/go/bigquery/storage/apiv1": {
     "distribution_name": "cloud.google.com/go/bigquery/storage/apiv1",
@@ -77,7 +93,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery/storage/apiv1",
-    "release_level": "alpha"
+    "release_level": "ga"
   },
   "cloud.google.com/go/bigquery/storage/apiv1alpha2": {
     "distribution_name": "cloud.google.com/go/bigquery/storage/apiv1alpha2",
@@ -247,14 +263,6 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/errorreporting/apiv1beta1",
     "release_level": "beta"
   },
-  "cloud.google.com/go/expr/apiv1alpha1": {
-    "distribution_name": "cloud.google.com/go/expr/apiv1alpha1",
-    "description": "Common Expression Language",
-    "language": "Go",
-    "client_library_type": "generated",
-    "docs_url": "https://pkg.go.dev/cloud.google.com/go/expr/apiv1alpha1",
-    "release_level": "alpha"
-  },
   "cloud.google.com/go/firestore": {
     "distribution_name": "cloud.google.com/go/firestore",
     "description": "Cloud Firestore API",
@@ -389,6 +397,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/osconfig/agentendpoint/apiv1beta",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/osconfig/apiv1": {
+    "distribution_name": "cloud.google.com/go/osconfig/apiv1",
+    "description": "Cloud OS Config API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/osconfig/apiv1",
     "release_level": "beta"
   },
   "cloud.google.com/go/osconfig/apiv1beta": {
