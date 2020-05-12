@@ -2,11 +2,9 @@ package remotewrite
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -28,6 +27,8 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	tlsCAFile = flagutil.NewArray("remoteWrite.tlsCAFile", "Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. "+
 		"By default system CA is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
+	tlsServerName = flagutil.NewArray("remoteWrite.tlsServerName", "Optional TLS server name to use for connections to -remoteWrite.url. "+
+		"By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 
 	basicAuthUsername = flagutil.NewArray("remoteWrite.basicAuth.username", "Optional basic auth username to use for -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
@@ -152,37 +153,18 @@ func (c *client) MustStop() {
 }
 
 func getTLSConfig(argIdx int) (*tls.Config, error) {
-	var tlsRootCA *x509.CertPool
-	var tlsCertificate *tls.Certificate
-	certFile := tlsCertFile.GetOptionalArg(argIdx)
-	keyFile := tlsKeyFile.GetOptionalArg(argIdx)
-	if certFile != "" || keyFile != "" {
-		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load TLS certificate for -remoteWrite.tlsCertFile=%q and -remoteWrite.tlsKeyFile=%q: %s", certFile, keyFile, err)
-		}
-		tlsCertificate = &cert
+	tlsConfig := &promauth.TLSConfig{
+		CAFile:             tlsCAFile.GetOptionalArg(argIdx),
+		CertFile:           tlsCertFile.GetOptionalArg(argIdx),
+		KeyFile:            tlsKeyFile.GetOptionalArg(argIdx),
+		ServerName:         tlsServerName.GetOptionalArg(argIdx),
+		InsecureSkipVerify: *tlsInsecureSkipVerify,
 	}
-	if caFile := tlsCAFile.GetOptionalArg(argIdx); caFile != "" {
-		data, err := ioutil.ReadFile(caFile)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read -remoteWrite.tlsCAFile=%q: %s", caFile, err)
-		}
-		tlsRootCA = x509.NewCertPool()
-		if !tlsRootCA.AppendCertsFromPEM(data) {
-			return nil, fmt.Errorf("cannot parse data -remoteWrite.tlsCAFile=%q", caFile)
-		}
+	cfg, err := promauth.NewConfig(".", nil, "", "", tlsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("cannot populate TLS config: %s", err)
 	}
-	tlsCfg := &tls.Config{
-		RootCAs:            tlsRootCA,
-		ClientSessionCache: tls.NewLRUClientSessionCache(0),
-	}
-	if tlsCertificate != nil {
-		tlsCfg.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			return tlsCertificate, nil
-		}
-	}
-	tlsCfg.InsecureSkipVerify = *tlsInsecureSkipVerify
+	tlsCfg := cfg.NewTLSConfig()
 	return tlsCfg, nil
 }
 
