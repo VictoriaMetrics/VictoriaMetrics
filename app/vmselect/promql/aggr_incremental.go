@@ -48,6 +48,11 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 		mergeAggrFunc:    mergeAggrGeomean,
 		finalizeAggrFunc: finalizeAggrGeomean,
 	},
+	"any": {
+		updateAggrFunc:   updateAggrAny,
+		mergeAggrFunc:    mergeAggrAny,
+		finalizeAggrFunc: finalizeAggrCommon,
+	},
 }
 
 type incrementalAggrFuncContext struct {
@@ -457,4 +462,26 @@ func finalizeAggrGeomean(iac *incrementalAggrContext) {
 		}
 		dstValues[i] = math.Pow(dstValues[i], 1/v)
 	}
+}
+
+func updateAggrAny(iac *incrementalAggrContext, values []float64) {
+	dstValues := iac.ts.Values
+	dstCounts := iac.values
+	if dstCounts[0] > 0 {
+		return
+	}
+	dstCounts[0] = 1
+	dstValues = append(dstValues[:0], values...)
+}
+
+func mergeAggrAny(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	dstValues := dst.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	if dstCounts[0] > 0 {
+		return
+	}
+	dstCounts[0] = srcCounts[0]
+	dstValues = append(dstValues[:0], srcValues...)
 }
