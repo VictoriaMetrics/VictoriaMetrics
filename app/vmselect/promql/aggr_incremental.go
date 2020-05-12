@@ -470,7 +470,9 @@ func updateAggrAny(iac *incrementalAggrContext, values []float64) {
 	if dstCounts[0] > 0 {
 		return
 	}
-	dstCounts[0] = 1
+	for i := range values {
+		dstCounts[i] = 1
+	}
 	dstValues = append(dstValues[:0], values...)
 }
 
