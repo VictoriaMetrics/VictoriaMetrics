@@ -1,7 +1,5 @@
-[![Build Status](https://github.com/VictoriaMetrics/metricsql/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/metricsql/actions)
 [![GoDoc](https://godoc.org/github.com/VictoriaMetrics/metricsql?status.svg)](http://godoc.org/github.com/VictoriaMetrics/metricsql)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/metricsql)](https://goreportcard.com/report/github.com/VictoriaMetrics/metricsql)
-[![codecov](https://codecov.io/gh/VictoriaMetrics/metricsql/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/metricsql)
 
 
 # metricsql

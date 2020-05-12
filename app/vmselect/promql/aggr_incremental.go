@@ -81,6 +81,10 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries, workerI
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 	iac := m[string(bb.B)]
 	if iac == nil {
+		if iafc.ae.Limit > 0 && len(m) >= iafc.ae.Limit {
+			// Skip this time series, since the limit on the number of output time series has been already reached.
+			return
+		}
 		tsAggr := &timeseries{
 			Values:     make([]float64, len(ts.Values)),
 			Timestamps: ts.Timestamps,
@@ -106,6 +110,10 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 		for k, iac := range m {
 			iacGlobal := mGlobal[k]
 			if iacGlobal == nil {
+				if iafc.ae.Limit > 0 && len(mGlobal) >= iafc.ae.Limit {
+					// Skip this time series, since the limit on the number of output time series has been already reached.
+					continue
+				}
 				mGlobal[k] = iac
 				continue
 			}
