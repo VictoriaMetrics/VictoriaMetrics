@@ -21,10 +21,15 @@ func MarshalWriteRequest(dst []byte, wr *WriteRequest) []byte {
 
 // ResetWriteRequest resets wr.
 func ResetWriteRequest(wr *WriteRequest) {
-	for i := range wr.Timeseries {
-		ts := wr.Timeseries[i]
+	wr.Timeseries = ResetTimeSeries(wr.Timeseries)
+}
+
+// ResetTimeSeries clears all the GC references from tss and returns an empty tss ready for further use.
+func ResetTimeSeries(tss []TimeSeries) []TimeSeries {
+	for i := range tss {
+		ts := tss[i]
 		ts.Labels = nil
 		ts.Samples = nil
 	}
-	wr.Timeseries = wr.Timeseries[:0]
+	return tss[:0]
 }
