@@ -43,6 +43,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
+	"any":            newAggrFunc(aggrFuncAny),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -116,6 +117,10 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 		}
 	}
 	return rvs, nil
+}
+
+func aggrFuncAny(tss []*timeseries) []*timeseries {
+	return tss[:1]
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {
