@@ -159,7 +159,7 @@ func (g *Group) start(ctx context.Context,
 						// set End to execStart + 3 intervals
 						// so notifier can resolve it automatically if `vmalert`
 						// won't be able to send resolve for some reason
-						a.End = execStart.Add(3 * interval)
+						a.End = execStart.Add(3 * g.Interval)
 						alertsToSend = append(alertsToSend, *a)
 						pushToRW(rw, rule, a, execStart)
 					case notifier.StatePending:
