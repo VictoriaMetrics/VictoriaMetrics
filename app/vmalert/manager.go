@@ -64,10 +64,15 @@ func (m *manager) startGroup(ctx context.Context, group Group, restore bool) {
 		}
 	}
 
+	interval := *evaluationInterval
+	if group.Interval > 0 {
+		interval = group.Interval
+	}
+
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
-		group.start(ctx, *evaluationInterval, m.storage, m.notifier, m.rw)
+		group.start(ctx, interval, m.storage, m.notifier, m.rw)
 		m.wg.Done()
 	}()
 	m.groups[id] = &group

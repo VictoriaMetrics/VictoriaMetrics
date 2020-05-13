@@ -17,6 +17,7 @@ import (
 type Group struct {
 	Name  string
 	File  string
+	Interval time.Duration `yaml:"interval"`
 	Rules []*Rule
 
 	done     chan struct{}
