@@ -465,7 +465,6 @@ func finalizeAggrGeomean(iac *incrementalAggrContext) {
 }
 
 func updateAggrAny(iac *incrementalAggrContext, values []float64) {
-	dstValues := iac.ts.Values
 	dstCounts := iac.values
 	if dstCounts[0] > 0 {
 		return
@@ -473,17 +472,16 @@ func updateAggrAny(iac *incrementalAggrContext, values []float64) {
 	for i := range values {
 		dstCounts[i] = 1
 	}
-	dstValues = append(dstValues[:0], values...)
+	iac.ts.Values = append(iac.ts.Values[:0], values...)
 }
 
 func mergeAggrAny(dst, src *incrementalAggrContext) {
 	srcValues := src.ts.Values
-	dstValues := dst.ts.Values
 	srcCounts := src.values
 	dstCounts := dst.values
 	if dstCounts[0] > 0 {
 		return
 	}
 	dstCounts[0] = srcCounts[0]
-	dstValues = append(dstValues[:0], srcValues...)
+	dst.ts.Values = append(dst.ts.Values[:0], srcValues...)
 }
