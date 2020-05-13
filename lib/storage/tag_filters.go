@@ -479,7 +479,16 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 				literals = append(literals, []byte(string(sub.Rune)))
 			}
 		}
+		var suffix []byte
+		if isLiteral(sre.Sub[len(sre.Sub)-1]) {
+			suffix = literals[len(literals)-1]
+			literals = literals[:len(literals)-1]
+		}
 		return func(b []byte) bool {
+			if len(suffix) > 0 && !bytes.HasSuffix(b, suffix) {
+				// Fast path - b has no the given suffix
+				return false
+			}
 			bOrig := b
 			for _, literal := range literals {
 				n := bytes.Index(b, literal)
