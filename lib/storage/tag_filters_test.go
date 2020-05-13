@@ -68,6 +68,7 @@ func TestGetRegexpFromCache(t *testing.T) {
 	f(".*foo.*bar", nil, []string{"foobar", "xfoobar", "xfooxbar", "fooxbar"}, []string{"", "foobarx", "afoobarx", "aaa"})
 	f("foo.*bar", nil, []string{"foobar", "fooxbar"}, []string{"xfoobar", "", "foobarx", "aaa"})
 	f("foo.*bar.*", nil, []string{"foobar", "fooxbar", "foobarx", "fooxbarx"}, []string{"", "afoobarx", "aaa", "afoobar"})
+	f("foo.*bar.*baz", nil, []string{"foobarbaz", "fooxbarxbaz", "foobarxbaz", "fooxbarbaz"}, []string{"", "afoobarx", "aaa", "afoobar", "foobarzaz"})
 	f(".+foo.+(b|c).+", nil, []string{"xfooxbar", "xfooxca"}, []string{"", "foo", "foob", "xfooc", "xfoodc"})
 
 	f("(?i)foo", nil, []string{"foo", "Foo", "FOO"}, []string{"xfoo", "foobar", "xFOObar"})
