@@ -41,7 +41,7 @@ absolute path to all .yaml files in root.`)
 		" in form of timeseries. E.g. http://127.0.0.1:8428")
 	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remotewrite.url")
 	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remotewrite.url")
-	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 100, "Optional remote write maxQueueSize, default 100, you need to make it bigger if push print err: `failed to push timeseries to remotewrite: failed to push timeseries - queue is full`")
+	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 10000, "Optional Defines the max number of pending datapoints to remote write endpoint")
 
 	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
 		" state. This configuration makes sense only if `vmalert` was configured with `remotewrite.url` before and has been successfully persisted its state."+

@@ -94,6 +94,9 @@ Usage of vmalert:
         Optional basic auth password for -remotewrite.url
   -remotewrite.basicAuth.username string
         Optional basic auth username for -remotewrite.url
+  -remoteWrite.maxQueueSize
+	    Optional Defines the max number of pending datapoints to remote write endpoint
+        
   -remotewrite.url string
         Optional URL to Victoria Metrics or VMInsert where to persist alerts state in form of timeseries. E.g. http://127.0.0.1:8428
   -rule value

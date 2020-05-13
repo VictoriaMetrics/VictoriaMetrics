@@ -103,7 +103,7 @@ func (c *Client) Push(s prompbmarshal.TimeSeries) error {
 	case c.input <- s:
 		return nil
 	default:
-		return fmt.Errorf("failed to push timeseries - queue is full (%d entries)",
+		return fmt.Errorf("failed to push timeseries - queue is full (%d entries), hint from description and add recommendation to increaseremoteWrite.maxQueueSize",
 			c.maxQueueSize)
 	}
 }
