@@ -648,7 +648,7 @@ func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) er
 	if len(mn.Tags) > 1 {
 		dst.InstanceID = uint32(xxhash.Sum64(mn.Tags[1].Value))
 	}
-	dst.MetricID = getUniqueUint64()
+	dst.MetricID = generateUniqueMetricID()
 	return nil
 }
 
@@ -2823,14 +2823,17 @@ func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, fil
 var kbPool bytesutil.ByteBufferPool
 
 // Returns local unique MetricID.
-func getUniqueUint64() uint64 {
-	return atomic.AddUint64(&uniqueUint64, 1)
+func generateUniqueMetricID() uint64 {
+	// It is expected that metricIDs returned from this function must be dense.
+	// If they will be sparse, then this may hurt metric_ids intersection
+	// performance with uint64set.Set.
+	return atomic.AddUint64(&nextUniqueMetricID, 1)
 }
 
 // This number mustn't go backwards on restarts, otherwise metricID
 // collisions are possible. So don't change time on the server
 // between VictoriaMetrics restarts.
-var uniqueUint64 = uint64(time.Now().UnixNano())
+var nextUniqueMetricID = uint64(time.Now().UnixNano())
 
 func marshalCommonPrefix(dst []byte, nsPrefix byte, accountID, projectID uint32) []byte {
 	dst = append(dst, nsPrefix)
