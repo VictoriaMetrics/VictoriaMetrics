@@ -148,18 +148,18 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 	for i := 0; i < blockHeadersCount; i++ {
 		tail, err := dst[dstLen+i].Unmarshal(src)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal block header: %s", err)
+			return dst, fmt.Errorf("cannot unmarshal block header: %s", err)
 		}
 		src = tail
 	}
 	if len(src) > 0 {
-		return nil, fmt.Errorf("unexpected non-zero tail left after unmarshaling %d block headers; len(tail)=%d", blockHeadersCount, len(src))
+		return dst, fmt.Errorf("unexpected non-zero tail left after unmarshaling %d block headers; len(tail)=%d", blockHeadersCount, len(src))
 	}
 	newBHS := dst[dstLen:]
 
 	// Verify that block headers are sorted by firstItem.
 	if !sort.SliceIsSorted(newBHS, func(i, j int) bool { return string(newBHS[i].firstItem) < string(newBHS[j].firstItem) }) {
-		return nil, fmt.Errorf("block headers must be sorted by firstItem; unmarshaled unsorted block headers: %#v", newBHS)
+		return dst, fmt.Errorf("block headers must be sorted by firstItem; unmarshaled unsorted block headers: %#v", newBHS)
 	}
 
 	return dst, nil
