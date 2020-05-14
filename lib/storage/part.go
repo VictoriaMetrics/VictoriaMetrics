@@ -257,7 +257,7 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 	return nil
 }
 
-func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
+func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) {
 	ibc.mu.Lock()
 
 	// Clean superflouos cache entries.
@@ -281,7 +281,6 @@ func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
 	}
 	ibc.m[k] = ibe
 	ibc.mu.Unlock()
-	return true
 }
 
 func (ibc *indexBlockCache) Requests() uint64 {
