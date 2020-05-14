@@ -122,6 +122,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 			a.State = notifier.StateFiring
 			alertsFired.Inc()
 		}
+		
 	}
 	return nil
 }
