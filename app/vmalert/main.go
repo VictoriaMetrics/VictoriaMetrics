@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -99,7 +100,7 @@ func main() {
 	go func() {
 		// init reload metrics with positive values to improve alerting conditions
 		configSuccess.Set(1)
-		configTimestamp.Set(uint64(time.Now().UnixNano()) / 1e9)
+		configTimestamp.Set(fasttime.UnixTimestamp())
 		sigHup := procutil.NewSighupChan()
 		for {
 			<-sigHup
@@ -112,7 +113,7 @@ func main() {
 				continue
 			}
 			configSuccess.Set(1)
-			configTimestamp.Set(uint64(time.Now().UnixNano()) / 1e9)
+			configTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("Rules reloaded successfully from %q", *rulePath)
 		}
 	}()

@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -64,18 +65,18 @@ func InitRollupResultCache(cachePath string) {
 
 	stats := &fastcache.Stats{}
 	var statsLock sync.Mutex
-	var statsLastUpdate time.Time
+	var statsLastUpdate uint64
 	fcs := func() *fastcache.Stats {
 		statsLock.Lock()
 		defer statsLock.Unlock()
 
-		if time.Since(statsLastUpdate) < time.Second {
+		if fasttime.UnixTimestamp()-statsLastUpdate < 2 {
 			return stats
 		}
 		var fcs fastcache.Stats
 		c.UpdateStats(&fcs)
 		stats = &fcs
-		statsLastUpdate = time.Now()
+		statsLastUpdate = fasttime.UnixTimestamp()
 		return stats
 	}
 	if len(rollupResultCachePath) > 0 {

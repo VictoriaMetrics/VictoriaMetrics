@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -102,7 +103,7 @@ type Table struct {
 
 	rawItemsBlocks        []*inmemoryBlock
 	rawItemsLock          sync.Mutex
-	rawItemsLastFlushTime time.Time
+	rawItemsLastFlushTime uint64
 
 	snapshotLock sync.RWMutex
 
@@ -369,7 +370,7 @@ func (tb *Table) AddItems(items [][]byte) error {
 	if len(tb.rawItemsBlocks) >= 1024 {
 		blocksToMerge = tb.rawItemsBlocks
 		tb.rawItemsBlocks = nil
-		tb.rawItemsLastFlushTime = time.Now()
+		tb.rawItemsLastFlushTime = fasttime.UnixTimestamp()
 	}
 	tb.rawItemsLock.Unlock()
 
@@ -508,11 +509,15 @@ func (tb *Table) flushRawItems(isFinal bool) {
 	defer tb.rawItemsPendingFlushesWG.Done()
 
 	mustFlush := false
-	currentTime := time.Now()
+	currentTime := fasttime.UnixTimestamp()
+	flushSeconds := int64(rawItemsFlushInterval.Seconds())
+	if flushSeconds <= 0 {
+		flushSeconds = 1
+	}
 	var blocksToMerge []*inmemoryBlock
 
 	tb.rawItemsLock.Lock()
-	if isFinal || currentTime.Sub(tb.rawItemsLastFlushTime) > rawItemsFlushInterval {
+	if isFinal || currentTime-tb.rawItemsLastFlushTime > uint64(flushSeconds) {
 		mustFlush = true
 		blocksToMerge = tb.rawItemsBlocks
 		tb.rawItemsBlocks = nil
@@ -674,7 +679,7 @@ const (
 
 func (tb *Table) partMerger() error {
 	sleepTime := minMergeSleepTime
-	var lastMergeTime time.Time
+	var lastMergeTime uint64
 	isFinal := false
 	t := time.NewTimer(sleepTime)
 	for {
@@ -682,7 +687,7 @@ func (tb *Table) partMerger() error {
 		if err == nil {
 			// Try merging additional parts.
 			sleepTime = minMergeSleepTime
-			lastMergeTime = time.Now()
+			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = false
 			continue
 		}
@@ -693,10 +698,10 @@ func (tb *Table) partMerger() error {
 		if err != errNothingToMerge {
 			return err
 		}
-		if time.Since(lastMergeTime) > 30*time.Second {
+		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
 			// We have free time for merging into bigger parts.
 			// This should improve select performance.
-			lastMergeTime = time.Now()
+			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = true
 			continue
 		}
@@ -892,15 +897,15 @@ func (tb *Table) nextMergeIdx() uint64 {
 
 var (
 	maxOutPartItemsLock     sync.Mutex
-	maxOutPartItemsDeadline time.Time
+	maxOutPartItemsDeadline uint64
 	lastMaxOutPartItems     uint64
 )
 
 func (tb *Table) maxOutPartItems() uint64 {
 	maxOutPartItemsLock.Lock()
-	if time.Until(maxOutPartItemsDeadline) < 0 {
+	if maxOutPartItemsDeadline < fasttime.UnixTimestamp() {
 		lastMaxOutPartItems = tb.maxOutPartItemsSlow()
-		maxOutPartItemsDeadline = time.Now().Add(time.Second)
+		maxOutPartItemsDeadline = fasttime.UnixTimestamp() + 2
 	}
 	n := lastMaxOutPartItems
 	maxOutPartItemsLock.Unlock()

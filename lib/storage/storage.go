@@ -17,6 +17,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -142,14 +143,14 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/8)
 	s.dateMetricIDCache = newDateMetricIDCache()
 
-	hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+	hour := fasttime.UnixHour()
 	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids")
 	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
 
-	date := uint64(timestampFromTime(time.Now())) / msecPerDay
+	date := fasttime.UnixDate()
 	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
@@ -1138,7 +1139,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	idb := s.idb()
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
-	todayShare16bit := uint64((float64(uint64(time.Now().UnixNano()/1e9)%(3600*24)) / (3600 * 24)) * (1 << 16))
+	todayShare16bit := uint64((float64(fasttime.UnixTimestamp()%(3600*24)) / (3600 * 24)) * (1 << 16))
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -1213,7 +1214,7 @@ type dateMetricIDCache struct {
 
 	// Contains mutable map protected by mu
 	byDateMutable *byDateMetricIDMap
-	lastSyncTime  time.Time
+	lastSyncTime  uint64
 	mu            sync.Mutex
 }
 
@@ -1228,7 +1229,7 @@ func (dmc *dateMetricIDCache) Reset() {
 	// Do not reset syncsCount and resetsCount
 	dmc.byDate.Store(newByDateMetricIDMap())
 	dmc.byDateMutable = newByDateMetricIDMap()
-	dmc.lastSyncTime = time.Now()
+	dmc.lastSyncTime = fasttime.UnixTimestamp()
 	dmc.mu.Unlock()
 
 	atomic.AddUint64(&dmc.resetsCount, 1)
@@ -1262,13 +1263,12 @@ func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
 	}
 
 	// Slow path. Check mutable map.
-	currentTime := time.Now()
-
+	currentTime := fasttime.UnixTimestamp()
 	dmc.mu.Lock()
 	v = dmc.byDateMutable.get(date)
 	ok := v.Has(metricID)
 	mustSync := false
-	if currentTime.Sub(dmc.lastSyncTime) > 10*time.Second {
+	if currentTime-dmc.lastSyncTime > 10 {
 		mustSync = true
 		dmc.lastSyncTime = currentTime
 	}
@@ -1351,8 +1351,7 @@ type byDateMetricIDEntry struct {
 }
 
 func (s *Storage) updateNextDayMetricIDs() {
-	date := uint64(timestampFromTime(time.Now())) / msecPerDay
-
+	date := fasttime.UnixDate()
 	e := s.nextDayMetricIDs.Load().(*byDateMetricIDEntry)
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
@@ -1380,7 +1379,7 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	newMetricIDs := s.pendingHourEntries
 	s.pendingHourEntries = &uint64set.Set{}
 	s.pendingHourEntriesLock.Unlock()
-	hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+	hour := fasttime.UnixHour()
 	if newMetricIDs.Len() == 0 && hm.hour == hour {
 		// Fast path: nothing to update.
 		return

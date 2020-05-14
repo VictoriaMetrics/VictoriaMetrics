@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -227,7 +228,7 @@ func (idxbc *indexBlockCache) cleaner() {
 }
 
 func (idxbc *indexBlockCache) cleanByTimeout() {
-	currentTime := atomic.LoadUint64(&currentTimestamp)
+	currentTime := fasttime.UnixTimestamp()
 	idxbc.mu.Lock()
 	for k, idxbe := range idxbc.m {
 		// Delete items accessed more than 10 minutes ago.
@@ -245,7 +246,7 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 	idxbc.mu.RUnlock()
 
 	if idxbe != nil {
-		currentTime := atomic.LoadUint64(&currentTimestamp)
+		currentTime := fasttime.UnixTimestamp()
 		if atomic.LoadUint64(&idxbe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&idxbe.lastAccessTime, currentTime)
 		}
@@ -276,7 +277,7 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
 
 	// Store idxb in the cache.
 	idxbe := &indexBlockCacheEntry{
-		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		lastAccessTime: fasttime.UnixTimestamp(),
 		idxb:           idxb,
 	}
 	idxbc.m[k] = idxbe
@@ -374,7 +375,7 @@ func (ibc *inmemoryBlockCache) cleaner() {
 }
 
 func (ibc *inmemoryBlockCache) cleanByTimeout() {
-	currentTime := atomic.LoadUint64(&currentTimestamp)
+	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
 		// Delete items accessed more than 10 minutes ago.
@@ -393,7 +394,7 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 	ibc.mu.RUnlock()
 
 	if ibe != nil {
-		currentTime := atomic.LoadUint64(&currentTimestamp)
+		currentTime := fasttime.UnixTimestamp()
 		if atomic.LoadUint64(&ibe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&ibe.lastAccessTime, currentTime)
 		}
@@ -424,7 +425,7 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
 
 	// Store ib in the cache.
 	ibe := &inmemoryBlockCacheEntry{
-		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		lastAccessTime: fasttime.UnixTimestamp(),
 		ib:             ib,
 	}
 	ibc.m[k] = ibe
@@ -445,16 +446,3 @@ func (ibc *inmemoryBlockCache) Requests() uint64 {
 func (ibc *inmemoryBlockCache) Misses() uint64 {
 	return atomic.LoadUint64(&ibc.misses)
 }
-
-func init() {
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for tm := range ticker.C {
-			t := uint64(tm.Unix())
-			atomic.StoreUint64(&currentTimestamp, t)
-		}
-	}()
-}
-
-var currentTimestamp uint64

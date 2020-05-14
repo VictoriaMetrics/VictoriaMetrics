@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
@@ -353,7 +354,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 }
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
-	now := timestampFromTime(time.Now())
+	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - tb.retentionMilliseconds
 	maxTimestamp := now + 2*24*3600*1000 // allow max +2 days from now due to timezones shit :)
 	if minTimestamp < 0 {
@@ -384,7 +385,7 @@ func (tb *table) retentionWatcher() {
 		case <-ticker.C:
 		}
 
-		minTimestamp := timestampFromTime(time.Now()) - tb.retentionMilliseconds
+		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.retentionMilliseconds
 		var ptwsDrop []*partitionWrapper
 		tb.ptwsLock.Lock()
 		dst := tb.ptws[:0]

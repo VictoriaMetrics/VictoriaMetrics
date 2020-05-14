@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -1233,7 +1234,7 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 }
 
 func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
-	minDate := uint64(timestampFromTime(time.Now())) / msecPerDay
+	minDate := fasttime.UnixDate()
 	kb := &is.kb
 	ts := &is.ts
 	kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
