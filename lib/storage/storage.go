@@ -1139,13 +1139,11 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			r.TSID = prevTSID
 			continue
 		}
-		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
-			if !dmis.Has(r.TSID.MetricID) {
-				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
-				prevTSID = r.TSID
-				prevMetricNameRaw = mr.MetricNameRaw
-				continue
-			}
+		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
+			// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
+			prevTSID = r.TSID
+			prevMetricNameRaw = mr.MetricNameRaw
+			continue
 		}
 
 		// Slow path - the TSID is missing in the cache. Search for it in the index.
