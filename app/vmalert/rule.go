@@ -120,7 +120,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 			alertsFired.Inc()
 		}
 		if a.State == notifier.StateFiring {
-			a.End = r.lastExecTime.Add(r.group.Interval)
+			a.End = r.lastExecTime.Add( 3 * r.group.Interval)
 		}
 	}
 	return nil
