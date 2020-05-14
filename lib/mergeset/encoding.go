@@ -151,7 +151,7 @@ var isInTest = func() bool {
 	return strings.HasSuffix(os.Args[0], ".test")
 }()
 
-// MarshalUnsortedData marshals sorted items from ib to sb.
+// MarshalSortedData marshals sorted items from ib to sb.
 //
 // It also:
 // - appends first item to firstItemDst and returns the result.
