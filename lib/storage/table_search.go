@@ -4,8 +4,8 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
-	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -65,7 +65,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 
 	// Adjust tr.MinTimestamp, so it doesn't obtain data older
 	// than the tb retention.
-	now := timestampFromTime(time.Now())
+	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - tb.retentionMilliseconds
 	if tr.MinTimestamp < minTimestamp {
 		tr.MinTimestamp = minTimestamp

@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -457,14 +458,14 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %s", err)
 	}
-	date := time.Now().Unix() / secsPerDay
+	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
 	if len(dateStr) > 0 {
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			return fmt.Errorf("cannot parse `date` arg %q: %s", dateStr, err)
 		}
-		date = t.Unix() / secsPerDay
+		date = uint64(t.Unix()) / secsPerDay
 	}
 	topN := 10
 	topNStr := r.FormValue("topN")
@@ -481,7 +482,7 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		}
 		topN = n
 	}
-	status, isPartial, err := netstorage.GetTSDBStatusForDate(at, deadline, uint64(date), topN)
+	status, isPartial, err := netstorage.GetTSDBStatusForDate(at, deadline, date, topN)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %s`, date, topN, err)
 	}
@@ -1078,7 +1079,7 @@ func getBool(r *http.Request, argKey string) bool {
 }
 
 func currentTime() int64 {
-	return int64(time.Now().UTC().Unix()) * 1e3
+	return int64(fasttime.UnixTimestamp() * 1000)
 }
 
 func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {

@@ -2,9 +2,9 @@ package storage
 
 import (
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -17,7 +17,7 @@ type inmemoryPart struct {
 	indexData      bytesutil.ByteBuffer
 	metaindexData  bytesutil.ByteBuffer
 
-	creationTime time.Time
+	creationTime uint64
 }
 
 // Reset resets mp.
@@ -29,7 +29,7 @@ func (mp *inmemoryPart) Reset() {
 	mp.indexData.Reset()
 	mp.metaindexData.Reset()
 
-	mp.creationTime = time.Time{}
+	mp.creationTime = 0
 }
 
 // InitFromRows initializes mp from the given rows.
@@ -42,7 +42,7 @@ func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 	rrm := getRawRowsMarshaler()
 	rrm.marshalToInmemoryPart(mp, rows)
 	putRawRowsMarshaler(rrm)
-	mp.creationTime = time.Now()
+	mp.creationTime = fasttime.UnixTimestamp()
 }
 
 // NewPart creates new part from mp.

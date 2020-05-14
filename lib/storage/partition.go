@@ -16,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -445,7 +446,7 @@ func (rrs *rawRowsShards) Len() int {
 type rawRowsShard struct {
 	lock          sync.Mutex
 	rows          []rawRow
-	lastFlushTime time.Time
+	lastFlushTime uint64
 }
 
 func (rrs *rawRowsShard) Len() int {
@@ -478,7 +479,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 		rr := getRawRowsMaxSize()
 		rrs.rows, rr.rows = rr.rows, rrs.rows
 		rrss = append(rrss, rr)
-		rrs.lastFlushTime = time.Now()
+		rrs.lastFlushTime = fasttime.UnixTimestamp()
 	}
 	rrs.lock.Unlock()
 
@@ -722,10 +723,14 @@ func (rrs *rawRowsShards) flush(pt *partition, isFinal bool) {
 
 func (rrs *rawRowsShard) flush(pt *partition, isFinal bool) {
 	var rr *rawRows
-	currentTime := time.Now()
+	currentTime := fasttime.UnixTimestamp()
+	flushSeconds := int64(rawRowsFlushInterval.Seconds())
+	if flushSeconds <= 0 {
+		flushSeconds = 1
+	}
 
 	rrs.lock.Lock()
-	if isFinal || currentTime.Sub(rrs.lastFlushTime) > rawRowsFlushInterval {
+	if isFinal || currentTime-rrs.lastFlushTime > uint64(flushSeconds) {
 		rr = getRawRowsMaxSize()
 		rrs.rows, rr.rows = rr.rows, rrs.rows
 	}
@@ -764,7 +769,11 @@ func (pt *partition) inmemoryPartsFlusher() {
 }
 
 func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*partWrapper, error) {
-	currentTime := time.Now()
+	currentTime := fasttime.UnixTimestamp()
+	flushSeconds := int64(inmemoryPartsFlushInterval.Seconds())
+	if flushSeconds <= 0 {
+		flushSeconds = 1
+	}
 
 	// Inmemory parts may present only in small parts.
 	pt.partsLock.Lock()
@@ -772,7 +781,7 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 		if pw.mp == nil || pw.isInMerge {
 			continue
 		}
-		if force || currentTime.Sub(pw.mp.creationTime) >= inmemoryPartsFlushInterval {
+		if force || currentTime-pw.mp.creationTime >= uint64(flushSeconds) {
 			pw.isInMerge = true
 			dstPws = append(dstPws, pw)
 		}
@@ -876,7 +885,7 @@ const (
 
 func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 	sleepTime := minMergeSleepTime
-	var lastMergeTime time.Time
+	var lastMergeTime uint64
 	isFinal := false
 	t := time.NewTimer(sleepTime)
 	for {
@@ -884,7 +893,7 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 		if err == nil {
 			// Try merging additional parts.
 			sleepTime = minMergeSleepTime
-			lastMergeTime = time.Now()
+			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = false
 			continue
 		}
@@ -895,10 +904,10 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 		if err != errNothingToMerge {
 			return err
 		}
-		if time.Since(lastMergeTime) > 30*time.Second {
+		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
 			// We have free time for merging into bigger parts.
 			// This should improve select performance.
-			lastMergeTime = time.Now()
+			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = true
 			continue
 		}
@@ -939,7 +948,7 @@ func mustGetFreeDiskSpace(path string) uint64 {
 	defer freeSpaceMapLock.Unlock()
 
 	e, ok := freeSpaceMap[path]
-	if ok && time.Since(e.updateTime) < time.Second {
+	if ok && fasttime.UnixTimestamp()-e.updateTime < 2 {
 		// Fast path - the entry is fresh.
 		return e.freeSpace
 	}
@@ -947,7 +956,7 @@ func mustGetFreeDiskSpace(path string) uint64 {
 	// Slow path.
 	// Determine the amount of free space on bigPartsPath.
 	e.freeSpace = fs.MustGetFreeSpace(path)
-	e.updateTime = time.Now()
+	e.updateTime = fasttime.UnixTimestamp()
 	freeSpaceMap[path] = e
 	return e.freeSpace
 }
@@ -958,7 +967,7 @@ var (
 )
 
 type freeSpaceEntry struct {
-	updateTime time.Time
+	updateTime uint64
 	freeSpace  uint64
 }
 
