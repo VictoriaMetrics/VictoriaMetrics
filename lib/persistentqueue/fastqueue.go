@@ -120,7 +120,7 @@ func (fq *FastQueue) MustWriteBlock(block []byte) {
 	bb.B = append(bb.B[:0], block...)
 	fq.ch <- bb
 	fq.pendingInmemoryBytes += uint64(len(block))
-	if len(fq.ch) == 1 {
+	if len(fq.ch) >= 1 {
 		// Notify potentially blocked reader
 		fq.cond.Signal()
 	}
