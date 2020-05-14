@@ -624,7 +624,9 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 
 	// Prepare blockStreamWriter for destination part.
 	bsw := getBlockStreamWriter()
-	compressLevel := 1
+	// Use the minimum compression level for in-memory blocks,
+	// since they are going to be re-compressed during the merge into file-based blocks.
+	compressLevel := -5 // See https://github.com/facebook/zstd/releases/tag/v1.3.4
 	mpDst := getInmemoryPart()
 	bsw.InitFromInmemoryPart(mpDst, compressLevel)
 
@@ -876,19 +878,33 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 }
 
 func getCompressLevelForPartItems(itemsCount uint64) int {
-	if itemsCount < 1<<19 {
+	if itemsCount <= 1<<16 {
+		// -5 is the minimum supported compression for zstd.
+		// See https://github.com/facebook/zstd/releases/tag/v1.3.4
+		return -5
+	}
+	if itemsCount <= 1<<17 {
+		return -4
+	}
+	if itemsCount <= 1<<18 {
+		return -3
+	}
+	if itemsCount <= 1<<19 {
+		return -2
+	}
+	if itemsCount <= 1<<20 {
+		return -1
+	}
+	if itemsCount <= 1<<22 {
 		return 1
 	}
-	if itemsCount < 1<<22 {
+	if itemsCount <= 1<<25 {
 		return 2
 	}
-	if itemsCount < 1<<25 {
+	if itemsCount <= 1<<28 {
 		return 3
 	}
-	if itemsCount < 1<<28 {
-		return 4
-	}
-	return 5
+	return 4
 }
 
 func (tb *Table) nextMergeIdx() uint64 {
