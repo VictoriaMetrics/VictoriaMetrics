@@ -87,6 +87,8 @@ func Stop() {
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
 // Each timeseries in wr.Timeseries must contain one sample.
+//
+// Note that wr may be modified by Push due to relabeling.
 func Push(wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
 	if len(prcsGlobal) > 0 || len(labelsGlobal) > 0 {
@@ -127,6 +129,8 @@ type remoteWriteCtx struct {
 	prcs       []promrelabel.ParsedRelabelConfig
 	pss        []*pendingSeries
 	pssNextIdx uint64
+
+	tss []prompbmarshal.TimeSeries
 
 	relabelMetricsDropped *metrics.Counter
 }
@@ -181,6 +185,11 @@ func (rwctx *remoteWriteCtx) MustStop() {
 func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	var rctx *relabelCtx
 	if len(rwctx.prcs) > 0 {
+		// Make a copy of tss before applying relabeling in order to prevent
+		// from affecting time series for other remoteWrite.url configs.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467 for details.
+		rwctx.tss = append(rwctx.tss[:0], tss...)
+		tss = rwctx.tss
 		rctx = getRelabelCtx()
 		tssLen := len(tss)
 		tss = rctx.applyRelabeling(tss, nil, rwctx.prcs)
@@ -191,5 +200,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	pss[idx].Push(tss)
 	if rctx != nil {
 		putRelabelCtx(rctx)
+		// Zero rwctx.tss in order to free up GC references.
+		rwctx.tss = prompbmarshal.ResetTimeSeries(rwctx.tss)
 	}
 }

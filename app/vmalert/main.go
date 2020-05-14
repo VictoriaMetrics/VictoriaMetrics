@@ -37,17 +37,18 @@ absolute path to all .yaml files in root.`)
 	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
 	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 
-	remoteWriteURL = flag.String("remotewrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
+	remoteWriteURL = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
 		" in form of timeseries. E.g. http://127.0.0.1:8428")
-	remoteWriteUsername = flag.String("remotewrite.basicAuth.username", "", "Optional basic auth username for -remotewrite.url")
-	remoteWritePassword = flag.String("remotewrite.basicAuth.password", "", "Optional basic auth password for -remotewrite.url")
+	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
+	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 10e3, "Defines the max number of pending datapoints to remote write endpoint")
 
-	remoteReadURL = flag.String("remoteread.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
-		" state. This configuration makes sense only if `vmalert` was configured with `remotewrite.url` before and has been successfully persisted its state."+
+	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
+		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+
 		" E.g. http://127.0.0.1:8428")
-	remoteReadUsername = flag.String("remoteread.basicAuth.username", "", "Optional basic auth username for -remoteread.url")
-	remoteReadPassword = flag.String("remoteread.basicAuth.password", "", "Optional basic auth password for -remoteread.url")
-	remoteReadLookBack = flag.Duration("remoteread.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
+	remoteReadUsername = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
+	remoteReadPassword = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
+	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules. Default 1m")
@@ -77,6 +78,7 @@ func main() {
 	if *remoteWriteURL != "" {
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
 			Addr:          *remoteWriteURL,
+			MaxQueueSize:  *remoteWriteMaxQueueSize,
 			FlushInterval: *evaluationInterval,
 			BasicAuthUser: *remoteWriteUsername,
 			BasicAuthPass: *remoteWritePassword,

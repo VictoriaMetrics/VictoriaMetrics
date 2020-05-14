@@ -256,9 +256,7 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 }
 
 // Put puts idxb under the key k into idxbc.
-//
-// Returns true if the idxb has been put into idxbc.
-func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) bool {
+func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
 	idxbc.mu.Lock()
 
 	// Remove superflouos entries.
@@ -283,7 +281,6 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) bool {
 	}
 	idxbc.m[k] = idxbe
 	idxbc.mu.Unlock()
-	return true
 }
 
 func (idxbc *indexBlockCache) Len() uint64 {
@@ -407,9 +404,7 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 }
 
 // Put puts ib under key k into ibc.
-//
-// Returns true if ib was put into ibc.
-func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) bool {
+func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
 	ibc.mu.Lock()
 
 	// Clean superflouos entries in cache.
@@ -434,7 +429,6 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) b
 	}
 	ibc.m[k] = ibe
 	ibc.mu.Unlock()
-	return true
 }
 
 func (ibc *inmemoryBlockCache) Len() uint64 {

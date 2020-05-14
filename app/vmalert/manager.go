@@ -57,7 +57,7 @@ func (m *manager) close() {
 }
 
 func (m *manager) startGroup(ctx context.Context, group Group, restore bool) {
-	if restore {
+	if restore && m.rr != nil {
 		err := group.Restore(ctx, m.rr, *remoteReadLookBack)
 		if err != nil {
 			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)

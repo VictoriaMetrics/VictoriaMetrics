@@ -22,6 +22,8 @@ Feel free [filing a feature request](https://github.com/VictoriaMetrics/Victoria
 This functionality can be tried at [an editable Grafana dashboard](http://play-grafana.victoriametrics.com:3000/d/4ome8yJmz/node-exporter-on-victoriametrics-demo).
 
 - [`WITH` templates](https://play.victoriametrics.com/promql/expand-with-exprs). This feature simplifies writing and managing complex queries. Go to [`WITH` templates playground](https://victoriametrics.com/promql/expand-with-exprs) and try it.
+- All the aggregate functions support optional `limit N` suffix in order to limit the number of output series. For example, `sum(x) by (y) limit 10` limits
+  the number of output time series after the aggregation to 10. All the other time series are dropped.
 - Metric names and metric labels may contain escaped chars. For instance, `foo\-bar{baz\=aa="b"}` is valid expression. It returns time series with name `foo-bar` containing label `baz=aa` with value `b`. Additionally, `\xXX` escape sequence is supported, where `XX` is hexadecimal representation of escaped char.
 - `offset`, range duration and step value for range vector may refer to the current step aka `$__interval` value from Grafana.
   For instance, `rate(metric[10i] offset 5i)` would return per-second rate over a range covering 10 previous steps with the offset of 5 steps.
@@ -72,6 +74,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `median_over_time(m[d])` - calculates median values for `m` over `d` time window. Shorthand to `quantile_over_time(0.5, m[d])`.
 - `median(q)` - median aggregate. Shorthand to `quantile(0.5, q)`.
 - `limitk(k, q)` - limits the number of time series returned from `q` to `k`.
+- `any(q) by (x)` - returns any time series from `q` for each group in `x`. Note that `any()` removes all the labels except of those listed in `by (x)`.
+  Use `limitk(1, q)` if you need retaining all the labels from `q`.
 - `keep_last_value(q)` - fills missing data (gaps) in `q` with the previous non-empty value.
 - `keep_next_value(q)` - fills missing data (gaps) in `q` with the next non-empty value.
 - `distinct_over_time(m[d])` - returns distinct number of values for `m` data points over `d` duration.

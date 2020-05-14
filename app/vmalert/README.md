@@ -50,9 +50,9 @@ Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
-`vmalert` may be configured with `-remotewrite` flag to write alerts state in form of timeseries
+`vmalert` may be configured with `-remoteWrite` flag to write alerts state in form of timeseries
 via remote write protocol. Alerts state will be written as `ALERTS` timeseries. These timeseries
-may be used to recover alerts state on `vmalert` restarts if `-remoteread` is configured.
+may be used to recover alerts state on `vmalert` restarts if `-remoteRead` is configured.
 
 
 ### Configuration
@@ -82,19 +82,21 @@ Usage of vmalert:
         Address to listen for http connections (default ":8880")
   -notifier.url string
         Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
-  -remoteread.basicAuth.password string
-        Optional basic auth password for -remoteread.url
-  -remoteread.basicAuth.username string
-        Optional basic auth username for -remoteread.url
-  -remoteread.lookback duration
+  -remoteRead.basicAuth.password string
+        Optional basic auth password for -remoteRead.url
+  -remoteRead.basicAuth.username string
+        Optional basic auth username for -remoteRead.url
+  -remoteRead.lookback duration
         Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
-  -remoteread.url vmalert
-        Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remotewrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
-  -remotewrite.basicAuth.password string
-        Optional basic auth password for -remotewrite.url
-  -remotewrite.basicAuth.username string
-        Optional basic auth username for -remotewrite.url
-  -remotewrite.url string
+  -remoteRead.url vmalert
+        Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
+  -remoteWrite.basicAuth.password string
+        Optional basic auth password for -remoteWrite.url
+  -remoteWrite.basicAuth.username string
+        Optional basic auth username for -remoteWrite.url
+  -remoteWrite.maxQueueSize
+	    Defines the max number of pending datapoints to remote write endpoint
+  -remoteWrite.url string
         Optional URL to Victoria Metrics or VMInsert where to persist alerts state in form of timeseries. E.g. http://127.0.0.1:8428
   -rule value
         Path to the file with alert rules. 

@@ -10,7 +10,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var disableMmap = flag.Bool("fs.disableMmap", false, "Whether to use pread() instead of mmap() for reading data files")
+var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread() instead of mmap() for reading data files. "+
+	"By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot data files bigger than 2^32 bytes in memory")
+
+const is32BitPtr = (^uintptr(0) >> 32) == 0
 
 // MustReadAtCloser is rand-access read interface.
 type MustReadAtCloser interface {

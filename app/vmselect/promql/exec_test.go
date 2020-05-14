@@ -3496,6 +3496,21 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`sum(multi-vector) by (known-tag) limit 1`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(label_set(10, "foo", "bar") or label_set(time()/100, "baz", "sss")) by (foo) limit 1`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(multi-vector) by (known-tags)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum(label_set(10, "foo", "bar", "baz", "sss", "x", "y") or label_set(time()/100, "baz", "sss", "foo", "bar")) by (foo, baz, foo)`
@@ -3766,6 +3781,17 @@ func TestExecSuccess(t *testing.T) {
 			Value: []byte("sss"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`any()`, func(t *testing.T) {
+		t.Parallel()
+		q := `any(label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`topk(-1)`, func(t *testing.T) {

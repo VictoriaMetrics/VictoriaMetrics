@@ -43,6 +43,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
+	"any":            newAggrFunc(aggrFuncAny),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -64,7 +65,7 @@ func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 		if err := expectTransformArgsNum(args, 1); err != nil {
 			return nil, err
 		}
-		return aggrFuncExt(afe, args[0], &afa.ae.Modifier, false)
+		return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
 	}
 }
 
@@ -80,7 +81,7 @@ func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.Modifie
 	}
 }
 
-func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, keepOriginal bool) ([]*timeseries, error) {
+func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
 	arg := copyTimeseriesMetricNames(argOrig)
 
 	// Perform grouping.
@@ -92,7 +93,13 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 		if keepOriginal {
 			ts = argOrig[i]
 		}
-		m[string(bb.B)] = append(m[string(bb.B)], ts)
+		tss := m[string(bb.B)]
+		if tss == nil && maxSeries > 0 && len(m) >= maxSeries {
+			// We already reached time series limit after grouping. Skip other time series.
+			continue
+		}
+		tss = append(tss, ts)
+		m[string(bb.B)] = tss
 	}
 	bbPool.Put(bb)
 
@@ -110,6 +117,10 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 		}
 	}
 	return rvs, nil
+}
+
+func aggrFuncAny(tss []*timeseries) []*timeseries {
+	return tss[:1]
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {
@@ -441,7 +452,7 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 		return rvs
 	}
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, false)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func newAggrFuncTopK(isReverse bool) aggrFunc {
@@ -468,7 +479,7 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 			}
 			return removeNaNs(tss)
 		}
-		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 	}
 }
 
@@ -512,7 +523,7 @@ func newAggrFuncRangeTopK(f func(values []float64) float64, isReverse bool) aggr
 			}
 			return removeNaNs(tss)
 		}
-		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 	}
 }
 
@@ -618,7 +629,7 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 		return tss
 	}
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -631,7 +642,7 @@ func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	afe := newAggrQuantileFunc(phis)
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, false)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -641,7 +652,7 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 	}
 	phis := evalNumber(afa.ec, 0.5)[0].Values
 	afe := newAggrQuantileFunc(phis)
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, false)
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries) []*timeseries {
