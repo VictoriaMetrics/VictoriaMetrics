@@ -189,7 +189,7 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 	for len(src) > 0 {
 		tmp, err := bh.Unmarshal(src)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal block header: %s", err)
+			return dst, fmt.Errorf("cannot unmarshal block header: %s", err)
 		}
 		src = tmp
 		dst = append(dst, bh)
@@ -199,12 +199,12 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 
 	// Verify the number of read block headers.
 	if len(newBHS) != blockHeadersCount {
-		return nil, fmt.Errorf("invalid number of block headers found: %d; want %d block headers", len(newBHS), blockHeadersCount)
+		return dst, fmt.Errorf("invalid number of block headers found: %d; want %d block headers", len(newBHS), blockHeadersCount)
 	}
 
 	// Verify that block headers are sorted by tsid.
 	if !sort.SliceIsSorted(newBHS, func(i, j int) bool { return newBHS[i].TSID.Less(&newBHS[j].TSID) }) {
-		return nil, fmt.Errorf("block headers must be sorted by tsid; unmarshaled unsorted block headers: %+v", newBHS)
+		return dst, fmt.Errorf("block headers must be sorted by tsid; unmarshaled unsorted block headers: %+v", newBHS)
 	}
 
 	return dst, nil
