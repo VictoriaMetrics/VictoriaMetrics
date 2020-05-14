@@ -2568,19 +2568,7 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 	return nil, false
 }
 
-func (db *indexDB) storeDateMetricID(date, metricID uint64, accountID, projectID uint32) error {
-	is := db.getIndexSearch()
-	ok, err := is.hasDateMetricID(date, metricID, accountID, projectID)
-	db.putIndexSearch(is)
-	if err != nil {
-		return err
-	}
-	if ok {
-		// Fast path: the (date, metricID) entry already exists in the db.
-		return nil
-	}
-
-	// Slow path: create (date, metricID) entries.
+func (is *indexSearch) storeDateMetricID(date, metricID uint64, accountID, projectID uint32) error {
 	items := getIndexItems()
 	defer putIndexItems(items)
 
@@ -2594,12 +2582,16 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64, accountID, projectID
 	defer kbPool.Put(kb)
 	mn := GetMetricName()
 	defer PutMetricName(mn)
-	kb.B, err = db.searchMetricName(kb.B[:0], metricID, accountID, projectID)
+	var err error
+	// There is no need in searching for metric name in is.db.extDB,
+	// Since the storeDateMetricID function is called only after the metricID->metricName
+	// is added into the current is.db.
+	kb.B, err = is.searchMetricName(kb.B[:0], metricID, accountID, projectID)
 	if err != nil {
 		if err == io.EOF {
 			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
 				"deleting the metricID, so it could be re-created next time", metricID)
-			if err := db.deleteMetricIDs([]uint64{metricID}); err != nil {
+			if err := is.db.deleteMetricIDs([]uint64{metricID}); err != nil {
 				return fmt.Errorf("cannot delete metricID %d after unclean shutdown: %s", metricID, err)
 			}
 			return nil
@@ -2624,8 +2616,7 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64, accountID, projectID
 		items.B = encoding.MarshalUint64(items.B, metricID)
 		items.Next()
 	}
-
-	if err = db.tb.AddItems(items.Items); err != nil {
+	if err = is.db.tb.AddItems(items.Items); err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %s", metricID, err)
 	}
 	return nil

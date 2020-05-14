@@ -711,7 +711,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 	for i := range tsids {
 		tsid := &tsids[i]
-		if err := db.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
+		if err := is.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
 			return nil, nil, fmt.Errorf("error in storeDateMetricID(%d, %d, %d, %d): %s", date, tsid.MetricID, tsid.AccountID, tsid.ProjectID, err)
 		}
 	}
@@ -1555,7 +1555,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		date := baseDate - uint64(day*msecPerDay)
 		for i := range tsids {
 			tsid := &tsids[i]
-			if err := db.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
+			if err := is.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
 				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
 			}
 		}
