@@ -13,7 +13,7 @@ sends alerts to [Alert Manager](https://github.com/prometheus/alertmanager).
 * Lightweight without extra dependencies.
 
 ### TODO:
-* Configuration hot reload.
+* Support recording rules.
 
 ### QuickStart
 
@@ -120,3 +120,22 @@ or send GET request to `/-/reload` endpoint.
 `vmalert` is mostly designed and built by VictoriaMetrics community.
 Feel free to share your experience and ideas for improving this 
 software. Please keep simplicity as the main priority.
+
+### How to build from sources
+
+It is recommended using 
+[binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) 
+- `vmalert` is located in `vmutils-*` archives there.
+
+
+#### Development build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmalert` from the root folder of the repository.
+   It builds `vmalert` binary and puts it into the `bin` folder.
+
+#### Production build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmalert-prod` from the root folder of the repository.
+   It builds `vmalert-prod` binary and puts it into the `bin` folder.
