@@ -25,9 +25,6 @@ type partSearch struct {
 	// The remaining block headers to scan in the current metaindexRow.
 	bhs []blockHeader
 
-	// Pointer to index block, which may be reused.
-	indexBlockReuse *indexBlock
-
 	// Pointer to inmemory block, which may be reused.
 	inmemoryBlockReuse *inmemoryBlock
 
@@ -53,10 +50,6 @@ func (ps *partSearch) reset() {
 	ps.p = nil
 	ps.mrs = nil
 	ps.bhs = nil
-	if ps.indexBlockReuse != nil {
-		putIndexBlock(ps.indexBlockReuse)
-		ps.indexBlockReuse = nil
-	}
 	if ps.inmemoryBlockReuse != nil {
 		putInmemoryBlock(ps.inmemoryBlockReuse)
 		ps.inmemoryBlockReuse = nil
@@ -275,38 +268,23 @@ func (ps *partSearch) nextBlock() error {
 }
 
 func (ps *partSearch) nextBHS() error {
-	if ps.indexBlockReuse != nil {
-		putIndexBlock(ps.indexBlockReuse)
-		ps.indexBlockReuse = nil
-	}
 	if len(ps.mrs) == 0 {
 		return io.EOF
 	}
 	mr := &ps.mrs[0]
 	ps.mrs = ps.mrs[1:]
-	idxb, mayReuseIndexBlock, err := ps.getIndexBlock(mr)
-	if err != nil {
-		return fmt.Errorf("cannot get index block: %s", err)
-	}
-	if mayReuseIndexBlock {
-		ps.indexBlockReuse = idxb
+	idxbKey := mr.indexBlockOffset
+	idxb := ps.idxbCache.Get(idxbKey)
+	if idxb == nil {
+		var err error
+		idxb, err = ps.readIndexBlock(mr)
+		if err != nil {
+			return fmt.Errorf("cannot read index block: %s", err)
+		}
+		ps.idxbCache.Put(idxbKey, idxb)
 	}
 	ps.bhs = idxb.bhs
 	return nil
-}
-
-func (ps *partSearch) getIndexBlock(mr *metaindexRow) (*indexBlock, bool, error) {
-	idxbKey := mr.indexBlockOffset
-	idxb := ps.idxbCache.Get(idxbKey)
-	if idxb != nil {
-		return idxb, false, nil
-	}
-	idxb, err := ps.readIndexBlock(mr)
-	if err != nil {
-		return nil, false, err
-	}
-	ok := ps.idxbCache.Put(idxbKey, idxb)
-	return idxb, !ok, nil
 }
 
 func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
@@ -347,8 +325,8 @@ func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, bool, e
 	if err != nil {
 		return nil, false, err
 	}
-	ok := ps.ibCache.Put(ibKey, ib)
-	return ib, !ok, nil
+	ps.ibCache.Put(ibKey, ib)
+	return ib, false, nil
 }
 
 func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) {
