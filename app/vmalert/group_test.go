@@ -82,6 +82,7 @@ func TestUpdateWith(t *testing.T) {
 			sort.Slice(g.Rules, func(i, j int) bool {
 				return g.Rules[i].Name < g.Rules[j].Name
 			})
+
 			for i, r := range g.Rules {
 				got, want := r, tc.newRules[i]
 				if got.Name != want.Name {
