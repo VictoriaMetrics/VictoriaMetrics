@@ -31,7 +31,7 @@ func TestParseGroupInterval(t *testing.T){
 	err = errors.New("failed to parse group interval")
 	for _,group := range groups{
 		if strings.Contains(group.Name,"Without") {
-			if group.Interval != *evaluationInterval{ // should be 0 by default
+			if group.Interval != *evaluationInterval{ 
 				t.Error(err)
 			}
 		}else if group.Interval != 5 * time.Minute   {
