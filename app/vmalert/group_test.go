@@ -72,7 +72,7 @@ func TestUpdateWith(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Rules: tc.currentRules}
+			g := &Group{Rules: tc.currentRules,Interval:tc.interval}
 			g.updateWith(Group{Rules: tc.newRules})
 
 			if len(g.Rules) != len(tc.newRules) {
