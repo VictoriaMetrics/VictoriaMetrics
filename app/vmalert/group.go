@@ -47,7 +47,8 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 }
 
 // updateWith updates existing group with
-// passed group object.
+// passed group object. Must be called
+// under mutex lock.
 func (g *Group) updateWith(newGroup Group) {
 	rulesRegistry := make(map[string]*Rule)
 	for _, nr := range newGroup.Rules {
@@ -58,9 +59,8 @@ func (g *Group) updateWith(newGroup Group) {
 		nr, ok := rulesRegistry[or.id()]
 		if !ok {
 			// old rule is not present in the new list
-			// and must be removed
-			or = nil
-			g.Rules = append(g.Rules[:i], g.Rules[i+1:]...)
+			// so we mark it for removing
+			g.Rules[i] = nil
 			continue
 		}
 
@@ -74,9 +74,19 @@ func (g *Group) updateWith(newGroup Group) {
 		delete(rulesRegistry, nr.id())
 	}
 
-	for _, nr := range rulesRegistry {
-		g.Rules = append(g.Rules, nr)
+	var newRules []*Rule
+	for _, r := range g.Rules {
+		if r == nil {
+			// skip nil rules
+			continue
+		}
+		newRules = append(newRules, r)
 	}
+	// add the rest of rules from registry
+	for _, nr := range rulesRegistry {
+		newRules = append(newRules, nr)
+	}
+	g.Rules = newRules
 }
 
 var (

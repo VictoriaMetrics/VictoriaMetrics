@@ -15,7 +15,8 @@ func TestUpdateWith(t *testing.T) {
 	testCases := []struct {
 		name         string
 		currentRules []*Rule
-		newRules     []*Rule
+		// rules must be sorted by name
+		newRules []*Rule
 	}{
 		{
 			"new rule",
@@ -55,8 +56,18 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"multiple rules",
-			[]*Rule{{Name: "foo"}, {Name: "bar"}, {Name: "baz"}},
-			[]*Rule{{Name: "foo"}, {Name: "baz"}},
+			[]*Rule{{Name: "bar"}, {Name: "baz"}, {Name: "foo"}},
+			[]*Rule{{Name: "baz"}, {Name: "foo"}},
+		},
+		{
+			"replace rule",
+			[]*Rule{{Name: "foo1"}},
+			[]*Rule{{Name: "foo2"}},
+		},
+		{
+			"replace multiple rules",
+			[]*Rule{{Name: "foo1"}, {Name: "foo2"}},
+			[]*Rule{{Name: "foo3"}, {Name: "foo4"}},
 		},
 	}
 
@@ -69,6 +80,9 @@ func TestUpdateWith(t *testing.T) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
 			}
+			sort.Slice(g.Rules, func(i, j int) bool {
+				return g.Rules[i].Name < g.Rules[j].Name
+			})
 			for i, r := range g.Rules {
 				got, want := r, tc.newRules[i]
 				if got.Name != want.Name {
