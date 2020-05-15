@@ -76,7 +76,7 @@ func TestUpdateWith(t *testing.T) {
 			}
 			if g.Interval != tc.interval{
 				t.Fatalf("expected group interval %v; got: %v",
-					g.Interval, tc.interval)
+					tc.interval,g.Interval)
 			}
 
 			for i, r := range g.Rules {
