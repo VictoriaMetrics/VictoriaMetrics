@@ -14,16 +14,19 @@ import (
 func TestUpdateWith(t *testing.T) {
 	testCases := []struct {
 		name         string
+		interval     time.Duration
 		currentRules []*Rule
 		newRules     []*Rule
 	}{
 		{
 			"new rule",
+			0,
 			[]*Rule{},
 			[]*Rule{{Name: "bar"}},
 		},
 		{
 			"update rule",
+			1 * time.Minute,
 			[]*Rule{{
 				Name: "foo",
 				Expr: "up > 0",
@@ -50,11 +53,13 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"empty rule",
+			2 * time.Minute,
 			[]*Rule{{Name: "foo"}},
 			[]*Rule{},
 		},
 		{
 			"multiple rules",
+			2 * time.Minute,
 			[]*Rule{{Name: "foo"}, {Name: "bar"}, {Name: "baz"}},
 			[]*Rule{{Name: "foo"}, {Name: "baz"}},
 		},
@@ -121,17 +126,16 @@ func TestGroupStart(t *testing.T) {
 	alert2.State = notifier.StateFiring
 	alert2.ID = hash(m2)
 
-	const evalInterval = time.Millisecond
 	finished := make(chan struct{})
 	fs.add(m1)
 	fs.add(m2)
 	go func() {
-		g.start(context.Background(), evalInterval, fs, fn, nil)
+		g.start(context.Background(), fs, fn, nil)
 		close(finished)
 	}()
 
 	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	time.Sleep(20 * g.Interval)
 
 	gotAlerts := fn.getAlerts()
 	expectedAlerts := []notifier.Alert{*alert1, *alert2}
@@ -143,7 +147,7 @@ func TestGroupStart(t *testing.T) {
 	fs.add(m1)
 
 	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	time.Sleep(20 * g.Interval)
 
 	gotAlerts = fn.getAlerts()
 	expectedAlerts = []notifier.Alert{*alert1}
