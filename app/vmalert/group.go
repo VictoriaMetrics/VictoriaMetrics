@@ -15,10 +15,10 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	Name  string
+	Name     string
 	Interval time.Duration `yaml:"interval"`
-	File  string
-	Rules []*Rule
+	File     string
+	Rules    []*Rule
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}

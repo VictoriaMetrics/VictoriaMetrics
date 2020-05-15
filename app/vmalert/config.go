@@ -70,7 +70,7 @@ func parseFile(path string) ([]Group, error) {
 		Groups []Group `yaml:"groups"`
 	}{}
 	err = yaml.Unmarshal(data, &g)
-	for i := 0 ; i < len(g.Groups); i++ {
+	for i := 0; i < len(g.Groups); i++ {
 		if g.Groups[i].Interval == 0 {
 			g.Groups[i].Interval = *evaluationInterval
 		}

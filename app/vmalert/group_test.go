@@ -74,7 +74,6 @@ func TestUpdateWith(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &Group{Rules: tc.currentRules}
 			g.updateWith(Group{Rules: tc.newRules})
-
 			if len(g.Rules) != len(tc.newRules) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
@@ -112,6 +111,7 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
 	g := groups[0]
+	g.Interval = 1 * time.Millisecond
 
 	fn := &fakeNotifier{}
 	fs := &fakeQuerier{}
