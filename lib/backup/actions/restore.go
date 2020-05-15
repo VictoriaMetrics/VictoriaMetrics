@@ -113,10 +113,16 @@ func (r *Restore) Run() error {
 	partsToDelete := common.PartsDifference(dstParts, srcParts)
 	deleteSize := uint64(0)
 	if len(partsToDelete) > 0 {
-		// Fully remove local file if certain parts from the remote part are missing.
+		// Remove only files with the missing part at offset 0.
+		// Assume other files are partially downloaded during the previous Restore.Run call,
+		// so only the last part in them may be incomplete.
+		// The last part for partially downloaded files will be re-downloaded later.
+		// This addresses https://github.com/VictoriaMetrics/VictoriaMetrics/issues/487 .
 		pathsToDelete := make(map[string]bool)
 		for _, p := range partsToDelete {
-			pathsToDelete[p.Path] = true
+			if p.Offset == 0 {
+				pathsToDelete[p.Path] = true
+			}
 		}
 		logger.Infof("deleting %d files from %s", len(pathsToDelete), dst)
 		for path := range pathsToDelete {
@@ -153,7 +159,8 @@ func (r *Restore) Run() error {
 		logger.Infof("downloading %d parts from %s to %s", len(partsToCopy), src, dst)
 		bytesDownloaded := uint64(0)
 		err = runParallelPerPath(concurrency, perPath, func(parts []common.Part) error {
-			// Sort partsToCopy in order to properly grow file size during downloading.
+			// Sort partsToCopy in order to properly grow file size during downloading
+			// and to properly resume downloading of incomplete files on the next Restore.Run call.
 			common.SortParts(parts)
 			for _, p := range parts {
 				logger.Infof("downloading %s from %s to %s", &p, src, dst)
@@ -169,7 +176,7 @@ func (r *Restore) Run() error {
 					return fmt.Errorf("cannot download %s to %s: %s", &p, dst, err)
 				}
 				if err := wc.Close(); err != nil {
-					return fmt.Errorf("cannot close reader fro %s from %s: %s", &p, src, err)
+					return fmt.Errorf("cannot close reader from %s from %s: %s", &p, src, err)
 				}
 			}
 			return nil
