@@ -19,12 +19,15 @@ type Group struct {
 	Interval time.Duration `yaml:"interval"`
 	File     string
 	Rules    []*Rule
+<<<<<<< HEAD
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan Group
+=======
+>>>>>>> Add Group Interval Update
 
 }
 
