@@ -104,10 +104,10 @@ func (g *Group) close() {
 	<-g.finished
 }
 
-func (g *Group) start(ctx context.Context, interval time.Duration,
+func (g *Group) start(ctx context.Context,
 	querier datasource.Querier, nr notifier.Notifier, rw *remotewrite.Client) {
 	logger.Infof("group %q started", g.Name)
-	t := time.NewTicker(interval)
+	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
 		select {

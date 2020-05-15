@@ -63,11 +63,10 @@ func (m *manager) startGroup(ctx context.Context, group Group, restore bool) {
 			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
 		}
 	}
-
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
-		group.start(ctx, group.Interval, m.storage, m.notifier, m.rw)
+		group.start(ctx, m.storage, m.notifier, m.rw)
 		m.wg.Done()
 	}()
 	m.groups[id] = &group
