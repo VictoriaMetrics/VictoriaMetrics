@@ -39,6 +39,9 @@ type Storage struct {
 	addRowsConcurrencyLimitTimeout uint64
 	addRowsConcurrencyDroppedRows  uint64
 
+	slowRowInserts         uint64
+	slowPerDayIndexInserts uint64
+
 	path            string
 	cachePath       string
 	retentionMonths int
@@ -323,6 +326,9 @@ type Metrics struct {
 	AddRowsConcurrencyCapacity     uint64
 	AddRowsConcurrencyCurrent      uint64
 
+	SlowRowInserts         uint64
+	SlowPerDayIndexInserts uint64
+
 	TSIDCacheSize       uint64
 	TSIDCacheSizeBytes  uint64
 	TSIDCacheRequests   uint64
@@ -376,6 +382,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.AddRowsConcurrencyDroppedRows += atomic.LoadUint64(&s.addRowsConcurrencyDroppedRows)
 	m.AddRowsConcurrencyCapacity = uint64(cap(addRowsConcurrencyCh))
 	m.AddRowsConcurrencyCurrent = uint64(len(addRowsConcurrencyCh))
+
+	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
+	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
@@ -1095,6 +1104,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 	}
 	if pmrs != nil {
+		atomic.AddUint64(&s.slowRowInserts, uint64(len(pmrs.pmrs)))
 		// Sort pendingMetricRows by canonical metric name in order to speed up search via `is` in the loop below.
 		pendingMetricRows := pmrs.pmrs
 		sort.Slice(pendingMetricRows, func(i, j int) bool {
@@ -1294,6 +1304,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 
 	// Slow path - add new (date, metricID) entries to indexDB.
 
+	atomic.AddUint64(&s.slowPerDayIndexInserts, uint64(len(pendingDateMetricIDs)))
 	// Sort pendingDateMetricIDs by (date, metricID) in order to speed up `is` search in the loop below.
 	sort.Slice(pendingDateMetricIDs, func(i, j int) bool {
 		a := pendingDateMetricIDs[i]
