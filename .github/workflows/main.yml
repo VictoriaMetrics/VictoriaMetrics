@@ -18,7 +18,7 @@ jobs:
         run: |
           go get -u golang.org/x/lint/golint
           go get -u github.com/kisielk/errcheck
-          go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.27.0
       - name: Code checkout
         uses: actions/checkout@master
       - name: Build
