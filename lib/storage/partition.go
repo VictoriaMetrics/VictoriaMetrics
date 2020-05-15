@@ -1069,8 +1069,10 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	outRowsCount := uint64(0)
+	outBlocksCount := uint64(0)
 	for _, pw := range pws {
 		outRowsCount += pw.p.ph.RowsCount
+		outBlocksCount += pw.p.ph.BlocksCount
 	}
 	isBigPart := outRowsCount > maxRowsPerSmallPart()
 	nocache := isBigPart
@@ -1084,7 +1086,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	mergeIdx := pt.nextMergeIdx()
 	tmpPartPath := fmt.Sprintf("%s/tmp/%016X", ptPath, mergeIdx)
 	bsw := getBlockStreamWriter()
-	compressLevel := getCompressLevelForRowsCount(outRowsCount)
+	compressLevel := getCompressLevelForRowsCount(outRowsCount, outBlocksCount)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
 		return fmt.Errorf("cannot create destination part %q: %s", tmpPartPath, err)
 	}
@@ -1185,24 +1187,28 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d rows in %.3f seconds at %d rows/sec to %q; sizeBytes: %d",
-			outRowsCount, d.Seconds(), int(float64(outRowsCount)/d.Seconds()), dstPartPath, newPSize)
+		logger.Infof("merged %d rows across %d blocks in %.3f seconds at %d rows/sec to %q; sizeBytes: %d",
+			outRowsCount, outBlocksCount, d.Seconds(), int(float64(outRowsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil
 }
 
-func getCompressLevelForRowsCount(rowsCount uint64) int {
-	if rowsCount <= 1<<19 {
+func getCompressLevelForRowsCount(rowsCount, blocksCount uint64) int {
+	avgRowsPerBlock := rowsCount / blocksCount
+	if avgRowsPerBlock <= 200 {
+		return -1
+	}
+	if avgRowsPerBlock <= 500 {
 		return 1
 	}
-	if rowsCount <= 1<<22 {
+	if avgRowsPerBlock <= 1000 {
 		return 2
 	}
-	if rowsCount <= 1<<25 {
+	if avgRowsPerBlock <= 2000 {
 		return 3
 	}
-	if rowsCount <= 1<<28 {
+	if avgRowsPerBlock <= 4000 {
 		return 4
 	}
 	return 5

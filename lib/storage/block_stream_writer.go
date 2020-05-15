@@ -71,7 +71,10 @@ func (bsw *blockStreamWriter) reset() {
 // InitFromInmemoryPart initialzes bsw from inmemory part.
 func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart) {
 	bsw.reset()
-	bsw.compressLevel = 0
+
+	// Use the minimum compression level for in-memory blocks,
+	// since they are going to be re-compressed during the merge into file-based blocks.
+	bsw.compressLevel = -5 // See https://github.com/facebook/zstd/releases/tag/v1.3.4
 
 	bsw.timestampsWriter = &mp.timestampsData
 	bsw.valuesWriter = &mp.valuesData

@@ -624,11 +624,8 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 
 	// Prepare blockStreamWriter for destination part.
 	bsw := getBlockStreamWriter()
-	// Use the minimum compression level for in-memory blocks,
-	// since they are going to be re-compressed during the merge into file-based blocks.
-	compressLevel := -5 // See https://github.com/facebook/zstd/releases/tag/v1.3.4
 	mpDst := getInmemoryPart()
-	bsw.InitFromInmemoryPart(mpDst, compressLevel)
+	bsw.InitFromInmemoryPart(mpDst)
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
@@ -771,8 +768,10 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	}
 
 	outItemsCount := uint64(0)
+	outBlocksCount := uint64(0)
 	for _, pw := range pws {
 		outItemsCount += pw.p.ph.itemsCount
+		outBlocksCount += pw.p.ph.blocksCount
 	}
 	nocache := true
 	if outItemsCount < maxItemsPerCachedPart() {
@@ -785,7 +784,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	mergeIdx := tb.nextMergeIdx()
 	tmpPartPath := fmt.Sprintf("%s/tmp/%016X", tb.path, mergeIdx)
 	bsw := getBlockStreamWriter()
-	compressLevel := getCompressLevelForPartItems(outItemsCount)
+	compressLevel := getCompressLevelForPartItems(outItemsCount, outBlocksCount)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
 		return fmt.Errorf("cannot create destination part %q: %s", tmpPartPath, err)
 	}
@@ -870,14 +869,16 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d items in %.3f seconds at %d items/sec to %q; sizeBytes: %d",
-			outItemsCount, d.Seconds(), int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
+		logger.Infof("merged %d items across %d blocks in %.3f seconds at %d items/sec to %q; sizeBytes: %d",
+			outItemsCount, outBlocksCount, d.Seconds(), int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil
 }
 
-func getCompressLevelForPartItems(itemsCount uint64) int {
+func getCompressLevelForPartItems(itemsCount, blocksCount uint64) int {
+	// There is no need in using blocksCount here, since mergeset blocks are usually full.
+
 	if itemsCount <= 1<<16 {
 		// -5 is the minimum supported compression for zstd.
 		// See https://github.com/facebook/zstd/releases/tag/v1.3.4
