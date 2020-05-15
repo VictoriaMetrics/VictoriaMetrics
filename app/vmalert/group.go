@@ -25,6 +25,7 @@ type Group struct {
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan Group
+
 }
 
 // ID return unique group ID that consists of
