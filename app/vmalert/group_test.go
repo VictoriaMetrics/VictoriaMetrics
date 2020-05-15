@@ -40,7 +40,6 @@ func TestUpdateWith(t *testing.T) {
 			[]*Rule{{
 				Name: "bar",
 				Expr: "up > 10",
-				For:  time.Second,
 				Labels: map[string]string{
 					"baz": "bar",
 				},
@@ -135,17 +134,16 @@ func TestGroupStart(t *testing.T) {
 	alert2.State = notifier.StateFiring
 	alert2.ID = hash(m2)
 
-	const evalInterval = time.Millisecond
 	finished := make(chan struct{})
 	fs.add(m1)
 	fs.add(m2)
 	go func() {
-		g.start(context.Background(), evalInterval, fs, fn, nil)
+		g.start(context.Background(), fs, fn, nil)
 		close(finished)
 	}()
 
 	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	time.Sleep(20 * g.Interval)
 
 	gotAlerts := fn.getAlerts()
 	expectedAlerts := []notifier.Alert{*alert1, *alert2}
@@ -157,7 +155,7 @@ func TestGroupStart(t *testing.T) {
 	fs.add(m1)
 
 	// wait for multiple evals
-	time.Sleep(20 * evalInterval)
+	time.Sleep(20 * g.Interval)
 
 	gotAlerts = fn.getAlerts()
 	expectedAlerts = []notifier.Alert{*alert1}

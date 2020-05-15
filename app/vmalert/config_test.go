@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
@@ -23,17 +24,17 @@ func TestParseGood(t *testing.T) {
 }
 
 func TestParseGroupInterval(t *testing.T){
-	groups, err := Parse([]string{"testdata/dir/rules3-group-interval-good.rules"}, true);
+	groups, err := Parse([]string{"testdata/dir/rules3-group-interval-5m-good.rules"}, true)
 	if err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 	err = errors.New("failed to parse group interval")
 	for _,group := range groups{
 		if strings.Contains(group.Name,"Without") {
-			if group.Interval != 0{ // should be 0 by default
+			if group.Interval != *evaluationInterval{ // should be 0 by default
 				t.Error(err)
 			}
-		}else if group.Interval == 0 {
+		}else if group.Interval != 5 * time.Minute   {
 			t.Error(err)
 		}
 	}
