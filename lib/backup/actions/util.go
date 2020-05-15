@@ -230,6 +230,6 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		}
 		return fs, nil
 	default:
-		return nil, fmt.Errorf("unsupported scheme %q in `-dst`", scheme)
+		return nil, fmt.Errorf("unsupported scheme %q", scheme)
 	}
 }
