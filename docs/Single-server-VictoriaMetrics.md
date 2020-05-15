@@ -911,8 +911,11 @@ The most interesting metrics are:
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
 * `sum(vm_data_size_bytes)` - the total size of data on disk.
 * `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
-  If this value remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
-  for the current number of active time series.
+  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
+  of the current number of active time series.
+* `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
+  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
+  of the current number of active time series.
 
 
 ### Troubleshooting
@@ -925,9 +928,9 @@ The most interesting metrics are:
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
-  See `vm_slow_row_inserts_total` and `vm_slow_per_day_index_inserts_total` [metrics](#monitoring).
+  VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
   It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
-  ingestion performance in this case.
+  ingestion and query performance in this case.
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 

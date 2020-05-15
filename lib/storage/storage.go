@@ -41,6 +41,7 @@ type Storage struct {
 
 	slowRowInserts         uint64
 	slowPerDayIndexInserts uint64
+	slowMetricNameLoads    uint64
 
 	path            string
 	cachePath       string
@@ -338,6 +339,7 @@ type Metrics struct {
 
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
+	SlowMetricNameLoads    uint64
 
 	TSIDCacheSize       uint64
 	TSIDCacheSizeBytes  uint64
@@ -395,6 +397,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
+	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
@@ -874,6 +877,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 		metricIDs = append(metricIDs, metricID)
 		tsidsMap[metricID] = &tsids[i]
 	}
+	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
 		return nil
