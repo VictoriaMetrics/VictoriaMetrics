@@ -150,13 +150,8 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	}
 	dst.Labels = labelsDst[labelsLen:]
 
-	samplesDst = append(samplesDst, prompbmarshal.Sample{})
-	dstSample := &samplesDst[len(samplesDst)-1]
-	if len(src.Samples) != 1 {
-		logger.Panicf("BUG: unexpected number of samples in time series; got %d; want 1", len(src.Samples))
-	}
-	*dstSample = src.Samples[0]
-	dst.Samples = samplesDst[len(samplesDst)-1:]
+	samplesDst = append(samplesDst, src.Samples...)
+	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
 
 	wr.samples = samplesDst
 	wr.labels = labelsDst

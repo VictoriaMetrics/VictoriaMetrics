@@ -86,8 +86,6 @@ func Stop() {
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
-// Each timeseries in wr.Timeseries must contain one sample.
-//
 // Note that wr may be modified by Push due to relabeling.
 func Push(wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
