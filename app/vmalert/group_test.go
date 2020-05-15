@@ -67,8 +67,8 @@ func TestUpdateWith(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Rules: tc.currentRules,Interval:tc.interval}
-			g.updateWith(Group{Rules: tc.newRules})
+			g := &Group{Rules: tc.currentRules}
+			g.updateWith(Group{Rules: tc.newRules,Interval:tc.interval})
 
 			if len(g.Rules) != len(tc.newRules) {
 				t.Fatalf("expected to have %d rules; got: %d",
