@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -23,19 +23,18 @@ func TestParseGood(t *testing.T) {
 	}
 }
 
-func TestParseGroupInterval(t *testing.T){
+func TestParseGroupInterval(t *testing.T) {
 	groups, err := Parse([]string{"testdata/dir/rules3-group-interval-5m-good.rules"}, true)
 	if err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
-	err = errors.New("failed to parse group interval")
-	for _,group := range groups{
-		if strings.Contains(group.Name,"Without") {
-			if group.Interval != *evaluationInterval{
-				t.Error(err)
+	for _, group := range groups {
+		if strings.Contains(group.Name, "Without") {
+			if group.Interval != *evaluationInterval {
+				t.Error(fmt.Sprintf("group %q expected to have default interval %v; got %v", group.Name, *evaluationInterval, group.Interval))
 			}
-		}else if group.Interval != 5 * time.Minute   {
-			t.Error(err)
+		} else if group.Interval != 5*time.Minute {
+			t.Error(fmt.Sprintf("group %q expected to have interval %v; got %v", group.Name, 5*time.Minute, group.Interval))
 		}
 	}
 }

@@ -122,22 +122,6 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 			a.State = notifier.StateFiring
 			alertsFired.Inc()
 		}
-//<<<<<<< HEAD
-////<<<<<<< HEAD
-////=======
-////		if a.State == notifier.StateFiring {
-////			interval := 3 * *evaluationInterval
-////			if r.group.Interval > 0 {
-////				interval = 3 * r.group.Interval
-////			}
-////			a.End = r.lastExecTime.Add(interval)
-////		}
-////>>>>>>> Modify Group End Time to 3 * group.interval of 3 * evaluationInterval by default
-//=======
-//		if a.State == notifier.StateFiring {
-//			a.End = r.lastExecTime.Add(3* r.group.Interval)
-//		}
-//>>>>>>> Support Group Interval
 	}
 	return nil
 }
