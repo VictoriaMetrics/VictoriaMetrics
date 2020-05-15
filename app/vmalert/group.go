@@ -54,6 +54,8 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 // passed group object.
 // Not thread-safe.
 func (g *Group) updateWith(newGroup Group) {
+	g.Interval = newGroup.Interval
+
 	rulesRegistry := make(map[string]*Rule)
 	for _, nr := range newGroup.Rules {
 		rulesRegistry[nr.id()] = nr
