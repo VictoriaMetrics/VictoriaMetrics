@@ -68,15 +68,15 @@ func TestUpdateWith(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &Group{Rules: tc.currentRules}
-			g.updateWith(Group{Rules: tc.newRules,Interval:tc.interval})
+			g.updateWith(Group{Rules: tc.newRules, Interval: tc.interval})
 
 			if len(g.Rules) != len(tc.newRules) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
 			}
-			if g.Interval != tc.interval{
+			if g.Interval != tc.interval {
 				t.Fatalf("expected group interval %v; got: %v",
-					tc.interval,g.Interval)
+					tc.interval, g.Interval)
 			}
 
 			for i, r := range g.Rules {
@@ -108,6 +108,7 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
 	g := groups[0]
+	g.Interval = 1 * time.Millisecond
 
 	fn := &fakeNotifier{}
 	fs := &fakeQuerier{}
