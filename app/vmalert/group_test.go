@@ -79,6 +79,10 @@ func TestUpdateWith(t *testing.T) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
 			}
+			if g.Interval != tc.interval{
+				t.Fatalf("expected group interval %v; got: %v",
+					g.Interval, tc.interval)
+			}
 			sort.Slice(g.Rules, func(i, j int) bool {
 				return g.Rules[i].Name < g.Rules[j].Name
 			})
