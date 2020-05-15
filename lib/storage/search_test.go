@@ -168,15 +168,19 @@ func testSearchGeneric(t *testing.T, forcePerDayInvertedIndex bool) {
 				ch <- testSearchInternal(st, tr, mrs, accountsCount)
 			}()
 		}
+		var firstError error
 		for i := 0; i < cap(ch); i++ {
 			select {
 			case err := <-ch:
-				if err != nil {
-					t.Fatalf("unexpected error: %s", err)
+				if err != nil && firstError == nil {
+					firstError = err
 				}
 			case <-time.After(10 * time.Second):
 				t.Fatalf("timeout")
 			}
+		}
+		if firstError != nil {
+			t.Fatalf("unexpected error: %s", firstError)
 		}
 	})
 }
