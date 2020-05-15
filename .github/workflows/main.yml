@@ -24,7 +24,7 @@ jobs:
         run: |
           go get -u golang.org/x/lint/golint
           go get -u github.com/kisielk/errcheck
-          go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+          go get -u github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
       - name: Code checkout
         uses: actions/checkout@master
       - name: Build
