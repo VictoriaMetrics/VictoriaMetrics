@@ -20,13 +20,13 @@ func TestUpdateWith(t *testing.T) {
 	}{
 		{
 			"new rule",
-			0,
+			time.Minute,
 			[]*Rule{},
 			[]*Rule{{Name: "bar"}},
 		},
 		{
 			"update rule",
-			1 * time.Minute,
+			time.Minute,
 			[]*Rule{{
 				Name: "foo",
 				Expr: "up > 0",
@@ -74,6 +74,11 @@ func TestUpdateWith(t *testing.T) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
 			}
+			if g.Interval != tc.interval{
+				t.Fatalf("expected group interval %v; got: %v",
+					g.Interval, tc.interval)
+			}
+
 			for i, r := range g.Rules {
 				got, want := r, tc.newRules[i]
 				if got.Name != want.Name {
