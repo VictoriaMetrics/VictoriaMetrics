@@ -73,7 +73,7 @@ func TestUpdateWith(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &Group{Rules: tc.currentRules}
-			g.updateWith(Group{Rules: tc.newRules,Interval:tc.interval})
+			g.updateWith(Group{Rules: tc.newRules})
 
 			if len(g.Rules) != len(tc.newRules) {
 				t.Fatalf("expected to have %d rules; got: %d",
@@ -82,7 +82,7 @@ func TestUpdateWith(t *testing.T) {
 			sort.Slice(g.Rules, func(i, j int) bool {
 				return g.Rules[i].Name < g.Rules[j].Name
 			})
-
+			
 			for i, r := range g.Rules {
 				got, want := r, tc.newRules[i]
 				if got.Name != want.Name {
