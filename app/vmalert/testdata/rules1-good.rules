@@ -1,5 +1,6 @@
 groups:
   - name: groupTest
+    interval: 1ms
     rules:
       - alert: VMRows
         for: 1ms
