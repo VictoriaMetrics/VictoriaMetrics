@@ -116,6 +116,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
 * [Backfilling](#backfilling)
+* [Replication](#replication)
+* [Backups](#backups)
 * [Profiling](#profiling)
 * [Integrations](#integrations)
 * [Third-party contributions](#third-party-contributions)
@@ -782,6 +784,8 @@ remote_write:
 kill -HUP `pidof prometheus`
 ```
 
+It is recommended to use [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) instead of Prometheus for highly loaded setups.
+
 4) Now Prometheus should write data into all the configured `remote_write` urls in parallel.
 5) Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
 6) Set up Prometheus datasource in Grafana that points to Promxy.
@@ -791,6 +795,7 @@ to write data to `victoriametrics-addr-1`, while each `r2` should write data to 
 
 Another option is to write data simultaneously from Prometheus HA pair to a pair of VictoriaMetrics instances
 with the enabled de-duplication. See [this section](#deduplication) for details.
+
 
 ### Deduplication
 
@@ -976,6 +981,24 @@ the query cache, which could contain incomplete data cached during the backfilli
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time.
+
+
+### Replication
+
+VictoriaMetrics relies on replicated durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs)
+or [Amazon EBS](https://aws.amazon.com/ebs/). It is also recommended making periodic backups,
+since [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883).
+See [backup docs](#backups) for details.
+
+See also [high availability docs](#high-availability) and [docs about cluster version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md).
+
+
+### Backups
+
+VictoriaMetrics supports backups via [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md)
+and [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md) tools.
+We also provide provide `vmbackuper` tool for paid enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for details.
+
 
 ### Profiling
 
