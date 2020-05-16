@@ -16,7 +16,8 @@ var (
 	src = flag.String("src", "", "Source path with backup on the remote storage. "+
 		"Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir")
 	storageDataPath = flag.String("storageDataPath", "victoria-metrics-data", "Destination path where backup must be restored. "+
-		"VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case only missing data is downloaded from backup")
+		"VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir "+
+		"is synchronized with -src contents, i.e. it works like 'rsync --delete'")
 	concurrency             = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
 	maxBytesPerSecond       = flag.Int("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
