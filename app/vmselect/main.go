@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -52,6 +53,8 @@ func getDefaultMaxConcurrentRequests() int {
 }
 
 func main() {
+	// Write flags and help message to stdout, since it is easier to grep or pipe.
+	flag.CommandLine.SetOutput(os.Stdout)
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
