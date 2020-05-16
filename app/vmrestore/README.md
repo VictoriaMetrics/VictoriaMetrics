@@ -21,7 +21,8 @@ vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/r
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed
   to VictoriaMetrics in `-storageDataPath` command-line flag after the restore process is complete.
 
-The original `-storageDataPath` directory may contain old files. They will be susbstituted by the files from backup.
+The original `-storageDataPath` directory may contain old files. They will be susbstituted by the files from backup,
+i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
 
 
 ### Troubleshooting
@@ -52,7 +53,7 @@ Run `vmrestore -help` in order to see all the available options:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
-    	Whether to use pread() instead of mmap() for reading data files
+    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot data files bigger than 2^32 bytes in memory
   -loggerFormat string
     	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
@@ -68,8 +69,8 @@ Run `vmrestore -help` in order to see all the available options:
   -src string
     	Source path with backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -storageDataPath string
-    	Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case only missing data is downloaded from backup (default "victoria-metrics-data")
-  -version
+    	Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
+ -version
     	Show VictoriaMetrics version
 ```
 
