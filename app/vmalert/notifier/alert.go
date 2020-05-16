@@ -18,6 +18,7 @@ type Alert struct {
 	Annotations map[string]string
 	State       AlertState
 
+	Expr  string
 	Start time.Time
 	End   time.Time
 	Value float64
@@ -52,14 +53,15 @@ func (as AlertState) String() string {
 type alertTplData struct {
 	Labels map[string]string
 	Value  float64
+	Expr   string
 }
 
-const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}`
+const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}{{ $expr := .Expr }}`
 
 // ExecTemplate executes the Alert template for give
 // map of annotations.
 func (a *Alert) ExecTemplate(annotations map[string]string) (map[string]string, error) {
-	tplData := alertTplData{Value: a.Value, Labels: a.Labels}
+	tplData := alertTplData{Value: a.Value, Labels: a.Labels, Expr: a.Expr}
 	return templateAnnotations(annotations, tplHeader, tplData)
 }
 

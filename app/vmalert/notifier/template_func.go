@@ -142,6 +142,12 @@ func InitTemplateFunc(externalURL *url.URL) {
 		"externalURL": func() string {
 			return externalURL.String()
 		},
+		"pathEscape": func(u string) string {
+			return url.PathEscape(u)
+		},
+		"queryEscape": func(q string) string {
+			return url.QueryEscape(q)
+		},
 	}
 }
 

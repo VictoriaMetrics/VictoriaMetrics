@@ -152,6 +152,7 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 		Labels:  map[string]string{},
 		Value:   m.Value,
 		Start:   time.Now(),
+		Expr:    r.Expr,
 		// TODO: support End time
 	}
 	for _, l := range m.Labels {
