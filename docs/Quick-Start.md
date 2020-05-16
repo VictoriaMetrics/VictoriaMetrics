@@ -1,7 +1,7 @@
 # Quick Start
 
 1. Download the latest VictoriaMetrics release from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-   from [Docker hub](https://hub.docker.com/r/valyala/victoria-metrics/)
+   from [Docker hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
    or [build it from sources](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics#how-to-build-from-sources).
 
 2. Run the binary or Docker image with the desired command-line flags. Pass `-help` in order to see description for all the available flags
