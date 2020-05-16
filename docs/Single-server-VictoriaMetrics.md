@@ -10,12 +10,16 @@
 
 ## VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable time-series database. It can be used as long-term remote storage for Prometheus.
+VictoriaMetrics is fast, cost-effective and scalable time-series database.
+
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
 in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+[Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
+
 
 ## Case studies and talks
 
@@ -34,6 +38,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 ## Prominent features
 
+* VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+  See [these docs](#prometheus-setup) for details.
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
   VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which is inspired by PromQL.
 * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
