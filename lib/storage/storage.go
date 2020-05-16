@@ -877,11 +877,11 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 		metricIDs = append(metricIDs, metricID)
 		tsidsMap[metricID] = &tsids[i]
 	}
-	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
 		return nil
 	}
+	atomic.AddUint64(&s.slowMetricNameLoads, uint64(len(metricIDs)))
 
 	// Pre-fetch metricIDs.
 	sort.Sort(metricIDs)
