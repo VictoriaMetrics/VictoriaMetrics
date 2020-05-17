@@ -69,7 +69,7 @@ func (g *Group) updateWith(newGroup Group) {
 
 		// copy all significant fields.
 		// alerts state isn't copied since
-		// it should be updated in next 2 Evals
+		// it should be updated in next 2 Execs
 		or.For = nr.For
 		or.Expr = nr.Expr
 		or.Labels = nr.Labels
@@ -151,30 +151,47 @@ func (g *Group) start(ctx context.Context, interval time.Duration,
 
 				var alertsToSend []notifier.Alert
 				for _, a := range rule.alerts {
-					if a.State != notifier.StatePending {
+					switch a.State {
+					case notifier.StateFiring:
+						// set End to execStart + 3 intervals
+						// so notifier can resolve it automatically if `vmalert`
+						// won't be able to send resolve for some reason
+						a.End = execStart.Add(3 * interval)
+						alertsToSend = append(alertsToSend, *a)
+						pushToRW(rw, rule, a, execStart)
+					case notifier.StatePending:
+						pushToRW(rw, rule, a, execStart)
+					case notifier.StateInactive:
+						// set End to execStart to notify
+						// that it was just resolved
+						a.End = execStart
 						alertsToSend = append(alertsToSend, *a)
 					}
-					if a.State == notifier.StateInactive || rw == nil {
-						continue
-					}
-					tss := rule.AlertToTimeSeries(a, execStart)
-					for _, ts := range tss {
-						remoteWriteSent.Inc()
-						if err := rw.Push(ts); err != nil {
-							remoteWriteErrors.Inc()
-							logger.Errorf("failed to push timeseries to remotewrite: %s", err)
-						}
-					}
 				}
-				if len(alertsToSend) > 0 {
-					alertsSent.Add(len(alertsToSend))
-					if err := nr.Send(ctx, alertsToSend); err != nil {
-						alertsSendErrors.Inc()
-						logger.Errorf("failed to send alert for rule %q.%q: %s", g.Name, rule.Name, err)
-					}
+				if len(alertsToSend) == 0 {
+					continue
+				}
+				alertsSent.Add(len(alertsToSend))
+				if err := nr.Send(ctx, alertsToSend); err != nil {
+					alertsSendErrors.Inc()
+					logger.Errorf("failed to send alert for rule %q.%q: %s", g.Name, rule.Name, err)
 				}
 			}
 			iterationDuration.UpdateDuration(iterationStart)
+		}
+	}
+}
+
+func pushToRW(rw *remotewrite.Client, rule *Rule, a *notifier.Alert, timestamp time.Time) {
+	if rw == nil {
+		return
+	}
+	tss := rule.AlertToTimeSeries(a, timestamp)
+	remoteWriteSent.Add(len(tss))
+	for _, ts := range tss {
+		if err := rw.Push(ts); err != nil {
+			remoteWriteErrors.Inc()
+			logger.Errorf("failed to push timeseries to remotewrite: %s", err)
 		}
 	}
 }
