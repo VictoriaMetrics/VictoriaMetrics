@@ -296,16 +296,14 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for-pending=>inactive", time.Millisecond),
+			newTestRule("for-pending=>empty", time.Second),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
-				// empty step to reset pending alerts
+				// empty step to reset and delete pending alerts
 				{},
 			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
-			},
+			map[uint64]*notifier.Alert{},
 		},
 		{
 			newTestRule("for-pending=>firing=>inactive", time.Millisecond),
