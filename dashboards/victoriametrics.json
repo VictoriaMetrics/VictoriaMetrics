@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.7.1"
+      "version": "6.7.2"
     },
     {
       "type": "panel",
@@ -54,12 +54,12 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.34.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.35.5 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1585342925438,
+  "iteration": 1589730921459,
   "links": [
     {
       "icon": "doc",
@@ -122,7 +122,7 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 1
       },
@@ -206,8 +206,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 9,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 1
       },
       "id": 35,
@@ -290,8 +290,8 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 7,
-        "x": 17,
+        "w": 6,
+        "x": 12,
         "y": 1
       },
       "id": 32,
@@ -342,6 +342,93 @@
       "timeFrom": null,
       "timeShift": null,
       "title": "Total datapoints",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": false,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": "$ds",
+      "decimals": 2,
+      "description": "Average disk usage per datapoint.",
+      "format": "bytes",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 112,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": true,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"}) / sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"})",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Bytes per point",
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -730,7 +817,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
+      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -740,19 +827,23 @@
         "y": 18
       },
       "hiddenSeries": false,
-      "id": 102,
+      "id": 52,
       "legend": {
-        "avg": false,
-        "current": false,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
         "max": false,
         "min": false,
         "show": true,
+        "sort": "current",
+        "sortDesc": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
-      "nullPointMode": "null",
+      "links": [],
+      "nullPointMode": "null as zero",
       "options": {
         "dataLinks": []
       },
@@ -766,8 +857,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m]))",
-          "legendFormat": "churn rate",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[5m])) by (path) > 0",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "{{path}}",
           "refId": "A"
         }
       ],
@@ -775,10 +868,10 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Churn rate ($instance)",
+      "title": "Requests error rate ($instance)",
       "tooltip": {
         "shared": true,
-        "sort": 0,
+        "sort": 2,
         "value_type": "individual"
       },
       "type": "graph",
@@ -912,7 +1005,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -922,7 +1015,7 @@
         "y": 26
       },
       "hiddenSeries": false,
-      "id": 52,
+      "id": 44,
       "legend": {
         "alignAsTable": true,
         "avg": true,
@@ -930,20 +1023,18 @@
         "max": false,
         "min": false,
         "show": true,
-        "sort": "current",
-        "sortDesc": true,
         "total": false,
         "values": true
       },
       "lines": true,
       "linewidth": 1,
       "links": [],
-      "nullPointMode": "null as zero",
+      "nullPointMode": "null",
       "options": {
         "dataLinks": []
       },
       "percentage": false,
-      "pointradius": 2,
+      "pointradius": 1,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
@@ -952,21 +1043,42 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[5m])) by (path) > 0",
+          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{path}}",
+          "legendFormat": "Connection",
           "refId": "A"
+        },
+        {
+          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Dial",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Handshake",
+          "refId": "E"
+        },
+        {
+          "expr": "sum(rate(vm_rpc_reroute_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Reroute",
+          "refId": "C"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Requests error rate ($instance)",
+      "title": "RPC errors ($instance)",
       "tooltip": {
         "shared": true,
-        "sort": 2,
+        "sort": 0,
         "value_type": "individual"
       },
       "type": "graph",
@@ -979,7 +1091,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "rps",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1103,7 +1215,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
+      "description": "Shows amount of remaining disk space at `-storageDataPath`",
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1113,16 +1225,15 @@
         "y": 34
       },
       "hiddenSeries": false,
-      "id": 44,
+      "id": 110,
       "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
+        "avg": false,
+        "current": false,
         "max": false,
         "min": false,
         "show": true,
         "total": false,
-        "values": true
+        "values": false
       },
       "lines": true,
       "linewidth": 1,
@@ -1132,48 +1243,28 @@
         "dataLinks": []
       },
       "percentage": false,
-      "pointradius": 1,
+      "pointradius": 2,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [],
       "spaceLength": 10,
-      "stack": false,
+      "stack": true,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_rpc_connection_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
+          "expr": "sum(vm_free_disk_space_bytes{job=\"$job_storage\", instance=~\"$instance\"}) by(instance)",
           "format": "time_series",
+          "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "Connection",
+          "legendFormat": "{{instance}}",
           "refId": "A"
-        },
-        {
-          "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Dial",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Handshake",
-          "refId": "E"
-        },
-        {
-          "expr": "sum(rate(vm_rpc_reroute_errors_total{job=~\"$job\",instance=~\"$instance.*\"}[5m]))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "Reroute",
-          "refId": "C"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "RPC errors ($instance)",
+      "title": "Free disk space ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1189,11 +1280,11 @@
       },
       "yaxes": [
         {
-          "format": "rps",
+          "format": "bytes",
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -1326,7 +1417,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 3
           },
           "hiddenSeries": false,
           "id": 64,
@@ -1383,7 +1474,7 @@
           },
           "yaxes": [
             {
-              "format": "s",
+              "format": "short",
               "label": null,
               "logBase": 1,
               "max": null,
@@ -1417,7 +1508,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 3
           },
           "hiddenSeries": false,
           "id": 66,
@@ -1505,7 +1596,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 68,
@@ -1596,7 +1687,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 70,
@@ -1687,7 +1778,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 72,
@@ -1778,6 +1869,376 @@
         "x": 0,
         "y": 43
       },
+      "id": 106,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 3
+          },
+          "hiddenSeries": false,
+          "id": 102,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job_storage\", instance=~\"$instance\"}[5m]))",
+              "legendFormat": "churn rate",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Churn rate ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 3
+          },
+          "hiddenSeries": false,
+          "id": 107,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(rate(vm_slow_queries_total{job=\"$job_select\", instance=~\"$instance\"}[5m]))",
+              "interval": "",
+              "legendFormat": "slow queries rate",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Slow queries ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "The number of slow inserts during the last 5 minutes. If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series.\n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 11
+          },
+          "hiddenSeries": false,
+          "id": 108,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(vm_slow_row_inserts_total{job=\"$job_storage\", instance=~\"$instance\"}[5m]))",
+              "interval": "",
+              "legendFormat": "slow inserts",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Slow inserts ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "The number of slow loads of metric names during the last 5 minutes. If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series.\n\nUsually VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 11
+          },
+          "hiddenSeries": false,
+          "id": 109,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(increase(vm_slow_metric_name_loads_total{job=\"$job_storage\", instance=~\"$instance\"}[5m]))",
+              "interval": "",
+              "legendFormat": "slow metrics load",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Slow metrics load ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "title": "Troubleshooting",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": "${DS_PROMETHEUS}",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
       "id": 48,
       "panels": [
         {
@@ -1793,7 +2254,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 76,
@@ -1892,7 +2353,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 86,
@@ -2005,7 +2466,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 53
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 80,
@@ -2097,7 +2558,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 78,
@@ -2189,7 +2650,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 61
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 82,
@@ -2288,7 +2749,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 61
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 84,
@@ -2377,7 +2838,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 69
+            "y": 29
           },
           "hiddenSeries": false,
           "id": 74,
@@ -2463,7 +2924,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 45
       },
       "id": 60,
       "panels": [
@@ -2480,8 +2941,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 13
           },
+          "hiddenSeries": false,
           "id": 57,
           "legend": {
             "alignAsTable": true,
@@ -2587,8 +3049,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 13
           },
+          "hiddenSeries": false,
           "id": 58,
           "legend": {
             "avg": false,
@@ -2676,7 +3139,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 46
       },
       "id": 24,
       "panels": [
@@ -2686,14 +3149,14 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "How many datapoints are in the storage.",
+          "description": "Shows how many datapoints are in the storage.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 14
           },
           "hiddenSeries": false,
           "id": 16,
@@ -2723,8 +3186,9 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type != \"indexdb\"}) by(instance)",
+              "expr": "sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) by(instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
               "refId": "A"
@@ -2758,6 +3222,7 @@
               "show": true
             },
             {
+              "decimals": null,
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -2784,7 +3249,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 14
           },
           "hiddenSeries": false,
           "id": 100,
@@ -2868,105 +3333,14 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows amount of on-disk space occupied by inverted index.",
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 54
-          },
-          "hiddenSeries": false,
-          "id": 20,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
-          "percentage": false,
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": true,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"}) by(instance)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Disk space usage (index)  ($instance)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "bytes",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": "0",
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "$ds",
           "description": "Shows amount of on-disk space occupied by data points.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 12,
-            "y": 54
+            "x": 0,
+            "y": 22
           },
           "hiddenSeries": false,
           "id": 18,
@@ -3050,6 +3424,97 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
+          "description": "Shows amount of on-disk space occupied by inverted index.",
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 22
+          },
+          "hiddenSeries": false,
+          "id": 20,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": true,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"}) by(instance)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Disk space usage (index)  ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
           "fill": 1,
           "fillGradient": 0,
@@ -3057,7 +3522,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 54,
@@ -3146,7 +3611,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 14,
@@ -3254,7 +3719,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 22,
@@ -3345,7 +3810,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 55,
@@ -3434,7 +3899,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 46
           },
           "hiddenSeries": false,
           "id": 4,
@@ -3543,7 +4008,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 47
       },
       "id": 42,
       "panels": [
@@ -3560,7 +4025,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 92,
@@ -3654,7 +4119,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 95,
@@ -3765,7 +4230,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 55
+            "y": 23
           },
           "hiddenSeries": false,
           "id": 93,
@@ -3870,7 +4335,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 48
       },
       "id": 40,
       "panels": [
@@ -3887,7 +4352,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 16
           },
           "hiddenSeries": false,
           "id": 97,
@@ -3981,7 +4446,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 16
           },
           "hiddenSeries": false,
           "id": 99,
@@ -4092,7 +4557,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 56
+            "y": 24
           },
           "hiddenSeries": false,
           "id": 90,
@@ -4199,7 +4664,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 56
+            "y": 24
           },
           "hiddenSeries": false,
           "id": 88,
@@ -4260,13 +4725,13 @@
           },
           "yaxes": [
             {
+              "decimals": 2,
               "format": "short",
               "label": null,
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true,
-              "decimals": 2
+              "show": true
             },
             {
               "format": "short",
@@ -4294,7 +4759,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },
@@ -4432,7 +4897,7 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {
