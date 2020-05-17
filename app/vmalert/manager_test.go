@@ -26,24 +26,35 @@ func TestManagerUpdateError(t *testing.T) {
 // execution of configuration update.
 // Should be executed with -race flag
 func TestManagerUpdateConcurrent(t *testing.T) {
-	m := &manager{groups: make(map[uint64]*Group)}
+	m := &manager{
+		groups:   make(map[uint64]*Group),
+		storage:  &fakeQuerier{},
+		notifier: &fakeNotifier{},
+	}
 	paths := []string{
 		"testdata/dir/rules0-good.rules",
 		"testdata/dir/rules1-good.rules",
 		"testdata/rules0-good.rules",
 	}
+	*evaluationInterval = time.Millisecond
+	if err := m.start(context.Background(), []string{paths[0]}, true); err != nil {
+		t.Fatalf("failed to start: %s", err)
+	}
 
-	const n = 500
+	const workers = 500
+	const iterations = 10
 	wg := sync.WaitGroup{}
-	wg.Add(n)
-	for i := 0; i < n; i++ {
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
-			rnd := rand.Intn(len(paths))
-			path := []string{paths[rnd]}
-			err := m.update(context.Background(), path, true, false)
-			if err != nil {
-				t.Errorf("update error: %s", err)
+			for i := 0; i < iterations; i++ {
+				rnd := rand.Intn(len(paths))
+				path := []string{paths[rnd]}
+				err := m.update(context.Background(), path, true, false)
+				if err != nil {
+					t.Errorf("update error: %s", err)
+				}
 			}
 		}()
 	}
@@ -111,7 +122,7 @@ func TestManagerUpdate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
-			m := &manager{groups: make(map[uint64]*Group)}
+			m := &manager{groups: make(map[uint64]*Group), storage: &fakeQuerier{}}
 			path := []string{tc.initPath}
 			if err := m.update(ctx, path, true, false); err != nil {
 				t.Fatalf("failed to complete initial rules update: %s", err)

@@ -87,8 +87,7 @@ func (m *manager) update(ctx context.Context, path []string, validate, restore b
 
 	m.groupsMu.Lock()
 	for _, og := range m.groups {
-		id := og.ID()
-		ng, ok := groupsRegistry[id]
+		ng, ok := groupsRegistry[og.ID()]
 		if !ok {
 			// old group is not present in new list
 			// and must be stopped and deleted
@@ -97,7 +96,7 @@ func (m *manager) update(ctx context.Context, path []string, validate, restore b
 			og = nil
 			continue
 		}
-		og.updateWith(ng)
+		og.updateCh <- ng
 		delete(groupsRegistry, ng.ID())
 	}
 
