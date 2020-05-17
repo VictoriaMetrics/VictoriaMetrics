@@ -19,13 +19,16 @@ type Group struct {
 	File  string
 	Rules []*Rule
 
-	done     chan struct{}
-	finished chan struct{}
+	doneCh     chan struct{}
+	finishedCh chan struct{}
+	// channel accepts new Group obj
+	// which supposed to update current group
+	updateCh chan Group
 }
 
 // ID return unique group ID that consists of
 // rules file and group name
-func (g Group) ID() uint64 {
+func (g *Group) ID() uint64 {
 	hash := fnv.New64a()
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
@@ -47,8 +50,8 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 }
 
 // updateWith updates existing group with
-// passed group object. Must be called
-// under mutex lock.
+// passed group object.
+// Not thread-safe.
 func (g *Group) updateWith(newGroup Group) {
 	rulesRegistry := make(map[string]*Rule)
 	for _, nr := range newGroup.Rules {
@@ -106,11 +109,11 @@ var (
 )
 
 func (g *Group) close() {
-	if g.done == nil {
+	if g.doneCh == nil {
 		return
 	}
-	close(g.done)
-	<-g.finished
+	close(g.doneCh)
+	<-g.finishedCh
 }
 
 func (g *Group) start(ctx context.Context, interval time.Duration,
@@ -122,12 +125,14 @@ func (g *Group) start(ctx context.Context, interval time.Duration,
 		select {
 		case <-ctx.Done():
 			logger.Infof("group %q: context cancelled", g.Name)
-			close(g.finished)
+			close(g.finishedCh)
 			return
-		case <-g.done:
+		case <-g.doneCh:
 			logger.Infof("group %q: received stop signal", g.Name)
-			close(g.finished)
+			close(g.finishedCh)
 			return
+		case ng := <-g.updateCh:
+			g.updateWith(ng)
 		case <-t.C:
 			iterationTotal.Inc()
 			iterationStart := time.Now()
