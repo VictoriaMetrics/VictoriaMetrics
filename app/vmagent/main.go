@@ -167,7 +167,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		for key, val := range queryContent {
-			if val == nil || len(val) == 0 {
+			if len(val) == 0 {
 				break
 			}
 			switch key {
