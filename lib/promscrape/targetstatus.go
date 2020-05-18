@@ -15,6 +15,11 @@ func WriteHumanReadableTargetsStatus(w io.Writer) {
 	tsmGlobal.WriteHumanReadable(w)
 }
 
+//return the number of target
+func GetTargetNumber() int {
+	return len(tsmGlobal.m)
+}
+
 type targetStatusMap struct {
 	mu sync.Mutex
 	m  map[uint64]targetStatus
