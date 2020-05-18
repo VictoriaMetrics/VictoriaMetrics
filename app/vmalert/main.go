@@ -121,7 +121,7 @@ func main() {
 	}()
 
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(*httpListenAddr, (rh).handler)
+	go httpserver.Serve(*httpListenAddr, rh.handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
