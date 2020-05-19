@@ -46,6 +46,7 @@ func TestUpdateWith(t *testing.T) {
 			[]*Rule{{
 				Name: "bar",
 				Expr: "up > 10",
+				For:  time.Second,
 				Labels: map[string]string{
 					"baz": "bar",
 				},
