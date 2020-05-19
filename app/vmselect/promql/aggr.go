@@ -648,6 +648,9 @@ func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
 		})
 
 		// Return only up to k time series with the highest variation.
+		for i := range variations {
+			tss[i] = variations[i].ts
+		}
 		for i, k := range ks {
 			fillNaNsAtIdx(i, k, tss)
 		}

@@ -4221,7 +4221,7 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`outliersk(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `outliersk(1, (
-			label_set(1300, "foo", "bar"),
+			label_set(2000, "foo", "bar"),
 			label_set(time(), "baz", "sss"),
 		))`
 		r := netstorage.Result{
