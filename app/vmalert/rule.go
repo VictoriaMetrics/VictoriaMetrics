@@ -71,7 +71,7 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 	}
 
 	for h, a := range r.alerts {
-		// cleanup inactive alerts from previous Eval
+		// cleanup inactive alerts from previous Exec
 		if a.State == notifier.StateInactive {
 			delete(r.alerts, h)
 		}
@@ -109,18 +109,18 @@ func (r *Rule) Exec(ctx context.Context, q datasource.Querier) error {
 		// if alert wasn't updated in this iteration
 		// means it is resolved already
 		if _, ok := updated[h]; !ok {
+			if a.State == notifier.StatePending {
+				// alert was in Pending state - it is not
+				// active anymore
+				delete(r.alerts, h)
+				continue
+			}
 			a.State = notifier.StateInactive
-			// set endTime to last execution time
-			// so it can be sent by notifier on next step
-			a.End = r.lastExecTime
 			continue
 		}
 		if a.State == notifier.StatePending && time.Since(a.Start) >= r.For {
 			a.State = notifier.StateFiring
 			alertsFired.Inc()
-		}
-		if a.State == notifier.StateFiring {
-			a.End = r.lastExecTime.Add(3 * r.group.Interval)
 		}
 	}
 	return nil
@@ -152,6 +152,7 @@ func (r *Rule) newAlert(m datasource.Metric) (*notifier.Alert, error) {
 		Labels:  map[string]string{},
 		Value:   m.Value,
 		Start:   time.Now(),
+		Expr:    r.Expr,
 		// TODO: support End time
 	}
 	for _, l := range m.Labels {
@@ -293,7 +294,7 @@ func newTimeSeries(value float64, labels map[string]string, timestamp time.Time)
 
 // Restore restores the state of active alerts basing on previously written timeseries.
 // Restore restores only Start field. Field State will be always Pending and supposed
-// to be updated on next Eval, as well as Value field.
+// to be updated on next Exec, as well as Value field.
 func (r *Rule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
 	if q == nil {
 		return fmt.Errorf("querier is nil")
@@ -313,7 +314,7 @@ func (r *Rule) Restore(ctx context.Context, q datasource.Querier, lookback time.
 		labels := m.Labels
 		m.Labels = make([]datasource.Label, 0)
 		// drop all extra labels, so hash key will
-		// be identical to timeseries received in Eval
+		// be identical to timeseries received in Exec
 		for _, l := range labels {
 			if l.Name == alertNameLabel {
 				continue

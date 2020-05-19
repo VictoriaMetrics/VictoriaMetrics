@@ -383,13 +383,13 @@ func (q *Queue) MustWriteBlock(block []byte) {
 			return
 		}
 	}
-	mustNotifyReader := q.readerOffset == q.writerOffset
 	if err := q.writeBlockLocked(block); err != nil {
 		logger.Panicf("FATAL: %s", err)
 	}
-	if mustNotifyReader {
-		q.cond.Signal()
-	}
+
+	// Notify blocked reader if any.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/484 for details.
+	q.cond.Signal()
 }
 
 var blockBufPool bytesutil.ByteBufferPool

@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -227,7 +228,7 @@ func (idxbc *indexBlockCache) cleaner() {
 }
 
 func (idxbc *indexBlockCache) cleanByTimeout() {
-	currentTime := atomic.LoadUint64(&currentTimestamp)
+	currentTime := fasttime.UnixTimestamp()
 	idxbc.mu.Lock()
 	for k, idxbe := range idxbc.m {
 		// Delete items accessed more than 10 minutes ago.
@@ -245,7 +246,7 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 	idxbc.mu.RUnlock()
 
 	if idxbe != nil {
-		currentTime := atomic.LoadUint64(&currentTimestamp)
+		currentTime := fasttime.UnixTimestamp()
 		if atomic.LoadUint64(&idxbe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&idxbe.lastAccessTime, currentTime)
 		}
@@ -256,9 +257,7 @@ func (idxbc *indexBlockCache) Get(k uint64) *indexBlock {
 }
 
 // Put puts idxb under the key k into idxbc.
-//
-// Returns true if the idxb has been put into idxbc.
-func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) bool {
+func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
 	idxbc.mu.Lock()
 
 	// Remove superflouos entries.
@@ -278,12 +277,11 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) bool {
 
 	// Store idxb in the cache.
 	idxbe := &indexBlockCacheEntry{
-		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		lastAccessTime: fasttime.UnixTimestamp(),
 		idxb:           idxb,
 	}
 	idxbc.m[k] = idxbe
 	idxbc.mu.Unlock()
-	return true
 }
 
 func (idxbc *indexBlockCache) Len() uint64 {
@@ -377,7 +375,7 @@ func (ibc *inmemoryBlockCache) cleaner() {
 }
 
 func (ibc *inmemoryBlockCache) cleanByTimeout() {
-	currentTime := atomic.LoadUint64(&currentTimestamp)
+	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
 		// Delete items accessed more than 10 minutes ago.
@@ -396,7 +394,7 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 	ibc.mu.RUnlock()
 
 	if ibe != nil {
-		currentTime := atomic.LoadUint64(&currentTimestamp)
+		currentTime := fasttime.UnixTimestamp()
 		if atomic.LoadUint64(&ibe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&ibe.lastAccessTime, currentTime)
 		}
@@ -407,9 +405,7 @@ func (ibc *inmemoryBlockCache) Get(k inmemoryBlockCacheKey) *inmemoryBlock {
 }
 
 // Put puts ib under key k into ibc.
-//
-// Returns true if ib was put into ibc.
-func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) bool {
+func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
 	ibc.mu.Lock()
 
 	// Clean superflouos entries in cache.
@@ -429,12 +425,11 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) b
 
 	// Store ib in the cache.
 	ibe := &inmemoryBlockCacheEntry{
-		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		lastAccessTime: fasttime.UnixTimestamp(),
 		ib:             ib,
 	}
 	ibc.m[k] = ibe
 	ibc.mu.Unlock()
-	return true
 }
 
 func (ibc *inmemoryBlockCache) Len() uint64 {
@@ -451,16 +446,3 @@ func (ibc *inmemoryBlockCache) Requests() uint64 {
 func (ibc *inmemoryBlockCache) Misses() uint64 {
 	return atomic.LoadUint64(&ibc.misses)
 }
-
-func init() {
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for tm := range ticker.C {
-			t := uint64(tm.Unix())
-			atomic.StoreUint64(&currentTimestamp, t)
-		}
-	}()
-}
-
-var currentTimestamp uint64

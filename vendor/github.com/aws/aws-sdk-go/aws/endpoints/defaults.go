@@ -3426,6 +3426,25 @@ var awsPartition = partition{
 				"us-east-1": endpoint{},
 			},
 		},
+		"macie": service{
+
+			Endpoints: endpoints{
+				"fips-us-east-1": endpoint{
+					Hostname: "macie-fips.us-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-east-1",
+					},
+				},
+				"fips-us-west-2": endpoint{
+					Hostname: "macie-fips.us-west-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-2",
+					},
+				},
+				"us-east-1": endpoint{},
+				"us-west-2": endpoint{},
+			},
+		},
 		"managedblockchain": service{
 
 			Endpoints: endpoints{

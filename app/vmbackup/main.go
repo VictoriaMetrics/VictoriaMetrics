@@ -31,6 +31,8 @@ var (
 )
 
 func main() {
+	// Write flags and help message to stdout, since it is easier to grep or pipe.
+	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()

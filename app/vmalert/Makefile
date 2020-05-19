@@ -52,7 +52,9 @@ publish-vmalert:
 	APP_NAME=vmalert $(MAKE) publish-via-docker
 
 test-vmalert:
-	go test -race -cover ./app/vmalert
+	go test -v -race -cover ./app/vmalert -loggerLevel=ERROR
+	go test -v -race -cover ./app/vmalert/datasource
+	go test -v -race -cover ./app/vmalert/notifier
 
 run-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/testdata/rules0-good.rules \

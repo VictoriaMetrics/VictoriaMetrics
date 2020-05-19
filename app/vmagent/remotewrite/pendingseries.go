@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -15,7 +15,8 @@ import (
 
 var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
-		"Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage")
+		"Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage. "+
+		"Minimum supported interval is 1 second")
 	maxUnpackedBlockSize = flag.Int("remoteWrite.maxBlockSize", 32*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
 		"It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics")
 )
@@ -55,6 +56,10 @@ func (ps *pendingSeries) Push(tss []prompbmarshal.TimeSeries) {
 }
 
 func (ps *pendingSeries) periodicFlusher() {
+	flushSeconds := int64(flushInterval.Seconds())
+	if flushSeconds <= 0 {
+		flushSeconds = 1
+	}
 	ticker := time.NewTicker(*flushInterval)
 	defer ticker.Stop()
 	mustStop := false
@@ -63,7 +68,7 @@ func (ps *pendingSeries) periodicFlusher() {
 		case <-ps.stopCh:
 			mustStop = true
 		case <-ticker.C:
-			if time.Since(ps.wr.lastFlushTime) < *flushInterval/2 {
+			if fasttime.UnixTimestamp()-ps.wr.lastFlushTime < uint64(flushSeconds) {
 				continue
 			}
 		}
@@ -76,7 +81,7 @@ func (ps *pendingSeries) periodicFlusher() {
 type writeRequest struct {
 	wr            prompbmarshal.WriteRequest
 	pushBlock     func(block []byte)
-	lastFlushTime time.Time
+	lastFlushTime uint64
 
 	tss []prompbmarshal.TimeSeries
 
@@ -108,7 +113,7 @@ func (wr *writeRequest) reset() {
 
 func (wr *writeRequest) flush() {
 	wr.wr.Timeseries = wr.tss
-	wr.lastFlushTime = time.Now()
+	wr.lastFlushTime = fasttime.UnixTimestamp()
 	pushWriteRequest(&wr.wr, wr.pushBlock)
 	wr.reset()
 }
@@ -144,13 +149,8 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	}
 	dst.Labels = labelsDst[labelsLen:]
 
-	samplesDst = append(samplesDst, prompbmarshal.Sample{})
-	dstSample := &samplesDst[len(samplesDst)-1]
-	if len(src.Samples) != 1 {
-		logger.Panicf("BUG: unexpected number of samples in time series; got %d; want 1", len(src.Samples))
-	}
-	*dstSample = src.Samples[0]
-	dst.Samples = samplesDst[len(samplesDst)-1:]
+	samplesDst = append(samplesDst, src.Samples...)
+	dst.Samples = samplesDst[len(samplesDst)-len(src.Samples):]
 
 	wr.samples = samplesDst
 	wr.labels = labelsDst

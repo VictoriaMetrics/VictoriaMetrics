@@ -32,8 +32,9 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
 				return nil, fmt.Errorf("one file can not contain groups with the same name %s, filepath:%s", g.Name, file)
 			}
 			g.File = file
-			g.done = make(chan struct{})
-			g.finished = make(chan struct{})
+			g.doneCh = make(chan struct{})
+			g.finishedCh = make(chan struct{})
+			g.updateCh = make(chan Group)
 
 			groupsNames[g.Name] = struct{}{}
 			for _, rule := range g.Rules {

@@ -10,12 +10,16 @@
 
 ## VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable time-series database. It can be used as long-term remote storage for Prometheus.
+VictoriaMetrics is fast, cost-effective and scalable time-series database.
+
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
 in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+[Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
+
 
 ## Case studies and talks
 
@@ -34,6 +38,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 ## Prominent features
 
+* VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+  See [these docs](#prometheus-setup) for details.
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
   VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which is inspired by PromQL.
 * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
@@ -116,6 +122,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
 * [Backfilling](#backfilling)
+* [Replication](#replication)
+* [Backups](#backups)
 * [Profiling](#profiling)
 * [Integrations](#integrations)
 * [Third-party contributions](#third-party-contributions)
@@ -782,6 +790,8 @@ remote_write:
 kill -HUP `pidof prometheus`
 ```
 
+It is recommended to use [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) instead of Prometheus for highly loaded setups.
+
 4) Now Prometheus should write data into all the configured `remote_write` urls in parallel.
 5) Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
 6) Set up Prometheus datasource in Grafana that points to Promxy.
@@ -791,6 +801,7 @@ to write data to `victoriametrics-addr-1`, while each `r2` should write data to 
 
 Another option is to write data simultaneously from Prometheus HA pair to a pair of VictoriaMetrics instances
 with the enabled de-duplication. See [this section](#deduplication) for details.
+
 
 ### Deduplication
 
@@ -910,6 +921,12 @@ The most interesting metrics are:
 * `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
 * `sum(vm_data_size_bytes)` - the total size of data on disk.
+* `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
+  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
+  of the current number of active time series.
+* `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
+  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
+  of the current number of active time series.
 
 
 ### Troubleshooting
@@ -922,8 +939,9 @@ The most interesting metrics are:
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
+  VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
   It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
-  ingestion performance.
+  ingestion and query performance in this case.
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
@@ -969,6 +987,24 @@ the query cache, which could contain incomplete data cached during the backfilli
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time.
+
+
+### Replication
+
+VictoriaMetrics relies on replicated durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs)
+or [Amazon EBS](https://aws.amazon.com/ebs/). It is also recommended making periodic backups,
+since [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883).
+See [backup docs](#backups) for details.
+
+See also [high availability docs](#high-availability) and [docs about cluster version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md).
+
+
+### Backups
+
+VictoriaMetrics supports backups via [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md)
+and [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md) tools.
+We also provide provide `vmbackuper` tool for paid enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for details.
+
 
 ### Profiling
 

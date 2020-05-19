@@ -36,9 +36,6 @@ type partSearch struct {
 
 	bhs []blockHeader
 
-	// Pointer to index block, which may be reused
-	indexBlockReuse *indexBlock
-
 	compressedIndexBuf []byte
 	indexBuf           []byte
 
@@ -53,10 +50,6 @@ func (ps *partSearch) reset() {
 	ps.metaindex = nil
 	ps.ibCache = nil
 	ps.bhs = nil
-	if ps.indexBlockReuse != nil {
-		putIndexBlock(ps.indexBlockReuse)
-		ps.indexBlockReuse = nil
-	}
 	ps.compressedIndexBuf = ps.compressedIndexBuf[:0]
 	ps.indexBuf = ps.indexBuf[:0]
 	ps.err = nil
@@ -161,10 +154,6 @@ func (ps *partSearch) nextBHS() bool {
 
 		// Found the index block which may contain the required data
 		// for the ps.BlockRef.bh.TSID and the given timestamp range.
-		if ps.indexBlockReuse != nil {
-			putIndexBlock(ps.indexBlockReuse)
-			ps.indexBlockReuse = nil
-		}
 		indexBlockKey := mr.IndexBlockOffset
 		ib := ps.ibCache.Get(indexBlockKey)
 		if ib == nil {
@@ -176,9 +165,7 @@ func (ps *partSearch) nextBHS() bool {
 					&ps.p.ph, mr.IndexBlockOffset, mr.IndexBlockSize, err)
 				return false
 			}
-			if ok := ps.ibCache.Put(indexBlockKey, ib); !ok {
-				ps.indexBlockReuse = ib
-			}
+			ps.ibCache.Put(indexBlockKey, ib)
 		}
 		ps.bhs = ib.bhs
 		return true

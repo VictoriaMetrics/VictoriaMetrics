@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -228,7 +229,7 @@ func (ibc *indexBlockCache) cleaner() {
 }
 
 func (ibc *indexBlockCache) cleanByTimeout() {
-	currentTime := atomic.LoadUint64(&currentTimestamp)
+	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
 		// Delete items accessed more than 10 minutes ago.
@@ -247,7 +248,7 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 	ibc.mu.RUnlock()
 
 	if ibe != nil {
-		currentTime := atomic.LoadUint64(&currentTimestamp)
+		currentTime := fasttime.UnixTimestamp()
 		if atomic.LoadUint64(&ibe.lastAccessTime) != currentTime {
 			atomic.StoreUint64(&ibe.lastAccessTime, currentTime)
 		}
@@ -257,7 +258,7 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 	return nil
 }
 
-func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
+func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) {
 	ibc.mu.Lock()
 
 	// Clean superflouos cache entries.
@@ -276,12 +277,11 @@ func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) bool {
 
 	// Store frequently requested ib in the cache.
 	ibe := &indexBlockCacheEntry{
-		lastAccessTime: atomic.LoadUint64(&currentTimestamp),
+		lastAccessTime: fasttime.UnixTimestamp(),
 		ib:             ib,
 	}
 	ibc.m[k] = ibe
 	ibc.mu.Unlock()
-	return true
 }
 
 func (ibc *indexBlockCache) Requests() uint64 {
@@ -298,16 +298,3 @@ func (ibc *indexBlockCache) Len() uint64 {
 	ibc.mu.Unlock()
 	return n
 }
-
-func init() {
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for tm := range ticker.C {
-			t := uint64(tm.Unix())
-			atomic.StoreUint64(&currentTimestamp, t)
-		}
-	}()
-}
-
-var currentTimestamp uint64

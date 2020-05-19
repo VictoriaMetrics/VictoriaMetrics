@@ -52,8 +52,9 @@ publish-vmagent:
 	APP_NAME=vmagent $(MAKE) publish-via-docker
 
 run-vmagent:
-	mkdir -p vmagent-data
-	DOCKER_OPTS='-v $(shell pwd)/vmagent-data:/vmagent-data' \
+	mkdir -p vmagent-remotewrite-data
+	DOCKER_OPTS='-v $(shell pwd)/vmagent-remotewrite-data:/vmagent-remotewrite-data' \
+	ARGS='-remoteWrite.url=http://localhost:8428/api/v1/write' \
 	APP_NAME=vmagent \
 	$(MAKE) run-via-docker
 

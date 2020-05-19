@@ -1,5 +1,8 @@
 # Changes
 
+## v1.8.0
+- Add support for V4 signed post policies.
+
 ## v1.7.0
 - V4 signed URL support:
   - Add support for bucket-bound domains and virtual hosted style URLs.

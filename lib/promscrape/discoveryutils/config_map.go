@@ -3,6 +3,8 @@ package discoveryutils
 import (
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // ConfigMap is a map for storing discovery api configs.
@@ -37,7 +39,7 @@ func (cm *ConfigMap) Get(key interface{}, newConfig func() (interface{}, error))
 
 	e := cm.m[key]
 	if e != nil {
-		e.lastAccessTime = time.Now()
+		e.lastAccessTime = fasttime.UnixTimestamp()
 		return e.cfg, nil
 	}
 	cfg, err := newConfig()
@@ -46,17 +48,18 @@ func (cm *ConfigMap) Get(key interface{}, newConfig func() (interface{}, error))
 	}
 	cm.m[key] = &configMapEntry{
 		cfg:            cfg,
-		lastAccessTime: time.Now(),
+		lastAccessTime: fasttime.UnixTimestamp(),
 	}
 	return cfg, nil
 }
 
 func (cm *ConfigMap) cleaner() {
 	tc := time.NewTicker(15 * time.Minute)
-	for currentTime := range tc.C {
+	for range tc.C {
+		currentTime := fasttime.UnixTimestamp()
 		cm.mu.Lock()
 		for k, e := range cm.m {
-			if currentTime.Sub(e.lastAccessTime) > 10*time.Minute {
+			if currentTime-e.lastAccessTime > 10*60 {
 				delete(cm.m, k)
 			}
 		}
@@ -66,5 +69,5 @@ func (cm *ConfigMap) cleaner() {
 
 type configMapEntry struct {
 	cfg            interface{}
-	lastAccessTime time.Time
+	lastAccessTime uint64
 }

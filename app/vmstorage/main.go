@@ -409,6 +409,16 @@ func registerStorageMetrics() {
 		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
+	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {
+		return float64(m().SlowRowInserts)
+	})
+	metrics.NewGauge(`vm_slow_per_day_index_inserts_total`, func() float64 {
+		return float64(m().SlowPerDayIndexInserts)
+	})
+	metrics.NewGauge(`vm_slow_metric_name_loads_total`, func() float64 {
+		return float64(m().SlowMetricNameLoads)
+	})
+
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
 		return float64(tm().BigRowsCount)
 	})
