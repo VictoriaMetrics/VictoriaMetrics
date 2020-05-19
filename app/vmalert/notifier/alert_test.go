@@ -9,13 +9,13 @@ func TestAlert_ExecTemplate(t *testing.T) {
 	u, _ := url.Parse("https://victoriametrics.com/path")
 	InitTemplateFunc(u)
 	testCases := []struct {
-		name string
+		name        string
 		alert       *Alert
 		annotations map[string]string
 		expTpl      map[string]string
 	}{
 		{
-			name: "empty-alert",
+			name:        "empty-alert",
 			alert:       &Alert{},
 			annotations: map[string]string{},
 			expTpl:      map[string]string{},
@@ -52,7 +52,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 		{
 			name: "expression-template",
 			alert: &Alert{
-				Expr:  "vm_rows>0",
+				Expr: "vm_rows>0",
 			},
 			annotations: map[string]string{
 				"exprEscapedQuery": "{{ $expr|queryEscape }}",
