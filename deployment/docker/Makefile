@@ -33,7 +33,7 @@ app-via-docker: package-base package-builder
 		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -mod=vendor -trimpath \
-			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
+			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
 			-tags 'netgo osusergo nethttpomithttp2' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
