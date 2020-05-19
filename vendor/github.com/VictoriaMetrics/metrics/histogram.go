@@ -14,7 +14,7 @@ const (
 	decimalMultiplier = 2
 	bucketSize        = 9 * decimalMultiplier
 	bucketsCount      = e10Max - e10Min
-	decimalPrecision  = 0.01 / decimalMultiplier
+	decimalPrecision  = 1e-12
 )
 
 // Histogram is a histogram for non-negative values with automatically created buckets.
