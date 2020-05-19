@@ -20,13 +20,11 @@ func TestUpdateWith(t *testing.T) {
 	}{
 		{
 			"new rule",
-			time.Minute,
 			[]*Rule{},
 			[]*Rule{{Name: "bar"}},
 		},
 		{
 			"update rule",
-			time.Minute,
 			[]*Rule{{
 				Name: "foo",
 				Expr: "up > 0",
@@ -52,7 +50,6 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"empty rule",
-			2 * time.Minute,
 			[]*Rule{{Name: "foo"}},
 			[]*Rule{},
 		},
