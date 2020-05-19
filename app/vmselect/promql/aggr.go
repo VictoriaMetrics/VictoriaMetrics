@@ -44,6 +44,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
 	"any":            newAggrFunc(aggrFuncAny),
+	"outliersk":      aggrFuncOutliersK,
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -588,14 +589,71 @@ func avgValue(values []float64) float64 {
 func medianValue(values []float64) float64 {
 	h := histogram.GetFast()
 	for _, v := range values {
-		if math.IsNaN(v) {
-			continue
+		if !math.IsNaN(v) {
+			h.Update(v)
 		}
-		h.Update(v)
 	}
 	value := h.Quantile(0.5)
 	histogram.PutFast(h)
 	return value
+}
+
+func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	ks, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		// Calculate medians for each point across tss.
+		medians := make([]float64, len(ks))
+		h := histogram.GetFast()
+		for n := range ks {
+			h.Reset()
+			for j := range tss {
+				v := tss[j].Values[n]
+				if !math.IsNaN(v) {
+					h.Update(v)
+				}
+			}
+			medians[n] = h.Quantile(0.5)
+		}
+		histogram.PutFast(h)
+
+		// Calculate variation-like value for each tss.
+		type variation struct {
+			sum2 float64
+			ts   *timeseries
+		}
+		variations := make([]variation, len(tss))
+		for i, ts := range tss {
+			sum2 := float64(0)
+			for n, v := range ts.Values {
+				d := v - medians[n]
+				sum2 += d * d
+			}
+			variations[i] = variation{
+				sum2: sum2,
+				ts:   ts,
+			}
+		}
+
+		// Sort variations by sum2.
+		sort.Slice(variations, func(i, j int) bool {
+			a, b := variations[i], variations[j]
+			return lessWithNaNs(a.sum2, b.sum2)
+		})
+
+		// Return only up to k time series with the highest variation.
+		for i, k := range ks {
+			fillNaNsAtIdx(i, k, tss)
+		}
+		return removeNaNs(tss)
+	}
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -658,24 +716,18 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries) []*timeseries {
 	return func(tss []*timeseries) []*timeseries {
 		dst := tss[0]
+		h := histogram.GetFast()
+		defer histogram.PutFast(h)
 		for n := range dst.Values {
-			sort.Slice(tss, func(i, j int) bool {
-				a := tss[i].Values[n]
-				b := tss[j].Values[n]
-				return lessWithNaNs(a, b)
-			})
+			h.Reset()
+			for j := range tss {
+				v := tss[j].Values[n]
+				if !math.IsNaN(v) {
+					h.Update(v)
+				}
+			}
 			phi := phis[n]
-			if math.IsNaN(phi) {
-				phi = 1
-			}
-			if phi < 0 {
-				phi = 0
-			}
-			if phi > 1 {
-				phi = 1
-			}
-			idx := int(math.Round(float64(len(tss)-1) * phi))
-			dst.Values[n] = tss[idx].Values[n]
+			dst.Values[n] = h.Quantile(phi)
 		}
 		tss[0] = dst
 		return tss[:1]

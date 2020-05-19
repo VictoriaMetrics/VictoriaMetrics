@@ -116,3 +116,5 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   for the given `phi` in the range `[0..1]`.
 - `last_over_time(m[d])` - returns the last value for `m` on the time range `d`.
 - `first_over_time(m[d])` - returns the first value for `m` on the time range `d`.
+- `outliersk(N, m)` - returns up to `N` outlier time series for `m`. Outlier time series have the highest deviation from the `median(m)`.
+  This aggregate function is useful to detect anomalies across groups of similar time series.

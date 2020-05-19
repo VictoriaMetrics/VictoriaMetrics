@@ -4196,12 +4196,61 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`quantile(NaN)`, func(t *testing.T) {
 		t.Parallel()
 		q := `quantile(NaN, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`outliersk(0)`, func(t *testing.T) {
+		t.Parallel()
+		q := `outliersk(0, (
+			label_set(1300, "foo", "bar"),
+			label_set(time(), "baz", "sss"),
+		))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`outliersk(1)`, func(t *testing.T) {
+		t.Parallel()
+		q := `outliersk(1, (
+			label_set(1300, "foo", "bar"),
+			label_set(time(), "baz", "sss"),
+		))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{10, 10, 10, 10.666666666666666, 12, 13.333333333333334},
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("baz"),
+			Value: []byte("sss"),
+		}}
 		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`outliersk(3)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(outliersk(3, (
+			label_set(1300, "foo", "bar"),
+			label_set(time(), "baz", "sss"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("baz"),
+			Value: []byte("sss"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1300, 1300, 1300, 1300, 1300, 1300},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`range_quantile(0.5)`, func(t *testing.T) {
@@ -5531,6 +5580,8 @@ func TestExecError(t *testing.T) {
 	f(`hoeffding_bound_upper()`)
 	f(`hoeffding_bound_upper(1)`)
 	f(`hoeffding_bound_upper(0.99, foo, 1)`)
+	f(`outliersk()`)
+	f(`outliersk(1)`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -5570,6 +5621,7 @@ func TestExecError(t *testing.T) {
 	f(`alias(1, 2)`)
 	f(`aggr_over_time(1, 2)`)
 	f(`aggr_over_time(("foo", "bar"), 3)`)
+	f(`outliersk((label_set(1, "foo", "bar"), label_set(2, "x", "y")), 123)`)
 
 	// Duplicate timeseries
 	f(`(label_set(1, "foo", "bar") or label_set(2, "foo", "baz"))
