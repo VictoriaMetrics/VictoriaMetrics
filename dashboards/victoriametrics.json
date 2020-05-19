@@ -65,7 +65,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1589727903402,
+  "iteration": 1589923637424,
   "links": [
     {
       "icon": "doc",
@@ -2074,7 +2074,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2155,14 +2155,14 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "${DS_PROMETHEUS}",
-          "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
+          "description": "Slow queries rate according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2204,7 +2204,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Slow queries",
+          "title": "Slow queries rate",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2248,14 +2248,14 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "${DS_PROMETHEUS}",
-          "description": "The number of slow inserts during the last 5 minutes. If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series.\n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
+          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>50%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 24,
             "x": 0,
-            "y": 45
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2285,12 +2285,12 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(increase(vm_slow_row_inserts_total{job=\"$job\"}[5m]))",
+              "expr": "sum(rate(vm_slow_row_inserts_total{job=\"$job\"}[5m])) / sum(rate(vm_rows_inserted_total{job=\"$job\"}[5m]))",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "slow inserts rate",
+              "legendFormat": "slow inserts percentage",
               "refId": "A"
             }
           ],
@@ -2314,102 +2314,8 @@
           },
           "yaxes": [
             {
-              "decimals": null,
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "${DS_PROMETHEUS}",
-          "description": "The number of slow loads of metric names during the last 5 minutes. If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series.\n\nUsually VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 45
-          },
-          "hiddenSeries": false,
-          "id": 69,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": false,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
-          "percentage": false,
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "sum(increase(vm_slow_metric_name_loads_total{job=\"$job\"}[5m]))",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "slow metrics loads rate",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Slow metric loads",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "decimals": null,
-              "format": "short",
+              "decimals": 2,
+              "format": "percentunit",
               "label": null,
               "logBase": 1,
               "max": null,
