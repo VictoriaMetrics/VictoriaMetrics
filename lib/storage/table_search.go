@@ -4,14 +4,14 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
-	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // tableSearch performs searches in the table.
 type tableSearch struct {
-	Block *Block
+	BlockRef *BlockRef
 
 	tb *table
 
@@ -29,7 +29,7 @@ type tableSearch struct {
 }
 
 func (ts *tableSearch) reset() {
-	ts.Block = nil
+	ts.BlockRef = nil
 	ts.tb = nil
 
 	for i := range ts.ptws {
@@ -58,14 +58,14 @@ func (ts *tableSearch) reset() {
 // tsids cannot be modified after the Init call, since it is owned by ts.
 //
 // MustClose must be called then the tableSearch is done.
-func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange, fetchData bool) {
+func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 	if ts.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
 
 	// Adjust tr.MinTimestamp, so it doesn't obtain data older
 	// than the tb retention.
-	now := timestampFromTime(time.Now())
+	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - tb.retentionMilliseconds
 	if tr.MinTimestamp < minTimestamp {
 		tr.MinTimestamp = minTimestamp
@@ -89,7 +89,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange, fetchData boo
 	}
 	ts.ptsPool = ts.ptsPool[:len(ts.ptws)]
 	for i, ptw := range ts.ptws {
-		ts.ptsPool[i].Init(ptw.pt, tsids, tr, fetchData)
+		ts.ptsPool[i].Init(ptw.pt, tsids, tr)
 	}
 
 	// Initialize the ptsHeap.
@@ -115,13 +115,13 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange, fetchData boo
 		return
 	}
 	heap.Init(&ts.ptsHeap)
-	ts.Block = ts.ptsHeap[0].Block
+	ts.BlockRef = ts.ptsHeap[0].BlockRef
 	ts.nextBlockNoop = true
 }
 
 // NextBlock advances to the next block.
 //
-// The blocks are sorted by (TDIS, MinTimestamp). Two subsequent blocks
+// The blocks are sorted by (TSID, MinTimestamp). Two subsequent blocks
 // for the same TSID may contain overlapped time ranges.
 func (ts *tableSearch) NextBlock() bool {
 	if ts.err != nil {
@@ -146,7 +146,7 @@ func (ts *tableSearch) nextBlock() error {
 	ptsMin := ts.ptsHeap[0]
 	if ptsMin.NextBlock() {
 		heap.Fix(&ts.ptsHeap, 0)
-		ts.Block = ts.ptsHeap[0].Block
+		ts.BlockRef = ts.ptsHeap[0].BlockRef
 		return nil
 	}
 
@@ -160,7 +160,7 @@ func (ts *tableSearch) nextBlock() error {
 		return io.EOF
 	}
 
-	ts.Block = ts.ptsHeap[0].Block
+	ts.BlockRef = ts.ptsHeap[0].BlockRef
 	return nil
 }
 
@@ -192,7 +192,7 @@ func (ptsh *partitionSearchHeap) Len() int {
 
 func (ptsh *partitionSearchHeap) Less(i, j int) bool {
 	x := *ptsh
-	return x[i].Block.bh.Less(&x[j].Block.bh)
+	return x[i].BlockRef.bh.Less(&x[j].BlockRef.bh)
 }
 
 func (ptsh *partitionSearchHeap) Swap(i, j int) {

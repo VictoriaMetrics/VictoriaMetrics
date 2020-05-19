@@ -1,6 +1,7 @@
 package promrelabel
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +23,12 @@ type ParsedRelabelConfig struct {
 	Modulus      uint64
 	Replacement  string
 	Action       string
+}
+
+// String returns human-readable representation for prc.
+func (prc *ParsedRelabelConfig) String() string {
+	return fmt.Sprintf("SourceLabels=%s, Separator=%s, TargetLabel=%s, Regex=%s, Modulus=%d, Replacement=%s, Action=%s",
+		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex.String(), prc.Modulus, prc.Replacement, prc.Action)
 }
 
 // ApplyRelabelConfigs applies prcs to labels starting from the labelsOffset.
@@ -83,29 +90,15 @@ func RemoveMetaLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 	return dst
 }
 
-// FinalizeLabels finalizes labels according to relabel_config rules.
-//
-// It renames `__address__` to `instance` and removes labels with "__" in the beginning.
-//
-// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+// FinalizeLabels removes labels with "__" in the beginning (except of "__name__").
 func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 	for i := range src {
 		label := &src[i]
 		name := label.Name
-		if !strings.HasPrefix(name, "__") || name == "__name__" {
-			dst = append(dst, *label)
+		if strings.HasPrefix(name, "__") && name != "__name__" {
 			continue
 		}
-		if name == "__address__" {
-			if GetLabelByName(src, "instance") != nil {
-				// The `instance` label is already set. Skip `__address__` label.
-				continue
-			}
-			// Rename `__address__` label to `instance`.
-			labelCopy := *label
-			labelCopy.Name = "instance"
-			dst = append(dst, labelCopy)
-		}
+		dst = append(dst, *label)
 	}
 	return dst
 }

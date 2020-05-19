@@ -19,6 +19,9 @@ Backed up data can be restored with [vmrestore](https://github.com/VictoriaMetri
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
+See also [vmbackuper](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) tool built on top of `vmbackup`. This tool simplifies
+creation of hourly, daily, weekly and monthly backups.
+
 
 ### Use cases
 

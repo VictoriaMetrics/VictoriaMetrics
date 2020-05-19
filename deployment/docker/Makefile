@@ -4,7 +4,7 @@ DOCKER_NAMESPACE := victoriametrics
 
 ROOT_IMAGE ?= scratch
 CERTS_IMAGE := alpine:3.11
-GO_BUILDER_IMAGE := golang:1.14.2
+GO_BUILDER_IMAGE := golang:1.14.3
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
 BASE_IMAGE := local/base:1.1.1-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
 
@@ -32,7 +32,9 @@ app-via-docker: package-base package-builder
 		--env GO111MODULE=on \
 		$(DOCKER_OPTS) \
 		$(BUILDER_IMAGE) \
-		go build $(RACE) -mod=vendor -trimpath -ldflags "-extldflags '-static' $(GO_BUILDINFO)" -tags 'netgo osusergo' \
+		go build $(RACE) -mod=vendor -trimpath \
+			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
+			-tags 'netgo osusergo nethttpomithttp2' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker:

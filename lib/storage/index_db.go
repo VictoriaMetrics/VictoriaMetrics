@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -633,7 +634,7 @@ func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) er
 	if len(mn.Tags) > 1 {
 		dst.InstanceID = uint32(xxhash.Sum64(mn.Tags[1].Value))
 	}
-	dst.MetricID = getUniqueUint64()
+	dst.MetricID = generateUniqueMetricID()
 	return nil
 }
 
@@ -1233,7 +1234,7 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 }
 
 func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
-	minDate := uint64(timestampFromTime(time.Now())) / msecPerDay
+	minDate := fasttime.UnixDate()
 	kb := &is.kb
 	ts := &is.ts
 	kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
@@ -1866,7 +1867,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 				return nil, err
 			}
 			if metricIDs.Len() > maxMetrics {
-				return nil, fmt.Errorf("the number or unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+				return nil, fmt.Errorf("the number of unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 			}
 			// Stop the iteration, since we cannot find more metric ids with the remaining tfss.
 			break
@@ -1875,7 +1876,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number or matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
+			return nil, fmt.Errorf("the number of matching unique timeseries exceeds %d; either narrow down the search or increase -search.maxUniqueTimeseries", maxMetrics)
 		}
 	}
 	if metricIDs.Len() == 0 {
@@ -2529,19 +2530,7 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) 
 	return nil, false
 }
 
-func (db *indexDB) storeDateMetricID(date, metricID uint64) error {
-	is := db.getIndexSearch()
-	ok, err := is.hasDateMetricID(date, metricID)
-	db.putIndexSearch(is)
-	if err != nil {
-		return err
-	}
-	if ok {
-		// Fast path: the (date, metricID) entry already exists in the db.
-		return nil
-	}
-
-	// Slow path: create (date, metricID) entries.
+func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	items := getIndexItems()
 	defer putIndexItems(items)
 
@@ -2555,8 +2544,20 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64) error {
 	defer kbPool.Put(kb)
 	mn := GetMetricName()
 	defer PutMetricName(mn)
-	kb.B, err = db.searchMetricName(kb.B[:0], metricID)
+	var err error
+	// There is no need in searching for metric name in is.db.extDB,
+	// Since the storeDateMetricID function is called only after the metricID->metricName
+	// is added into the current is.db.
+	kb.B, err = is.searchMetricName(kb.B[:0], metricID)
 	if err != nil {
+		if err == io.EOF {
+			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
+				"deleting the metricID, so it could be re-created next time", metricID)
+			if err := is.db.deleteMetricIDs([]uint64{metricID}); err != nil {
+				return fmt.Errorf("cannot delete metricID %d after unclean shutdown: %s", metricID, err)
+			}
+			return nil
+		}
 		return fmt.Errorf("cannot find metricName by metricID %d: %s", metricID, err)
 	}
 	if err = mn.Unmarshal(kb.B); err != nil {
@@ -2577,8 +2578,7 @@ func (db *indexDB) storeDateMetricID(date, metricID uint64) error {
 		items.B = encoding.MarshalUint64(items.B, metricID)
 		items.Next()
 	}
-
-	if err = db.tb.AddItems(items.Items); err != nil {
+	if err = is.db.tb.AddItems(items.Items); err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %s", metricID, err)
 	}
 	return nil
@@ -2777,14 +2777,17 @@ func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, fil
 var kbPool bytesutil.ByteBufferPool
 
 // Returns local unique MetricID.
-func getUniqueUint64() uint64 {
-	return atomic.AddUint64(&uniqueUint64, 1)
+func generateUniqueMetricID() uint64 {
+	// It is expected that metricIDs returned from this function must be dense.
+	// If they will be sparse, then this may hurt metric_ids intersection
+	// performance with uint64set.Set.
+	return atomic.AddUint64(&nextUniqueMetricID, 1)
 }
 
 // This number mustn't go backwards on restarts, otherwise metricID
 // collisions are possible. So don't change time on the server
 // between VictoriaMetrics restarts.
-var uniqueUint64 = uint64(time.Now().UnixNano())
+var nextUniqueMetricID = uint64(time.Now().UnixNano())
 
 func marshalCommonPrefix(dst []byte, nsPrefix byte) []byte {
 	dst = append(dst, nsPrefix)

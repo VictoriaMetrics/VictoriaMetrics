@@ -6,6 +6,7 @@ groups:
         expr: vm_rows > 0
         labels:
           label: bar
+          host: "{{ $labels.instance }}"
         annotations:
           summary: "{{ $value|humanize }}"
           description: "{{$labels}}"

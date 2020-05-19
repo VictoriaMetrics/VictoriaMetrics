@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -25,6 +26,8 @@ var (
 )
 
 func main() {
+	// Write flags and help message to stdout, since it is easier to grep or pipe.
+	flag.CommandLine.SetOutput(os.Stdout)
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()

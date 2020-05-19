@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -68,7 +69,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	rows := ctx.Rows.Rows
 
 	// Fill in missing timestamps
-	currentTimestamp := time.Now().Unix()
+	currentTimestamp := int64(fasttime.UnixTimestamp())
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp == 0 {

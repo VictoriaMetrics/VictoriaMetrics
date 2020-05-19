@@ -36,6 +36,25 @@ It increases cluster availability, simplifies cluster maintenance and cluster sc
 <img src="https://docs.google.com/drawings/d/e/2PACX-1vTvk2raU9kFgZ84oF-OKolrGwHaePhHRsZEcfQ1I_EC5AB_XPWwB392XshxPramLJ8E4bqptTnFn5LL/pub?w=1104&amp;h=746">
 
 
+## Multitenancy
+
+VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
+Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request urls.
+See [these docs](#url-format) for details. Some facts about tenants in VictoriaMetrics:
+
+* Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
+If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
+such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
+by a separate service sitting in front of VictoriaMetrics cluster.
+
+* Tenants are automatically created when the first data point is written into the given tenant.
+
+* Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
+when different tenants have different amounts of data and different query load.
+
+* VictoriaMetrics doesn't support querying multiple tenants in a single request.
+
+
 ## Binaries
 
 Compiled binaries for cluster version are available in the `assets` section of [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
@@ -145,23 +164,26 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
 ### URL format
 
 * URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying namespace for data ingestion (aka tenant)
+  - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`.
   - `<suffix>` may have the following values:
-     - `prometheus` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-     - `influx/write` or `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
+     - `prometheus` and `prometheus/api/v1/write` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
+     - `influx/write` and `influx/api/v2/write` - for inserting data with [Influx line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
      - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html).
      - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` on `vmselect` (see below).
+     - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-csv-data) for details.
 
 * URLs for querying: `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
   - `<suffix>` may have the following values:
-    - `api/v1/query` - performs [PromQL instant query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
-    - `api/v1/query_range` - performs [PromQL range query](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries)
-    - `api/v1/series` - performs [series query](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
-    - `api/v1/labels` - returns a [list of label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
-    - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
-    - `federate` - returns [federated metrics](https://prometheus.io/docs/prometheus/latest/federation/)
-    - `api/v1/export` - exports raw data. See [this article](https://medium.com/@valyala/analyzing-prometheus-data-with-external-tools-5f3e5e147639) for details
+    - `api/v1/query` - performs [PromQL instant query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
+    - `api/v1/query_range` - performs [PromQL range query](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+    - `api/v1/series` - performs [series query](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers).
+    - `api/v1/labels` - returns a [list of label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names).
+    - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values).
+    - `federate` - returns [federated metrics](https://prometheus.io/docs/prometheus/latest/federation/).
+    - `api/v1/export` - exports raw data. See [this article](https://medium.com/@valyala/analyzing-prometheus-data-with-external-tools-5f3e5e147639) for details.
+    - `api/v1/status/tsdb` - for time series stats. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
 
 * URL for time series deletion: `http://<vmselect>:8481/delete/<accountID>/prometheus/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`.
   Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
@@ -242,6 +264,9 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 The recommended hardware for `vmselect` instances highly depends on the type of queries. Lightweight queries over small number of time series usually require
 small number of vCPU cores and small amount of RAM on `vmselect`, while heavy queries over big number of time series (>10K) usually require
 bigger number of vCPU cores and bigger amounts of RAM.
+
+In general it is recommended increasing the number of vCPU cores and RAM per `vmselect` node for higher query performance,
+while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
 
 
 ### Helm

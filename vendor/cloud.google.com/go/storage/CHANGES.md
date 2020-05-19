@@ -1,5 +1,20 @@
 # Changes
 
+## v1.8.0
+- Add support for V4 signed post policies.
+
+## v1.7.0
+- V4 signed URL support:
+  - Add support for bucket-bound domains and virtual hosted style URLs.
+  - Add support for query parameters in the signature.
+  - Fix text encoding to align with standards.
+- Add the object name to query parameters for write calls.
+- Fix retry behavior when reading files with Content-Encoding gzip.
+- Fix response header in reader.
+- New code examples:
+   - Error handling for `ObjectHandle` preconditions.
+   - Existence checks for buckets and objects.
+
 ## v1.6.0
 
 - Updated option handling:

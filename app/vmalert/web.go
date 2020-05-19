@@ -10,13 +10,16 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
-// APIAlert has info for an alert.
+// APIAlert represents an notifier.Alert state
+// for WEB view
 type APIAlert struct {
-	ID          uint64            `json:"id"`
+	ID          string            `json:"id"`
 	Name        string            `json:"name"`
-	Group       string            `json:"group"`
+	GroupID     string            `json:"group_id"`
 	Expression  string            `json:"expression"`
 	State       string            `json:"state"`
 	Value       string            `json:"value"`
@@ -26,14 +29,15 @@ type APIAlert struct {
 }
 
 type requestHandler struct {
-	groups []Group
+	m *manager
 }
 
 var pathList = [][]string{
 	{"/api/v1/alerts", "list all active alerts"},
-	{"/api/v1/groupName/alertID/status", "get alert status by ID"},
+	{"/api/v1/groupID/alertID/status", "get alert status by ID"},
 	// /metrics is served by httpserver by default
 	{"/metrics", "list of application metrics"},
+	{"/-/reload", "reload configuration"},
 }
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
@@ -47,6 +51,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/api/v1/alerts":
 		resph.handle(rh.list())
+		return true
+	case "/-/reload":
+		logger.Infof("api config reload was called, sending sighup")
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusOK)
 		return true
 	default:
 		// /api/v1/<groupName>/<alertID>/status
@@ -66,8 +75,10 @@ type listAlertsResponse struct {
 }
 
 func (rh *requestHandler) list() ([]byte, error) {
+	rh.m.groupsMu.RLock()
+	defer rh.m.groupsMu.RUnlock()
 	lr := listAlertsResponse{Status: "success"}
-	for _, g := range rh.groups {
+	for _, g := range rh.m.groups {
 		for _, r := range g.Rules {
 			lr.Data.Alerts = append(lr.Data.Alerts, r.AlertsAPI()...)
 		}
@@ -75,7 +86,7 @@ func (rh *requestHandler) list() ([]byte, error) {
 
 	// sort list of alerts for deterministic output
 	sort.Slice(lr.Data.Alerts, func(i, j int) bool {
-		return lr.Data.Alerts[i].Name < lr.Data.Alerts[j].Name
+		return lr.Data.Alerts[i].ID < lr.Data.Alerts[j].ID
 	})
 
 	b, err := json.Marshal(lr)
@@ -89,6 +100,9 @@ func (rh *requestHandler) list() ([]byte, error) {
 }
 
 func (rh *requestHandler) alert(path string) ([]byte, error) {
+	rh.m.groupsMu.RLock()
+	defer rh.m.groupsMu.RUnlock()
+
 	parts := strings.SplitN(strings.TrimPrefix(path, "/api/v1/"), "/", 3)
 	if len(parts) != 3 {
 		return nil, &httpserver.ErrorWithStatusCode{
@@ -96,29 +110,20 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	group := strings.TrimRight(parts[0], "/")
-	idStr := strings.TrimRight(parts[1], "/")
-	id, err := strconv.ParseUint(idStr, 10, 0)
+
+	groupID, err := uint64FromPath(parts[0])
 	if err != nil {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`cannot parse int from %q`, idStr),
-			StatusCode: http.StatusBadRequest,
-		}
+		return nil, badRequest(fmt.Errorf(`cannot parse groupID: %s`, err))
 	}
-	for _, g := range rh.groups {
-		if g.Name != group {
-			continue
-		}
-		for i := range g.Rules {
-			if apiAlert := g.Rules[i].AlertAPI(id); apiAlert != nil {
-				return json.Marshal(apiAlert)
-			}
-		}
+	alertID, err := uint64FromPath(parts[1])
+	if err != nil {
+		return nil, badRequest(fmt.Errorf(`cannot parse alertID: %s`, err))
 	}
-	return nil, &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf(`cannot find alert %s in %q`, idStr, group),
-		StatusCode: http.StatusNotFound,
+	resp, err := rh.m.AlertAPI(groupID, alertID)
+	if err != nil {
+		return nil, errResponse(err, http.StatusNotFound)
 	}
+	return json.Marshal(resp)
 }
 
 // responseHandler wrapper on http.ResponseWriter with sugar
@@ -131,4 +136,20 @@ func (w responseHandler) handle(b []byte, err error) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(b)
+}
+
+func uint64FromPath(path string) (uint64, error) {
+	s := strings.TrimRight(path, "/")
+	return strconv.ParseUint(s, 10, 0)
+}
+
+func badRequest(err error) *httpserver.ErrorWithStatusCode {
+	return errResponse(err, http.StatusBadRequest)
+}
+
+func errResponse(err error, sc int) *httpserver.ErrorWithStatusCode {
+	return &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: sc,
+	}
 }

@@ -16,7 +16,7 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			t.Fatalf("unexpected result; got\n%v\nwant\n%v", result, resultExpected)
 		}
 	}
-	t.Run("empty_replabel_configs", func(t *testing.T) {
+	t.Run("empty_relabel_configs", func(t *testing.T) {
 		f(nil, nil, false, nil)
 		f(nil, nil, true, nil)
 		f(nil, []prompbmarshal.Label{
@@ -238,7 +238,7 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "yyy",
 			},
 			{
-				Name:  "__address__",
+				Name:  "instance",
 				Value: "a.bc",
 			},
 		}, true, []prompbmarshal.Label{
@@ -591,7 +591,7 @@ func TestFinalizeLabels(t *testing.T) {
 			Value: "ass",
 		},
 		{
-			Name:  "__address__",
+			Name:  "instance",
 			Value: "foo.com",
 		},
 	}, []prompbmarshal.Label{

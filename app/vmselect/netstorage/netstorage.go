@@ -53,9 +53,8 @@ type Results struct {
 	fetchData bool
 	deadline  Deadline
 
-	tbf *tmpBlocksFile
-
 	packedTimeseries []packedTimeseries
+	sr               *storage.Search
 }
 
 // Len returns the number of results in rss.
@@ -65,8 +64,12 @@ func (rss *Results) Len() int {
 
 // Cancel cancels rss work.
 func (rss *Results) Cancel() {
-	putTmpBlocksFile(rss.tbf)
-	rss.tbf = nil
+	rss.mustClose()
+}
+
+func (rss *Results) mustClose() {
+	putStorageSearch(rss.sr)
+	rss.sr = nil
 }
 
 // RunParallel runs in parallel f for all the results from rss.
@@ -76,10 +79,7 @@ func (rss *Results) Cancel() {
 //
 // rss becomes unusable after the call to RunParallel.
 func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
-	defer func() {
-		putTmpBlocksFile(rss.tbf)
-		rss.tbf = nil
-	}()
+	defer rss.mustClose()
 
 	workersCount := 1 + len(rss.packedTimeseries)/32
 	if workersCount > gomaxprocs {
@@ -106,7 +106,7 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 					err = fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 					break
 				}
-				if err = pts.Unpack(rss.tbf, rs, rss.tr, rss.fetchData, maxWorkersCount); err != nil {
+				if err = pts.Unpack(rs, rss.tr, rss.fetchData, maxWorkersCount); err != nil {
 					break
 				}
 				if len(rs.Timestamps) == 0 && rss.fetchData {
@@ -156,18 +156,18 @@ var gomaxprocs = runtime.GOMAXPROCS(-1)
 
 type packedTimeseries struct {
 	metricName string
-	addrs      []tmpBlockAddr
+	brs        []storage.BlockRef
 }
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.TimeRange, fetchData bool, maxWorkersCount int) error {
+func (pts *packedTimeseries) Unpack(dst *Result, tr storage.TimeRange, fetchData bool, maxWorkersCount int) error {
 	dst.reset()
 
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %s", pts.metricName, err)
 	}
 
-	workersCount := 1 + len(pts.addrs)/32
+	workersCount := 1 + len(pts.brs)/32
 	if workersCount > maxWorkersCount {
 		workersCount = maxWorkersCount
 	}
@@ -175,19 +175,19 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 		logger.Panicf("BUG: workersCount cannot be zero")
 	}
 
-	sbs := make([]*sortBlock, 0, len(pts.addrs))
+	sbs := make([]*sortBlock, 0, len(pts.brs))
 	var sbsLock sync.Mutex
 
-	workCh := make(chan tmpBlockAddr, workersCount)
+	workCh := make(chan storage.BlockRef, workersCount)
 	doneCh := make(chan error)
 
 	// Start workers
 	for i := 0; i < workersCount; i++ {
 		go func() {
 			var err error
-			for addr := range workCh {
+			for br := range workCh {
 				sb := getSortBlock()
-				if err = sb.unpackFrom(tbf, addr, tr, fetchData); err != nil {
+				if err = sb.unpackFrom(br, tr, fetchData); err != nil {
 					break
 				}
 
@@ -204,10 +204,10 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 	}
 
 	// Feed workers with work
-	for _, addr := range pts.addrs {
-		workCh <- addr
+	for _, br := range pts.brs {
+		workCh <- br
 	}
-	pts.addrs = pts.addrs[:0]
+	pts.brs = pts.brs[:0]
 	close(workCh)
 
 	// Wait until workers finish
@@ -314,8 +314,8 @@ func (sb *sortBlock) reset() {
 	sb.NextIdx = 0
 }
 
-func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool) error {
-	tbf.MustReadBlockAt(&sb.b, addr)
+func (sb *sortBlock) unpackFrom(br storage.BlockRef, tr storage.TimeRange, fetchData bool) error {
+	br.MustReadBlock(&sb.b, fetchData)
 	if fetchData {
 		if err := sb.b.UnmarshalData(); err != nil {
 			return fmt.Errorf("cannot unmarshal block: %s", err)
@@ -483,6 +483,8 @@ func putStorageSearch(sr *storage.Search) {
 var ssPool sync.Pool
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
+//
+// Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadline) (*Results, error) {
 	// Setup search.
 	tfss, err := setupTfss(sq.TagFilterss)
@@ -498,60 +500,40 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	defer putStorageSearch(sr)
-	sr.Init(vmstorage.Storage, tfss, tr, fetchData, *maxMetricsPerSearch)
+	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch)
 
-	tbf := getTmpBlocksFile()
-	m := make(map[string][]tmpBlockAddr)
+	m := make(map[string][]storage.BlockRef)
+	var orderedMetricNames []string
 	blocksRead := 0
-	bb := tmpBufPool.Get()
-	defer tmpBufPool.Put(bb)
 	for sr.NextMetricBlock() {
 		blocksRead++
-		bb.B = storage.MarshalBlock(bb.B[:0], sr.MetricBlock.Block)
-		addr, err := tbf.WriteBlockData(bb.B)
-		if err != nil {
-			putTmpBlocksFile(tbf)
-			return nil, fmt.Errorf("cannot write data block #%d to temporary blocks file: %s", blocksRead, err)
-		}
 		if time.Until(deadline.Deadline) < 0 {
-			putTmpBlocksFile(tbf)
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
-		metricName := sr.MetricBlock.MetricName
-		m[string(metricName)] = append(m[string(metricName)], addr)
+		metricName := sr.MetricBlockRef.MetricName
+		brs := m[string(metricName)]
+		if len(brs) == 0 {
+			orderedMetricNames = append(orderedMetricNames, string(metricName))
+		}
+		m[string(metricName)] = append(brs, *sr.MetricBlockRef.BlockRef)
 	}
 	if err := sr.Error(); err != nil {
-		putTmpBlocksFile(tbf)
 		return nil, fmt.Errorf("search error after reading %d data blocks: %s", blocksRead, err)
-	}
-	if err := tbf.Finalize(); err != nil {
-		putTmpBlocksFile(tbf)
-		return nil, fmt.Errorf("cannot finalize temporary blocks file with %d blocks: %s", blocksRead, err)
 	}
 
 	var rss Results
-	rss.packedTimeseries = make([]packedTimeseries, len(m))
 	rss.tr = tr
 	rss.fetchData = fetchData
 	rss.deadline = deadline
-	rss.tbf = tbf
-	i := 0
-	for metricName, addrs := range m {
-		pts := &rss.packedTimeseries[i]
-		i++
-		pts.metricName = metricName
-		pts.addrs = addrs
+	pts := make([]packedTimeseries, len(orderedMetricNames))
+	for i, metricName := range orderedMetricNames {
+		pts[i] = packedTimeseries{
+			metricName: metricName,
+			brs:        m[metricName],
+		}
 	}
-
-	// Sort rss.packedTimeseries by the first addr offset in order
-	// to reduce the number of disk seeks during unpacking in RunParallel.
-	// In this case tmpBlocksFile must be read almost sequentially.
-	sort.Slice(rss.packedTimeseries, func(i, j int) bool {
-		pts := rss.packedTimeseries
-		return pts[i].addrs[0].offset < pts[j].addrs[0].offset
-	})
-
+	rss.packedTimeseries = pts
+	rss.sr = sr
 	return &rss, nil
 }
 

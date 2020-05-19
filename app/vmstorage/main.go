@@ -409,6 +409,16 @@ func registerStorageMetrics() {
 		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
+	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {
+		return float64(m().SlowRowInserts)
+	})
+	metrics.NewGauge(`vm_slow_per_day_index_inserts_total`, func() float64 {
+		return float64(m().SlowPerDayIndexInserts)
+	})
+	metrics.NewGauge(`vm_slow_metric_name_loads_total`, func() float64 {
+		return float64(m().SlowMetricNameLoads)
+	})
+
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
 		return float64(tm().BigRowsCount)
 	})
@@ -452,6 +462,9 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_entries{type="storage/hour_metric_ids"}`, func() float64 {
 		return float64(m().HourMetricIDCacheSize)
 	})
+	metrics.NewGauge(`vm_cache_entries{type="storage/next_day_metric_ids"}`, func() float64 {
+		return float64(m().NextDayMetricIDCacheSize)
+	})
 	metrics.NewGauge(`vm_cache_entries{type="storage/bigIndexBlocks"}`, func() float64 {
 		return float64(tm().BigIndexBlocksCacheSize)
 	})
@@ -491,6 +504,9 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/hour_metric_ids"}`, func() float64 {
 		return float64(m().HourMetricIDCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/next_day_metric_ids"}`, func() float64 {
+		return float64(m().NextDayMetricIDCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
 		return float64(idbm().TagCacheSizeBytes)

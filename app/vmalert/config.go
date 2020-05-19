@@ -27,26 +27,33 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
 		if err != nil {
 			return nil, fmt.Errorf("file %s: %w", file, err)
 		}
-		for _, group := range gr {
-			if _, ok := groupsNames[group.Name]; ok {
-				return nil, fmt.Errorf("one file can not contain groups with the same name %s, filepath:%s", file, group.Name)
+		for _, g := range gr {
+			if _, ok := groupsNames[g.Name]; ok {
+				return nil, fmt.Errorf("one file can not contain groups with the same name %s, filepath:%s", g.Name, file)
 			}
-			groupsNames[group.Name] = struct{}{}
-			for _, rule := range group.Rules {
+			g.File = file
+			g.doneCh = make(chan struct{})
+			g.finishedCh = make(chan struct{})
+			g.updateCh = make(chan Group)
+
+			groupsNames[g.Name] = struct{}{}
+			for _, rule := range g.Rules {
 				if err = rule.Validate(); err != nil {
-					return nil, fmt.Errorf("invalid rule filepath:%s, group %s:%w", file, group.Name, err)
+					return nil, fmt.Errorf("invalid rule filepath: %s, group %s: %w", file, g.Name, err)
 				}
-				// TODO: this init looks weird here
-				rule.alerts = make(map[uint64]*notifier.Alert)
 				if validateAnnotations {
-					if err = notifier.ValidateAnnotations(rule.Annotations); err != nil {
-						return nil, fmt.Errorf("invalida annotations filepath:%s, group %s:%w", file, group.Name, err)
+					if err = notifier.ValidateTemplates(rule.Annotations); err != nil {
+						return nil, fmt.Errorf("invalid annotations filepath: %s, group %s: %w", file, g.Name, err)
+					}
+					if err = notifier.ValidateTemplates(rule.Labels); err != nil {
+						return nil, fmt.Errorf("invalid labels filepath: %s, group %s: %w", file, g.Name, err)
 					}
 				}
-				rule.group = &group
+				rule.group = g
+				rule.alerts = make(map[uint64]*notifier.Alert)
 			}
+			groups = append(groups, g)
 		}
-		groups = append(groups, gr...)
 	}
 	if len(groups) < 1 {
 		return nil, fmt.Errorf("no groups found in %s", strings.Join(pathPatterns, ";"))

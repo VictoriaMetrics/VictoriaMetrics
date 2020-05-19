@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 // callbacks for optimized incremental calculations for aggregate functions
@@ -48,6 +48,11 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 		mergeAggrFunc:    mergeAggrGeomean,
 		finalizeAggrFunc: finalizeAggrGeomean,
 	},
+	"any": {
+		updateAggrFunc:   updateAggrAny,
+		mergeAggrFunc:    mergeAggrAny,
+		finalizeAggrFunc: finalizeAggrCommon,
+	},
 }
 
 type incrementalAggrFuncContext struct {
@@ -81,6 +86,10 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries, workerI
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
 	iac := m[string(bb.B)]
 	if iac == nil {
+		if iafc.ae.Limit > 0 && len(m) >= iafc.ae.Limit {
+			// Skip this time series, since the limit on the number of output time series has been already reached.
+			return
+		}
 		tsAggr := &timeseries{
 			Values:     make([]float64, len(ts.Values)),
 			Timestamps: ts.Timestamps,
@@ -106,6 +115,10 @@ func (iafc *incrementalAggrFuncContext) finalizeTimeseries() []*timeseries {
 		for k, iac := range m {
 			iacGlobal := mGlobal[k]
 			if iacGlobal == nil {
+				if iafc.ae.Limit > 0 && len(mGlobal) >= iafc.ae.Limit {
+					// Skip this time series, since the limit on the number of output time series has been already reached.
+					continue
+				}
 				mGlobal[k] = iac
 				continue
 			}
@@ -449,4 +462,26 @@ func finalizeAggrGeomean(iac *incrementalAggrContext) {
 		}
 		dstValues[i] = math.Pow(dstValues[i], 1/v)
 	}
+}
+
+func updateAggrAny(iac *incrementalAggrContext, values []float64) {
+	dstCounts := iac.values
+	if dstCounts[0] > 0 {
+		return
+	}
+	for i := range values {
+		dstCounts[i] = 1
+	}
+	iac.ts.Values = append(iac.ts.Values[:0], values...)
+}
+
+func mergeAggrAny(dst, src *incrementalAggrContext) {
+	srcValues := src.ts.Values
+	srcCounts := src.values
+	dstCounts := dst.values
+	if dstCounts[0] > 0 {
+		return
+	}
+	dstCounts[0] = srcCounts[0]
+	dst.ts.Values = append(dst.ts.Values[:0], srcValues...)
 }

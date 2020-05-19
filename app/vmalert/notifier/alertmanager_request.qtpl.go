@@ -36,7 +36,7 @@ func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL fun
 //line app/vmalert/notifier/alertmanager_request.qtpl:11
 		qw422016.N().S(`,"generatorURL":`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:12
-		qw422016.N().Q(generatorURL(alert.Group, strconv.FormatUint(alert.ID, 10)))
+		qw422016.N().Q(generatorURL(strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10)))
 //line app/vmalert/notifier/alertmanager_request.qtpl:12
 		qw422016.N().S(`,`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:13

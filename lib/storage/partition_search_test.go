@@ -240,10 +240,10 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 
 	bs := []Block{}
 	var pts partitionSearch
-	pts.Init(pt, tsids, tr, true)
+	pts.Init(pt, tsids, tr)
 	for pts.NextBlock() {
 		var b Block
-		b.CopyFrom(pts.Block)
+		pts.BlockRef.MustReadBlock(&b, true)
 		bs = append(bs, b)
 	}
 	if err := pts.Error(); err != nil {
@@ -265,18 +265,9 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 	}
 
 	// verify that empty tsids returns empty result
-	pts.Init(pt, []TSID{}, tr, true)
+	pts.Init(pt, []TSID{}, tr)
 	if pts.NextBlock() {
-		return fmt.Errorf("unexpected block got for an empty tsids list: %+v", pts.Block)
-	}
-	if err := pts.Error(); err != nil {
-		return fmt.Errorf("unexpected error on empty tsids list: %s", err)
-	}
-	pts.MustClose()
-
-	pts.Init(pt, []TSID{}, tr, false)
-	if pts.NextBlock() {
-		return fmt.Errorf("unexpected block got for an empty tsids list: %+v", pts.Block)
+		return fmt.Errorf("unexpected block got for an empty tsids list: %+v", pts.BlockRef)
 	}
 	if err := pts.Error(); err != nil {
 		return fmt.Errorf("unexpected error on empty tsids list: %s", err)

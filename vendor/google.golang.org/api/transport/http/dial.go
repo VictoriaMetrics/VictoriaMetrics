@@ -89,9 +89,14 @@ func newTransport(ctx context.Context, base http.RoundTripper, settings *interna
 		if paramTransport.quotaProject == "" {
 			paramTransport.quotaProject = internal.QuotaProjectFromCreds(creds)
 		}
+
+		ts := creds.TokenSource
+		if settings.TokenSource != nil {
+			ts = settings.TokenSource
+		}
 		trans = &oauth2.Transport{
 			Base:   trans,
-			Source: creds.TokenSource,
+			Source: ts,
 		}
 	}
 	return trans, nil

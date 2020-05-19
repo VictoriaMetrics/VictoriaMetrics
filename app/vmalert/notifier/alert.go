@@ -12,12 +12,13 @@ import (
 // Alert the triggered alert
 // TODO: Looks like alert name isn't unique
 type Alert struct {
-	Group       string
+	GroupID     uint64
 	Name        string
 	Labels      map[string]string
 	Annotations map[string]string
 	State       AlertState
 
+	Expr  string
 	Start time.Time
 	End   time.Time
 	Value float64
@@ -52,19 +53,20 @@ func (as AlertState) String() string {
 type alertTplData struct {
 	Labels map[string]string
 	Value  float64
+	Expr   string
 }
 
-const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}`
+const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}{{ $expr := .Expr }}`
 
 // ExecTemplate executes the Alert template for give
 // map of annotations.
 func (a *Alert) ExecTemplate(annotations map[string]string) (map[string]string, error) {
-	tplData := alertTplData{Value: a.Value, Labels: a.Labels}
+	tplData := alertTplData{Value: a.Value, Labels: a.Labels, Expr: a.Expr}
 	return templateAnnotations(annotations, tplHeader, tplData)
 }
 
-// ValidateAnnotations validate annotations for possible template error, uses empty data for template population
-func ValidateAnnotations(annotations map[string]string) error {
+// ValidateTemplates validate annotations for possible template error, uses empty data for template population
+func ValidateTemplates(annotations map[string]string) error {
 	_, err := templateAnnotations(annotations, tplHeader, alertTplData{
 		Labels: map[string]string{},
 		Value:  0,
@@ -102,19 +104,4 @@ func templateAnnotation(dst io.Writer, text string, data alertTplData) error {
 		return fmt.Errorf("error evaluating annotation template:%w", err)
 	}
 	return nil
-}
-
-type errGroup struct {
-	errs []string
-}
-
-func (eg *errGroup) err() error {
-	if eg == nil || len(eg.errs) == 0 {
-		return nil
-	}
-	return eg
-}
-
-func (eg *errGroup) Error() string {
-	return fmt.Sprintf("errors:%s", strings.Join(eg.errs, "\n"))
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -102,7 +103,7 @@ type Table struct {
 
 	rawItemsBlocks        []*inmemoryBlock
 	rawItemsLock          sync.Mutex
-	rawItemsLastFlushTime time.Time
+	rawItemsLastFlushTime uint64
 
 	snapshotLock sync.RWMutex
 
@@ -369,7 +370,7 @@ func (tb *Table) AddItems(items [][]byte) error {
 	if len(tb.rawItemsBlocks) >= 1024 {
 		blocksToMerge = tb.rawItemsBlocks
 		tb.rawItemsBlocks = nil
-		tb.rawItemsLastFlushTime = time.Now()
+		tb.rawItemsLastFlushTime = fasttime.UnixTimestamp()
 	}
 	tb.rawItemsLock.Unlock()
 
@@ -508,11 +509,15 @@ func (tb *Table) flushRawItems(isFinal bool) {
 	defer tb.rawItemsPendingFlushesWG.Done()
 
 	mustFlush := false
-	currentTime := time.Now()
+	currentTime := fasttime.UnixTimestamp()
+	flushSeconds := int64(rawItemsFlushInterval.Seconds())
+	if flushSeconds <= 0 {
+		flushSeconds = 1
+	}
 	var blocksToMerge []*inmemoryBlock
 
 	tb.rawItemsLock.Lock()
-	if isFinal || currentTime.Sub(tb.rawItemsLastFlushTime) > rawItemsFlushInterval {
+	if isFinal || currentTime-tb.rawItemsLastFlushTime > uint64(flushSeconds) {
 		mustFlush = true
 		blocksToMerge = tb.rawItemsBlocks
 		tb.rawItemsBlocks = nil
@@ -619,9 +624,8 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 
 	// Prepare blockStreamWriter for destination part.
 	bsw := getBlockStreamWriter()
-	compressLevel := 1
 	mpDst := getInmemoryPart()
-	bsw.InitFromInmemoryPart(mpDst, compressLevel)
+	bsw.InitFromInmemoryPart(mpDst)
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
@@ -674,7 +678,7 @@ const (
 
 func (tb *Table) partMerger() error {
 	sleepTime := minMergeSleepTime
-	var lastMergeTime time.Time
+	var lastMergeTime uint64
 	isFinal := false
 	t := time.NewTimer(sleepTime)
 	for {
@@ -682,7 +686,7 @@ func (tb *Table) partMerger() error {
 		if err == nil {
 			// Try merging additional parts.
 			sleepTime = minMergeSleepTime
-			lastMergeTime = time.Now()
+			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = false
 			continue
 		}
@@ -693,10 +697,10 @@ func (tb *Table) partMerger() error {
 		if err != errNothingToMerge {
 			return err
 		}
-		if time.Since(lastMergeTime) > 30*time.Second {
+		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
 			// We have free time for merging into bigger parts.
 			// This should improve select performance.
-			lastMergeTime = time.Now()
+			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = true
 			continue
 		}
@@ -764,8 +768,10 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	}
 
 	outItemsCount := uint64(0)
+	outBlocksCount := uint64(0)
 	for _, pw := range pws {
 		outItemsCount += pw.p.ph.itemsCount
+		outBlocksCount += pw.p.ph.blocksCount
 	}
 	nocache := true
 	if outItemsCount < maxItemsPerCachedPart() {
@@ -778,7 +784,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	mergeIdx := tb.nextMergeIdx()
 	tmpPartPath := fmt.Sprintf("%s/tmp/%016X", tb.path, mergeIdx)
 	bsw := getBlockStreamWriter()
-	compressLevel := getCompressLevelForPartItems(outItemsCount)
+	compressLevel := getCompressLevelForPartItems(outItemsCount, outBlocksCount)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
 		return fmt.Errorf("cannot create destination part %q: %s", tmpPartPath, err)
 	}
@@ -863,27 +869,43 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	d := time.Since(startTime)
 	if d > 10*time.Second {
-		logger.Infof("merged %d items in %.3f seconds at %d items/sec to %q; sizeBytes: %d",
-			outItemsCount, d.Seconds(), int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
+		logger.Infof("merged %d items across %d blocks in %.3f seconds at %d items/sec to %q; sizeBytes: %d",
+			outItemsCount, outBlocksCount, d.Seconds(), int(float64(outItemsCount)/d.Seconds()), dstPartPath, newPSize)
 	}
 
 	return nil
 }
 
-func getCompressLevelForPartItems(itemsCount uint64) int {
-	if itemsCount < 1<<19 {
+func getCompressLevelForPartItems(itemsCount, blocksCount uint64) int {
+	// There is no need in using blocksCount here, since mergeset blocks are usually full.
+
+	if itemsCount <= 1<<16 {
+		// -5 is the minimum supported compression for zstd.
+		// See https://github.com/facebook/zstd/releases/tag/v1.3.4
+		return -5
+	}
+	if itemsCount <= 1<<17 {
+		return -4
+	}
+	if itemsCount <= 1<<18 {
+		return -3
+	}
+	if itemsCount <= 1<<19 {
+		return -2
+	}
+	if itemsCount <= 1<<20 {
+		return -1
+	}
+	if itemsCount <= 1<<22 {
 		return 1
 	}
-	if itemsCount < 1<<22 {
+	if itemsCount <= 1<<25 {
 		return 2
 	}
-	if itemsCount < 1<<25 {
+	if itemsCount <= 1<<28 {
 		return 3
 	}
-	if itemsCount < 1<<28 {
-		return 4
-	}
-	return 5
+	return 4
 }
 
 func (tb *Table) nextMergeIdx() uint64 {
@@ -892,15 +914,15 @@ func (tb *Table) nextMergeIdx() uint64 {
 
 var (
 	maxOutPartItemsLock     sync.Mutex
-	maxOutPartItemsDeadline time.Time
+	maxOutPartItemsDeadline uint64
 	lastMaxOutPartItems     uint64
 )
 
 func (tb *Table) maxOutPartItems() uint64 {
 	maxOutPartItemsLock.Lock()
-	if time.Until(maxOutPartItemsDeadline) < 0 {
+	if maxOutPartItemsDeadline < fasttime.UnixTimestamp() {
 		lastMaxOutPartItems = tb.maxOutPartItemsSlow()
-		maxOutPartItemsDeadline = time.Now().Add(time.Second)
+		maxOutPartItemsDeadline = fasttime.UnixTimestamp() + 2
 	}
 	n := lastMaxOutPartItems
 	maxOutPartItemsLock.Unlock()

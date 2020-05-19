@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -48,29 +47,12 @@ type statConn struct {
 
 	closeCalls uint64
 
-	readTimeout  time.Duration
-	lastReadTime time.Time
-
-	writeTimeout  time.Duration
-	lastWriteTime time.Time
-
 	net.Conn
 
 	cm *connMetrics
 }
 
 func (sc *statConn) Read(p []byte) (int, error) {
-	if sc.readTimeout > 0 {
-		t := time.Now()
-		if t.Sub(sc.lastReadTime) > sc.readTimeout>>4 {
-			d := t.Add(sc.readTimeout)
-			if err := sc.Conn.SetReadDeadline(d); err != nil {
-				// This error may occur when the client closes the connection before setting the deadline
-				return 0, err
-			}
-		}
-	}
-
 	n, err := sc.Conn.Read(p)
 	sc.cm.readCalls.Inc()
 	sc.cm.readBytes.Add(n)
@@ -85,17 +67,6 @@ func (sc *statConn) Read(p []byte) (int, error) {
 }
 
 func (sc *statConn) Write(p []byte) (int, error) {
-	if sc.writeTimeout > 0 {
-		t := time.Now()
-		if t.Sub(sc.lastWriteTime) > sc.writeTimeout>>4 {
-			d := t.Add(sc.writeTimeout)
-			if err := sc.Conn.SetWriteDeadline(d); err != nil {
-				// This error may accour when the client closes the connection before setting the deadline
-				return 0, err
-			}
-		}
-	}
-
 	n, err := sc.Conn.Write(p)
 	sc.cm.writeCalls.Inc()
 	sc.cm.writtenBytes.Add(n)

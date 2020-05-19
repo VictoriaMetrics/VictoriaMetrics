@@ -164,7 +164,7 @@ func TestMaxUpExponent(t *testing.T) {
 
 		e := maxUpExponent(v)
 		if e != eExpected {
-			t.Fatalf("unexpected e for v=%d; got %d; epxecting %d", v, e, eExpected)
+			t.Fatalf("unexpected e for v=%d; got %d; expecting %d", v, e, eExpected)
 		}
 		e = maxUpExponent(-v)
 		if e != eExpected {

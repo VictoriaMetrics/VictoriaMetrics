@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -49,6 +50,8 @@ var (
 )
 
 func main() {
+	// Write flags and help message to stdout, since it is easier to grep or pipe.
+	flag.CommandLine.SetOutput(os.Stdout)
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -157,6 +160,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "text/plain")
 		promscrape.WriteHumanReadableTargetsStatus(w)
 		return true
+	case "/-/reload":
+		promscrapeConfigReloadRequests.Inc()
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusOK)
+		return true
 	}
 	return false
 }
@@ -177,4 +185,6 @@ var (
 	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query", protocol="influx"}`)
 
 	promscrapeTargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+
+	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )

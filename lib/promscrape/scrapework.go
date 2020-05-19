@@ -3,7 +3,6 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/metrics"
+	xxhash "github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -68,6 +68,25 @@ type ScrapeWork struct {
 	SampleLimit int
 }
 
+// key returns unique identifier for the given sw.
+//
+// it can be used for comparing for equality two ScrapeWork objects.
+func (sw *ScrapeWork) key() string {
+	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d",
+		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
+		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit)
+	return key
+}
+
+func (sw *ScrapeWork) metricRelabelConfigsString() string {
+	var sb strings.Builder
+	for _, prc := range sw.MetricRelabelConfigs {
+		fmt.Fprintf(&sb, "%s", prc.String())
+	}
+	return sb.String()
+}
+
 // Job returns job for the ScrapeWork
 func (sw *ScrapeWork) Job() string {
 	return promrelabel.GetLabelValueByName(sw.Labels, "job")
@@ -102,11 +121,21 @@ type scrapeWork struct {
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
-	// Randomize start time for the first scrape in order to spread load
-	// when scraping many targets.
+	// Calculate start time for the first scrape from ScrapeURL and labels.
+	// This should spread load when scraping many targets with different
+	// scrape urls and labels.
+	// This also makes consistent scrape times across restarts
+	// for a target with the same ScrapeURL and labels.
 	scrapeInterval := sw.Config.ScrapeInterval
-	randSleep := time.Duration(float64(scrapeInterval) * rand.Float64())
-	timer := time.NewTimer(randSleep)
+	key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
+	h := uint32(xxhash.Sum64([]byte(key)))
+	randSleep := uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
+	sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
+	if randSleep < sleepOffset {
+		randSleep += uint64(scrapeInterval)
+	}
+	randSleep -= sleepOffset
+	timer := time.NewTimer(time.Duration(randSleep))
 	var timestamp int64
 	var ticker *time.Ticker
 	select {

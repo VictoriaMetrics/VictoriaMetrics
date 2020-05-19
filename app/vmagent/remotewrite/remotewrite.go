@@ -69,7 +69,7 @@ func Init() {
 		if *showRemoteWriteURL {
 			urlLabelValue = remoteWriteURL
 		}
-		rwctx := newRemoteWriteCtx(remoteWriteURL, relabelConfigPath, maxInmemoryBlocks, urlLabelValue)
+		rwctx := newRemoteWriteCtx(i, remoteWriteURL, relabelConfigPath, maxInmemoryBlocks, urlLabelValue)
 		rwctxs = append(rwctxs, rwctx)
 	}
 }
@@ -86,7 +86,7 @@ func Stop() {
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
-// Each timeseries in wr.Timeseries must contain one sample.
+// Note that wr may be modified by Push due to relabeling.
 func Push(wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
 	if len(prcsGlobal) > 0 || len(labelsGlobal) > 0 {
@@ -128,10 +128,12 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx uint64
 
+	tss []prompbmarshal.TimeSeries
+
 	relabelMetricsDropped *metrics.Counter
 }
 
-func newRemoteWriteCtx(remoteWriteURL, relabelConfigPath string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
+func newRemoteWriteCtx(argIdx int, remoteWriteURL, relabelConfigPath string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
 	h := xxhash.Sum64([]byte(remoteWriteURL))
 	path := fmt.Sprintf("%s/persistent-queue/%016X", *tmpDataPath, h)
 	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, *maxPendingBytesPerURL)
@@ -141,7 +143,7 @@ func newRemoteWriteCtx(remoteWriteURL, relabelConfigPath string, maxInmemoryBloc
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
-	c := newClient(remoteWriteURL, urlLabelValue, fq, *queues)
+	c := newClient(argIdx, remoteWriteURL, urlLabelValue, fq, *queues)
 	var prcs []promrelabel.ParsedRelabelConfig
 	if len(relabelConfigPath) > 0 {
 		var err error
@@ -181,6 +183,11 @@ func (rwctx *remoteWriteCtx) MustStop() {
 func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	var rctx *relabelCtx
 	if len(rwctx.prcs) > 0 {
+		// Make a copy of tss before applying relabeling in order to prevent
+		// from affecting time series for other remoteWrite.url configs.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467 for details.
+		rwctx.tss = append(rwctx.tss[:0], tss...)
+		tss = rwctx.tss
 		rctx = getRelabelCtx()
 		tssLen := len(tss)
 		tss = rctx.applyRelabeling(tss, nil, rwctx.prcs)
@@ -191,5 +198,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	pss[idx].Push(tss)
 	if rctx != nil {
 		putRelabelCtx(rctx)
+		// Zero rwctx.tss in order to free up GC references.
+		rwctx.tss = prompbmarshal.ResetTimeSeries(rwctx.tss)
 	}
 }

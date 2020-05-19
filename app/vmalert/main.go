@@ -8,13 +8,14 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -29,19 +30,36 @@ Examples:
  -rule /path/to/file. Path to a single file with alerting rules
  -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
 absolute path to all .yaml files in root.`)
-	validateAlertAnnotations = flag.Bool("rule.validateAnnotations", true, "Indicates to validate annotation templates")
-	httpListenAddr           = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
-	datasourceURL            = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428")
-	basicAuthUsername        = flag.String("datasource.basicAuth.username", "", "Optional basic auth username to use for -datasource.url")
-	basicAuthPassword        = flag.String("datasource.basicAuth.password", "", "Optional basic auth password to use for -datasource.url")
-	evaluationInterval       = flag.Duration("evaluationInterval", 1*time.Minute, "How often to evaluate the rules. Default 1m")
-	notifierURL              = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL              = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	validateTemplates = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
+	httpListenAddr    = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+
+	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
+		" E.g. http://127.0.0.1:8428")
+	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+
+	remoteWriteURL = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
+		" in form of timeseries. E.g. http://127.0.0.1:8428")
+	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
+	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 10e3, "Defines the max number of pending datapoints to remote write endpoint")
+
+	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
+		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+
+		" E.g. http://127.0.0.1:8428")
+	remoteReadUsername = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
+	remoteReadPassword = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
+	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
+		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+
+	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules. Default 1m")
+	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
-// TODO: hot configuration reload
-// TODO: alerts state persistence
 func main() {
+	// Write flags and help message to stdout, since it is easier to grep or pipe.
+	flag.CommandLine.SetOutput(os.Stdout)
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -49,32 +67,61 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
 	if err != nil {
-		logger.Fatalf("can not get external url:%s ", err)
+		logger.Fatalf("can not get external url: %s ", err)
 	}
 	notifier.InitTemplateFunc(eu)
 
-	logger.Infof("reading alert rules configuration file from %s", strings.Join(*rulePath, ";"))
-	groups, err := Parse(*rulePath, *validateAlertAnnotations)
-	if err != nil {
-		logger.Fatalf("Cannot parse configuration file: %s", err)
-	}
-
-	w := &watchdog{
+	manager := &manager{
+		groups:  make(map[uint64]*Group),
 		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		alertProvider: notifier.NewAlertManager(*notifierURL, func(group, name string) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, name)
+		notifier: notifier.NewAlertManager(*notifierURL, func(group, alert string) string {
+			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, alert)
 		}, &http.Client{}),
 	}
-	wg := sync.WaitGroup{}
-	for i := range groups {
-		wg.Add(1)
-		go func(group Group) {
-			w.run(ctx, group, *evaluationInterval)
-			wg.Done()
-		}(groups[i])
+	if *remoteWriteURL != "" {
+		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
+			Addr:          *remoteWriteURL,
+			MaxQueueSize:  *remoteWriteMaxQueueSize,
+			FlushInterval: *evaluationInterval,
+			BasicAuthUser: *remoteWriteUsername,
+			BasicAuthPass: *remoteWritePassword,
+		})
+		if err != nil {
+			logger.Fatalf("failed to init remotewrite client: %s", err)
+		}
+		manager.rw = c
+	}
+	if *remoteReadURL != "" {
+		manager.rr = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
 	}
 
-	go httpserver.Serve(*httpListenAddr, (&requestHandler{groups: groups}).handler)
+	if err := manager.start(ctx, *rulePath, *validateTemplates); err != nil {
+		logger.Fatalf("failed to start: %s", err)
+	}
+
+	go func() {
+		// init reload metrics with positive values to improve alerting conditions
+		configSuccess.Set(1)
+		configTimestamp.Set(fasttime.UnixTimestamp())
+		sigHup := procutil.NewSighupChan()
+		for {
+			<-sigHup
+			configReloads.Inc()
+			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
+			if err := manager.update(ctx, *rulePath, *validateTemplates, false); err != nil {
+				configReloadErrors.Inc()
+				configSuccess.Set(0)
+				logger.Errorf("error while reloading rules: %s", err)
+				continue
+			}
+			configSuccess.Set(1)
+			configTimestamp.Set(fasttime.UnixTimestamp())
+			logger.Infof("Rules reloaded successfully from %q", *rulePath)
+		}
+	}()
+
+	rh := &requestHandler{m: manager}
+	go httpserver.Serve(*httpListenAddr, rh.handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
@@ -82,57 +129,15 @@ func main() {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
 	cancel()
-	wg.Wait()
-}
-
-type watchdog struct {
-	storage       *datasource.VMStorage
-	alertProvider notifier.Notifier
+	manager.close()
 }
 
 var (
-	iterationTotal    = metrics.NewCounter(`vmalert_iteration_total`)
-	iterationDuration = metrics.NewSummary(`vmalert_iteration_duration_seconds`)
-
-	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
-	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
-	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+	configReloads      = metrics.NewCounter(`vmalert_config_last_reload_total`)
+	configReloadErrors = metrics.NewCounter(`vmalert_config_last_reload_errors_total`)
+	configSuccess      = metrics.NewCounter(`vmalert_config_last_reload_successful`)
+	configTimestamp    = metrics.NewCounter(`vmalert_config_last_reload_success_timestamp_seconds`)
 )
-
-func (w *watchdog) run(ctx context.Context, group Group, evaluationInterval time.Duration) {
-	logger.Infof("watchdog for %s has been started", group.Name)
-	t := time.NewTicker(evaluationInterval)
-	defer t.Stop()
-	for {
-
-		select {
-		case <-t.C:
-			iterationTotal.Inc()
-			iterationStart := time.Now()
-			for _, rule := range group.Rules {
-				execTotal.Inc()
-
-				execStart := time.Now()
-				err := rule.Exec(ctx, w.storage)
-				execDuration.UpdateDuration(execStart)
-
-				if err != nil {
-					execErrors.Inc()
-					logger.Errorf("failed to execute rule %q.%q: %s", group.Name, rule.Name, err)
-					continue
-				}
-
-				if err := rule.Send(ctx, w.alertProvider); err != nil {
-					logger.Errorf("failed to send alert for rule %q.%q: %s", group.Name, rule.Name, err)
-				}
-			}
-			iterationDuration.UpdateDuration(iterationStart)
-		case <-ctx.Done():
-			logger.Infof("%s received stop signal", group.Name)
-			return
-		}
-	}
-}
 
 func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
 	if externalURL != "" {

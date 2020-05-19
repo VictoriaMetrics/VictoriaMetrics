@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -40,8 +41,8 @@ func TestAlertManager_Send(t *testing.T) {
 			if len(a) != 1 {
 				t.Errorf("expected 1 alert in array got %d", len(a))
 			}
-			if a[0].GeneratorURL != "group0" {
-				t.Errorf("exptected alert0 as generatorURL got %s", a[0].GeneratorURL)
+			if a[0].GeneratorURL != "0/0" {
+				t.Errorf("exptected 0/0 as generatorURL got %s", a[0].GeneratorURL)
 			}
 			if a[0].Labels["alertname"] != "alert0" {
 				t.Errorf("exptected alert0 as alert name got %s", a[0].Labels["alertname"])
@@ -57,16 +58,16 @@ func TestAlertManager_Send(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	am := NewAlertManager(srv.URL, func(group, name string) string {
-		return group + name
+		return group + "/" + name
 	}, srv.Client())
-	if err := am.Send([]Alert{{}, {}}); err == nil {
+	if err := am.Send(context.Background(), []Alert{{}, {}}); err == nil {
 		t.Error("expected connection error got nil")
 	}
-	if err := am.Send([]Alert{}); err == nil {
+	if err := am.Send(context.Background(), []Alert{}); err == nil {
 		t.Error("expected wrong http code error got nil")
 	}
-	if err := am.Send([]Alert{{
-		Group:       "group",
+	if err := am.Send(context.Background(), []Alert{{
+		GroupID:     0,
 		Name:        "alert0",
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),

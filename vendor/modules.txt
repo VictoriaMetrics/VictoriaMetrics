@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.56.0
+# cloud.google.com/go v0.57.0
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -6,15 +6,22 @@ cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
-# cloud.google.com/go/storage v1.6.0
+# cloud.google.com/go/storage v1.8.0
 cloud.google.com/go/storage
 # github.com/BurntSushi/toml v0.3.1
 github.com/BurntSushi/toml
 # github.com/VictoriaMetrics/fastcache v1.5.7
 github.com/VictoriaMetrics/fastcache
+# github.com/VictoriaMetrics/fasthttp v1.0.1
+github.com/VictoriaMetrics/fasthttp
+github.com/VictoriaMetrics/fasthttp/fasthttputil
+github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.11.2
 github.com/VictoriaMetrics/metrics
-# github.com/aws/aws-sdk-go v1.30.13
+# github.com/VictoriaMetrics/metricsql v0.2.2
+github.com/VictoriaMetrics/metricsql
+github.com/VictoriaMetrics/metricsql/binaryop
+# github.com/aws/aws-sdk-go v1.30.28
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
 github.com/aws/aws-sdk-go/aws/awserr
@@ -63,7 +70,7 @@ github.com/aws/aws-sdk-go/service/sts/stsiface
 github.com/cespare/xxhash/v2
 # github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 github.com/golang/groupcache/lru
-# github.com/golang/protobuf v1.4.0
+# github.com/golang/protobuf v1.4.2
 github.com/golang/protobuf/internal/gengogrpc
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go
@@ -93,10 +100,6 @@ github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.12.0
-github.com/valyala/fasthttp
-github.com/valyala/fasthttp/fasthttputil
-github.com/valyala/fasthttp/stackless
 # github.com/valyala/fastjson v1.5.1
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
@@ -106,7 +109,7 @@ github.com/valyala/fastrand
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.0.1
 github.com/valyala/histogram
-# github.com/valyala/quicktemplate v1.4.1
+# github.com/valyala/quicktemplate v1.5.0
 github.com/valyala/quicktemplate
 # go.opencensus.io v0.22.3
 go.opencensus.io
@@ -128,10 +131,10 @@ go.opencensus.io/trace/tracestate
 # golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 golang.org/x/lint
 golang.org/x/lint/golint
-# golang.org/x/mod v0.2.0
+# golang.org/x/mod v0.3.0
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20200421231249-e086a090c8fd
+# golang.org/x/net v0.0.0-20200513185701-a91f0712d120
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -146,14 +149,15 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f
+# golang.org/x/sys v0.0.0-20200515095857-1151b9dac4a9
+golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20200423205358-59e73619c742
+# golang.org/x/tools v0.0.0-20200515010526-7d3b6ebf133d
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/passes/inspect
@@ -181,7 +185,7 @@ golang.org/x/tools/internal/packagesinternal
 # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.22.0
+# google.golang.org/api v0.24.0
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
 google.golang.org/api/internal
@@ -205,7 +209,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20200423170343-7949de9c1215
+# google.golang.org/genproto v0.0.0-20200514193133-8feb7f20f2a2
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
@@ -251,7 +255,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.21.0
+# google.golang.org/protobuf v1.23.0
 google.golang.org/protobuf/cmd/protoc-gen-go/internal_gengo
 google.golang.org/protobuf/compiler/protogen
 google.golang.org/protobuf/encoding/prototext
@@ -287,9 +291,9 @@ google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/pluginpb
-# gopkg.in/yaml.v2 v2.2.8
+# gopkg.in/yaml.v2 v2.3.0
 gopkg.in/yaml.v2
-# honnef.co/go/tools v0.0.1-2020.1.3
+# honnef.co/go/tools v0.0.1-2020.1.4
 honnef.co/go/tools/arg
 honnef.co/go/tools/cmd/staticcheck
 honnef.co/go/tools/code

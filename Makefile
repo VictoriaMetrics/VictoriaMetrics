@@ -13,6 +13,8 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date 
 all: \
 	victoria-metrics-prod \
 	vmagent-prod \
+	vmalert-prod \
+	vmauth-prod \
 	vmbackup-prod \
 	vmrestore-prod
 
@@ -25,17 +27,23 @@ clean:
 publish: \
 	publish-victoria-metrics \
 	publish-vmagent \
+	publish-vmalert \
+	publish-vmauth \
 	publish-vmbackup \
 	publish-vmrestore
 
 package: \
 	package-victoria-metrics \
 	package-vmagent \
+	package-vmalert \
+	package-vmauth \
 	package-vmbackup \
 	package-vmrestore
 
 vmutils: \
 	vmagent \
+	vmalert \
+	vmauth \
 	vmbackup \
 	vmrestore
 
@@ -49,9 +57,11 @@ release-victoria-metrics: victoria-metrics-prod
 
 release-vmutils: \
 	vmagent-prod \
+	vmalert-prod \
+	vmauth-prod \
 	vmbackup-prod \
 	vmrestore-prod
-	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmbackup-prod vmrestore-prod && \
+	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmauth-prod vmbackup-prod vmrestore-prod && \
 		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
@@ -78,9 +88,10 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmagent/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmauth/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
 
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck
@@ -130,7 +141,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run --exclude '(SA4003|SA1019):' -D errcheck -D structcheck --timeout 2m
+	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
 	which golangci-lint || GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint

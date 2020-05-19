@@ -1,6 +1,7 @@
 package promauth
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -40,6 +41,27 @@ type Config struct {
 	TLSInsecureSkipVerify bool
 }
 
+// String returns human-(un)readable representation for cfg.
+func (ac *Config) String() string {
+	return fmt.Sprintf("Authorization=%s, TLSRootCA=%s, TLSCertificate=%s, TLSServerName=%s, TLSInsecureSkipVerify=%v",
+		ac.Authorization, ac.tlsRootCAString(), ac.tlsCertificateString(), ac.TLSServerName, ac.TLSInsecureSkipVerify)
+}
+
+func (ac *Config) tlsRootCAString() string {
+	if ac.TLSRootCA == nil {
+		return ""
+	}
+	data := ac.TLSRootCA.Subjects()
+	return string(bytes.Join(data, []byte("\n")))
+}
+
+func (ac *Config) tlsCertificateString() string {
+	if ac.TLSCertificate == nil {
+		return ""
+	}
+	return string(bytes.Join(ac.TLSCertificate.Certificate, []byte("\n")))
+}
+
 // NewTLSConfig returns new TLS config for the given ac.
 func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg := &tls.Config{
@@ -47,6 +69,7 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 		ClientSessionCache: tls.NewLRUClientSessionCache(0),
 	}
 	if ac.TLSCertificate != nil {
+		// Do not set tlsCfg.GetClientCertificate, since tlsCfg.Certificates should work OK.
 		tlsCfg.Certificates = []tls.Certificate{*ac.TLSCertificate}
 	}
 	tlsCfg.ServerName = ac.TLSServerName

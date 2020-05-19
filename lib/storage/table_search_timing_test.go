@@ -127,12 +127,14 @@ func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int, 
 	b.RunParallel(func(pb *testing.PB) {
 		var ts tableSearch
 		tsids := make([]TSID, tsidsSearch)
+		var tmpBlock Block
 		for pb.Next() {
 			for i := range tsids {
 				tsids[i].MetricID = 1 + uint64(i)
 			}
-			ts.Init(tb, tsids, tr, fetchData)
+			ts.Init(tb, tsids, tr)
 			for ts.NextBlock() {
+				ts.BlockRef.MustReadBlock(&tmpBlock, fetchData)
 			}
 			ts.MustClose()
 		}

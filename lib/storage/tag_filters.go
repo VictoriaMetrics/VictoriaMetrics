@@ -291,12 +291,11 @@ func RegexpCacheMisses() uint64 {
 func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	atomic.AddUint64(&regexpCacheRequests, 1)
 
-	// Fast path - search the regexp in the cache.
 	regexpCacheLock.RLock()
 	rcv, ok := regexpCacheMap[string(expr)]
 	regexpCacheLock.RUnlock()
-
 	if ok {
+		// Fast path - the regexp found in the cache.
 		return rcv, nil
 	}
 
@@ -331,12 +330,7 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 			}
 		}
 	} else {
-		reMatch = getReMatchFunc(sExpr)
-	}
-	if reMatch == nil {
-		reMatch = func(b []byte) bool {
-			return re.Match(b)
-		}
+		reMatch = getOptimizedReMatchFunc(re.Match, sExpr)
 	}
 
 	// Put the reMatch in the cache.
@@ -360,83 +354,171 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	return rcv, nil
 }
 
-// getReMatchFunc returns a function for matching the given expr.
+// getOptimizedReMatchFunc tries returning optimized function for matching the given expr.
 //   '.*'
 //   '.+'
 //   'literal.*'
-//   '.*literal.*'
+//   'literal.+'
 //   '.*literal'
-func getReMatchFunc(expr string) func(b []byte) bool {
-	re, err := syntax.Parse(expr, syntax.Perl)
+//   '.+literal
+//   '.*literal.*'
+//   '.*literal.+'
+//   '.+literal.*'
+//   '.+literal.+'
+//
+// It returns reMatch if it cannot find optimized function.
+func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) func(b []byte) bool {
+	sre, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing verified expr=%q: %s", expr, err)
 	}
-	if isDotStar(re) {
+	if matchFunc := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
+		// Found optimized function for matching the expr.
+		return matchFunc
+	}
+	// Fall back to un-optimized reMatch.
+	return reMatch
+}
+
+func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) func(b []byte) bool {
+	if isDotStar(sre) {
+		// '.*'
 		return func(b []byte) bool {
 			return true
 		}
 	}
-	if isDotPlus(re) {
+	if isDotPlus(sre) {
+		// '.+'
 		return func(b []byte) bool {
 			return len(b) > 0
 		}
 	}
-	return getSingleValueFuncExt(re)
-}
-
-func getSingleValueFuncExt(re *syntax.Regexp) func(b []byte) bool {
-	switch re.Op {
+	switch sre.Op {
 	case syntax.OpCapture:
-		return getSingleValueFuncExt(re.Sub[0])
+		// Remove parenthesis from expr, i.e. '(expr) -> expr'
+		return getOptimizedReMatchFuncExt(reMatch, sre.Sub[0])
 	case syntax.OpLiteral:
-		if !isLiteral(re) {
+		if !isLiteral(sre) {
 			return nil
 		}
-		s := string(re.Rune)
+		s := string(sre.Rune)
+		// Literal match
 		return func(b []byte) bool {
 			return string(b) == s
 		}
 	case syntax.OpConcat:
-		if len(re.Sub) == 2 {
-			if isDotStar(re.Sub[0]) && isLiteral(re.Sub[1]) {
-				suffix := []byte(string(re.Sub[1].Rune))
-				return func(b []byte) bool {
-					return bytes.HasSuffix(b, suffix)
+		if len(sre.Sub) == 2 {
+			if isLiteral(sre.Sub[0]) {
+				prefix := []byte(string(sre.Sub[0].Rune))
+				if isDotStar(sre.Sub[1]) {
+					// 'prefix.*'
+					return func(b []byte) bool {
+						return bytes.HasPrefix(b, prefix)
+					}
+				}
+				if isDotPlus(sre.Sub[1]) {
+					// 'prefix.+'
+					return func(b []byte) bool {
+						return len(b) > len(prefix) && bytes.HasPrefix(b, prefix)
+					}
 				}
 			}
-			if isLiteral(re.Sub[0]) && isDotStar(re.Sub[1]) {
-				prefix := []byte(string(re.Sub[0].Rune))
-				return func(b []byte) bool {
-					return bytes.HasPrefix(b, prefix)
+			if isLiteral(sre.Sub[1]) {
+				suffix := []byte(string(sre.Sub[1].Rune))
+				if isDotStar(sre.Sub[0]) {
+					// '.*suffix'
+					return func(b []byte) bool {
+						return bytes.HasSuffix(b, suffix)
+					}
+				}
+				if isDotPlus(sre.Sub[0]) {
+					// '.+suffix'
+					return func(b []byte) bool {
+						return len(b) > len(suffix) && bytes.HasSuffix(b[1:], suffix)
+					}
 				}
 			}
-			return nil
 		}
-		if len(re.Sub) != 3 || !isDotStar(re.Sub[0]) || !isDotStar(re.Sub[2]) || !isLiteral(re.Sub[1]) {
-			return nil
+		if len(sre.Sub) == 3 && isLiteral(sre.Sub[1]) {
+			middle := []byte(string(sre.Sub[1].Rune))
+			if isDotStar(sre.Sub[0]) {
+				if isDotStar(sre.Sub[2]) {
+					// '.*middle.*'
+					return func(b []byte) bool {
+						return bytes.Contains(b, middle)
+					}
+				}
+				if isDotPlus(sre.Sub[2]) {
+					// '.*middle.+'
+					return func(b []byte) bool {
+						return len(b) > len(middle) && bytes.Contains(b[:len(b)-1], middle)
+					}
+				}
+			}
+			if isDotPlus(sre.Sub[0]) {
+				if isDotStar(sre.Sub[2]) {
+					// '.+middle.*'
+					return func(b []byte) bool {
+						return len(b) > len(middle) && bytes.Contains(b[1:], middle)
+					}
+				}
+				if isDotPlus(sre.Sub[2]) {
+					// '.+middle.+'
+					return func(b []byte) bool {
+						return len(b) > len(middle)+1 && bytes.Contains(b[1:len(b)-1], middle)
+					}
+				}
+			}
 		}
-		middle := []byte(string(re.Sub[1].Rune))
+		// Verify that the string matches all the literals found in the regexp
+		// before applying the regexp.
+		// This should optimize the case when the regexp doesn't match the string.
+		var literals [][]byte
+		for _, sub := range sre.Sub {
+			if isLiteral(sub) {
+				literals = append(literals, []byte(string(sub.Rune)))
+			}
+		}
+		var suffix []byte
+		if isLiteral(sre.Sub[len(sre.Sub)-1]) {
+			suffix = literals[len(literals)-1]
+			literals = literals[:len(literals)-1]
+		}
 		return func(b []byte) bool {
-			return bytes.Contains(b, middle)
+			if len(suffix) > 0 && !bytes.HasSuffix(b, suffix) {
+				// Fast path - b has no the given suffix
+				return false
+			}
+			bOrig := b
+			for _, literal := range literals {
+				n := bytes.Index(b, literal)
+				if n < 0 {
+					// Fast path - b doesn't match the regexp.
+					return false
+				}
+				b = b[n+len(literal):]
+			}
+			// Fall back to slow path.
+			return reMatch(bOrig)
 		}
 	default:
 		return nil
 	}
 }
 
-func isDotStar(re *syntax.Regexp) bool {
-	switch re.Op {
+func isDotStar(sre *syntax.Regexp) bool {
+	switch sre.Op {
 	case syntax.OpCapture:
-		return isDotStar(re.Sub[0])
+		return isDotStar(sre.Sub[0])
 	case syntax.OpAlternate:
-		for _, reSub := range re.Sub {
+		for _, reSub := range sre.Sub {
 			if isDotStar(reSub) {
 				return true
 			}
 		}
 		return false
 	case syntax.OpStar:
-		switch re.Sub[0].Op {
+		switch sre.Sub[0].Op {
 		case syntax.OpAnyCharNotNL, syntax.OpAnyChar:
 			return true
 		default:
@@ -447,19 +529,19 @@ func isDotStar(re *syntax.Regexp) bool {
 	}
 }
 
-func isDotPlus(re *syntax.Regexp) bool {
-	switch re.Op {
+func isDotPlus(sre *syntax.Regexp) bool {
+	switch sre.Op {
 	case syntax.OpCapture:
-		return isDotPlus(re.Sub[0])
+		return isDotPlus(sre.Sub[0])
 	case syntax.OpAlternate:
-		for _, reSub := range re.Sub {
+		for _, reSub := range sre.Sub {
 			if isDotPlus(reSub) {
 				return true
 			}
 		}
 		return false
 	case syntax.OpPlus:
-		switch re.Sub[0].Op {
+		switch sre.Sub[0].Op {
 		case syntax.OpAnyCharNotNL, syntax.OpAnyChar:
 			return true
 		default:
@@ -470,19 +552,19 @@ func isDotPlus(re *syntax.Regexp) bool {
 	}
 }
 
-func isLiteral(re *syntax.Regexp) bool {
-	if re.Op == syntax.OpCapture {
-		return isLiteral(re.Sub[0])
+func isLiteral(sre *syntax.Regexp) bool {
+	if sre.Op == syntax.OpCapture {
+		return isLiteral(sre.Sub[0])
 	}
-	return re.Op == syntax.OpLiteral && re.Flags&syntax.FoldCase == 0
+	return sre.Op == syntax.OpLiteral && sre.Flags&syntax.FoldCase == 0
 }
 
 func getOrValues(expr string) []string {
-	re, err := syntax.Parse(expr, syntax.Perl)
+	sre, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing verified expr=%q: %s", expr, err)
 	}
-	orValues := getOrValuesExt(re)
+	orValues := getOrValuesExt(sre)
 
 	// Sort orValues for faster index seek later
 	sort.Strings(orValues)
@@ -490,20 +572,20 @@ func getOrValues(expr string) []string {
 	return orValues
 }
 
-func getOrValuesExt(re *syntax.Regexp) []string {
-	switch re.Op {
+func getOrValuesExt(sre *syntax.Regexp) []string {
+	switch sre.Op {
 	case syntax.OpCapture:
-		return getOrValuesExt(re.Sub[0])
+		return getOrValuesExt(sre.Sub[0])
 	case syntax.OpLiteral:
-		if !isLiteral(re) {
+		if !isLiteral(sre) {
 			return nil
 		}
-		return []string{string(re.Rune)}
+		return []string{string(sre.Rune)}
 	case syntax.OpEmptyMatch:
 		return []string{""}
 	case syntax.OpAlternate:
-		a := make([]string, 0, len(re.Sub))
-		for _, reSub := range re.Sub {
+		a := make([]string, 0, len(sre.Sub))
+		for _, reSub := range sre.Sub {
 			ca := getOrValuesExt(reSub)
 			if len(ca) == 0 {
 				return nil
@@ -516,10 +598,10 @@ func getOrValuesExt(re *syntax.Regexp) []string {
 		}
 		return a
 	case syntax.OpCharClass:
-		a := make([]string, 0, len(re.Rune)/2)
-		for i := 0; i < len(re.Rune); i += 2 {
-			start := re.Rune[i]
-			end := re.Rune[i+1]
+		a := make([]string, 0, len(sre.Rune)/2)
+		for i := 0; i < len(sre.Rune); i += 2 {
+			start := sre.Rune[i]
+			end := sre.Rune[i+1]
 			for start <= end {
 				a = append(a, string(start))
 				start++
@@ -531,15 +613,15 @@ func getOrValuesExt(re *syntax.Regexp) []string {
 		}
 		return a
 	case syntax.OpConcat:
-		if len(re.Sub) < 1 {
+		if len(sre.Sub) < 1 {
 			return []string{""}
 		}
-		prefixes := getOrValuesExt(re.Sub[0])
+		prefixes := getOrValuesExt(sre.Sub[0])
 		if len(prefixes) == 0 {
 			return nil
 		}
-		re.Sub = re.Sub[1:]
-		suffixes := getOrValuesExt(re)
+		sre.Sub = sre.Sub[1:]
+		suffixes := getOrValuesExt(sre)
 		if len(suffixes) == 0 {
 			return nil
 		}
@@ -661,50 +743,50 @@ type prefixSuffix struct {
 }
 
 func extractRegexpPrefix(b []byte) ([]byte, []byte) {
-	re, err := syntax.Parse(string(b), syntax.Perl)
+	sre, err := syntax.Parse(string(b), syntax.Perl)
 	if err != nil {
 		// Cannot parse the regexp. Return it all as prefix.
 		return b, nil
 	}
-	re = simplifyRegexp(re)
-	if re == emptyRegexp {
+	sre = simplifyRegexp(sre)
+	if sre == emptyRegexp {
 		return nil, nil
 	}
-	if isLiteral(re) {
-		return []byte(string(re.Rune)), nil
+	if isLiteral(sre) {
+		return []byte(string(sre.Rune)), nil
 	}
 	var prefix []byte
-	if re.Op == syntax.OpConcat {
-		sub0 := re.Sub[0]
+	if sre.Op == syntax.OpConcat {
+		sub0 := sre.Sub[0]
 		if isLiteral(sub0) {
 			prefix = []byte(string(sub0.Rune))
-			re.Sub = re.Sub[1:]
-			if len(re.Sub) == 0 {
+			sre.Sub = sre.Sub[1:]
+			if len(sre.Sub) == 0 {
 				return nil, nil
 			}
 		}
 	}
-	if _, err := syntax.Compile(re); err != nil {
+	if _, err := syntax.Compile(sre); err != nil {
 		// Cannot compile the regexp. Return it all as prefix.
 		return b, nil
 	}
-	return prefix, []byte(re.String())
+	return prefix, []byte(sre.String())
 }
 
-func simplifyRegexp(re *syntax.Regexp) *syntax.Regexp {
-	s := re.String()
+func simplifyRegexp(sre *syntax.Regexp) *syntax.Regexp {
+	s := sre.String()
 	for {
-		re = simplifyRegexpExt(re, false, false)
-		re = re.Simplify()
-		if re.Op == syntax.OpBeginText || re.Op == syntax.OpEndText {
-			re = emptyRegexp
+		sre = simplifyRegexpExt(sre, false, false)
+		sre = sre.Simplify()
+		if sre.Op == syntax.OpBeginText || sre.Op == syntax.OpEndText {
+			sre = emptyRegexp
 		}
-		sNew := re.String()
+		sNew := sre.String()
 		if sNew == s {
-			return re
+			return sre
 		}
 		var err error
-		re, err = syntax.Parse(sNew, syntax.Perl)
+		sre, err = syntax.Parse(sNew, syntax.Perl)
 		if err != nil {
 			logger.Panicf("BUG: cannot parse simplified regexp %q: %s", sNew, err)
 		}
@@ -712,56 +794,56 @@ func simplifyRegexp(re *syntax.Regexp) *syntax.Regexp {
 	}
 }
 
-func simplifyRegexpExt(re *syntax.Regexp, hasPrefix, hasSuffix bool) *syntax.Regexp {
-	switch re.Op {
+func simplifyRegexpExt(sre *syntax.Regexp, hasPrefix, hasSuffix bool) *syntax.Regexp {
+	switch sre.Op {
 	case syntax.OpCapture:
 		// Substitute all the capture regexps with non-capture regexps.
-		re.Op = syntax.OpAlternate
-		re.Sub[0] = simplifyRegexpExt(re.Sub[0], hasPrefix, hasSuffix)
-		if re.Sub[0] == emptyRegexp {
+		sre.Op = syntax.OpAlternate
+		sre.Sub[0] = simplifyRegexpExt(sre.Sub[0], hasPrefix, hasSuffix)
+		if sre.Sub[0] == emptyRegexp {
 			return emptyRegexp
 		}
-		return re
+		return sre
 	case syntax.OpStar, syntax.OpPlus, syntax.OpQuest, syntax.OpRepeat:
-		re.Sub[0] = simplifyRegexpExt(re.Sub[0], hasPrefix, hasSuffix)
-		if re.Sub[0] == emptyRegexp {
+		sre.Sub[0] = simplifyRegexpExt(sre.Sub[0], hasPrefix, hasSuffix)
+		if sre.Sub[0] == emptyRegexp {
 			return emptyRegexp
 		}
-		return re
+		return sre
 	case syntax.OpAlternate:
 		// Do not remove empty captures from OpAlternate, since this may break regexp.
-		for i, sub := range re.Sub {
-			re.Sub[i] = simplifyRegexpExt(sub, hasPrefix, hasSuffix)
+		for i, sub := range sre.Sub {
+			sre.Sub[i] = simplifyRegexpExt(sub, hasPrefix, hasSuffix)
 		}
-		return re
+		return sre
 	case syntax.OpConcat:
-		subs := re.Sub[:0]
-		for i, sub := range re.Sub {
-			if sub = simplifyRegexpExt(sub, i > 0, i+1 < len(re.Sub)); sub != emptyRegexp {
+		subs := sre.Sub[:0]
+		for i, sub := range sre.Sub {
+			if sub = simplifyRegexpExt(sub, i > 0, i+1 < len(sre.Sub)); sub != emptyRegexp {
 				subs = append(subs, sub)
 			}
 		}
-		re.Sub = subs
+		sre.Sub = subs
 		// Remove anchros from the beginning and the end of regexp, since they
 		// will be added later.
 		if !hasPrefix {
-			for len(re.Sub) > 0 && re.Sub[0].Op == syntax.OpBeginText {
-				re.Sub = re.Sub[1:]
+			for len(sre.Sub) > 0 && sre.Sub[0].Op == syntax.OpBeginText {
+				sre.Sub = sre.Sub[1:]
 			}
 		}
 		if !hasSuffix {
-			for len(re.Sub) > 0 && re.Sub[len(re.Sub)-1].Op == syntax.OpEndText {
-				re.Sub = re.Sub[:len(re.Sub)-1]
+			for len(sre.Sub) > 0 && sre.Sub[len(sre.Sub)-1].Op == syntax.OpEndText {
+				sre.Sub = sre.Sub[:len(sre.Sub)-1]
 			}
 		}
-		if len(re.Sub) == 0 {
+		if len(sre.Sub) == 0 {
 			return emptyRegexp
 		}
-		return re
+		return sre
 	case syntax.OpEmptyMatch:
 		return emptyRegexp
 	default:
-		return re
+		return sre
 	}
 }
 

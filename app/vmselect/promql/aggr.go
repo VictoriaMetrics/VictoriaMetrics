@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/metricsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 	"github.com/valyala/histogram"
 )
 
@@ -43,6 +43,8 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
+	"any":            newAggrFunc(aggrFuncAny),
+	"outliersk":      aggrFuncOutliersK,
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -64,7 +66,7 @@ func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 		if err := expectTransformArgsNum(args, 1); err != nil {
 			return nil, err
 		}
-		return aggrFuncExt(afe, args[0], &afa.ae.Modifier, false)
+		return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
 	}
 }
 
@@ -80,7 +82,7 @@ func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.Modifie
 	}
 }
 
-func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, keepOriginal bool) ([]*timeseries, error) {
+func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
 	arg := copyTimeseriesMetricNames(argOrig)
 
 	// Perform grouping.
@@ -92,7 +94,13 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 		if keepOriginal {
 			ts = argOrig[i]
 		}
-		m[string(bb.B)] = append(m[string(bb.B)], ts)
+		tss := m[string(bb.B)]
+		if tss == nil && maxSeries > 0 && len(m) >= maxSeries {
+			// We already reached time series limit after grouping. Skip other time series.
+			continue
+		}
+		tss = append(tss, ts)
+		m[string(bb.B)] = tss
 	}
 	bbPool.Put(bb)
 
@@ -110,6 +118,10 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 		}
 	}
 	return rvs, nil
+}
+
+func aggrFuncAny(tss []*timeseries) []*timeseries {
+	return tss[:1]
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {
@@ -441,7 +453,7 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 		return rvs
 	}
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, false)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func newAggrFuncTopK(isReverse bool) aggrFunc {
@@ -468,13 +480,8 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 			}
 			return removeNaNs(tss)
 		}
-		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 	}
-}
-
-type tsWithValue struct {
-	ts    *timeseries
-	value float64
 }
 
 func newAggrFuncRangeTopK(f func(values []float64) float64, isReverse bool) aggrFunc {
@@ -488,32 +495,40 @@ func newAggrFuncRangeTopK(f func(values []float64) float64, isReverse bool) aggr
 			return nil, err
 		}
 		afe := func(tss []*timeseries) []*timeseries {
-			maxs := make([]tsWithValue, len(tss))
-			for i, ts := range tss {
-				value := f(ts.Values)
-				maxs[i] = tsWithValue{
-					ts:    ts,
-					value: value,
-				}
-			}
-			sort.Slice(maxs, func(i, j int) bool {
-				a := maxs[i].value
-				b := maxs[j].value
-				if isReverse {
-					a, b = b, a
-				}
-				return lessWithNaNs(a, b)
-			})
-			for i := range maxs {
-				tss[i] = maxs[i].ts
-			}
-			for i, k := range ks {
-				fillNaNsAtIdx(i, k, tss)
-			}
-			return removeNaNs(tss)
+			return getRangeTopKTimeseries(tss, ks, f, isReverse)
 		}
-		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 	}
+}
+
+func getRangeTopKTimeseries(tss []*timeseries, ks []float64, f func(values []float64) float64, isReverse bool) []*timeseries {
+	type tsWithValue struct {
+		ts    *timeseries
+		value float64
+	}
+	maxs := make([]tsWithValue, len(tss))
+	for i, ts := range tss {
+		value := f(ts.Values)
+		maxs[i] = tsWithValue{
+			ts:    ts,
+			value: value,
+		}
+	}
+	sort.Slice(maxs, func(i, j int) bool {
+		a := maxs[i].value
+		b := maxs[j].value
+		if isReverse {
+			a, b = b, a
+		}
+		return lessWithNaNs(a, b)
+	})
+	for i := range maxs {
+		tss[i] = maxs[i].ts
+	}
+	for i, k := range ks {
+		fillNaNsAtIdx(i, k, tss)
+	}
+	return removeNaNs(tss)
 }
 
 func fillNaNsAtIdx(idx int, k float64, tss []*timeseries) {
@@ -577,14 +592,52 @@ func avgValue(values []float64) float64 {
 func medianValue(values []float64) float64 {
 	h := histogram.GetFast()
 	for _, v := range values {
-		if math.IsNaN(v) {
-			continue
+		if !math.IsNaN(v) {
+			h.Update(v)
 		}
-		h.Update(v)
 	}
 	value := h.Quantile(0.5)
 	histogram.PutFast(h)
 	return value
+}
+
+func aggrFuncOutliersK(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	ks, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		// Calculate medians for each point across tss.
+		medians := make([]float64, len(ks))
+		h := histogram.GetFast()
+		for n := range ks {
+			h.Reset()
+			for j := range tss {
+				v := tss[j].Values[n]
+				if !math.IsNaN(v) {
+					h.Update(v)
+				}
+			}
+			medians[n] = h.Quantile(0.5)
+		}
+		histogram.PutFast(h)
+
+		// Return topK time series with the highest variance from median.
+		f := func(values []float64) float64 {
+			sum2 := float64(0)
+			for n, v := range values {
+				d := v - medians[n]
+				sum2 += d * d
+			}
+			return sum2
+		}
+		return getRangeTopKTimeseries(tss, ks, f, false)
+	}
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -618,7 +671,7 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 		return tss
 	}
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, true)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -631,7 +684,7 @@ func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
 		return nil, err
 	}
 	afe := newAggrQuantileFunc(phis)
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, false)
+	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -641,30 +694,24 @@ func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
 	}
 	phis := evalNumber(afa.ec, 0.5)[0].Values
 	afe := newAggrQuantileFunc(phis)
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, false)
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries) []*timeseries {
 	return func(tss []*timeseries) []*timeseries {
 		dst := tss[0]
+		h := histogram.GetFast()
+		defer histogram.PutFast(h)
 		for n := range dst.Values {
-			sort.Slice(tss, func(i, j int) bool {
-				a := tss[i].Values[n]
-				b := tss[j].Values[n]
-				return lessWithNaNs(a, b)
-			})
+			h.Reset()
+			for j := range tss {
+				v := tss[j].Values[n]
+				if !math.IsNaN(v) {
+					h.Update(v)
+				}
+			}
 			phi := phis[n]
-			if math.IsNaN(phi) {
-				phi = 1
-			}
-			if phi < 0 {
-				phi = 0
-			}
-			if phi > 1 {
-				phi = 1
-			}
-			idx := int(math.Round(float64(len(tss)-1) * phi))
-			dst.Values[n] = tss[idx].Values[n]
+			dst.Values[n] = h.Quantile(phi)
 		}
 		tss[0] = dst
 		return tss[:1]

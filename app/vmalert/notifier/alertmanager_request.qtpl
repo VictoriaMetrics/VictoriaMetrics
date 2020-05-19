@@ -9,7 +9,7 @@
 {% for i, alert := range alerts %}
 {
 	"startsAt":{%q= alert.Start.Format(time.RFC3339Nano) %},
-	"generatorURL": {%q= generatorURL(alert.Group, strconv.FormatUint(alert.ID, 10)) %},
+	"generatorURL": {%q= generatorURL(strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10)) %},
     {% if !alert.End.IsZero() %}
     "endsAt":{%q= alert.End.Format(time.RFC3339Nano) %},
     {% endif %}

@@ -1,6 +1,8 @@
 package notifier
 
+import "context"
+
 // Notifier is common interface for alert manager provider
 type Notifier interface {
-	Send(alerts []Alert) error
+	Send(ctx context.Context, alerts []Alert) error
 }

@@ -29,6 +29,9 @@
 ## Third-party articles
 
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
+* [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
+* [CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
 * [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)
 * [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
 * [What are Open Source Time Series Databases?](https://www.iunera.com/kraken/fabric/time-series-database/)
+* [Evaluating performance and correctness](https://www.robustperception.io/evaluating-performance-and-correctness)

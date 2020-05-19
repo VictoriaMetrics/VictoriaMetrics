@@ -10,16 +10,21 @@
 
 ## VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable time-series database. It can be used as long-term remote storage for Prometheus.
+VictoriaMetrics is fast, cost-effective and scalable time-series database.
+
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
 in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
+[Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
+
+
 ## Case studies and talks
 
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
+* [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
 * [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
 * [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
@@ -33,6 +38,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 
 ## Prominent features
 
+* VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+  See [these docs](#prometheus-setup) for details.
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
   VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which is inspired by PromQL.
 * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
@@ -115,6 +122,8 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
 * [Backfilling](#backfilling)
+* [Replication](#replication)
+* [Backups](#backups)
 * [Profiling](#profiling)
 * [Integrations](#integrations)
 * [Third-party contributions](#third-party-contributions)
@@ -138,6 +147,8 @@ The following command-line flags are used the most:
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
 * `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
+
+Other flags have good enough default values, so set them only if you really need this.
 
 Pass `-help` to see all the available flags with description and default values.
 
@@ -260,7 +271,10 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [static_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config)
 * [file_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config)
 * [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config)
+* [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config)
 * [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config)
+* [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config)
+* [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
 
 In the future other `*_sd_config` types will be supported.
 
@@ -311,7 +325,7 @@ to local VictoriaMetrics using `curl`:
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-An arbitrary number of lines delimited by '\n' may be sent in a single request.
+An arbitrary number of lines delimited by '\n' (aka newline char) may be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -347,7 +361,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
 VictoriaMetrics sets the current time if the timestamp is omitted.
-An arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -388,7 +402,7 @@ Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-An arbitrary number of lines delimited by `\n` may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
 
 ```bash
@@ -776,6 +790,8 @@ remote_write:
 kill -HUP `pidof prometheus`
 ```
 
+It is recommended to use [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) instead of Prometheus for highly loaded setups.
+
 4) Now Prometheus should write data into all the configured `remote_write` urls in parallel.
 5) Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
 6) Set up Prometheus datasource in Grafana that points to Promxy.
@@ -785,6 +801,7 @@ to write data to `victoriametrics-addr-1`, while each `r2` should write data to 
 
 Another option is to write data simultaneously from Prometheus HA pair to a pair of VictoriaMetrics instances
 with the enabled de-duplication. See [this section](#deduplication) for details.
+
 
 ### Deduplication
 
@@ -824,6 +841,10 @@ There is no downsampling support at the moment, but:
 These properties reduce the need of downsampling. We plan to implement downsampling in the future.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36) for details.
 
+It is possible to (ab)use [-dedup.minScrapeInterval](#deduplication) for basic downsampling.
+For instance, if interval between the ingested data points is 15s, then `-dedup.minScrapeInterval=5m` will leave
+only a single data point out of 20 initial data points per each 5m interval.
+
 ### Multi-tenancy
 
 Single-node VictoriaMetrics doesn't support multi-tenancy. Use [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) instead.
@@ -840,11 +861,14 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 
 ### Alerting
 
-VictoriaMetrics doesn't support rule evaluation and alerting yet, so these actions can be performed at the following places:
+It is recommended using [vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md) for alerting.
 
-* At Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
-* At Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
-* At Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
+Additionally, alerting can be set up with the following tools:
+
+* With Prometheus - see [the corresponding docs](https://prometheus.io/docs/alerting/overview/).
+* With Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
+* With Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
+
 
 ### Security
 
@@ -880,7 +904,8 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ### Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
-These metrics may be collected via Prometheus by adding the corresponding scrape config to it.
+These metrics may be collected by [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md)
+or Prometheus by adding the corresponding scrape config to it.
 Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
 For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
 
@@ -891,23 +916,32 @@ The most interesting metrics are:
 
 * `vm_cache_entries{type="storage/hour_metric_ids"}` - the number of time series with new data points during the last hour
   aka active time series.
-* `rate(vm_new_timeseries_created_total[5m])` - time series churn rate.
-* `vm_rows{type="indexdb"}` - the number of rows in inverted index. High value for this number usually mean high churn rate for time series.
-* Sum of `vm_rows{type="storage/big"}` and `vm_rows{type="storage/small"}` - total number of `(timestamp, value)` data points
-  in the database.
-* `vm_rows_inserted_total` - the total number of inserted rows since VictoriaMetrics start.
+* `increase(vm_new_timeseries_created_total[1h])` - time series churn rate during the previous hour.
+* `sum(vm_rows{type=~"storage/.*"})` - total number of `(timestamp, value)` data points in the database.
+* `sum(rate(vm_rows_inserted_total[5m]))` - ingestion rate, i.e. how many samples are inserted int the database per second.
 * `vm_free_disk_space_bytes` - free space left at `-storageDataPath`.
-* `sum(vm_data_size_bytes)` - the total data size on disk.
+* `sum(vm_data_size_bytes)` - the total size of data on disk.
+* `increase(vm_slow_row_inserts_total[5m])` - the number of slow inserts during the last 5 minutes.
+  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
+  of the current number of active time series.
+* `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
+  If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
+  of the current number of active time series.
+
 
 ### Troubleshooting
 
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
   of tweaking these flag values arises.
 
+* It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+  since the issue could be already fixed there.
+
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
+  VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
   It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
-  ingestion performance.
+  ingestion and query performance in this case.
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
@@ -953,6 +987,24 @@ the query cache, which could contain incomplete data cached during the backfilli
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time.
+
+
+### Replication
+
+VictoriaMetrics relies on replicated durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs)
+or [Amazon EBS](https://aws.amazon.com/ebs/). It is also recommended making periodic backups,
+since [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883).
+See [backup docs](#backups) for details.
+
+See also [high availability docs](#high-availability) and [docs about cluster version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md).
+
+
+### Backups
+
+VictoriaMetrics supports backups via [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md)
+and [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md) tools.
+We also provide provide `vmbackuper` tool for paid enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for details.
+
 
 ### Profiling
 
