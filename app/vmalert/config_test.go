@@ -28,10 +28,6 @@ func TestParseGroupInterval(t *testing.T) {
 	if err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
-<<<<<<< HEAD
-
-=======
->>>>>>> Add Group Interval Update
 	for _, group := range groups {
 		if strings.Contains(group.Name, "Without") {
 			if group.Interval != *evaluationInterval {
