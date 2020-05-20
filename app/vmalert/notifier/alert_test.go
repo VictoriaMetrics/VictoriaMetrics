@@ -52,7 +52,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 		{
 			name: "expression-template",
 			alert: &Alert{
-				Expr:  `vm_rows{"label"="bar"}>0`,
+				Expr: `vm_rows{"label"="bar"}>0`,
 			},
 			annotations: map[string]string{
 				"exprEscapedQuery": "{{ $expr|quotesEscape|queryEscape }}",
