@@ -822,6 +822,8 @@ Data is split in per-month subdirectories inside `<-storageDataPath>/data/small`
 Directories for months outside the configured retention are deleted on the first day of new month.
 In order to keep data according to `-retentionPeriod` max disk space usage is going to be `-retentionPeriod` + 1 month.
 For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
+It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to lower
+value than before then data outside the configured period will be eventually deleted.
 
 ### Multiple retentions
 
