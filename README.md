@@ -18,6 +18,8 @@ in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just downl
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
+See our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki) for additional documentation.
+
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
 
 
