@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -25,6 +26,9 @@ import (
 var (
 	strictParse = flag.Bool("promscrape.config.strictParse", false, "Whether to allow only supported fields in '-promscrape.config'. "+
 		"This option may be used for errors detection in '-promscrape.config' file")
+	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
+		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
+		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -114,6 +118,13 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	if err := cfgObj.parse(data, path); err != nil {
 		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %s", path, err)
 	}
+	if *dryRun {
+		// This is a dirty hack for checking Prometheus config only.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/362
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/508 for details.
+		logger.Infof("Success: the config at %q has no errors; exitting with 0 status code", path)
+		os.Exit(0)
+	}
 	return &cfgObj, data, nil
 }
 
@@ -139,7 +150,7 @@ func (cfg *Config) parse(data []byte, path string) error {
 
 func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	var err error
-	if *strictParse {
+	if *strictParse || *dryRun {
 		err = yaml.UnmarshalStrict(data, dst)
 	} else {
 		err = yaml.Unmarshal(data, dst)
