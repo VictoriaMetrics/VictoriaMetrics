@@ -32,6 +32,21 @@ var (
 		"Disk usage is unlimited if the value is set to 0")
 )
 
+// CheckRelabelConfigs checks -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig.
+func CheckRelabelConfigs() error {
+	if *relabelConfigPathGlobal != "" {
+		if _, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal); err != nil {
+			return fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %s", *relabelConfigPathGlobal, err)
+		}
+	}
+	for _, path := range *relabelConfigPaths {
+		if _, err := promrelabel.LoadRelabelConfigs(path); err != nil {
+			return fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %s", path, err)
+		}
+	}
+	return nil
+}
+
 var rwctxs []*remoteWriteCtx
 
 // Init initializes remotewrite.
