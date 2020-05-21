@@ -889,6 +889,10 @@ Consider setting the following command-line flags:
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
 
+Prefer authorizing all the incoming requests from untrusted networks with [vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md)
+or similar auth proxy.
+
+
 ### Tuning
 
 * There is no need for VictoriaMetrics tuning since it uses reasonable defaults for command-line flags,
