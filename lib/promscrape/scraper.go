@@ -37,6 +37,15 @@ var (
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config for details")
 )
 
+// CheckConfig checks -promscrape.config for errors and unsupported options.
+func CheckConfig() error {
+	if *promscrapeConfigFile == "" {
+		return fmt.Errorf("missing -promscrape.config option")
+	}
+	_, _, err := loadConfig(*promscrapeConfigFile)
+	return err
+}
+
 // Init initializes Prometheus scraper with config from the `-promscrape.config`.
 //
 // Scraped data is passed to pushData.

@@ -40,6 +40,8 @@ var (
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
+	dryRun                 = flag.Bool("dryRun", false, "Whether to check only config files without running vmagent. The following files are checked: "+
+		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . See also -promscrape.config.dryRun")
 )
 
 var (
@@ -55,6 +57,19 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	if *dryRun {
+		flag.Set("promscrape.config.strictParse", "true")
+		if err := remotewrite.CheckRelabelConfigs(); err != nil {
+			logger.Fatalf("error when checking relabel configs: %s", err)
+		}
+		if err := promscrape.CheckConfig(); err != nil {
+			logger.Fatalf("error when checking Prometheus config: %s", err)
+		}
+		logger.Infof("all the configs are ok; exitting with 0 status code")
+		return
+	}
+
 	logger.Infof("starting vmagent at %q...", *httpListenAddr)
 	startTime := time.Now()
 	remotewrite.Init()
