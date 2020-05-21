@@ -45,7 +45,8 @@ See [these docs](#url-format) for details. Some facts about tenants in VictoriaM
 * Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster.
+by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md).
+[Contact us](mailto:info@victoriametrics.com) if you need help with creating such a service.
 
 * Tenants are automatically created when the first data point is written into the given tenant.
 
