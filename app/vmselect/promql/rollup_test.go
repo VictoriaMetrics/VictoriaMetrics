@@ -389,6 +389,9 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("ideriv", 0)
 	f("decreases_over_time", 5)
 	f("increases_over_time", 5)
+	f("ascent_over_time", 142)
+	f("descent_over_time", 231)
+	f("timestamp", 0.13)
 }
 
 func TestRollupNewRollupFuncError(t *testing.T) {

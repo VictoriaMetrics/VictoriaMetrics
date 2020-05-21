@@ -72,6 +72,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"aggr_over_time":        newRollupFuncTwoArgs(rollupFake),
 	"hoeffding_bound_upper": newRollupHoeffdingBoundUpper,
 	"hoeffding_bound_lower": newRollupHoeffdingBoundLower,
+	"ascent_over_time":      newRollupFuncOneArg(rollupAscentOverTime),
+	"descent_over_time":     newRollupFuncOneArg(rollupDescentOverTime),
 
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
@@ -116,6 +118,9 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"scrape_interval":     rollupScrapeInterval,
 	"tmin_over_time":      rollupTmin,
 	"tmax_over_time":      rollupTmax,
+	"ascent_over_time":    rollupAscentOverTime,
+	"descent_over_time":   rollupDescentOverTime,
+	"timestamp":           rollupTimestamp,
 }
 
 var rollupFuncsCannotAdjustWindow = map[string]bool{
@@ -138,6 +143,8 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"increases_over_time": true,
 	"decreases_over_time": true,
 	"integrate":           true,
+	"ascent_over_time":    true,
+	"descent_over_time":   true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -1525,6 +1532,52 @@ func rollupTimestamp(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return float64(timestamps[len(timestamps)-1]) / 1e3
+}
+
+func rollupAscentOverTime(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	prevValue := rfa.prevValue
+	if math.IsNaN(prevValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		prevValue = values[0]
+		values = values[1:]
+	}
+	s := float64(0)
+	for _, v := range values {
+		d := v - prevValue
+		if d > 0 {
+			s += d
+		}
+		prevValue = v
+	}
+	return s
+}
+
+func rollupDescentOverTime(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	prevValue := rfa.prevValue
+	if math.IsNaN(prevValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		prevValue = values[0]
+		values = values[1:]
+	}
+	s := float64(0)
+	for _, v := range values {
+		d := prevValue - v
+		if d > 0 {
+			s += d
+		}
+		prevValue = v
+	}
+	return s
 }
 
 func rollupFirst(rfa *rollupFuncArg) float64 {

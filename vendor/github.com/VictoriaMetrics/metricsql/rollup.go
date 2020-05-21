@@ -57,6 +57,8 @@ var rollupFuncs = map[string]bool{
 	"aggr_over_time":        true,
 	"hoeffding_bound_upper": true,
 	"hoeffding_bound_lower": true,
+	"ascent_over_time":      true,
+	"descent_over_time":     true,
 
 	// `timestamp` func has been moved here because it must work properly with offsets and samples unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
