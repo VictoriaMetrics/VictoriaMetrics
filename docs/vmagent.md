@@ -1,8 +1,8 @@
 ## vmagent
 
-`vmagent` is a tiny but brave agent, which helps you collecting metrics from various sources
-and storing them to [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
-or any other Prometheus-compatible storage system that supports `remote_write` protocol.
+`vmagent` is a tiny but brave agent, which helps you collect metrics from various sources
+and stores them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+or any other Prometheus-compatible storage system that supports the `remote_write` protocol.
 
 <img alt="vmagent" src="vmagent.png">
 
@@ -11,7 +11,7 @@ or any other Prometheus-compatible storage system that supports `remote_write` p
 
 While VictoriaMetrics provides an efficient solution to store and observe metrics, our users needed something fast
 and RAM friendly to scrape metrics from Prometheus-compatible exporters to VictoriaMetrics.
-Also, we found that users’ infrastructure is like snowflakes - never alike, and we decided to add more flexibility
+Also, we found that users’ infrastructure are snowflakes - no two are alike, and we decided to add more flexibility
 to `vmagent` (like the ability to push metrics instead of pulling them). We did our best and plan to do even more.
 
 
@@ -31,7 +31,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as connection
   to remote storage is recovered. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
-* Uses lower amounts of RAM, CPU, disk IO and network bandwidth comparing to Prometheus.
+* Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared to Prometheus.
 
 
 ### Quick Start
@@ -40,8 +40,7 @@ Just download `vmutils-*` archive from [releases page](https://github.com/Victor
 and pass the following flags to `vmagent` binary in order to start scraping Prometheus targets:
 
 * `-promscrape.config` with the path to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`)
-* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics. Multiple `-remoteWrite.url` args can be set in parallel
-  in order to replicate data concurrently to multiple remote storage systems.
+* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics. The `-remoteWrite.url` argument can be specified multiple times in order to replicate data concurrently to an arbitrary amount of remote storage systems.
 
 Example command line:
 
@@ -49,7 +48,7 @@ Example command line:
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-If you need collecting only Influx data, then the following command line would be enough:
+If you only need to collect Influx data, then the following is sufficient:
 
 ```
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
@@ -79,14 +78,14 @@ See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/Victor
 #### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage,
-then `vmagent` can replace such Prometheus setup. Usually `vmagent` requires lower amounts of RAM, CPU and network bandwidth comparing to Prometheus for such setup.
+then `vmagent` can replace such Prometheus setup. Usually `vmagent` requires lower amounts of RAM, CPU and network bandwidth comparing to Prometheus for such a setup.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 
 
 #### Replication and high availability
 
 `vmagent` replicates the collected metrics among multiple remote storage instances configured via `-remoteWrite.url` args.
-If a single remote storage instance temporarily goes out of service, then the collected data remains available in another remote storage instances.
+If a single remote storage instance temporarily is out of service, then the collected data remains available in another remote storage instances.
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again.
 Then it sends the buffered data to the remote storage in order to prevent data gaps in the remote storage.
 
@@ -94,13 +93,13 @@ Then it sends the buffered data to the remote storage in order to prevent data g
 #### Relabeling and filtering
 
 `vmagent` can add, remove or update labels on the collected data before sending it to remote storage. Additionally,
-it can remove unneeded samples via Prometheus-like relabeling before sending the collected data to remote storage.
+it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
 See [these docs](#relabeling) for details.
 
 
 #### Splitting data streams among multiple systems
 
-`vmagent` supports splitting of the collected data among muliple destinations with the help of `-remoteWrite.urlRelabelConfig`,
+`vmagent` supports splitting the collected data between muliple destinations with the help of `-remoteWrite.urlRelabelConfig`,
 which is applied independently for each configured `-remoteWrite.url` destination. For instance, it is possible to replicate or split
 data among long-term remote storage, short-term remote storage and real-time analytical system [built on top of Kafka](https://github.com/Telefonica/prometheus-kafka-adapter).
 Note that each destination can receive its own subset of the collected data thanks to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
@@ -204,12 +203,12 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
 * When `vmagent` scrapes many unreliable targets, it can flood error log with scrape errors. These errors can be suppressed
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
 
-* It is recommended increasing `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
+* It is recommended to increase `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
   and `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
-  The directory can grow big when remote storage is unavailable during extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
-  If you don't want sending all the data from the directory to remote storage, just stop `vmagent` and delete the directory.
+  The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
+  If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
 
 
 ### How to build from sources
