@@ -59,7 +59,9 @@ func main() {
 	logger.Init()
 
 	if *dryRun {
-		flag.Set("promscrape.config.strictParse", "true")
+		if err := flag.Set("promscrape.config.strictParse", "true"); err != nil {
+			logger.Panicf("BUG: cannot set promscrape.config.strictParse=true: %s", err)
+		}
 		if err := remotewrite.CheckRelabelConfigs(); err != nil {
 			logger.Fatalf("error when checking relabel configs: %s", err)
 		}
