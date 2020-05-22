@@ -57,7 +57,7 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	if err := sn.flushBufLocked(); err != nil {
 		// Failed to flush or re-route sn.buf to vmstorage nodes.
 		// The sn.buf is already dropped by flushBufLocked.
-		// Drop buf too, since there is litte sense in trying to rescue it.
+		// Drop buf too, since there is little sense in trying to rescue it.
 		rowsLostTotal.Add(rows)
 		return err
 	}
@@ -99,15 +99,16 @@ func (sn *storageNode) flushBufLocked() error {
 	// Couldn't flush sn.buf to vmstorage. Mark sn as broken
 	// and try re-routing sn.buf to healthy vmstorage nodes.
 	sn.broken = true
-	if !addToReroutedBuf(sn.buf, sn.rows) {
-		// Preserve sn.buf when it cannot be sent to healthy nodes
-		// in the hope the error will disappear on the next call to flushBufLocked.
-		//
-		// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/294 .
-		return err
+	if addToReroutedBuf(sn.buf, sn.rows) {
+		// Successfully re-routed data to healthy nodes.
+		sn.buf = sn.buf[:0]
+		sn.rows = 0
+		return nil
 	}
-	sn.buf = sn.buf[:0]
-	sn.rows = 0
+	// Preserve sn.buf when it cannot be sent to healthy nodes
+	// in the hope the error will disappear on the next call to flushBufLocked.
+	//
+	// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/294 .
 	return err
 }
 
