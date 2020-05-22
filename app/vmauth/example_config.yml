@@ -1,0 +1,31 @@
+# Arbitrary number of usernames may be put here.
+# Usernames must be unique.
+
+users:
+
+  # The user for querying local single-node VictoriaMetrics.
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://localhost:8428 .
+  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query
+- username: "local-single-node"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+
+  # The user for querying account 123 in VictoriaMetrics cluster
+  # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://vmselect:8481/select/123/prometheus .
+  # For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8481/select/123/prometheus/api/v1/select
+- username: "cluster-select-account-123"
+  password: "***"
+  url_prefix: "http://vmselect:8481/select/123/prometheus"
+
+  # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
+  # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format
+  # All the reuqests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # will be routed to http://vminsert:8480/insert/42/prometheus .
+  # For example, http://vmauth:8427/api/v1/write is routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
+- username: "cluster-insert-account-42"
+  password: "***"
+  url_prefix: "http://vminsert:8480/insert/42/prometheus"
+

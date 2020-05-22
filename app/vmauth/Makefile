@@ -53,6 +53,8 @@ publish-vmauth:
 
 run-vmauth:
 	APP_NAME=vmauth \
+	DOCKER_OPTS='-v $(shell pwd)/app/vmauth/:/app/vmauth' \
+	ARGS='-auth.config=app/vmauth/example_config.yml' \
 	$(MAKE) run-via-docker
 
 vmauth-amd64:
