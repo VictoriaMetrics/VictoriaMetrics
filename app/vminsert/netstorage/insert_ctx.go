@@ -153,14 +153,14 @@ func (ctx *InsertCtx) FlushBufs() error {
 			resultCh <- br.pushTo(sn)
 		}(br, storageNodes[i])
 	}
-	var lastErr error
+	var firstErr error
 	for i := 0; i < resultChLen; i++ {
 		err := <-resultCh
-		if err != nil {
-			lastErr = err
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
-	return lastErr
+	return firstErr
 }
 
 // GetStorageNodeIdx returns storage node index for the given at and labels.
