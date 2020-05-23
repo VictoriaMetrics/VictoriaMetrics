@@ -28,6 +28,7 @@ See our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki) for addi
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
 * [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
+* [Zerodha](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#zerodha)
 * [Wix.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wixcom)
 * [Wedos.com](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#wedoscom)
 * [Synthesio](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#synthesio)

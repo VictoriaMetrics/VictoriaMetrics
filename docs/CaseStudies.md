@@ -39,6 +39,28 @@ See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victori
 from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
 
 
+## Zerodha
+
+[Zerodha](https://zerodha.com/) is India's largest stock broker. Monitoring team at Zerodha faced with the following requirements:
+
+* Multiple K8s clusters to monitor
+* Consistent monitoring infra for each cluster across the fleet
+* Ability to handle billions of timeseries events at any point of time
+* Easier to operate and cost effective
+
+Thanos, Cortex and VictoriaMetrics were evaluated as a long-term storage for Prometheus. VictoriaMetrics has been selected due to the following reasons:
+
+* Blazing fast benchmarks for a single node setup.
+* Single binary mode. Easy to scale vertically, very less operational headache.
+* Considerable improvements on creating Histograms.
+* [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) gives us the ability to extend PromQL with more aggregation operators.
+* API is compatible with Prometheus, almost all standard PromQL queries just work out of the box.
+* Handles storage well, with periodic compaction. Makes it easy to take snapshots.
+
+See [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit) slides and
+[Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/) blog post for more details.
+
+
 ## Wix.com
 
 [Wix.com](https://en.wikipedia.org/wiki/Wix.com) is the leading web development platform.
