@@ -26,10 +26,11 @@
 * [Billy: how VictoriaMetrics deals with more than 500 billion rows](https://medium.com/@valyala/billy-how-victoriametrics-deals-with-more-than-500-billion-rows-e82ff8f725da)
 
 
-## Third-party articles
+## Third-party articles and slides
 
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
+* [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit)
 * [CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
 * [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)
 * [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
