@@ -52,7 +52,7 @@ Thanos, Cortex and VictoriaMetrics were evaluated as a long-term storage for Pro
 
 * Blazing fast benchmarks for a single node setup.
 * Single binary mode. Easy to scale vertically, very less operational headache.
-* Considerable improvements on creating Histograms.
+* Considerable [improvements on creating Histograms](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
 * [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) gives us the ability to extend PromQL with more aggregation operators.
 * API is compatible with Prometheus, almost all standard PromQL queries just work out of the box.
 * Handles storage well, with periodic compaction. Makes it easy to take snapshots.
