@@ -350,21 +350,26 @@ type gzipResponseWriter struct {
 func (zrw *gzipResponseWriter) Write(p []byte) (int, error) {
 	if !zrw.firstWriteDone {
 		h := zrw.Header()
+		if zrw.statusCode == http.StatusNoContent {
+			zrw.disableCompression = true
+		}
 		if h.Get("Content-Encoding") != "" {
 			zrw.disableCompression = true
 		}
 		if !zrw.disableCompression {
 			h.Set("Content-Encoding", "gzip")
+			h.Del("Content-Length")
 			if h.Get("Content-Type") == "" {
 				// Disable auto-detection of content-type, since it
 				// is incorrectly detected after the compression.
 				h.Set("Content-Type", "text/html")
 			}
 		}
+		if zrw.statusCode == 0 {
+			zrw.statusCode = http.StatusOK
+		}
+		zrw.ResponseWriter.WriteHeader(zrw.statusCode)
 		zrw.firstWriteDone = true
-	}
-	if zrw.statusCode == 0 {
-		zrw.WriteHeader(http.StatusOK)
 	}
 	if zrw.disableCompression {
 		return zrw.ResponseWriter.Write(p)
@@ -376,10 +381,6 @@ func (zrw *gzipResponseWriter) WriteHeader(statusCode int) {
 	if zrw.statusCode != 0 {
 		return
 	}
-	if statusCode == http.StatusNoContent {
-		DisableResponseCompression(zrw.ResponseWriter)
-	}
-	zrw.ResponseWriter.WriteHeader(statusCode)
 	zrw.statusCode = statusCode
 }
 
@@ -398,7 +399,6 @@ func (zrw *gzipResponseWriter) Flush() {
 
 func (zrw *gzipResponseWriter) Close() error {
 	if !zrw.firstWriteDone {
-		zrw.Header().Del("Content-Encoding")
 		return nil
 	}
 	zrw.Flush()
