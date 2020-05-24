@@ -340,7 +340,7 @@ func InitStorageNodes(addrs []string) {
 		}(addr)
 	}
 
-	maxBufSizePerStorageNode = memory.Allowed() / 2 / len(storageNodes)
+	maxBufSizePerStorageNode = memory.Allowed() / 4 / len(storageNodes)
 	if maxBufSizePerStorageNode > consts.MaxInsertPacketSize {
 		maxBufSizePerStorageNode = consts.MaxInsertPacketSize
 	}
