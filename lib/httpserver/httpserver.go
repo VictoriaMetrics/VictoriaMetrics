@@ -365,10 +365,7 @@ func (zrw *gzipResponseWriter) Write(p []byte) (int, error) {
 				h.Set("Content-Type", "text/html")
 			}
 		}
-		if zrw.statusCode == 0 {
-			zrw.statusCode = http.StatusOK
-		}
-		zrw.ResponseWriter.WriteHeader(zrw.statusCode)
+		zrw.writeHeader()
 		zrw.firstWriteDone = true
 	}
 	if zrw.disableCompression {
@@ -378,10 +375,14 @@ func (zrw *gzipResponseWriter) Write(p []byte) (int, error) {
 }
 
 func (zrw *gzipResponseWriter) WriteHeader(statusCode int) {
-	if zrw.statusCode != 0 {
-		return
-	}
 	zrw.statusCode = statusCode
+}
+
+func (zrw *gzipResponseWriter) writeHeader() {
+	if zrw.statusCode == 0 {
+		zrw.statusCode = http.StatusOK
+	}
+	zrw.ResponseWriter.WriteHeader(zrw.statusCode)
 }
 
 // Implements http.Flusher
@@ -399,6 +400,7 @@ func (zrw *gzipResponseWriter) Flush() {
 
 func (zrw *gzipResponseWriter) Close() error {
 	if !zrw.firstWriteDone {
+		zrw.writeHeader()
 		return nil
 	}
 	zrw.Flush()
