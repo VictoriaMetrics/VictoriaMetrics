@@ -96,6 +96,10 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			scrapesTimedout.Inc()
 			return dst, fmt.Errorf("error when scraping %q with timeout %s: %s", c.scrapeURL, c.hc.ReadTimeout, err)
 		}
+		if err == fasthttp.ErrBodyTooLarge {
+			return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
+				"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, *maxScrapeSize)
+		}
 		return dst, fmt.Errorf("error when scraping %q: %s", c.scrapeURL, err)
 	}
 	dstLen := len(dst)
