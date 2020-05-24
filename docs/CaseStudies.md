@@ -57,8 +57,8 @@ Thanos, Cortex and VictoriaMetrics were evaluated as a long-term storage for Pro
 * API is compatible with Prometheus, almost all standard PromQL queries just work out of the box.
 * Handles storage well, with periodic compaction. Makes it easy to take snapshots.
 
-See [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit) slides and
-[Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/) blog post for more details.
+See [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit) slides,
+[video](https://youtu.be/ZJQYW-cFOms) and [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/) blog post for more details.
 
 
 ## Wix.com
