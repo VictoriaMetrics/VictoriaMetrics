@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 
@@ -13,6 +14,10 @@ import (
 	xxhash "github.com/cespare/xxhash/v2"
 	jump "github.com/lithammer/go-jump-consistent-hash"
 )
+
+var replicationFactor = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
+	"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
+	"Higher values for -dedup.minScrapeInterval at vmselect is OK")
 
 // InsertCtx is a generic context for inserting data.
 //
@@ -115,20 +120,38 @@ func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, time
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
 func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
-	br := &ctx.bufRowss[storageNodeIdx]
-	sn := storageNodes[storageNodeIdx]
-	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= maxBufSizePerStorageNode {
-		// Send buf to storageNode, since it is too big.
-		if err := br.pushTo(sn); err != nil {
-			return err
-		}
-		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
-	} else {
-		br.buf = bufNew
+	idx := storageNodeIdx
+	replicas := *replicationFactor
+	if replicas <= 0 {
+		replicas = 1
 	}
-	br.rows++
-	return nil
+	if replicas > len(storageNodes) {
+		replicas = len(storageNodes)
+	}
+	for {
+		br := &ctx.bufRowss[idx]
+		sn := storageNodes[idx]
+		bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
+		if len(bufNew) >= maxBufSizePerStorageNode {
+			// Send buf to storageNode, since it is too big.
+			if err := br.pushTo(sn); err != nil {
+				return err
+			}
+			br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
+		} else {
+			br.buf = bufNew
+		}
+		br.rows++
+
+		replicas--
+		if replicas == 0 {
+			return nil
+		}
+		idx++
+		if idx >= len(storageNodes) {
+			idx = 0
+		}
+	}
 }
 
 // FlushBufs flushes ctx bufs to remote storage nodes.
