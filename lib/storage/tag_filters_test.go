@@ -21,7 +21,7 @@ func TestExtractRegexpPrefix(t *testing.T) {
 }
 
 func TestGetRegexpFromCache(t *testing.T) {
-	f := func(s string, orValuesExpected, expectedMatches, expectedMismatches []string) {
+	f := func(s string, orValuesExpected, expectedMatches, expectedMismatches []string, suffixExpected string) {
 		t.Helper()
 
 		for i := 0; i < 3; i++ {
@@ -31,6 +31,9 @@ func TestGetRegexpFromCache(t *testing.T) {
 			}
 			if !reflect.DeepEqual(rcv.orValues, orValuesExpected) {
 				t.Fatalf("unexpected orValues for s=%q; got %q; want %q", s, rcv.orValues, orValuesExpected)
+			}
+			if rcv.literalSuffix != suffixExpected {
+				t.Fatalf("unexpected literal suffix for s=%q; got %q; want %q", s, rcv.literalSuffix, suffixExpected)
 			}
 			for _, expectedMatch := range expectedMatches {
 				if !rcv.reMatch([]byte(expectedMatch)) {
@@ -45,44 +48,45 @@ func TestGetRegexpFromCache(t *testing.T) {
 		}
 	}
 
-	f("", []string{""}, []string{""}, []string{"foo", "x"})
-	f("foo", []string{"foo"}, []string{"foo"}, []string{"", "bar"})
-	f("(?s)(foo)?", nil, []string{"foo", ""}, []string{"s", "bar"})
-	f("foo.*", nil, []string{"foo", "foobar"}, []string{"xfoo", "xfoobar", "", "a"})
-	f("foo(a|b)?", nil, []string{"fooa", "foob", "foo"}, []string{"xfoo", "xfoobar", "", "fooc", "fooba"})
-	f(".*foo", nil, []string{"foo", "xfoo"}, []string{"foox", "xfoobar", "", "a"})
-	f("(a|b)?foo", nil, []string{"foo", "afoo", "bfoo"}, []string{"foox", "xfoobar", "", "a"})
-	f(".*foo.*", nil, []string{"foo", "xfoo", "foox", "xfoobar"}, []string{"", "bar", "foxx"})
-	f(".*foo.+", nil, []string{"foo1", "xfoodff", "foox", "xfoobar"}, []string{"", "bar", "foo", "fox"})
-	f(".+foo.+", nil, []string{"xfoo1", "xfoodff", "xfoox", "xfoobar"}, []string{"", "bar", "foo", "foox", "xfoo"})
-	f(".+foo.*", nil, []string{"xfoo", "xfoox", "xfoobar"}, []string{"", "bar", "foo", "fox"})
-	f(".+foo(a|b)?", nil, []string{"xfoo", "xfooa", "xafoob"}, []string{"", "bar", "foo", "foob"})
-	f(".*foo(a|b)?", nil, []string{"foo", "foob", "xafoo", "xfooa"}, []string{"", "bar", "fooba"})
-	f("(a|b)?foo(a|b)?", nil, []string{"foo", "foob", "afoo", "afooa"}, []string{"", "bar", "fooba", "xfoo"})
-	f("((.*)foo(.*))", nil, []string{"foo", "xfoo", "foox", "xfoobar"}, []string{"", "bar", "foxx"})
-	f(".+foo", nil, []string{"afoo", "bbfoo"}, []string{"foo", "foobar", "afoox", ""})
-	f("a|b", []string{"a", "b"}, []string{"a", "b"}, []string{"xa", "bx", "xab", ""})
-	f("(a|b)", []string{"a", "b"}, []string{"a", "b"}, []string{"xa", "bx", "xab", ""})
-	f("(a|b)foo(c|d)", []string{"afooc", "afood", "bfooc", "bfood"}, []string{"afooc", "bfood"}, []string{"foo", "", "afoo", "fooc", "xfood"})
-	f("foo.+", nil, []string{"foox", "foobar"}, []string{"foo", "afoox", "afoo", ""})
-	f(".*foo.*bar", nil, []string{"foobar", "xfoobar", "xfooxbar", "fooxbar"}, []string{"", "foobarx", "afoobarx", "aaa"})
-	f("foo.*bar", nil, []string{"foobar", "fooxbar"}, []string{"xfoobar", "", "foobarx", "aaa"})
-	f("foo.*bar.*", nil, []string{"foobar", "fooxbar", "foobarx", "fooxbarx"}, []string{"", "afoobarx", "aaa", "afoobar"})
-	f("foo.*bar.*baz", nil, []string{"foobarbaz", "fooxbarxbaz", "foobarxbaz", "fooxbarbaz"}, []string{"", "afoobarx", "aaa", "afoobar", "foobarzaz"})
-	f(".+foo.+(b|c).+", nil, []string{"xfooxbar", "xfooxca"}, []string{"", "foo", "foob", "xfooc", "xfoodc"})
+	f("", []string{""}, []string{""}, []string{"foo", "x"}, "")
+	f("foo", []string{"foo"}, []string{"foo"}, []string{"", "bar"}, "")
+	f("(?s)(foo)?", nil, []string{"foo", ""}, []string{"s", "bar"}, "")
+	f("foo.*", nil, []string{"foo", "foobar"}, []string{"xfoo", "xfoobar", "", "a"}, "")
+	f("foo(a|b)?", nil, []string{"fooa", "foob", "foo"}, []string{"xfoo", "xfoobar", "", "fooc", "fooba"}, "")
+	f(".*foo", nil, []string{"foo", "xfoo"}, []string{"foox", "xfoobar", "", "a"}, "foo")
+	f("(a|b)?foo", nil, []string{"foo", "afoo", "bfoo"}, []string{"foox", "xfoobar", "", "a"}, "foo")
+	f(".*foo.*", nil, []string{"foo", "xfoo", "foox", "xfoobar"}, []string{"", "bar", "foxx"}, "")
+	f(".*foo.+", nil, []string{"foo1", "xfoodff", "foox", "xfoobar"}, []string{"", "bar", "foo", "fox"}, "")
+	f(".+foo.+", nil, []string{"xfoo1", "xfoodff", "xfoox", "xfoobar"}, []string{"", "bar", "foo", "foox", "xfoo"}, "")
+	f(".+foo.*", nil, []string{"xfoo", "xfoox", "xfoobar"}, []string{"", "bar", "foo", "fox"}, "")
+	f(".+foo(a|b)?", nil, []string{"xfoo", "xfooa", "xafoob"}, []string{"", "bar", "foo", "foob"}, "")
+	f(".*foo(a|b)?", nil, []string{"foo", "foob", "xafoo", "xfooa"}, []string{"", "bar", "fooba"}, "")
+	f("(a|b)?foo(a|b)?", nil, []string{"foo", "foob", "afoo", "afooa"}, []string{"", "bar", "fooba", "xfoo"}, "")
+	f("((.*)foo(.*))", nil, []string{"foo", "xfoo", "foox", "xfoobar"}, []string{"", "bar", "foxx"}, "")
+	f(".+foo", nil, []string{"afoo", "bbfoo"}, []string{"foo", "foobar", "afoox", ""}, "foo")
+	f("a|b", []string{"a", "b"}, []string{"a", "b"}, []string{"xa", "bx", "xab", ""}, "")
+	f("(a|b)", []string{"a", "b"}, []string{"a", "b"}, []string{"xa", "bx", "xab", ""}, "")
+	f("(a|b)foo(c|d)", []string{"afooc", "afood", "bfooc", "bfood"}, []string{"afooc", "bfood"}, []string{"foo", "", "afoo", "fooc", "xfood"}, "")
+	f("foo.+", nil, []string{"foox", "foobar"}, []string{"foo", "afoox", "afoo", ""}, "")
+	f(".*foo.*bar", nil, []string{"foobar", "xfoobar", "xfooxbar", "fooxbar"}, []string{"", "foobarx", "afoobarx", "aaa"}, "bar")
+	f("foo.*bar", nil, []string{"foobar", "fooxbar"}, []string{"xfoobar", "", "foobarx", "aaa"}, "bar")
+	f("foo.*bar.*", nil, []string{"foobar", "fooxbar", "foobarx", "fooxbarx"}, []string{"", "afoobarx", "aaa", "afoobar"}, "")
+	f("foo.*bar.*baz", nil, []string{"foobarbaz", "fooxbarxbaz", "foobarxbaz", "fooxbarbaz"}, []string{"", "afoobarx", "aaa", "afoobar", "foobarzaz"}, "baz")
+	f(".+foo.+(b|c).+", nil, []string{"xfooxbar", "xfooxca"}, []string{"", "foo", "foob", "xfooc", "xfoodc"}, "")
 
-	f("(?i)foo", nil, []string{"foo", "Foo", "FOO"}, []string{"xfoo", "foobar", "xFOObar"})
-	f("(?i).+foo", nil, []string{"xfoo", "aaFoo", "bArFOO"}, []string{"foosdf", "xFOObar"})
-	f("(?i)(foo|bar)", nil, []string{"foo", "Foo", "BAR", "bAR"}, []string{"foobar", "xfoo", "xFOObAR"})
-	f("(?i)foo.*bar", nil, []string{"foobar", "FooBAR", "FOOxxbaR"}, []string{"xfoobar", "foobarx", "xFOObarx"})
+	f("(?i)foo", nil, []string{"foo", "Foo", "FOO"}, []string{"xfoo", "foobar", "xFOObar"}, "")
+	f("(?i).+foo", nil, []string{"xfoo", "aaFoo", "bArFOO"}, []string{"foosdf", "xFOObar"}, "")
+	f("(?i)(foo|bar)", nil, []string{"foo", "Foo", "BAR", "bAR"}, []string{"foobar", "xfoo", "xFOObAR"}, "")
+	f("(?i)foo.*bar", nil, []string{"foobar", "FooBAR", "FOOxxbaR"}, []string{"xfoobar", "foobarx", "xFOObarx"}, "")
 
-	f(".*", nil, []string{"", "a", "foo", "foobar"}, nil)
-	f("foo|.*", nil, []string{"", "a", "foo", "foobar"}, nil)
-	f(".+", nil, []string{"a", "foo"}, []string{""})
-	f("(.+)*(foo)?", nil, []string{"a", "foo", ""}, nil)
+	f(".*", nil, []string{"", "a", "foo", "foobar"}, nil, "")
+	f("foo|.*", nil, []string{"", "a", "foo", "foobar"}, nil, "")
+	f(".+", nil, []string{"a", "foo"}, []string{""}, "")
+	f("(.+)*(foo)?", nil, []string{"a", "foo", ""}, nil, "")
 
 	// Graphite-like regexps
-	f(`foo\.[^.]*\.bar\.ba(xx|zz)[^.]*\.a`, nil, []string{"foo.ss.bar.baxx.a", "foo.s.bar.bazzasd.a"}, []string{"", "foo", "foo.ss.xar.baxx.a"})
+	f(`foo\.[^.]*\.bar\.ba(xx|zz)[^.]*\.a`, nil, []string{"foo.ss.bar.baxx.a", "foo.s.bar.bazzasd.a"}, []string{"", "foo", "foo.ss.xar.baxx.a"}, ".a")
+	f(`foo\.[^.]*?\.bar\.baz\.aaa`, nil, []string{"foo.aa.bar.baz.aaa"}, []string{"", "foo"}, ".bar.baz.aaa")
 }
 
 func TestTagFilterMatchSuffix(t *testing.T) {

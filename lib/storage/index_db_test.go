@@ -17,6 +17,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
+func TestReverseBytes(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := reverseBytes(nil, []byte(s))
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result for reverseBytes(%q); got %q; want %q", s, result, resultExpected)
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("av", "va")
+	f("foo.bar", "rab.oof")
+}
+
 func TestMergeTagToMetricIDsRows(t *testing.T) {
 	f := func(items []string, expectedItems []string) {
 		t.Helper()
@@ -659,7 +673,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 		var mn MetricName
 
 		// Init MetricGroup.
-		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup_%d\x00\x01\x02", i%metricGroups))
+		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup.%d\x00\x01\x02", i%metricGroups))
 
 		// Init other tags.
 		tagsCount := rand.Intn(10) + 1

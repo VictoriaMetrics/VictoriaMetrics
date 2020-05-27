@@ -55,17 +55,26 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 		// since it must filter out all the time series with the given key.
 	}
 
+	tf := tfs.addTagFilter()
+	if err := tf.Init(tfs.commonPrefix, key, value, isNegative, isRegexp); err != nil {
+		return fmt.Errorf("cannot initialize tagFilter: %s", err)
+	}
+	if len(tf.graphiteReverseSuffix) > 0 {
+		tf = tfs.addTagFilter()
+		if err := tf.Init(tfs.commonPrefix, graphiteReverseTagKey, tf.graphiteReverseSuffix, false, false); err != nil {
+			return fmt.Errorf("cannot initialize reverse tag filter for Graphite wildcard: %s", err)
+		}
+	}
+	return nil
+}
+
+func (tfs *TagFilters) addTagFilter() *tagFilter {
 	if cap(tfs.tfs) > len(tfs.tfs) {
 		tfs.tfs = tfs.tfs[:len(tfs.tfs)+1]
 	} else {
 		tfs.tfs = append(tfs.tfs, tagFilter{})
 	}
-	tf := &tfs.tfs[len(tfs.tfs)-1]
-	err := tf.Init(tfs.commonPrefix, key, value, isNegative, isRegexp)
-	if err != nil {
-		return fmt.Errorf("cannot initialize tagFilter: %s", err)
-	}
-	return nil
+	return &tfs.tfs[len(tfs.tfs)-1]
 }
 
 // Finalize finalizes tfs and may return complementary TagFilters,
@@ -150,6 +159,10 @@ type tagFilter struct {
 	//
 	// Such a filter must be applied directly to metricNames.
 	matchesEmptyValue bool
+
+	// Contains reverse suffix for Graphite wildcard.
+	// I.e. for `{__name__=~"foo\\.[^.]*\\.bar\\.baz"}` the value will be `zab.rab.`
+	graphiteReverseSuffix []byte
 }
 
 func (tf *tagFilter) Less(other *tagFilter) bool {
@@ -225,6 +238,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.orSuffixes = tf.orSuffixes[:0]
 	tf.reSuffixMatch = nil
 	tf.matchesEmptyValue = false
+	tf.graphiteReverseSuffix = tf.graphiteReverseSuffix[:0]
 
 	tf.prefix = append(tf.prefix, commonPrefix...)
 	tf.prefix = marshalTagValue(tf.prefix, key)
@@ -253,6 +267,10 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.reSuffixMatch = rcv.reMatch
 	if len(prefix) == 0 && !tf.isNegative && tf.reSuffixMatch(nil) {
 		tf.matchesEmptyValue = true
+	}
+	if !tf.isNegative && len(key) == 0 && strings.IndexByte(rcv.literalSuffix, '.') >= 0 {
+		// Reverse suffix is needed only for non-negative regexp filters on __name__ that contains dots.
+		tf.graphiteReverseSuffix = reverseBytes(tf.graphiteReverseSuffix[:0], []byte(rcv.literalSuffix))
 	}
 	return nil
 }
@@ -313,6 +331,7 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	sExpr := string(expr)
 	orValues := getOrValues(sExpr)
 	var reMatch func(b []byte) bool
+	var literalSuffix string
 	if len(orValues) > 0 {
 		if len(orValues) == 1 {
 			v := orValues[0]
@@ -330,12 +349,13 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 			}
 		}
 	} else {
-		reMatch = getOptimizedReMatchFunc(re.Match, sExpr)
+		reMatch, literalSuffix = getOptimizedReMatchFunc(re.Match, sExpr)
 	}
 
 	// Put the reMatch in the cache.
 	rcv.orValues = orValues
 	rcv.reMatch = reMatch
+	rcv.literalSuffix = literalSuffix
 
 	regexpCacheLock.Lock()
 	if overflow := len(regexpCacheMap) - getMaxRegexpCacheSize(); overflow > 0 {
@@ -367,31 +387,33 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 //   '.+literal.+'
 //
 // It returns reMatch if it cannot find optimized function.
-func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) func(b []byte) bool {
+//
+// It also returns literal suffix from the expr.
+func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b []byte) bool, string) {
 	sre, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing verified expr=%q: %s", expr, err)
 	}
-	if matchFunc := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
+	if matchFunc, literalSuffix := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
 		// Found optimized function for matching the expr.
-		return matchFunc
+		return matchFunc, literalSuffix
 	}
 	// Fall back to un-optimized reMatch.
-	return reMatch
+	return reMatch, ""
 }
 
-func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) func(b []byte) bool {
+func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string) {
 	if isDotStar(sre) {
 		// '.*'
 		return func(b []byte) bool {
 			return true
-		}
+		}, ""
 	}
 	if isDotPlus(sre) {
 		// '.+'
 		return func(b []byte) bool {
 			return len(b) > 0
-		}
+		}, ""
 	}
 	switch sre.Op {
 	case syntax.OpCapture:
@@ -399,13 +421,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 		return getOptimizedReMatchFuncExt(reMatch, sre.Sub[0])
 	case syntax.OpLiteral:
 		if !isLiteral(sre) {
-			return nil
+			return nil, ""
 		}
 		s := string(sre.Rune)
 		// Literal match
 		return func(b []byte) bool {
 			return string(b) == s
-		}
+		}, s
 	case syntax.OpConcat:
 		if len(sre.Sub) == 2 {
 			if isLiteral(sre.Sub[0]) {
@@ -414,13 +436,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// 'prefix.*'
 					return func(b []byte) bool {
 						return bytes.HasPrefix(b, prefix)
-					}
+					}, ""
 				}
 				if isDotPlus(sre.Sub[1]) {
 					// 'prefix.+'
 					return func(b []byte) bool {
 						return len(b) > len(prefix) && bytes.HasPrefix(b, prefix)
-					}
+					}, ""
 				}
 			}
 			if isLiteral(sre.Sub[1]) {
@@ -429,13 +451,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.*suffix'
 					return func(b []byte) bool {
 						return bytes.HasSuffix(b, suffix)
-					}
+					}, string(suffix)
 				}
 				if isDotPlus(sre.Sub[0]) {
 					// '.+suffix'
 					return func(b []byte) bool {
 						return len(b) > len(suffix) && bytes.HasSuffix(b[1:], suffix)
-					}
+					}, string(suffix)
 				}
 			}
 		}
@@ -446,13 +468,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.*middle.*'
 					return func(b []byte) bool {
 						return bytes.Contains(b, middle)
-					}
+					}, ""
 				}
 				if isDotPlus(sre.Sub[2]) {
 					// '.*middle.+'
 					return func(b []byte) bool {
 						return len(b) > len(middle) && bytes.Contains(b[:len(b)-1], middle)
-					}
+					}, ""
 				}
 			}
 			if isDotPlus(sre.Sub[0]) {
@@ -460,13 +482,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.+middle.*'
 					return func(b []byte) bool {
 						return len(b) > len(middle) && bytes.Contains(b[1:], middle)
-					}
+					}, ""
 				}
 				if isDotPlus(sre.Sub[2]) {
 					// '.+middle.+'
 					return func(b []byte) bool {
 						return len(b) > len(middle)+1 && bytes.Contains(b[1:len(b)-1], middle)
-					}
+					}, ""
 				}
 			}
 		}
@@ -500,9 +522,9 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 			}
 			// Fall back to slow path.
 			return reMatch(bOrig)
-		}
+		}, string(suffix)
 	default:
-		return nil
+		return nil, ""
 	}
 }
 
@@ -678,8 +700,9 @@ var (
 )
 
 type regexpCacheValue struct {
-	orValues []string
-	reMatch  func(b []byte) bool
+	orValues      []string
+	reMatch       func(b []byte) bool
+	literalSuffix string
 }
 
 func getRegexpPrefix(b []byte) ([]byte, []byte) {
