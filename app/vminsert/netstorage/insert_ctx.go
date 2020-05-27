@@ -6,10 +6,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	xxhash "github.com/cespare/xxhash/v2"
@@ -25,8 +23,6 @@ type InsertCtx struct {
 
 	bufRowss  []bufRows
 	labelsBuf []byte
-
-	resultCh chan error
 }
 
 type bufRows struct {
@@ -34,11 +30,15 @@ type bufRows struct {
 	rows int
 }
 
+func (br *bufRows) reset() {
+	br.buf = br.buf[:0]
+	br.rows = 0
+}
+
 func (br *bufRows) pushTo(sn *storageNode) error {
 	bufLen := len(br.buf)
 	err := sn.push(br.buf, br.rows)
-	br.buf = br.buf[:0]
-	br.rows = 0
+	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %s", bufLen, sn.dialer.Addr(), err),
@@ -61,16 +61,9 @@ func (ctx *InsertCtx) Reset() {
 		ctx.bufRowss = make([]bufRows, len(storageNodes))
 	}
 	for i := range ctx.bufRowss {
-		br := &ctx.bufRowss[i]
-		br.buf = br.buf[:0]
-		br.rows = 0
+		ctx.bufRowss[i].reset()
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
-	if ctx.resultCh == nil {
-		ctx.resultCh = make(chan error, len(storageNodes))
-	} else if len(ctx.resultCh) > 0 {
-		logger.Panicf("BUG: ctx.resultCh must be empty on Reset; got %d items", len(ctx.resultCh))
-	}
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -125,7 +118,7 @@ func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metr
 	br := &ctx.bufRowss[storageNodeIdx]
 	sn := storageNodes[storageNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= consts.MaxInsertPacketSize {
+	if len(bufNew) >= maxBufSizePerStorageNode {
 		// Send buf to storageNode, since it is too big.
 		if err := br.pushTo(sn); err != nil {
 			return err
@@ -140,23 +133,13 @@ func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metr
 
 // FlushBufs flushes ctx bufs to remote storage nodes.
 func (ctx *InsertCtx) FlushBufs() error {
-	// Send per-storageNode bufs in parallel.
-	resultCh := ctx.resultCh
-	resultChLen := 0
+	var firstErr error
 	for i := range ctx.bufRowss {
 		br := &ctx.bufRowss[i]
 		if len(br.buf) == 0 {
 			continue
 		}
-		resultChLen++
-		go func(br *bufRows, sn *storageNode) {
-			resultCh <- br.pushTo(sn)
-		}(br, storageNodes[i])
-	}
-	var firstErr error
-	for i := 0; i < resultChLen; i++ {
-		err := <-resultCh
-		if err != nil && firstErr == nil {
+		if err := br.pushTo(storageNodes[i]); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
