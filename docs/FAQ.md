@@ -136,6 +136,8 @@ Yes:
 * [TSBS benchmark on high-cardinality time series: VictoriaMetrics vs InfluxDB vs TimescaleDB](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
 * [Standard TSBS benchmark: VictoriaMetrics vs InfluxDB vs TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
 
+See also [other articles about VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles).
+
 
 ### What is the pricing for VictoriaMetrics?
 
@@ -145,11 +147,11 @@ The following versions are open source and free:
 
 We provide commercial support for both versions. [Contact us](mailto:info@victoriametrics.com) for the pricing.
 
-The following versions are commercial:
+The following commercial versions of VictoriaMetrics are planned:
 * Managed cluster in the Cloud.
 * SaaS version.
 
-[Contact us](mailto:info@victoriametrics.com) for the pricing.
+[Contact us](mailto:info@victoriametrics.com) for more information and for the pricing.
 
 
 ### Why VictoriaMetrics doesn't support [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_read%3E)?
@@ -166,6 +168,11 @@ or via [Prometheus datasource in Grafana](http://docs.grafana.org/features/datas
 ### Does VictoriaMetrics deduplicate data from Prometheus instances scraping the same targets (aka `HA pairs`)?
 
 Yes. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#deduplication) for details.
+
+
+### Does VictoriaMetrics support replication?
+
+Yes. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#replication-and-data-safety) for details.
 
 
 ### Where is the source code of VictoriaMetrics?
