@@ -231,7 +231,7 @@ Such a scheme has the following benefits comparing to Prometheus:
 
 Cons are the following:
 
-- VictoriaMetrics doesn't support replication - we run extra instance of VictoriaMetrics and Promxy in front of VictoriaMetrics pair for high availability.
+- VictoriaMetrics didn't support replication (it [supports replication now](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#replication-and-data-safety)) - we run extra instance of VictoriaMetrics and Promxy in front of VictoriaMetrics pair for high availability.
 - VictoriaMetrics stores 1 extra month for defined retention (if retention is set to N months, then VM stores N+1 months of data), but this is still better than other solutions.
 
 Some numbers from our single-node VictoriaMetrics setup:
