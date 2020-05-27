@@ -687,6 +687,7 @@ func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {
 	items.B = marshalTagValue(items.B, mn.MetricGroup)
 	items.B = encoding.MarshalUint64(items.B, tsid.MetricID)
 	items.Next()
+	addReverseMetricGroupIfNeeded(items, commonPrefix.B, mn, tsid.MetricID)
 
 	// For each tag create tag -> MetricID index.
 	for i := range mn.Tags {
@@ -2609,6 +2610,7 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64, accountID, proje
 	items.B = marshalTagValue(items.B, mn.MetricGroup)
 	items.B = encoding.MarshalUint64(items.B, metricID)
 	items.Next()
+	addReverseMetricGroupIfNeeded(items, kb.B, mn, metricID)
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		items.B = append(items.B, kb.B...)
@@ -2620,6 +2622,38 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64, accountID, proje
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %s", metricID, err)
 	}
 	return nil
+}
+
+func addReverseMetricGroupIfNeeded(items *indexItems, prefix []byte, mn *MetricName, metricID uint64) {
+	if bytes.IndexByte(mn.MetricGroup, '.') < 0 {
+		// The reverse metric group is needed only for Graphite-like metrics with points.
+		return
+	}
+	// This is most likely a Graphite metric like 'foo.bar.baz'.
+	// Store reverse metric name 'zab.rab.oof' in order to speed up search for '*.bar.baz'
+	// when the Graphite wildcard has a suffix matching small number of time series.
+	items.B = append(items.B, prefix...)
+	items.B = marshalTagValue(items.B, graphiteReverseTagKey)
+	revBuf := kbPool.Get()
+	revBuf.B = reverseBytes(revBuf.B[:0], mn.MetricGroup)
+	items.B = marshalTagValue(items.B, revBuf.B)
+	kbPool.Put(revBuf)
+	items.B = encoding.MarshalUint64(items.B, metricID)
+	items.Next()
+}
+
+// The tag key for reverse metric name used for speeding up searching
+// for Graphite wildcards with suffix matching small number of time series,
+// i.e. '*.bar.baz'.
+//
+// It is expected that the given key isn't be used by users.
+var graphiteReverseTagKey = []byte("\xff")
+
+func reverseBytes(dst, src []byte) []byte {
+	for i := len(src) - 1; i >= 0; i-- {
+		dst = append(dst, src[i])
+	}
+	return dst
 }
 
 func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, projectID uint32) (bool, error) {
