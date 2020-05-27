@@ -116,7 +116,7 @@ func (sn *storageNode) run(stopCh <-chan struct{}) {
 				if len(br.buf) == 0 {
 					continue
 				}
-				logger.Errorf("re-routing %d bytes with %d rows to other storage nodes because cannot dial storageNode %q: %s",
+				logger.Warnf("re-routing %d bytes with %d rows to other storage nodes because cannot dial storageNode %q: %s",
 					len(br.buf), br.rows, sn.dialer.Addr(), err)
 				if addToReroutedBufNonblock(br.buf, br.rows) {
 					sn.rowsReroutedFromHere.Add(br.rows)
@@ -135,7 +135,7 @@ func (sn *storageNode) run(stopCh <-chan struct{}) {
 		// Couldn't flush buf to sn. Mark sn as broken
 		// and try re-routing buf to healthy vmstorage nodes.
 		if err = bc.Close(); err != nil {
-			logger.Errorf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
+			logger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 			// continue executing the code below.
 		}
 		bc = nil
