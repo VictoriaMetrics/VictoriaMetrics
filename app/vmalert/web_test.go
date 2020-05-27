@@ -11,7 +11,7 @@ import (
 )
 
 func TestHandler(t *testing.T) {
-	rule := &Rule{
+	ar := &AlertingRule{
 		Name: "alert",
 		alerts: map[uint64]*notifier.Alert{
 			0: {},
@@ -19,7 +19,7 @@ func TestHandler(t *testing.T) {
 	}
 	g := &Group{
 		Name:  "group",
-		Rules: []*Rule{rule},
+		Rules: []Rule{ar},
 	}
 	m := &manager{groups: make(map[uint64]*Group)}
 	m.groups[0] = g
@@ -57,7 +57,7 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/0/0/status", func(t *testing.T) {
 		alert := &APIAlert{}
 		getResp(ts.URL+"/api/v1/0/0/status", alert, 200)
-		expAlert := rule.newAlertAPI(*rule.alerts[0])
+		expAlert := ar.newAlertAPI(*ar.alerts[0])
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Errorf("expected %v is equal to %v", alert, expAlert)
 		}

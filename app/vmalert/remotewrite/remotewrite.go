@@ -38,11 +38,15 @@ type Config struct {
 	BasicAuthUser string
 	BasicAuthPass string
 
+	// Concurrency defines number of readers that
+	// concurrently read from the queue and flush data
+	Concurrency int
 	// MaxBatchSize defines max number of timeseries
 	// to be flushed at once
 	MaxBatchSize int
 	// MaxQueueSize defines max length of input queue
-	// populated by Push method
+	// populated by Push method.
+	// Push will be rejected once queue is full.
 	MaxQueueSize int
 	// FlushInterval defines time interval for flushing batches
 	FlushInterval time.Duration
@@ -52,9 +56,10 @@ type Config struct {
 }
 
 const (
+	defaultConcurrency   = 4
 	defaultMaxBatchSize  = 1e3
-	defaultMaxQueueSize  = 100
-	defaultFlushInterval = 5 * time.Second
+	defaultMaxQueueSize  = 1e5
+	defaultFlushInterval = time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
 
@@ -90,7 +95,13 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		doneCh:        make(chan struct{}),
 		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
 	}
-	c.run(ctx)
+	cc := defaultConcurrency
+	if cfg.Concurrency > 0 {
+		cc = cfg.Concurrency
+	}
+	for i := 0; i < cc; i++ {
+		c.run(ctx)
+	}
 	return c, nil
 }
 
@@ -128,7 +139,10 @@ func (c *Client) run(ctx context.Context) {
 		for ts := range c.input {
 			wr.Timeseries = append(wr.Timeseries, ts)
 		}
-		lastCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		if len(wr.Timeseries) < 1 {
+			return
+		}
+		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
 		c.flush(lastCtx, wr)
 		cancel()
 	}

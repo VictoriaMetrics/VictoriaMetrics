@@ -6,12 +6,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// manager controls group states
 type manager struct {
 	storage  datasource.Querier
 	notifier notifier.Notifier
@@ -25,7 +27,7 @@ type manager struct {
 	groups   map[uint64]*Group
 }
 
-// AlertAPI generates APIAlert object from alert by its id(hash)
+// AlertAPI generates APIAlert object from alert by its ID(hash)
 func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
@@ -35,11 +37,15 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 		return nil, fmt.Errorf("can't find group with id %q", gID)
 	}
 	for _, rule := range g.Rules {
-		if apiAlert := rule.AlertAPI(aID); apiAlert != nil {
+		ar, ok := rule.(*AlertingRule)
+		if !ok {
+			continue
+		}
+		if apiAlert := ar.AlertAPI(aID); apiAlert != nil {
 			return apiAlert, nil
 		}
 	}
-	return nil, fmt.Errorf("can't func alert with id %q in group %q", aID, g.Name)
+	return nil, fmt.Errorf("can't find alert with id %q in group %q", aID, g.Name)
 }
 
 func (m *manager) start(ctx context.Context, path []string, validate bool) error {
@@ -56,7 +62,7 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, group Group, restore bool) {
+func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 	if restore && m.rr != nil {
 		err := group.Restore(ctx, m.rr, *remoteReadLookBack)
 		if err != nil {
@@ -67,21 +73,22 @@ func (m *manager) startGroup(ctx context.Context, group Group, restore bool) {
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
-		group.start(ctx, *evaluationInterval, m.storage, m.notifier, m.rw)
+		group.start(ctx, m.storage, m.notifier, m.rw)
 		m.wg.Done()
 	}()
-	m.groups[id] = &group
+	m.groups[id] = group
 }
 
 func (m *manager) update(ctx context.Context, path []string, validate, restore bool) error {
-	logger.Infof("reading alert rules configuration file from %q", strings.Join(path, ";"))
-	newGroups, err := Parse(path, validate)
+	logger.Infof("reading rules configuration file from %q", strings.Join(path, ";"))
+	groupsCfg, err := config.Parse(path, validate)
 	if err != nil {
 		return fmt.Errorf("cannot parse configuration file: %s", err)
 	}
 
-	groupsRegistry := make(map[uint64]Group)
-	for _, ng := range newGroups {
+	groupsRegistry := make(map[uint64]*Group)
+	for _, cfg := range groupsCfg {
+		ng := newGroup(cfg, *evaluationInterval)
 		groupsRegistry[ng.ID()] = ng
 	}
 
@@ -105,4 +112,23 @@ func (m *manager) update(ctx context.Context, path []string, validate, restore b
 	}
 	m.groupsMu.Unlock()
 	return nil
+}
+
+func (g *Group) toAPI() APIGroup {
+	ag := APIGroup{
+		// encode as strings to avoid rounding
+		ID:       fmt.Sprintf("%d", g.ID()),
+		Name:     g.Name,
+		File:     g.File,
+		Interval: g.Interval.String(),
+	}
+	for _, r := range g.Rules {
+		switch v := r.(type) {
+		case *AlertingRule:
+			ag.AlertingRules = append(ag.AlertingRules, v.RuleAPI())
+		case *RecordingRule:
+			ag.RecordingRules = append(ag.RecordingRules, v.RuleAPI())
+		}
+	}
+	return ag
 }
