@@ -16,8 +16,9 @@ Join [our Slack](http://slack.victoriametrics.com/) or [contact us](mailto:info@
 ## Prominent features
 
 - Supports all the features of [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics).
-- Performance and capacity scales horizontally.
-- Supports multiple independent namespaces for time series data (aka multi-tenancy).
+- Performance and capacity scales horizontally. See [these docs for details](#cluster-resizing-and-scalability).
+- Supports multiple independent namespaces for time series data (aka multi-tenancy). See [these docs for details](#multitenancy).
+- Supports replication. See [these docs for details](#replication-and-data-safety).
 
 
 ## Architecture overview
@@ -203,7 +204,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
   across `vmstorage` nodes.
 
 
-### Cluster resizing and scalability.
+### Cluster resizing and scalability
 
 Cluster performance and capacity scales with adding new nodes.
 
@@ -250,6 +251,8 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 * The recommended total number of vCPU cores for all the `vminsert` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
 * The recommended number of vCPU cores per each `vminsert` instance should equal to the number of `vmstorage` instances in the cluster.
 * The amount of RAM per each `vminsert` instance should be 1GB or more. RAM is used as a buffer for spikes in ingestion rate.
+  The maximum amount of used RAM per `vminsert` node can be tuned with `-memory.allowedPercent` command-line flag. For instance, `-memory.allowedPercent=20`
+  limits the maximum amount of used RAM to 20% of the available RAM on the host system.
 * Sometimes `-rpc.disableCompression` command-line flag on `vminsert` instances could increase ingestion capacity at the cost
   of higher network bandwidth usage between `vminsert` and `vmstorage`.
 
@@ -281,7 +284,7 @@ Upgrade follows `Cluster resizing procedure` under the hood.
 
 ### Replication and data safety
 
-VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
+By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
 It is recommended storing data on [Google Compute Engine persistent disks](https://cloud.google.com/compute/docs/disks/#pdspecs),
 since they are protected from data loss and data corruption. They also provide consistently high performance
 and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
@@ -289,7 +292,13 @@ HDD-based persistent disks should be enough for the majority of use cases.
 
 It is recommended using durable replicated persistent volumes in Kubernetes.
 
-Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883).
+If `-replicationFactor=N` command-line flag is passed to `vminsert`, then `vminsert` puts `N` copies of the ingested data to distinct `vmstorage` nodes.
+This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable. Note that `-dedup.minScrapeInterval=1ms` command-line
+flag must be passed to `vmselect` if `-replicationFactor` exceeds 1 in order to de-duplicate replicated data during queries.
+It is OK if `-dedup.minScrapeInterval` exceeds 1ms.
+
+Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
+so it is recommended performing regular backups. See [these docs](#backups) for details.
 
 
 ### Backups
