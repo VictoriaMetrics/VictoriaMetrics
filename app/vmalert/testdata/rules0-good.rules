@@ -1,6 +1,6 @@
 groups:
-  interval: 3s
   - name: groupGorSingleAlert
+    interval: 3s
     rules:
       - alert: VMRows
         for: 10s
@@ -13,6 +13,7 @@ groups:
           description: "{{$labels}}"
 
   - name: TestGroup
+    interval: 3s
     rules:
       - alert: Conns
         expr: sum(vm_tcplistener_conns) by(instance) > 1
