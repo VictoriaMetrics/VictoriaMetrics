@@ -1,4 +1,5 @@
 groups:
+  interval: 1s
   - name: duplicatedGroupDiffFiles
     rules:
       - alert: VMRows

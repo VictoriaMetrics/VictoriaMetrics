@@ -96,7 +96,13 @@ func (m *manager) update(ctx context.Context, path []string, validate, restore b
 			og = nil
 			continue
 		}
-		og.updateCh <- ng
+		if ng.Interval != og.Interval{
+			og.close()
+			og.updateWith(ng)
+			m.startGroup(ctx,ng,restore)
+		}else{
+			og.updateCh <- ng
+		}
 		delete(groupsRegistry, ng.ID())
 	}
 

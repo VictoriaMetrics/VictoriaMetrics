@@ -1,4 +1,5 @@
 groups:
+  interval: 3s
   - name: groupGorSingleAlert
     rules:
       - alert: VMRows
