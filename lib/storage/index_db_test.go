@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"regexp"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -862,6 +863,27 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 		if testHasTSID(tsidsFound, tsid) {
 			return fmt.Errorf("unexpected tsid found for exact negative filter\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
+		}
+
+		// Search for Graphite wildcard
+		tfs.Reset()
+		n := bytes.IndexByte(mn.MetricGroup, '.')
+		if n < 0 {
+			return fmt.Errorf("cannot find dot in MetricGroup %q", mn.MetricGroup)
+		}
+		re := "[^.]*" + regexp.QuoteMeta(string(mn.MetricGroup[n:]))
+		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
+			return fmt.Errorf("cannot create regexp tag filter for Graphite wildcard")
+		}
+		if tfsNew := tfs.Finalize(); len(tfsNew) > 0 {
+			return fmt.Errorf("unexpected non-empty tag filters returned by TagFilters.Finalize: %v", tfsNew)
+		}
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5)
+		if err != nil {
+			return fmt.Errorf("cannot search by regexp tag filter for Graphite wildcard: %s", err)
+		}
+		if !testHasTSID(tsidsFound, tsid) {
+			return fmt.Errorf("tsids is missing in regexp for Graphite wildcard tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
 		}
 
 		// Search with regexps.

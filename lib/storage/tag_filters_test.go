@@ -579,6 +579,25 @@ func TestGetRegexpPrefix(t *testing.T) {
 	f(t, "(foo|bar$)x*", "", "(?:foo|bar(?-m:$))x*")
 }
 
+func TestTagFiltersString(t *testing.T) {
+	tfs := NewTagFilters()
+	mustAdd := func(key, value string, isNegative, isRegexp bool) {
+		t.Helper()
+		if err := tfs.Add([]byte(key), []byte(value), isNegative, isRegexp); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+	}
+	mustAdd("", "metric_name", false, false)
+	mustAdd("tag_re", "re.value", false, true)
+	mustAdd("tag_nre", "nre.value", true, true)
+	mustAdd("tag_n", "n_value", true, false)
+	s := tfs.String()
+	sExpected := `{__name__="metric_name", tag_re=~"re.value", tag_nre!~"nre.value", tag_n!="n_value"}`
+	if s != sExpected {
+		t.Fatalf("unexpected TagFilters.String(); got %q; want %q", s, sExpected)
+	}
+}
+
 func TestTagFiltersAddEmpty(t *testing.T) {
 	tfs := NewTagFilters()
 
