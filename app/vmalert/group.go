@@ -115,7 +115,7 @@ func (g *Group) close() {
 	if g.doneCh == nil {
 		return
 	}
-	g.doneCh <- struct{}{}
+	close(g.doneCh)
 	<-g.finishedCh
 }
 
@@ -135,6 +135,10 @@ func (g *Group) start(ctx context.Context,
 			close(g.finishedCh)
 			return
 		case ng := <-g.updateCh:
+			if ng.Interval != g.Interval{
+				t.Stop()
+				t = time.NewTicker(g.Interval)
+			}
 			g.updateWith(ng)
 		case <-t.C:
 			iterationTotal.Inc()
