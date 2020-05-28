@@ -143,7 +143,6 @@ func sendBufToReplicas(br *bufRows, snIdx, replicas int) bool {
 			if attempts > len(storageNodes) {
 				if i == 0 {
 					// The data wasn't replicated at all.
-					rowsLostTotal.Add(br.rows)
 					logger.Warnf("cannot push %d bytes with %d rows to storage nodes, since all the nodes are temporarily unavailable; "+
 						"re-trying to send the data soon", len(br.buf), br.rows)
 					return false
