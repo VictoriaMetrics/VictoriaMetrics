@@ -14,17 +14,22 @@ import (
 func TestUpdateWith(t *testing.T) {
 	testCases := []struct {
 		name         string
+		currentInteval time.Duration
 		currentRules []*Rule
 		// rules must be sorted by name
+		newInterval time.Duration
 		newRules []*Rule
 	}{
 		{
 			"new rule",
+			1*time.Minute,
 			[]*Rule{},
+			2*time.Minute,
 			[]*Rule{{Name: "bar"}},
 		},
 		{
 			"update rule",
+			1*time.Minute,
 			[]*Rule{{
 				Name: "foo",
 				Expr: "up > 0",
@@ -37,6 +42,7 @@ func TestUpdateWith(t *testing.T) {
 					"description": "{{$labels}}",
 				},
 			}},
+			2*time.Minute,
 			[]*Rule{{
 				Name: "bar",
 				Expr: "up > 10",
@@ -51,34 +57,46 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"empty rule",
+			1*time.Minute,
 			[]*Rule{{Name: "foo"}},
+			2*time.Minute,
 			[]*Rule{},
 		},
 		{
 			"multiple rules",
+			1*time.Minute,
 			[]*Rule{{Name: "bar"}, {Name: "baz"}, {Name: "foo"}},
+			2*time.Minute,
 			[]*Rule{{Name: "baz"}, {Name: "foo"}},
 		},
 		{
 			"replace rule",
+			1*time.Minute,
 			[]*Rule{{Name: "foo1"}},
+			2*time.Minute,
 			[]*Rule{{Name: "foo2"}},
 		},
 		{
 			"replace multiple rules",
+			1*time.Minute,
 			[]*Rule{{Name: "foo1"}, {Name: "foo2"}},
+			2*time.Minute,
 			[]*Rule{{Name: "foo3"}, {Name: "foo4"}},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Rules: tc.currentRules}
-			g.updateWith(Group{Rules: tc.newRules})
+			g := &Group{Rules: tc.currentRules,Interval:tc.currentInteval}
+			g.updateWith(Group{Rules: tc.newRules,Interval:tc.newInterval})
 
 			if len(g.Rules) != len(tc.newRules) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
+			}
+			if g.Interval != tc.newInterval{
+				t.Fatalf("expected to get group interval %v ; got: %v",
+					g.Interval, tc.newInterval)
 			}
 			sort.Slice(g.Rules, func(i, j int) bool {
 				return g.Rules[i].Name < g.Rules[j].Name
