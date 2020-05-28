@@ -15,16 +15,15 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	Name     string
-	Interval time.Duration `yaml:"interval"`
-	File     string
-	Rules    []*Rule
+	Name       string
+	Interval   time.Duration `yaml:"interval"`
+	File       string
+	Rules      []*Rule
 	doneCh     chan struct{}
 	finishedCh chan struct{}
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan Group
-
 }
 
 // ID return unique group ID that consists of
@@ -55,7 +54,6 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 // Not thread-safe.
 func (g *Group) updateWith(newGroup Group) {
 	g.Interval = newGroup.Interval
-
 	rulesRegistry := make(map[string]*Rule)
 	for _, nr := range newGroup.Rules {
 		rulesRegistry[nr.id()] = nr
@@ -135,7 +133,7 @@ func (g *Group) start(ctx context.Context,
 			close(g.finishedCh)
 			return
 		case ng := <-g.updateCh:
-			if ng.Interval != g.Interval{
+			if ng.Interval != g.Interval {
 				t.Stop()
 				t = time.NewTicker(g.Interval)
 			}
