@@ -66,8 +66,9 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 		return fmt.Errorf("cannot initialize tagFilter: %s", err)
 	}
 	if len(tf.graphiteReverseSuffix) > 0 {
-		tf = tfs.addTagFilter()
-		if err := tf.Init(tfs.commonPrefix, graphiteReverseTagKey, tf.graphiteReverseSuffix, false, false); err != nil {
+		re := regexp.QuoteMeta(string(tf.graphiteReverseSuffix)) + ".*"
+		tfNew := tfs.addTagFilter()
+		if err := tfNew.Init(tfs.commonPrefix, graphiteReverseTagKey, []byte(re), false, true); err != nil {
 			return fmt.Errorf("cannot initialize reverse tag filter for Graphite wildcard: %s", err)
 		}
 	}
@@ -414,7 +415,8 @@ func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b [
 	}
 	if matchFunc, literalSuffix := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
 		// Found optimized function for matching the expr.
-		return matchFunc, literalSuffix
+		suffixUnescaped := tagCharsReverseRegexpEscaper.Replace(literalSuffix)
+		return matchFunc, suffixUnescaped
 	}
 	// Fall back to un-optimized reMatch.
 	return reMatch, ""
@@ -685,12 +687,21 @@ func getOrValuesExt(sre *syntax.Regexp) []string {
 const maxOrValues = 20
 
 var tagCharsRegexpEscaper = strings.NewReplacer(
-	"\\x00", "(?:\\x000)", // escapeChar
-	"\x00", "(?:\\x000)", // escapeChar
-	"\\x01", "(?:\\x001)", // tagSeparatorChar
-	"\x01", "(?:\\x001)", // tagSeparatorChar
-	"\\x02", "(?:\\x002)", // kvSeparatorChar
-	"\x02", "(?:\\x002)", // kvSeparatorChar
+	"\\x00", "\\x000", // escapeChar
+	"\x00", "\\x000", // escapeChar
+	"\\x01", "\\x001", // tagSeparatorChar
+	"\x01", "\\x001", // tagSeparatorChar
+	"\\x02", "\\x002", // kvSeparatorChar
+	"\x02", "\\x002", // kvSeparatorChar
+)
+
+var tagCharsReverseRegexpEscaper = strings.NewReplacer(
+	"\\x000", "\x00", // escapeChar
+	"\x000", "\x00", // escapeChar
+	"\\x001", "\x01", // tagSeparatorChar
+	"\x001", "\x01", // tagSeparatorChar
+	"\\x002", "\x02", // kvSeparatorChar
+	"\x002", "\x02", // kvSeparatorChar
 )
 
 func getMaxRegexpCacheSize() int {
