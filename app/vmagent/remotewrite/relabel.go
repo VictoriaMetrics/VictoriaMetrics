@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"flag"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -16,34 +17,59 @@ var (
 		"Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. These entries are applied to all the metrics "+
 		"before sending them to -remoteWrite.url. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config for details")
+	relabelConfigPaths = flagutil.NewArray("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url")
 )
 
 var labelsGlobal []prompbmarshal.Label
-var prcsGlobal []promrelabel.ParsedRelabelConfig
 
-// initRelabelGlobal must be called after parsing command-line flags.
-func initRelabelGlobal() {
+// CheckRelabelConfigs checks -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig.
+func CheckRelabelConfigs() error {
+	_, err := loadRelabelConfigs()
+	return err
+}
+
+func loadRelabelConfigs() (*relabelConfigs, error) {
+	var rcs relabelConfigs
+	if *relabelConfigPathGlobal != "" {
+		global, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %s", *relabelConfigPathGlobal, err)
+		}
+		rcs.global = global
+	}
+	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
+		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
+			len(*relabelConfigPaths), len(*remoteWriteURLs))
+	}
+	rcs.perURL = make([][]promrelabel.ParsedRelabelConfig, len(*remoteWriteURLs))
+	for i, path := range *relabelConfigPaths {
+		prc, err := promrelabel.LoadRelabelConfigs(path)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %s", path, err)
+		}
+		rcs.perURL[i] = prc
+	}
+	return &rcs, nil
+}
+
+type relabelConfigs struct {
+	global []promrelabel.ParsedRelabelConfig
+	perURL [][]promrelabel.ParsedRelabelConfig
+}
+
+// initLabelsGlobal must be called after parsing command-line flags.
+func initLabelsGlobal() {
 	// Init labelsGlobal
 	labelsGlobal = nil
 	for _, s := range *unparsedLabelsGlobal {
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
-			logger.Panicf("FATAL: missing '=' in `-remoteWrite.label`. It must contain label in the form `name=value`; got %q", s)
+			logger.Fatalf("missing '=' in `-remoteWrite.label`. It must contain label in the form `name=value`; got %q", s)
 		}
 		labelsGlobal = append(labelsGlobal, prompbmarshal.Label{
 			Name:  s[:n],
 			Value: s[n+1:],
 		})
-	}
-
-	// Init prcsGlobal
-	prcsGlobal = nil
-	if len(*relabelConfigPathGlobal) > 0 {
-		var err error
-		prcsGlobal, err = promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
-		if err != nil {
-			logger.Panicf("FATAL: cannot load relabel configs from -remoteWrite.relabelConfig=%q: %s", *relabelConfigPathGlobal, err)
-		}
 	}
 }
 
