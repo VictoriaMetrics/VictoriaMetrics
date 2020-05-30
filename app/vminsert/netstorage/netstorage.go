@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	xxhash "github.com/cespare/xxhash/v2"
-	jump "github.com/lithammer/go-jump-consistent-hash"
 )
 
 var (
@@ -530,7 +529,10 @@ func spreadReroutedBufToStorageNodes(sns []*storageNode, br *bufRows) {
 		idx := uint64(0)
 		if len(sns) > 1 {
 			h := xxhash.Sum64(mr.MetricNameRaw)
-			idx = uint64(jump.Hash(h, int32(len(sns))))
+			// Do not use jump.Hash(h, int32(len(sns))) here,
+			// since this leads to uneven distribution of rerouted rows among sns -
+			// they all go to the original or to the next sn.
+			idx = h % uint64(len(sns))
 		}
 		attempts := 0
 		for {
