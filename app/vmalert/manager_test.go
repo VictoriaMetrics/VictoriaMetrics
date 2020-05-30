@@ -32,9 +32,9 @@ func TestManagerUpdateError(t *testing.T) {
 	}
 }
 
-//TestManagerUpdateConcurrent supposed to test concurrent
-//execution of configuration update.
-//Should be executed with -race flag
+// TestManagerUpdateConcurrent supposed to test concurrent
+// execution of configuration update.
+// Should be executed with -race flag
 func TestManagerUpdateConcurrent(t *testing.T) {
 	m := &manager{
 		groups:   make(map[uint64]*Group),

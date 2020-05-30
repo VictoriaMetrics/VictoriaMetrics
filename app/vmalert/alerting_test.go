@@ -106,171 +106,171 @@ func TestAlertingRule_Exec(t *testing.T) {
 		steps     [][]datasource.Metric
 		expAlerts map[uint64]*notifier.Alert
 	}{
-		//{
-		//	newTestAlertingRule("empty", 0),
-		//	[][]datasource.Metric{},
-		//	map[uint64]*notifier.Alert{},
-		//},
-		//{
-		//	newTestAlertingRule("empty labels", 0),
-		//	[][]datasource.Metric{
-		//		{datasource.Metric{}},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(datasource.Metric{}): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("single-firing", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("single-firing=>inactive", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("single-firing=>inactive=>firing", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//		{metricWithLabels(t, "name", "foo")},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("single-firing=>inactive=>firing=>inactive", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//		{},
-		//	},
-		//	map[uint64]*notifier.Alert{},
-		//},
-		//{
-		//	newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{},
-		//		{},
-		//		{metricWithLabels(t, "name", "foo")},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("multiple-firing", 0),
-		//	[][]datasource.Metric{
-		//		{
-		//			metricWithLabels(t, "name", "foo"),
-		//			metricWithLabels(t, "name", "foo1"),
-		//			metricWithLabels(t, "name", "foo2"),
-		//		},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")):  {State: notifier.StateFiring},
-		//		hash(metricWithLabels(t, "name", "foo1")): {State: notifier.StateFiring},
-		//		hash(metricWithLabels(t, "name", "foo2")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("multiple-steps-firing", 0),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{metricWithLabels(t, "name", "foo1")},
-		//		{metricWithLabels(t, "name", "foo2")},
-		//	},
-		//	// 1: fire first alert
-		//	// 2: fire second alert, set first inactive
-		//	// 3: fire third alert, set second inactive, delete first one
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo1")): {State: notifier.StateInactive},
-		//		hash(metricWithLabels(t, "name", "foo2")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("duplicate", 0),
-		//	[][]datasource.Metric{
-		//		{
-		//			// metrics with the same labelset should result in one alert
-		//			metricWithLabels(t, "name", "foo", "type", "bar"),
-		//			metricWithLabels(t, "type", "bar", "name", "foo"),
-		//		},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo", "type", "bar")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("for-pending", time.Minute),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StatePending},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("for-fired", time.Millisecond),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{metricWithLabels(t, "name", "foo")},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
-		//	},
-		//},
-		//{
-		//	newTestAlertingRule("for-pending=>empty", time.Second),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		// empty step to reset and delete pending alerts
-		//		{},
-		//	},
-		//	map[uint64]*notifier.Alert{},
-		//},
-		//{
-		//	newTestAlertingRule("for-pending=>firing=>inactive", time.Millisecond),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		// empty step to reset pending alerts
-		//		{},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
-		//	},
-		//},
+		{
+			newTestAlertingRule("empty", 0),
+			[][]datasource.Metric{},
+			map[uint64]*notifier.Alert{},
+		},
+		{
+			newTestAlertingRule("empty labels", 0),
+			[][]datasource.Metric{
+				{datasource.Metric{}},
+			},
+			map[uint64]*notifier.Alert{
+				hash(datasource.Metric{}): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("single-firing", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("single-firing=>inactive", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			},
+		},
+		{
+			newTestAlertingRule("single-firing=>inactive=>firing", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{},
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{},
+				{metricWithLabels(t, "name", "foo")},
+				{},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			},
+		},
+		{
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{},
+				{metricWithLabels(t, "name", "foo")},
+				{},
+				{},
+			},
+			map[uint64]*notifier.Alert{},
+		},
+		{
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{},
+				{metricWithLabels(t, "name", "foo")},
+				{},
+				{},
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("multiple-firing", 0),
+			[][]datasource.Metric{
+				{
+					metricWithLabels(t, "name", "foo"),
+					metricWithLabels(t, "name", "foo1"),
+					metricWithLabels(t, "name", "foo2"),
+				},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")):  {State: notifier.StateFiring},
+				hash(metricWithLabels(t, "name", "foo1")): {State: notifier.StateFiring},
+				hash(metricWithLabels(t, "name", "foo2")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("multiple-steps-firing", 0),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo1")},
+				{metricWithLabels(t, "name", "foo2")},
+			},
+			// 1: fire first alert
+			// 2: fire second alert, set first inactive
+			// 3: fire third alert, set second inactive, delete first one
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo1")): {State: notifier.StateInactive},
+				hash(metricWithLabels(t, "name", "foo2")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("duplicate", 0),
+			[][]datasource.Metric{
+				{
+					// metrics with the same labelset should result in one alert
+					metricWithLabels(t, "name", "foo", "type", "bar"),
+					metricWithLabels(t, "type", "bar", "name", "foo"),
+				},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo", "type", "bar")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("for-pending", time.Minute),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StatePending},
+			},
+		},
+		{
+			newTestAlertingRule("for-fired", time.Millisecond),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			},
+		},
+		{
+			newTestAlertingRule("for-pending=>empty", time.Second),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+				// empty step to reset and delete pending alerts
+				{},
+			},
+			map[uint64]*notifier.Alert{},
+		},
+		{
+			newTestAlertingRule("for-pending=>firing=>inactive", time.Millisecond),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+				// empty step to reset pending alerts
+				{},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			},
+		},
 		{
 			newTestAlertingRule("for-pending=>firing=>inactive=>pending", time.Millisecond),
 			[][]datasource.Metric{
@@ -284,20 +284,20 @@ func TestAlertingRule_Exec(t *testing.T) {
 				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StatePending},
 			},
 		},
-		//{
-		//	newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", time.Millisecond),
-		//	[][]datasource.Metric{
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		// empty step to reset pending alerts
-		//		{},
-		//		{metricWithLabels(t, "name", "foo")},
-		//		{metricWithLabels(t, "name", "foo")},
-		//	},
-		//	map[uint64]*notifier.Alert{
-		//		hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
-		//	},
-		//},
+		{
+			newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", time.Millisecond),
+			[][]datasource.Metric{
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+				// empty step to reset pending alerts
+				{},
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateFiring},
+			},
+		},
 	}
 	fakeGroup := Group{Name: "TestRule_Exec"}
 	for _, tc := range testCases {

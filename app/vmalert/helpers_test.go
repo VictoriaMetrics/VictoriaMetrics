@@ -177,9 +177,11 @@ func compareTimeSeries(t *testing.T, a, b []prompbmarshal.TimeSeries) error {
 			if got.Value != exp.Value {
 				return fmt.Errorf("expected value %.2f; got %.2f", exp.Value, got.Value)
 			}
-			//if got.Timestamp != exp.Timestamp {
-			//	return fmt.Errorf("expected timestamp %d; got %d", exp.Timestamp, got.Timestamp)
-			//}
+			// timestamp validation isn't always correct for now.
+			// this must be improved with time mock.
+			/*if got.Timestamp != exp.Timestamp {
+				return fmt.Errorf("expected timestamp %d; got %d", exp.Timestamp, got.Timestamp)
+			}*/
 		}
 		if len(expTS.Labels) != len(gotTS.Labels) {
 			return fmt.Errorf("expected number of labels %d; got %d", len(expTS.Labels), len(gotTS.Labels))
