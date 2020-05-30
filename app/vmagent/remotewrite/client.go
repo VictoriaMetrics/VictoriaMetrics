@@ -69,7 +69,7 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 	token := bearerToken.GetOptionalArg(argIdx)
 	if len(token) > 0 {
 		if authHeader != "" {
-			logger.Panicf("FATAL: `-remoteWrite.bearerToken`=%q cannot be set when `-remoteWrite.basicAuth.*` flags are set", token)
+			logger.Fatalf("`-remoteWrite.bearerToken`=%q cannot be set when `-remoteWrite.basicAuth.*` flags are set", token)
 		}
 		authHeader = "Bearer " + token
 	}
@@ -85,11 +85,11 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 	switch scheme {
 	case "http", "https":
 	default:
-		logger.Panicf("FATAL: unsupported scheme in -remoteWrite.url=%q: %q. It must be http or https", remoteWriteURL, scheme)
+		logger.Fatalf("unsupported scheme in -remoteWrite.url=%q: %q. It must be http or https", remoteWriteURL, scheme)
 	}
 	host := string(u.Host())
 	if len(host) == 0 {
-		logger.Panicf("FATAL: invalid -remoteWrite.url=%q: host cannot be empty. Make sure the url looks like `http://host:port/path`", remoteWriteURL)
+		logger.Fatalf("invalid -remoteWrite.url=%q: host cannot be empty. Make sure the url looks like `http://host:port/path`", remoteWriteURL)
 	}
 	requestURI := string(u.RequestURI())
 	isTLS := scheme == "https"
