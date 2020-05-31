@@ -190,7 +190,6 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time) (*notifie
 		Value:   m.Value,
 		Start:   start,
 		Expr:    ar.Expr,
-		// TODO: support End time
 	}
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
