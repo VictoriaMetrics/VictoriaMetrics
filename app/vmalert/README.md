@@ -36,7 +36,7 @@ Then configure `vmalert` accordingly:
         -notifier.url=http://localhost:9093
 ```
 
-Example for `.rules` file may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata)
+Example for `.rules` file may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata).
 
 `vmalert` may be configured with `-remoteWrite` flag to write recording rules and 
 alerts state in form of timeseries via remote write protocol. Alerts state will be written 
@@ -47,7 +47,7 @@ restarts if `-remoteRead` is configured.
 Rules in group evaluated one-by-one sequentially. 
 
 **Important:** while recording rules execution is sequential, writing of timeseries results to remote
-storage is asynchronous. Hence, user shouldn't rely on recording chaining when result of pervious
+storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
 recording rule is reused in next one.
 
 `vmalert` also runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
