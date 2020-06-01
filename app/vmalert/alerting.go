@@ -148,7 +148,7 @@ func (ar *AlertingRule) toTimeSeries(timestamp time.Time) []prompbmarshal.TimeSe
 	return tss
 }
 
-// copy all significant fields.
+// UpdateWith copies all significant fields.
 // alerts state isn't copied since
 // it should be updated in next 2 Execs
 func (ar *AlertingRule) UpdateWith(r Rule) error {

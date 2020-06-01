@@ -118,7 +118,7 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric, timestamp time.Time) 
 	return newTimeSeries(m.Value, labels, timestamp)
 }
 
-// copy all significant fields.
+// UpdateWith copies all significant fields.
 // alerts state isn't copied since
 // it should be updated in next 2 Execs
 func (rr *RecordingRule) UpdateWith(r Rule) error {
