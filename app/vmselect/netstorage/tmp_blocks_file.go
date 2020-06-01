@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -29,6 +30,23 @@ func InitTmpBlocksDir(tmpDirPath string) {
 }
 
 var tmpBlocksDir string
+func tmpBlockDirSize() int64 {
+	var size int64
+	err := filepath.Walk(tmpBlocksDir, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	if err != nil {
+		logger.Errorf("failed to get tmp block file size, error: %s", err)
+		return 0
+	}
+	return size
+}
 
 func maxInmemoryTmpBlocksFile() int {
 	mem := memory.Allowed()
@@ -85,7 +103,12 @@ func (addr tmpBlockAddr) String() string {
 	return fmt.Sprintf("offset %d, size %d", addr.offset, addr.size)
 }
 
-var tmpBlocksFilesCreated = metrics.NewCounter(`vm_tmp_blocks_files_created_total`)
+var (
+	tmpBlocksFilesCreated = metrics.NewCounter(`vm_tmp_blocks_files_created_total`)
+	_ = metrics.NewGauge(`vm_tmp_blocks_files_size_total`, func() float64 {
+		return float64(tmpBlockDirSize())
+	})
+)
 
 // WriteBlockData writes b to tbf.
 //
