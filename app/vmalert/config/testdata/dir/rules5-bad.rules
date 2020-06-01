@@ -1,0 +1,7 @@
+groups:
+  - name: group
+    rules:
+      - alert: rows
+        expr: vm_rows > 0
+      - record: rows
+        expr: sum(vm_rows)

@@ -7,32 +7,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
-// APIAlert represents an notifier.Alert state
-// for WEB view
-type APIAlert struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	GroupID     string            `json:"group_id"`
-	Expression  string            `json:"expression"`
-	State       string            `json:"state"`
-	Value       string            `json:"value"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	ActiveAt    time.Time         `json:"activeAt"`
-}
-
 type requestHandler struct {
 	m *manager
 }
 
 var pathList = [][]string{
+	{"/api/v1/groups", "list all loaded groups and rules"},
 	{"/api/v1/alerts", "list all active alerts"},
 	{"/api/v1/groupID/alertID/status", "get alert status by ID"},
 	// /metrics is served by httpserver by default
@@ -49,8 +35,11 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
 		}
 		return true
+	case "/api/v1/groups":
+		resph.handle(rh.listGroups())
+		return true
 	case "/api/v1/alerts":
-		resph.handle(rh.list())
+		resph.handle(rh.listAlerts())
 		return true
 	case "/-/reload":
 		logger.Infof("api config reload was called, sending sighup")
@@ -67,6 +56,37 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+type listGroupsResponse struct {
+	Data struct {
+		Groups []APIGroup `json:"groups"`
+	} `json:"data"`
+	Status string `json:"status"`
+}
+
+func (rh *requestHandler) listGroups() ([]byte, error) {
+	rh.m.groupsMu.RLock()
+	defer rh.m.groupsMu.RUnlock()
+
+	lr := listGroupsResponse{Status: "success"}
+	for _, g := range rh.m.groups {
+		lr.Data.Groups = append(lr.Data.Groups, g.toAPI())
+	}
+
+	// sort list of alerts for deterministic output
+	sort.Slice(lr.Data.Groups, func(i, j int) bool {
+		return lr.Data.Groups[i].Name < lr.Data.Groups[j].Name
+	})
+
+	b, err := json.Marshal(lr)
+	if err != nil {
+		return nil, &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf(`error encoding list of active alerts: %s`, err),
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	return b, nil
+}
+
 type listAlertsResponse struct {
 	Data struct {
 		Alerts []*APIAlert `json:"alerts"`
@@ -74,13 +94,18 @@ type listAlertsResponse struct {
 	Status string `json:"status"`
 }
 
-func (rh *requestHandler) list() ([]byte, error) {
+func (rh *requestHandler) listAlerts() ([]byte, error) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
+
 	lr := listAlertsResponse{Status: "success"}
 	for _, g := range rh.m.groups {
 		for _, r := range g.Rules {
-			lr.Data.Alerts = append(lr.Data.Alerts, r.AlertsAPI()...)
+			a, ok := r.(*AlertingRule)
+			if !ok {
+				continue
+			}
+			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsAPI()...)
 		}
 	}
 

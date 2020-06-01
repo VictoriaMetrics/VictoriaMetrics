@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -11,30 +10,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func TestRule_Validate(t *testing.T) {
-	if err := (&Rule{}).Validate(); err == nil {
-		t.Errorf("exptected empty name error")
-	}
-	if err := (&Rule{Name: "alert"}).Validate(); err == nil {
-		t.Errorf("exptected empty expr error")
-	}
-	if err := (&Rule{Name: "alert", Expr: "test{"}).Validate(); err == nil {
-		t.Errorf("exptected invalid expr error")
-	}
-	if err := (&Rule{Name: "alert", Expr: "test>0"}).Validate(); err != nil {
-		t.Errorf("exptected valid rule got %s", err)
-	}
-}
-
-func TestRule_AlertToTimeSeries(t *testing.T) {
+func TestAlertingRule_ToTimeSeries(t *testing.T) {
 	timestamp := time.Now()
 	testCases := []struct {
-		rule  *Rule
+		rule  *AlertingRule
 		alert *notifier.Alert
 		expTS []prompbmarshal.TimeSeries
 	}{
 		{
-			newTestRule("instant", 0),
+			newTestAlertingRule("instant", 0),
 			&notifier.Alert{State: notifier.StateFiring},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries(1, map[string]string{
@@ -45,7 +29,7 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("instant extra labels", 0),
+			newTestAlertingRule("instant extra labels", 0),
 			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
 				"job":      "foo",
 				"instance": "bar",
@@ -61,7 +45,7 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("instant labels override", 0),
+			newTestAlertingRule("instant labels override", 0),
 			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
 				alertStateLabel: "foo",
 				"__name__":      "bar",
@@ -75,7 +59,7 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for", time.Second),
+			newTestAlertingRule("for", time.Second),
 			&notifier.Alert{State: notifier.StateFiring, Start: timestamp.Add(time.Second)},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries(1, map[string]string{
@@ -90,7 +74,7 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for pending", 10*time.Second),
+			newTestAlertingRule("for pending", 10*time.Second),
 			&notifier.Alert{State: notifier.StatePending, Start: timestamp.Add(time.Second)},
 			[]prompbmarshal.TimeSeries{
 				newTimeSeries(1, map[string]string{
@@ -107,58 +91,28 @@ func TestRule_AlertToTimeSeries(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
-			tss := tc.rule.AlertToTimeSeries(tc.alert, timestamp)
-			if len(tc.expTS) != len(tss) {
-				t.Fatalf("expected number of timeseries %d; got %d", len(tc.expTS), len(tss))
-			}
-			for i := range tc.expTS {
-				expTS, gotTS := tc.expTS[i], tss[i]
-				if len(expTS.Samples) != len(gotTS.Samples) {
-					t.Fatalf("expected number of samples %d; got %d", len(expTS.Samples), len(gotTS.Samples))
-				}
-				for i, exp := range expTS.Samples {
-					got := gotTS.Samples[i]
-					if got.Value != exp.Value {
-						t.Errorf("expected value %.2f; got %.2f", exp.Value, got.Value)
-					}
-					if got.Timestamp != exp.Timestamp {
-						t.Errorf("expected timestamp %d; got %d", exp.Timestamp, got.Timestamp)
-					}
-				}
-				if len(expTS.Labels) != len(gotTS.Labels) {
-					t.Fatalf("expected number of labels %d; got %d", len(expTS.Labels), len(gotTS.Labels))
-				}
-				for i, exp := range expTS.Labels {
-					got := gotTS.Labels[i]
-					if got.Name != exp.Name {
-						t.Errorf("expected label name %q; got %q", exp.Name, got.Name)
-					}
-					if got.Value != exp.Value {
-						t.Errorf("expected label value %q; got %q", exp.Value, got.Value)
-					}
-				}
+			tc.rule.alerts[tc.alert.ID] = tc.alert
+			tss := tc.rule.toTimeSeries(timestamp)
+			if err := compareTimeSeries(t, tc.expTS, tss); err != nil {
+				t.Fatalf("timeseries missmatch: %s", err)
 			}
 		})
 	}
 }
 
-func newTestRule(name string, waitFor time.Duration) *Rule {
-	return &Rule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor}
-}
-
-func TestRule_Exec(t *testing.T) {
+func TestAlertingRule_Exec(t *testing.T) {
 	testCases := []struct {
-		rule      *Rule
+		rule      *AlertingRule
 		steps     [][]datasource.Metric
 		expAlerts map[uint64]*notifier.Alert
 	}{
 		{
-			newTestRule("empty", 0),
+			newTestAlertingRule("empty", 0),
 			[][]datasource.Metric{},
 			map[uint64]*notifier.Alert{},
 		},
 		{
-			newTestRule("empty labels", 0),
+			newTestAlertingRule("empty labels", 0),
 			[][]datasource.Metric{
 				{datasource.Metric{}},
 			},
@@ -167,7 +121,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("single-firing", 0),
+			newTestAlertingRule("single-firing", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 			},
@@ -176,7 +130,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("single-firing=>inactive", 0),
+			newTestAlertingRule("single-firing=>inactive", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -186,7 +140,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("single-firing=>inactive=>firing", 0),
+			newTestAlertingRule("single-firing=>inactive=>firing", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -197,7 +151,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("single-firing=>inactive=>firing=>inactive", 0),
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -209,7 +163,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("single-firing=>inactive=>firing=>inactive=>empty", 0),
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -220,7 +174,7 @@ func TestRule_Exec(t *testing.T) {
 			map[uint64]*notifier.Alert{},
 		},
 		{
-			newTestRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
+			newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>empty=>firing", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{},
@@ -234,7 +188,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("multiple-firing", 0),
+			newTestAlertingRule("multiple-firing", 0),
 			[][]datasource.Metric{
 				{
 					metricWithLabels(t, "name", "foo"),
@@ -249,7 +203,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("multiple-steps-firing", 0),
+			newTestAlertingRule("multiple-steps-firing", 0),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo1")},
@@ -264,7 +218,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("duplicate", 0),
+			newTestAlertingRule("duplicate", 0),
 			[][]datasource.Metric{
 				{
 					// metrics with the same labelset should result in one alert
@@ -277,7 +231,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for-pending", time.Minute),
+			newTestAlertingRule("for-pending", time.Minute),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 			},
@@ -286,7 +240,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for-fired", time.Millisecond),
+			newTestAlertingRule("for-fired", time.Millisecond),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -296,7 +250,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for-pending=>empty", time.Second),
+			newTestAlertingRule("for-pending=>empty", time.Second),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -306,7 +260,7 @@ func TestRule_Exec(t *testing.T) {
 			map[uint64]*notifier.Alert{},
 		},
 		{
-			newTestRule("for-pending=>firing=>inactive", time.Millisecond),
+			newTestAlertingRule("for-pending=>firing=>inactive", time.Millisecond),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -318,10 +272,10 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for-pending=>firing=>inactive=>pending", time.Millisecond),
+			newTestAlertingRule("for-pending=>firing=>inactive=>pending", time.Millisecond),
 			[][]datasource.Metric{
-				{metricWithLabels(t, "name", "foo")},
-				{metricWithLabels(t, "name", "foo")},
+				//{metricWithLabels(t, "name", "foo")},
+				//{metricWithLabels(t, "name", "foo")},
 				// empty step to reset pending alerts
 				{},
 				{metricWithLabels(t, "name", "foo")},
@@ -331,7 +285,7 @@ func TestRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestRule("for-pending=>firing=>inactive=>pending=>firing", time.Millisecond),
+			newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", time.Millisecond),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -349,11 +303,11 @@ func TestRule_Exec(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
 			fq := &fakeQuerier{}
-			tc.rule.group = fakeGroup
+			tc.rule.GroupID = fakeGroup.ID()
 			for _, step := range tc.steps {
 				fq.reset()
 				fq.add(step...)
-				if err := tc.rule.Exec(context.TODO(), fq); err != nil {
+				if _, err := tc.rule.Exec(context.TODO(), fq, false); err != nil {
 					t.Fatalf("unexpected err: %s", err)
 				}
 				// artificial delay between applying steps
@@ -375,49 +329,9 @@ func TestRule_Exec(t *testing.T) {
 	}
 }
 
-func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
-	t.Helper()
-	if len(labels) == 0 || len(labels)%2 != 0 {
-		t.Fatalf("expected to get even number of labels")
-	}
-	m := datasource.Metric{}
-	for i := 0; i < len(labels); i += 2 {
-		m.Labels = append(m.Labels, datasource.Label{
-			Name:  labels[i],
-			Value: labels[i+1],
-		})
-	}
-	return m
-}
-
-type fakeQuerier struct {
-	sync.Mutex
-	metrics []datasource.Metric
-}
-
-func (fq *fakeQuerier) reset() {
-	fq.Lock()
-	fq.metrics = fq.metrics[:0]
-	fq.Unlock()
-}
-
-func (fq *fakeQuerier) add(metrics ...datasource.Metric) {
-	fq.Lock()
-	fq.metrics = append(fq.metrics, metrics...)
-	fq.Unlock()
-}
-
-func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
-	fq.Lock()
-	cpy := make([]datasource.Metric, len(fq.metrics))
-	copy(cpy, fq.metrics)
-	fq.Unlock()
-	return cpy, nil
-}
-
-func TestRule_Restore(t *testing.T) {
+func TestAlertingRule_Restore(t *testing.T) {
 	testCases := []struct {
-		rule      *Rule
+		rule      *AlertingRule
 		metrics   []datasource.Metric
 		expAlerts map[uint64]*notifier.Alert
 	}{
@@ -502,7 +416,7 @@ func TestRule_Restore(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.rule.Name, func(t *testing.T) {
 			fq := &fakeQuerier{}
-			tc.rule.group = fakeGroup
+			tc.rule.GroupID = fakeGroup.ID()
 			fq.add(tc.metrics...)
 			if err := tc.rule.Restore(context.TODO(), fq, time.Hour); err != nil {
 				t.Fatalf("unexpected err: %s", err)
@@ -526,8 +440,8 @@ func TestRule_Restore(t *testing.T) {
 	}
 }
 
-func newTestRuleWithLabels(name string, labels ...string) *Rule {
-	r := newTestRule(name, 0)
+func newTestRuleWithLabels(name string, labels ...string) *AlertingRule {
+	r := newTestAlertingRule(name, 0)
 	r.Labels = make(map[string]string)
 	for i := 0; i < len(labels); i += 2 {
 		r.Labels[labels[i]] = labels[i+1]
@@ -535,9 +449,6 @@ func newTestRuleWithLabels(name string, labels ...string) *Rule {
 	return r
 }
 
-func metricWithValueAndLabels(t *testing.T, value float64, labels ...string) datasource.Metric {
-	t.Helper()
-	m := metricWithLabels(t, labels...)
-	m.Value = value
-	return m
+func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
+	return &AlertingRule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor}
 }

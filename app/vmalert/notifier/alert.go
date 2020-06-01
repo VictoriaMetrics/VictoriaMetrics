@@ -87,7 +87,7 @@ func templateAnnotations(annotations map[string]string, header string, data aler
 		builder.WriteString(header)
 		builder.WriteString(text)
 		if err := templateAnnotation(&buf, builder.String(), data); err != nil {
-			eg.errs = append(eg.errs, fmt.Sprintf("key %s, template %s:%s", key, text, err))
+			eg.errs = append(eg.errs, fmt.Sprintf("key %q, template %q: %s", key, text, err))
 			continue
 		}
 		r[key] = buf.String()
@@ -98,10 +98,10 @@ func templateAnnotations(annotations map[string]string, header string, data aler
 func templateAnnotation(dst io.Writer, text string, data alertTplData) error {
 	tpl, err := template.New("").Funcs(tmplFunc).Option("missingkey=zero").Parse(text)
 	if err != nil {
-		return fmt.Errorf("error parsing annotation:%w", err)
+		return fmt.Errorf("error parsing annotation: %w", err)
 	}
 	if err = tpl.Execute(dst, data); err != nil {
-		return fmt.Errorf("error evaluating annotation template:%w", err)
+		return fmt.Errorf("error evaluating annotation template: %w", err)
 	}
 	return nil
 }

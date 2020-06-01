@@ -17,5 +17,5 @@ func (eg *errGroup) err() error {
 }
 
 func (eg *errGroup) Error() string {
-	return fmt.Sprintf("errors:%s", strings.Join(eg.errs, "\n"))
+	return fmt.Sprintf("errors: %s", strings.Join(eg.errs, "\n"))
 }
