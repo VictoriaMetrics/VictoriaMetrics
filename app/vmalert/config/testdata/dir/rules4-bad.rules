@@ -1,0 +1,7 @@
+groups:
+  - name: group
+    rules:
+      - alert: rows
+        record: record
+        for: 5m
+        expr: vm_rows > 0

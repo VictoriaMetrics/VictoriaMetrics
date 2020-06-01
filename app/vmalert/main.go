@@ -42,7 +42,9 @@ absolute path to all .yaml files in root.`)
 		" in form of timeseries. E.g. http://127.0.0.1:8428")
 	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
 	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
-	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 10e3, "Defines the max number of pending datapoints to remote write endpoint")
+	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
+	remoteWriteMaxBatchSize = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
+	remoteWriteConcurrency  = flag.Int("remoteWrite.concurrency", 1, "Defines number of readers that concurrently write into remote storage")
 
 	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
 		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+
@@ -52,7 +54,7 @@ absolute path to all .yaml files in root.`)
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 
-	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules. Default 1m")
+	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
 	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
@@ -81,7 +83,9 @@ func main() {
 	if *remoteWriteURL != "" {
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
 			Addr:          *remoteWriteURL,
+			Concurrency:   *remoteWriteConcurrency,
 			MaxQueueSize:  *remoteWriteMaxQueueSize,
+			MaxBatchSize:  *remoteWriteMaxBatchSize,
 			FlushInterval: *evaluationInterval,
 			BasicAuthUser: *remoteWriteUsername,
 			BasicAuthPass: *remoteWritePassword,

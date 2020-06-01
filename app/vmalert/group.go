@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
@@ -15,15 +17,44 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	Name  string
-	File  string
-	Rules []*Rule
+	Name     string
+	File     string
+	Rules    []Rule
+	Interval time.Duration
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
 	// channel accepts new Group obj
 	// which supposed to update current group
-	updateCh chan Group
+	updateCh chan *Group
+	mu       sync.RWMutex
+}
+
+func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
+	g := &Group{
+		Name:       cfg.Name,
+		File:       cfg.File,
+		Interval:   cfg.Interval,
+		doneCh:     make(chan struct{}),
+		finishedCh: make(chan struct{}),
+		updateCh:   make(chan *Group),
+	}
+	if g.Interval == 0 {
+		g.Interval = defaultInterval
+	}
+	rules := make([]Rule, len(cfg.Rules))
+	for i, r := range cfg.Rules {
+		rules[i] = g.newRule(r)
+	}
+	g.Rules = rules
+	return g
+}
+
+func (g *Group) newRule(rule config.Rule) Rule {
+	if rule.Alert != "" {
+		return newAlertingRule(g.ID(), rule)
+	}
+	return newRecordingRule(g.ID(), rule)
 }
 
 // ID return unique group ID that consists of
@@ -36,48 +67,49 @@ func (g *Group) ID() uint64 {
 	return hash.Sum64()
 }
 
-// Restore restores alerts state for all group rules with For > 0
+// Restore restores alerts state for group rules
 func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
 	for _, rule := range g.Rules {
-		if rule.For == 0 {
-			return nil
+		rr, ok := rule.(*AlertingRule)
+		if !ok {
+			continue
 		}
-		if err := rule.Restore(ctx, q, lookback); err != nil {
-			return fmt.Errorf("error while restoring rule %q: %s", rule.Name, err)
+		if rr.For < 1 {
+			continue
+		}
+		if err := rr.Restore(ctx, q, lookback); err != nil {
+			return fmt.Errorf("error while restoring rule %q: %s", rule, err)
 		}
 	}
 	return nil
 }
 
 // updateWith updates existing group with
-// passed group object.
+// passed group object. This function ignores group
+// evaluation interval change. It supposed to be updated
+// in group.start function.
 // Not thread-safe.
-func (g *Group) updateWith(newGroup Group) {
-	rulesRegistry := make(map[string]*Rule)
+func (g *Group) updateWith(newGroup *Group) error {
+	rulesRegistry := make(map[uint64]Rule)
 	for _, nr := range newGroup.Rules {
-		rulesRegistry[nr.id()] = nr
+		rulesRegistry[nr.ID()] = nr
 	}
 
 	for i, or := range g.Rules {
-		nr, ok := rulesRegistry[or.id()]
+		nr, ok := rulesRegistry[or.ID()]
 		if !ok {
 			// old rule is not present in the new list
 			// so we mark it for removing
 			g.Rules[i] = nil
 			continue
 		}
-
-		// copy all significant fields.
-		// alerts state isn't copied since
-		// it should be updated in next 2 Execs
-		or.For = nr.For
-		or.Expr = nr.Expr
-		or.Labels = nr.Labels
-		or.Annotations = nr.Annotations
-		delete(rulesRegistry, nr.id())
+		if err := or.UpdateWith(nr); err != nil {
+			return err
+		}
+		delete(rulesRegistry, nr.ID())
 	}
 
-	var newRules []*Rule
+	var newRules []Rule
 	for _, r := range g.Rules {
 		if r == nil {
 			// skip nil rules
@@ -90,6 +122,7 @@ func (g *Group) updateWith(newGroup Group) {
 		newRules = append(newRules, nr)
 	}
 	g.Rules = newRules
+	return nil
 }
 
 var (
@@ -116,10 +149,15 @@ func (g *Group) close() {
 	<-g.finishedCh
 }
 
-func (g *Group) start(ctx context.Context, interval time.Duration,
-	querier datasource.Querier, nr notifier.Notifier, rw *remotewrite.Client) {
-	logger.Infof("group %q started", g.Name)
-	t := time.NewTicker(interval)
+func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifier.Notifier, rw *remotewrite.Client) {
+	logger.Infof("group %q started with interval %v", g.Name, g.Interval)
+
+	var returnSeries bool
+	if rw != nil {
+		returnSeries = true
+	}
+
+	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
 		select {
@@ -132,7 +170,20 @@ func (g *Group) start(ctx context.Context, interval time.Duration,
 			close(g.finishedCh)
 			return
 		case ng := <-g.updateCh:
-			g.updateWith(ng)
+			g.mu.Lock()
+			err := g.updateWith(ng)
+			if err != nil {
+				logger.Errorf("group %q: failed to update: %s", g.Name, err)
+				g.mu.Unlock()
+				continue
+			}
+			if g.Interval != ng.Interval {
+				g.Interval = ng.Interval
+				t.Stop()
+				t = time.NewTicker(g.Interval)
+				logger.Infof("group %q: changed evaluation interval to %v", g.Name, g.Interval)
+			}
+			g.mu.Unlock()
 		case <-t.C:
 			iterationTotal.Inc()
 			iterationStart := time.Now()
@@ -140,58 +191,55 @@ func (g *Group) start(ctx context.Context, interval time.Duration,
 				execTotal.Inc()
 
 				execStart := time.Now()
-				err := rule.Exec(ctx, querier)
+				tss, err := rule.Exec(ctx, querier, returnSeries)
 				execDuration.UpdateDuration(execStart)
 
 				if err != nil {
 					execErrors.Inc()
-					logger.Errorf("failed to execute rule %q.%q: %s", g.Name, rule.Name, err)
+					logger.Errorf("failed to execute rule %q.%q: %s", g.Name, rule, err)
 					continue
 				}
 
-				var alertsToSend []notifier.Alert
-				for _, a := range rule.alerts {
+				if len(tss) > 0 {
+					remoteWriteSent.Add(len(tss))
+					for _, ts := range tss {
+						if err := rw.Push(ts); err != nil {
+							remoteWriteErrors.Inc()
+							logger.Errorf("failed to remote write for rule %q.%q: %s", g.Name, rule, err)
+						}
+					}
+				}
+
+				ar, ok := rule.(*AlertingRule)
+				if !ok {
+					continue
+				}
+				var alerts []notifier.Alert
+				for _, a := range ar.alerts {
 					switch a.State {
 					case notifier.StateFiring:
 						// set End to execStart + 3 intervals
 						// so notifier can resolve it automatically if `vmalert`
 						// won't be able to send resolve for some reason
-						a.End = execStart.Add(3 * interval)
-						alertsToSend = append(alertsToSend, *a)
-						pushToRW(rw, rule, a, execStart)
-					case notifier.StatePending:
-						pushToRW(rw, rule, a, execStart)
+						a.End = execStart.Add(3 * g.Interval)
+						alerts = append(alerts, *a)
 					case notifier.StateInactive:
 						// set End to execStart to notify
 						// that it was just resolved
 						a.End = execStart
-						alertsToSend = append(alertsToSend, *a)
+						alerts = append(alerts, *a)
 					}
 				}
-				if len(alertsToSend) == 0 {
+				if len(alerts) < 1 {
 					continue
 				}
-				alertsSent.Add(len(alertsToSend))
-				if err := nr.Send(ctx, alertsToSend); err != nil {
+				alertsSent.Add(len(alerts))
+				if err := nr.Send(ctx, alerts); err != nil {
 					alertsSendErrors.Inc()
-					logger.Errorf("failed to send alert for rule %q.%q: %s", g.Name, rule.Name, err)
+					logger.Errorf("failed to send alert for rule %q.%q: %s", g.Name, rule, err)
 				}
 			}
 			iterationDuration.UpdateDuration(iterationStart)
-		}
-	}
-}
-
-func pushToRW(rw *remotewrite.Client, rule *Rule, a *notifier.Alert, timestamp time.Time) {
-	if rw == nil {
-		return
-	}
-	tss := rule.AlertToTimeSeries(a, timestamp)
-	remoteWriteSent.Add(len(tss))
-	for _, ts := range tss {
-		if err := rw.Push(ts); err != nil {
-			remoteWriteErrors.Inc()
-			logger.Errorf("failed to push timeseries to remotewrite: %s", err)
 		}
 	}
 }

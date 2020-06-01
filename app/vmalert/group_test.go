@@ -4,28 +4,28 @@ import (
 	"context"
 	"reflect"
 	"sort"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
 func TestUpdateWith(t *testing.T) {
 	testCases := []struct {
 		name         string
-		currentRules []*Rule
-		// rules must be sorted by name
-		newRules []*Rule
+		currentRules []Rule
+		// rules must be sorted by ID
+		newRules []Rule
 	}{
 		{
 			"new rule",
-			[]*Rule{},
-			[]*Rule{{Name: "bar"}},
+			[]Rule{},
+			[]Rule{&AlertingRule{Name: "bar"}},
 		},
 		{
-			"update rule",
-			[]*Rule{{
+			"update alerting rule",
+			[]Rule{&AlertingRule{
 				Name: "foo",
 				Expr: "up > 0",
 				For:  time.Second,
@@ -37,8 +37,8 @@ func TestUpdateWith(t *testing.T) {
 					"description": "{{$labels}}",
 				},
 			}},
-			[]*Rule{{
-				Name: "bar",
+			[]Rule{&AlertingRule{
+				Name: "foo",
 				Expr: "up > 10",
 				For:  time.Second,
 				Labels: map[string]string{
@@ -50,55 +50,81 @@ func TestUpdateWith(t *testing.T) {
 			}},
 		},
 		{
+			"update recording rule",
+			[]Rule{&RecordingRule{
+				Name: "foo",
+				Expr: "max(up)",
+				Labels: map[string]string{
+					"bar": "baz",
+				},
+			}},
+			[]Rule{&RecordingRule{
+				Name: "foo",
+				Expr: "min(up)",
+				Labels: map[string]string{
+					"baz": "bar",
+				},
+			}},
+		},
+		{
 			"empty rule",
-			[]*Rule{{Name: "foo"}},
-			[]*Rule{},
+			[]Rule{&AlertingRule{Name: "foo"}, &RecordingRule{Name: "bar"}},
+			[]Rule{},
 		},
 		{
 			"multiple rules",
-			[]*Rule{{Name: "bar"}, {Name: "baz"}, {Name: "foo"}},
-			[]*Rule{{Name: "baz"}, {Name: "foo"}},
+			[]Rule{
+				&AlertingRule{Name: "bar"},
+				&AlertingRule{Name: "baz"},
+				&RecordingRule{Name: "foo"},
+			},
+			[]Rule{
+				&AlertingRule{Name: "baz"},
+				&RecordingRule{Name: "foo"},
+			},
 		},
 		{
 			"replace rule",
-			[]*Rule{{Name: "foo1"}},
-			[]*Rule{{Name: "foo2"}},
+			[]Rule{&AlertingRule{Name: "foo1"}},
+			[]Rule{&AlertingRule{Name: "foo2"}},
 		},
 		{
 			"replace multiple rules",
-			[]*Rule{{Name: "foo1"}, {Name: "foo2"}},
-			[]*Rule{{Name: "foo3"}, {Name: "foo4"}},
+			[]Rule{
+				&AlertingRule{Name: "foo1"},
+				&RecordingRule{Name: "foo2"},
+				&AlertingRule{Name: "foo3"},
+			},
+			[]Rule{
+				&AlertingRule{Name: "foo3"},
+				&AlertingRule{Name: "foo4"},
+				&RecordingRule{Name: "foo5"},
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &Group{Rules: tc.currentRules}
-			g.updateWith(Group{Rules: tc.newRules})
+			err := g.updateWith(&Group{Rules: tc.newRules})
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			if len(g.Rules) != len(tc.newRules) {
 				t.Fatalf("expected to have %d rules; got: %d",
 					len(g.Rules), len(tc.newRules))
 			}
 			sort.Slice(g.Rules, func(i, j int) bool {
-				return g.Rules[i].Name < g.Rules[j].Name
+				return g.Rules[i].ID() < g.Rules[j].ID()
 			})
 			for i, r := range g.Rules {
 				got, want := r, tc.newRules[i]
-				if got.Name != want.Name {
-					t.Fatalf("expected to have rule %q; got %q", want.Name, got.Name)
+				if got.ID() != want.ID() {
+					t.Fatalf("expected to have rule %q; got %q", want, got)
 				}
-				if got.Expr != want.Expr {
-					t.Fatalf("expected to have expression %q; got %q", want.Expr, got.Expr)
-				}
-				if got.For != want.For {
-					t.Fatalf("expected to have for %q; got %q", want.For, got.For)
-				}
-				if !reflect.DeepEqual(got.Annotations, want.Annotations) {
-					t.Fatalf("expected to have annotations %#v; got %#v", want.Annotations, got.Annotations)
-				}
-				if !reflect.DeepEqual(got.Labels, want.Labels) {
-					t.Fatalf("expected to have labels %#v; got %#v", want.Labels, got.Labels)
+				if err := compareRules(t, got, want); err != nil {
+					t.Fatalf("comparsion error: %s", err)
 				}
 			}
 		})
@@ -107,11 +133,12 @@ func TestUpdateWith(t *testing.T) {
 
 func TestGroupStart(t *testing.T) {
 	// TODO: make parsing from string instead of file
-	groups, err := Parse([]string{"testdata/rules1-good.rules"}, true)
+	groups, err := config.Parse([]string{"config/testdata/rules1-good.rules"}, true)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
-	g := groups[0]
+	const evalInterval = time.Millisecond
+	g := newGroup(groups[0], evalInterval)
 
 	fn := &fakeNotifier{}
 	fs := &fakeQuerier{}
@@ -120,27 +147,26 @@ func TestGroupStart(t *testing.T) {
 	m1 := metricWithLabels(t, "instance", inst1, "job", job)
 	m2 := metricWithLabels(t, "instance", inst2, "job", job)
 
-	r := g.Rules[0]
-	alert1, err := r.newAlert(m1)
+	r := g.Rules[0].(*AlertingRule)
+	alert1, err := r.newAlert(m1, time.Now())
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
 	alert1.State = notifier.StateFiring
 	alert1.ID = hash(m1)
 
-	alert2, err := r.newAlert(m2)
+	alert2, err := r.newAlert(m2, time.Now())
 	if err != nil {
 		t.Fatalf("faield to create alert: %s", err)
 	}
 	alert2.State = notifier.StateFiring
 	alert2.ID = hash(m2)
 
-	const evalInterval = time.Millisecond
 	finished := make(chan struct{})
 	fs.add(m1)
 	fs.add(m2)
 	go func() {
-		g.start(context.Background(), evalInterval, fs, fn, nil)
+		g.start(context.Background(), fs, fn, nil)
 		close(finished)
 	}()
 
@@ -196,22 +222,4 @@ func compareAlerts(t *testing.T, as, bs []notifier.Alert) {
 			t.Fatalf("expected to have labels %#v; got %#v", a.Labels, b.Labels)
 		}
 	}
-}
-
-type fakeNotifier struct {
-	sync.Mutex
-	alerts []notifier.Alert
-}
-
-func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
-	fn.Lock()
-	defer fn.Unlock()
-	fn.alerts = alerts
-	return nil
-}
-
-func (fn *fakeNotifier) getAlerts() []notifier.Alert {
-	fn.Lock()
-	defer fn.Unlock()
-	return fn.alerts
 }

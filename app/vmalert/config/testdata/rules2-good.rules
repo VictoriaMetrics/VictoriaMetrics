@@ -1,0 +1,28 @@
+groups:
+  - name: TestGroup
+    interval: 2s
+    rules:
+      - alert: Conns
+        expr: sum(vm_tcplistener_conns) by(instance) > 1
+        for: 3m
+        annotations:
+          summary: "Too high connection number for {{$labels.instance}}"
+          description: "It is {{ $value }} connections for {{$labels.instance}}"
+      - alert: ExampleAlertAlwaysFiring
+        expr: sum by(job)
+          (up == 1)
+      - record: handler:requests:rate5m
+        expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
+        labels:
+          recording: true
+      - record: code:requests:rate5m
+        expr: sum(rate(promhttp_metric_handler_requests_total[5m])) by (code)
+        labels:
+          recording: true
+      - record: successful_requests:ratio_rate5m
+        labels:
+          recording: true
+        expr: |2
+            sum(code:requests:rate5m{code="200"})
+          /
+            sum(code:requests:rate5m)

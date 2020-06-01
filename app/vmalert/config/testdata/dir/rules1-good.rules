@@ -9,5 +9,3 @@ groups:
         annotations:
           summary: "{{ $value }}"
           description: "{{$labels}}"
-
-
