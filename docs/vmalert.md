@@ -1,19 +1,17 @@
-## VM Alert
+## vmalert
 
-`vmalert` executes a list of given MetricsQL expressions (rules) and
-sends alerts to [Alert Manager](https://github.com/prometheus/alertmanager).   
+`vmalert` executes a list of given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
+or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
+rules against configured address.
 
 ### Features:
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
 * VictoriaMetrics [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL)
- expressions validation;
+ support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
 * Lightweight without extra dependencies.
-
-### TODO:
-* Support recording rules.
 
 ### QuickStart
 
@@ -26,9 +24,9 @@ make vmalert
 The build binary will be placed to `VictoriaMetrics/bin` folder.
 
 To start using `vmalert` you will need the following things:
-* list of alert rules - PromQL/MetricsQL expressions to execute;
+* list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable VictoriaMetrics instance for rules execution;
-* notifier address - reachable Alertmanager instance for processing, 
+* notifier address - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing, 
 aggregating alerts and sending notifications.
 
 Then configure `vmalert` accordingly:
@@ -38,22 +36,27 @@ Then configure `vmalert` accordingly:
         -notifier.url=http://localhost:9093
 ```
 
-Example for `.rules` file may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata/rules0-good.rules)
+Example for `.rules` file may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata).
+
+`vmalert` may be configured with `-remoteWrite` flag to write recording rules and 
+alerts state in form of timeseries via remote write protocol. Alerts state will be written 
+as `ALERTS` timeseries. These timeseries may be used to recover alerts state on `vmalert` 
+restarts if `-remoteRead` is configured.
 
 `vmalert` runs evaluation for every group in a separate goroutine.
 Rules in group evaluated one-by-one sequentially. 
 
+**Important:** while recording rules execution is sequential, writing of timeseries results to remote
+storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
+recording rule is reused in next one.
+
 `vmalert` also runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
+* `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/<groupName>/<alertID>/status" ` - get alert status by ID.
 Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
-
-`vmalert` may be configured with `-remoteWrite` flag to write alerts state in form of timeseries
-via remote write protocol. Alerts state will be written as `ALERTS` timeseries. These timeseries
-may be used to recover alerts state on `vmalert` restarts if `-remoteRead` is configured.
-
 
 ### Configuration
 
@@ -66,20 +69,14 @@ Usage of vmalert:
         Optional basic auth username for -datasource.url
   -datasource.url string
         Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
-  -enableTCP6
-        Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
   -evaluationInterval duration
-        How often to evaluate the rules. Default 1m (default 1m0s)
+        How often to evaluate the rules (default 1m0s)
   -external.url string
         External URL is used as alert's source for sent alerts to the notifier
-  -http.maxGracefulShutdownDuration duration
-        The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
-  -httpAuth.password string
-        Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
-  -httpAuth.username string
-        Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
         Address to listen for http connections (default ":8880")
+  -metricsAuthKey string
+        Auth key for /metrics. It overrides httpAuth settings
   -notifier.url string
         Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
   -remoteRead.basicAuth.password string
@@ -94,8 +91,12 @@ Usage of vmalert:
         Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.username string
         Optional basic auth username for -remoteWrite.url
-  -remoteWrite.maxQueueSize
-	    Defines the max number of pending datapoints to remote write endpoint
+  -remoteWrite.concurrency int
+        Defines number of readers that concurrently write into remote storage (default 1)
+  -remoteWrite.maxBatchSize int
+        Defines defines max number of timeseries to be flushed at once (default 1000)
+  -remoteWrite.maxQueueSize int
+        Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.url string
         Optional URL to Victoria Metrics or VMInsert where to persist alerts state in form of timeseries. E.g. http://127.0.0.1:8428
   -rule value
