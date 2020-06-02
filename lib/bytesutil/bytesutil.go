@@ -2,6 +2,7 @@ package bytesutil
 
 import (
 	"reflect"
+	"runtime"
 	"unsafe"
 )
 
@@ -29,5 +30,7 @@ func ToUnsafeBytes(s string) []byte {
 	slh.Data = sh.Data
 	slh.Len = sh.Len
 	slh.Cap = sh.Len
-	return *(*[]byte)(unsafe.Pointer(&slh))
+	b := *(*[]byte)(unsafe.Pointer(&slh))
+	runtime.KeepAlive(s)
+	return b
 }
