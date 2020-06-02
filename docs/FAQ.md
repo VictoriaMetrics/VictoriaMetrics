@@ -2,64 +2,41 @@
 
 ### What is the main purpose of VictoriaMetrics?
 
-To provide the best long-term [remote storage](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) solution for [Prometheus](https://prometheus.io/).
+To provide the best monitoring solution.
+
+
+### Who uses VictoriaMetrics?
+
+See [case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies).
 
 
 ### Which features does VictoriaMetrics have?
 
-* Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-  Additionally, VictoriaMetrics extends PromQL with opt-in [useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
-* High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
-  and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
-  [Outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-* [Uses 10x less RAM than InfluxDB](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) when working with millions of unique time series (aka high cardinality).
-* High data compression, so [up to 70x more data points](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
-  may be crammed into a limited storage comparing to TimescaleDB.
-* Optimized for storage with high-latency IO and low iops (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc). See [graphs from these benchmarks](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b).
-* A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, M3DB, Cortex, InfluxDB or TimescaleDB.
-  See [vertical scalability benchmarks](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
-  and [comparing Thanos to VictoriaMetrics](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
-* Easy operation:
-  * VictoriaMetrics consists of a single executable without external dependencies.
-  * All the configuration is done via explicit command-line flags with reasonable defaults.
-  * All the data is stored in a single directory pointed by `-storageDataPath` flag.
-  * Easy backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-* Storage is protected from corruption on unclean shutdown (i.e. hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-* Supports metrics' ingestion and backfilling via the following protocols:
-  * [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-  * [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
-  * [Graphite plaintext protocol](https://graphite.readthedocs.io/en/latest/feeding-carbon.html) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon)
-    if `-graphiteListenAddr` is set.
-  * [OpenTSDB put message](http://opentsdb.net/docs/build/html/api_telnet/put.html) if `-opentsdbListenAddr` is set.
-* Ideally works with big amounts of time series data from IoT sensors, connected car sensors and industrial sensors.
-* Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
-
-
-### Which clients do you target?
-
-The following Prometheus users may be interested in VictoriaMetrics:
-- Users who don't want to bother with Prometheus' local storage operational burden - backups, replication, capacity planning, scalability, etc.
-- Users with multiple Prometheus instances who want performing arbitrary queries over all the metrics collected by their Prometheus instances (aka `global querying view`).
-- Users who want reducing costs for storing huge amounts of time series data.
+See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#prominent-features).
 
 
 ### How to start using VictoriaMetrics?
 
-Start with [single-node version](Single-server-VictoriaMetrics). It is easy to configure and operate. It should fit the majority of use cases.
+See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Quick-Start).
 
 
-### Is it safe to enable [remote write storage](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
+### Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 
-Yes. Prometheus continues writing data to local storage after enabling remote storage write, so all the existing local storage data
+Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data
 and new data is available for querying via Prometheus as usual.
+
+It is recommended using [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) for scraping Prometheus targets
+and writing data to VictoriaMetrics.
 
 
 ### How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3 from Uber](https://eng.uber.com/m3/), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), etc.?
 
-VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL with useful extensions for PromQL](MetricsQL). The simplicity is twofold:
-- It is simpler to configure and operate. There is no need in configuring third-party [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md)
-  or fighting with [gossip protocol](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
-- VictoriaMetrics has simpler architecture, which means less bugs and more useful features in the long run comparing to competing TSDBs.
+VictoriaMetrics is simpler, faster, more cost-effective and it provides [MetricsQL query language](MetricsQL) based on PromQL. The simplicity is twofold:
+- It is simpler to configure and operate. There is no need in configuring [sidecars](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md),
+  fighting [gossip protocol](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md)
+  or setting up third-party systems such as [Consul](https://github.com/cortexproject/cortex/issues/157), [Cassandra](https://cortexmetrics.io/docs/production/cassandra/),
+  [DynamoDB](https://cortexmetrics.io/docs/production/aws/) or [Memcached](https://cortexmetrics.io/docs/production/caching/).
+- VictoriaMetrics has simpler architecture. This means less bugs and more useful features in the long run comparing to competing TSDBs.
 
 See [comparing Thanos to VictoriaMetrics cluster](https://medium.com/@valyala/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 and [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk from [PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
@@ -70,55 +47,68 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 ### What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)?
 
 VictoriaMetrics is similar to Cortex in the following aspects:
-- Both systems accept data from Prometheus via standard [remote_write API](https://prometheus.io/docs/practices/remote_write/),
-  i.e. there is no need in running sidecars unlike in [Thanos](https://github.com/thanos-io/thanos) case.
-- Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format).
+- Both systems accept data from [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) or Prometheus
+  via standard [remote_write API](https://prometheus.io/docs/practices/remote_write/), i.e. there is no need in running sidecars
+  unlike in [Thanos](https://github.com/thanos-io/thanos) case.
+- Both systems support multi-tenancy out of the box. See [the corresponding docs for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#multitenancy).
+- Both systems support data replication. See [replication in Cortex](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#hashing) and [replication in VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#replication-and-data-safety).
+- Both systems scale horizontally to multiple nodes. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#cluster-resizing-and-scalability) for details.
+- Both systems support alerting and recording rules via the corresponding tools such as [vmalert](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md).
+
 
 The main differences between Cortex and VictoriaMetrics:
 - Cortex re-uses Prometheus source code, while VictoriaMetrics is written from scratch.
-- Cortex provides [Ruler](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md#ruler) and [Alertmanager](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md#alertmanager) components,
-  which are currently missing in VictoriaMetrics. However, these components can be substituted by [Promxy](https://github.com/jacksontj/promxy#how-do-i-use-alertingrecording-rules-in-promxy).
 - Cortex heavily relies on third-party services such as Consul, Memcache, DynamoDB, BigTable, Cassandra, etc.
   This may increase operational complexity and reduce system reliability comparing to VictoriaMetrics' case,
   which doesn't use any external services. Compare [Cortex Architecture](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md)
   to [VictoriaMetrics architecture](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#architecture-overview).
 - VictoriaMetrics provides [production-ready single-node solution](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md),
   which is much easier to setup and operate than Cortex cluster.
-- Cortex may lose up to 12 hours of recent data on Ingestor failure - see [the corresponding docs](https://github.com/cortexproject/cortex/blob/master/docs/architecture.md#ingesters-failure-and-data-loss).
+- Cortex may lose up to 12 hours of recent data on Ingestor failure - see [the corresponding docs](https://github.com/cortexproject/cortex/blob/fe56f1420099aa1bf1ce09316c186e05bddee879/docs/architecture.md#ingesters-failure-and-data-loss).
   VictoriaMetrics may lose only a few seconds of recent data, which isn't synced to persistent storage yet.
   See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
-- Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from Adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
+- Cortex is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from Adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) and [other case studies](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies).
+- VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol - InfluxDB, OpenTSDB, Graphite, CSV.
+  See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data) for details.
 
 
 ### What is the difference between VictoriaMetrics and [Thanos](https://github.com/thanos-io/thanos)?
 
 - Thanos re-uses Prometheus source code, while VictoriaMetrics is written from scratch.
-- Thanos provides [Ruler component](https://github.com/thanos-io/thanos/blob/master/docs/components/rule.md),
-  while VictoriaMetrics relies on [Promxy for alerting and recording rules](https://github.com/jacksontj/promxy#how-do-i-use-alertingrecording-rules-in-promxy).
 - VictoriaMetrics accepts data via [standard remote_write API for Prometheus](https://prometheus.io/docs/practices/remote_write/),
   while Thanos uses non-standard [Sidecar](https://github.com/thanos-io/thanos/blob/master/docs/components/sidecar.md), which must run alongside each Prometheus instance.
-- Thanos Sidecar requires disabling data compaction in Prometheus, which may hurt Prometheus performance and increase RAM usage.
-- Thanos stores data on object storage (Amazon S3 or Google GCS), while VictoriaMetrics stores data on block storage (GCP persistent disks, Amazon EBS or bare metal HDD).
+- Thanos Sidecar requires disabling data compaction in Prometheus, which may hurt Prometheus performance and increase RAM usage. See [these docs](https://thanos.io/components/sidecar.md/) for more details.
+- Thanos stores data in object storage (Amazon S3 or Google GCS), while VictoriaMetrics stores data in block storage
+  ([GCP persistent disks](https://cloud.google.com/compute/docs/disks#pdspecs), Amazon EBS or bare metal HDD).
+  While object storage is usually less expensive, block storage provides much lower latencies and higher throughput.
+  VictoriaMetrics works perfectly with HDD-based block storage - there is no need in using more expensive SSD or NVMe disks in most cases.
 - Thanos may lose up to 2 hours of recent data, which wasn't uploaded yet to object storage. VictoriaMetrics may lose only a few seconds of recent data,
   which isn't synced to persistent storage yet. See [this article for details](https://medium.com/@valyala/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
+- VictoriaMetrics provides [production-ready single-node solution](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md),
+  which is much easier to setup and operate than Thanos components.
 - Thanos may be harder to setup and operate comparing to VictoriaMetrics, since it has more moving parts, which can be connected with less reliable networks.
   See [this article for details](https://medium.com/faun/comparing-thanos-to-victoriametrics-cluster-b193bea1683).
 - Thanos is usually slower and requires more CPU and RAM than VictoriaMetrics. See [this talk from Adidas at PromCon 2019](https://promcon.io/2019-munich/talks/remote-write-storage-wars/).
+- VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to Prometheus remote_write protocol - InfluxDB, OpenTSDB, Graphite, CSV.
+  See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data) for details.
 
 
 ### How does VictoriaMetrics compare to [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/)?
 
-VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [works faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
-It is easier to configure and operate. It provides [better query language](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) than InfluxQL or Flux.
+- VictoriaMetrics requires [10x less RAM](https://medium.com/@valyala/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893) and it [works faster](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+- VictoriaMetrics provides [better query language](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085) than InfluxQL or Flux.
+- VictoriaMetrics accepts data in multiple popular data ingestion protocols additionally to InfluxDB - Prometheus remote_write, OpenTSDB, Graphite, CSV.
+  See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data) for details.
 
 
 ### How does VictoriaMetrics compare to [TimescaleDB](https://www.timescale.com/)?
 
-TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical TSDB usage. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
-Additionally, VictoriaMetrics requires [up to 70x less storage space comparing to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data.
+- TimescaleDB insists on using SQL as a query language. While SQL is more powerful than PromQL, this power is rarely required during typical TSDB usage. Real-world queries usually [look clearer and simpler when written in PromQL than in SQL](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085).
+- VictoriaMetrics requires [up to 70x less storage space comparing to TimescaleDB](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4) for storing the same amount of time series data. The gap in storage space usage can be lowered from 70x to 3x if [compression in TimescaleDB is properly configured](https://docs.timescale.com/latest/using-timescaledb/compression) (it isn't an easy task in general case :)).
+- VictoriaMetrics accepts data in multiple popular data ingestion protocols - InfluxDB, OpenTSDB, Graphite, CSV, while TimescaleDB supports only SQL inserts.
 
 
-### Does VictoriaMetrics use Prometheus technologies like other clustered TSDBs built on top of Prometheus such as [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex)?
+### Does VictoriaMetrics use Prometheus technologies like other clustered TSDBs built on top of Prometheus such as [Thanos](https://github.com/thanos-io/thanos) or [Cortex](https://github.com/cortexproject/cortex)?
 
 No. VictoriaMetrics core is written in Go from scratch by [fasthttp](https://github.com/valyala/fasthttp) [author](https://github.com/valyala).
 The architecture is [optimized for storing and querying large amounts of time series data with high cardinality](https://medium.com/devopslinks/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac). VictoriaMetrics storage uses [certain ideas from ClickHouse](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). Special thanks to [Alexey Milovidov](https://github.com/alexey-milovidov).
@@ -151,7 +141,7 @@ The following commercial versions of VictoriaMetrics are planned:
 * Managed cluster in the Cloud.
 * SaaS version.
 
-[Contact us](mailto:info@victoriametrics.com) for more information and for the pricing.
+[Contact us](mailto:info@victoriametrics.com) for more information on our plans.
 
 
 ### Why VictoriaMetrics doesn't support [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_read%3E)?
