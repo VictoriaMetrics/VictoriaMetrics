@@ -145,3 +145,11 @@ golangci-lint: install-golangci-lint
 
 install-golangci-lint:
 	which golangci-lint || GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+
+docs-sync:
+	cp app/vmagent/README.md docs/vmagent.md
+	cp app/vmalert/README.md docs/vmalert.md
+	cp app/vmauth/README.md docs/vmauth.md
+	cp app/vmbackup/README.md docs/vmbackup.md
+	cp app/vmrestore/README.md docs/vmrestore.md
+	cp README.md docs/Single-server-VictoriaMetrics.md
