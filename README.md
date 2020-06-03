@@ -286,6 +286,16 @@ Upgrade follows `Cluster resizing procedure` under the hood.
 
 ### Replication and data safety
 
+In order to enable application-level replication, `-replicationFactor=N` command-line flag must be passed to `vminsert`.
+This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
+For example, when `-replicationFactor=3` is passed to `vminsert`, then it replicates all the ingested data to 3 distinct `vmstorage` nodes.
+
+When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect`
+in order to de-duplicate replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms.
+
+Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
+so it is recommended performing regular backups. See [these docs](#backups) for details.
+
 By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
 It is recommended storing data on [Google Compute Engine persistent disks](https://cloud.google.com/compute/docs/disks/#pdspecs),
 since they are protected from data loss and data corruption. They also provide consistently high performance
@@ -293,14 +303,6 @@ and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-
 HDD-based persistent disks should be enough for the majority of use cases.
 
 It is recommended using durable replicated persistent volumes in Kubernetes.
-
-If `-replicationFactor=N` command-line flag is passed to `vminsert`, then `vminsert` puts `N` copies of the ingested data to distinct `vmstorage` nodes.
-This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable. Note that `-dedup.minScrapeInterval=1ms` command-line
-flag must be passed to `vmselect` if `-replicationFactor` exceeds 1 in order to de-duplicate replicated data during queries.
-It is OK if `-dedup.minScrapeInterval` exceeds 1ms.
-
-Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
-so it is recommended performing regular backups. See [these docs](#backups) for details.
 
 
 ### Backups
