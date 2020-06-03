@@ -63,12 +63,14 @@ func authConfigReloader() {
 		case <-stopCh:
 			return
 		case <-sighupCh:
+			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
 			m, err := readAuthConfig(*authConfigPath)
 			if err != nil {
-				logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
+				logger.Errorf("failed to load -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
 				continue
 			}
 			authConfig.Store(m)
+			logger.Infof("Successfully reloaded -auth.config=%q", *authConfigPath)
 		}
 	}
 }
