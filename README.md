@@ -774,7 +774,13 @@ The required resources for query path:
 ### High availability
 
 1) Install multiple VictoriaMetrics instances in distinct datacenters (availability zones).
-2) Add addresses of these instances to `remote_write` section in Prometheus config:
+2) Pass addresses of these instances to [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) via `-remoteWrite.url` command-line flag:
+
+```bash
+/path/to/vmagent -remoteWrite.url=http://<victoriametrics-addr-1>:8428/api/v1/write -remoteWrite.url=http://<victoriametrics-addr-2>:8428/api/v1/write
+```
+
+Alternatively these addresses may be passed to `remote_write` section in Prometheus config:
 
 ```yml
 remote_write:
