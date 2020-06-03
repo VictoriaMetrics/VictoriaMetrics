@@ -20,6 +20,29 @@ See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/
 See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Quick-Start).
 
 
+### What is the difference between vmagent and Prometheus?
+
+While both [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) and Prometheus may scrape Prometheus targets (aka `/metrics` pages)
+according to the provided Prometheus-compatible [scrape configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
+and send data to multiple remote storage systems, vmagent has the following additional features:
+
+- vmagent usually requires lower amounts of CPU, RAM and disk IO comparing to Prometheus when scraping big number of targets (more than 1000)
+  or targets with big number of exposed metrics.
+- vmagent provides independent disk-backed buffers per each configured remote storage (aka `-remoteWrite.url`). This means that slow or temporarily unavailable storage
+  doesn't prevent from sending data to healthy storage in parallel. Prometheus uses a single shared buffer for all the configured remote storage systems (aka `remote_write->url`)
+  with the hardcoded retention of 2 hours.
+- vmagent may accept, relabel and filter data obtained via multiple data ingestion protocols additionally to data scraped from Prometheus targets.
+  I.e. it supports both `pull` and `push` protocols for data ingestion.
+  See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#features) for details.
+- vmagent may be used in different use cases:
+  - [IoT and edge monitoring](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#iot-and-edge-monitoring)
+  - [Drop-in replacement for Prometheus](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#drop-in-replacement-for-prometheus)
+  - [Replication and High Availability](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#replication-and-high-availability)
+  - [Relabeling and Filtering](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#relabeling-and-filtering)
+  - [Splitting data streams among multiple systems](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#splitting-data-streams-among-multiple-systems)
+  - [Prometheus remote_write proxy](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#prometheus-remote_write-proxy)
+
+
 ### Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 
 Yes. Prometheus continues writing data to local storage after enabling remote write, so all the existing local storage data
