@@ -24,8 +24,8 @@ func initOnce() {
 		// Do not use logger.Panicf here, since logger may be uninitialized yet.
 		panic(fmt.Errorf("BUG: memory.Allowed must be called only after flag.Parse call"))
 	}
-	if *allowedMemPercent < 10 || *allowedMemPercent > 200 {
-		logger.Panicf("FATAL: -memory.allowedPercent must be in the range [10...200]; got %f", *allowedMemPercent)
+	if *allowedMemPercent < 1 || *allowedMemPercent > 200 {
+		logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %f", *allowedMemPercent)
 	}
 	percent := *allowedMemPercent / 100
 
