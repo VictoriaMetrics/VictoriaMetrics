@@ -1006,15 +1006,12 @@ for data with timestamps close to the current time.
 
 ### Replication
 
-Single-node VictoriaMetrics relies on replicated durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs)
-or [Amazon EBS](https://aws.amazon.com/ebs/). It is also recommended making periodic backups,
-since [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883).
-See [backup docs](#backups) for details.
+Single-node VictoriaMetrics doesn't support application-level replication. Use cluster version instead.
+See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#replication-and-data-safety) for details.
 
-Cluster version of VictoriaMetrics supports replication. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#replication-and-data-safety)
-for details.
+Storage-level replication may be offloaded to durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs).
 
-See also [high availability docs](#high-availability) and [docs about cluster version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md).
+See also [high availability docs](#high-availability) and [backup docs](#backups).
 
 
 ### Backups
