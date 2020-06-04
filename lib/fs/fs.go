@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/sys/unix"
@@ -296,6 +298,35 @@ func CreateFlockFile(dir string) (*os.File, error) {
 
 // MustGetFreeSpace returns free space for the given directory path.
 func MustGetFreeSpace(path string) uint64 {
+	// Try obtaining cached value at first.
+	freeSpaceMapLock.Lock()
+	defer freeSpaceMapLock.Unlock()
+
+	e, ok := freeSpaceMap[path]
+	if ok && fasttime.UnixTimestamp()-e.updateTime < 2 {
+		// Fast path - the entry is fresh.
+		return e.freeSpace
+	}
+
+	// Slow path.
+	// Determine the amount of free space at path.
+	e.freeSpace = mustGetFreeSpace(path)
+	e.updateTime = fasttime.UnixTimestamp()
+	freeSpaceMap[path] = e
+	return e.freeSpace
+}
+
+var (
+	freeSpaceMap     = make(map[string]freeSpaceEntry)
+	freeSpaceMapLock sync.Mutex
+)
+
+type freeSpaceEntry struct {
+	updateTime uint64
+	freeSpace  uint64
+}
+
+func mustGetFreeSpace(path string) uint64 {
 	d, err := os.Open(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
