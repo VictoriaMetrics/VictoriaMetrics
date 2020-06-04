@@ -345,7 +345,6 @@ Due to `KISS` cluster version of VictoriaMetrics has no the following "features"
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).
 - Complex replication schemes, which may go nuts in unforesseen edge cases. See [replication docs](#replication-and-data-safety) for details.
-  such as [persistent disks in Google Compute Engine](https://cloud.google.com/compute/docs/disks/#pdspecs).
 - Automatic data reshuffling between storage nodes, which may hurt cluster performance and availability.
 - Automatic cluster resizing, which may cost you a lot of money if improperly configured.
 - Automatic discovering and addition of new nodes in the cluster, which may mix data between dev and prod clusters :)
