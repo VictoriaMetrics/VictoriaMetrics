@@ -291,7 +291,8 @@ This guarantees that all the data remains available for querying if up to `N-1` 
 For example, when `-replicationFactor=3` is passed to `vminsert`, then it replicates all the ingested data to 3 distinct `vmstorage` nodes.
 
 When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect`
-in order to de-duplicate replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms.
+in order to de-duplicate replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms
+when [deduplication](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#deduplication) is used additionally to replication.
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
 so it is recommended performing regular backups. See [these docs](#backups) for details.
