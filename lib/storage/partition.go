@@ -927,7 +927,7 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 }
 
 func maxRowsByPath(path string) uint64 {
-	freeSpace := mustGetFreeDiskSpace(path)
+	freeSpace := fs.MustGetFreeSpace(path)
 
 	// Calculate the maximum number of rows in the output merge part
 	// by dividing the freeSpace by the number of concurrent
@@ -940,35 +940,6 @@ func maxRowsByPath(path string) uint64 {
 		maxRows = maxRowsPerBigPart
 	}
 	return maxRows
-}
-
-func mustGetFreeDiskSpace(path string) uint64 {
-	// Try obtaining the cache value at first.
-	freeSpaceMapLock.Lock()
-	defer freeSpaceMapLock.Unlock()
-
-	e, ok := freeSpaceMap[path]
-	if ok && fasttime.UnixTimestamp()-e.updateTime < 2 {
-		// Fast path - the entry is fresh.
-		return e.freeSpace
-	}
-
-	// Slow path.
-	// Determine the amount of free space on bigPartsPath.
-	e.freeSpace = fs.MustGetFreeSpace(path)
-	e.updateTime = fasttime.UnixTimestamp()
-	freeSpaceMap[path] = e
-	return e.freeSpace
-}
-
-var (
-	freeSpaceMap     = make(map[string]freeSpaceEntry)
-	freeSpaceMapLock sync.Mutex
-)
-
-type freeSpaceEntry struct {
-	updateTime uint64
-	freeSpace  uint64
 }
 
 func (pt *partition) mergeBigParts(isFinal bool) error {
