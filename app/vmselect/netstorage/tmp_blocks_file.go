@@ -87,7 +87,7 @@ func (addr tmpBlockAddr) String() string {
 
 var (
 	tmpBlocksFilesCreated = metrics.NewCounter(`vm_tmp_blocks_files_created_total`)
-	_ = metrics.NewGauge(`vm_tmp_blocks_files_directory_free_space`, func() float64 {
+	_ = metrics.NewGauge(`vm_tmp_blocks_files_directory_free_bytes`, func() float64 {
 		return float64(fs.MustGetFreeSpace(tmpBlocksDir))
 	})
 )
