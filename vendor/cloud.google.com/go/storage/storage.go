@@ -1130,11 +1130,11 @@ type ObjectAttrs struct {
 	// data is rejected if its MD5 hash does not match this field.
 	MD5 []byte
 
-	// CRC32C is the CRC32 checksum of the object's content using
-	// the Castagnoli93 polynomial. This field is read-only, except when
-	// used from a Writer. If set on a Writer and Writer.SendCRC32C
-	// is true, the uploaded data is rejected if its CRC32c hash does not
-	// match this field.
+	// CRC32C is the CRC32 checksum of the object's content using the Castagnoli93
+	// polynomial. This field is read-only, except when used from a Writer or
+	// Composer. In those cases, if the SendCRC32C field in the Writer or Composer
+	// is set to is true, the uploaded data is rejected if its CRC32C hash does
+	// not match this field.
 	CRC32C uint32
 
 	// MediaLink is an URL to the object's content. This field is read-only.
@@ -1350,7 +1350,7 @@ func (q *Query) SetAttrSelection(attrs []string) error {
 	}
 
 	if len(fieldSet) > 0 {
-		var b strings.Builder
+		var b bytes.Buffer
 		b.WriteString("items(")
 		first := true
 		for field := range fieldSet {
