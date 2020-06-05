@@ -62,6 +62,7 @@ absolute path to all .yaml files in root.`)
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -171,4 +172,16 @@ func checkFlags() {
 		flag.PrintDefaults()
 		logger.Fatalf("datasource.url is empty")
 	}
+}
+
+func usage() {
+	const s = `
+vmalert processes alerts and recording rules.
+
+See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/README.md .
+`
+
+	f := flag.CommandLine.Output()
+	fmt.Fprintf(f, "%s\n", s)
+	flag.PrintDefaults()
 }
