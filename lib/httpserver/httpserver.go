@@ -387,11 +387,13 @@ func (zrw *gzipResponseWriter) writeHeader() {
 
 // Implements http.Flusher
 func (zrw *gzipResponseWriter) Flush() {
-	if err := zrw.bw.Flush(); err != nil && !isTrivialNetworkError(err) {
-		logger.Warnf("gzipResponseWriter.Flush (buffer): %s", err)
-	}
-	if err := zrw.zw.Flush(); err != nil && !isTrivialNetworkError(err) {
-		logger.Warnf("gzipResponseWriter.Flush (gzip): %s", err)
+	if !zrw.disableCompression {
+		if err := zrw.bw.Flush(); err != nil && !isTrivialNetworkError(err) {
+			logger.Warnf("gzipResponseWriter.Flush (buffer): %s", err)
+		}
+		if err := zrw.zw.Flush(); err != nil && !isTrivialNetworkError(err) {
+			logger.Warnf("gzipResponseWriter.Flush (gzip): %s", err)
+		}
 	}
 	if fw, ok := zrw.ResponseWriter.(http.Flusher); ok {
 		fw.Flush()
@@ -404,7 +406,10 @@ func (zrw *gzipResponseWriter) Close() error {
 		return nil
 	}
 	zrw.Flush()
-	err := zrw.zw.Close()
+	var err error
+	if !zrw.disableCompression {
+		err = zrw.zw.Close()
+	}
 	putGzipWriter(zrw.zw)
 	zrw.zw = nil
 	putBufioWriter(zrw.bw)
