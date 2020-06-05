@@ -874,19 +874,14 @@ var (
 func (ctx *vmselectRequestCtx) setupTfss() error {
 	tfss := ctx.tfss[:0]
 	for _, tagFilters := range ctx.sq.TagFilterss {
-		if len(tfss) < cap(tfss) {
-			tfss = tfss[:len(tfss)+1]
-		} else {
-			tfss = append(tfss, &storage.TagFilters{})
-		}
-		tfs := tfss[len(tfss)-1]
-		tfs.Reset(ctx.sq.AccountID, ctx.sq.ProjectID)
+		tfs := storage.NewTagFilters(ctx.sq.AccountID, ctx.sq.ProjectID)
 		for i := range tagFilters {
 			tf := &tagFilters[i]
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
 				return fmt.Errorf("cannot parse tag filter %s: %s", tf, err)
 			}
 		}
+		tfss = append(tfss, tfs)
 		tfss = append(tfss, tfs.Finalize()...)
 	}
 	ctx.tfss = tfss
