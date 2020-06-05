@@ -11,10 +11,13 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"go.opencensus.io/plugin/ochttp"
 	"golang.org/x/oauth2"
@@ -162,23 +165,57 @@ var appengineUrlfetchHook func(context.Context) http.RoundTripper
 
 // defaultBaseTransport returns the base HTTP transport.
 // On App Engine, this is urlfetch.Transport.
-// If TLSCertificate is available, return a custom Transport with TLSClientConfig.
-// Otherwise, return http.DefaultTransport.
+// Otherwise, use a default transport, taking most defaults from
+// http.DefaultTransport.
+// If TLSCertificate is available, set TLSClientConfig as well.
 func defaultBaseTransport(ctx context.Context, clientCertSource cert.Source) http.RoundTripper {
 	if appengineUrlfetchHook != nil {
 		return appengineUrlfetchHook(ctx)
 	}
 
+	// Copy http.DefaultTransport except for MaxIdleConnsPerHost setting,
+	// which is increased due to reported performance issues under load in the GCS
+	// client. Transport.Clone is only available in Go 1.13 and up.
+	trans := clonedTransport(http.DefaultTransport)
+	if trans == nil {
+		trans = fallbackBaseTransport()
+	}
+	trans.MaxIdleConnsPerHost = 100
+
 	if clientCertSource != nil {
-		// TODO (cbro): copy default transport settings from http.DefaultTransport
-		return &http.Transport{
-			TLSClientConfig: &tls.Config{
-				GetClientCertificate: clientCertSource,
-			},
+		trans.TLSClientConfig = &tls.Config{
+			GetClientCertificate: clientCertSource,
 		}
 	}
 
-	return http.DefaultTransport
+	return trans
+}
+
+var fallback struct {
+	*http.Transport
+	sync.Once
+}
+
+// fallbackBaseTransport is used in <go1.13 as well as in the rare case if
+// http.DefaultTransport has been reassigned something that's not a
+// *http.Transport.
+func fallbackBaseTransport() *http.Transport {
+	fallback.Do(func() {
+		fallback.Transport = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		}
+	})
+	return fallback.Transport
 }
 
 func addOCTransport(trans http.RoundTripper, settings *internal.DialSettings) http.RoundTripper {
