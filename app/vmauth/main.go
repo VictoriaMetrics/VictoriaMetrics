@@ -79,6 +79,14 @@ var reverseProxy = &httputil.ReverseProxy{
 		}
 		r.URL = target
 	},
+	Transport: func() *http.Transport {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
+		tr.DisableCompression = true
+		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
+		tr.ForceAttemptHTTP2 = false
+		return tr
+	}(),
 	FlushInterval: time.Second,
 	ErrorLog:      logger.StdErrorLogger(),
 }
