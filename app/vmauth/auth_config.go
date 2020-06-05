@@ -36,11 +36,11 @@ type UserInfo struct {
 
 func initAuthConfig() {
 	if len(*authConfigPath) == 0 {
-		logger.Panicf("FATAL: missing required `-auth.config` command-line flag")
+		logger.Fatalf("missing required `-auth.config` command-line flag")
 	}
 	m, err := readAuthConfig(*authConfigPath)
 	if err != nil {
-		logger.Panicf("FATAL: cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
+		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
 	}
 	authConfig.Store(m)
 	stopCh = make(chan struct{})
