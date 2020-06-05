@@ -54,6 +54,7 @@ var (
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -205,3 +206,15 @@ var (
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )
+
+func usage() {
+	const s = `
+vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
+
+See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md .
+`
+
+	f := flag.CommandLine.Output()
+	fmt.Fprintf(f, "%s\n", s)
+	flag.PrintDefaults()
+}
