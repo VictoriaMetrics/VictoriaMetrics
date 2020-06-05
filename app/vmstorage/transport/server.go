@@ -48,18 +48,24 @@ type Server struct {
 }
 
 type connsMap struct {
-	mu sync.Mutex
-	m  map[net.Conn]struct{}
+	mu       sync.Mutex
+	m        map[net.Conn]struct{}
+	isClosed bool
 }
 
 func (cm *connsMap) Init() {
 	cm.m = make(map[net.Conn]struct{})
+	cm.isClosed = false
 }
 
-func (cm *connsMap) Add(c net.Conn) {
+func (cm *connsMap) Add(c net.Conn) bool {
 	cm.mu.Lock()
-	cm.m[c] = struct{}{}
+	ok := !cm.isClosed
+	if ok {
+		cm.m[c] = struct{}{}
+	}
 	cm.mu.Unlock()
+	return ok
 }
 
 func (cm *connsMap) Delete(c net.Conn) {
@@ -73,6 +79,7 @@ func (cm *connsMap) CloseAll() {
 	for c := range cm.m {
 		_ = c.Close()
 	}
+	cm.isClosed = true
 	cm.mu.Unlock()
 }
 
@@ -116,8 +123,12 @@ func (s *Server) RunVMInsert() {
 		}
 		logger.Infof("accepted vminsert conn from %s", c.RemoteAddr())
 
+		if !s.vminsertConnsMap.Add(c) {
+			// The server is closed.
+			_ = c.Close()
+			return
+		}
 		vminsertConns.Inc()
-		s.vminsertConnsMap.Add(c)
 		s.vminsertWG.Add(1)
 		go func() {
 			defer func() {
@@ -179,8 +190,12 @@ func (s *Server) RunVMSelect() {
 		}
 		logger.Infof("accepted vmselect conn from %s", c.RemoteAddr())
 
+		if !s.vmselectConnsMap.Add(c) {
+			// The server is closed.
+			_ = c.Close()
+			return
+		}
 		vmselectConns.Inc()
-		s.vmselectConnsMap.Add(c)
 		s.vmselectWG.Add(1)
 		go func() {
 			defer func() {
