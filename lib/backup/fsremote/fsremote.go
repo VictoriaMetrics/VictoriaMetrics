@@ -209,10 +209,10 @@ func (fs *FS) DeleteFile(filePath string) error {
 //
 // The file is overwritten if it exists.
 func (fs *FS) CreateFile(filePath string, data []byte) error {
-	if err := fs.mkdirAll(filePath); err != nil {
+	path := filepath.Join(fs.Dir, filePath)
+	if err := fs.mkdirAll(path); err != nil {
 		return err
 	}
-	path := filepath.Join(fs.Dir, filePath)
 	if err := ioutil.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("cannot write %d bytes to %q: %s", len(data), path, err)
 	}
