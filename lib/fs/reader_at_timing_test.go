@@ -23,7 +23,7 @@ func benchmarkReaderAtMustReadAt(b *testing.B, isMmap bool) {
 	}()
 
 	path := "BenchmarkReaderAtMustReadAt"
-	const fileSize = 1024 * 1024
+	const fileSize = 8 * 1024 * 1024
 	data := make([]byte, fileSize)
 	if err := ioutil.WriteFile(path, data, 0600); err != nil {
 		b.Fatalf("cannot create %q: %s", path, err)
@@ -36,7 +36,7 @@ func benchmarkReaderAtMustReadAt(b *testing.B, isMmap bool) {
 	defer r.MustClose()
 
 	b.ResetTimer()
-	for _, bufSize := range []int{1, 10, 100, 1000, 10000} {
+	for _, bufSize := range []int{1, 1e1, 1e2, 1e3, 1e4, 1e5} {
 		b.Run(fmt.Sprintf("%d", bufSize), func(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(bufSize))
