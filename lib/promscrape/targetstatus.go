@@ -17,6 +17,8 @@ func WriteHumanReadableTargetsStatus(w io.Writer) {
 
 //return the number of target
 func GetTargetNumber() int {
+	tsmGlobal.mu.Lock()
+	defer tsmGlobal.mu.Unlock()
 	return len(tsmGlobal.m)
 }
 

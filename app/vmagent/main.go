@@ -156,11 +156,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
-	case "/api/v1/query":
-		//this is used to realize promethuse /api/v1/query api
-		//get the number of target in vmagent with this method
-		promscrapeQueryTargetsrRequests.Inc()
-		//get the query content
+	case "/targets":
+		promscrapeTargetsRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain")
+		promscrape.WriteHumanReadableTargetsStatus(w)
+		return true
+	case "/targets/more":
+		//return the info of target
+		promscrapeTargetsMoreRequests.Inc()
 		queryContent, err := url.ParseQuery(r.URL.RawQuery)
 		if err != nil {
 			fmt.Fprintf(w, `error occur when ParseQuery,err is:%s`, err)
@@ -181,11 +184,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
-	case "/targets":
-		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain")
-		promscrape.WriteHumanReadableTargetsStatus(w)
-		return true
+
 	case "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
@@ -212,6 +211,6 @@ var (
 
 	promscrapeTargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 
-	promscrapeConfigReloadRequests  = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
-	promscrapeQueryTargetsrRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query/targets"}`)
+	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+	promscrapeTargetsMoreRequests  = metrics.NewCounter(`vmagent_http_requests_total{path="/targets/more"}`)
 )
