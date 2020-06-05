@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -22,6 +23,7 @@ var (
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -79,4 +81,16 @@ var reverseProxy = &httputil.ReverseProxy{
 	},
 	FlushInterval: time.Second,
 	ErrorLog:      logger.StdErrorLogger(),
+}
+
+func usage() {
+	const s = `
+vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
+
+See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md .
+`
+
+	f := flag.CommandLine.Output()
+	fmt.Fprintf(f, "%s\n", s)
+	flag.PrintDefaults()
 }
