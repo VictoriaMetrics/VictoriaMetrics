@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/*good.rules", "testdata/dir/*good.*"}, true); err != nil {
+	if _, err := Parse([]string{"testdata/*good.rules", "testdata/dir/*good.*"}, true, true); err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 }
@@ -56,7 +56,7 @@ func TestParseBad(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		_, err := Parse(tc.path, true)
+		_, err := Parse(tc.path, true, true)
 		if err == nil {
 			t.Errorf("expected to get error")
 			return
@@ -74,10 +74,90 @@ func TestRule_Validate(t *testing.T) {
 	if err := (&Rule{Alert: "alert"}).Validate(); err == nil {
 		t.Errorf("exptected empty expr error")
 	}
-	if err := (&Rule{Alert: "alert", Expr: "test{"}).Validate(); err == nil {
-		t.Errorf("exptected invalid expr error")
-	}
 	if err := (&Rule{Alert: "alert", Expr: "test>0"}).Validate(); err != nil {
-		t.Errorf("exptected valid rule got %s", err)
+		t.Errorf("exptected valid rule; got %s", err)
+	}
+}
+
+func TestGroup_Validate(t *testing.T) {
+	testCases := []struct {
+		group               *Group
+		rules               []Rule
+		validateAnnotations bool
+		validateExpressions bool
+		expErr              string
+	}{
+		{
+			group:  &Group{},
+			expErr: "group name must be set",
+		},
+		{
+			group:  &Group{Name: "test"},
+			expErr: "contain no rules",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{
+						Record: "record",
+						Expr:   "up | 0",
+					},
+				},
+			},
+			expErr: "",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{
+						Record: "record",
+						Expr:   "up | 0",
+					},
+				},
+			},
+			expErr:              "invalid expression",
+			validateExpressions: true,
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{
+						Alert: "alert",
+						Expr:  "up == 1",
+						Labels: map[string]string{
+							"summary": "{{ value|query }}",
+						},
+					},
+				},
+			},
+			expErr: "",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{
+						Alert: "alert",
+						Expr:  "up == 1",
+						Labels: map[string]string{
+							"summary": "{{ value|query }}",
+						},
+					},
+				},
+			},
+			expErr:              "error parsing annotation",
+			validateAnnotations: true,
+		},
+	}
+	for _, tc := range testCases {
+		err := tc.group.Validate(tc.validateAnnotations, tc.validateExpressions)
+		if err == nil {
+			if tc.expErr != "" {
+				t.Errorf("expected to get err %q; got nil insted", tc.expErr)
+			}
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.expErr) {
+			t.Errorf("expected err to contain %q; got %q instead", tc.expErr, err)
+		}
 	}
 }

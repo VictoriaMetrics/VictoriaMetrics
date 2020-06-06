@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 func TestManagerUpdateError(t *testing.T) {
 	m := &manager{groups: make(map[uint64]*Group)}
 	path := []string{"foo/bar"}
-	err := m.update(context.Background(), path, true, false)
+	err := m.update(context.Background(), path, true, true, false)
 	if err == nil {
 		t.Fatalf("expected to have err; got nil instead")
 	}
@@ -51,7 +51,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 		"config/testdata/rules2-good.rules",
 	}
 	*evaluationInterval = time.Millisecond
-	if err := m.start(context.Background(), []string{paths[0]}, true); err != nil {
+	if err := m.start(context.Background(), []string{paths[0]}, true, true); err != nil {
 		t.Fatalf("failed to start: %s", err)
 	}
 
@@ -65,7 +65,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 			for i := 0; i < iterations; i++ {
 				rnd := rand.Intn(len(paths))
 				path := []string{paths[rnd]}
-				_ = m.update(context.Background(), path, true, false)
+				_ = m.update(context.Background(), path, true, true, false)
 			}
 		}()
 	}
@@ -186,12 +186,12 @@ func TestManagerUpdate(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
 			m := &manager{groups: make(map[uint64]*Group), storage: &fakeQuerier{}}
 			path := []string{tc.initPath}
-			if err := m.update(ctx, path, true, false); err != nil {
+			if err := m.update(ctx, path, true, true, false); err != nil {
 				t.Fatalf("failed to complete initial rules update: %s", err)
 			}
 
 			path = []string{tc.updatePath}
-			_ = m.update(ctx, path, true, false)
+			_ = m.update(ctx, path, true, true, false)
 			if len(tc.want) != len(m.groups) {
 				t.Fatalf("\nwant number of groups: %d;\ngot: %d ", len(tc.want), len(m.groups))
 			}

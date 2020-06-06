@@ -48,8 +48,8 @@ func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	return nil, fmt.Errorf("can't find alert with id %q in group %q", aID, g.Name)
 }
 
-func (m *manager) start(ctx context.Context, path []string, validate bool) error {
-	return m.update(ctx, path, validate, true)
+func (m *manager) start(ctx context.Context, path []string, validateTpl, validateExpr bool) error {
+	return m.update(ctx, path, validateTpl, validateExpr, true)
 }
 
 func (m *manager) close() {
@@ -79,9 +79,9 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 	m.groups[id] = group
 }
 
-func (m *manager) update(ctx context.Context, path []string, validate, restore bool) error {
+func (m *manager) update(ctx context.Context, path []string, validateTpl, validateExpr, restore bool) error {
 	logger.Infof("reading rules configuration file from %q", strings.Join(path, ";"))
-	groupsCfg, err := config.Parse(path, validate)
+	groupsCfg, err := config.Parse(path, validateTpl, validateExpr)
 	if err != nil {
 		return fmt.Errorf("cannot parse configuration file: %s", err)
 	}
