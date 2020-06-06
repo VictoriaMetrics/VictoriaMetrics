@@ -30,8 +30,11 @@ Examples:
  -rule /path/to/file. Path to a single file with alerting rules
  -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
 absolute path to all .yaml files in root.`)
-	validateTemplates = flag.Bool("rule.validateTemplates", true, "Indicates to validate annotation and label templates")
-	httpListenAddr    = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+
+	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
+	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
+
+	httpListenAddr = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 
 	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
 		" E.g. http://127.0.0.1:8428")
@@ -99,7 +102,7 @@ func main() {
 		manager.rr = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
 	}
 
-	if err := manager.start(ctx, *rulePath, *validateTemplates); err != nil {
+	if err := manager.start(ctx, *rulePath, *validateTemplates, *validateExpressions); err != nil {
 		logger.Fatalf("failed to start: %s", err)
 	}
 
@@ -112,7 +115,7 @@ func main() {
 			<-sigHup
 			configReloads.Inc()
 			logger.Infof("SIGHUP received. Going to reload rules %q ...", *rulePath)
-			if err := manager.update(ctx, *rulePath, *validateTemplates, false); err != nil {
+			if err := manager.update(ctx, *rulePath, *validateTemplates, *validateExpressions, false); err != nil {
 				configReloadErrors.Inc()
 				configSuccess.Set(0)
 				logger.Errorf("error while reloading rules: %s", err)
