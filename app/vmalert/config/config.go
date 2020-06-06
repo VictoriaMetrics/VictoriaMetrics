@@ -25,7 +25,7 @@ type Group struct {
 }
 
 // Validate check for internal Group or Rule configuration errors
-func (g *Group) Validate(validateAnnotations bool) error {
+func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 	if g.Name == "" {
 		return fmt.Errorf("group name must be set")
 	}
@@ -45,14 +45,18 @@ func (g *Group) Validate(validateAnnotations bool) error {
 		if err := r.Validate(); err != nil {
 			return fmt.Errorf("invalid rule %q.%q: %s", g.Name, ruleName, err)
 		}
-		if !validateAnnotations {
-			continue
+		if validateExpressions {
+			if _, err := metricsql.Parse(r.Expr); err != nil {
+				return fmt.Errorf("invalid expression for rule %q.%q: %s", g.Name, ruleName, err)
+			}
 		}
-		if err := notifier.ValidateTemplates(r.Annotations); err != nil {
-			return fmt.Errorf("invalid annotations for rule %q.%q: %s", g.Name, ruleName, err)
-		}
-		if err := notifier.ValidateTemplates(r.Labels); err != nil {
-			return fmt.Errorf("invalid labels for rule %q.%q: %s", g.Name, ruleName, err)
+		if validateAnnotations {
+			if err := notifier.ValidateTemplates(r.Annotations); err != nil {
+				return fmt.Errorf("invalid annotations for rule %q.%q: %s", g.Name, ruleName, err)
+			}
+			if err := notifier.ValidateTemplates(r.Labels); err != nil {
+				return fmt.Errorf("invalid labels for rule %q.%q: %s", g.Name, ruleName, err)
+			}
 		}
 	}
 	return checkOverflow(g.XXX, fmt.Sprintf("group %q", g.Name))
@@ -77,14 +81,11 @@ func (r *Rule) Validate() error {
 	if r.Expr == "" {
 		return fmt.Errorf("expression can't be empty")
 	}
-	if _, err := metricsql.Parse(r.Expr); err != nil {
-		return fmt.Errorf("invalid expression: %w", err)
-	}
 	return nil
 }
 
 // Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
+func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool) ([]Group, error) {
 	var fp []string
 	for _, pattern := range pathPatterns {
 		matches, err := filepath.Glob(pattern)
@@ -101,7 +102,7 @@ func Parse(pathPatterns []string, validateAnnotations bool) ([]Group, error) {
 			return nil, fmt.Errorf("failed to parse file %q: %w", file, err)
 		}
 		for _, g := range gr {
-			if err := g.Validate(validateAnnotations); err != nil {
+			if err := g.Validate(validateAnnotations, validateExpressions); err != nil {
 				return nil, fmt.Errorf("invalid group %q in file %q: %s", g.Name, file, err)
 			}
 			if _, ok := uniqueGroups[g.Name]; ok {
