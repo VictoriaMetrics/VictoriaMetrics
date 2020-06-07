@@ -17,30 +17,35 @@ import (
 
 // Group is an entity for grouping rules
 type Group struct {
-	Name     string
-	File     string
-	Rules    []Rule
-	Interval time.Duration
+	mu          sync.RWMutex
+	Name        string
+	File        string
+	Rules       []Rule
+	Interval    time.Duration
+	Concurrency int
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan *Group
-	mu       sync.RWMutex
 }
 
 func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 	g := &Group{
-		Name:       cfg.Name,
-		File:       cfg.File,
-		Interval:   cfg.Interval,
-		doneCh:     make(chan struct{}),
-		finishedCh: make(chan struct{}),
-		updateCh:   make(chan *Group),
+		Name:        cfg.Name,
+		File:        cfg.File,
+		Interval:    cfg.Interval,
+		Concurrency: cfg.Concurrency,
+		doneCh:      make(chan struct{}),
+		finishedCh:  make(chan struct{}),
+		updateCh:    make(chan *Group),
 	}
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
+	}
+	if g.Concurrency < 1 {
+		g.Concurrency = 1
 	}
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
@@ -121,6 +126,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	for _, nr := range rulesRegistry {
 		newRules = append(newRules, nr)
 	}
+	g.Concurrency = newGroup.Concurrency
 	g.Rules = newRules
 	return nil
 }
@@ -150,24 +156,18 @@ func (g *Group) close() {
 }
 
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifier.Notifier, rw *remotewrite.Client) {
-	logger.Infof("group %q started with interval %v", g.Name, g.Interval)
-
-	var returnSeries bool
-	if rw != nil {
-		returnSeries = true
-	}
-
+	defer func() { close(g.finishedCh) }()
+	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+	e := &executor{querier, nr, rw}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Infof("group %q: context cancelled", g.Name)
-			close(g.finishedCh)
 			return
 		case <-g.doneCh:
 			logger.Infof("group %q: received stop signal", g.Name)
-			close(g.finishedCh)
 			return
 		case ng := <-g.updateCh:
 			g.mu.Lock()
@@ -181,65 +181,115 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifi
 				g.Interval = ng.Interval
 				t.Stop()
 				t = time.NewTicker(g.Interval)
-				logger.Infof("group %q: changed evaluation interval to %v", g.Name, g.Interval)
 			}
 			g.mu.Unlock()
+			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
 			iterationTotal.Inc()
 			iterationStart := time.Now()
-			for _, rule := range g.Rules {
-				execTotal.Inc()
 
-				execStart := time.Now()
-				tss, err := rule.Exec(ctx, querier, returnSeries)
-				execDuration.UpdateDuration(execStart)
-
+			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, g.Interval)
+			for err := range errs {
 				if err != nil {
-					execErrors.Inc()
-					logger.Errorf("failed to execute rule %q.%q: %s", g.Name, rule, err)
-					continue
-				}
-
-				if len(tss) > 0 {
-					remoteWriteSent.Add(len(tss))
-					for _, ts := range tss {
-						if err := rw.Push(ts); err != nil {
-							remoteWriteErrors.Inc()
-							logger.Errorf("failed to remote write for rule %q.%q: %s", g.Name, rule, err)
-						}
-					}
-				}
-
-				ar, ok := rule.(*AlertingRule)
-				if !ok {
-					continue
-				}
-				var alerts []notifier.Alert
-				for _, a := range ar.alerts {
-					switch a.State {
-					case notifier.StateFiring:
-						// set End to execStart + 3 intervals
-						// so notifier can resolve it automatically if `vmalert`
-						// won't be able to send resolve for some reason
-						a.End = execStart.Add(3 * g.Interval)
-						alerts = append(alerts, *a)
-					case notifier.StateInactive:
-						// set End to execStart to notify
-						// that it was just resolved
-						a.End = execStart
-						alerts = append(alerts, *a)
-					}
-				}
-				if len(alerts) < 1 {
-					continue
-				}
-				alertsSent.Add(len(alerts))
-				if err := nr.Send(ctx, alerts); err != nil {
-					alertsSendErrors.Inc()
-					logger.Errorf("failed to send alert for rule %q.%q: %s", g.Name, rule, err)
+					logger.Errorf("group %q: %s", g.Name, err)
 				}
 			}
+
 			iterationDuration.UpdateDuration(iterationStart)
 		}
 	}
+}
+
+type executor struct {
+	querier  datasource.Querier
+	notifier notifier.Notifier
+	rw       *remotewrite.Client
+}
+
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
+	res := make(chan error, len(rules))
+	var returnSeries bool
+	if e.rw != nil {
+		returnSeries = true
+	}
+
+	if concurrency == 1 {
+		// fast path
+		for _, rule := range rules {
+			res <- e.exec(ctx, rule, returnSeries, interval)
+		}
+		close(res)
+		return res
+	}
+
+	sem := make(chan struct{}, concurrency)
+	go func() {
+		wg := sync.WaitGroup{}
+		for _, rule := range rules {
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(r Rule) {
+				res <- e.exec(ctx, r, returnSeries, interval)
+				<-sem
+				wg.Done()
+			}(rule)
+		}
+		wg.Wait()
+		close(res)
+	}()
+	return res
+}
+
+func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, interval time.Duration) error {
+	execTotal.Inc()
+	execStart := time.Now()
+	defer func() {
+		execDuration.UpdateDuration(execStart)
+	}()
+
+	tss, err := rule.Exec(ctx, e.querier, returnSeries)
+	if err != nil {
+		execErrors.Inc()
+		return fmt.Errorf("rule %q: failed to execute: %s", rule, err)
+	}
+
+	if len(tss) > 0 && e.rw != nil {
+		remoteWriteSent.Add(len(tss))
+		for _, ts := range tss {
+			if err := e.rw.Push(ts); err != nil {
+				remoteWriteErrors.Inc()
+				return fmt.Errorf("rule %q: remote write failure: %s", rule, err)
+			}
+		}
+	}
+
+	ar, ok := rule.(*AlertingRule)
+	if !ok {
+		return nil
+	}
+	var alerts []notifier.Alert
+	for _, a := range ar.alerts {
+		switch a.State {
+		case notifier.StateFiring:
+			// set End to execStart + 3 intervals
+			// so notifier can resolve it automatically if `vmalert`
+			// won't be able to send resolve for some reason
+			a.End = time.Now().Add(3 * interval)
+			alerts = append(alerts, *a)
+		case notifier.StateInactive:
+			// set End to execStart to notify
+			// that it was just resolved
+			a.End = time.Now()
+			alerts = append(alerts, *a)
+		}
+	}
+	if len(alerts) < 1 {
+		return nil
+	}
+	alertsSent.Add(len(alerts))
+	if err := e.notifier.Send(ctx, alerts); err != nil {
+		alertsSendErrors.Inc()
+		return fmt.Errorf("rule %q: failed to send alerts: %s", rule, err)
+	}
+	return nil
 }

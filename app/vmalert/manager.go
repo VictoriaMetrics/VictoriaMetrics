@@ -117,10 +117,11 @@ func (m *manager) update(ctx context.Context, path []string, validate, restore b
 func (g *Group) toAPI() APIGroup {
 	ag := APIGroup{
 		// encode as strings to avoid rounding
-		ID:       fmt.Sprintf("%d", g.ID()),
-		Name:     g.Name,
-		File:     g.File,
-		Interval: g.Interval.String(),
+		ID:          fmt.Sprintf("%d", g.ID()),
+		Name:        g.Name,
+		File:        g.File,
+		Interval:    g.Interval.String(),
+		Concurrency: g.Concurrency,
 	}
 	for _, r := range g.Rules {
 		switch v := r.(type) {

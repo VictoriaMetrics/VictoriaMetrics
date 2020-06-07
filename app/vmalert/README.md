@@ -13,6 +13,15 @@ rules against configured address.
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
 * Lightweight without extra dependencies.
 
+### Limitations:
+* `vmalert` execute queries against remote datasource which has reliability risks because of network. 
+It is recommended to configure alerts thresholds and rules expressions with understanding that network request
+may fail;
+* by default, rules execution is sequential within one group, but persisting of execution results to remote
+storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
+recording rule is reused in next one;
+* `vmalert` has no UI, just an API for getting groups and rules statuses.
+
 ### QuickStart
 
 To build `vmalert` from sources:
@@ -28,6 +37,8 @@ To start using `vmalert` you will need the following things:
 * datasource address - reachable VictoriaMetrics instance for rules execution;
 * notifier address - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing, 
 aggregating alerts and sending notifications.
+* remote write address - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
+compatible storage address for storing recording rules results and alerts state in for of timeseries. This is optional.
 
 Then configure `vmalert` accordingly:
 ```
@@ -36,27 +47,103 @@ Then configure `vmalert` accordingly:
         -notifier.url=http://localhost:9093
 ```
 
-Example for `.rules` file may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata).
+Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) 
+and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very 
+similar to Prometheus rules and configured using YAML. Configuration examples may be found 
+in [testdata](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata) folder.
+Every `rule` belongs to `group` and every configuration file may contain arbitrary number of groups:
+```yaml
+groups:
+  [ - <rule_group> ]
+```
 
-`vmalert` may be configured with `-remoteWrite` flag to write recording rules and 
-alerts state in form of timeseries via remote write protocol. Alerts state will be written 
-as `ALERTS` timeseries. These timeseries may be used to recover alerts state on `vmalert` 
-restarts if `-remoteRead` is configured.
+#### Groups
 
-`vmalert` runs evaluation for every group in a separate goroutine.
-Rules in group evaluated one-by-one sequentially. 
+Each group has following attributes:
+```yaml
+# The name of the group. Must be unique within a file.
+name: <string>
 
-**Important:** while recording rules execution is sequential, writing of timeseries results to remote
-storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
-recording rule is reused in next one.
+# How often rules in the group are evaluated.
+[ interval: <duration> | default = global.evaluation_interval ]
 
-`vmalert` also runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
+# How many rules execute at once. Increasing concurrency may speed
+# up round execution speed. 
+[ concurrency: <integer> | default = 1 ]
+
+rules:
+  [ - <rule> ... ]
+```
+
+#### Rules
+
+There are two types of Rules:
+* [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) - 
+Alerting rules allows to define alert conditions via [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL)
+and to send notifications about firing alerts to [Alertmanager](https://github.com/prometheus/alertmanager).
+* [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) - 
+Recording rules allow you to precompute frequently needed or computationally expensive expressions 
+and save their result as a new set of time series.
+
+##### Alerting rules
+
+The syntax for alerting rule is following:
+```yaml
+# The name of the alert. Must be a valid metric name.
+alert: <string>
+
+# The MetricsQL expression to evaluate.
+expr: <string>
+
+# Alerts are considered firing once they have been returned for this long.
+# Alerts which have not yet fired for long enough are considered pending.
+[ for: <duration> | default = 0s ]
+
+# Labels to add or overwrite for each alert.
+labels:
+  [ <labelname>: <tmpl_string> ]
+
+# Annotations to add to each alert.
+annotations:
+  [ <labelname>: <tmpl_string> ]
+``` 
+
+`vmalert` has no local storage and alerts state is stored in process memory. Hence, after reloading of `vmalert` process
+alerts state will be lost. To avoid this situation, `vmalert` may be configured via following flags:
+* `-remoteWrite.url` - URL to Victoria Metrics or VMInsert. `vmalert` will persist alerts state into the configured
+address in form of timeseries with name `ALERTS` via remote-write protocol.
+* `-remoteRead.url` - URL to Victoria Metrics or VMSelect. `vmalert` will try to restore alerts state from configured
+address by querying `ALERTS` timeseries.
+
+
+##### Recording rules
+
+The syntax for recording rules is following:
+```yaml
+# The name of the time series to output to. Must be a valid metric name.
+record: <string>
+
+# The MetricsQL expression to evaluate.
+expr: <string>
+
+# Labels to add or overwrite before storing the result.
+labels:
+  [ <labelname>: <labelvalue> ]
+```
+
+For recording rules to work `-remoteWrite.url` must specified.
+
+
+#### WEB
+
+`vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 * `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/<groupName>/<alertID>/status" ` - get alert status by ID.
 Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
+
 
 ### Configuration
 
