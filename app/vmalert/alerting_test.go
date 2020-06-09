@@ -101,6 +101,7 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 }
 
 func TestAlertingRule_Exec(t *testing.T) {
+	const defaultStep = 5 * time.Millisecond
 	testCases := []struct {
 		rule      *AlertingRule
 		steps     [][]datasource.Metric
@@ -240,7 +241,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestAlertingRule("for-fired", time.Millisecond),
+			newTestAlertingRule("for-fired", defaultStep),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -260,7 +261,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			map[uint64]*notifier.Alert{},
 		},
 		{
-			newTestAlertingRule("for-pending=>firing=>inactive", time.Millisecond),
+			newTestAlertingRule("for-pending=>firing=>inactive", defaultStep),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -272,10 +273,10 @@ func TestAlertingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestAlertingRule("for-pending=>firing=>inactive=>pending", time.Millisecond),
+			newTestAlertingRule("for-pending=>firing=>inactive=>pending", defaultStep),
 			[][]datasource.Metric{
-				//{metricWithLabels(t, "name", "foo")},
-				//{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
+				{metricWithLabels(t, "name", "foo")},
 				// empty step to reset pending alerts
 				{},
 				{metricWithLabels(t, "name", "foo")},
@@ -285,7 +286,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", time.Millisecond),
+			newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", defaultStep),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
 				{metricWithLabels(t, "name", "foo")},
@@ -311,7 +312,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 					t.Fatalf("unexpected err: %s", err)
 				}
 				// artificial delay between applying steps
-				time.Sleep(time.Millisecond)
+				time.Sleep(defaultStep)
 			}
 			if len(tc.rule.alerts) != len(tc.expAlerts) {
 				t.Fatalf("expected %d alerts; got %d", len(tc.expAlerts), len(tc.rule.alerts))

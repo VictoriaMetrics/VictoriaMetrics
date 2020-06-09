@@ -42,12 +42,12 @@ absolute path to all .yaml files in root.`)
 	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 
 	remoteWriteURL = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
-		" in form of timeseries. E.g. http://127.0.0.1:8428")
+		" and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
 	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
 	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	remoteWriteMaxBatchSize = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
-	remoteWriteConcurrency  = flag.Int("remoteWrite.concurrency", 1, "Defines number of readers that concurrently write into remote storage")
+	remoteWriteConcurrency  = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote storage")
 
 	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
 		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+

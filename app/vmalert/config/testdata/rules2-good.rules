@@ -1,6 +1,7 @@
 groups:
   - name: TestGroup
     interval: 2s
+    concurrency: 2
     rules:
       - alert: Conns
         expr: sum(vm_tcplistener_conns) by(instance) > 1
