@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 
@@ -197,4 +198,35 @@ func compareTimeSeries(t *testing.T, a, b []prompbmarshal.TimeSeries) error {
 		}
 	}
 	return nil
+}
+
+func compareAlerts(t *testing.T, as, bs []notifier.Alert) {
+	t.Helper()
+	if len(as) != len(bs) {
+		t.Fatalf("expected to have length %d; got %d", len(as), len(bs))
+	}
+	sort.Slice(as, func(i, j int) bool {
+		return as[i].ID < as[j].ID
+	})
+	sort.Slice(bs, func(i, j int) bool {
+		return bs[i].ID < bs[j].ID
+	})
+	for i := range as {
+		a, b := as[i], bs[i]
+		if a.Name != b.Name {
+			t.Fatalf("expected t have Name %q; got %q", a.Name, b.Name)
+		}
+		if a.State != b.State {
+			t.Fatalf("expected t have State %q; got %q", a.State, b.State)
+		}
+		if a.Value != b.Value {
+			t.Fatalf("expected t have Value %f; got %f", a.Value, b.Value)
+		}
+		if !reflect.DeepEqual(a.Annotations, b.Annotations) {
+			t.Fatalf("expected to have annotations %#v; got %#v", a.Annotations, b.Annotations)
+		}
+		if !reflect.DeepEqual(a.Labels, b.Labels) {
+			t.Fatalf("expected to have labels %#v; got %#v", a.Labels, b.Labels)
+		}
+	}
 }

@@ -15,10 +15,11 @@ import (
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	File     string
-	Name     string        `yaml:"name"`
-	Interval time.Duration `yaml:"interval,omitempty"`
-	Rules    []Rule        `yaml:"rules"`
+	File        string
+	Name        string        `yaml:"name"`
+	Interval    time.Duration `yaml:"interval,omitempty"`
+	Rules       []Rule        `yaml:"rules"`
+	Concurrency int           `yaml:"concurrency"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
