@@ -50,7 +50,7 @@ Then configure `vmalert` accordingly:
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) 
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very 
 similar to Prometheus rules and configured using YAML. Configuration examples may be found 
-in [testdata](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/testdata) folder.
+in [testdata](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/config/testdata) folder.
 Every `rule` belongs to `group` and every configuration file may contain arbitrary number of groups:
 ```yaml
 groups:
