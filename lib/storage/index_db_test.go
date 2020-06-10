@@ -1280,6 +1280,30 @@ func TestMatchTagFilters(t *testing.T) {
 		t.Fatalf("Shouldn't match")
 	}
 
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546
+	tfs.Reset()
+	if err := tfs.Add([]byte("key 3"), []byte("|value 3"), true, true); err != nil {
+		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if ok {
+		t.Fatalf("Shouldn't match")
+	}
+	tfs.Reset()
+	if err := tfs.Add([]byte("key 3"), []byte("|value 2"), true, true); err != nil {
+		t.Fatalf("cannot add regexp, negative filter: %s", err)
+	}
+	ok, err = matchTagFilters(&mn, toTFPointers(tfs.tfs), &bb)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !ok {
+		t.Fatalf("Should match")
+	}
+
 	// Positive match by existing tag
 	tfs.Reset()
 	if err := tfs.Add([]byte("key 0"), []byte("value 0"), false, false); err != nil {

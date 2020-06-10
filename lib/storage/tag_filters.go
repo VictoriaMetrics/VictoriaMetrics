@@ -84,7 +84,7 @@ func (tfs *TagFilters) Finalize() []*TagFilters {
 	var tfssNew []*TagFilters
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
-		if tf.matchesEmptyValue {
+		if !tf.isNegative && tf.isEmptyMatch {
 			// tf matches empty value, so it must be accompanied with `key!~".+"` tag filter
 			// in order to match time series without the given label.
 			tfssNew = append(tfssNew, tfs.cloneWithNegativeFilter(tf))
@@ -156,10 +156,8 @@ type tagFilter struct {
 	// Matches regexp suffix.
 	reSuffixMatch func(b []byte) bool
 
-	// Set to true for filter that matches empty value, i.e. "", "|foo" or ".*"
-	//
-	// Such a filter must be applied directly to metricNames.
-	matchesEmptyValue bool
+	// Set to true for filters matching empty value.
+	isEmptyMatch bool
 
 	// Contains reverse suffix for Graphite wildcard.
 	// I.e. for `{__name__=~"foo\\.[^.]*\\.bar\\.baz"}` the value will be `zab.rab.`
@@ -238,7 +236,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 
 	tf.orSuffixes = tf.orSuffixes[:0]
 	tf.reSuffixMatch = nil
-	tf.matchesEmptyValue = false
+	tf.isEmptyMatch = false
 	tf.graphiteReverseSuffix = tf.graphiteReverseSuffix[:0]
 
 	tf.prefix = append(tf.prefix, commonPrefix...)
@@ -258,6 +256,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		// Add empty orSuffix in order to trigger fast path for orSuffixes
 		// during the search for matching metricIDs.
 		tf.orSuffixes = append(tf.orSuffixes[:0], "")
+		tf.isEmptyMatch = len(prefix) == 0
 		return nil
 	}
 	rcv, err := getRegexpFromCache(expr)
@@ -266,9 +265,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	}
 	tf.orSuffixes = append(tf.orSuffixes[:0], rcv.orValues...)
 	tf.reSuffixMatch = rcv.reMatch
-	if len(prefix) == 0 && !tf.isNegative && tf.reSuffixMatch(nil) {
-		tf.matchesEmptyValue = true
-	}
+	tf.isEmptyMatch = len(prefix) == 0 && tf.reSuffixMatch(nil)
 	if !tf.isNegative && len(key) == 0 && strings.IndexByte(rcv.literalSuffix, '.') >= 0 {
 		// Reverse suffix is needed only for non-negative regexp filters on __name__ that contains dots.
 		tf.graphiteReverseSuffix = reverseBytes(tf.graphiteReverseSuffix[:0], []byte(rcv.literalSuffix))
