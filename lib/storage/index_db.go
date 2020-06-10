@@ -1835,6 +1835,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 
 		// Search for matching tag name.
 		tagMatched := false
+		tagSeen := false
 		for j := range mn.Tags {
 			tag := &mn.Tags[j]
 			if string(tag.Key) != string(tf.key) {
@@ -1842,6 +1843,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			}
 
 			// Found the matching tag name. Match the value.
+			tagSeen = true
 			b := tag.Marshal(kb.B)
 			kb.B = b[:len(kb.B)]
 			ok, err := matchTagFilter(b, tf)
@@ -1859,15 +1861,27 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			tagMatched = true
 			break
 		}
-		if !tagMatched && !tf.isNegative {
-			// Matching tag name wasn't found.
-			// Move failed tf to start.
-			// This should reduce the amount of useless work for the next mn.
-			if i > 0 {
-				tfs[0], tfs[i] = tfs[i], tfs[0]
-			}
-			return false, nil
+		if !tagSeen && tf.isNegative && !tf.isEmptyMatch {
+			// tf contains negative filter for non-exsisting tag key
+			// and this filter doesn't match empty string, i.e. {non_existing_tag_key!="foobar"}
+			// Such filter matches anything.
+			//
+			// Note that the filter `{non_existing_tag_key!~"|foobar"}` shouldn't match anything,
+			// since it is expected that it matches non-empty `non_existing_tag_key`.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 for details.
+			continue
 		}
+		if tagMatched {
+			// tf matches mn. Go to the next tf.
+			continue
+		}
+		// Matching tag name wasn't found.
+		// Move failed tf to start.
+		// This should reduce the amount of useless work for the next mn.
+		if i > 0 {
+			tfs[0], tfs[i] = tfs[i], tfs[0]
+		}
+		return false, nil
 	}
 	return true, nil
 }
