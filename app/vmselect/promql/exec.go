@@ -13,6 +13,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
+
+	"github.com/google/uuid"
 )
 
 var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
@@ -26,30 +28,30 @@ type Query struct {
 
 type queriesMap struct {
 	mu sync.Mutex
-	m  map[int64]Query
+	m  map[string]Query
 	c  int64
 }
 
 func (rqm *queriesMap) Init() {
-	rqm.m = make(map[int64]Query)
+	rqm.m = make(map[string]Query)
 }
 
-func (rqm *queriesMap) Add(q Query) int64 {
+func (rqm *queriesMap) Add(q Query) string {
 	rqm.mu.Lock()
-	c := atomic.AddInt64(&rqm.c, 1)
+	c := uuid.New().String()
 	rqm.m[c] = q
 	rqm.mu.Unlock()
 
 	return c
 }
 
-func (rqm *queriesMap) Delete(c int64) {
+func (rqm *queriesMap) Delete(c string) {
 	rqm.mu.Lock()
 	delete(rqm.m, c)
 	rqm.mu.Unlock()
 }
 
-func (rqm *queriesMap) Kill(c int64) {
+func (rqm *queriesMap) Kill(c string) {
 	rqm.mu.Lock()
 	// do some thing to kill the request
 	rqm.mu.Unlock()
@@ -61,8 +63,8 @@ func init() {
 	runningQueries.Init()
 }
 
-func GetAllRunningQueries() map[int64]string {
-	all := make(map[int64]string)
+func GetAllRunningQueries() map[string]string {
+	all := make(map[string]string)
 	runningQueries.mu.Lock()
 	for c, query := range runningQueries.m {
 		all[c] = query.q
@@ -72,7 +74,7 @@ func GetAllRunningQueries() map[int64]string {
 	return all
 }
 
-func CancelRunningQuery(c int64) error {
+func CancelRunningQuery(c string) error {
 	runningQueries.mu.Lock()
 	defer runningQueries.mu.Unlock()
 	if query, ok := runningQueries.m[c]; ok {

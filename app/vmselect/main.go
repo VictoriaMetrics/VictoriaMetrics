@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -333,13 +332,13 @@ func controlHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, 
 	case "query/kill":
 		queryKillRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
-		if err != nil {
+		pid := strings.TrimSpace(r.URL.Query().Get("pid"))
+		if pid == "" {
 			queryKillErrors.Inc()
-			sendPrometheusError(w, r, err)
+			sendPrometheusError(w, r, fmt.Errorf("pid not set"))
 			return true
 		}
-		err = promql.CancelRunningQuery(int64(pid))
+		err := promql.CancelRunningQuery(pid)
 		if err != nil {
 			queryKillErrors.Inc()
 			sendPrometheusError(w, r, err)
