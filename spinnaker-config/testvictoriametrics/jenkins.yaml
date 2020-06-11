@@ -1,0 +1,18 @@
+schema: "1"
+id: jenkinsStatusNotifier
+pipeline:
+  application: testvictoriametrics
+  name: jenkinsStatusNotifier to jenkins cluster
+  template:
+    source: spinnaker://deploySingleClusterFromPubsub
+  variables:
+    githubRepository: jenkins-agent-status-notifier
+    kubernetesAccount: jenkins
+    dockerImageName: jenkinsstatusnotifier
+    kubernetesManifests: manifests.yaml
+configuration:
+  description: "jenkinsStatusNotifier to jenkins cluster."
+  inherit:
+    - triggers
+    - expectedArtifacts
+    - notifications
