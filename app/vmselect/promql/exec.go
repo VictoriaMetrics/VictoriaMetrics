@@ -17,6 +17,72 @@ import (
 
 var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 
+type Query struct {
+	q       string
+	ec      *EvalConfig
+	stopCh  chan error
+	startAt time.Time
+}
+
+type queriesMap struct {
+	mu sync.Mutex
+	m  map[int64]Query
+	c  int64
+}
+
+func (rqm *queriesMap) Init() {
+	rqm.m = make(map[int64]Query)
+}
+
+func (rqm *queriesMap) Add(q Query) int64 {
+	rqm.mu.Lock()
+	c := atomic.AddInt64(&rqm.c, 1)
+	rqm.m[c] = q
+	rqm.mu.Unlock()
+
+	return c
+}
+
+func (rqm *queriesMap) Delete(c int64) {
+	rqm.mu.Lock()
+	delete(rqm.m, c)
+	rqm.mu.Unlock()
+}
+
+func (rqm *queriesMap) Kill(c int64) {
+	rqm.mu.Lock()
+	// do some thing to kill the request
+	rqm.mu.Unlock()
+}
+
+var runningQueries queriesMap
+
+func init() {
+	runningQueries.Init()
+}
+
+func GetAllRunningQueries() map[int64]string {
+	all := make(map[int64]string)
+	runningQueries.mu.Lock()
+	for c, query := range runningQueries.m {
+		all[c] = query.q
+	}
+	runningQueries.mu.Unlock()
+
+	return all
+}
+
+func CancelRunningQuery(c int64) error {
+	runningQueries.mu.Lock()
+	defer runningQueries.mu.Unlock()
+	if query, ok := runningQueries.m[c]; ok {
+		query.stopCh <- fmt.Errorf("cancel query manully")
+		return nil
+	}
+	return fmt.Errorf("query of qid {%v} is not running", c)
+
+}
+
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 // Exec executes q for the given ec.
@@ -33,16 +99,40 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		}()
 	}
 
+	stopCh := make(chan error, 1)
+	// TODO(dexter): check performance
+	resultCh := make(chan []netstorage.Result)
+	c := runningQueries.Add(Query{
+		q:       q,
+		ec:      ec,
+		startAt: time.Now(),
+		stopCh:  stopCh,
+	})
+	defer runningQueries.Delete(c)
+
+	go exec(ec, q, isFirstPointOnly, stopCh, resultCh)
+	for {
+		select {
+		case err := <-stopCh:
+			logger.Infof(err.Error())
+			return nil, err
+		case result := <-resultCh:
+			return result, nil
+		}
+	}
+}
+
+func exec(ec *EvalConfig, q string, isFirstPointOnly bool, stopCh chan error, resultCh chan []netstorage.Result) {
 	ec.validate()
 
 	e, err := parsePromQLWithCache(q)
 	if err != nil {
-		return nil, err
+		stopCh <- err
 	}
 
 	rv, err := evalExpr(ec, e)
 	if err != nil {
-		return nil, err
+		stopCh <- err
 	}
 
 	if isFirstPointOnly {
@@ -56,9 +146,10 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	maySort := maySortResults(e, rv)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
-		return nil, err
+		stopCh <- err
 	}
-	return result, err
+
+	resultCh <- result
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {

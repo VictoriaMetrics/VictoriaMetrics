@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -173,6 +175,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return selectHandler(startTime, w, r, p, at)
 	case "delete":
 		return deleteHandler(startTime, w, r, p, at)
+	case "-":
+		return controlHandler(w, r, p, at)
 	default:
 		// This is not our link
 		return false
@@ -313,6 +317,41 @@ func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+func controlHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+	switch p.Suffix {
+	case "query/list":
+		queryListRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		data, err := json.Marshal(promql.GetAllRunningQueries())
+		if err != nil {
+			queryListErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		fmt.Fprintf(w, `{"status":"success","data": %v}`, string(data))
+		return true
+	case "query/kill":
+		queryKillRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		pid, err := strconv.Atoi(r.URL.Query().Get("pid"))
+		if err != nil {
+			queryKillErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		err = promql.CancelRunningQuery(int64(pid))
+		if err != nil {
+			queryKillErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
+		return true
+	default:
+		return false
+	}
+}
+
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	logger.Warnf("error in %q: %s", r.RequestURI, err)
 
@@ -362,4 +401,10 @@ var (
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
 	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
+
+	queryListRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/list"}`)
+	queryListErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/list"}`)
+
+	queryKillRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/kill"}`)
+	queryKillErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/kill"}`)
 )
