@@ -63,11 +63,14 @@ func init() {
 	runningQueries.Init()
 }
 
-func GetAllRunningQueries() map[string]string {
-	all := make(map[string]string)
+func GetAllRunningQueries() map[string]map[string]string {
+	all := make(map[string]map[string]string)
 	runningQueries.mu.Lock()
 	for c, query := range runningQueries.m {
-		all[c] = query.q
+		m := make(map[string]string)
+		m["query"] = query.q
+		m["cost"] = time.Since(query.startAt).String()
+		all[c] = m
 	}
 	runningQueries.mu.Unlock()
 
