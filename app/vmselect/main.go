@@ -35,7 +35,8 @@ var (
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
 		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
 		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
-	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. Will be replaced by internalAuthKey.")
+	internalAuthKey   = flag.String("internalAuthKey", "", "Optional authKey for operation calls with prefix /internal. Use value of search.resetCacheAuthKey fif not set.")
 	storageNodes      = flagutil.NewArray("storageNode", "Addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1:8401 -storageNode=vmstorage-host2:8401")
 )
 
@@ -121,6 +122,8 @@ var (
 	})
 )
 
+var internalHandlerPrefix = "/internal"
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	// Limit the number of concurrent queries.
@@ -150,13 +153,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
-	if path == "/internal/resetRollupResultCache" {
-		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
-			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
-			return true
-		}
-		promql.ResetRollupResultCache()
-		return true
+	if strings.HasPrefix(path, internalHandlerPrefix) {
+		return internalHandler(w, r)
 	}
 
 	p, err := httpserver.ParsePath(path)
@@ -174,8 +172,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return selectHandler(startTime, w, r, p, at)
 	case "delete":
 		return deleteHandler(startTime, w, r, p, at)
-	case "-":
-		return controlHandler(w, r, p, at)
 	default:
 		// This is not our link
 		return false
@@ -316,9 +312,23 @@ func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-func controlHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
-	switch p.Suffix {
-	case "query/list":
+func internalHandler(w http.ResponseWriter, r *http.Request) bool {
+	path := r.URL.Path
+	p := path[len(internalHandlerPrefix):]
+	authKey := *internalAuthKey
+	if authKey == "" {
+		authKey = *resetCacheAuthKey
+	}
+	if authKey != "" && r.FormValue("authKey") != authKey {
+		sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+		return true
+	}
+
+	switch p {
+	case "/resetRollupResultCache":
+		promql.ResetRollupResultCache()
+		return true
+	case "/query/list":
 		queryListRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		data, err := json.Marshal(promql.GetAllRunningQueries())
@@ -329,7 +339,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request, p *httpserver.Path, 
 		}
 		fmt.Fprintf(w, `{"status":"success","data": %v}`, string(data))
 		return true
-	case "query/kill":
+	case "/query/kill":
 		queryKillRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		pid := strings.TrimSpace(r.URL.Query().Get("pid"))
