@@ -215,7 +215,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, star
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
 	}
-	if isPartial {
+	if isPartial && getDenyPartialResponse(r) {
 		rss.Cancel()
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
