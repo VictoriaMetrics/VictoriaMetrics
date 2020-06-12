@@ -14,7 +14,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.7.2"
+      "version": "7.0.2"
     },
     {
       "type": "panel",
@@ -36,8 +36,8 @@
     },
     {
       "type": "panel",
-      "id": "table",
-      "name": "Table",
+      "id": "table-old",
+      "name": "Table (old)",
       "version": ""
     }
   ],
@@ -59,7 +59,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1589924816825,
+  "iteration": 1591987127262,
   "links": [
     {
       "icon": "doc",
@@ -112,6 +112,12 @@
       ],
       "datasource": "$ds",
       "description": "How many entries inverted index contains. This value is proportional to the number of unique timeseries in storage(cardinality).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "format": "short",
       "gauge": {
         "maxValue": 100,
@@ -196,6 +202,12 @@
       ],
       "datasource": "$ds",
       "description": "Total amount of used disk space",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "format": "bytes",
       "gauge": {
         "maxValue": 100,
@@ -280,6 +292,12 @@
       ],
       "datasource": "$ds",
       "description": "How many datapoints are in storage",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "format": "short",
       "gauge": {
         "maxValue": 100,
@@ -365,6 +383,12 @@
       "datasource": "$ds",
       "decimals": 2,
       "description": "Average disk usage per datapoint.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "format": "bytes",
       "gauge": {
         "maxValue": 100,
@@ -416,7 +440,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"}) / sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"})",
+          "expr": "sum(vm_data_size_bytes{job=\"$job_storage\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", type!=\"indexdb\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -443,6 +467,12 @@
     {
       "columns": [],
       "datasource": "$ds",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fontSize": "100%",
       "gridPos": {
         "h": 7,
@@ -528,7 +558,7 @@
       "timeShift": null,
       "title": "Uptime",
       "transform": "table",
-      "type": "table"
+      "type": "table-old"
     },
     {
       "aliasColors": {},
@@ -536,6 +566,12 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -635,6 +671,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "How many datapoints are inserted into storage per second",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -724,6 +766,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -818,6 +866,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -912,6 +966,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1006,6 +1066,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "RPC errors are interconnection errors between cluster components. Errors rate should be 0 if network connection is stable and all components are up and operational.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1119,6 +1185,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1216,6 +1288,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "Shows amount of remaining disk space at `-storageDataPath`",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1308,6 +1386,12 @@
       "dashes": false,
       "datasource": "$ds",
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -3061,13 +3145,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "Shows how many datapoints are in the storage.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 16,
@@ -3154,13 +3244,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "Shows how many rows per second every storage node accepts. This metric doesn't show all stored rows since some of them may be dropped because of wrong timestamps or decode errors.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 100,
@@ -3245,13 +3341,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "Shows amount of on-disk space occupied by data points.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 18,
@@ -3336,13 +3438,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "Shows amount of on-disk space occupied by inverted index.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 20,
@@ -3427,13 +3535,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 54,
@@ -3516,13 +3630,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 14,
@@ -3624,13 +3744,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 22,
@@ -3715,13 +3841,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "The number of rows merged per second by storage nodes.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 55,
@@ -3804,13 +3936,19 @@
           "dashes": false,
           "datasource": "$ds",
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2\n* `current` - current number of goroutines busy with inserting rows into storage\n\nWhen `current` hits `max` constantly, it means storage is overloaded and require more CPU.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 4,
@@ -4663,14 +4801,14 @@
       "type": "row"
     }
   ],
-  "schemaVersion": 22,
+  "schemaVersion": 25,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },
@@ -4693,7 +4831,6 @@
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
         "hide": 2,
         "includeAll": false,
-        "index": -1,
         "label": null,
         "multi": false,
         "name": "job_insert",
@@ -4716,7 +4853,6 @@
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
         "hide": 2,
         "includeAll": false,
-        "index": -1,
         "label": null,
         "multi": false,
         "name": "job_select",
@@ -4739,7 +4875,6 @@
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
         "hide": 2,
         "includeAll": false,
-        "index": -1,
         "label": null,
         "multi": false,
         "name": "job_storage",
@@ -4762,7 +4897,6 @@
         "definition": "label_values(vm_app_version{version=~\"^vm.*\"}, job)",
         "hide": 0,
         "includeAll": true,
-        "index": -1,
         "label": null,
         "multi": true,
         "name": "job",
@@ -4785,7 +4919,6 @@
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
-        "index": -1,
         "label": null,
         "multi": true,
         "name": "instance",
@@ -4797,9 +4930,18 @@
         "sort": 0,
         "tagValuesQuery": "label_values(vm_app_version{job=\"$tag\"}, instance)",
         "tags": [
-          "vmselect",
-          "vmstorage",
-          "vminsert"
+          {
+            "selected": false,
+            "text": "vmselect"
+          },
+          {
+            "selected": false,
+            "text": "vmstorage"
+          },
+          {
+            "selected": false,
+            "text": "vminsert"
+          }
         ],
         "tagsQuery": "label_values(vm_app_version, job)",
         "type": "query",
@@ -4813,7 +4955,6 @@
   },
   "timepicker": {
     "refresh_intervals": [
-      "5s",
       "10s",
       "30s",
       "1m",
@@ -4828,8 +4969,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster",
   "uid": "oS7Bi_0Wz",
-  "variables": {
-    "list": []
-  },
-  "version": 2
+  "version": 1
 }
