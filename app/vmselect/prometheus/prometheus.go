@@ -151,7 +151,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if start >= end {
 		end = start + defaultStep
 	}
-	if err := exportHandler(at, w, matches, start, end, format, maxRowsPerLine, deadline); err != nil {
+	if err := exportHandler(at, w, r, matches, start, end, format, maxRowsPerLine, deadline); err != nil {
 		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %s", matches, start, end, err)
 	}
 	exportDuration.UpdateDuration(startTime)
@@ -160,7 +160,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(at *auth.Token, w http.ResponseWriter, matches []string, start, end int64, format string, maxRowsPerLine int, deadline netstorage.Deadline) error {
+func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, matches []string, start, end int64, format string, maxRowsPerLine int, deadline netstorage.Deadline) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := WriteExportJSONLine
 	if maxRowsPerLine > 0 {
@@ -741,7 +741,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		start -= offset
 		end := start
 		start = end - window
-		if err := exportHandler(at, w, []string{childQuery}, start, end, "promapi", 0, deadline); err != nil {
+		if err := exportHandler(at, w, r, []string{childQuery}, start, end, "promapi", 0, deadline); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %s", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
