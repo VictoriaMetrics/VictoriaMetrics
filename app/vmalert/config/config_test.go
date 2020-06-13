@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
@@ -147,6 +148,73 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "error parsing annotation",
 			validateAnnotations: true,
 		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{
+						Alert: "alert",
+						Expr:  "up == 1",
+					},
+					{
+						Alert: "alert",
+						Expr:  "up == 1",
+					},
+				},
+			},
+			expErr: "duplicate",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+				},
+			},
+			expErr: "duplicate",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{Record: "record", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+					{Record: "record", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+				},
+			},
+			expErr: "duplicate",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"description": "{{ value|query }}",
+					}},
+				},
+			},
+			expErr: "",
+		},
+		{
+			group: &Group{Name: "test",
+				Rules: []Rule{
+					{Record: "alert", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"summary": "{{ value|query }}",
+					}},
+				},
+			},
+			expErr: "",
+		},
 	}
 	for _, tc := range testCases {
 		err := tc.group.Validate(tc.validateAnnotations, tc.validateExpressions)
@@ -158,6 +226,101 @@ func TestGroup_Validate(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), tc.expErr) {
 			t.Errorf("expected err to contain %q; got %q instead", tc.expErr, err)
+		}
+	}
+}
+
+func TestHashRule(t *testing.T) {
+	testCases := []struct {
+		a, b  Rule
+		equal bool
+	}{
+		{
+			Rule{Record: "record", Expr: "up == 1"},
+			Rule{Record: "record", Expr: "up == 1"},
+			true,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1"},
+			Rule{Alert: "alert", Expr: "up == 1"},
+			true,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			}},
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			}},
+			true,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			}},
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"baz": "foo",
+				"foo": "bar",
+			}},
+			true,
+		},
+		{
+			Rule{Alert: "record", Expr: "up == 1"},
+			Rule{Alert: "record", Expr: "up == 1"},
+			true,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1", For: time.Minute},
+			Rule{Alert: "alert", Expr: "up == 1"},
+			true,
+		},
+		{
+			Rule{Alert: "record", Expr: "up == 1"},
+			Rule{Record: "record", Expr: "up == 1"},
+			false,
+		},
+		{
+			Rule{Record: "record", Expr: "up == 1"},
+			Rule{Record: "record", Expr: "up == 2"},
+			false,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			}},
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"baz": "foo",
+				"foo": "baz",
+			}},
+			false,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			}},
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"baz": "foo",
+			}},
+			false,
+		},
+		{
+			Rule{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"foo": "bar",
+				"baz": "foo",
+			}},
+			Rule{Alert: "alert", Expr: "up == 1"},
+			false,
+		},
+	}
+	for i, tc := range testCases {
+		aID, bID := HashRule(tc.a), HashRule(tc.b)
+		if tc.equal != (aID == bID) {
+			t.Fatalf("missmatch for rule %d", i)
 		}
 	}
 }

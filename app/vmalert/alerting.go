@@ -18,6 +18,7 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
+	RuleID      uint64
 	Name        string
 	Expr        string
 	For         time.Duration
@@ -39,6 +40,7 @@ type AlertingRule struct {
 
 func newAlertingRule(gID uint64, cfg config.Rule) *AlertingRule {
 	return &AlertingRule{
+		RuleID:      cfg.ID,
 		Name:        cfg.Alert,
 		Expr:        cfg.Expr,
 		For:         cfg.For,
@@ -57,11 +59,7 @@ func (ar *AlertingRule) String() string {
 // ID returns unique Rule ID
 // within the parent Group.
 func (ar *AlertingRule) ID() uint64 {
-	hash := fnv.New64a()
-	hash.Write([]byte("alerting"))
-	hash.Write([]byte("\xff"))
-	hash.Write([]byte(ar.Name))
-	return hash.Sum64()
+	return ar.RuleID
 }
 
 // Exec executes AlertingRule expression via the given Querier.

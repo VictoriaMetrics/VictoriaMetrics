@@ -19,6 +19,12 @@ groups:
       - record: code:requests:rate5m
         expr: sum(rate(promhttp_metric_handler_requests_total[5m])) by (code)
         labels:
+          env: dev
+          recording: true
+      - record: code:requests:rate5m
+        expr: sum(rate(promhttp_metric_handler_requests_total[5m])) by (code)
+        labels:
+          env: staging
           recording: true
       - record: successful_requests:ratio_rate5m
         labels:
