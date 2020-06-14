@@ -80,15 +80,15 @@ func main() {
 		logger.Fatalf("can not get external url: %s ", err)
 	}
 	notifier.InitTemplateFunc(eu)
-	gu, err := getAlertURLGenerator(eu)
+	aug, err := getAlertURLGenerator(eu)
 	if err != nil {
-		logger.Fatalf("can not get source url: %s ", err)
+		logger.Fatalf("can not get alert url generator func: %s ", err)
 	}
 
 	manager := &manager{
 		groups:   make(map[uint64]*Group),
 		storage:  datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		notifier: notifier.NewAlertManager(*notifierURL, gu, &http.Client{}),
+		notifier: notifier.NewAlertManager(*notifierURL, aug, &http.Client{}),
 	}
 	if *remoteWriteURL != "" {
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
