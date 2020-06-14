@@ -46,7 +46,7 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 }
 
 // AlertURLGenerator returns URL to single alert by given name
-type AlertURLGenerator func(group, alert string) string
+type AlertURLGenerator func(Alert) string
 
 const alertManagerPath = "/api/v2/alerts"
 

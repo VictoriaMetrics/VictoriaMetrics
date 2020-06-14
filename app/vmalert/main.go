@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,9 +58,12 @@ absolute path to all .yaml files in root.`)
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
 
-	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
-	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	evaluationInterval  = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
+	notifierURL         = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	externalAlertSource = flag.String("external.alert.source", "", `Alert's source URL path can be rewritten by using External Alert Source. 
+Source supports all alert variables and functions, can be useful for redefining source url path for Grafana query, eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'' . 
+If empty '/api/v1/:groupID/alertID/status' is used`)
 )
 
 func main() {
@@ -76,13 +80,15 @@ func main() {
 		logger.Fatalf("can not get external url: %s ", err)
 	}
 	notifier.InitTemplateFunc(eu)
+	gu, err := getAlertURLGenerator(eu)
+	if err != nil {
+		logger.Fatalf("can not get source url: %s ", err)
+	}
 
 	manager := &manager{
-		groups:  make(map[uint64]*Group),
-		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		notifier: notifier.NewAlertManager(*notifierURL, func(group, alert string) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, alert)
-		}, &http.Client{}),
+		groups:   make(map[uint64]*Group),
+		storage:  datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
+		notifier: notifier.NewAlertManager(*notifierURL, gu, &http.Client{}),
 	}
 	if *remoteWriteURL != "" {
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
@@ -164,6 +170,19 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 		schema = "https://"
 	}
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
+}
+
+func getAlertURLGenerator(externalURL *url.URL) (notifier.AlertURLGenerator, error) {
+	sourceURL, err := notifier.AlertSourceFunc(externalURL, *externalAlertSource, *validateTemplates)
+	if err != nil {
+		return nil, err
+	}
+	if sourceURL != nil {
+		return sourceURL, nil
+	}
+	return func(alert notifier.Alert) string {
+		return fmt.Sprintf("%s/api/v1/%s/%s/status", externalURL, strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10))
+	}, nil
 }
 
 func checkFlags() {
