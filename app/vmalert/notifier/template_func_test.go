@@ -11,7 +11,7 @@ func TestAlertSourceFunc(t *testing.T) {
 	if fn != nil || err != nil {
 		t.Errorf("expected nil functionc AND nil error got %+v, %s", fn, err)
 	}
-	fn, err = AlertSourceFunc(base, `explore?{{$expr|foo}}\"}}`, true)
+	_, err = AlertSourceFunc(base, `explore?{{$expr|foo}}\"}}`, true)
 	if err == nil {
 		t.Errorf("expected template validation error")
 	}
