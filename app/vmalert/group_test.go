@@ -13,21 +13,20 @@ import (
 func TestUpdateWith(t *testing.T) {
 	testCases := []struct {
 		name         string
-		currentRules []Rule
-		// rules must be sorted by ID
-		newRules []Rule
+		currentRules []config.Rule
+		newRules     []config.Rule
 	}{
 		{
 			"new rule",
-			[]Rule{},
-			[]Rule{&AlertingRule{Name: "bar"}},
+			nil,
+			[]config.Rule{{Alert: "bar"}},
 		},
 		{
 			"update alerting rule",
-			[]Rule{&AlertingRule{
-				Name: "foo",
-				Expr: "up > 0",
-				For:  time.Second,
+			[]config.Rule{{
+				Alert: "foo",
+				Expr:  "up > 0",
+				For:   time.Second,
 				Labels: map[string]string{
 					"bar": "baz",
 				},
@@ -36,10 +35,10 @@ func TestUpdateWith(t *testing.T) {
 					"description": "{{$labels}}",
 				},
 			}},
-			[]Rule{&AlertingRule{
-				Name: "foo",
-				Expr: "up > 10",
-				For:  time.Second,
+			[]config.Rule{{
+				Alert: "foo",
+				Expr:  "up > 10",
+				For:   time.Second,
 				Labels: map[string]string{
 					"baz": "bar",
 				},
@@ -50,16 +49,16 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"update recording rule",
-			[]Rule{&RecordingRule{
-				Name: "foo",
-				Expr: "max(up)",
+			[]config.Rule{{
+				Record: "foo",
+				Expr:   "max(up)",
 				Labels: map[string]string{
 					"bar": "baz",
 				},
 			}},
-			[]Rule{&RecordingRule{
-				Name: "foo",
-				Expr: "min(up)",
+			[]config.Rule{{
+				Record: "foo",
+				Expr:   "min(up)",
 				Labels: map[string]string{
 					"baz": "bar",
 				},
@@ -67,45 +66,56 @@ func TestUpdateWith(t *testing.T) {
 		},
 		{
 			"empty rule",
-			[]Rule{&AlertingRule{Name: "foo"}, &RecordingRule{Name: "bar"}},
-			[]Rule{},
+			[]config.Rule{{Alert: "foo"}, {Record: "bar"}},
+			nil,
 		},
 		{
 			"multiple rules",
-			[]Rule{
-				&AlertingRule{Name: "bar"},
-				&AlertingRule{Name: "baz"},
-				&RecordingRule{Name: "foo"},
+			[]config.Rule{
+				{Alert: "bar"},
+				{Alert: "baz"},
+				{Alert: "foo"},
 			},
-			[]Rule{
-				&AlertingRule{Name: "baz"},
-				&RecordingRule{Name: "foo"},
+			[]config.Rule{
+				{Alert: "baz"},
+				{Record: "foo"},
 			},
 		},
 		{
 			"replace rule",
-			[]Rule{&AlertingRule{Name: "foo1"}},
-			[]Rule{&AlertingRule{Name: "foo2"}},
+			[]config.Rule{{Alert: "foo1"}},
+			[]config.Rule{{Alert: "foo2"}},
 		},
 		{
 			"replace multiple rules",
-			[]Rule{
-				&AlertingRule{Name: "foo1"},
-				&RecordingRule{Name: "foo2"},
-				&AlertingRule{Name: "foo3"},
+			[]config.Rule{
+				{Alert: "foo1"},
+				{Record: "foo2"},
+				{Alert: "foo3"},
 			},
-			[]Rule{
-				&AlertingRule{Name: "foo3"},
-				&AlertingRule{Name: "foo4"},
-				&RecordingRule{Name: "foo5"},
+			[]config.Rule{
+				{Alert: "foo3"},
+				{Alert: "foo4"},
+				{Record: "foo5"},
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Group{Rules: tc.currentRules}
-			err := g.updateWith(&Group{Rules: tc.newRules})
+			g := &Group{Name: "test"}
+			for _, r := range tc.currentRules {
+				r.ID = config.HashRule(r)
+				g.Rules = append(g.Rules, g.newRule(r))
+			}
+
+			ng := &Group{Name: "test"}
+			for _, r := range tc.newRules {
+				r.ID = config.HashRule(r)
+				ng.Rules = append(ng.Rules, ng.newRule(r))
+			}
+
+			err := g.updateWith(ng)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -117,8 +127,11 @@ func TestUpdateWith(t *testing.T) {
 			sort.Slice(g.Rules, func(i, j int) bool {
 				return g.Rules[i].ID() < g.Rules[j].ID()
 			})
+			sort.Slice(ng.Rules, func(i, j int) bool {
+				return ng.Rules[i].ID() < ng.Rules[j].ID()
+			})
 			for i, r := range g.Rules {
-				got, want := r, tc.newRules[i]
+				got, want := r, ng.Rules[i]
 				if got.ID() != want.ID() {
 					t.Fatalf("expected to have rule %q; got %q", want, got)
 				}

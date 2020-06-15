@@ -18,6 +18,7 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
+	RuleID  uint64
 	Name    string
 	Expr    string
 	Labels  map[string]string
@@ -41,15 +42,12 @@ func (rr *RecordingRule) String() string {
 // ID returns unique Rule ID
 // within the parent Group.
 func (rr *RecordingRule) ID() uint64 {
-	hash := fnv.New64a()
-	hash.Write([]byte("alerting"))
-	hash.Write([]byte("\xff"))
-	hash.Write([]byte(rr.Name))
-	return hash.Sum64()
+	return rr.RuleID
 }
 
 func newRecordingRule(gID uint64, cfg config.Rule) *RecordingRule {
 	return &RecordingRule{
+		RuleID:  cfg.ID,
 		Name:    cfg.Record,
 		Expr:    cfg.Expr,
 		Labels:  cfg.Labels,

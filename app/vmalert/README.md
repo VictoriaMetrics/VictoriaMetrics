@@ -20,6 +20,7 @@ may fail;
 * by default, rules execution is sequential within one group, but persisting of execution results to remote
 storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
 recording rule is reused in next one;
+* there is no `query` function support in templates yet;
 * `vmalert` has no UI, just an API for getting groups and rules statuses.
 
 ### QuickStart
@@ -84,6 +85,9 @@ and to send notifications about firing alerts to [Alertmanager](https://github.c
 * [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) - 
 Recording rules allow you to precompute frequently needed or computationally expensive expressions 
 and save their result as a new set of time series.
+
+`vmalert` forbids to define duplicates - rules with the same combination of name, expression and labels
+within one group. 
 
 ##### Alerting rules
 
