@@ -2,14 +2,16 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"hash/fnv"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/metricsql"
+	"gopkg.in/yaml.v2"
 )
 
 // Group contains list of Rules grouped into
@@ -33,16 +35,16 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 	if len(g.Rules) == 0 {
 		return fmt.Errorf("group %q can't contain no rules", g.Name)
 	}
-	uniqueRules := map[string]struct{}{}
+	uniqueRules := map[uint64]struct{}{}
 	for _, r := range g.Rules {
 		ruleName := r.Record
 		if r.Alert != "" {
 			ruleName = r.Alert
 		}
-		if _, ok := uniqueRules[ruleName]; ok {
-			return fmt.Errorf("rule name %q duplicate", ruleName)
+		if _, ok := uniqueRules[r.ID]; ok {
+			return fmt.Errorf("rule %q duplicate", ruleName)
 		}
-		uniqueRules[ruleName] = struct{}{}
+		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
 			return fmt.Errorf("invalid rule %q.%q: %s", g.Name, ruleName, err)
 		}
@@ -66,12 +68,56 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 // Rule describes entity that represent either
 // recording rule or alerting rule.
 type Rule struct {
+	ID          uint64
 	Record      string            `yaml:"record,omitempty"`
 	Alert       string            `yaml:"alert,omitempty"`
 	Expr        string            `yaml:"expr"`
 	For         time.Duration     `yaml:"for,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
+
+	// Catches all undefined fields and must be empty after parsing.
+	XXX map[string]interface{} `yaml:",inline"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (r *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type rule Rule
+	if err := unmarshal((*rule)(r)); err != nil {
+		return err
+	}
+	r.ID = HashRule(*r)
+	return nil
+}
+
+// HashRule hashes significant Rule fields into
+// unique hash value
+func HashRule(r Rule) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(r.Expr))
+	if r.Record != "" {
+		h.Write([]byte("recording"))
+		h.Write([]byte(r.Record))
+	} else {
+		h.Write([]byte("alerting"))
+		h.Write([]byte(r.Alert))
+	}
+	type item struct {
+		key, value string
+	}
+	var kv []item
+	for k, v := range r.Labels {
+		kv = append(kv, item{key: k, value: v})
+	}
+	sort.Slice(kv, func(i, j int) bool {
+		return kv[i].key < kv[j].key
+	})
+	for _, i := range kv {
+		h.Write([]byte(i.key))
+		h.Write([]byte(i.value))
+		h.Write([]byte("\xff"))
+	}
+	return h.Sum64()
 }
 
 // Validate check for Rule configuration errors
@@ -82,7 +128,7 @@ func (r *Rule) Validate() error {
 	if r.Expr == "" {
 		return fmt.Errorf("expression can't be empty")
 	}
-	return nil
+	return checkOverflow(r.XXX, "rule")
 }
 
 // Parse parses rule configs from given file patterns
