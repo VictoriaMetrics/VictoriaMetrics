@@ -22,8 +22,6 @@ import (
 	"strings"
 	text_template "text/template"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var tmplFunc text_template.FuncMap
@@ -179,28 +177,4 @@ const second = int64(time.Second / minimumTick)
 // Time returns the time.Time representation of t.
 func (t Time) Time() time.Time {
 	return time.Unix(int64(t)/second, (int64(t)%second)*nanosPerTick)
-}
-
-// AlertSourceFunc returns alert generator url if alert source template is specified
-func AlertSourceFunc(baseURL *url.URL, sourceTemplate string, validateTemplate bool) (AlertURLGenerator, error) {
-	if sourceTemplate == "" {
-		return nil, nil
-	}
-	if validateTemplate {
-		if err := ValidateTemplates(map[string]string{
-			"template": sourceTemplate,
-		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s:%w", sourceTemplate, err)
-		}
-	}
-	return func(alert Alert) string {
-		m := map[string]string{
-			"tpl": sourceTemplate,
-		}
-		templated, err := alert.ExecTemplate(m)
-		if err != nil {
-			logger.Errorf("can not exec source template %s", err)
-		}
-		return fmt.Sprintf("%s/%s", baseURL, templated["tpl"])
-	}, nil
 }
