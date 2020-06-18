@@ -60,6 +60,8 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 			Regex:        defaultRegexForRelabelConfig,
 			Replacement:  "$1",
 			Action:       "replace",
+
+			hasCaptureGroupInReplacement: true,
 		},
 	})
 }
