@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -124,6 +125,9 @@ func parseRelabelConfig(dst []ParsedRelabelConfig, rc *RelabelConfig) ([]ParsedR
 		Modulus:      modulus,
 		Replacement:  replacement,
 		Action:       action,
+
+		hasCaptureGroupInTargetLabel: strings.Contains(targetLabel, "$"),
+		hasCaptureGroupInReplacement: strings.Contains(replacement, "$"),
 	})
 	return dst, nil
 }

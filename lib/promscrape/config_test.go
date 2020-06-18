@@ -952,6 +952,14 @@ scrape_configs:
 			AuthConfig: &promauth.Config{},
 		},
 	})
+
+	prcs, err := promrelabel.ParseRelabelConfigs(nil, []promrelabel.RelabelConfig{{
+		SourceLabels: []string{"foo"},
+		TargetLabel:  "abc",
+	}})
+	if err != nil {
+		t.Fatalf("unexpected error when parsing relabel configs: %s", err)
+	}
 	f(`
 scrape_configs:
 - job_name: foo
@@ -987,17 +995,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig: &promauth.Config{},
-			MetricRelabelConfigs: []promrelabel.ParsedRelabelConfig{
-				{
-					SourceLabels: []string{"foo"},
-					Separator:    ";",
-					TargetLabel:  "abc",
-					Regex:        defaultRegexForRelabelConfig,
-					Replacement:  "$1",
-					Action:       "replace",
-				},
-			},
+			AuthConfig:           &promauth.Config{},
+			MetricRelabelConfigs: prcs,
 		},
 	})
 	f(`

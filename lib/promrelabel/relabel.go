@@ -23,6 +23,9 @@ type ParsedRelabelConfig struct {
 	Modulus      uint64
 	Replacement  string
 	Action       string
+
+	hasCaptureGroupInTargetLabel bool
+	hasCaptureGroupInReplacement bool
 }
 
 // String returns human-readable representation for prc.
@@ -103,51 +106,52 @@ func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 	return dst
 }
 
-// applyRelabelConfig applies relabeling according to cfg.
+// applyRelabelConfig applies relabeling according to prc.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *ParsedRelabelConfig) []prompbmarshal.Label {
+func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *ParsedRelabelConfig) []prompbmarshal.Label {
 	src := labels[labelsOffset:]
-	switch cfg.Action {
+	switch prc.Action {
 	case "replace":
 		bb := relabelBufPool.Get()
-		bb.B = concatLabelValues(bb.B[:0], src, cfg.SourceLabels, cfg.Separator)
-		if len(bb.B) == 0 && cfg.Regex == defaultRegexForRelabelConfig && !strings.Contains(cfg.Replacement, "$") {
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		if len(bb.B) == 0 && prc.Regex == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInReplacement && !prc.hasCaptureGroupInTargetLabel {
 			// Fast path for the following rule that just sets label value:
 			// - target_label: foobar
 			//   replacement: something-here
 			relabelBufPool.Put(bb)
-			return setLabelValue(labels, labelsOffset, cfg.TargetLabel, cfg.Replacement)
+			return setLabelValue(labels, labelsOffset, prc.TargetLabel, prc.Replacement)
 		}
-		match := cfg.Regex.FindSubmatchIndex(bb.B)
+		match := prc.Regex.FindSubmatchIndex(bb.B)
 		if match == nil {
 			// Fast path - nothing to replace.
 			relabelBufPool.Put(bb)
 			return labels
 		}
 		sourceStr := bytesutil.ToUnsafeString(bb.B)
-		value := relabelBufPool.Get()
-		value.B = cfg.Regex.ExpandString(value.B[:0], cfg.Replacement, sourceStr, match)
+		nameStr := prc.TargetLabel
+		if prc.hasCaptureGroupInTargetLabel {
+			nameStr = prc.expandCaptureGroups(nameStr, sourceStr, match)
+		}
+		valueStr := prc.expandCaptureGroups(prc.Replacement, sourceStr, match)
 		relabelBufPool.Put(bb)
-		valueStr := string(value.B)
-		relabelBufPool.Put(value)
-		return setLabelValue(labels, labelsOffset, cfg.TargetLabel, valueStr)
+		return setLabelValue(labels, labelsOffset, nameStr, valueStr)
 	case "replace_all":
 		bb := relabelBufPool.Get()
-		bb.B = concatLabelValues(bb.B[:0], src, cfg.SourceLabels, cfg.Separator)
-		if !cfg.Regex.Match(bb.B) {
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		if !prc.Regex.Match(bb.B) {
 			// Fast path - nothing to replace.
 			relabelBufPool.Put(bb)
 			return labels
 		}
 		sourceStr := string(bb.B) // Make a copy of bb, since it can be returned from ReplaceAllString
 		relabelBufPool.Put(bb)
-		valueStr := cfg.Regex.ReplaceAllString(sourceStr, cfg.Replacement)
-		return setLabelValue(labels, labelsOffset, cfg.TargetLabel, valueStr)
+		valueStr := prc.Regex.ReplaceAllString(sourceStr, prc.Replacement)
+		return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 	case "keep":
 		bb := relabelBufPool.Get()
-		bb.B = concatLabelValues(bb.B[:0], src, cfg.SourceLabels, cfg.Separator)
-		keep := cfg.Regex.Match(bb.B)
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		keep := prc.Regex.Match(bb.B)
 		relabelBufPool.Put(bb)
 		if !keep {
 			return labels[:labelsOffset]
@@ -155,8 +159,8 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *Par
 		return labels
 	case "drop":
 		bb := relabelBufPool.Get()
-		bb.B = concatLabelValues(bb.B[:0], src, cfg.SourceLabels, cfg.Separator)
-		drop := cfg.Regex.Match(bb.B)
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		drop := prc.Regex.Match(bb.B)
 		relabelBufPool.Put(bb)
 		if drop {
 			return labels[:labelsOffset]
@@ -164,20 +168,20 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *Par
 		return labels
 	case "hashmod":
 		bb := relabelBufPool.Get()
-		bb.B = concatLabelValues(bb.B[:0], src, cfg.SourceLabels, cfg.Separator)
-		h := xxhash.Sum64(bb.B) % cfg.Modulus
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		h := xxhash.Sum64(bb.B) % prc.Modulus
 		value := strconv.Itoa(int(h))
 		relabelBufPool.Put(bb)
-		return setLabelValue(labels, labelsOffset, cfg.TargetLabel, value)
+		return setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
 	case "labelmap":
 		for i := range src {
 			label := &src[i]
-			match := cfg.Regex.FindStringSubmatchIndex(label.Name)
+			match := prc.Regex.FindStringSubmatchIndex(label.Name)
 			if match == nil {
 				continue
 			}
 			value := relabelBufPool.Get()
-			value.B = cfg.Regex.ExpandString(value.B[:0], cfg.Replacement, label.Name, match)
+			value.B = prc.Regex.ExpandString(value.B[:0], prc.Replacement, label.Name, match)
 			label.Name = string(value.B)
 			relabelBufPool.Put(value)
 		}
@@ -185,16 +189,16 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *Par
 	case "labelmap_all":
 		for i := range src {
 			label := &src[i]
-			if !cfg.Regex.MatchString(label.Name) {
+			if !prc.Regex.MatchString(label.Name) {
 				continue
 			}
-			label.Name = cfg.Regex.ReplaceAllString(label.Name, cfg.Replacement)
+			label.Name = prc.Regex.ReplaceAllString(label.Name, prc.Replacement)
 		}
 		return labels
 	case "labeldrop":
 		keepSrc := true
 		for i := range src {
-			if cfg.Regex.MatchString(src[i].Name) {
+			if prc.Regex.MatchString(src[i].Name) {
 				keepSrc = false
 				break
 			}
@@ -205,7 +209,7 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *Par
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
-			if !cfg.Regex.MatchString(label.Name) {
+			if !prc.Regex.MatchString(label.Name) {
 				dst = append(dst, *label)
 			}
 		}
@@ -213,7 +217,7 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *Par
 	case "labelkeep":
 		keepSrc := true
 		for i := range src {
-			if !cfg.Regex.MatchString(src[i].Name) {
+			if !prc.Regex.MatchString(src[i].Name) {
 				keepSrc = false
 				break
 			}
@@ -224,15 +228,23 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, cfg *Par
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
-			if cfg.Regex.MatchString(label.Name) {
+			if prc.Regex.MatchString(label.Name) {
 				dst = append(dst, *label)
 			}
 		}
 		return dst
 	default:
-		logger.Panicf("BUG: unknown `action`: %q", cfg.Action)
+		logger.Panicf("BUG: unknown `action`: %q", prc.Action)
 		return labels
 	}
+}
+
+func (prc *ParsedRelabelConfig) expandCaptureGroups(template, source string, match []int) string {
+	bb := relabelBufPool.Get()
+	bb.B = prc.Regex.ExpandString(bb.B[:0], template, source, match)
+	s := string(bb.B)
+	relabelBufPool.Put(bb)
+	return s
 }
 
 var relabelBufPool bytesutil.ByteBufferPool
