@@ -225,15 +225,6 @@ Steps to add `vmstorage` node:
 3. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>:8400`.
 
 
-### Cluster availability
-
-* HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
-* The cluster remains available if at least a single `vmstorage` node exists:
-
-  - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
-  - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available.
-
-
 ### Updating / reconfiguring cluster nodes
 
 All the node types - `vminsert`, `vmselect` and `vmstorage` - may be updated via graceful shutdown.
@@ -242,6 +233,17 @@ with new configs.
 
 Cluster should remain in working state if at least a single node of each type remains available during
 the update process. See [cluster availability](#cluster-availability) section for details.
+
+
+### Cluster availability
+
+* HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
+* The cluster remains available if at least a single `vmstorage` node exists:
+
+  - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
+  - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available.
+
+Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
 
 ### Capacity planning
