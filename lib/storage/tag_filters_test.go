@@ -23,7 +23,6 @@ func TestExtractRegexpPrefix(t *testing.T) {
 func TestGetRegexpFromCache(t *testing.T) {
 	f := func(s string, orValuesExpected, expectedMatches, expectedMismatches []string, suffixExpected string) {
 		t.Helper()
-
 		for i := 0; i < 3; i++ {
 			rcv, err := getRegexpFromCache([]byte(s))
 			if err != nil {
@@ -479,7 +478,6 @@ func TestTagFilterMatchSuffix(t *testing.T) {
 func TestGetOrValues(t *testing.T) {
 	f := func(s string, valuesExpected []string) {
 		t.Helper()
-
 		values := getOrValues(s)
 		if !reflect.DeepEqual(values, valuesExpected) {
 			t.Fatalf("unexpected values for s=%q; got %q; want %q", s, values, valuesExpected)
@@ -487,6 +485,8 @@ func TestGetOrValues(t *testing.T) {
 	}
 
 	f("", []string{""})
+	f("|foo", []string{"", "foo"})
+	f("|foo|", []string{"", "", "foo"})
 	f("foo.+", nil)
 	f("foo.*", nil)
 	f(".*", nil)
@@ -609,8 +609,8 @@ func TestTagFiltersAddEmpty(t *testing.T) {
 	}
 	expectTagFilter := func(idx int, value string, isNegative, isRegexp bool) {
 		t.Helper()
-		if len(tfs.tfs) != idx+1 {
-			t.Fatalf("expecting non-empty tag filter")
+		if idx >= len(tfs.tfs) {
+			t.Fatalf("missing tag filter #%d; len(tfs)=%d, tfs=%s", idx, len(tfs.tfs), tfs)
 		}
 		tf := tfs.tfs[idx]
 		if string(tf.value) != value {
@@ -639,13 +639,11 @@ func TestTagFiltersAddEmpty(t *testing.T) {
 		t.Fatalf("unexpectedly added empty regexp filter %s", &tfs.tfs[0])
 	}
 	mustAdd([]byte("foo"), []byte(".*"), true, true)
-	expectTagFilter(0, ".*", true, true)
+	expectTagFilter(0, ".+", true, true)
 	mustAdd([]byte("foo"), []byte("foo||bar"), false, true)
 	expectTagFilter(1, "foo||bar", false, true)
-	mustAdd(nil, []byte("foo||bar"), true, true)
-	expectTagFilter(2, "foo||bar", true, true)
 
-	// Verify that otner filters are added normally.
+	// Verify that other filters are added normally.
 	tfs.Reset()
 	mustAdd(nil, []byte("foobar"), false, false)
 	if len(tfs.tfs) != 1 {
