@@ -198,6 +198,7 @@ func (sn *storageNode) checkHealth() {
 	bc, err := sn.dial()
 	if err != nil {
 		logger.Warnf("cannot dial storageNode %q: %s", sn.dialer.Addr(), err)
+		return
 	}
 	sn.bc = bc
 	atomic.StoreUint32(&sn.broken, 0)
