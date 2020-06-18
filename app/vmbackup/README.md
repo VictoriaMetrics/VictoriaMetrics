@@ -89,6 +89,8 @@ or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when
 
 Do not forget removing old snapshots and backups when they are no longer needed for saving storage costs.
 
+See also [vmbackuper tool](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for automating smart backups.
+
 
 ### How does it work?
 
@@ -121,6 +123,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
+* Backups created from [single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md) cannot be restored
+  at [cluster VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md) and vice versa.
 
 
 ### Advanced usage
