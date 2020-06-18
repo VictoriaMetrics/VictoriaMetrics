@@ -57,13 +57,23 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 			return nil
 		}
 
-		// Leave negative tag filter matching anything as is,
-		// since it must filter out all the time series with the given key.
+		// Substitute negative tag filter matching anything with negative tag filter matching non-empty value
+		// in order to out all the time series with the given key.
+		value = []byte(".+")
 	}
 
 	tf := tfs.addTagFilter()
 	if err := tf.Init(tfs.commonPrefix, key, value, isNegative, isRegexp); err != nil {
 		return fmt.Errorf("cannot initialize tagFilter: %s", err)
+	}
+	if tf.isNegative && tf.isEmptyMatch {
+		// We have {key!~"|foo"} tag filter, which matches non=empty key values.
+		// So add {key=~".+"} tag filter in order to enforce this.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 for details.
+		tfNew := tfs.addTagFilter()
+		if err := tfNew.Init(tfs.commonPrefix, key, []byte(".+"), false, true); err != nil {
+			return fmt.Errorf(`cannot initialize {%s=".+"} tag filter: %s`, key, err)
+		}
 	}
 	if len(tf.graphiteReverseSuffix) > 0 {
 		re := regexp.QuoteMeta(string(tf.graphiteReverseSuffix)) + ".*"
