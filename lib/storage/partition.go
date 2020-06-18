@@ -818,13 +818,8 @@ var mergeWorkersCount = func() int {
 }()
 
 var (
-	bigMergeWorkersCount   = uint64(mergeWorkersCount)
-	smallMergeWorkersCount = uint64(mergeWorkersCount)
-)
-
-var (
-	bigMergeConcurrencyLimitCh   = make(chan struct{}, bigMergeWorkersCount)
-	smallMergeConcurrencyLimitCh = make(chan struct{}, smallMergeWorkersCount)
+	bigMergeConcurrencyLimitCh   = make(chan struct{}, mergeWorkersCount)
+	smallMergeConcurrencyLimitCh = make(chan struct{}, mergeWorkersCount)
 )
 
 // SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.
@@ -835,7 +830,7 @@ func SetBigMergeWorkersCount(n int) {
 		// Do nothing
 		return
 	}
-	atomic.StoreUint64(&bigMergeWorkersCount, uint64(n))
+	bigMergeConcurrencyLimitCh = make(chan struct{}, n)
 }
 
 // SetSmallMergeWorkersCount sets the maximum number of concurrent mergers for small blocks.
@@ -846,7 +841,7 @@ func SetSmallMergeWorkersCount(n int) {
 		// Do nothing
 		return
 	}
-	atomic.StoreUint64(&smallMergeWorkersCount, uint64(n))
+	smallMergeConcurrencyLimitCh = make(chan struct{}, n)
 }
 
 func (pt *partition) startMergeWorkers() {
