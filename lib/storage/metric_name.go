@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -430,13 +431,16 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 	dstSize := dstLen + 8
 	for i := range labels {
 		if i >= maxLabelsPerTimeseries {
+			atomic.AddUint64(&MetricsWithDroppedLabels, 1)
 			break
 		}
 		label := &labels[i]
 		if len(label.Name) > maxLabelNameLen {
+			atomic.AddUint64(&TooLongLabelNames, 1)
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
+			atomic.AddUint64(&TooLongLabelValues, 1)
 			label.Value = label.Value[:maxLabelValueLen]
 		}
 		if len(label.Value) == 0 {
@@ -469,6 +473,17 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 	}
 	return dst
 }
+
+var (
+	// MetricsWithDroppedLabels is the number of metrics with at least a single dropped label
+	MetricsWithDroppedLabels uint64
+
+	// TooLongLabelNames is the number of too long label names
+	TooLongLabelNames uint64
+
+	// TooLongLabelValues is the number of too long label values
+	TooLongLabelValues uint64
+)
 
 // MarshalMetricLabelRaw marshals label to dst.
 func MarshalMetricLabelRaw(dst []byte, label *prompb.Label) []byte {

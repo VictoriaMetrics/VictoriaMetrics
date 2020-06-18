@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
@@ -208,4 +209,14 @@ var (
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/insert/{}/influx/", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/insert/{}/influx/query", protocol="influx"}`)
+
+	_ = metrics.NewGauge(`vm_metrics_with_dropped_labels_total`, func() float64 {
+		return float64(atomic.LoadUint64(&storage.MetricsWithDroppedLabels))
+	})
+	_ = metrics.NewGauge(`vm_too_long_label_names_total`, func() float64 {
+		return float64(atomic.LoadUint64(&storage.TooLongLabelNames))
+	})
+	_ = metrics.NewGauge(`vm_too_long_label_values_total`, func() float64 {
+		return float64(atomic.LoadUint64(&storage.TooLongLabelValues))
+	})
 )

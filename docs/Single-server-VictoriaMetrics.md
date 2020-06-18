@@ -987,6 +987,10 @@ The most interesting metrics are:
   VictoriaMetrics accepts optional `date=YYYY-MM-DD` and `topN=42` args on this page. By default `date` equals to the current date,
   while `topN` equals to 10.
 
+* VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.
+  This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
+  metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
+
 
 ### Backfilling
 
