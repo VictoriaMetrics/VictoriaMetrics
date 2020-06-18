@@ -90,8 +90,17 @@ of the `cloud.google.com/go` repository root module. Note: releasing
 `cloud.google.com/go` has no impact on any of the submodules, and vice-versa.
 They are released entirely independently.
 
+# Test failures
+
+If there are any test failures in the Kokoro build, releases are blocked until
+the failures have been resolved.
+
 # How to release `cloud.google.com/go`
 
+1. Check for failures in the
+   [continuous Kokoro build](go/google-cloud-go-continuous). If there are any
+   failures in the most recent build, address them before proceeding with the
+   release.
 1. Navigate to `~/code/gocloud/` and switch to master.
 1. `git pull`
 1. Run `git tag -l | grep -v beta | grep -v alpha` to see all existing releases.
@@ -126,6 +135,11 @@ To release a submodule:
 
 (these instructions assume we're releasing `cloud.google.com/go/datastore` - adjust accordingly)
 
+1. Check for failures in the
+   [continuous Kokoro build](go/google-cloud-go-continuous). If there are any
+   failures in the most recent build, address them before proceeding with the
+   release. (This applies even if the failures are in a different submodule from the one
+   being released.)
 1. Navigate to `~/code/gocloud/` and switch to master.
 1. `git pull`
 1. Run `git tag -l | grep datastore | grep -v beta | grep -v alpha` to see all

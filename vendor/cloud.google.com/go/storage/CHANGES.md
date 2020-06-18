@@ -1,5 +1,11 @@
 # Changes
 
+## v1.10.0
+- Bump dependency on google.golang.org/api to capture changes to retry logic
+  which will make retries on writes more resilient.
+- Improve documentation for Writer.ChunkSize.
+- Fix a bug in lifecycle to allow callers to clear lifecycle rules on a bucket.
+
 ## v1.9.0
 - Add retry for transient network errors on most operations (with the exception
   of writes).

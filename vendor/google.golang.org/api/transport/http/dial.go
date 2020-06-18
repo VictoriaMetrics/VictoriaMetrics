@@ -16,7 +16,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"go.opencensus.io/plugin/ochttp"
@@ -191,31 +190,23 @@ func defaultBaseTransport(ctx context.Context, clientCertSource cert.Source) htt
 	return trans
 }
 
-var fallback struct {
-	*http.Transport
-	sync.Once
-}
-
 // fallbackBaseTransport is used in <go1.13 as well as in the rare case if
 // http.DefaultTransport has been reassigned something that's not a
 // *http.Transport.
 func fallbackBaseTransport() *http.Transport {
-	fallback.Do(func() {
-		fallback.Transport = &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-				DualStack: true,
-			}).DialContext,
-			MaxIdleConns:          100,
-			MaxIdleConnsPerHost:   100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		}
-	})
-	return fallback.Transport
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 }
 
 func addOCTransport(trans http.RoundTripper, settings *internal.DialSettings) http.RoundTripper {
