@@ -37,3 +37,4 @@
 * [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
 * [What are Open Source Time Series Databases?](https://www.iunera.com/kraken/fabric/time-series-database/)
 * [Evaluating performance and correctness](https://www.robustperception.io/evaluating-performance-and-correctness)
+* [Running VictoriaMetrics on Raspberry PI](https://stas.starikevich.com/posts/raspberry-pi-4-prometheus/)
