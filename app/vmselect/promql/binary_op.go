@@ -310,9 +310,22 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	for _, tss := range mLeft {
 		rvs = append(rvs, tss...)
 	}
-	for k, tss := range mRight {
-		if mLeft[k] == nil {
-			rvs = append(rvs, tss...)
+	for k, tssRight := range mRight {
+		tssLeft := mLeft[k]
+		if tssLeft == nil {
+			rvs = append(rvs, tssRight...)
+			continue
+		}
+		// Fill gaps in tssLeft with values from tssRight as Prometheus does.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesLeft {
+				if math.IsNaN(v) {
+					valuesLeft[i] = valuesRight[i]
+				}
+			}
 		}
 	}
 	return rvs, nil
