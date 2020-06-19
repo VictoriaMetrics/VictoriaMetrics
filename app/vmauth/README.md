@@ -23,7 +23,7 @@ Docker images for `vmauth` are available [here](https://hub.docker.com/r/victori
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
-Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, accounting, limits, etc.
+Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting, limits, etc.
 
 
 ### Auth config
