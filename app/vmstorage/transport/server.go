@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -37,6 +38,9 @@ type Server struct {
 
 	storage *storage.Storage
 
+	storageGroup []*storage.Storage
+	groupSwitch  bool
+
 	vminsertLN net.Listener
 	vmselectLN net.Listener
 
@@ -48,24 +52,18 @@ type Server struct {
 }
 
 type connsMap struct {
-	mu       sync.Mutex
-	m        map[net.Conn]struct{}
-	isClosed bool
+	mu sync.Mutex
+	m  map[net.Conn]struct{}
 }
 
 func (cm *connsMap) Init() {
 	cm.m = make(map[net.Conn]struct{})
-	cm.isClosed = false
 }
 
-func (cm *connsMap) Add(c net.Conn) bool {
+func (cm *connsMap) Add(c net.Conn) {
 	cm.mu.Lock()
-	ok := !cm.isClosed
-	if ok {
-		cm.m[c] = struct{}{}
-	}
+	cm.m[c] = struct{}{}
 	cm.mu.Unlock()
-	return ok
 }
 
 func (cm *connsMap) Delete(c net.Conn) {
@@ -79,12 +77,11 @@ func (cm *connsMap) CloseAll() {
 	for c := range cm.m {
 		_ = c.Close()
 	}
-	cm.isClosed = true
 	cm.mu.Unlock()
 }
 
 // NewServer returns new Server.
-func NewServer(vminsertAddr, vmselectAddr string, storage *storage.Storage) (*Server, error) {
+func NewServer(vminsertAddr, vmselectAddr string, storage *storage.Storage, groups ...storage.StorageGroups) (*Server, error) {
 	vminsertLN, err := netutil.NewTCPListener("vminsert", vminsertAddr)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %s", vminsertAddr, err)
@@ -102,6 +99,12 @@ func NewServer(vminsertAddr, vmselectAddr string, storage *storage.Storage) (*Se
 		vminsertLN: vminsertLN,
 		vmselectLN: vmselectLN,
 	}
+
+	if len(groups) > 0 {
+		s.groupSwitch = groups[0].GroupSwitch
+		s.storageGroup = groups[0].StorageGroupsAll
+	}
+
 	s.vminsertConnsMap.Init()
 	s.vmselectConnsMap.Init()
 	return s, nil
@@ -123,12 +126,8 @@ func (s *Server) RunVMInsert() {
 		}
 		logger.Infof("accepted vminsert conn from %s", c.RemoteAddr())
 
-		if !s.vminsertConnsMap.Add(c) {
-			// The server is closed.
-			_ = c.Close()
-			return
-		}
 		vminsertConns.Inc()
+		s.vminsertConnsMap.Add(c)
 		s.vminsertWG.Add(1)
 		go func() {
 			defer func() {
@@ -190,12 +189,8 @@ func (s *Server) RunVMSelect() {
 		}
 		logger.Infof("accepted vmselect conn from %s", c.RemoteAddr())
 
-		if !s.vmselectConnsMap.Add(c) {
-			// The server is closed.
-			_ = c.Close()
-			return
-		}
 		vmselectConns.Inc()
+		s.vmselectConnsMap.Add(c)
 		s.vmselectWG.Add(1)
 		go func() {
 			defer func() {
@@ -289,6 +284,7 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 	var buf []byte
 	var mrs []storage.MetricRow
 	lastMRsResetTime := fasttime.UnixTimestamp()
+	lastGroupMapRestTime := fasttime.UnixTimestamp()
 	for {
 		if fasttime.UnixTimestamp()-lastMRsResetTime > 10 {
 			// Periodically reset mrs in order to prevent from gradual memory usage growth
@@ -349,6 +345,9 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 				if err := s.storage.AddRows(mrs, uint8(*precisionBits)); err != nil {
 					return fmt.Errorf("cannot store metrics: %s", err)
 				}
+				if err := s.StorageGroupsInsert(mrs); err != nil {
+					return err
+				}
 				mrs = mrs[:0]
 			}
 		}
@@ -356,12 +355,83 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 		if err := s.storage.AddRows(mrs, uint8(*precisionBits)); err != nil {
 			return fmt.Errorf("cannot store metrics: %s", err)
 		}
+
+		if err := s.StorageGroupsInsert(mrs); err != nil {
+			return err
+		}
+		//clrar map every hour
+		if fasttime.UnixTimestamp()-lastGroupMapRestTime > 3600 {
+			s.ClearStorageGroupMap()
+			lastGroupMapRestTime = fasttime.UnixTimestamp()
+		}
+
+	}
+}
+
+func (s *Server) ClearStorageGroupMap() {
+	for _, group := range s.storageGroup {
+		group.GetGroupInfo().MetricsMapGroup = make(map[string]*storage.MetricsInfo)
+	}
+}
+
+func (s *Server) StorageGroupsInsert(mrs []storage.MetricRow) error {
+	if !s.groupSwitch {
+		return nil
+	}
+
+	for _, group := range s.storageGroup {
+		err := s.GroupInsert(group, mrs)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//insert metrics data into group
+func (s *Server) GroupInsert(group *storage.Storage, mrs []storage.MetricRow) error {
+	var mrsTemp []storage.MetricRow
+	for _, ms := range mrs {
+		if _, ok := group.GetGroupInfo().MetricsMapGroup[string(ms.MetricNameRaw)]; !ok {
+			var msTemp storage.MetricsInfo
+			msTemp.Value = ms.Value
+			msTemp.Number = 1
+			group.GetGroupInfo().MetricsMapGroup[string(ms.MetricNameRaw)] = &msTemp
+			continue
+		}
+		//caculate the extremum and store in the map metricsMap
+		SetExtremum(group.GetGroupInfo().MetricsMapGroup[string(ms.MetricNameRaw)], ms.Value)
+		//add the number
+		group.GetGroupInfo().MetricsMapGroup[string(ms.MetricNameRaw)].Number += 1
+		step := group.GetGroupInfo().Step
+		if group.GetGroupInfo().MetricsMapGroup[string(ms.MetricNameRaw)].Number%step == 0 {
+			msTemp := ms
+			msTemp.Value = group.GetGroupInfo().MetricsMapGroup[string(ms.MetricNameRaw)].Value
+			mrsTemp = append(mrsTemp, msTemp)
+			delete(group.GetGroupInfo().MetricsMapGroup, string(ms.MetricNameRaw))
+		}
+	}
+	if len(mrsTemp) != 0 {
+		vminsertMetricsReadGroups.Add(len(mrsTemp))
+		if err := group.AddRows(mrsTemp, uint8(*precisionBits)); err != nil {
+			return fmt.Errorf("cannot store metrics: %s", err)
+		}
+	}
+	return nil
+}
+
+// set extremum to ms1
+//the extremum is the maximum value of absolute
+func SetExtremum(msInfo *storage.MetricsInfo, val float64) {
+	if math.Abs(val) > math.Abs(msInfo.Value) {
+		msInfo.Value = val
 	}
 }
 
 var (
-	vminsertPacketsRead = metrics.NewCounter("vm_vminsert_packets_read_total")
-	vminsertMetricsRead = metrics.NewCounter("vm_vminsert_metrics_read_total")
+	vminsertPacketsRead       = metrics.NewCounter("vm_vminsert_packets_read_total")
+	vminsertMetricsRead       = metrics.NewCounter("vm_vminsert_metrics_read_total")
+	vminsertMetricsReadGroups = metrics.NewCounter("vm_vminsert_metrics_read_total_groups")
 )
 
 func (s *Server) processVMSelectConn(bc *handshake.BufferedConn) error {
@@ -794,6 +864,28 @@ func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) erro
 	return nil
 }
 
+//select the best Suitable group by trRange
+func (s *Server) GetSuitableGroup(tr storage.TimeRange) *storage.Storage {
+	var flagSelect bool = false
+	var resGroup *storage.Storage
+	trHours := tr.TimeIntervalHour()
+	//select different storageGroup by the query interval
+	if s.groupSwitch && len(s.storageGroup) > 0 {
+		for _, group := range s.storageGroup {
+			if group.GroupQueryOK(trHours) && group.GetGroupInfo().Switch {
+				flagSelect = true
+				resGroup = group
+				break
+			}
+		}
+	}
+	//use the original data group
+	if !flagSelect {
+		resGroup = s.storage
+	}
+	return resGroup
+}
+
 // maxSearchQuerySize is the maximum size of SearchQuery packet in bytes.
 const maxSearchQuerySize = 1024 * 1024
 
@@ -824,7 +916,8 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 		MinTimestamp: ctx.sq.MinTimestamp,
 		MaxTimestamp: ctx.sq.MaxTimestamp,
 	}
-	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch)
+
+	ctx.sr.Init(s.GetSuitableGroup(tr), ctx.tfss, tr, *maxMetricsPerSearch)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -874,14 +967,19 @@ var (
 func (ctx *vmselectRequestCtx) setupTfss() error {
 	tfss := ctx.tfss[:0]
 	for _, tagFilters := range ctx.sq.TagFilterss {
-		tfs := storage.NewTagFilters(ctx.sq.AccountID, ctx.sq.ProjectID)
+		if len(tfss) < cap(tfss) {
+			tfss = tfss[:len(tfss)+1]
+		} else {
+			tfss = append(tfss, &storage.TagFilters{})
+		}
+		tfs := tfss[len(tfss)-1]
+		tfs.Reset(ctx.sq.AccountID, ctx.sq.ProjectID)
 		for i := range tagFilters {
 			tf := &tagFilters[i]
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
 				return fmt.Errorf("cannot parse tag filter %s: %s", tf, err)
 			}
 		}
-		tfss = append(tfss, tfs)
 		tfss = append(tfss, tfs.Finalize()...)
 	}
 	ctx.tfss = tfss
