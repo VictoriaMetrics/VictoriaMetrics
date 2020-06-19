@@ -137,6 +137,7 @@ type StorageGroups struct {
 	StorageGroupsAll []*Storage //all the group storage
 }
 
+//encode input string info to GroupInfo
 func StorageGroupEncode(input string) *GroupInfo {
 	var group GroupInfo
 	info := strings.Split(input, " ")

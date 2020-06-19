@@ -52,18 +52,24 @@ type Server struct {
 }
 
 type connsMap struct {
-	mu sync.Mutex
-	m  map[net.Conn]struct{}
+	mu       sync.Mutex
+	m        map[net.Conn]struct{}
+	isClosed bool
 }
 
 func (cm *connsMap) Init() {
 	cm.m = make(map[net.Conn]struct{})
+	cm.isClosed = false
 }
 
-func (cm *connsMap) Add(c net.Conn) {
+func (cm *connsMap) Add(c net.Conn) bool {
 	cm.mu.Lock()
-	cm.m[c] = struct{}{}
+	ok := !cm.isClosed
+	if ok {
+		cm.m[c] = struct{}{}
+	}
 	cm.mu.Unlock()
+	return ok
 }
 
 func (cm *connsMap) Delete(c net.Conn) {
@@ -77,6 +83,7 @@ func (cm *connsMap) CloseAll() {
 	for c := range cm.m {
 		_ = c.Close()
 	}
+	cm.isClosed = true
 	cm.mu.Unlock()
 }
 
@@ -126,8 +133,12 @@ func (s *Server) RunVMInsert() {
 		}
 		logger.Infof("accepted vminsert conn from %s", c.RemoteAddr())
 
+		if !s.vminsertConnsMap.Add(c) {
+			// The server is closed.
+			_ = c.Close()
+			return
+		}
 		vminsertConns.Inc()
-		s.vminsertConnsMap.Add(c)
 		s.vminsertWG.Add(1)
 		go func() {
 			defer func() {
@@ -189,8 +200,12 @@ func (s *Server) RunVMSelect() {
 		}
 		logger.Infof("accepted vmselect conn from %s", c.RemoteAddr())
 
+		if !s.vmselectConnsMap.Add(c) {
+			// The server is closed.
+			_ = c.Close()
+			return
+		}
 		vmselectConns.Inc()
-		s.vmselectConnsMap.Add(c)
 		s.vmselectWG.Add(1)
 		go func() {
 			defer func() {
@@ -284,7 +299,7 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 	var buf []byte
 	var mrs []storage.MetricRow
 	lastMRsResetTime := fasttime.UnixTimestamp()
-	lastGroupMapRestTime := fasttime.UnixTimestamp()
+	lastGroupMapResetTime := fasttime.UnixTimestamp()
 	for {
 		if fasttime.UnixTimestamp()-lastMRsResetTime > 10 {
 			// Periodically reset mrs in order to prevent from gradual memory usage growth
@@ -360,9 +375,9 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 			return err
 		}
 		//clrar map every hour
-		if fasttime.UnixTimestamp()-lastGroupMapRestTime > 3600 {
+		if fasttime.UnixTimestamp()-lastGroupMapResetTime > 3600 {
 			s.ClearStorageGroupMap()
-			lastGroupMapRestTime = fasttime.UnixTimestamp()
+			lastGroupMapResetTime = fasttime.UnixTimestamp()
 		}
 
 	}
@@ -420,7 +435,7 @@ func (s *Server) GroupInsert(group *storage.Storage, mrs []storage.MetricRow) er
 	return nil
 }
 
-// set extremum to ms1
+// set extremum to map
 //the extremum is the maximum value of absolute
 func SetExtremum(msInfo *storage.MetricsInfo, val float64) {
 	if math.Abs(val) > math.Abs(msInfo.Value) {
@@ -967,19 +982,14 @@ var (
 func (ctx *vmselectRequestCtx) setupTfss() error {
 	tfss := ctx.tfss[:0]
 	for _, tagFilters := range ctx.sq.TagFilterss {
-		if len(tfss) < cap(tfss) {
-			tfss = tfss[:len(tfss)+1]
-		} else {
-			tfss = append(tfss, &storage.TagFilters{})
-		}
-		tfs := tfss[len(tfss)-1]
-		tfs.Reset(ctx.sq.AccountID, ctx.sq.ProjectID)
+		tfs := storage.NewTagFilters(ctx.sq.AccountID, ctx.sq.ProjectID)
 		for i := range tagFilters {
 			tf := &tagFilters[i]
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
 				return fmt.Errorf("cannot parse tag filter %s: %s", tf, err)
 			}
 		}
+		tfss = append(tfss, tfs)
 		tfss = append(tfss, tfs.Finalize()...)
 	}
 	ctx.tfss = tfss

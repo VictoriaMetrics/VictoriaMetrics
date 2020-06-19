@@ -30,7 +30,7 @@ var (
 	vmselectAddr    = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
 	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	groupSwitch     = flag.Bool("groupSwitch", false, "Whether to open group storage.")
-	storageGroups   = flagutil.NewArray("storageGroups", "Information of storageGroups.usage: -storageGroups=\"step path queryRangeMin switch\"")
+	storageGroups   = flagutil.NewArray("storageGroups", "Information of storageGroups. Usage: -storageGroups=\"step path queryRangeMin switch\"")
 
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
