@@ -167,10 +167,7 @@ func StorageGroupEncode(input string) *GroupInfo {
 }
 
 func (s *Storage) GroupQueryOK(timeIntervalHour int) bool {
-	if timeIntervalHour >= s.GetGroupInfo().QueryRangeMin {
-		return true
-	}
-	return false
+	return timeIntervalHour >= s.GetGroupInfo().QueryRangeMin
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.
