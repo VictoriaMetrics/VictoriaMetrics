@@ -21,7 +21,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 See our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki) for additional documentation.
 
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
-See [features available for enterprise customers](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aissue+label%3Aenterprise)
+See [features available for enterprise customers](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aissue+label%3Aenterprise).
 
 
 ## Case studies and talks
@@ -840,6 +840,11 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
 * `-httpListenAddr`, so clients may reach VictoriaMetrics instance with proper retention
+
+Then set up [vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md) in front of VictoriaMetrics instances,
+so it could route requests from particular user to VictoriaMetrics with the desired retention.
+The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md).
+
 
 ### Downsampling
 
