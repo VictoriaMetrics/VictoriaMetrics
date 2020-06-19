@@ -21,6 +21,7 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 See our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki) for additional documentation.
 
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
+See [features available for enterprise customers](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aissue+label%3Aenterprise).
 
 
 ## Case studies and talks
