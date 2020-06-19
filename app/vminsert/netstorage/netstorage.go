@@ -164,7 +164,7 @@ func sendBufToReplicas(br *bufRows, snIdx, replicas int) bool {
 				return true
 			}
 			if idx >= len(storageNodes) {
-				idx = 0
+				idx %= len(storageNodes)
 			}
 			sn := storageNodes[idx]
 			idx++
