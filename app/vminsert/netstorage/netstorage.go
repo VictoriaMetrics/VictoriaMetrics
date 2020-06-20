@@ -185,13 +185,12 @@ func sendBufToReplicas(br *bufRows, snIdx, replicas int) bool {
 }
 
 func (sn *storageNode) checkHealth() {
-	if !sn.isBroken() {
-		return
-	}
-
 	sn.bcLock.Lock()
 	defer sn.bcLock.Unlock()
 
+	if !sn.isBroken() {
+		return
+	}
 	if sn.bc != nil {
 		logger.Panicf("BUG: sn.bc must be nil when sn is broken; got %p", sn.bc)
 	}
