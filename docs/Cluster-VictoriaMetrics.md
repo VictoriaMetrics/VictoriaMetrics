@@ -278,6 +278,18 @@ In general it is recommended increasing the number of vCPU cores and RAM per `vm
 while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
 
 
+### High availability
+
+It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
+This improves cluster performance and availability.
+It isn't recommended spreading components for a single cluster across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency
+and higher error rates comparing the network inside AZ.
+
+If you need multi-AZ setup, then it is recommended running independed clusters in each AZ and setting up
+[vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) in front of these clusters, so it could replicate incoming data
+into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
+
+
 ### Helm
 
 Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
