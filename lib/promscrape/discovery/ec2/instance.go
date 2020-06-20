@@ -72,6 +72,7 @@ type Instance struct {
 	PrivateIPAddress    string              `xml:"privateIpAddress"`
 	Architecture        string              `xml:"architecture"`
 	Placement           Placement           `xml:"placement"`
+	ImageID             string              `xml:"imageId"`
 	ID                  string              `xml:"instanceId"`
 	Lifecycle           string              `xml:"instanceLifecycle"`
 	State               InstanceState       `xml:"instanceState"`
@@ -134,6 +135,7 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string,
 	m := map[string]string{
 		"__address__":                   addr,
 		"__meta_ec2_architecture":       inst.Architecture,
+		"__meta_ec2_ami":                inst.ImageID,
 		"__meta_ec2_availability_zone":  inst.Placement.AvailabilityZone,
 		"__meta_ec2_instance_id":        inst.ID,
 		"__meta_ec2_instance_lifecycle": inst.Lifecycle,
