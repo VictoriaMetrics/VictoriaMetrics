@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	maxConcurrency = flag.Int("promscrape.discovery.concurrency", 500, "The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.)")
+	maxConcurrency = flag.Int("promscrape.discovery.concurrency", 100, "The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.)")
 	maxWaitTime    = flag.Duration("promscrape.discovery.concurrentWaitTime", time.Minute, "The maximum duration for waiting to perform API requests "+
 		"if more than -promscrape.discovery.concurrency requests are simultaneously performed")
 )
@@ -65,7 +65,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		ReadTimeout:         time.Minute,
 		WriteTimeout:        10 * time.Second,
 		MaxResponseBodySize: 300 * 1024 * 1024,
-		MaxConns:            *maxConcurrency,
+		MaxConns:            2 * *maxConcurrency,
 	}
 	return &Client{
 		hc:        hc,
