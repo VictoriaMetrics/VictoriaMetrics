@@ -61,7 +61,8 @@ absolute path to all .yaml files in root.`)
 	evaluationInterval  = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 	notifierURL         = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
-	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.`)
+	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
+eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
 )
 
 func main() {
@@ -78,7 +79,7 @@ func main() {
 		logger.Fatalf("can not get external url: %s ", err)
 	}
 	notifier.InitTemplateFunc(eu)
-	aug, err := getAlertURLGenerator(eu)
+	aug, err := getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("URL generator error: %s", err)
 	}
@@ -170,21 +171,21 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
 }
 
-func getAlertURLGenerator(externalURL *url.URL) (notifier.AlertURLGenerator, error) {
-	if *externalAlertSource == "" {
+func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
+	if externalAlertSource == "" {
 		return func(alert notifier.Alert) string {
 			return fmt.Sprintf("%s/api/v1/%s/%s/status", externalURL, strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10))
 		}, nil
 	}
-	if *validateTemplates {
+	if validateTemplate {
 		if err := notifier.ValidateTemplates(map[string]string{
-			"tpl": *externalAlertSource,
+			"tpl": externalAlertSource,
 		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s:%w", *externalAlertSource, err)
+			return nil, fmt.Errorf("error validating source template %s:%w", externalAlertSource, err)
 		}
 	}
 	m := map[string]string{
-		"tpl": *externalAlertSource,
+		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
 		templated, err := alert.ExecTemplate(m)
