@@ -109,12 +109,19 @@ func shouldCollectServiceByTags(filterTags, tags []string) bool {
 func getServiceNodes(cfg *apiConfig, serviceName string) ([]ServiceNode, error) {
 	// See https://www.consul.io/api/health.html#list-nodes-for-service
 	path := fmt.Sprintf("/v1/health/service/%s", serviceName)
+	// The /v1/health/service/:service endpoint supports background refresh caching,
+	// which guarantees fresh results obtained from local Consul agent.
+	// See https://www.consul.io/api-docs/health#list-nodes-for-service
+	// and https://www.consul.io/api/features/caching for details.
+	// Query cached results in order to reduce load on Consul cluster.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574 .
+	path += "?cached"
 	var tagsArgs []string
 	for _, tag := range cfg.tags {
 		tagsArgs = append(tagsArgs, fmt.Sprintf("tag=%s", url.QueryEscape(tag)))
 	}
 	if len(tagsArgs) > 0 {
-		path += "?" + strings.Join(tagsArgs, "&")
+		path += "&" + strings.Join(tagsArgs, "&")
 	}
 	data, err := getAPIResponse(cfg, path)
 	if err != nil {

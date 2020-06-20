@@ -124,6 +124,7 @@ func getAPIResponse(cfg *apiConfig, path string) ([]byte, error) {
 	}
 	path += fmt.Sprintf("%sdc=%s", separator, url.QueryEscape(cfg.datacenter))
 	if cfg.allowStale {
+		// See https://www.consul.io/api/features/consistency
 		path += "&stale"
 	}
 	if len(cfg.nodeMeta) > 0 {
