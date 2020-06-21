@@ -32,11 +32,11 @@ type queriesMap struct {
 	c  int64
 }
 
-func newQueriesMap() queriesMap {
+func newQueriesMap() *queriesMap {
 	var qm queriesMap
 	qm.m = make(map[string]Query)
 
-	return qm
+	return &qm
 }
 
 func (qm *queriesMap) Add(q Query) string {
