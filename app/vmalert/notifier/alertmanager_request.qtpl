@@ -1,15 +1,14 @@
 {% import (
-    "strconv"
     "time"
 ) %}
 {% stripspace %}
 
-{% func amRequest(alerts []Alert, generatorURL func(string, string) string) %}
+{% func amRequest(alerts []Alert, generatorURL func(Alert) string) %}
 [
 {% for i, alert := range alerts %}
 {
-	"startsAt":{%q= alert.Start.Format(time.RFC3339Nano) %},
-	"generatorURL": {%q= generatorURL(strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10)) %},
+    "startsAt":{%q= alert.Start.Format(time.RFC3339Nano) %},
+    "generatorURL": {%q= generatorURL(alert) %},
     {% if !alert.End.IsZero() %}
     "endsAt":{%q= alert.End.Format(time.RFC3339Nano) %},
     {% endif %}

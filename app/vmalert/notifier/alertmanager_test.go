@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -57,8 +58,8 @@ func TestAlertManager_Send(t *testing.T) {
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewAlertManager(srv.URL, func(group, name string) string {
-		return group + "/" + name
+	am := NewAlertManager(srv.URL, func(alert Alert) string {
+		return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
 	}, srv.Client())
 	if err := am.Send(context.Background(), []Alert{{}, {}}); err == nil {
 		t.Error("expected connection error got nil")
