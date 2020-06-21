@@ -291,20 +291,30 @@ func (mn *MetricName) GetTagValue(tagKey string) []byte {
 	return nil
 }
 
-// AddMissingTags adds tags from src with keys matching addTags.
-func (mn *MetricName) AddMissingTags(addTags []string, src *MetricName) {
-	if hasTag(addTags, metricGroupTagKey) {
-		mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
-	}
-	for i := range src.Tags {
-		srcTag := &src.Tags[i]
-		if !hasTag(addTags, srcTag.Key) {
+// SetTags sets tags from src with keys matching addTags.
+func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
+	for _, tagName := range addTags {
+		if tagName == string(metricGroupTagKey) {
+			mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
+			continue
+		}
+		var srcTag *Tag
+		for i := range src.Tags {
+			t := &src.Tags[i]
+			if string(t.Key) == tagName {
+				srcTag = t
+				break
+			}
+		}
+		if srcTag == nil {
+			mn.RemoveTag(tagName)
 			continue
 		}
 		found := false
-		for j := range mn.Tags {
-			tag := &mn.Tags[j]
-			if string(tag.Key) == string(srcTag.Key) {
+		for i := range mn.Tags {
+			t := &mn.Tags[i]
+			if string(t.Key) == tagName {
+				t.Value = append(t.Value[:0], srcTag.Value...)
 				found = true
 				break
 			}

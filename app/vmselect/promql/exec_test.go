@@ -1999,25 +1999,37 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`scalar * ignoring(foo) group_right vector`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(2 * ignoring(foo) group_right(a,foo) (label_set(time(), "foo", "bar") or label_set(10, "foo", "qwert")))`
+		q := `sort_desc(label_set(2, "a", "2") * ignoring(foo,a) group_right(a) (label_set(time(), "foo", "bar", "a", "1"), label_set(10, "foo", "qwert")))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
 			Timestamps: timestampsExpected,
 		}
-		r1.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("bar"),
-		}}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("a"),
+				Value: []byte("2"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{20, 20, 20, 20, 20, 20},
 			Timestamps: timestampsExpected,
 		}
-		r2.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("qwert"),
-		}}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("a"),
+				Value: []byte("2"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("qwert"),
+			},
+		}
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
@@ -2332,9 +2344,9 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`vector + vector on group_left matching`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(
-			(label_set(time(), "t1", "v123", "t2", "v3") or label_set(10, "t2", "v3", "xxx", "yy"))
+			(label_set(time(), "t1", "v123", "t2", "v3"), label_set(10, "t2", "v3", "xxx", "yy"))
 			+ on (foo, t2) group_left (t1, noxxx)
-			(label_set(100, "t1", "v1") or label_set(time(), "t2", "v3", "noxxx", "aa"))
+			(label_set(100, "t1", "v1"), label_set(time(), "t2", "v3", "noxxx", "aa"))
 		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
@@ -2345,10 +2357,6 @@ func TestExecSuccess(t *testing.T) {
 			{
 				Key:   []byte("noxxx"),
 				Value: []byte("aa"),
-			},
-			{
-				Key:   []byte("t1"),
-				Value: []byte("v123"),
 			},
 			{
 				Key:   []byte("t2"),

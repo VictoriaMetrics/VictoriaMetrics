@@ -206,7 +206,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 		resetMetricGroupIfRequired(be, tsLeft)
 		if len(tssRight) == 1 {
 			// Easy case - right part contains only a single matching time series.
-			tsLeft.MetricName.AddMissingTags(joinTags, &tssRight[0].MetricName)
+			tsLeft.MetricName.SetTags(joinTags, &tssRight[0].MetricName)
 			rvsLeft = append(rvsLeft, tsLeft)
 			rvsRight = append(rvsRight, tssRight[0])
 			continue
@@ -225,7 +225,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 		for _, tsRight := range tssRight {
 			var tsCopy timeseries
 			tsCopy.CopyFromShallowTimestamps(tsLeft)
-			tsCopy.MetricName.AddMissingTags(joinTags, &tsRight.MetricName)
+			tsCopy.MetricName.SetTags(joinTags, &tsRight.MetricName)
 			bb.B = marshalMetricTagsSorted(bb.B[:0], &tsCopy.MetricName)
 			if tsExisting := m[string(bb.B)]; tsExisting != nil {
 				// Try merging tsExisting with tsRight if they don't overlap.
