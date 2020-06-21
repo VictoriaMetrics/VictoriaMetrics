@@ -125,11 +125,13 @@ func exec(ec *EvalConfig, q string, isFirstPointOnly bool, stopCh chan error, re
 	e, err := parsePromQLWithCache(q)
 	if err != nil {
 		stopCh <- err
+		return
 	}
 
 	rv, err := evalExpr(ec, e)
 	if err != nil {
 		stopCh <- err
+		return
 	}
 
 	if isFirstPointOnly {
@@ -144,6 +146,7 @@ func exec(ec *EvalConfig, q string, isFirstPointOnly bool, stopCh chan error, re
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
 		stopCh <- err
+		return
 	}
 
 	resultCh <- result
