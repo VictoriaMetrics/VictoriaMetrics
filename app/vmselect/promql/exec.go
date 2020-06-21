@@ -32,36 +32,29 @@ type queriesMap struct {
 	c  int64
 }
 
-func (rqm *queriesMap) Init() {
-	rqm.m = make(map[string]Query)
+func newQueriesMap() queriesMap {
+	var qm queriesMap
+	qm.m = make(map[string]Query)
+
+	return qm
 }
 
-func (rqm *queriesMap) Add(q Query) string {
-	rqm.mu.Lock()
+func (qm *queriesMap) Add(q Query) string {
+	qm.mu.Lock()
 	c := uuid.New().String()
-	rqm.m[c] = q
-	rqm.mu.Unlock()
+	qm.m[c] = q
+	qm.mu.Unlock()
 
 	return c
 }
 
-func (rqm *queriesMap) Delete(c string) {
-	rqm.mu.Lock()
-	delete(rqm.m, c)
-	rqm.mu.Unlock()
+func (qm *queriesMap) Delete(c string) {
+	qm.mu.Lock()
+	delete(qm.m, c)
+	qm.mu.Unlock()
 }
 
-func (rqm *queriesMap) Kill(c string) {
-	rqm.mu.Lock()
-	// do some thing to kill the request
-	rqm.mu.Unlock()
-}
-
-var runningQueries queriesMap
-
-func init() {
-	runningQueries.Init()
-}
+var runningQueries = newQueriesMap()
 
 func GetAllRunningQueries() map[string]map[string]string {
 	all := make(map[string]map[string]string)
@@ -105,7 +98,6 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	}
 
 	stopCh := make(chan error, 1)
-	// TODO(dexter): check performance
 	resultCh := make(chan []netstorage.Result)
 	c := runningQueries.Add(Query{
 		q:       q,
@@ -116,14 +108,13 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	defer runningQueries.Delete(c)
 
 	go exec(ec, q, isFirstPointOnly, stopCh, resultCh)
-	for {
-		select {
-		case err := <-stopCh:
-			logger.Infof(err.Error())
-			return nil, err
-		case result := <-resultCh:
-			return result, nil
-		}
+
+	select {
+	case err := <-stopCh:
+		logger.Infof(err.Error())
+		return nil, err
+	case result := <-resultCh:
+		return result, nil
 	}
 }
 
