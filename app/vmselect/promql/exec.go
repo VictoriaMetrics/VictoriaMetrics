@@ -19,7 +19,7 @@ import (
 
 var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 
-type Query struct {
+type query struct {
 	q       string
 	ec      *EvalConfig
 	stopCh  chan error
@@ -28,18 +28,17 @@ type Query struct {
 
 type queriesMap struct {
 	mu sync.Mutex
-	m  map[string]Query
-	c  int64
+	m  map[string]query
 }
 
 func newQueriesMap() *queriesMap {
 	var qm queriesMap
-	qm.m = make(map[string]Query)
+	qm.m = make(map[string]query)
 
 	return &qm
 }
 
-func (qm *queriesMap) Add(q Query) string {
+func (qm *queriesMap) Add(q query) string {
 	qm.mu.Lock()
 	c := uuid.New().String()
 	qm.m[c] = q
@@ -56,6 +55,7 @@ func (qm *queriesMap) Delete(c string) {
 
 var runningQueries = newQueriesMap()
 
+// GetAllRunningQueries get all the running queries' info
 func GetAllRunningQueries() map[string]map[string]string {
 	all := make(map[string]map[string]string)
 	runningQueries.mu.Lock()
@@ -70,6 +70,7 @@ func GetAllRunningQueries() map[string]map[string]string {
 	return all
 }
 
+// CancelRunningQuery cancel the given query's execution
 func CancelRunningQuery(c string) error {
 	runningQueries.mu.Lock()
 	defer runningQueries.mu.Unlock()
@@ -99,7 +100,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 
 	stopCh := make(chan error, 1)
 	resultCh := make(chan []netstorage.Result)
-	c := runningQueries.Add(Query{
+	c := runningQueries.Add(query{
 		q:       q,
 		ec:      ec,
 		startAt: time.Now(),
