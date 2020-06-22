@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -39,16 +43,30 @@ absolute path to all .yaml files in root.`)
 
 	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
 		" E.g. http://127.0.0.1:8428")
-	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
-	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+	basicAuthUsername               = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
+	basicAuthPassword               = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
+	datasourceTLSInsecureSkipVerify = flag.Bool("datasource.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.url")
+	datasourceTLSCertFile           = flag.String("datasource.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.url")
+	datasourceTLSKeyFile            = flag.String("datasource.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -datasource.url")
+	datasourceTLSCAFile             = flag.String("datasource.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -datasource.url. "+
+		"By default system CA is used")
+	datasourceTLSServerName = flag.String("datasource.tlsServerName", "", "Optional TLS server name to use for connections to -datasource.url. "+
+		"By default the server name from -datasource.url is used")
 
 	remoteWriteURL = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
 		" and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
-	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
-	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
-	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
-	remoteWriteMaxBatchSize = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
-	remoteWriteConcurrency  = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote storage")
+	remoteWriteUsername              = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
+	remoteWritePassword              = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
+	remoteWriteMaxQueueSize          = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
+	remoteWriteMaxBatchSize          = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
+	remoteWriteConcurrency           = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote storage")
+	remoteWriteTLSInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")
+	remoteWriteTLSCertFile           = flag.String("remoteWrite.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url")
+	remoteWriteTLSKeyFile            = flag.String("remoteWrite.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url")
+	remoteWriteTLSCAFile             = flag.String("remoteWrite.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. "+
+		"By default system CA is used")
+	remoteWriteTLSServerName = flag.String("remoteWrite.tlsServerName", "", "Optional TLS server name to use for connections to -remoteWrite.url. "+
+		"By default the server name from -remoteWrite.url is used")
 
 	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
 		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+
@@ -57,9 +75,23 @@ absolute path to all .yaml files in root.`)
 	remoteReadPassword = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	remoteReadTLSInsecureSkipVerify = flag.Bool("remoteRead.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteRead.url")
+	remoteReadTLSCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
+	remoteReadTLSKeyFile            = flag.String("remoteRead.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url")
+	remoteReadTLSCAFile             = flag.String("remoteRead.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -remoteRead.url. "+
+		"By default system CA is used")
+	remoteReadTLSServerName = flag.String("remoteRead.tlsServerName", "", "Optional TLS server name to use for connections to -remoteRead.url. "+
+		"By default the server name from -remoteRead.url is used")
 
-	evaluationInterval  = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
-	notifierURL         = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	evaluationInterval            = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
+	notifierURL                   = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	notifierTLSInsecureSkipVerify = flag.Bool("notifier.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -notifier.url")
+	notifierTLSCertFile           = flag.String("notifier.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
+	notifierTLSKeyFile            = flag.String("notifier.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -notifier.url")
+	notifierTLSCAFile             = flag.String("notifier.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -notifier.url. "+
+		"By default system CA is used")
+	notifierTLSServerName = flag.String("notifier.tlsServerName", "", "Optional TLS server name to use for connections to -notifier.url. "+
+		"By default the server name from -notifier.url is used")
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
 eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
@@ -84,12 +116,27 @@ func main() {
 		logger.Fatalf("URL generator error: %s", err)
 	}
 
+	dst, err := getTransport(datasourceURL, datasourceTLSCertFile, datasourceTLSKeyFile, datasourceTLSCAFile, datasourceTLSServerName, datasourceTLSInsecureSkipVerify)
+	if err != nil {
+		logger.Fatalf("cannot create datasource transport: %s", err)
+	}
+
+	nt, err := getTransport(notifierURL, notifierTLSCertFile, notifierTLSKeyFile, notifierTLSCAFile, notifierTLSServerName, notifierTLSInsecureSkipVerify)
+	if err != nil {
+		logger.Fatalf("cannot create notifier transport: %s", err)
+	}
+
 	manager := &manager{
 		groups:   make(map[uint64]*Group),
-		storage:  datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		notifier: notifier.NewAlertManager(*notifierURL, aug, &http.Client{}),
+		storage:  datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{Transport: dst}),
+		notifier: notifier.NewAlertManager(*notifierURL, aug, &http.Client{Transport: nt}),
 	}
 	if *remoteWriteURL != "" {
+		t, err := getTransport(remoteWriteURL, remoteWriteTLSCertFile, remoteWriteTLSKeyFile, remoteWriteTLSCAFile, remoteWriteTLSServerName, remoteWriteTLSInsecureSkipVerify)
+		if err != nil {
+			logger.Fatalf("cannot create remoteWrite transport: %s", err)
+		}
+
 		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
 			Addr:          *remoteWriteURL,
 			Concurrency:   *remoteWriteConcurrency,
@@ -98,14 +145,21 @@ func main() {
 			FlushInterval: *evaluationInterval,
 			BasicAuthUser: *remoteWriteUsername,
 			BasicAuthPass: *remoteWritePassword,
+			Transport:     t,
 		})
 		if err != nil {
 			logger.Fatalf("failed to init remotewrite client: %s", err)
 		}
 		manager.rw = c
 	}
+
 	if *remoteReadURL != "" {
-		manager.rr = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
+		t, err := getTransport(remoteReadURL, remoteReadTLSCertFile, remoteReadTLSKeyFile, remoteReadTLSCAFile, remoteReadTLSServerName, remoteReadTLSInsecureSkipVerify)
+		if err != nil {
+			logger.Fatalf("cannot create remoteRead transport: %s", err)
+		}
+
+		manager.rr = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{Transport: t})
 	}
 
 	if err := manager.start(ctx, *rulePath, *validateTemplates, *validateExpressions); err != nil {
@@ -194,6 +248,57 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		}
 		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
 	}, nil
+}
+
+func getTLSConfig(certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*tls.Config, error) {
+	var certs []tls.Certificate
+	if *certFile != "" {
+		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %s", *certFile, *keyFile, err)
+		}
+
+		certs = []tls.Certificate{cert}
+	}
+
+	var rootCAs *x509.CertPool
+	if *CAFile != "" {
+		pem, err := ioutil.ReadFile(*CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read `ca_file` %q: %s", *CAFile, err)
+		}
+
+		rootCAs = x509.NewCertPool()
+		if !rootCAs.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("cannot parse data from `ca_file` %q", *CAFile)
+		}
+	}
+
+	return &tls.Config{
+		Certificates:       certs,
+		InsecureSkipVerify: *insecureSkipVerify,
+		RootCAs:            rootCAs,
+		ServerName:         *serverName,
+	}, nil
+}
+
+func getTransport(URL, certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*http.Transport, error) {
+	var u fasthttp.URI
+	u.Update(*URL)
+
+	var t *http.Transport
+	if string(u.Scheme()) == "https" {
+		t = http.DefaultTransport.(*http.Transport).Clone()
+
+		tlsCfg, err := getTLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
+		if err != nil {
+			return nil, err
+		}
+
+		t.TLSClientConfig = tlsCfg
+	}
+
+	return t, nil
 }
 
 func checkFlags() {
