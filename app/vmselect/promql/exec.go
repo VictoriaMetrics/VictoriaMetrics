@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,7 +21,7 @@ import (
 var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
 
 type query struct {
-	q       string
+	q       *string
 	ec      *EvalConfig
 	stopCh  chan error
 	startAt time.Time
@@ -55,14 +56,20 @@ func (qm *queriesMap) Delete(c string) {
 
 var runningQueries = newQueriesMap()
 
-// GetAllRunningQueries get all the running queries' info
+const truncateQueryLength = 16
+
+// GetAllRunningQueries get all the running queries' list
 func GetAllRunningQueries() map[string]map[string]string {
 	all := make(map[string]map[string]string)
 	runningQueries.mu.Lock()
-	for c, query := range runningQueries.m {
+	for c, rq := range runningQueries.m {
 		m := make(map[string]string)
-		m["query"] = query.q
-		m["cost"] = time.Since(query.startAt).String()
+		if len(*rq.q) > truncateQueryLength {
+			m["query"] = (*rq.q)[:truncateQueryLength] + "..."
+		} else {
+			m["query"] = *rq.q
+		}
+		m["cost"] = time.Since(rq.startAt).String()
 		all[c] = m
 	}
 	runningQueries.mu.Unlock()
@@ -70,12 +77,27 @@ func GetAllRunningQueries() map[string]map[string]string {
 	return all
 }
 
+// GetQueryInfo get all the running queries' info
+func GetQueryInfo(c string) (map[string]string, error) {
+	if rq, ok := runningQueries.m[c]; ok {
+		m := make(map[string]string)
+		m["query"] = *rq.q
+		m["start"] = strconv.FormatInt(rq.ec.Start, 10)
+		m["end"] = strconv.FormatInt(rq.ec.End, 10)
+		m["step"] = strconv.FormatInt(rq.ec.Step, 10)
+		m["cost"] = time.Since(rq.startAt).String()
+
+		return m, nil
+	}
+	return nil, fmt.Errorf("query of qid {%v} is not running", c)
+}
+
 // CancelRunningQuery cancel the given query's execution
 func CancelRunningQuery(c string) error {
 	runningQueries.mu.Lock()
 	defer runningQueries.mu.Unlock()
-	if query, ok := runningQueries.m[c]; ok {
-		query.stopCh <- fmt.Errorf("cancel query manully")
+	if rq, ok := runningQueries.m[c]; ok {
+		rq.stopCh <- fmt.Errorf("cancel query manully")
 		return nil
 	}
 	return fmt.Errorf("query of qid {%v} is not running", c)
@@ -101,7 +123,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	stopCh := make(chan error, 1)
 	resultCh := make(chan []netstorage.Result)
 	c := runningQueries.Add(query{
-		q:       q,
+		q:       &q,
 		ec:      ec,
 		startAt: time.Now(),
 		stopCh:  stopCh,

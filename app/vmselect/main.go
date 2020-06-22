@@ -339,6 +339,29 @@ func internalHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		fmt.Fprintf(w, `{"status":"success","data": %v}`, string(data))
 		return true
+	case "/query/info":
+		queryInfoRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		pid := strings.TrimSpace(r.URL.Query().Get("pid"))
+		if pid == "" {
+			queryInfoErrors.Inc()
+			sendPrometheusError(w, r, fmt.Errorf("pid not set"))
+			return true
+		}
+		info, err := promql.GetQueryInfo(pid)
+		if err != nil {
+			queryInfoErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		data, err := json.Marshal(info)
+		if err != nil {
+			queryInfoErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
+		fmt.Fprintf(w, `{"status":"success","data": %v}`, string(data))
+		return true
 	case "/query/kill":
 		queryKillRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -416,4 +439,7 @@ var (
 
 	queryKillRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/kill"}`)
 	queryKillErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/kill"}`)
+
+	queryInfoRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/info"}`)
+	queryInfoErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/info"}`)
 )
