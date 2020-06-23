@@ -451,7 +451,8 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "http://host2:80/abc/de",
@@ -489,7 +490,8 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "http://localhost:9090/abc/de",
@@ -527,7 +529,8 @@ scrape_configs:
 					Value: "test",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 }
@@ -579,7 +582,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -628,7 +632,8 @@ scrape_configs:
 					Value: "xxx",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -700,6 +705,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer xyz",
 			},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "https://aaa:443/foo/bar?p=x%26y&p=%3D",
@@ -740,6 +746,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer xyz",
 			},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "http://1.2.3.4:80/metrics",
@@ -774,6 +781,7 @@ scrape_configs:
 				TLSServerName:         "foobar",
 				TLSInsecureSkipVerify: true,
 			},
+			jobNameOriginal: "qwer",
 		},
 	})
 	f(`
@@ -846,7 +854,8 @@ scrape_configs:
 					Value: "http://foo.bar:1234/metrics",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -907,7 +916,8 @@ scrape_configs:
 					Value: "https",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -949,7 +959,8 @@ scrape_configs:
 					Value: "3",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 
@@ -997,6 +1008,7 @@ scrape_configs:
 			},
 			AuthConfig:           &promauth.Config{},
 			MetricRelabelConfigs: prcs,
+			jobNameOriginal:      "foo",
 		},
 	})
 	f(`
@@ -1037,6 +1049,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Basic eHl6OnNlY3JldC1wYXNz",
 			},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -1075,6 +1088,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer secret-pass",
 			},
+			jobNameOriginal: "foo",
 		},
 	})
 	snakeoilCert, err := tls.LoadX509KeyPair("testdata/ssl-cert-snakeoil.pem", "testdata/ssl-cert-snakeoil.key")
@@ -1119,6 +1133,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				TLSCertificate: &snakeoilCert,
 			},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -1179,7 +1194,8 @@ scrape_configs:
 					Value: "qwe",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "aaa",
 		},
 	})
 	f(`
@@ -1233,7 +1249,8 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "snmp",
 		},
 	})
 }
