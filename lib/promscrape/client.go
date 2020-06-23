@@ -133,6 +133,8 @@ var (
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
+	attempts := 0
+again:
 	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
 	err := hc.Do(req, resp)
 	if err == nil {
@@ -142,5 +144,9 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		return err
 	}
 	// Retry request if the server closed the keep-alive connection during the first attempt.
-	return hc.Do(req, resp)
+	attempts++
+	if attempts > 3 {
+		return fmt.Errorf("the server closed 3 subsequent connections: %s", err)
+	}
+	goto again
 }
