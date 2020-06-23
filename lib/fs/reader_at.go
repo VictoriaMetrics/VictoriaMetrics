@@ -133,7 +133,7 @@ func (r *ReaderAt) MustClose() {
 
 	fname := r.f.Name()
 	if len(r.mmapData) > 0 {
-		if err := unix.Munmap(r.mmapData); err != nil {
+		if err := unix.Munmap(r.mmapData[:cap(r.mmapData)]); err != nil {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
 		}
 		r.mmapData = nil
@@ -223,9 +223,16 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	if int64(int(size)) != size {
 		return nil, fmt.Errorf("file is too big to be mmap'ed: %d bytes", size)
 	}
+	// Round size to multiple of 4KB pages as `man 2 mmap` recommends.
+	// This may help preventing SIGBUS panic at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/581
+	// The SIGBUS could occur if standard copy(dst, src) function may read beyond src bounds.
+	sizeOrig := size
+	if size%4096 != 0 {
+		size += 4096 - size%4096
+	}
 	data, err := unix.Mmap(int(f.Fd()), 0, int(size), unix.PROT_READ, unix.MAP_SHARED)
 	if err != nil {
 		return nil, fmt.Errorf("cannot mmap file with size %d: %s", size, err)
 	}
-	return data, nil
+	return data[:sizeOrig], nil
 }
