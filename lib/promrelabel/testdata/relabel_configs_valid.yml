@@ -18,3 +18,7 @@
 - action: labelmap_all
   regex: "\\."
   replacement: ":"
+- action: keep_if_equal
+  source_labels: [foo, bar]
+- action: drop_if_equal
+  source_labels: [foo, bar]
