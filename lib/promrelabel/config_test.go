@@ -11,8 +11,8 @@ func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
-	if len(prcs) != 7 {
-		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, len(prcs), 7)
+	if len(prcs) != 9 {
+		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, len(prcs), 9)
 	}
 }
 
@@ -114,6 +114,36 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 		f([]RelabelConfig{
 			{
 				Action: "keep",
+			},
+		})
+	})
+	t.Run("keep_if_equal-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keep_if_equal",
+			},
+		})
+	})
+	t.Run("keep_if_equal-single-source-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "keep_if_equal",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("drop_if_equal-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "drop_if_equal",
+			},
+		})
+	})
+	t.Run("drop_if_equal-single-source-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action:       "drop_if_equal",
+				SourceLabels: []string{"foo"},
 			},
 		})
 	})

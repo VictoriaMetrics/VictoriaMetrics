@@ -170,6 +170,8 @@ Additionally it provides the following extra actions:
 
 * `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
 * `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
+* `keep_if_equal`: keeps the entry if all label values from `source_labels` are equal.
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
 
 The relabeling can be defined in the following places:
 
@@ -209,6 +211,14 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
+
+* If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports.
+  Just add the following relabeling rule to `relabel_configs` section in order to filter out targets with unneeded ports:
+
+```yml
+- action: keep_if_equal
+  source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
+```
 
 
 ### How to build from sources
