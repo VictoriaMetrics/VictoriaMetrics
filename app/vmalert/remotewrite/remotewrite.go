@@ -53,6 +53,8 @@ type Config struct {
 	// WriteTimeout defines timeout for HTTP write request
 	// to remote storage
 	WriteTimeout time.Duration
+	// Transport will be used by the underlying http.Client
+	Transport *http.Transport
 }
 
 const (
@@ -85,7 +87,8 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	}
 	c := &Client{
 		c: &http.Client{
-			Timeout: cfg.WriteTimeout,
+			Timeout:   cfg.WriteTimeout,
+			Transport: cfg.Transport,
 		},
 		addr:          strings.TrimSuffix(cfg.Addr, "/") + writePath,
 		baUser:        cfg.BasicAuthUser,
