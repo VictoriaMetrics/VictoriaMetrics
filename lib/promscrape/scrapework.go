@@ -66,6 +66,9 @@ type ScrapeWork struct {
 
 	// The maximum number of metrics to scrape after relabeling.
 	SampleLimit int
+
+	// The original 'job_name'
+	jobNameOriginal string
 }
 
 // key returns unique identifier for the given sw.
