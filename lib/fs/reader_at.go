@@ -90,6 +90,11 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 }
 
 func (r *ReaderAt) isInPageCache(start, end int64) bool {
+	if int64(len(r.mmapData)) - end < 4096 {
+		// If standard copy(dst, src) from Go may read beyond len(src), then this should help
+		// fixing SIGBUS panic from https://github.com/VictoriaMetrics/VictoriaMetrics/issues/581
+		return false
+	}
 	startBit := uint64(start) / pageSize
 	endBit := uint64(end) / pageSize
 	m := r.pageCacheBitmap.Load().(*pageCacheBitmap).m
