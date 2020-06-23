@@ -21,6 +21,9 @@ var (
 	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+
+	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 10, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
+		"are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit")
 )
 
 // Init initializes the logger.
@@ -123,7 +126,7 @@ func logLevelSkipframes(skipframes int, level, format string, args ...interface{
 
 func errorsLoggedCleaner() {
 	for {
-		time.Sleep(5 * time.Second)
+		time.Sleep(time.Second)
 		atomic.StoreUint64(&errorsLogged, 0)
 	}
 }
@@ -141,7 +144,7 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 func logMessage(level, msg string, skipframes int) {
 	// rate limit ERROR log messages
 	if level == "ERROR" {
-		if n := atomic.AddUint64(&errorsLogged, 1); n > 10 {
+		if n := atomic.AddUint64(&errorsLogged, 1); *errorsPerSecondLimit > 0 && n > uint64(*errorsPerSecondLimit) {
 			return
 		}
 	}
