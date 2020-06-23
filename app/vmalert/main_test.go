@@ -51,3 +51,55 @@ func TestGetAlertURLGenerator(t *testing.T) {
 		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 }
+
+func TestGetTLSConfig(t *testing.T) {
+	var certFile, keyFile, CAFile, serverName string
+	var insecureSkipVerify bool
+	serverName = "test"
+	insecureSkipVerify = true
+	tlsCfg, err := getTLSConfig(&certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+	if tlsCfg == nil {
+		t.Errorf("expected tlsConfig to be set, got nil")
+	}
+	if tlsCfg.ServerName != serverName {
+		t.Errorf("unexpected ServerName, want %s, got %s", serverName, tlsCfg.ServerName)
+	}
+	if tlsCfg.InsecureSkipVerify != insecureSkipVerify {
+		t.Errorf("unexpected InsecureSkipVerify, want %v, got %v", insecureSkipVerify, tlsCfg.InsecureSkipVerify)
+	}
+	certFile = "/path/to/nonexisting/cert/file"
+	_, err = getTLSConfig(&certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	if err == nil {
+		t.Errorf("expected keypair error, got nil")
+	}
+	certFile = ""
+	CAFile = "/path/to/nonexisting/cert/file"
+	_, err = getTLSConfig(&certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	if err == nil {
+		t.Errorf("expected read error, got nil")
+	}
+}
+
+func TestGetTransport(t *testing.T) {
+	var certFile, keyFile, CAFile, serverName string
+	var insecureSkipVerify bool
+	URL := "http://victoriametrics.com"
+	tr, err := getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+	if tr != nil {
+		t.Errorf("expected Transport to be nil, got %v", tr)
+	}
+	URL = "https://victoriametrics.com"
+	tr, err = getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+	if tr.TLSClientConfig == nil {
+		t.Errorf("expected TLSClientConfig to be set, got nil")
+	}
+}
