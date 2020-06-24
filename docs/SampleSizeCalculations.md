@@ -1,6 +1,8 @@
-# How many metrics can be stored in 2tb disk for 2 years.
+# Sample size calculations
 
 These calculations are for the “Lowest sample size” graph at https://victoriametrics.com/ .
+
+How many metrics can be stored in 2tb disk for 2 years?
 
 Seconds in 2 years:
 2 years * 365 days * 24 hours * 60 minutes * 60 seconds = 63072000 seconds
