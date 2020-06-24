@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -85,6 +86,7 @@ func init() {
 
 func timeseriesWorker(workerID uint) {
 	var rs Result
+	var rsLastResetTime uint64
 	for tsw := range timeseriesWorkCh {
 		rss := tsw.rss
 		if time.Until(rss.deadline.Deadline) < 0 {
@@ -100,9 +102,11 @@ func timeseriesWorker(workerID uint) {
 		}
 		tsw.rowsProcessed = len(rs.Values)
 		tsw.doneCh <- nil
-		if cap(rs.Values) > 1024*1024 && 4*len(rs.Values) < cap(rs.Values) {
+		currentTime := fasttime.UnixTimestamp()
+		if cap(rs.Values) > 1024*1024 && 4*len(rs.Values) < cap(rs.Values) && currentTime-rsLastResetTime > 10 {
 			// Reset rs in order to preseve memory usage after processing big time series with millions of rows.
 			rs = Result{}
+			rsLastResetTime = currentTime
 		}
 	}
 }
