@@ -63,7 +63,7 @@ func parseRelabelConfig(dst []ParsedRelabelConfig, rc *RelabelConfig) ([]ParsedR
 	if rc.Regex != nil {
 		regex := *rc.Regex
 		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
-			regex = "^" + *rc.Regex + "$"
+			regex = "^(?:" + *rc.Regex + ")$"
 		}
 		re, err := regexp.Compile(regex)
 		if err != nil {
