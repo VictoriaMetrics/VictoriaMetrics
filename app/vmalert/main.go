@@ -24,7 +24,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -283,21 +282,15 @@ func getTLSConfig(certFile, keyFile, CAFile, serverName *string, insecureSkipVer
 }
 
 func getTransport(URL, certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*http.Transport, error) {
-	var u fasthttp.URI
-	u.Update(*URL)
-
-	var t *http.Transport
-	if string(u.Scheme()) == "https" {
-		t = http.DefaultTransport.(*http.Transport).Clone()
-
-		tlsCfg, err := getTLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
-		if err != nil {
-			return nil, err
-		}
-
-		t.TLSClientConfig = tlsCfg
+	t := &http.Transport{}
+	if !strings.HasPrefix(*URL, "https") {
+		return t, nil
 	}
-
+	tlsCfg, err := getTLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
+	if err != nil {
+		return nil, err
+	}
+	t.TLSClientConfig = tlsCfg
 	return t, nil
 }
 
