@@ -91,9 +91,6 @@ func TestGetTransport(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	if tr != nil {
-		t.Errorf("expected Transport to be nil, got %v", tr)
-	}
 	URL = "https://victoriametrics.com"
 	tr, err = getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
 	if err != nil {
