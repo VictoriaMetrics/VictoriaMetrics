@@ -87,12 +87,12 @@ func TestGetTransport(t *testing.T) {
 	var certFile, keyFile, CAFile, serverName string
 	var insecureSkipVerify bool
 	URL := "http://victoriametrics.com"
-	tr, err := getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	_, err := getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	URL = "https://victoriametrics.com"
-	tr, err = getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
+	tr, err := getTransport(&URL, &certFile, &keyFile, &CAFile, &serverName, &insecureSkipVerify)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
