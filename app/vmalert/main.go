@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -24,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -41,25 +38,13 @@ absolute path to all .yaml files in root.`)
 
 	httpListenAddr = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 
-	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
-		" E.g. http://127.0.0.1:8428")
-	basicAuthUsername               = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
-	basicAuthPassword               = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
-	datasourceTLSInsecureSkipVerify = flag.Bool("datasource.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.url")
-	datasourceTLSCertFile           = flag.String("datasource.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.url")
-	datasourceTLSKeyFile            = flag.String("datasource.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -datasource.url")
-	datasourceTLSCAFile             = flag.String("datasource.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -datasource.url. "+
-		"By default system CA is used")
-	datasourceTLSServerName = flag.String("datasource.tlsServerName", "", "Optional TLS server name to use for connections to -datasource.url. "+
-		"By default the server name from -datasource.url is used")
-
 	remoteWriteURL = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
 		" and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
 	remoteWriteUsername              = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
 	remoteWritePassword              = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 	remoteWriteMaxQueueSize          = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	remoteWriteMaxBatchSize          = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
-	remoteWriteConcurrency           = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote storage")
+	remoteWriteConcurrency           = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote querier")
 	remoteWriteTLSInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")
 	remoteWriteTLSCertFile           = flag.String("remoteWrite.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url")
 	remoteWriteTLSKeyFile            = flag.String("remoteWrite.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url")
@@ -116,23 +101,27 @@ func main() {
 		logger.Fatalf("URL generator error: %s", err)
 	}
 
-	dst, err := getTransport(datasourceURL, datasourceTLSCertFile, datasourceTLSKeyFile, datasourceTLSCAFile, datasourceTLSServerName, datasourceTLSInsecureSkipVerify)
+	//dst, err := getTransport(datasourceURL, datasourceTLSCertFile, datasourceTLSKeyFile, datasourceTLSCAFile, datasourceTLSServerName, datasourceTLSInsecureSkipVerify)
+	//if err != nil {
+	//	logger.Fatalf("cannot create datasource transport: %s", err)
+	//}
+	q, err := datasource.Init()
 	if err != nil {
-		logger.Fatalf("cannot create datasource transport: %s", err)
+		logger.Fatalf("failed to init datasource: %s", err)
 	}
 
-	nt, err := getTransport(notifierURL, notifierTLSCertFile, notifierTLSKeyFile, notifierTLSCAFile, notifierTLSServerName, notifierTLSInsecureSkipVerify)
+	nt, err := utils.Transport(*notifierURL, *notifierTLSCertFile, *notifierTLSKeyFile, *notifierTLSCAFile, *notifierTLSServerName, *notifierTLSInsecureSkipVerify)
 	if err != nil {
 		logger.Fatalf("cannot create notifier transport: %s", err)
 	}
 
 	manager := &manager{
 		groups:   make(map[uint64]*Group),
-		storage:  datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{Transport: dst}),
+		querier:  q,
 		notifier: notifier.NewAlertManager(*notifierURL, aug, &http.Client{Transport: nt}),
 	}
 	if *remoteWriteURL != "" {
-		t, err := getTransport(remoteWriteURL, remoteWriteTLSCertFile, remoteWriteTLSKeyFile, remoteWriteTLSCAFile, remoteWriteTLSServerName, remoteWriteTLSInsecureSkipVerify)
+		t, err := utils.Transport(*remoteWriteURL, *remoteWriteTLSCertFile, *remoteWriteTLSKeyFile, *remoteWriteTLSCAFile, *remoteWriteTLSServerName, *remoteWriteTLSInsecureSkipVerify)
 		if err != nil {
 			logger.Fatalf("cannot create remoteWrite transport: %s", err)
 		}
@@ -154,7 +143,7 @@ func main() {
 	}
 
 	if *remoteReadURL != "" {
-		t, err := getTransport(remoteReadURL, remoteReadTLSCertFile, remoteReadTLSKeyFile, remoteReadTLSCAFile, remoteReadTLSServerName, remoteReadTLSInsecureSkipVerify)
+		t, err := utils.Transport(*remoteReadURL, *remoteReadTLSCertFile, *remoteReadTLSKeyFile, *remoteReadTLSCAFile, *remoteReadTLSServerName, *remoteReadTLSInsecureSkipVerify)
 		if err != nil {
 			logger.Fatalf("cannot create remoteRead transport: %s", err)
 		}
@@ -250,66 +239,15 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 	}, nil
 }
 
-func getTLSConfig(certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*tls.Config, error) {
-	var certs []tls.Certificate
-	if *certFile != "" {
-		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %s", *certFile, *keyFile, err)
-		}
-
-		certs = []tls.Certificate{cert}
-	}
-
-	var rootCAs *x509.CertPool
-	if *CAFile != "" {
-		pem, err := ioutil.ReadFile(*CAFile)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read `ca_file` %q: %s", *CAFile, err)
-		}
-
-		rootCAs = x509.NewCertPool()
-		if !rootCAs.AppendCertsFromPEM(pem) {
-			return nil, fmt.Errorf("cannot parse data from `ca_file` %q", *CAFile)
-		}
-	}
-
-	return &tls.Config{
-		Certificates:       certs,
-		InsecureSkipVerify: *insecureSkipVerify,
-		RootCAs:            rootCAs,
-		ServerName:         *serverName,
-	}, nil
-}
-
-func getTransport(URL, certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*http.Transport, error) {
-	var u fasthttp.URI
-	u.Update(*URL)
-
-	var t *http.Transport
-	if string(u.Scheme()) == "https" {
-		t = http.DefaultTransport.(*http.Transport).Clone()
-
-		tlsCfg, err := getTLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
-		if err != nil {
-			return nil, err
-		}
-
-		t.TLSClientConfig = tlsCfg
-	}
-
-	return t, nil
-}
-
 func checkFlags() {
 	if *notifierURL == "" {
 		flag.PrintDefaults()
 		logger.Fatalf("notifier.url is empty")
 	}
-	if *datasourceURL == "" {
-		flag.PrintDefaults()
-		logger.Fatalf("datasource.url is empty")
-	}
+	//if *datasourceURL == "" {
+	//	flag.PrintDefaults()
+	//	logger.Fatalf("datasource.url is empty")
+	//}
 }
 
 func usage() {
