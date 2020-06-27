@@ -282,7 +282,7 @@ func getTLSConfig(certFile, keyFile, CAFile, serverName *string, insecureSkipVer
 }
 
 func getTransport(URL, certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*http.Transport, error) {
-	t := &http.Transport{}
+	t := http.DefaultTransport.(*http.Transport).Clone()
 	if !strings.HasPrefix(*URL, "https") {
 		return t, nil
 	}
