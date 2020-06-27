@@ -6,29 +6,25 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"github.com/VictoriaMetrics/fasthttp"
+	"strings"
 )
 
+// Transport creates http.Transport object based on provided URL.
+// Returns Transport with TLS configuration if URL contains `https` prefix
 func Transport(URL, certFile, keyFile, CAFile, serverName string, insecureSkipVerify bool) (*http.Transport, error) {
-	var u fasthttp.URI
-	u.Update(URL)
-
-	var t *http.Transport
-	if string(u.Scheme()) == "https" {
-		t = http.DefaultTransport.(*http.Transport).Clone()
-
-		tlsCfg, err := TLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
-		if err != nil {
-			return nil, err
-		}
-
-		t.TLSClientConfig = tlsCfg
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	if !strings.HasPrefix(URL, "https") {
+		return t, nil
 	}
-
+	tlsCfg, err := TLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
+	if err != nil {
+		return nil, err
+	}
+	t.TLSClientConfig = tlsCfg
 	return t, nil
 }
 
+// TLSConfig creates tls.Config object from provided arguments
 func TLSConfig(certFile, keyFile, CAFile, serverName string, insecureSkipVerify bool) (*tls.Config, error) {
 	var certs []tls.Certificate
 	if certFile != "" {
