@@ -583,8 +583,9 @@ Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
-By default the image is built on top of `alpine` image for improved debuggability. It is possible to build the package on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of `scratch` image:
+By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image for improved debuggability.
+It is possible to build the package on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
 ROOT_IMAGE=scratch make package-victoria-metrics

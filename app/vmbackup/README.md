@@ -201,9 +201,9 @@ Run `make package-vmbackup`. It builds `victoriametrics/vmbackup:<PKG_TAG>` dock
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
 
-By default the image is built on top of `scratch` image. It is possible to build the package on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of `alpine:3.11` image:
+By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
+by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
-ROOT_IMAGE=alpine:3.11 make package-vmbackup
+ROOT_IMAGE=scratch make package-vmbackup
 ```

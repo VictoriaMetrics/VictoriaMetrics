@@ -249,7 +249,18 @@ func checkFlags() {
 	//	logger.Fatalf("datasource.url is empty")
 	//}
 }
-
+func getTransport(URL, certFile, keyFile, CAFile, serverName *string, insecureSkipVerify *bool) (*http.Transport, error) {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	if !strings.HasPrefix(*URL, "https") {
+		return t, nil
+	}
+	tlsCfg, err := getTLSConfig(certFile, keyFile, CAFile, serverName, insecureSkipVerify)
+	if err != nil {
+		return nil, err
+	}
+	t.TLSClientConfig = tlsCfg
+	return t, nil
+}
 func usage() {
 	const s = `
 vmalert processes alerts and recording rules.
