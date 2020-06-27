@@ -1,11 +1,10 @@
 package remotewrite
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 )
