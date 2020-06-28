@@ -38,7 +38,7 @@ func TestManagerUpdateError(t *testing.T) {
 func TestManagerUpdateConcurrent(t *testing.T) {
 	m := &manager{
 		groups:   make(map[uint64]*Group),
-		storage:  &fakeQuerier{},
+		querier:  &fakeQuerier{},
 		notifier: &fakeNotifier{},
 	}
 	paths := []string{
@@ -184,7 +184,7 @@ func TestManagerUpdate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.TODO())
-			m := &manager{groups: make(map[uint64]*Group), storage: &fakeQuerier{}}
+			m := &manager{groups: make(map[uint64]*Group), querier: &fakeQuerier{}}
 			path := []string{tc.initPath}
 			if err := m.update(ctx, path, true, true, false); err != nil {
 				t.Fatalf("failed to complete initial rules update: %s", err)
