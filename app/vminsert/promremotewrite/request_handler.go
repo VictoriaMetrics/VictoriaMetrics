@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -35,15 +36,21 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 	rowsTotal := 0
 	for i := range timeseries {
 		ts := &timeseries[i]
-		storageNodeIdx := ctx.GetStorageNodeIdx(at, ts.Labels)
+		storageNodeGroupIDs := ctx.GetStorageNodeGroupIds(at, ts.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 		for i := range ts.Samples {
 			r := &ts.Samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ts.Labels)
 			}
-			if err := ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
-				return err
+			for _, storageNodeGroupID := range storageNodeGroupIDs {
+				if err := ctx.WriteDataPointExt(at, storageNodeGroupID, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+					if ctx.AllReplicationGroupsFailed(storageNodeGroupID.Group) {
+						logger.Errorf("All replication groups have failed")
+						return err
+					}
+					logger.Errorf("Replciation group down: %s error: %s", storageNodeGroupID.Group, err)
+				}
 			}
 		}
 		rowsTotal += len(ts.Samples)

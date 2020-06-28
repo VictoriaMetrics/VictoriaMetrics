@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -105,9 +106,15 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 			ic.Labels = ic.Labels[:len(ic.Labels)-1]
 			ic.AddLabel("", metricGroup)
 			ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf[:metricNameBufLen], placeholderLabel)
-			storageNodeIdx := ic.GetStorageNodeIdx(&atCopy, ic.Labels)
-			if err := ic.WriteDataPointExt(&atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
-				return err
+			storageNodeGroupIDs := ic.GetStorageNodeGroupIds(&atCopy, ic.Labels)
+			for _, storageNodeGroupID := range storageNodeGroupIDs {
+				if err := ic.WriteDataPointExt(at, storageNodeGroupID, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+					if ic.AllReplicationGroupsFailed(storageNodeGroupID.Group) {
+						logger.Errorf("All replication groups have failed")
+						return err
+					}
+					logger.Errorf("Replciation group down: %s error: %s", storageNodeGroupID.Group, err)
+				}
 			}
 		}
 		rowsTotal += len(r.Fields)

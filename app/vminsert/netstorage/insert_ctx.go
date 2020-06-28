@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	xxhash "github.com/cespare/xxhash/v2"
@@ -21,8 +22,9 @@ type InsertCtx struct {
 	Labels        []prompb.Label
 	MetricNameBuf []byte
 
-	bufRowss  []bufRows
-	labelsBuf []byte
+	groupBufRowss           map[string][]bufRows
+	labelsBuf               []byte
+	failedReplicationGroups map[string]bool
 }
 
 type bufRows struct {
@@ -56,14 +58,21 @@ func (ctx *InsertCtx) Reset() {
 	}
 	ctx.Labels = ctx.Labels[:0]
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
-
-	if ctx.bufRowss == nil {
-		ctx.bufRowss = make([]bufRows, len(storageNodes))
+	if ctx.groupBufRowss == nil {
+		ctx.groupBufRowss = make(map[string][]bufRows)
 	}
-	for i := range ctx.bufRowss {
-		ctx.bufRowss[i].reset()
+	for rgID, rg := range replicationGroups {
+		bufRowss, ok := ctx.groupBufRowss[rgID]
+		if !ok {
+			ctx.groupBufRowss[rgID] = make([]bufRows, len(rg.storageNodes))
+		} else {
+			for i := range bufRowss {
+				bufRowss[i].reset()
+			}
+		}
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
+	ctx.failedReplicationGroups = make(map[string]bool)
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -109,16 +118,27 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 // WriteDataPoint writes (timestamp, value) data point with the given at and labels to ctx buffer.
 func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
-	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
-	return ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
+	storageNodeGroupIDs := ctx.GetStorageNodeGroupIds(at, labels)
+	for _, storageNodeGroupID := range storageNodeGroupIDs {
+		if err := ctx.WriteDataPointExt(at, storageNodeGroupID, ctx.MetricNameBuf, timestamp, value); err != nil {
+			if ctx.AllReplicationGroupsFailed(storageNodeGroupID.Group) {
+				logger.Errorf("All replication groups have failed")
+				return err
+			}
+			logger.Errorf("Replciation group down: %s error: %s", storageNodeGroupID.Group, err)
+		}
+	}
+
+	return nil
 }
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
-func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
-	br := &ctx.bufRowss[storageNodeIdx]
-	sn := storageNodes[storageNodeIdx]
+func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, sngID StorageNodeGroupID, metricNameRaw []byte, timestamp int64, value float64) error {
+	rg := replicationGroups[sngID.Group]
+	br := &ctx.groupBufRowss[sngID.Group][sngID.Idx]
+	sn := rg.storageNodes[sngID.Idx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= maxBufSizePerStorageNode {
+	if len(bufNew) >= rg.maxBufSizePerStorageNode {
 		// Send buf to storageNode, since it is too big.
 		if err := br.pushTo(sn); err != nil {
 			return err
@@ -134,26 +154,30 @@ func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metr
 // FlushBufs flushes ctx bufs to remote storage nodes.
 func (ctx *InsertCtx) FlushBufs() error {
 	var firstErr error
-	for i := range ctx.bufRowss {
-		br := &ctx.bufRowss[i]
-		if len(br.buf) == 0 {
-			continue
-		}
-		if err := br.pushTo(storageNodes[i]); err != nil && firstErr == nil {
-			firstErr = err
+	for rgID, rg := range replicationGroups {
+		bufRowss := ctx.groupBufRowss[rgID]
+		for i := range bufRowss {
+			br := &bufRowss[i]
+			if len(br.buf) == 0 {
+				continue
+			}
+			if err := br.pushTo(rg.storageNodes[i]); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 	return firstErr
 }
 
-// GetStorageNodeIdx returns storage node index for the given at and labels.
-//
-// The returned index must be passed to WriteDataPoint.
-func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) int {
-	if len(storageNodes) == 1 {
-		// Fast path - only a single storage node.
-		return 0
-	}
+// StorageNodeGroupID keeps the integer id of a node and it's group
+type StorageNodeGroupID struct {
+	Group string
+	Idx   int
+}
+
+// GetStorageNodeGroupIds returns one storage node per replication group
+func (ctx *InsertCtx) GetStorageNodeGroupIds(at *auth.Token, labels []prompb.Label) []StorageNodeGroupID {
+	groupPairs := []StorageNodeGroupID{}
 
 	buf := ctx.labelsBuf[:0]
 	buf = encoding.MarshalUint32(buf, at.AccountID)
@@ -165,9 +189,24 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	}
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
+	for rgID, rg := range replicationGroups {
+		if len(rg.storageNodes) == 1 {
+			// Fast path - only a single storage node.
+			groupPairs = append(groupPairs, StorageNodeGroupID{Group: rgID, Idx: 0})
+			continue
+		}
 
-	idx := int(jump.Hash(h, int32(len(storageNodes))))
-	return idx
+		idx := int(jump.Hash(h, int32(len(rg.storageNodes))))
+		groupPairs = append(groupPairs, StorageNodeGroupID{Group: rgID, Idx: idx})
+	}
+	return groupPairs
+}
+
+// AllReplicationGroupsFailed - check if all replication groups have failed
+func (ctx *InsertCtx) AllReplicationGroupsFailed(replicationGroup string) bool {
+	ctx.failedReplicationGroups[replicationGroup] = true
+
+	return len(replicationGroups) == len(ctx.failedReplicationGroups)
 }
 
 func marshalBytesFast(dst []byte, s []byte) []byte {
