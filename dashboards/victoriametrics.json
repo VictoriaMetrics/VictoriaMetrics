@@ -1,20 +1,11 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS",
-      "label": "Prometheus",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
+  "__inputs": [],
   "__requires": [
     {
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "7.0.2"
+      "version": "7.0.3"
     },
     {
       "type": "panel",
@@ -65,7 +56,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1591986157550,
+  "iteration": 1593345560631,
   "links": [
     {
       "icon": "doc",
@@ -96,7 +87,7 @@
   "panels": [
     {
       "collapsed": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -110,7 +101,7 @@
     },
     {
       "content": "<div style=\"text-align: center; font-size: 2em\">$version</div>",
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": "$datasource",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -500,7 +491,7 @@
     },
     {
       "collapsed": false,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1144,7 +1135,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2178,7 +2169,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2486,7 +2477,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "${DS_PROMETHEUS}",
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3207,9 +3198,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "Prometheus",
-          "value": "Prometheus"
+          "selected": false,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
@@ -3228,14 +3219,14 @@
         "allValue": null,
         "current": {},
         "datasource": "$datasource",
-        "definition": "label_values(vm_app_version, job)",
+        "definition": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
         "hide": 0,
         "includeAll": false,
         "label": null,
         "multi": false,
         "name": "job",
         "options": [],
-        "query": "label_values(vm_app_version, job)",
+        "query": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -3301,5 +3292,5 @@
   "timezone": "",
   "title": "VictoriaMetrics",
   "uid": "wNf0q_kZk",
-  "version": 3
+  "version": 1
 }
