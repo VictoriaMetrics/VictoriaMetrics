@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"hash/fnv"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )

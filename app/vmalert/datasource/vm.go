@@ -49,9 +49,10 @@ const queryPath = "/api/v1/query?query="
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
-	c                            *http.Client
-	queryURL                     string
-	basicAuthUser, basicAuthPass string
+	c             *http.Client
+	queryURL      string
+	basicAuthUser string
+	basicAuthPass string
 }
 
 // NewVMStorage is a constructor for VMStorage

@@ -10,7 +10,10 @@ import (
 )
 
 var (
-	addrs                 = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	addrs             = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
+	basicAuthUsername = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -datasource.url")
+	basicAuthPassword = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -datasource.url")
+
 	tlsInsecureSkipVerify = flag.Bool("notifier.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -notifier.url")
 	tlsCertFile           = flagutil.NewArray("notifier.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
 	tlsKeyFile            = flagutil.NewArray("notifier.tlsKeyFile", "Optional path to client-side TLS certificate key to use when connecting to -notifier.url")
@@ -35,7 +38,8 @@ func Init(gen AlertURLGenerator) ([]Notifier, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create transport: %s", err)
 		}
-		am := NewAlertManager(addr, gen, &http.Client{Transport: tr})
+		user, pass := basicAuthUsername.GetOptionalArg(i), basicAuthPassword.GetOptionalArg(i)
+		am := NewAlertManager(addr, user, pass, gen, &http.Client{Transport: tr})
 		notifiers = append(notifiers, am)
 	}
 
