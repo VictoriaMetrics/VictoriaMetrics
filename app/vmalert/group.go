@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"hash/fnv"
 	"sync"
 	"time"
@@ -155,10 +156,10 @@ func (g *Group) close() {
 	<-g.finishedCh
 }
 
-func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{querier, nr, rw}
+	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -201,9 +202,9 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifi
 }
 
 type executor struct {
-	querier  datasource.Querier
-	notifier notifier.Notifier
-	rw       *remotewrite.Client
+	querier   datasource.Querier
+	notifiers []notifier.Notifier
+	rw        *remotewrite.Client
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
@@ -286,10 +287,14 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 	if len(alerts) < 1 {
 		return nil
 	}
+
 	alertsSent.Add(len(alerts))
-	if err := e.notifier.Send(ctx, alerts); err != nil {
-		alertsSendErrors.Inc()
-		return fmt.Errorf("rule %q: failed to send alerts: %s", rule, err)
+	errGr := new(utils.ErrGroup)
+	for _, nt := range e.notifiers {
+		if err := nt.Send(ctx, alerts); err != nil {
+			alertsSendErrors.Inc()
+			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %s", rule, err))
+		}
 	}
-	return nil
+	return errGr.Err()
 }

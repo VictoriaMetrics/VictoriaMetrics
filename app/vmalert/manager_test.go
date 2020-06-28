@@ -37,9 +37,9 @@ func TestManagerUpdateError(t *testing.T) {
 // Should be executed with -race flag
 func TestManagerUpdateConcurrent(t *testing.T) {
 	m := &manager{
-		groups:   make(map[uint64]*Group),
-		querier:  &fakeQuerier{},
-		notifier: &fakeNotifier{},
+		groups:    make(map[uint64]*Group),
+		querier:   &fakeQuerier{},
+		notifiers: []notifier.Notifier{&fakeNotifier{}},
 	}
 	paths := []string{
 		"config/testdata/dir/rules0-good.rules",

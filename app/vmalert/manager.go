@@ -15,8 +15,8 @@ import (
 
 // manager controls group states
 type manager struct {
-	querier  datasource.Querier
-	notifier notifier.Notifier
+	querier   datasource.Querier
+	notifiers []notifier.Notifier
 
 	rw *remotewrite.Client
 	rr datasource.Querier
@@ -73,7 +73,7 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
-		group.start(ctx, m.querier, m.notifier, m.rw)
+		group.start(ctx, m.querier, m.notifiers, m.rw)
 		m.wg.Done()
 	}()
 	m.groups[id] = group
