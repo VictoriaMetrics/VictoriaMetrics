@@ -248,6 +248,7 @@ func (sw *scrapeWork) addRowToTimeseries(r *parser.Row, timestamp int64, needRel
 		sw.labels = promrelabel.ApplyRelabelConfigs(sw.labels, labelsLen, sw.Config.MetricRelabelConfigs, true)
 	} else {
 		sw.labels = promrelabel.FinalizeLabels(sw.labels[:labelsLen], sw.labels[labelsLen:])
+		promrelabel.SortLabels(sw.labels[labelsLen:])
 	}
 	if len(sw.labels) == labelsLen {
 		// Skip row without labels.
