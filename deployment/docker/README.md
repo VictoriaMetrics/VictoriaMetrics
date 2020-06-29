@@ -2,7 +2,7 @@
 
 #### Docker compose
 
-To spin-up setup of VictoriaMetrics, Prometheus and Grafana run following command:
+To spin-up setup of VictoriaMetrics, vmagent and Grafana run following command:
 
 `docker-compose up`
 
@@ -13,11 +13,11 @@ VictoriaMetrics opens following ports:
 * `--opentsdbListenAddr=:4242`
 * `--httpListenAddr=:8428`
 
-##### Prometheus
+##### vmagent
 
-To access service open following [link](http://localhost:9090).
-
-Prometheus is already configured to use VictoriaMetrics as remote storage.
+vmagent is used for scraping and pushing timeseries to
+VictoriaMetrics instance. It accepts Prometheus-compatible
+configuration `prometheus.yml` with listed targets for scraping.
 
 ##### Grafana
 

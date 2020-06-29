@@ -1,16 +1,10 @@
 global:
   scrape_interval:     10s
-  evaluation_interval: 10s
-
-remote_write:
-  - url: "http://victoriametrics:8428/api/v1/write"
-    queue_config:
-      max_samples_per_send: 10000
 
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: 'vmagent'
     static_configs:
-      - targets: ['prometheus:9090']
+      - targets: ['vmagent:8429']
   - job_name: 'victoriametrics'
     static_configs:
       - targets: ['victoriametrics:8428']
