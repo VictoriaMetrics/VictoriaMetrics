@@ -245,10 +245,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	}, `
 		foo{bar="baz",job="xx",instance="foo.com/xx"} 34.44 123
 		bar{a="b",job="xx",instance="foo.com/xx"} -3e4 123
-		up{job="xx",instance="foo.com/xx"} 1 123
-		scrape_samples_scraped{job="xx",instance="foo.com/xx"} 2 123
-		scrape_duration_seconds{job="xx",instance="foo.com/xx"} 0 123
-		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com/xx"} 2 123
+		up{job="xx"} 1 123
+		scrape_samples_scraped{job="xx"} 2 123
+		scrape_duration_seconds{job="xx"} 0 123
+		scrape_samples_post_metric_relabeling{job="xx"} 2 123
 	`)
 	f(`
 		foo{bar="baz"} 34.44
@@ -281,6 +281,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		},
 	}, `
 		foo{bar="baz",job="xx",instance="foo.com"} 34.44 123
+		up{job="xx",instance="foo.com"} 1 123
 		scrape_samples_scraped{job="xx",instance="foo.com"} 4 123
 		scrape_duration_seconds{job="xx",instance="foo.com"} 0 123
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
