@@ -116,15 +116,15 @@ func newManager(ctx context.Context) (*manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init `external.alert.source`: %s", err)
 	}
-	nt, err := notifier.Init(aug)
+	nts, err := notifier.Init(aug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %s", err)
 	}
 
 	manager := &manager{
-		groups:   make(map[uint64]*Group),
-		querier:  q,
-		notifier: nt,
+		groups:    make(map[uint64]*Group),
+		querier:   q,
+		notifiers: nts,
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {
