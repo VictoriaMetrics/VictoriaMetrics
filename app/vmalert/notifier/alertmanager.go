@@ -12,9 +12,11 @@ import (
 // AlertManager represents integration provider with Prometheus alert manager
 // https://github.com/prometheus/alertmanager
 type AlertManager struct {
-	alertURL string
-	argFunc  AlertURLGenerator
-	client   *http.Client
+	alertURL      string
+	basicAuthUser string
+	basicAuthPass string
+	argFunc       AlertURLGenerator
+	client        *http.Client
 }
 
 // Send an alert or resolve message
@@ -28,6 +30,9 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(ctx)
+	if am.basicAuthPass != "" {
+		req.SetBasicAuth(am.basicAuthUser, am.basicAuthPass)
+	}
 	resp, err := am.client.Do(req)
 	if err != nil {
 		return err
@@ -51,10 +56,13 @@ type AlertURLGenerator func(Alert) string
 const alertManagerPath = "/api/v2/alerts"
 
 // NewAlertManager is a constructor for AlertManager
-func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, c *http.Client) *AlertManager {
+func NewAlertManager(alertManagerURL, user, pass string, fn AlertURLGenerator, c *http.Client) *AlertManager {
+	addr := strings.TrimSuffix(alertManagerURL, "/") + alertManagerPath
 	return &AlertManager{
-		alertURL: strings.TrimSuffix(alertManagerURL, "/") + alertManagerPath,
-		argFunc:  fn,
-		client:   c,
+		alertURL:      addr,
+		argFunc:       fn,
+		client:        c,
+		basicAuthUser: user,
+		basicAuthPass: pass,
 	}
 }
