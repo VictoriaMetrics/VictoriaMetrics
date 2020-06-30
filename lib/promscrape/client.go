@@ -16,6 +16,8 @@ var (
 		"Bigger responses are rejected")
 	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to scrape targets. "+
 		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization")
+	disableKeepAlive = flag.Bool("promscrape.disableKeepAlive", false, "Whether to disable HTTP keep-alive connections when scraping targets. This may be useful when targets "+
+		"has no support for HTTP keep-alive connection. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
 )
 
 type client struct {
@@ -72,6 +74,9 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	req.SetHost(c.host)
 	if !*disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
+	}
+	if *disableKeepAlive {
+		req.SetConnectionClose()
 	}
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
