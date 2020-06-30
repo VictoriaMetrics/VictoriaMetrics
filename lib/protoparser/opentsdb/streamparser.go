@@ -1,6 +1,7 @@
 package opentsdb
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -52,7 +53,8 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
-		if ne, ok := ctx.err.(net.Error); ok && ne.Timeout() {
+		var ne net.Error
+		if errors.As(ctx.err, &ne) && ne.Timeout() {
 			// Flush the read data on timeout and try reading again.
 			ctx.err = nil
 		} else {

@@ -3,6 +3,7 @@ package s3remote
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -287,7 +288,8 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 	o, err := fs.s3.GetObject(input)
 	if err != nil {
-		if ae, ok := err.(awserr.Error); ok && ae.Code() == s3.ErrCodeNoSuchKey {
+		var ae awserr.Error
+		if errors.As(err, &ae) && ae.Code() == s3.ErrCodeNoSuchKey {
 			return false, nil
 		}
 		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, path, err)
