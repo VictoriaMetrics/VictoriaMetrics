@@ -41,7 +41,7 @@ func (br *bufRows) pushTo(sn *storageNode) error {
 	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %s", bufLen, sn.dialer.Addr(), err),
+			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %w", bufLen, sn.dialer.Addr(), err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}

@@ -30,7 +30,7 @@ func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStre
 	if err == errForciblyStopped {
 		return err
 	}
-	return fmt.Errorf("cannot merge %d streams: %s: %s", len(bsrs), bsrs, err)
+	return fmt.Errorf("cannot merge %d streams: %s: %w", len(bsrs), bsrs, err)
 }
 
 var bsmPool = &sync.Pool{
@@ -101,7 +101,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		// Slow path - pendingBlock and bsm.Block belong to the same time series,
 		// so they must be merged.
 		if err := unmarshalAndCalibrateScale(pendingBlock, bsm.Block); err != nil {
-			return fmt.Errorf("cannot unmarshal and calibrate scale for blocks to be merged: %s", err)
+			return fmt.Errorf("cannot unmarshal and calibrate scale for blocks to be merged: %w", err)
 		}
 		tmpBlock.Reset()
 		tmpBlock.bh.TSID = bsm.Block.bh.TSID
@@ -128,7 +128,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 		bsw.WriteExternalBlock(tmpBlock, ph, rowsMerged)
 	}
 	if err := bsm.Error(); err != nil {
-		return fmt.Errorf("cannot read block to be merged: %s", err)
+		return fmt.Errorf("cannot read block to be merged: %w", err)
 	}
 	if pendingBlock != nil {
 		bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)

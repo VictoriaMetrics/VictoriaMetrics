@@ -169,7 +169,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 
 	// Create a directory for the table if it doesn't exist yet.
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory %q: %s", path, err)
+		return nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 
 	// Protect from concurrent opens.
@@ -181,7 +181,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	// Open table parts.
 	pws, err := openParts(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open table parts at %q: %s", path, err)
+		return nil, fmt.Errorf("cannot open table parts at %q: %w", path, err)
 	}
 
 	tb := &Table{
@@ -481,13 +481,13 @@ func (tb *Table) convertToV1280() {
 func (tb *Table) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
 	for len(pws) > defaultPartsToMerge {
 		if err := tb.mergeParts(pws[:defaultPartsToMerge], stopCh, false); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %s", defaultPartsToMerge, err)
+			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
 	}
 	if len(pws) > 0 {
 		if err := tb.mergeParts(pws, stopCh, false); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %s", len(pws), err)
+			return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
 		}
 	}
 	return nil
@@ -761,7 +761,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 			bsr.InitFromInmemoryPart(pw.mp)
 		} else {
 			if err := bsr.InitFromFilePart(pw.p.path); err != nil {
-				return fmt.Errorf("cannot open source part for merging: %s", err)
+				return fmt.Errorf("cannot open source part for merging: %w", err)
 			}
 		}
 		bsrs = append(bsrs, bsr)
@@ -786,7 +786,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	bsw := getBlockStreamWriter()
 	compressLevel := getCompressLevelForPartItems(outItemsCount, outBlocksCount)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
-		return fmt.Errorf("cannot create destination part %q: %s", tmpPartPath, err)
+		return fmt.Errorf("cannot create destination part %q: %w", tmpPartPath, err)
 	}
 
 	// Merge parts into a temporary location.
@@ -797,10 +797,10 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 		if err == errForciblyStopped {
 			return err
 		}
-		return fmt.Errorf("error when merging parts to %q: %s", tmpPartPath, err)
+		return fmt.Errorf("error when merging parts to %q: %w", tmpPartPath, err)
 	}
 	if err := ph.WriteMetadata(tmpPartPath); err != nil {
-		return fmt.Errorf("cannot write metadata to destination part %q: %s", tmpPartPath, err)
+		return fmt.Errorf("cannot write metadata to destination part %q: %w", tmpPartPath, err)
 	}
 
 	// Close bsrs (aka source parts).
@@ -821,18 +821,18 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
 	txnPath := fmt.Sprintf("%s/txn/%016X", tb.path, mergeIdx)
 	if err := fs.WriteFileAtomically(txnPath, bb.B); err != nil {
-		return fmt.Errorf("cannot create transaction file %q: %s", txnPath, err)
+		return fmt.Errorf("cannot create transaction file %q: %w", txnPath, err)
 	}
 
 	// Run the created transaction.
 	if err := runTransaction(&tb.snapshotLock, tb.path, txnPath); err != nil {
-		return fmt.Errorf("cannot execute transaction %q: %s", txnPath, err)
+		return fmt.Errorf("cannot execute transaction %q: %w", txnPath, err)
 	}
 
 	// Open the merged part.
 	newP, err := openFilePart(dstPartPath)
 	if err != nil {
-		return fmt.Errorf("cannot open merged part %q: %s", dstPartPath, err)
+		return fmt.Errorf("cannot open merged part %q: %w", dstPartPath, err)
 	}
 	newPSize := newP.size
 	newPW := &partWrapper{
@@ -950,7 +950,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	}
 	d, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open difrectory: %s", err)
+		return nil, fmt.Errorf("cannot open difrectory: %w", err)
 	}
 	defer fs.MustClose(d)
 
@@ -958,19 +958,19 @@ func openParts(path string) ([]*partWrapper, error) {
 	// Snapshots cannot be created yet, so use fakeSnapshotLock.
 	var fakeSnapshotLock sync.RWMutex
 	if err := runTransactions(&fakeSnapshotLock, path); err != nil {
-		return nil, fmt.Errorf("cannot run transactions: %s", err)
+		return nil, fmt.Errorf("cannot run transactions: %w", err)
 	}
 
 	txnDir := path + "/txn"
 	fs.MustRemoveAll(txnDir)
 	if err := fs.MkdirAllFailIfExist(txnDir); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %s", txnDir, err)
+		return nil, fmt.Errorf("cannot create %q: %w", txnDir, err)
 	}
 
 	tmpDir := path + "/tmp"
 	fs.MustRemoveAll(tmpDir)
 	if err := fs.MkdirAllFailIfExist(tmpDir); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %s", tmpDir, err)
+		return nil, fmt.Errorf("cannot create %q: %w", tmpDir, err)
 	}
 
 	fs.MustSyncPath(path)
@@ -978,7 +978,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	// Open parts.
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read directory: %s", err)
+		return nil, fmt.Errorf("cannot read directory: %w", err)
 	}
 	var pws []*partWrapper
 	for _, fi := range fis {
@@ -995,7 +995,7 @@ func openParts(path string) ([]*partWrapper, error) {
 		p, err := openFilePart(partPath)
 		if err != nil {
 			mustCloseParts(pws)
-			return nil, fmt.Errorf("cannot open part %q: %s", partPath, err)
+			return nil, fmt.Errorf("cannot open part %q: %w", partPath, err)
 		}
 		pw := &partWrapper{
 			p:        p,
@@ -1028,11 +1028,11 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	srcDir := tb.path
 	srcDir, err = filepath.Abs(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute dir for %q: %s", srcDir, err)
+		return fmt.Errorf("cannot obtain absolute dir for %q: %w", srcDir, err)
 	}
 	dstDir, err = filepath.Abs(dstDir)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute dir for %q: %s", dstDir, err)
+		return fmt.Errorf("cannot obtain absolute dir for %q: %w", dstDir, err)
 	}
 	if strings.HasPrefix(dstDir, srcDir+"/") {
 		return fmt.Errorf("cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
@@ -1047,18 +1047,18 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	defer tb.snapshotLock.Unlock()
 
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %s", dstDir, err)
+		return fmt.Errorf("cannot create snapshot dir %q: %w", dstDir, err)
 	}
 
 	d, err := os.Open(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot open difrectory: %s", err)
+		return fmt.Errorf("cannot open difrectory: %w", err)
 	}
 	defer fs.MustClose(d)
 
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return fmt.Errorf("cannot read directory: %s", err)
+		return fmt.Errorf("cannot read directory: %w", err)
 	}
 	for _, fi := range fis {
 		fn := fi.Name()
@@ -1068,7 +1068,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 				srcPath := srcDir + "/" + fn
 				dstPath := dstDir + "/" + fn
 				if err := os.Link(srcPath, dstPath); err != nil {
-					return fmt.Errorf("cannot hard link from %q to %q: %s", srcPath, dstPath, err)
+					return fmt.Errorf("cannot hard link from %q to %q: %w", srcPath, dstPath, err)
 				}
 			default:
 				// Skip other non-directories.
@@ -1082,7 +1082,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 		srcPartPath := srcDir + "/" + fn
 		dstPartPath := dstDir + "/" + fn
 		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
-			return fmt.Errorf("cannot create hard links from %q to %q: %s", srcPartPath, dstPartPath, err)
+			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
 		}
 	}
 
@@ -1107,13 +1107,13 @@ func runTransactions(txnLock *sync.RWMutex, path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("cannot open %q: %s", txnDir, err)
+		return fmt.Errorf("cannot open %q: %w", txnDir, err)
 	}
 	defer fs.MustClose(d)
 
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return fmt.Errorf("cannot read directory %q: %s", d.Name(), err)
+		return fmt.Errorf("cannot read directory %q: %w", d.Name(), err)
 	}
 
 	// Sort transaction files by id, since transactions must be ordered.
@@ -1129,7 +1129,7 @@ func runTransactions(txnLock *sync.RWMutex, path string) error {
 		}
 		txnPath := txnDir + "/" + fn
 		if err := runTransaction(txnLock, path, txnPath); err != nil {
-			return fmt.Errorf("cannot run transaction from %q: %s", txnPath, err)
+			return fmt.Errorf("cannot run transaction from %q: %w", txnPath, err)
 		}
 	}
 	return nil
@@ -1143,7 +1143,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 
 	data, err := ioutil.ReadFile(txnPath)
 	if err != nil {
-		return fmt.Errorf("cannot read transaction file: %s", err)
+		return fmt.Errorf("cannot read transaction file: %w", err)
 	}
 	if len(data) > 0 && data[len(data)-1] == '\n' {
 		data = data[:len(data)-1]
@@ -1164,7 +1164,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	for _, path := range rmPaths {
 		path, err := validatePath(pathPrefix, path)
 		if err != nil {
-			return fmt.Errorf("invalid path to remove: %s", err)
+			return fmt.Errorf("invalid path to remove: %w", err)
 		}
 		removeWG.Add(1)
 		fs.MustRemoveAllWithDoneCallback(path, removeWG.Done)
@@ -1175,15 +1175,15 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	dstPath := mvPaths[1]
 	srcPath, err = validatePath(pathPrefix, srcPath)
 	if err != nil {
-		return fmt.Errorf("invalid source path to rename: %s", err)
+		return fmt.Errorf("invalid source path to rename: %w", err)
 	}
 	dstPath, err = validatePath(pathPrefix, dstPath)
 	if err != nil {
-		return fmt.Errorf("invalid destination path to rename: %s", err)
+		return fmt.Errorf("invalid destination path to rename: %w", err)
 	}
 	if fs.IsPathExist(srcPath) {
 		if err := os.Rename(srcPath, dstPath); err != nil {
-			return fmt.Errorf("cannot rename %q to %q: %s", srcPath, dstPath, err)
+			return fmt.Errorf("cannot rename %q to %q: %w", srcPath, dstPath, err)
 		}
 	} else if !fs.IsPathExist(dstPath) {
 		// Emit info message for the expected condition after unclean shutdown on NFS disk.
@@ -1217,12 +1217,12 @@ func validatePath(pathPrefix, path string) (string, error) {
 
 	pathPrefix, err = filepath.Abs(pathPrefix)
 	if err != nil {
-		return path, fmt.Errorf("cannot determine absolute path for pathPrefix=%q: %s", pathPrefix, err)
+		return path, fmt.Errorf("cannot determine absolute path for pathPrefix=%q: %w", pathPrefix, err)
 	}
 
 	path, err = filepath.Abs(path)
 	if err != nil {
-		return path, fmt.Errorf("cannot determine absolute path for %q: %s", path, err)
+		return path, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
 	}
 	if !strings.HasPrefix(path, pathPrefix+"/") {
 		return path, fmt.Errorf("invalid path %q; must start with %q", path, pathPrefix+"/")

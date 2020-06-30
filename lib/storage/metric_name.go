@@ -49,11 +49,11 @@ func (tag *Tag) Unmarshal(src []byte) ([]byte, error) {
 	var err error
 	src, tag.Key, err = unmarshalTagValue(tag.Key[:0], src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal key: %s", err)
+		return src, fmt.Errorf("cannot unmarshal key: %w", err)
 	}
 	src, tag.Value, err = unmarshalTagValue(tag.Value[:0], src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal value: %s", err)
+		return src, fmt.Errorf("cannot unmarshal value: %w", err)
 	}
 	return src, nil
 }
@@ -389,7 +389,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 	var err error
 	src, mn.MetricGroup, err = unmarshalTagValue(mn.MetricGroup[:0], src)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal MetricGroup: %s", err)
+		return fmt.Errorf("cannot unmarshal MetricGroup: %w", err)
 	}
 
 	mn.Tags = mn.Tags[:0]
@@ -398,7 +398,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 		var err error
 		src, err = tag.Unmarshal(src)
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal tag: %s", err)
+			return fmt.Errorf("cannot unmarshal tag: %w", err)
 		}
 	}
 
@@ -539,13 +539,13 @@ func (mn *MetricName) unmarshalRaw(src []byte) error {
 	for len(src) > 0 {
 		tail, key, err := unmarshalBytesFast(src)
 		if err != nil {
-			return fmt.Errorf("cannot decode key: %s", err)
+			return fmt.Errorf("cannot decode key: %w", err)
 		}
 		src = tail
 
 		tail, value, err := unmarshalBytesFast(src)
 		if err != nil {
-			return fmt.Errorf("cannot decode value: %s", err)
+			return fmt.Errorf("cannot decode value: %w", err)
 		}
 		src = tail
 

@@ -53,7 +53,7 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 	r.reset()
 	v, err := tu.p.Parse(s)
 	if err != nil {
-		return fmt.Errorf("cannot parse json line: %s", err)
+		return fmt.Errorf("cannot parse json line: %w", err)
 	}
 
 	// Unmarshal tags
@@ -63,7 +63,7 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 	}
 	tagsStart := len(tu.tagsPool)
 	if err := tu.unmarshalTags(metric); err != nil {
-		return fmt.Errorf("cannot unmarshal `metric`: %s", err)
+		return fmt.Errorf("cannot unmarshal `metric`: %w", err)
 	}
 	tags := tu.tagsPool[tagsStart:]
 	r.Tags = tags[:len(tags):len(tags)]
@@ -79,7 +79,7 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 	for i, v := range values {
 		f, err := v.Float64()
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal value at position %d: %s", i, err)
+			return fmt.Errorf("cannot unmarshal value at position %d: %w", i, err)
 		}
 		r.Values = append(r.Values, f)
 	}
@@ -92,7 +92,7 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 	for i, v := range timestamps {
 		ts, err := v.Int64()
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal timestamp at position %d: %s", i, err)
+			return fmt.Errorf("cannot unmarshal timestamp at position %d: %w", i, err)
 		}
 		r.Timestamps = append(r.Timestamps, ts)
 	}
@@ -158,7 +158,7 @@ func (tu *tagsUnmarshaler) unmarshalTags(o *fastjson.Object) error {
 		tag.Key = tu.addBytes(key)
 		sb, err := v.StringBytes()
 		if err != nil && tu.err != nil {
-			tu.err = fmt.Errorf("cannot parse value for tag %q: %s", tag.Key, err)
+			tu.err = fmt.Errorf("cannot parse value for tag %q: %w", tag.Key, err)
 		}
 		tag.Value = tu.addBytes(sb)
 	})

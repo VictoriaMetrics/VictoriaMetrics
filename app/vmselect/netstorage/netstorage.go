@@ -94,7 +94,7 @@ func timeseriesWorker(workerID uint) {
 			continue
 		}
 		if err := tsw.pts.Unpack(rss.tbf, &rs, rss.tr, rss.fetchData, rss.at); err != nil {
-			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %s", err)
+			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %w", err)
 			continue
 		}
 		if len(rs.Timestamps) > 0 || !rss.fetchData {
@@ -188,7 +188,7 @@ func unpackWorker() {
 		sb := getSortBlock()
 		if err := sb.unpackFrom(upw.tbf, upw.addr, upw.tr, upw.fetchData, upw.at); err != nil {
 			putSortBlock(sb)
-			upw.doneCh <- fmt.Errorf("cannot unpack block: %s", err)
+			upw.doneCh <- fmt.Errorf("cannot unpack block: %w", err)
 			continue
 		}
 		upw.sb = sb
@@ -201,7 +201,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 	dst.reset()
 
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
-		return fmt.Errorf("cannot unmarshal metricName %q: %s", pts.metricName, err)
+		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
 	}
 
 	// Feed workers with work
@@ -332,7 +332,7 @@ func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storag
 	tbf.MustReadBlockAt(&sb.b, addr)
 	if fetchData {
 		if err := sb.b.UnmarshalData(); err != nil {
-			return fmt.Errorf("cannot unmarshal block: %s", err)
+			return fmt.Errorf("cannot unmarshal block: %w", err)
 		}
 	}
 	timestamps := sb.b.Timestamps()
@@ -427,7 +427,7 @@ func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline Deadline) (i
 	}
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		return deletedTotal, fmt.Errorf("error occured during deleting time series: %s", errors[0])
+		return deletedTotal, fmt.Errorf("error occured during deleting time series: %w", errors[0])
 	}
 	return deletedTotal, nil
 }
@@ -446,7 +446,7 @@ func GetLabels(at *auth.Token, deadline Deadline) ([]string, bool, error) {
 			labels, err := sn.getLabels(at.AccountID, at.ProjectID, deadline)
 			if err != nil {
 				sn.labelsRequestErrors.Inc()
-				err = fmt.Errorf("cannot get labels from vmstorage %s: %s", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
 			}
 			resultsCh <- nodeResult{
 				labels: labels,
@@ -472,7 +472,7 @@ func GetLabels(at *auth.Token, deadline Deadline) ([]string, bool, error) {
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching labels: %s", errors[0])
+			return nil, true, fmt.Errorf("error occured during fetching labels: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -519,7 +519,7 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 			labelValues, err := sn.getLabelValues(at.AccountID, at.ProjectID, labelName, deadline)
 			if err != nil {
 				sn.labelValuesRequestErrors.Inc()
-				err = fmt.Errorf("cannot get label values from vmstorage %s: %s", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
 			}
 			resultsCh <- nodeResult{
 				labelValues: labelValues,
@@ -545,7 +545,7 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching label values: %s", errors[0])
+			return nil, true, fmt.Errorf("error occured during fetching label values: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -580,7 +580,7 @@ func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, boo
 			labelEntries, err := sn.getLabelEntries(at.AccountID, at.ProjectID, deadline)
 			if err != nil {
 				sn.labelEntriesRequestErrors.Inc()
-				err = fmt.Errorf("cannot get label entries from vmstorage %s: %s", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot get label entries from vmstorage %s: %w", sn.connPool.Addr(), err)
 			}
 			resultsCh <- nodeResult{
 				labelEntries: labelEntries,
@@ -606,7 +606,7 @@ func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, boo
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching label entries: %s", errors[0])
+			return nil, true, fmt.Errorf("error occured during fetching label entries: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -685,7 +685,7 @@ func GetTSDBStatusForDate(at *auth.Token, deadline Deadline, date uint64, topN i
 			status, err := sn.getTSDBStatusForDate(at.AccountID, at.ProjectID, date, topN, deadline)
 			if err != nil {
 				sn.tsdbStatusRequestErrors.Inc()
-				err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %s", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
 			}
 			resultsCh <- nodeResult{
 				status: status,
@@ -711,7 +711,7 @@ func GetTSDBStatusForDate(at *auth.Token, deadline Deadline, date uint64, topN i
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching tsdb stats: %s", errors[0])
+			return nil, true, fmt.Errorf("error occured during fetching tsdb stats: %w", errors[0])
 		}
 		// Just log errors and return partial results.
 		// This allows gracefully degrade vmselect in the case
@@ -786,7 +786,7 @@ func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
 			n, err := sn.getSeriesCount(at.AccountID, at.ProjectID, deadline)
 			if err != nil {
 				sn.seriesCountRequestErrors.Inc()
-				err = fmt.Errorf("cannot get series count from vmstorage %s: %s", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot get series count from vmstorage %s: %w", sn.connPool.Addr(), err)
 			}
 			resultsCh <- nodeResult{
 				n:   n,
@@ -812,7 +812,7 @@ func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return 0, true, fmt.Errorf("error occured during fetching series count: %s", errors[0])
+			return 0, true, fmt.Errorf("error occured during fetching series count: %w", errors[0])
 		}
 		// Just log errors and return partial results.
 		// This allows gracefully degrade vmselect in the case
@@ -871,7 +871,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 			err := sn.processSearchQuery(tbfw, requestData, tr, fetchData, deadline)
 			if err != nil {
 				sn.searchRequestErrors.Inc()
-				err = fmt.Errorf("cannot perform search on vmstorage %s: %s", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
 			}
 			resultsCh <- err
 		}(sn)
@@ -893,7 +893,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
 			putTmpBlocksFile(tbfw.tbf)
-			return nil, true, fmt.Errorf("error occured during search: %s", errors[0])
+			return nil, true, fmt.Errorf("error occured during search: %w", errors[0])
 		}
 
 		// Just return partial results.
@@ -906,7 +906,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 	}
 	if err := tbfw.tbf.Finalize(); err != nil {
 		putTmpBlocksFile(tbfw.tbf)
-		return nil, false, fmt.Errorf("cannot finalize temporary blocks file with %d time series: %s", len(tbfw.m), err)
+		return nil, false, fmt.Errorf("cannot finalize temporary blocks file with %d time series: %w", len(tbfw.m), err)
 	}
 
 	var rss Results
@@ -1132,7 +1132,7 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 
 	bc, err := sn.connPool.Get()
 	if err != nil {
-		return fmt.Errorf("cannot obtain connection from a pool: %s", err)
+		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
 	}
 	if err := bc.SetDeadline(deadline.Deadline); err != nil {
 		_ = bc.Close()
@@ -1142,7 +1142,7 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()
-		return fmt.Errorf("cannot send rpcName=%q to the server: %s", rpcName, err)
+		return fmt.Errorf("cannot send rpcName=%q to the server: %w", rpcName, err)
 	}
 
 	if err := f(bc); err != nil {
@@ -1156,7 +1156,7 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 			// since it may be broken.
 			_ = bc.Close()
 		}
-		return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout %s: %s", rpcName, remoteAddr, deadline.String(), err)
+		return fmt.Errorf("cannot execute rpcName=%q on vmstorage %q with timeout %s: %w", rpcName, remoteAddr, deadline.String(), err)
 	}
 	// Return the connection back to the pool, assuming it is healthy.
 	sn.connPool.Put(bc)
@@ -1174,16 +1174,16 @@ func (er *errRemote) Error() string {
 func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestData []byte) (int, error) {
 	// Send the request to sn
 	if err := writeBytes(bc, requestData); err != nil {
-		return 0, fmt.Errorf("cannot send deleteMetrics request to conn: %s", err)
+		return 0, fmt.Errorf("cannot send deleteMetrics request to conn: %w", err)
 	}
 	if err := bc.Flush(); err != nil {
-		return 0, fmt.Errorf("cannot flush deleteMetrics request to conn: %s", err)
+		return 0, fmt.Errorf("cannot flush deleteMetrics request to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read error message: %s", err)
+		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return 0, &errRemote{msg: string(buf)}
@@ -1192,7 +1192,7 @@ func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestDa
 	// Read deletedCount
 	deletedCount, err := readUint64(bc)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read deletedCount value: %s", err)
+		return 0, fmt.Errorf("cannot read deletedCount value: %w", err)
 	}
 	return int(deletedCount), nil
 }
@@ -1202,19 +1202,19 @@ const maxLabelSize = 16 * 1024 * 1024
 func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]string, error) {
 	// Send the request to sn.
 	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
 	}
 	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush request to conn: %s", err)
+		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %s", err)
+		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return nil, &errRemote{msg: string(buf)}
@@ -1225,7 +1225,7 @@ func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, pr
 	for {
 		buf, err = readBytes(buf[:0], bc, maxLabelSize)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read labels: %s", err)
+			return nil, fmt.Errorf("cannot read labels: %w", err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
@@ -1240,22 +1240,22 @@ const maxLabelValueSize = 16 * 1024 * 1024
 func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string) ([]string, error) {
 	// Send the request to sn.
 	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
 	}
 	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
 	}
 	if err := writeBytes(bc, []byte(labelName)); err != nil {
-		return nil, fmt.Errorf("cannot send labelName=%q to conn: %s", labelName, err)
+		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush labelName to conn: %s", err)
+		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %s", err)
+		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return nil, &errRemote{msg: string(buf)}
@@ -1275,7 +1275,7 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 		var err error
 		buf, err = readBytes(buf[:0], bc, maxLabelValueSize)
 		if err != nil {
-			return nil, buf, fmt.Errorf("cannot read labelValue: %s", err)
+			return nil, buf, fmt.Errorf("cannot read labelValue: %w", err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
@@ -1288,19 +1288,19 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]storage.TagEntry, error) {
 	// Send the request to sn.
 	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
 	}
 	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush request to conn: %s", err)
+		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %s", err)
+		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return nil, &errRemote{msg: string(buf)}
@@ -1311,7 +1311,7 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 	for {
 		buf, err = readBytes(buf[:0], bc, maxLabelSize)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read label: %s", err)
+			return nil, fmt.Errorf("cannot read label: %w", err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
@@ -1321,7 +1321,7 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 		var values []string
 		values, buf, err = readLabelValues(buf, bc)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read values for label %q: %s", label, err)
+			return nil, fmt.Errorf("cannot read values for label %q: %w", label, err)
 		}
 		labelEntries = append(labelEntries, storage.TagEntry{
 			Key:    label,
@@ -1333,27 +1333,27 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN int) (*storage.TSDBStatus, error) {
 	// Send the request to sn.
 	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
 	}
 	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
 	}
 	// date shouldn't exceed 32 bits, so send it as uint32.
 	if err := writeUint32(bc, uint32(date)); err != nil {
-		return nil, fmt.Errorf("cannot send date=%d to conn: %s", date, err)
+		return nil, fmt.Errorf("cannot send date=%d to conn: %w", date, err)
 	}
 	// topN shouldn't exceed 32 bits, so send it as uint32.
 	if err := writeUint32(bc, uint32(topN)); err != nil {
-		return nil, fmt.Errorf("cannot send topN=%d to conn: %s", topN, err)
+		return nil, fmt.Errorf("cannot send topN=%d to conn: %w", topN, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush tsdbStatus args to conn: %s", err)
+		return nil, fmt.Errorf("cannot flush tsdbStatus args to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %s", err)
+		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return nil, &errRemote{msg: string(buf)}
@@ -1362,15 +1362,15 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 	// Read response
 	seriesCountByMetricName, err := readTopHeapEntries(bc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %s", err)
+		return nil, fmt.Errorf("cannot read seriesCountByMetricName: %w", err)
 	}
 	labelValueCountByLabelName, err := readTopHeapEntries(bc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %s", err)
+		return nil, fmt.Errorf("cannot read labelValueCountByLabelName: %w", err)
 	}
 	seriesCountByLabelValuePair, err := readTopHeapEntries(bc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %s", err)
+		return nil, fmt.Errorf("cannot read seriesCountByLabelValuePair: %w", err)
 	}
 	status := &storage.TSDBStatus{
 		SeriesCountByMetricName:     seriesCountByMetricName,
@@ -1383,18 +1383,18 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, error) {
 	n, err := readUint64(bc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the number of topHeapEntries: %s", err)
+		return nil, fmt.Errorf("cannot read the number of topHeapEntries: %w", err)
 	}
 	var a []storage.TopHeapEntry
 	var buf []byte
 	for i := uint64(0); i < n; i++ {
 		buf, err = readBytes(buf[:0], bc, maxLabelSize)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read label name: %s", err)
+			return nil, fmt.Errorf("cannot read label name: %w", err)
 		}
 		count, err := readUint64(bc)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read label count: %s", err)
+			return nil, fmt.Errorf("cannot read label count: %w", err)
 		}
 		a = append(a, storage.TopHeapEntry{
 			Name:  string(buf),
@@ -1407,19 +1407,19 @@ func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, err
 func (sn *storageNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) (uint64, error) {
 	// Send the request to sn.
 	if err := writeUint32(bc, accountID); err != nil {
-		return 0, fmt.Errorf("cannot send accountID=%d to conn: %s", accountID, err)
+		return 0, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
 	}
 	if err := writeUint32(bc, projectID); err != nil {
-		return 0, fmt.Errorf("cannot send projectID=%d to conn: %s", projectID, err)
+		return 0, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return 0, fmt.Errorf("cannot flush seriesCount args to conn: %s", err)
+		return 0, fmt.Errorf("cannot flush seriesCount args to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read error message: %s", err)
+		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return 0, &errRemote{msg: string(buf)}
@@ -1428,7 +1428,7 @@ func (sn *storageNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountI
 	// Read response
 	n, err := readUint64(bc)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read series count: %s", err)
+		return 0, fmt.Errorf("cannot read series count: %w", err)
 	}
 	return n, nil
 }
@@ -1443,13 +1443,13 @@ const maxErrorMessageSize = 64 * 1024
 func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *handshake.BufferedConn, requestData []byte, tr storage.TimeRange, fetchData bool) (int, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
-		return 0, fmt.Errorf("cannot write requestData: %s", err)
+		return 0, fmt.Errorf("cannot write requestData: %w", err)
 	}
 	if err := writeBool(bc, fetchData); err != nil {
-		return 0, fmt.Errorf("cannot write fetchData=%v: %s", fetchData, err)
+		return 0, fmt.Errorf("cannot write fetchData=%v: %w", fetchData, err)
 	}
 	if err := bc.Flush(); err != nil {
-		return 0, fmt.Errorf("cannot flush requestData to conn: %s", err)
+		return 0, fmt.Errorf("cannot flush requestData to conn: %w", err)
 	}
 
 	var err error
@@ -1458,7 +1458,7 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 	// Read response error.
 	buf, err = readBytes(buf[:0], bc, maxErrorMessageSize)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read error message: %s", err)
+		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
 		return 0, &errRemote{msg: string(buf)}
@@ -1470,7 +1470,7 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 	for {
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
-			return blocksRead, fmt.Errorf("cannot read MetricBlock #%d: %s", blocksRead, err)
+			return blocksRead, fmt.Errorf("cannot read MetricBlock #%d: %w", blocksRead, err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
@@ -1478,7 +1478,7 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 		}
 		tail, err := mb.Unmarshal(buf)
 		if err != nil {
-			return blocksRead, fmt.Errorf("cannot unmarshal MetricBlock #%d: %s", blocksRead, err)
+			return blocksRead, fmt.Errorf("cannot unmarshal MetricBlock #%d: %w", blocksRead, err)
 		}
 		if len(tail) != 0 {
 			return blocksRead, fmt.Errorf("non-empty tail after unmarshaling MetricBlock #%d: (len=%d) %q", blocksRead, len(tail), tail)
@@ -1487,7 +1487,7 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 		sn.metricBlocksRead.Inc()
 		sn.metricRowsRead.Add(mb.Block.RowsCount())
 		if err := tbfw.WriteBlock(&mb); err != nil {
-			return blocksRead, fmt.Errorf("cannot write MetricBlock #%d to temporary blocks file: %s", blocksRead, err)
+			return blocksRead, fmt.Errorf("cannot write MetricBlock #%d to temporary blocks file: %w", blocksRead, err)
 		}
 	}
 }
@@ -1525,7 +1525,7 @@ func writeBool(bc *handshake.BufferedConn, b bool) error {
 func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, error) {
 	buf = bytesutil.Resize(buf, 8)
 	if n, err := io.ReadFull(bc, buf); err != nil {
-		return buf, fmt.Errorf("cannot read %d bytes with data size: %s; read only %d bytes", len(buf), err, n)
+		return buf, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
 	}
 	dataSize := encoding.UnmarshalUint64(buf)
 	if dataSize > uint64(maxDataSize) {
@@ -1536,7 +1536,7 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 		return buf, nil
 	}
 	if n, err := io.ReadFull(bc, buf); err != nil {
-		return buf, fmt.Errorf("cannot read data with size %d: %s; read only %d bytes", dataSize, err, n)
+		return buf, fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
 	}
 	return buf, nil
 }
@@ -1544,7 +1544,7 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 func readUint64(bc *handshake.BufferedConn) (uint64, error) {
 	var buf [8]byte
 	if _, err := io.ReadFull(bc, buf[:]); err != nil {
-		return 0, fmt.Errorf("cannot read uint64: %s", err)
+		return 0, fmt.Errorf("cannot read uint64: %w", err)
 	}
 	n := encoding.UnmarshalUint64(buf[:])
 	return n, nil

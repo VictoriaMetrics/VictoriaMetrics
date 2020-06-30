@@ -64,7 +64,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		}
 		fi, err := os.Stat(file)
 		if err != nil {
-			return nil, fmt.Errorf("cannot stat %q: %s", file, err)
+			return nil, fmt.Errorf("cannot stat %q: %w", file, err)
 		}
 		path := file[len(dir):]
 		size := uint64(fi.Size())
@@ -100,7 +100,7 @@ func (fs *FS) NewReadCloser(p common.Part) (io.ReadCloser, error) {
 	path := fs.path(p)
 	r, err := filestream.OpenReaderAt(path, int64(p.Offset), true)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q at %q: %s", p.Path, fs.Dir, err)
+		return nil, fmt.Errorf("cannot open %q at %q: %w", p.Path, fs.Dir, err)
 	}
 	lrc := &limitedReadCloser{
 		r: r,
@@ -121,7 +121,7 @@ func (fs *FS) NewWriteCloser(p common.Part) (io.WriteCloser, error) {
 	}
 	w, err := filestream.OpenWriterAt(path, int64(p.Offset), true)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open writer for %q at offset %d: %s", path, p.Offset, err)
+		return nil, fmt.Errorf("cannot open writer for %q at offset %d: %w", path, p.Offset, err)
 	}
 	wc := &writeCloser{
 		w:    w,
@@ -148,16 +148,16 @@ func (fs *FS) DeletePath(path string) (uint64, error) {
 			// The file could be deleted earlier via symlink.
 			return 0, nil
 		}
-		return 0, fmt.Errorf("cannot open %q at %q: %s", path, fullPath, err)
+		return 0, fmt.Errorf("cannot open %q at %q: %w", path, fullPath, err)
 	}
 	fi, err := f.Stat()
 	_ = f.Close()
 	if err != nil {
-		return 0, fmt.Errorf("cannot stat %q at %q: %s", path, fullPath, err)
+		return 0, fmt.Errorf("cannot stat %q at %q: %w", path, fullPath, err)
 	}
 	size := uint64(fi.Size())
 	if err := os.Remove(fullPath); err != nil {
-		return 0, fmt.Errorf("cannot remove %q: %s", fullPath, err)
+		return 0, fmt.Errorf("cannot remove %q: %w", fullPath, err)
 	}
 	return size, nil
 }
@@ -170,7 +170,7 @@ func (fs *FS) RemoveEmptyDirs() error {
 func (fs *FS) mkdirAll(filePath string) error {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("cannot create directory %q: %s", dir, err)
+		return fmt.Errorf("cannot create directory %q: %w", dir, err)
 	}
 	return nil
 }

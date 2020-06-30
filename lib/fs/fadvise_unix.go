@@ -16,7 +16,7 @@ func fadviseSequentialRead(f *os.File, prefetch bool) error {
 		mode |= unix.FADV_WILLNEED
 	}
 	if err := unix.Fadvise(int(fd), 0, 0, mode); err != nil {
-		return fmt.Errorf("error returned from unix.Fadvise(%d): %s", mode, err)
+		return fmt.Errorf("error returned from unix.Fadvise(%d): %w", mode, err)
 	}
 	return nil
 }

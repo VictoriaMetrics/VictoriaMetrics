@@ -80,7 +80,7 @@ func (rh *requestHandler) listGroups() ([]byte, error) {
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`error encoding list of active alerts: %s`, err),
+			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -117,7 +117,7 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`error encoding list of active alerts: %s`, err),
+			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -138,11 +138,11 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 
 	groupID, err := uint64FromPath(parts[0])
 	if err != nil {
-		return nil, badRequest(fmt.Errorf(`cannot parse groupID: %s`, err))
+		return nil, badRequest(fmt.Errorf(`cannot parse groupID: %w`, err))
 	}
 	alertID, err := uint64FromPath(parts[1])
 	if err != nil {
-		return nil, badRequest(fmt.Errorf(`cannot parse alertID: %s`, err))
+		return nil, badRequest(fmt.Errorf(`cannot parse alertID: %w`, err))
 	}
 	resp, err := rh.m.AlertAPI(groupID, alertID)
 	if err != nil {

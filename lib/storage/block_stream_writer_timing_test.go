@@ -42,7 +42,7 @@ func benchmarkBlockStreamWriter(b *testing.B, ebs []Block, rowsCount int, writeR
 				for i := range ebsCopy {
 					eb := &ebsCopy[i]
 					if err := eb.UnmarshalData(); err != nil {
-						panic(fmt.Errorf("cannot unmarshal block %d on loop %d: %s", i, loopCount, err))
+						panic(fmt.Errorf("cannot unmarshal block %d on loop %d: %w", i, loopCount, err))
 					}
 				}
 			}
@@ -73,7 +73,7 @@ func newBenchBlocks(rows []rawRow) []Block {
 		ebs = append(ebs, eb)
 	}
 	if err := bsr.Error(); err != nil {
-		panic(fmt.Errorf("unexpected error when reading inmemoryPart: %s", err))
+		panic(fmt.Errorf("unexpected error when reading inmemoryPart: %w", err))
 	}
 	return ebs
 }

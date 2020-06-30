@@ -76,7 +76,7 @@ func MarshalTimestamps(dst []byte, timestamps []int64, precisionBits uint8) (res
 func UnmarshalTimestamps(dst []int64, src []byte, mt MarshalType, firstTimestamp int64, itemsCount int) ([]int64, error) {
 	dst, err := unmarshalInt64Array(dst, src, mt, firstTimestamp, itemsCount)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %d timestamps from len(src)=%d bytes: %s", itemsCount, len(src), err)
+		return nil, fmt.Errorf("cannot unmarshal %d timestamps from len(src)=%d bytes: %w", itemsCount, len(src), err)
 	}
 	return dst, nil
 }
@@ -97,7 +97,7 @@ func MarshalValues(dst []byte, values []int64, precisionBits uint8) (result []by
 func UnmarshalValues(dst []int64, src []byte, mt MarshalType, firstValue int64, itemsCount int) ([]int64, error) {
 	dst, err := unmarshalInt64Array(dst, src, mt, firstValue, itemsCount)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal %d values from len(src)=%d bytes: %s", itemsCount, len(src), err)
+		return nil, fmt.Errorf("cannot unmarshal %d values from len(src)=%d bytes: %w", itemsCount, len(src), err)
 	}
 	return dst, nil
 }
@@ -166,36 +166,36 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		bb := bbPool.Get()
 		bb.B, err = DecompressZSTD(bb.B[:0], src)
 		if err != nil {
-			return nil, fmt.Errorf("cannot decompress zstd data of size %d: %s; src_zstd=%X", len(src), err, src)
+			return nil, fmt.Errorf("cannot decompress zstd data of size %d: %w; src_zstd=%X", len(src), err, src)
 		}
 		dst, err = unmarshalInt64NearestDelta(dst, bb.B, firstValue, itemsCount)
 		bbPool.Put(bb)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal nearest delta data after zstd decompression: %s; src_zstd=%X", err, src)
+			return nil, fmt.Errorf("cannot unmarshal nearest delta data after zstd decompression: %w; src_zstd=%X", err, src)
 		}
 		return dst, nil
 	case MarshalTypeZSTDNearestDelta2:
 		bb := bbPool.Get()
 		bb.B, err = DecompressZSTD(bb.B[:0], src)
 		if err != nil {
-			return nil, fmt.Errorf("cannot decompress zstd data of size %d: %s; src_zstd=%X", len(src), err, src)
+			return nil, fmt.Errorf("cannot decompress zstd data of size %d: %w; src_zstd=%X", len(src), err, src)
 		}
 		dst, err = unmarshalInt64NearestDelta2(dst, bb.B, firstValue, itemsCount)
 		bbPool.Put(bb)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal nearest delta2 data after zstd decompression: %s; src_zstd=%X", err, src)
+			return nil, fmt.Errorf("cannot unmarshal nearest delta2 data after zstd decompression: %w; src_zstd=%X", err, src)
 		}
 		return dst, nil
 	case MarshalTypeNearestDelta:
 		dst, err = unmarshalInt64NearestDelta(dst, src, firstValue, itemsCount)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal nearest delta data: %s", err)
+			return nil, fmt.Errorf("cannot unmarshal nearest delta data: %w", err)
 		}
 		return dst, nil
 	case MarshalTypeNearestDelta2:
 		dst, err = unmarshalInt64NearestDelta2(dst, src, firstValue, itemsCount)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal nearest delta2 data: %s", err)
+			return nil, fmt.Errorf("cannot unmarshal nearest delta2 data: %w", err)
 		}
 		return dst, nil
 	case MarshalTypeConst:
@@ -219,7 +219,7 @@ func unmarshalInt64Array(dst []int64, src []byte, mt MarshalType, firstValue int
 		v := firstValue
 		tail, d, err := UnmarshalVarInt64(src)
 		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal delta value for delta const: %s", err)
+			return nil, fmt.Errorf("cannot unmarshal delta value for delta const: %w", err)
 		}
 		if len(tail) > 0 {
 			return nil, fmt.Errorf("unexpected trailing data after delta const (d=%d): %d bytes", d, len(tail))

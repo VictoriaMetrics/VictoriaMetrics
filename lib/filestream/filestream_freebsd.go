@@ -18,11 +18,11 @@ func (st *streamTracker) adviseDontNeed(n int, fdatasync bool) error {
 	blockSize := st.length - (st.length % dontNeedBlockSize)
 	if fdatasync {
 		if err := unixFdatasync(int(st.fd)); err != nil {
-			return fmt.Errorf("unix.Fdatasync error: %s", err)
+			return fmt.Errorf("unix.Fdatasync error: %w", err)
 		}
 	}
 	if err := unix.Fadvise(int(st.fd), int64(st.offset), int64(blockSize), unix.FADV_DONTNEED); err != nil {
-		return fmt.Errorf("unix.Fadvise(FADV_DONTNEEDED, %d, %d) error: %s", st.offset, blockSize, err)
+		return fmt.Errorf("unix.Fadvise(FADV_DONTNEEDED, %d, %d) error: %w", st.offset, blockSize, err)
 	}
 	st.offset += blockSize
 	st.length -= blockSize
@@ -35,7 +35,7 @@ func (st *streamTracker) close() error {
 	}
 	// Advise the whole file as it shouldn't be cached.
 	if err := unix.Fadvise(int(st.fd), 0, 0, unix.FADV_DONTNEED); err != nil {
-		return fmt.Errorf("unix.Fadvise(FADV_DONTNEEDED, 0, 0) error: %s", err)
+		return fmt.Errorf("unix.Fadvise(FADV_DONTNEEDED, 0, 0) error: %w", err)
 	}
 	return nil
 }

@@ -1255,7 +1255,7 @@ func testPartSearchSerial(p *part, tsids []TSID, tr TimeRange, expectedRawBlocks
 		bs = append(bs, b)
 	}
 	if err := ps.Error(); err != nil {
-		return fmt.Errorf("unexpected error in search: %s", err)
+		return fmt.Errorf("unexpected error in search: %w", err)
 	}
 
 	if bs == nil {
@@ -1263,7 +1263,7 @@ func testPartSearchSerial(p *part, tsids []TSID, tr TimeRange, expectedRawBlocks
 	}
 	rbs := newTestRawBlocks(bs, tr)
 	if err := testEqualRawBlocks(rbs, expectedRawBlocks); err != nil {
-		return fmt.Errorf("unequal blocks: %s", err)
+		return fmt.Errorf("unequal blocks: %w", err)
 	}
 	return nil
 }
@@ -1297,7 +1297,7 @@ func newTestRawBlocks(bs []Block, tr TimeRange) []rawBlock {
 
 func newTestRawBlock(b *Block, tr TimeRange) rawBlock {
 	if err := b.UnmarshalData(); err != nil {
-		panic(fmt.Errorf("cannot unmarshal block data: %s", err))
+		panic(fmt.Errorf("cannot unmarshal block data: %w", err))
 	}
 	var rb rawBlock
 	var values []int64
@@ -1425,7 +1425,7 @@ func newTestPart(rows []rawRow) *part {
 	mp := newTestInmemoryPart(rows)
 	p, err := mp.NewPart()
 	if err != nil {
-		panic(fmt.Errorf("cannot create new part: %s", err))
+		panic(fmt.Errorf("cannot create new part: %w", err))
 	}
 	return p
 }

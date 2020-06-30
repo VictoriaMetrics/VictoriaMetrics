@@ -34,13 +34,13 @@ func benchmarkBlockStreamReader(b *testing.B, mp *inmemoryPart, readRows bool) {
 					continue
 				}
 				if err := bsr.Block.UnmarshalData(); err != nil {
-					panic(fmt.Errorf("unexpected error when unmarshaling rows on block %d: %s", blockNum, err))
+					panic(fmt.Errorf("unexpected error when unmarshaling rows on block %d: %w", blockNum, err))
 				}
 				for bsr.Block.nextRow() {
 				}
 			}
 			if err := bsr.Error(); err != nil {
-				panic(fmt.Errorf("unexpected error when reading block %d: %s", blockNum, err))
+				panic(fmt.Errorf("unexpected error when reading block %d: %w", blockNum, err))
 			}
 			blockNum++
 		}

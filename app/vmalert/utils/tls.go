@@ -30,7 +30,7 @@ func TLSConfig(certFile, keyFile, CAFile, serverName string, insecureSkipVerify 
 	if certFile != "" {
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %s", certFile, keyFile, err)
+			return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", certFile, keyFile, err)
 		}
 
 		certs = []tls.Certificate{cert}
@@ -40,7 +40,7 @@ func TLSConfig(certFile, keyFile, CAFile, serverName string, insecureSkipVerify 
 	if CAFile != "" {
 		pem, err := ioutil.ReadFile(CAFile)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read `ca_file` %q: %s", CAFile, err)
+			return nil, fmt.Errorf("cannot read `ca_file` %q: %w", CAFile, err)
 		}
 
 		rootCAs = x509.NewCertPool()

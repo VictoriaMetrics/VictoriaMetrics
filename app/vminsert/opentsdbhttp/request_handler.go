@@ -24,7 +24,7 @@ func InsertHandler(req *http.Request) error {
 	path := req.URL.Path
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
-		return fmt.Errorf("cannot parse path %q: %s", path, err)
+		return fmt.Errorf("cannot parse path %q: %w", path, err)
 	}
 	if p.Prefix != "insert" {
 		// This is not our link.
@@ -32,7 +32,7 @@ func InsertHandler(req *http.Request) error {
 	}
 	at, err := auth.NewToken(p.AuthToken)
 	if err != nil {
-		return fmt.Errorf("auth error: %s", err)
+		return fmt.Errorf("auth error: %w", err)
 	}
 	switch p.Suffix {
 	case "api/put", "opentsdb/api/put":

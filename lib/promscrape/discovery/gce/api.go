@@ -36,13 +36,13 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	ctx := context.Background()
 	client, err := google.DefaultClient(ctx, "https://www.googleapis.com/auth/compute.readonly")
 	if err != nil {
-		return nil, fmt.Errorf("cannot create oauth2 client for gce: %s", err)
+		return nil, fmt.Errorf("cannot create oauth2 client for gce: %w", err)
 	}
 	project := sdc.Project
 	if len(project) == 0 {
 		proj, err := getCurrentProject()
 		if err != nil {
-			return nil, fmt.Errorf("cannot determine the current project; make sure `vmagent` runs inside GCE; error: %s", err)
+			return nil, fmt.Errorf("cannot determine the current project; make sure `vmagent` runs inside GCE; error: %w", err)
 		}
 		project = proj
 		logger.Infof("autodetected the current GCE project: %q", project)
@@ -52,7 +52,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		// Autodetect the current zone.
 		zone, err := getCurrentZone()
 		if err != nil {
-			return nil, fmt.Errorf("cannot determine the current zone; make sure `vmagent` runs inside GCE; error: %s", err)
+			return nil, fmt.Errorf("cannot determine the current zone; make sure `vmagent` runs inside GCE; error: %w", err)
 		}
 		zones = append(zones, zone)
 		logger.Infof("autodetected the current GCE zone: %q", zone)
@@ -60,7 +60,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		// Autodetect zones for project.
 		zs, err := getZonesForProject(client, project, sdc.Filter)
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain zones for project %q: %s", project, err)
+			return nil, fmt.Errorf("cannot obtain zones for project %q: %w", project, err)
 		}
 		zones = zs
 		logger.Infof("autodetected all the zones for the GCE project %q: %q", project, zones)
@@ -88,7 +88,7 @@ func getAPIResponse(client *http.Client, apiURL, filter, pageToken string) ([]by
 	apiURL = appendNonEmptyQueryArg(apiURL, "pageToken", pageToken)
 	resp, err := client.Get(apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("cannot query %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot query %q: %w", apiURL, err)
 	}
 	return readResponseBody(resp, apiURL)
 }
@@ -97,7 +97,7 @@ func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 	data, err := ioutil.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		return nil, fmt.Errorf("cannot read response from %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code for %q; got %d; want %d; response body: %q",
@@ -144,12 +144,12 @@ func getGCEMetadata(path string) ([]byte, error) {
 	metadataURL := "http://metadata.google.internal/computeMetadata/v1/" + path
 	req, err := http.NewRequest("GET", metadataURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create http request for %q: %s", metadataURL, err)
+		return nil, fmt.Errorf("cannot create http request for %q: %w", metadataURL, err)
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
 	resp, err := discoveryutils.GetHTTPClient().Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain response to %q: %s", metadataURL, err)
+		return nil, fmt.Errorf("cannot obtain response to %q: %w", metadataURL, err)
 	}
 	return readResponseBody(resp, metadataURL)
 }

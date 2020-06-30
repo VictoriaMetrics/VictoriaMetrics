@@ -47,7 +47,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	if c, ok := r.(net.Conn); ok {
 		if err := c.SetReadDeadline(time.Now().Add(flushTimeout)); err != nil {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot set read deadline: %s", err)
+			ctx.err = fmt.Errorf("cannot set read deadline: %w", err)
 			return false
 		}
 	}
@@ -59,7 +59,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 		} else {
 			if ctx.err != io.EOF {
 				readErrors.Inc()
-				ctx.err = fmt.Errorf("cannot read graphite plaintext protocol data: %s", ctx.err)
+				ctx.err = fmt.Errorf("cannot read graphite plaintext protocol data: %w", ctx.err)
 			}
 			return false
 		}

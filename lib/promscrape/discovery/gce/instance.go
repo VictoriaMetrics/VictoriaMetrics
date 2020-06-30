@@ -58,11 +58,11 @@ func getInstancesForProjectAndZone(client *http.Client, project, zone, filter st
 	for {
 		data, err := getAPIResponse(client, instsURL, filter, pageToken)
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain instances: %s", err)
+			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
 		il, err := parseInstanceList(data)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse instance list from %q: %s", instsURL, err)
+			return nil, fmt.Errorf("cannot parse instance list from %q: %w", instsURL, err)
 		}
 		insts = append(insts, il.Items...)
 		if len(il.NextPageToken) == 0 {
@@ -125,7 +125,7 @@ type MetadataEntry struct {
 func parseInstanceList(data []byte) (*InstanceList, error) {
 	var il InstanceList
 	if err := json.Unmarshal(data, &il); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal InstanceList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal InstanceList from %q: %w", data, err)
 	}
 	return &il, nil
 }

@@ -94,13 +94,13 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		fasthttp.ReleaseResponse(resp)
 		if err == fasthttp.ErrTimeout {
 			scrapesTimedout.Inc()
-			return dst, fmt.Errorf("error when scraping %q with timeout %s: %s", c.scrapeURL, c.hc.ReadTimeout, err)
+			return dst, fmt.Errorf("error when scraping %q with timeout %s: %w", c.scrapeURL, c.hc.ReadTimeout, err)
 		}
 		if err == fasthttp.ErrBodyTooLarge {
 			return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
 				"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, *maxScrapeSize)
 		}
-		return dst, fmt.Errorf("error when scraping %q: %s", c.scrapeURL, err)
+		return dst, fmt.Errorf("error when scraping %q: %w", c.scrapeURL, err)
 	}
 	dstLen := len(dst)
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
@@ -109,7 +109,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		if err != nil {
 			fasthttp.ReleaseResponse(resp)
 			scrapesGunzipFailed.Inc()
-			return dst, fmt.Errorf("cannot ungzip response from %q: %s", c.scrapeURL, err)
+			return dst, fmt.Errorf("cannot ungzip response from %q: %w", c.scrapeURL, err)
 		}
 		scrapesGunzipped.Inc()
 	} else {
@@ -146,7 +146,7 @@ again:
 	// Retry request if the server closed the keep-alive connection during the first attempt.
 	attempts++
 	if attempts > 3 {
-		return fmt.Errorf("the server closed 3 subsequent connections: %s", err)
+		return fmt.Errorf("the server closed 3 subsequent connections: %w", err)
 	}
 	goto again
 }

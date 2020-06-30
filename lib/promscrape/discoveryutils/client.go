@@ -112,13 +112,13 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 	var resp fasthttp.Response
 	// There is no need in calling DoTimeout, since the timeout is already set in c.hc.ReadTimeout above.
 	if err := c.hc.Do(&req, &resp); err != nil {
-		return nil, fmt.Errorf("cannot fetch %q: %s", requestURL, err)
+		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
 	var data []byte
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
 		dst, err := fasthttp.AppendGunzipBytes(nil, resp.Body())
 		if err != nil {
-			return nil, fmt.Errorf("cannot ungzip response from %q: %s", requestURL, err)
+			return nil, fmt.Errorf("cannot ungzip response from %q: %w", requestURL, err)
 		}
 		data = dst
 	} else {

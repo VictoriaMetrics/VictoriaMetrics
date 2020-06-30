@@ -11,11 +11,11 @@ import (
 func getNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain nodes data from API server: %s", err)
+		return nil, fmt.Errorf("cannot obtain nodes data from API server: %w", err)
 	}
 	nl, err := parseNodeList(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse nodes response from API server: %s", err)
+		return nil, fmt.Errorf("cannot parse nodes response from API server: %w", err)
 	}
 	var ms []map[string]string
 	for _, n := range nl.Items {
@@ -67,7 +67,7 @@ type NodeDaemonEndpoints struct {
 func parseNodeList(data []byte) (*NodeList, error) {
 	var nl NodeList
 	if err := json.Unmarshal(data, &nl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal NodeList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal NodeList from %q: %w", data, err)
 	}
 	return &nl, nil
 }

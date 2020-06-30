@@ -26,7 +26,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
-			return fmt.Errorf("cannot read gzipped vmimport data: %s", err)
+			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
 		}
 		defer common.PutGzipReader(zr)
 		r = zr
@@ -50,7 +50,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read vmimport data: %s", ctx.err)
+			ctx.err = fmt.Errorf("cannot read vmimport data: %w", ctx.err)
 		}
 		return false
 	}

@@ -23,12 +23,12 @@ func testHandshake(t *testing.T, clientFunc, serverFunc Func) {
 	go func() {
 		bcs, err := serverFunc(s, 3)
 		if err != nil {
-			ch <- fmt.Errorf("error on outer handshake: %s", err)
+			ch <- fmt.Errorf("error on outer handshake: %w", err)
 			return
 		}
 		bcc, err := clientFunc(bcs, 3)
 		if err != nil {
-			ch <- fmt.Errorf("error on inner handshake: %s", err)
+			ch <- fmt.Errorf("error on inner handshake: %w", err)
 			return
 		}
 		if bcc == nil {

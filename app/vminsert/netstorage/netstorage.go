@@ -51,7 +51,7 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	if sn.isBroken() {
 		// The vmstorage node is temporarily broken. Re-route buf to healthy vmstorage nodes.
 		if err := addToReroutedBufMayBlock(buf, rows); err != nil {
-			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %s", rows, err)
+			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
 		}
 		sn.rowsReroutedFromHere.Add(rows)
 		return nil
@@ -71,7 +71,7 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	// This means that the current vmstorage is slow or will become broken soon.
 	// Re-route buf to healthy vmstorage nodes.
 	if err := addToReroutedBufMayBlock(buf, rows); err != nil {
-		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %s", rows, err)
+		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %w", rows, err)
 	}
 	sn.rowsReroutedFromHere.Add(rows)
 	return nil
@@ -247,7 +247,7 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
 	if err := bc.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set write deadline to %s: %s", deadline, err)
+		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
 	}
 	// sizeBuf guarantees that the rows batch will be either fully
 	// read or fully discarded on the vmstorage side.
@@ -256,23 +256,23 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	defer sizeBufPool.Put(sizeBuf)
 	sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(buf)))
 	if _, err := bc.Write(sizeBuf.B); err != nil {
-		return fmt.Errorf("cannot write data size %d: %s", len(buf), err)
+		return fmt.Errorf("cannot write data size %d: %w", len(buf), err)
 	}
 	if _, err := bc.Write(buf); err != nil {
-		return fmt.Errorf("cannot write data with size %d: %s", len(buf), err)
+		return fmt.Errorf("cannot write data with size %d: %w", len(buf), err)
 	}
 	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush data with size %d: %s", len(buf), err)
+		return fmt.Errorf("cannot flush data with size %d: %w", len(buf), err)
 	}
 
 	// Wait for `ack` from vmstorage.
 	// This guarantees that the message has been fully received by vmstorage.
 	deadline = time.Now().Add(timeout)
 	if err := bc.SetReadDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %s", err)
+		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %w", err)
 	}
 	if _, err := io.ReadFull(bc, sizeBuf.B[:1]); err != nil {
-		return fmt.Errorf("cannot read `ack` from vmstorage: %s", err)
+		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
 	}
 	if sizeBuf.B[0] != 1 {
 		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want %d", sizeBuf.B[0], 1)
@@ -296,7 +296,7 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 	if err != nil {
 		_ = c.Close()
 		sn.handshakeErrors.Inc()
-		return nil, fmt.Errorf("handshake error: %s", err)
+		return nil, fmt.Errorf("handshake error: %w", err)
 	}
 	return bc, nil
 }

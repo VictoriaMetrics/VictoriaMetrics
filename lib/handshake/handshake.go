@@ -57,23 +57,23 @@ func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 
 func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
 	if err := readMessage(c, msg); err != nil {
-		return nil, fmt.Errorf("cannot read hello: %s", err)
+		return nil, fmt.Errorf("cannot read hello: %w", err)
 	}
 	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on hello: %s", err)
+		return nil, fmt.Errorf("cannot write success response on hello: %w", err)
 	}
 	isRemoteCompressed, err := readIsCompressed(c)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read isCompressed flag: %s", err)
+		return nil, fmt.Errorf("cannot read isCompressed flag: %w", err)
 	}
 	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on isCompressed: %s", err)
+		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
 	}
 	if err := writeIsCompressed(c, compressionLevel > 0); err != nil {
-		return nil, fmt.Errorf("cannot write isCompressed flag: %s", err)
+		return nil, fmt.Errorf("cannot write isCompressed flag: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response on isCompressed: %s", err)
+		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
 	return bc, nil
@@ -81,23 +81,23 @@ func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn,
 
 func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
 	if err := writeMessage(c, msg); err != nil {
-		return nil, fmt.Errorf("cannot write hello: %s", err)
+		return nil, fmt.Errorf("cannot write hello: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response after sending hello: %s", err)
+		return nil, fmt.Errorf("cannot read success response after sending hello: %w", err)
 	}
 	if err := writeIsCompressed(c, compressionLevel > 0); err != nil {
-		return nil, fmt.Errorf("cannot write isCompressed flag: %s", err)
+		return nil, fmt.Errorf("cannot write isCompressed flag: %w", err)
 	}
 	if err := readMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot read success response on isCompressed: %s", err)
+		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
 	isRemoteCompressed, err := readIsCompressed(c)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read isCompressed flag: %s", err)
+		return nil, fmt.Errorf("cannot read isCompressed flag: %w", err)
 	}
 	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on isCompressed: %s", err)
+		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
 	}
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
 	return bc, nil
@@ -122,18 +122,18 @@ func readIsCompressed(c net.Conn) (bool, error) {
 
 func writeMessage(c net.Conn, msg string) error {
 	if err := c.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
-		return fmt.Errorf("cannot set write deadline: %s", err)
+		return fmt.Errorf("cannot set write deadline: %w", err)
 	}
 	if _, err := io.WriteString(c, msg); err != nil {
-		return fmt.Errorf("cannot write %q to server: %s", msg, err)
+		return fmt.Errorf("cannot write %q to server: %w", msg, err)
 	}
 	if fc, ok := c.(flusher); ok {
 		if err := fc.Flush(); err != nil {
-			return fmt.Errorf("cannot flush %q to server: %s", msg, err)
+			return fmt.Errorf("cannot flush %q to server: %w", msg, err)
 		}
 	}
 	if err := c.SetWriteDeadline(zeroTime); err != nil {
-		return fmt.Errorf("cannot reset write deadline: %s", err)
+		return fmt.Errorf("cannot reset write deadline: %w", err)
 	}
 	return nil
 }
@@ -155,14 +155,14 @@ func readMessage(c net.Conn, msg string) error {
 
 func readData(c net.Conn, dataLen int) ([]byte, error) {
 	if err := c.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
-		return nil, fmt.Errorf("cannot set read deadline: %s", err)
+		return nil, fmt.Errorf("cannot set read deadline: %w", err)
 	}
 	data := make([]byte, dataLen)
 	if n, err := io.ReadFull(c, data); err != nil {
-		return nil, fmt.Errorf("cannot read message with size %d: %s; read only %d bytes", dataLen, err, n)
+		return nil, fmt.Errorf("cannot read message with size %d: %w; read only %d bytes", dataLen, err, n)
 	}
 	if err := c.SetReadDeadline(zeroTime); err != nil {
-		return nil, fmt.Errorf("cannot reset read deadline: %s", err)
+		return nil, fmt.Errorf("cannot reset read deadline: %w", err)
 	}
 	return data, nil
 }

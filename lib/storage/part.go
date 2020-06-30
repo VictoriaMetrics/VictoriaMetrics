@@ -56,13 +56,13 @@ func openFilePart(path string) (*part, error) {
 
 	var ph partHeader
 	if err := ph.ParseFromPath(path); err != nil {
-		return nil, fmt.Errorf("cannot parse path to part: %s", err)
+		return nil, fmt.Errorf("cannot parse path to part: %w", err)
 	}
 
 	timestampsPath := path + "/timestamps.bin"
 	timestampsFile, err := fs.OpenReaderAt(timestampsPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open timestamps file: %s", err)
+		return nil, fmt.Errorf("cannot open timestamps file: %w", err)
 	}
 	timestampsSize := fs.MustFileSize(timestampsPath)
 
@@ -70,7 +70,7 @@ func openFilePart(path string) (*part, error) {
 	valuesFile, err := fs.OpenReaderAt(valuesPath)
 	if err != nil {
 		timestampsFile.MustClose()
-		return nil, fmt.Errorf("cannot open values file: %s", err)
+		return nil, fmt.Errorf("cannot open values file: %w", err)
 	}
 	valuesSize := fs.MustFileSize(valuesPath)
 
@@ -79,7 +79,7 @@ func openFilePart(path string) (*part, error) {
 	if err != nil {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
-		return nil, fmt.Errorf("cannot open index file: %s", err)
+		return nil, fmt.Errorf("cannot open index file: %w", err)
 	}
 	indexSize := fs.MustFileSize(indexPath)
 
@@ -89,7 +89,7 @@ func openFilePart(path string) (*part, error) {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
 		indexFile.MustClose()
-		return nil, fmt.Errorf("cannot open metaindex file: %s", err)
+		return nil, fmt.Errorf("cannot open metaindex file: %w", err)
 	}
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
@@ -105,7 +105,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	var errors []error
 	metaindex, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("cannot unmarshal metaindex data: %s", err))
+		errors = append(errors, fmt.Errorf("cannot unmarshal metaindex data: %w", err))
 	}
 	metaindexReader.MustClose()
 
@@ -122,7 +122,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		err = fmt.Errorf("cannot initialize part %q: %s", &p, errors[0])
+		err = fmt.Errorf("cannot initialize part %q: %w", &p, errors[0])
 		p.MustClose()
 		return nil, err
 	}

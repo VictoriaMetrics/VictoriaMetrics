@@ -163,7 +163,7 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 func OpenReaderAt(path string) (*ReaderAt, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file %q for reader: %s", path, err)
+		return nil, fmt.Errorf("cannot open file %q for reader: %w", path, err)
 	}
 	var r ReaderAt
 	r.f = f
@@ -171,7 +171,7 @@ func OpenReaderAt(path string) (*ReaderAt, error) {
 	if !*disableMmap {
 		fi, err := f.Stat()
 		if err != nil {
-			return nil, fmt.Errorf("error in stat: %s", err)
+			return nil, fmt.Errorf("error in stat: %w", err)
 		}
 		size := fi.Size()
 		bm := &pageCacheBitmap{
@@ -187,7 +187,7 @@ func OpenReaderAt(path string) (*ReaderAt, error) {
 		data, err := mmapFile(f, size)
 		if err != nil {
 			MustClose(f)
-			return nil, fmt.Errorf("cannot init reader for %q: %s", path, err)
+			return nil, fmt.Errorf("cannot init reader for %q: %w", path, err)
 		}
 		r.mmapData = data
 	}
@@ -237,7 +237,7 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	}
 	data, err := unix.Mmap(int(f.Fd()), 0, int(size), unix.PROT_READ, unix.MAP_SHARED)
 	if err != nil {
-		return nil, fmt.Errorf("cannot mmap file with size %d: %s", size, err)
+		return nil, fmt.Errorf("cannot mmap file with size %d: %w", size, err)
 	}
 	return data[:sizeOrig], nil
 }

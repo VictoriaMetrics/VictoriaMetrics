@@ -43,7 +43,7 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
 	if resp.StatusCode != http.StatusOK {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read response from %q: %s", am.alertURL, err)
+			return fmt.Errorf("failed to read response from %q: %w", am.alertURL, err)
 		}
 		return fmt.Errorf("invalid SC %d from %q; response body: %s", resp.StatusCode, am.alertURL, string(body))
 	}

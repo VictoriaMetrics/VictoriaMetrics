@@ -87,14 +87,14 @@ func (cm *connsMap) CloseAll() {
 func NewServer(vminsertAddr, vmselectAddr string, storage *storage.Storage) (*Server, error) {
 	vminsertLN, err := netutil.NewTCPListener("vminsert", vminsertAddr)
 	if err != nil {
-		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %s", vminsertAddr, err)
+		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", vminsertAddr, err)
 	}
 	vmselectLN, err := netutil.NewTCPListener("vmselect", vmselectAddr)
 	if err != nil {
-		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %s", vmselectAddr, err)
+		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", vmselectAddr, err)
 	}
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
-		return nil, fmt.Errorf("invalid -precisionBits: %s", err)
+		return nil, fmt.Errorf("invalid -precisionBits: %w", err)
 	}
 	s := &Server{
 		storage: storage,
@@ -302,7 +302,7 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 				// Remote end gracefully closed the connection.
 				return nil
 			}
-			return fmt.Errorf("cannot read packet size: %s", err)
+			return fmt.Errorf("cannot read packet size: %w", err)
 		}
 		packetSize := encoding.UnmarshalUint64(sizeBuf)
 		if packetSize > consts.MaxInsertPacketSize {
@@ -310,19 +310,19 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 		}
 		buf = bytesutil.Resize(buf, int(packetSize))
 		if n, err := io.ReadFull(bc, buf); err != nil {
-			return fmt.Errorf("cannot read packet with size %d: %s; read only %d bytes", packetSize, err, n)
+			return fmt.Errorf("cannot read packet with size %d: %w; read only %d bytes", packetSize, err, n)
 		}
 		// Send `ack` to vminsert that we recevied the packet.
 		deadline := time.Now().Add(5 * time.Second)
 		if err := bc.SetWriteDeadline(deadline); err != nil {
-			return fmt.Errorf("cannot set write deadline for sending `ack` to vminsert: %s", err)
+			return fmt.Errorf("cannot set write deadline for sending `ack` to vminsert: %w", err)
 		}
 		sizeBuf[0] = 1
 		if _, err := bc.Write(sizeBuf[:1]); err != nil {
-			return fmt.Errorf("cannot send `ack` to vminsert: %s", err)
+			return fmt.Errorf("cannot send `ack` to vminsert: %w", err)
 		}
 		if err := bc.Flush(); err != nil {
-			return fmt.Errorf("cannot flush `ack` to vminsert: %s", err)
+			return fmt.Errorf("cannot flush `ack` to vminsert: %w", err)
 		}
 		vminsertPacketsRead.Inc()
 
@@ -339,7 +339,7 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 			var err error
 			tail, err = mr.Unmarshal(tail)
 			if err != nil {
-				return fmt.Errorf("cannot unmarshal MetricRow: %s", err)
+				return fmt.Errorf("cannot unmarshal MetricRow: %w", err)
 			}
 			if len(mrs) >= 10000 {
 				// Store the collected mrs in order to reduce memory usage
@@ -347,14 +347,14 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 				// This should help with https://github.com/VictoriaMetrics/VictoriaMetrics/issues/490
 				vminsertMetricsRead.Add(len(mrs))
 				if err := s.storage.AddRows(mrs, uint8(*precisionBits)); err != nil {
-					return fmt.Errorf("cannot store metrics: %s", err)
+					return fmt.Errorf("cannot store metrics: %w", err)
 				}
 				mrs = mrs[:0]
 			}
 		}
 		vminsertMetricsRead.Add(len(mrs))
 		if err := s.storage.AddRows(mrs, uint8(*precisionBits)); err != nil {
-			return fmt.Errorf("cannot store metrics: %s", err)
+			return fmt.Errorf("cannot store metrics: %w", err)
 		}
 	}
 }
@@ -375,10 +375,10 @@ func (s *Server) processVMSelectConn(bc *handshake.BufferedConn) error {
 				// Remote client gracefully closed the connection.
 				return nil
 			}
-			return fmt.Errorf("cannot process vmselect request: %s", err)
+			return fmt.Errorf("cannot process vmselect request: %w", err)
 		}
 		if err := bc.Flush(); err != nil {
-			return fmt.Errorf("cannot flush compressed buffers: %s", err)
+			return fmt.Errorf("cannot flush compressed buffers: %w", err)
 		}
 	}
 }
@@ -400,7 +400,7 @@ func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
 		if err == io.EOF {
 			return 0, err
 		}
-		return 0, fmt.Errorf("cannot read uint32: %s", err)
+		return 0, fmt.Errorf("cannot read uint32: %w", err)
 	}
 	n := encoding.UnmarshalUint32(ctx.sizeBuf)
 	return n, nil
@@ -412,7 +412,7 @@ func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 		if err == io.EOF {
 			return err
 		}
-		return fmt.Errorf("cannot read data size: %s", err)
+		return fmt.Errorf("cannot read data size: %w", err)
 	}
 	dataSize := encoding.UnmarshalUint64(ctx.sizeBuf)
 	if dataSize > uint64(maxDataSize) {
@@ -423,7 +423,7 @@ func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 		return nil
 	}
 	if n, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
-		return fmt.Errorf("cannot read data with size %d: %s; read only %d bytes", dataSize, err, n)
+		return fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
 	}
 	return nil
 }
@@ -434,7 +434,7 @@ func (ctx *vmselectRequestCtx) readBool() (bool, error) {
 		if err == io.EOF {
 			return false, err
 		}
-		return false, fmt.Errorf("cannot read bool: %s", err)
+		return false, fmt.Errorf("cannot read bool: %w", err)
 	}
 	v := ctx.dataBuf[0] != 0
 	return v, nil
@@ -442,13 +442,13 @@ func (ctx *vmselectRequestCtx) readBool() (bool, error) {
 
 func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 	if err := ctx.writeUint64(uint64(len(ctx.dataBuf))); err != nil {
-		return fmt.Errorf("cannot write data size: %s", err)
+		return fmt.Errorf("cannot write data size: %w", err)
 	}
 	if len(ctx.dataBuf) == 0 {
 		return nil
 	}
 	if _, err := ctx.bc.Write(ctx.dataBuf); err != nil {
-		return fmt.Errorf("cannot write data with size %d: %s", len(ctx.dataBuf), err)
+		return fmt.Errorf("cannot write data with size %d: %w", len(ctx.dataBuf), err)
 	}
 	return nil
 }
@@ -463,7 +463,7 @@ func (ctx *vmselectRequestCtx) writeErrorMessage(err error) error {
 		errMsg = errMsg[:maxErrorMessageSize]
 	}
 	if err := ctx.writeString(errMsg); err != nil {
-		return fmt.Errorf("cannot send error message %q to client: %s", errMsg, err)
+		return fmt.Errorf("cannot send error message %q to client: %w", errMsg, err)
 	}
 	return nil
 }
@@ -476,7 +476,7 @@ func (ctx *vmselectRequestCtx) writeString(s string) error {
 func (ctx *vmselectRequestCtx) writeUint64(n uint64) error {
 	ctx.sizeBuf = encoding.MarshalUint64(ctx.sizeBuf[:0], n)
 	if _, err := ctx.bc.Write(ctx.sizeBuf); err != nil {
-		return fmt.Errorf("cannot write uint64 %d: %s", n, err)
+		return fmt.Errorf("cannot write uint64 %d: %w", n, err)
 	}
 	return nil
 }
@@ -494,12 +494,12 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 			// Remote client gracefully closed the connection.
 			return err
 		}
-		return fmt.Errorf("cannot read rpcName: %s", err)
+		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		return fmt.Errorf("cannot set read deadline for reading request args: %s", err)
+		return fmt.Errorf("cannot set read deadline for reading request args: %w", err)
 	}
 	defer func() {
 		_ = ctx.bc.SetReadDeadline(zeroTime)
@@ -532,11 +532,11 @@ func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 
 	// Read request
 	if err := ctx.readDataBufBytes(maxTagFiltersSize); err != nil {
-		return fmt.Errorf("cannot read labelName: %s", err)
+		return fmt.Errorf("cannot read labelName: %w", err)
 	}
 	tail, err := ctx.sq.Unmarshal(ctx.dataBuf)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal SearchQuery: %s", err)
+		return fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
 	}
 	if len(tail) > 0 {
 		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
@@ -555,11 +555,11 @@ func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 	// Send deletedCount to vmselect.
 	if err := ctx.writeUint64(uint64(deletedCount)); err != nil {
-		return fmt.Errorf("cannot send deletedCount=%d: %s", deletedCount, err)
+		return fmt.Errorf("cannot send deletedCount=%d: %w", deletedCount, err)
 	}
 	return nil
 }
@@ -570,11 +570,11 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 	// Read request
 	accountID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %s", err)
+		return fmt.Errorf("cannot read accountID: %w", err)
 	}
 	projectID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read projectID: %s", err)
+		return fmt.Errorf("cannot read projectID: %w", err)
 	}
 
 	// Search for tag keys
@@ -585,7 +585,7 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	// Send labels to vmselect
@@ -595,7 +595,7 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 			label = "__name__"
 		}
 		if err := ctx.writeString(label); err != nil {
-			return fmt.Errorf("cannot write label %q: %s", label, err)
+			return fmt.Errorf("cannot write label %q: %w", label, err)
 		}
 	}
 
@@ -614,14 +614,14 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 	// Read request
 	accountID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %s", err)
+		return fmt.Errorf("cannot read accountID: %w", err)
 	}
 	projectID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read projectID: %s", err)
+		return fmt.Errorf("cannot read projectID: %w", err)
 	}
 	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read labelName: %s", err)
+		return fmt.Errorf("cannot read labelName: %w", err)
 	}
 	labelName := ctx.dataBuf
 
@@ -633,7 +633,7 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	return writeLabelValues(ctx, labelValues)
@@ -646,7 +646,7 @@ func writeLabelValues(ctx *vmselectRequestCtx, labelValues []string) error {
 			continue
 		}
 		if err := ctx.writeString(labelValue); err != nil {
-			return fmt.Errorf("cannot write labelValue %q: %s", labelValue, err)
+			return fmt.Errorf("cannot write labelValue %q: %w", labelValue, err)
 		}
 	}
 	// Send 'end of label values' marker
@@ -662,11 +662,11 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 	// Read request
 	accountID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %s", err)
+		return fmt.Errorf("cannot read accountID: %w", err)
 	}
 	projectID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read projectID: %s", err)
+		return fmt.Errorf("cannot read projectID: %w", err)
 	}
 
 	// Perform the request
@@ -677,7 +677,7 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	// Send labelEntries to vmselect
@@ -689,10 +689,10 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 			label = "__name__"
 		}
 		if err := ctx.writeString(label); err != nil {
-			return fmt.Errorf("cannot write label %q: %s", label, err)
+			return fmt.Errorf("cannot write label %q: %w", label, err)
 		}
 		if err := writeLabelValues(ctx, e.Values); err != nil {
-			return fmt.Errorf("cannot write label values for %q: %s", label, err)
+			return fmt.Errorf("cannot write label values for %q: %w", label, err)
 		}
 	}
 
@@ -709,11 +709,11 @@ func (s *Server) processVMSelectSeriesCount(ctx *vmselectRequestCtx) error {
 	// Read request
 	accountID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %s", err)
+		return fmt.Errorf("cannot read accountID: %w", err)
 	}
 	projectID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read projectID: %s", err)
+		return fmt.Errorf("cannot read projectID: %w", err)
 	}
 
 	// Execute the request
@@ -724,12 +724,12 @@ func (s *Server) processVMSelectSeriesCount(ctx *vmselectRequestCtx) error {
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	// Send series count to vmselect.
 	if err := ctx.writeUint64(n); err != nil {
-		return fmt.Errorf("cannot write series count to vmselect: %s", err)
+		return fmt.Errorf("cannot write series count to vmselect: %w", err)
 	}
 	return nil
 }
@@ -740,19 +740,19 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	// Read request
 	accountID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %s", err)
+		return fmt.Errorf("cannot read accountID: %w", err)
 	}
 	projectID, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read projectID: %s", err)
+		return fmt.Errorf("cannot read projectID: %w", err)
 	}
 	date, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read date: %s", err)
+		return fmt.Errorf("cannot read date: %w", err)
 	}
 	topN, err := ctx.readUint32()
 	if err != nil {
-		return fmt.Errorf("cannot read topN: %s", err)
+		return fmt.Errorf("cannot read topN: %w", err)
 	}
 
 	// Execute the request
@@ -763,32 +763,32 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	// Send status to vmselect.
 	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
-		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %s", err)
+		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
 	}
 	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
-		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %s", err)
+		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
 	}
 	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
-		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %s", err)
+		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
 	}
 	return nil
 }
 
 func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) error {
 	if err := ctx.writeUint64(uint64(len(a))); err != nil {
-		return fmt.Errorf("cannot write topHeapEntries size: %s", err)
+		return fmt.Errorf("cannot write topHeapEntries size: %w", err)
 	}
 	for _, e := range a {
 		if err := ctx.writeString(e.Name); err != nil {
-			return fmt.Errorf("cannot write topHeapEntry name: %s", err)
+			return fmt.Errorf("cannot write topHeapEntry name: %w", err)
 		}
 		if err := ctx.writeUint64(e.Count); err != nil {
-			return fmt.Errorf("cannot write topHeapEntry count: %s", err)
+			return fmt.Errorf("cannot write topHeapEntry count: %w", err)
 		}
 	}
 	return nil
@@ -802,18 +802,18 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 
 	// Read search query.
 	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
-		return fmt.Errorf("cannot read searchQuery: %s", err)
+		return fmt.Errorf("cannot read searchQuery: %w", err)
 	}
 	tail, err := ctx.sq.Unmarshal(ctx.dataBuf)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal SearchQuery: %s", err)
+		return fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
 	}
 	if len(tail) > 0 {
 		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
 	}
 	fetchData, err := ctx.readBool()
 	if err != nil {
-		return fmt.Errorf("cannot read `fetchData` bool: %s", err)
+		return fmt.Errorf("cannot read `fetchData` bool: %w", err)
 	}
 
 	// Setup search.
@@ -832,7 +832,7 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 
 	// Send empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %s", err)
+		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
 	// Send found blocks to vmselect.
@@ -845,11 +845,11 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 
 		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {
-			return fmt.Errorf("cannot send MetricBlock: %s", err)
+			return fmt.Errorf("cannot send MetricBlock: %w", err)
 		}
 	}
 	if err := ctx.sr.Error(); err != nil {
-		return fmt.Errorf("search error: %s", err)
+		return fmt.Errorf("search error: %w", err)
 	}
 
 	// Send 'end of response' marker
@@ -878,7 +878,7 @@ func (ctx *vmselectRequestCtx) setupTfss() error {
 		for i := range tagFilters {
 			tf := &tagFilters[i]
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
-				return fmt.Errorf("cannot parse tag filter %s: %s", tf, err)
+				return fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
 			}
 		}
 		tfss = append(tfss, tfs)
