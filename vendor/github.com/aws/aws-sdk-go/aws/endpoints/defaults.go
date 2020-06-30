@@ -2949,6 +2949,12 @@ var awsPartition = partition{
 				"us-east-1": endpoint{},
 			},
 		},
+		"honeycode": service{
+
+			Endpoints: endpoints{
+				"us-west-2": endpoint{},
+			},
+		},
 		"iam": service{
 			PartitionEndpoint: "aws-global",
 			IsRegionalized:    boxedFalse,
@@ -3723,6 +3729,7 @@ var awsPartition = partition{
 				},
 			},
 			Endpoints: endpoints{
+				"ap-northeast-1": endpoint{},
 				"ap-southeast-1": endpoint{},
 				"ap-southeast-2": endpoint{},
 				"eu-central-1":   endpoint{},
@@ -4050,9 +4057,11 @@ var awsPartition = partition{
 		"outposts": service{
 
 			Endpoints: endpoints{
+				"af-south-1":     endpoint{},
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
+				"ap-south-1":     endpoint{},
 				"ap-southeast-1": endpoint{},
 				"ap-southeast-2": endpoint{},
 				"ca-central-1":   endpoint{},
@@ -4092,6 +4101,7 @@ var awsPartition = partition{
 					},
 				},
 				"me-south-1": endpoint{},
+				"sa-east-1":  endpoint{},
 				"us-east-1":  endpoint{},
 				"us-east-2":  endpoint{},
 				"us-west-1":  endpoint{},
@@ -4531,6 +4541,7 @@ var awsPartition = partition{
 				},
 			},
 			Endpoints: endpoints{
+				"ap-northeast-1": endpoint{},
 				"ap-southeast-1": endpoint{},
 				"ap-southeast-2": endpoint{},
 				"eu-central-1":   endpoint{},
@@ -7116,6 +7127,13 @@ var awsusgovPartition = partition{
 				"us-gov-west-1": endpoint{},
 			},
 		},
+		"backup": service{
+
+			Endpoints: endpoints{
+				"us-gov-east-1": endpoint{},
+				"us-gov-west-1": endpoint{},
+			},
+		},
 		"batch": service{
 
 			Endpoints: endpoints{
@@ -7347,6 +7365,17 @@ var awsusgovPartition = partition{
 				},
 				"us-gov-east-1": endpoint{},
 				"us-gov-west-1": endpoint{},
+			},
+		},
+		"docdb": service{
+
+			Endpoints: endpoints{
+				"us-gov-west-1": endpoint{
+					Hostname: "rds.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+				},
 			},
 		},
 		"ds": service{
