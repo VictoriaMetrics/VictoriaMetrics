@@ -2,10 +2,13 @@ package netstorage
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -1147,7 +1151,8 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 
 	if err := f(bc); err != nil {
 		remoteAddr := bc.RemoteAddr()
-		if _, ok := err.(*errRemote); ok {
+		var er *errRemote
+		if errors.As(err, &er) {
 			// Remote error. The connection may be re-used. Return it to the pool.
 			sn.connPool.Put(bc)
 		} else {
@@ -1171,6 +1176,19 @@ func (er *errRemote) Error() string {
 	return er.msg
 }
 
+func newErrRemote(buf []byte) error {
+	err := &errRemote{
+		msg: string(buf),
+	}
+	if !strings.Contains(err.msg, "denyQueriesOutsideRetention") {
+		return err
+	}
+	return &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusServiceUnavailable,
+	}
+}
+
 func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestData []byte) (int, error) {
 	// Send the request to sn
 	if err := writeBytes(bc, requestData); err != nil {
@@ -1186,7 +1204,7 @@ func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestDa
 		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return 0, &errRemote{msg: string(buf)}
+		return 0, newErrRemote(buf)
 	}
 
 	// Read deletedCount
@@ -1217,7 +1235,7 @@ func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, pr
 		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return nil, &errRemote{msg: string(buf)}
+		return nil, newErrRemote(buf)
 	}
 
 	// Read response
@@ -1258,7 +1276,7 @@ func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountI
 		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return nil, &errRemote{msg: string(buf)}
+		return nil, newErrRemote(buf)
 	}
 
 	// Read response
@@ -1303,7 +1321,7 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return nil, &errRemote{msg: string(buf)}
+		return nil, newErrRemote(buf)
 	}
 
 	// Read response
@@ -1356,7 +1374,7 @@ func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, ac
 		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return nil, &errRemote{msg: string(buf)}
+		return nil, newErrRemote(buf)
 	}
 
 	// Read response
@@ -1422,7 +1440,7 @@ func (sn *storageNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountI
 		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return 0, &errRemote{msg: string(buf)}
+		return 0, newErrRemote(buf)
 	}
 
 	// Read response
@@ -1461,7 +1479,7 @@ func (sn *storageNode) processSearchQueryOnConn(tbfw *tmpBlocksFileWrapper, bc *
 		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return 0, &errRemote{msg: string(buf)}
+		return 0, newErrRemote(buf)
 	}
 
 	// Read response. It may consist of multiple MetricBlocks.
