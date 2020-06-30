@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -28,7 +29,26 @@ var (
 
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
+
+	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside of the configured -retentionPeriod. "+
+		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
+		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 )
+
+// CheckTimeRange returns true if the given tr is denied for querying.
+func CheckTimeRange(tr storage.TimeRange) error {
+	if !*denyQueriesOutsideRetention {
+		return nil
+	}
+	minAllowedTimestamp := (int64(fasttime.UnixTimestamp()) - int64(*retentionPeriod)*3600*24*30) * 1000
+	if tr.MinTimestamp > minAllowedTimestamp {
+		return nil
+	}
+	return &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf("the given time range %s is outside the allowed retention of %d months according to -denyQueriesOutsideRetention", &tr, *retentionPeriod),
+		StatusCode: http.StatusServiceUnavailable,
+	}
+}
 
 // Init initializes vmstorage.
 func Init() {

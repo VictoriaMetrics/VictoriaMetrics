@@ -506,6 +506,9 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
+	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return nil, err
+	}
 
 	vmstorage.WG.Add(1)
 	defer vmstorage.WG.Done()
