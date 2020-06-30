@@ -171,7 +171,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		snapshotPath, err := Storage.CreateSnapshot()
 		if err != nil {
-			err = fmt.Errorf("cannot create snapshot: %s", err)
+			err = fmt.Errorf("cannot create snapshot: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
@@ -185,7 +185,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %s", err)
+			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
@@ -202,7 +202,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 		if err := Storage.DeleteSnapshot(snapshotName); err != nil {
-			err = fmt.Errorf("cannot delete snapshot %q: %s", snapshotName, err)
+			err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 			jsonResponseError(w, err)
 			return true
 		}
@@ -212,13 +212,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %s", err)
+			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
 		for _, snapshotName := range snapshots {
 			if err := Storage.DeleteSnapshot(snapshotName); err != nil {
-				err = fmt.Errorf("cannot delete snapshot %q: %s", snapshotName, err)
+				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				return true
 			}

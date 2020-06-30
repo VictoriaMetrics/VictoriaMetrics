@@ -67,7 +67,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	if rawTs != nil {
 		ts, err := getFloat64(rawTs)
 		if err != nil {
-			return tagsPool, fmt.Errorf("invalid `timestamp` in %s: %s", o, err)
+			return tagsPool, fmt.Errorf("invalid `timestamp` in %s: %w", o, err)
 		}
 		r.Timestamp = int64(ts)
 	} else {
@@ -82,7 +82,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	}
 	v, err := getFloat64(rawV)
 	if err != nil {
-		return tagsPool, fmt.Errorf("invalid `value` in %s: %s", o, err)
+		return tagsPool, fmt.Errorf("invalid `value` in %s: %w", o, err)
 	}
 	r.Value = v
 
@@ -93,13 +93,13 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	}
 	rawTags, err := vt.Object()
 	if err != nil {
-		return tagsPool, fmt.Errorf("invalid `tags` in %s: %s", o, err)
+		return tagsPool, fmt.Errorf("invalid `tags` in %s: %w", o, err)
 	}
 
 	tagsStart := len(tagsPool)
 	tagsPool, err = unmarshalTags(tagsPool, rawTags)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot parse tags %s: %s", rawTags, err)
+		return tagsPool, fmt.Errorf("cannot parse tags %s: %w", rawTags, err)
 	}
 	tags := tagsPool[tagsStart:]
 	r.Tags = tags[:len(tags):len(tags)]

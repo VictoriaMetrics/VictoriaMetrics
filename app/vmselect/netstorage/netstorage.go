@@ -98,7 +98,7 @@ func timeseriesWorker(workerID uint) {
 			continue
 		}
 		if err := tsw.pts.Unpack(&rs, rss.tr, rss.fetchData); err != nil {
-			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %s", err)
+			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %w", err)
 			continue
 		}
 		if len(rs.Timestamps) > 0 || !rss.fetchData {
@@ -187,7 +187,7 @@ func unpackWorker() {
 		sb := getSortBlock()
 		if err := sb.unpackFrom(upw.br, upw.tr, upw.fetchData); err != nil {
 			putSortBlock(sb)
-			upw.doneCh <- fmt.Errorf("cannot unpack block: %s", err)
+			upw.doneCh <- fmt.Errorf("cannot unpack block: %w", err)
 			continue
 		}
 		upw.sb = sb
@@ -200,7 +200,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tr storage.TimeRange, fetchData
 	dst.reset()
 
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
-		return fmt.Errorf("cannot unmarshal metricName %q: %s", pts.metricName, err)
+		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
 	}
 
 	// Feed workers with work
@@ -329,7 +329,7 @@ func (sb *sortBlock) unpackFrom(br storage.BlockRef, tr storage.TimeRange, fetch
 	br.MustReadBlock(&sb.b, fetchData)
 	if fetchData {
 		if err := sb.b.UnmarshalData(); err != nil {
-			return fmt.Errorf("cannot unmarshal block: %s", err)
+			return fmt.Errorf("cannot unmarshal block: %w", err)
 		}
 	}
 	timestamps := sb.b.Timestamps()
@@ -398,7 +398,7 @@ func DeleteSeries(sq *storage.SearchQuery) (int, error) {
 func GetLabels(deadline Deadline) ([]string, error) {
 	labels, err := vmstorage.SearchTagKeys(*maxTagKeysPerSearch)
 	if err != nil {
-		return nil, fmt.Errorf("error during labels search: %s", err)
+		return nil, fmt.Errorf("error during labels search: %w", err)
 	}
 
 	// Substitute "" with "__name__"
@@ -424,7 +424,7 @@ func GetLabelValues(labelName string, deadline Deadline) ([]string, error) {
 	// Search for tag values
 	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), *maxTagValuesPerSearch)
 	if err != nil {
-		return nil, fmt.Errorf("error during label values search for labelName=%q: %s", labelName, err)
+		return nil, fmt.Errorf("error during label values search for labelName=%q: %w", labelName, err)
 	}
 
 	// Sort labelValues like Prometheus does
@@ -437,7 +437,7 @@ func GetLabelValues(labelName string, deadline Deadline) ([]string, error) {
 func GetLabelEntries(deadline Deadline) ([]storage.TagEntry, error) {
 	labelEntries, err := vmstorage.SearchTagEntries(*maxTagKeysPerSearch, *maxTagValuesPerSearch)
 	if err != nil {
-		return nil, fmt.Errorf("error during label entries request: %s", err)
+		return nil, fmt.Errorf("error during label entries request: %w", err)
 	}
 
 	// Substitute "" with "__name__"
@@ -464,7 +464,7 @@ func GetLabelEntries(deadline Deadline) ([]storage.TagEntry, error) {
 func GetTSDBStatusForDate(deadline Deadline, date uint64, topN int) (*storage.TSDBStatus, error) {
 	status, err := vmstorage.GetTSDBStatusForDate(date, topN)
 	if err != nil {
-		return nil, fmt.Errorf("error during tsdb status request: %s", err)
+		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
 	return status, nil
 }
@@ -473,7 +473,7 @@ func GetTSDBStatusForDate(deadline Deadline, date uint64, topN int) (*storage.TS
 func GetSeriesCount(deadline Deadline) (uint64, error) {
 	n, err := vmstorage.GetSeriesCount()
 	if err != nil {
-		return 0, fmt.Errorf("error during series count request: %s", err)
+		return 0, fmt.Errorf("error during series count request: %w", err)
 	}
 	return n, nil
 }
@@ -529,7 +529,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		m[string(metricName)] = append(brs, *sr.MetricBlockRef.BlockRef)
 	}
 	if err := sr.Error(); err != nil {
-		return nil, fmt.Errorf("search error after reading %d data blocks: %s", blocksRead, err)
+		return nil, fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
 	}
 
 	var rss Results
@@ -555,7 +555,7 @@ func setupTfss(tagFilterss [][]storage.TagFilter) ([]*storage.TagFilters, error)
 		for i := range tagFilters {
 			tf := &tagFilters[i]
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
-				return nil, fmt.Errorf("cannot parse tag filter %s: %s", tf, err)
+				return nil, fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
 			}
 		}
 		tfss = append(tfss, tfs)

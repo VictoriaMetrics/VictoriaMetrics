@@ -53,11 +53,11 @@ func getEndpoints(cfg *apiConfig) ([]Endpoints, error) {
 func getEndpointsByPath(cfg *apiConfig, path string) ([]Endpoints, error) {
 	data, err := getAPIResponse(cfg, "endpoints", path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %s", err)
+		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %w", err)
 	}
 	epl, err := parseEndpointsList(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse endpoints response from API server: %s", err)
+		return nil, fmt.Errorf("cannot parse endpoints response from API server: %w", err)
 	}
 	return epl.Items, nil
 }
@@ -119,7 +119,7 @@ type EndpointPort struct {
 func parseEndpointsList(data []byte) (*EndpointsList, error) {
 	var esl EndpointsList
 	if err := json.Unmarshal(data, &esl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal EndpointsList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal EndpointsList from %q: %w", data, err)
 	}
 	return &esl, nil
 }

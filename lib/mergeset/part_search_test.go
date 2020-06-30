@@ -72,7 +72,7 @@ func testPartSearchSerial(p *part, items []string) error {
 		return fmt.Errorf("unexpected item found past the end of all the items: %X", ps.Item)
 	}
 	if err := ps.Error(); err != nil {
-		return fmt.Errorf("unexpected error: %s", err)
+		return fmt.Errorf("unexpected error: %w", err)
 	}
 
 	// Search for the item bigger than the items[len(items)-1]
@@ -83,7 +83,7 @@ func testPartSearchSerial(p *part, items []string) error {
 		return fmt.Errorf("unexpected item found: %X; want nothing", ps.Item)
 	}
 	if err := ps.Error(); err != nil {
-		return fmt.Errorf("unexpected error when searching past the last item: %s", err)
+		return fmt.Errorf("unexpected error when searching past the last item: %w", err)
 	}
 
 	// Search for inner items
@@ -107,7 +107,7 @@ func testPartSearchSerial(p *part, items []string) error {
 			return fmt.Errorf("unexpected item found past the end of all the items for idx %d out of %d items; loop %d: got %X", n, len(items), loop, ps.Item)
 		}
 		if err := ps.Error(); err != nil {
-			return fmt.Errorf("unexpected error on loop %d: %s", loop, err)
+			return fmt.Errorf("unexpected error on loop %d: %w", loop, err)
 		}
 	}
 
@@ -121,7 +121,7 @@ func testPartSearchSerial(p *part, items []string) error {
 			return fmt.Errorf("unexpected item found at position %d: got %X; want %X", i, ps.Item, item)
 		}
 		if err := ps.Error(); err != nil {
-			return fmt.Errorf("unexpected error when searching for items[%d]=%X: %s", i, item, err)
+			return fmt.Errorf("unexpected error when searching for items[%d]=%X: %w", i, item, err)
 		}
 	}
 
@@ -136,7 +136,7 @@ func testPartSearchSerial(p *part, items []string) error {
 			return fmt.Errorf("unexpected item found at position %d: got %X; want %X", i, ps.Item, item)
 		}
 		if err := ps.Error(); err != nil {
-			return fmt.Errorf("unexpected error when searching for items[%d]=%X: %s", i, item, err)
+			return fmt.Errorf("unexpected error when searching for items[%d]=%X: %w", i, item, err)
 		}
 	}
 
@@ -151,7 +151,7 @@ func newTestPart(blocksCount, maxItemsPerBlock int) (*part, []string, error) {
 	var bsw blockStreamWriter
 	bsw.InitFromInmemoryPart(&ip)
 	if err := mergeBlockStreams(&ip.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
-		return nil, nil, fmt.Errorf("cannot merge blocks: %s", err)
+		return nil, nil, fmt.Errorf("cannot merge blocks: %w", err)
 	}
 	if itemsMerged != uint64(len(items)) {
 		return nil, nil, fmt.Errorf("unexpected itemsMerged; got %d; want %d", itemsMerged, len(items))
@@ -159,7 +159,7 @@ func newTestPart(blocksCount, maxItemsPerBlock int) (*part, []string, error) {
 	size := ip.size()
 	p, err := newPart(&ip.ph, "partName", size, ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot create part: %s", err)
+		return nil, nil, fmt.Errorf("cannot create part: %w", err)
 	}
 	return p, items, nil
 }

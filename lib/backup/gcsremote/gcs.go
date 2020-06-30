@@ -49,13 +49,13 @@ func (fs *FS) Init() error {
 		creds := option.WithCredentialsFile(fs.CredsFilePath)
 		c, err := storage.NewClient(ctx, creds)
 		if err != nil {
-			return fmt.Errorf("cannot create gcs client with credsFile %q: %s", fs.CredsFilePath, err)
+			return fmt.Errorf("cannot create gcs client with credsFile %q: %w", fs.CredsFilePath, err)
 		}
 		client = c
 	} else {
 		c, err := storage.NewClient(ctx)
 		if err != nil {
-			return fmt.Errorf("cannot create default gcs client: %q", err)
+			return fmt.Errorf("cannot create default gcs client: %w", err)
 		}
 		client = c
 	}
@@ -82,7 +82,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		Prefix: dir,
 	}
 	if err := q.SetAttrSelection(selectAttrs); err != nil {
-		return nil, fmt.Errorf("error in SetAttrSelection: %s", err)
+		return nil, fmt.Errorf("error in SetAttrSelection: %w", err)
 	}
 	it := fs.bkt.Objects(ctx, q)
 	var parts []common.Part
@@ -92,7 +92,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			return parts, nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("error when iterating objects at %q: %s", dir, err)
+			return nil, fmt.Errorf("error when iterating objects at %q: %w", dir, err)
 		}
 		file := attr.Name
 		if !strings.HasPrefix(file, dir) {
@@ -116,7 +116,7 @@ func (fs *FS) DeletePart(p common.Part) error {
 	o := fs.object(p)
 	ctx := context.Background()
 	if err := o.Delete(ctx); err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %s", p.Path, fs, o.ObjectName(), err)
+		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	ctx := context.Background()
 	attr, err := copier.Run(ctx)
 	if err != nil {
-		return fmt.Errorf("cannot copy %q from %s to %s: %s", p.Path, src, fs, err)
+		return fmt.Errorf("cannot copy %q from %s to %s: %w", p.Path, src, fs, err)
 	}
 	if uint64(attr.Size) != p.Size {
 		return fmt.Errorf("unexpected %q size after copying from %s to %s; got %d bytes; want %d bytes", p.Path, src, fs, attr.Size, p.Size)
@@ -154,14 +154,14 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	ctx := context.Background()
 	r, err := o.NewReader(ctx)
 	if err != nil {
-		return fmt.Errorf("cannot open reader for %q at %s (remote path %q): %s", p.Path, fs, o.ObjectName(), err)
+		return fmt.Errorf("cannot open reader for %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
 	n, err := io.Copy(w, r)
 	if err1 := r.Close(); err1 != nil && err == nil {
 		err = err1
 	}
 	if err != nil {
-		return fmt.Errorf("cannot download %q from at %s (remote path %q): %s", p.Path, fs, o.ObjectName(), err)
+		return fmt.Errorf("cannot download %q from at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
 	if uint64(n) != p.Size {
 		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
@@ -179,7 +179,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		err = err1
 	}
 	if err != nil {
-		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %s", p.Path, fs, o.ObjectName(), err)
+		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
 	if uint64(n) != p.Size {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
@@ -201,7 +201,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 	ctx := context.Background()
 	if err := o.Delete(ctx); err != nil {
 		if err != storage.ErrObjectNotExist {
-			return fmt.Errorf("cannot delete %q at %s (remote path %q): %s", filePath, fs, o.ObjectName(), err)
+			return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 		}
 	}
 	return nil
@@ -218,14 +218,14 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	n, err := w.Write(data)
 	if err != nil {
 		_ = w.Close()
-		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %s", len(data), filePath, fs, o.ObjectName(), err)
+		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, o.ObjectName(), err)
 	}
 	if n != len(data) {
 		_ = w.Close()
 		return fmt.Errorf("wrong data size uploaded to %q at %s (remote path %q); got %d bytes; want %d bytes", filePath, fs, o.ObjectName(), n, len(data))
 	}
 	if err := w.Close(); err != nil {
-		return fmt.Errorf("cannot close %q at %s (remote path %q): %s", filePath, fs, o.ObjectName(), err)
+		return fmt.Errorf("cannot close %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}
 	return nil
 }
@@ -240,7 +240,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 		if err == storage.ErrObjectNotExist {
 			return false, nil
 		}
-		return false, fmt.Errorf("unexpected error when obtaining attributes for %q at %s (remote path %q): %s", filePath, fs, o.ObjectName(), err)
+		return false, fmt.Errorf("unexpected error when obtaining attributes for %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}
 	return true, nil
 }

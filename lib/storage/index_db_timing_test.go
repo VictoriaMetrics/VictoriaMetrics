@@ -103,7 +103,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		if err := is.GetOrCreateTSIDByName(tsid, metricName); err != nil {
-			panic(fmt.Errorf("cannot insert record: %s", err))
+			panic(fmt.Errorf("cannot insert record: %w", err))
 		}
 	}
 }
@@ -353,7 +353,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
 				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal); err != nil {
-					panic(fmt.Errorf("cannot obtain tsid: %s", err))
+					panic(fmt.Errorf("cannot obtain tsid: %w", err))
 				}
 			}
 		}

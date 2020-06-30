@@ -31,7 +31,7 @@ func Init() (Querier, error) {
 	}
 	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %s", err)
+		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	c := &http.Client{Transport: tr}
 	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, c), nil

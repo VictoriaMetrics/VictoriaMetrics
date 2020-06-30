@@ -121,7 +121,7 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 
 	tail, err := bh.TSID.Unmarshal(src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal TSID: %s", err)
+		return src, fmt.Errorf("cannot unmarshal TSID: %w", err)
 	}
 	src = tail
 
@@ -154,10 +154,10 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 		return src, fmt.Errorf("RowsCount in block header cannot be zero")
 	}
 	if err = encoding.CheckMarshalType(bh.TimestampsMarshalType); err != nil {
-		return src, fmt.Errorf("unsupported TimestampsMarshalType: %s", err)
+		return src, fmt.Errorf("unsupported TimestampsMarshalType: %w", err)
 	}
 	if err = encoding.CheckMarshalType(bh.ValuesMarshalType); err != nil {
-		return src, fmt.Errorf("unsupported ValuesMarshalType: %s", err)
+		return src, fmt.Errorf("unsupported ValuesMarshalType: %w", err)
 	}
 	if err = encoding.CheckPrecisionBits(bh.PrecisionBits); err != nil {
 		return src, err
@@ -189,7 +189,7 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 	for len(src) > 0 {
 		tmp, err := bh.Unmarshal(src)
 		if err != nil {
-			return dst, fmt.Errorf("cannot unmarshal block header: %s", err)
+			return dst, fmt.Errorf("cannot unmarshal block header: %w", err)
 		}
 		src = tmp
 		dst = append(dst, bh)

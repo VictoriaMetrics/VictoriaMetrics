@@ -76,19 +76,19 @@ func (ph *partHeader) ParseFromPath(path string) error {
 
 	ph.RowsCount, err = strconv.ParseUint(a[0], 10, 64)
 	if err != nil {
-		return fmt.Errorf("cannot parse rowsCount from partName %q: %s", partName, err)
+		return fmt.Errorf("cannot parse rowsCount from partName %q: %w", partName, err)
 	}
 	ph.BlocksCount, err = strconv.ParseUint(a[1], 10, 64)
 	if err != nil {
-		return fmt.Errorf("cannot parse blocksCount from partName %q: %s", partName, err)
+		return fmt.Errorf("cannot parse blocksCount from partName %q: %w", partName, err)
 	}
 	ph.MinTimestamp, err = fromUserReadableTimestamp(a[2])
 	if err != nil {
-		return fmt.Errorf("cannot parse minTimestamp from partName %q: %s", partName, err)
+		return fmt.Errorf("cannot parse minTimestamp from partName %q: %w", partName, err)
 	}
 	ph.MaxTimestamp, err = fromUserReadableTimestamp(a[3])
 	if err != nil {
-		return fmt.Errorf("cannot parse maxTimestamp from partName %q: %s", partName, err)
+		return fmt.Errorf("cannot parse maxTimestamp from partName %q: %w", partName, err)
 	}
 
 	if ph.MinTimestamp > ph.MaxTimestamp {

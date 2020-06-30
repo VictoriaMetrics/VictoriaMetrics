@@ -217,7 +217,7 @@ func (ts *timeseries) unmarshalFastNoTimestamps(src []byte) ([]byte, error) {
 
 	tail, err := unmarshalMetricNameFast(&ts.MetricName, src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
 	}
 	src = tail
 
@@ -275,7 +275,7 @@ func unmarshalMetricNameFast(mn *storage.MetricName, src []byte) ([]byte, error)
 
 	tail, metricGroup, err := unmarshalBytesFast(src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricGroup: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal MetricGroup: %w", err)
 	}
 	src = tail
 	mn.MetricGroup = metricGroup[:len(metricGroup):len(metricGroup)]
@@ -292,13 +292,13 @@ func unmarshalMetricNameFast(mn *storage.MetricName, src []byte) ([]byte, error)
 	for i := range mn.Tags {
 		tail, key, err := unmarshalBytesFast(src)
 		if err != nil {
-			return tail, fmt.Errorf("cannot unmarshal key for tag[%d]: %s", i, err)
+			return tail, fmt.Errorf("cannot unmarshal key for tag[%d]: %w", i, err)
 		}
 		src = tail
 
 		tail, value, err := unmarshalBytesFast(src)
 		if err != nil {
-			return tail, fmt.Errorf("cannot unmarshal value for tag[%d]: %s", i, err)
+			return tail, fmt.Errorf("cannot unmarshal value for tag[%d]: %w", i, err)
 		}
 		src = tail
 

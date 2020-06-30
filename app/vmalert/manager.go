@@ -83,7 +83,7 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 	logger.Infof("reading rules configuration file from %q", strings.Join(path, ";"))
 	groupsCfg, err := config.Parse(path, validateTpl, validateExpr)
 	if err != nil {
-		return fmt.Errorf("cannot parse configuration file: %s", err)
+		return fmt.Errorf("cannot parse configuration file: %w", err)
 	}
 
 	groupsRegistry := make(map[uint64]*Group)

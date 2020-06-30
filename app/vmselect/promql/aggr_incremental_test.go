@@ -119,7 +119,7 @@ func testIncrementalParallelAggr(iafc *incrementalAggrFuncContext, tssSrc, tssEx
 	wg.Wait()
 	tssActual := iafc.finalizeTimeseries()
 	if err := expectTimeseriesEqual(tssActual, tssExpected); err != nil {
-		return fmt.Errorf("%s; tssActual=%v, tssExpected=%v", err, tssActual, tssExpected)
+		return fmt.Errorf("%w; tssActual=%v, tssExpected=%v", err, tssActual, tssExpected)
 	}
 	return nil
 }
@@ -164,7 +164,7 @@ func expectTsEqual(actual, expected *timeseries) error {
 		return fmt.Errorf("unexpected timestamps; got %v; want %v", actual.Timestamps, expected.Timestamps)
 	}
 	if err := compareValues(actual.Values, expected.Values); err != nil {
-		return fmt.Errorf("%s; actual %v; expected %v", err, actual.Values, expected.Values)
+		return fmt.Errorf("%w; actual %v; expected %v", err, actual.Values, expected.Values)
 	}
 	return nil
 }

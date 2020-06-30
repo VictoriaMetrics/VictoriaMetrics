@@ -50,7 +50,7 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 				mr.Value = float64(offset + i)
 			}
 			if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-				panic(fmt.Errorf("cannot add rows to storage: %s", err))
+				panic(fmt.Errorf("cannot add rows to storage: %w", err))
 			}
 		}
 	})

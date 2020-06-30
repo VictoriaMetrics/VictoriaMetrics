@@ -91,7 +91,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			if parseTimestamp := cd.ParseTimestamp; parseTimestamp != nil {
 				timestamp, err := parseTimestamp(sc.Column)
 				if err != nil {
-					sc.Error = fmt.Errorf("cannot parse timestamp from %q: %s", sc.Column, err)
+					sc.Error = fmt.Errorf("cannot parse timestamp from %q: %w", sc.Column, err)
 					break
 				}
 				r.Timestamp = timestamp

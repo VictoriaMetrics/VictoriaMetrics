@@ -161,7 +161,7 @@ func (ps *partSearch) nextBHS() bool {
 			var err error
 			ib, err = ps.readIndexBlock(mr)
 			if err != nil {
-				ps.err = fmt.Errorf("cannot read index block for part %q at offset %d with size %d: %s",
+				ps.err = fmt.Errorf("cannot read index block for part %q at offset %d with size %d: %w",
 					&ps.p.ph, mr.IndexBlockOffset, mr.IndexBlockSize, err)
 				return false
 			}
@@ -216,12 +216,12 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	var err error
 	ps.indexBuf, err = encoding.DecompressZSTD(ps.indexBuf[:0], ps.compressedIndexBuf)
 	if err != nil {
-		return nil, fmt.Errorf("cannot decompress index block: %s", err)
+		return nil, fmt.Errorf("cannot decompress index block: %w", err)
 	}
 	ib := getIndexBlock()
 	ib.bhs, err = unmarshalBlockHeaders(ib.bhs[:0], ps.indexBuf, int(mr.BlockHeadersCount))
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal index block: %s", err)
+		return nil, fmt.Errorf("cannot unmarshal index block: %w", err)
 	}
 	return ib, nil
 }

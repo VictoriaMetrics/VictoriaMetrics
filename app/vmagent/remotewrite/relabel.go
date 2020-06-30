@@ -33,7 +33,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 	if *relabelConfigPathGlobal != "" {
 		global, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
 		if err != nil {
-			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %s", *relabelConfigPathGlobal, err)
+			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %w", *relabelConfigPathGlobal, err)
 		}
 		rcs.global = global
 	}
@@ -45,7 +45,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 	for i, path := range *relabelConfigPaths {
 		prc, err := promrelabel.LoadRelabelConfigs(path)
 		if err != nil {
-			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %s", path, err)
+			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %w", path, err)
 		}
 		rcs.perURL[i] = prc
 	}

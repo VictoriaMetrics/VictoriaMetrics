@@ -43,11 +43,11 @@ func getIngresses(cfg *apiConfig) ([]Ingress, error) {
 func getIngressesByPath(cfg *apiConfig, path string) ([]Ingress, error) {
 	data, err := getAPIResponse(cfg, "ingress", path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain ingresses data from API server: %s", err)
+		return nil, fmt.Errorf("cannot obtain ingresses data from API server: %w", err)
 	}
 	igl, err := parseIngressList(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse ingresses response from API server: %s", err)
+		return nil, fmt.Errorf("cannot parse ingresses response from API server: %w", err)
 	}
 	return igl.Items, nil
 }
@@ -108,7 +108,7 @@ type HTTPIngressPath struct {
 func parseIngressList(data []byte) (*IngressList, error) {
 	var il IngressList
 	if err := json.Unmarshal(data, &il); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal IngressList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal IngressList from %q: %w", data, err)
 	}
 	return &il, nil
 }

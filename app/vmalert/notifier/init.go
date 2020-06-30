@@ -36,7 +36,7 @@ func Init(gen AlertURLGenerator) ([]Notifier, error) {
 		ca, serverName := tlsCAFile.GetOptionalArg(i), tlsServerName.GetOptionalArg(i)
 		tr, err := utils.Transport(addr, cert, key, ca, serverName, *tlsInsecureSkipVerify)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create transport: %s", err)
+			return nil, fmt.Errorf("failed to create transport: %w", err)
 		}
 		user, pass := basicAuthUsername.GetOptionalArg(i), basicAuthPassword.GetOptionalArg(i)
 		am := NewAlertManager(addr, user, pass, gen, &http.Client{Transport: tr})

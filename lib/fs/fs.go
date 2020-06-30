@@ -48,12 +48,12 @@ func WriteFileAtomically(path string, data []byte) error {
 	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
 	f, err := filestream.Create(tmpPath, false)
 	if err != nil {
-		return fmt.Errorf("cannot create file %q: %s", tmpPath, err)
+		return fmt.Errorf("cannot create file %q: %w", tmpPath, err)
 	}
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
 		MustRemoveAll(tmpPath)
-		return fmt.Errorf("cannot write %d bytes to file %q: %s", len(data), tmpPath, err)
+		return fmt.Errorf("cannot write %d bytes to file %q: %w", len(data), tmpPath, err)
 	}
 
 	// Sync and close the file.
@@ -63,14 +63,14 @@ func WriteFileAtomically(path string, data []byte) error {
 	if err := os.Rename(tmpPath, path); err != nil {
 		// do not call MustRemoveAll(tmpPath) here, so the user could inspect
 		// the file contents during investigating the issue.
-		return fmt.Errorf("cannot move %q to %q: %s", tmpPath, path, err)
+		return fmt.Errorf("cannot move %q to %q: %w", tmpPath, path, err)
 	}
 
 	// Sync the containing directory, so the file is guaranteed to appear in the directory.
 	// See https://www.quora.com/When-should-you-fsync-the-containing-directory-in-addition-to-the-file-itself
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute path to %q: %s", path, err)
+		return fmt.Errorf("cannot obtain absolute path to %q: %w", path, err)
 	}
 	parentDirPath := filepath.Dir(absPath)
 	MustSyncPath(parentDirPath)
@@ -204,12 +204,12 @@ func MustRemoveAllWithDoneCallback(path string, done func()) {
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.
 func HardLinkFiles(srcDir, dstDir string) error {
 	if err := mkdirSync(dstDir); err != nil {
-		return fmt.Errorf("cannot create dstDir=%q: %s", dstDir, err)
+		return fmt.Errorf("cannot create dstDir=%q: %w", dstDir, err)
 	}
 
 	d, err := os.Open(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot open srcDir=%q: %s", srcDir, err)
+		return fmt.Errorf("cannot open srcDir=%q: %w", srcDir, err)
 	}
 	defer func() {
 		if err := d.Close(); err != nil {
@@ -219,7 +219,7 @@ func HardLinkFiles(srcDir, dstDir string) error {
 
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return fmt.Errorf("cannot read files in scrDir=%q: %s", srcDir, err)
+		return fmt.Errorf("cannot read files in scrDir=%q: %w", srcDir, err)
 	}
 	for _, fi := range fis {
 		if IsDirOrSymlink(fi) {
@@ -248,7 +248,7 @@ func SymlinkRelative(srcPath, dstPath string) error {
 	baseDir := filepath.Dir(dstPath)
 	srcPathRel, err := filepath.Rel(baseDir, srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot make relative path for srcPath=%q: %s", srcPath, err)
+		return fmt.Errorf("cannot make relative path for srcPath=%q: %w", srcPath, err)
 	}
 	return os.Symlink(srcPathRel, dstPath)
 }
@@ -260,7 +260,7 @@ func ReadFullData(r io.Reader, data []byte) error {
 		if err == io.EOF {
 			return io.EOF
 		}
-		return fmt.Errorf("cannot read %d bytes; read only %d bytes; error: %s", len(data), n, err)
+		return fmt.Errorf("cannot read %d bytes; read only %d bytes; error: %w", len(data), n, err)
 	}
 	if n != len(data) {
 		logger.Panicf("BUG: io.ReadFull read only %d bytes; must read %d bytes", n, len(data))
@@ -288,10 +288,10 @@ func CreateFlockFile(dir string) (*os.File, error) {
 	flockFile := dir + "/flock.lock"
 	flockF, err := os.Create(flockFile)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file %q: %s", flockFile, err)
+		return nil, fmt.Errorf("cannot create lock file %q: %w", flockFile, err)
 	}
 	if err := unix.Flock(int(flockF.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return nil, fmt.Errorf("cannot acquire lock on file %q: %s", flockFile, err)
+		return nil, fmt.Errorf("cannot acquire lock on file %q: %w", flockFile, err)
 	}
 	return flockF, nil
 }

@@ -495,20 +495,20 @@ func TestQueueLimitedSize(t *testing.T) {
 
 func mustCreateFile(path, contents string) {
 	if err := ioutil.WriteFile(path, []byte(contents), 0600); err != nil {
-		panic(fmt.Errorf("cannot create file %q with %d bytes contents: %s", path, len(contents), err))
+		panic(fmt.Errorf("cannot create file %q with %d bytes contents: %w", path, len(contents), err))
 	}
 }
 
 func mustCreateDir(path string) {
 	mustDeleteDir(path)
 	if err := os.MkdirAll(path, 0700); err != nil {
-		panic(fmt.Errorf("cannot create dir %q: %s", path, err))
+		panic(fmt.Errorf("cannot create dir %q: %w", path, err))
 	}
 }
 
 func mustDeleteDir(path string) {
 	if err := os.RemoveAll(path); err != nil {
-		panic(fmt.Errorf("cannot remove dir %q: %s", path, err))
+		panic(fmt.Errorf("cannot remove dir %q: %w", path, err))
 	}
 }
 
@@ -516,6 +516,6 @@ func mustCreateEmptyMetainfo(path, name string) {
 	var mi metainfo
 	mi.Name = name
 	if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
-		panic(fmt.Errorf("cannot create metainfo: %s", err))
+		panic(fmt.Errorf("cannot create metainfo: %w", err))
 	}
 }

@@ -122,7 +122,7 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 func (ctx *InsertCtx) FlushBufs() error {
 	if err := vmstorage.AddRows(ctx.mrs); err != nil {
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot store metrics: %s", err),
+			Err:        fmt.Errorf("cannot store metrics: %w", err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}

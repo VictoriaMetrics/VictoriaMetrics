@@ -30,7 +30,7 @@ type PrepareBlockCallback func(data []byte, items [][]byte) ([]byte, [][]byte)
 func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{}, itemsMerged *uint64) error {
 	bsm := bsmPool.Get().(*blockStreamMerger)
 	if err := bsm.Init(bsrs, prepareBlock); err != nil {
-		return fmt.Errorf("cannot initialize blockStreamMerger: %s", err)
+		return fmt.Errorf("cannot initialize blockStreamMerger: %w", err)
 	}
 	err := bsm.Merge(bsw, ph, stopCh, itemsMerged)
 	bsm.reset()
@@ -42,7 +42,7 @@ func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStre
 	if err == errForciblyStopped {
 		return err
 	}
-	return fmt.Errorf("cannot merge %d block streams: %s: %s", len(bsrs), bsrs, err)
+	return fmt.Errorf("cannot merge %d block streams: %s: %w", len(bsrs), bsrs, err)
 }
 
 var bsmPool = &sync.Pool{
@@ -88,7 +88,7 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 		}
 
 		if err := bsr.Error(); err != nil {
-			return fmt.Errorf("cannot obtain the next block from blockStreamReader %q: %s", bsr.path, err)
+			return fmt.Errorf("cannot obtain the next block from blockStreamReader %q: %w", bsr.path, err)
 		}
 	}
 	heap.Init(&bsm.bsrHeap)
@@ -143,7 +143,7 @@ again:
 			goto again
 		}
 		if err := bsr.Error(); err != nil {
-			return fmt.Errorf("cannot read storageBlock: %s", err)
+			return fmt.Errorf("cannot read storageBlock: %w", err)
 		}
 		goto again
 	}
