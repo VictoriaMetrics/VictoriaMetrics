@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -57,7 +58,8 @@ func (sc *statConn) Read(p []byte) (int, error) {
 	sc.cm.readCalls.Inc()
 	sc.cm.readBytes.Add(n)
 	if err != nil && err != io.EOF {
-		if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
 			sc.cm.readTimeouts.Inc()
 		} else {
 			sc.cm.readErrors.Inc()
@@ -71,7 +73,8 @@ func (sc *statConn) Write(p []byte) (int, error) {
 	sc.cm.writeCalls.Inc()
 	sc.cm.writtenBytes.Add(n)
 	if err != nil {
-		if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
 			sc.cm.writeTimeouts.Inc()
 		} else {
 			sc.cm.writeErrors.Inc()

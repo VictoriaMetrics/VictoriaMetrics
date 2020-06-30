@@ -1,6 +1,7 @@
 package opentsdb
 
 import (
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -64,7 +65,8 @@ func (ls *listenerSwitch) worker() {
 	for {
 		c, err := ls.ln.Accept()
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Temporary() {
 				logger.Infof("listenerSwitch: temporary error at %q: %s; sleeping for a second...", ls.ln.Addr(), err)
 				time.Sleep(time.Second)
 				continue
