@@ -58,7 +58,7 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 
 	tf := tfs.addTagFilter()
 	if err := tf.Init(tfs.commonPrefix, key, value, isNegative, isRegexp); err != nil {
-		return fmt.Errorf("cannot initialize tagFilter: %s", err)
+		return fmt.Errorf("cannot initialize tagFilter: %w", err)
 	}
 	if tf.isNegative && tf.isEmptyMatch {
 		// We have {key!~"|foo"} tag filter, which matches non=empty key values.
@@ -66,14 +66,14 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/546 for details.
 		tfNew := tfs.addTagFilter()
 		if err := tfNew.Init(tfs.commonPrefix, key, []byte(".+"), false, true); err != nil {
-			return fmt.Errorf(`cannot initialize {%s=".+"} tag filter: %s`, key, err)
+			return fmt.Errorf(`cannot initialize {%s=".+"} tag filter: %w`, key, err)
 		}
 	}
 	if len(tf.graphiteReverseSuffix) > 0 {
 		re := regexp.QuoteMeta(string(tf.graphiteReverseSuffix)) + ".*"
 		tfNew := tfs.addTagFilter()
 		if err := tfNew.Init(tfs.commonPrefix, graphiteReverseTagKey, []byte(re), false, true); err != nil {
-			return fmt.Errorf("cannot initialize reverse tag filter for Graphite wildcard: %s", err)
+			return fmt.Errorf("cannot initialize reverse tag filter for Graphite wildcard: %w", err)
 		}
 	}
 	return nil
@@ -333,7 +333,7 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	exprStr := fmt.Sprintf("^(%s)$", expr)
 	re, err := regexp.Compile(exprStr)
 	if err != nil {
-		return rcv, fmt.Errorf("invalid regexp %q: %s", exprStr, err)
+		return rcv, fmt.Errorf("invalid regexp %q: %w", exprStr, err)
 	}
 
 	sExpr := string(expr)

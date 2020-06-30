@@ -38,7 +38,7 @@ func Init(ctx context.Context) (*Client, error) {
 
 	t, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %s", err)
+		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
 	return NewClient(ctx, Config{

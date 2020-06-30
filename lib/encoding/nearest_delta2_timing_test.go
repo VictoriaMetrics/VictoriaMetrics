@@ -35,7 +35,7 @@ func BenchmarkUnmarshalInt64NearestDelta2(b *testing.B) {
 		for pb.Next() {
 			dst, err = unmarshalInt64NearestDelta2(dst[:0], benchInt64NearestDelta2Data, 0, len(benchInt64Array))
 			if err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 			atomic.AddUint64(&Sink, uint64(len(dst)))
 		}

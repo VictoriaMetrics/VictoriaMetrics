@@ -45,11 +45,11 @@ func getServices(cfg *apiConfig) ([]Service, error) {
 func getServicesByPath(cfg *apiConfig, path string) ([]Service, error) {
 	data, err := getAPIResponse(cfg, "service", path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain services data from API server: %s", err)
+		return nil, fmt.Errorf("cannot obtain services data from API server: %w", err)
 	}
 	sl, err := parseServiceList(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse services response from API server: %s", err)
+		return nil, fmt.Errorf("cannot parse services response from API server: %w", err)
 	}
 	return sl.Items, nil
 }
@@ -92,7 +92,7 @@ type ServicePort struct {
 func parseServiceList(data []byte) (*ServiceList, error) {
 	var sl ServiceList
 	if err := json.Unmarshal(data, &sl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal ServiceList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal ServiceList from %q: %w", data, err)
 	}
 	return &sl, nil
 }

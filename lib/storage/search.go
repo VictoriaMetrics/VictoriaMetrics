@@ -196,14 +196,14 @@ func (tf *TagFilter) Marshal(dst []byte) []byte {
 func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
 	tail, k, err := encoding.UnmarshalBytes(src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal Key: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal Key: %w", err)
 	}
 	tf.Key = append(tf.Key[:0], k...)
 	src = tail
 
 	tail, v, err := encoding.UnmarshalBytes(src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal Value: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal Value: %w", err)
 	}
 	tf.Value = append(tf.Value[:0], v...)
 	src = tail
@@ -266,21 +266,21 @@ func (sq *SearchQuery) Marshal(dst []byte) []byte {
 func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	tail, minTs, err := encoding.UnmarshalVarInt64(src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal MinTimestamp: %s", err)
+		return src, fmt.Errorf("cannot unmarshal MinTimestamp: %w", err)
 	}
 	sq.MinTimestamp = minTs
 	src = tail
 
 	tail, maxTs, err := encoding.UnmarshalVarInt64(src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal MaxTimestamp: %s", err)
+		return src, fmt.Errorf("cannot unmarshal MaxTimestamp: %w", err)
 	}
 	sq.MaxTimestamp = maxTs
 	src = tail
 
 	tail, tfssCount, err := encoding.UnmarshalVarUint64(src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %s", err)
+		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss: %w", err)
 	}
 	if n := int(tfssCount) - cap(sq.TagFilterss); n > 0 {
 		sq.TagFilterss = append(sq.TagFilterss[:cap(sq.TagFilterss)], make([][]TagFilter, n)...)
@@ -291,7 +291,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	for i := 0; i < int(tfssCount); i++ {
 		tail, tfsCount, err := encoding.UnmarshalVarUint64(src)
 		if err != nil {
-			return src, fmt.Errorf("cannot unmarshal the count of TagFilters: %s", err)
+			return src, fmt.Errorf("cannot unmarshal the count of TagFilters: %w", err)
 		}
 		src = tail
 
@@ -303,7 +303,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		for j := 0; j < int(tfsCount); j++ {
 			tail, err := tagFilters[j].Unmarshal(src)
 			if err != nil {
-				return tail, fmt.Errorf("cannot unmarshal TagFilter #%d: %s", j, err)
+				return tail, fmt.Errorf("cannot unmarshal TagFilter #%d: %w", j, err)
 			}
 			src = tail
 		}

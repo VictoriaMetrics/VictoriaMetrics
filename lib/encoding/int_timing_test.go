@@ -135,7 +135,7 @@ func benchmarkUnmarshalVarInt64s(b *testing.B, maxValue int64) {
 		for pb.Next() {
 			tail, err := UnmarshalVarInt64s(dst, data)
 			if err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 			if len(tail) > 0 {
 				panic(fmt.Errorf("unexpected non-empty tail with len=%d: %X", len(tail), tail))

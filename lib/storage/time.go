@@ -41,7 +41,7 @@ func timestampToPartitionName(timestamp int64) string {
 func (tr *TimeRange) fromPartitionName(name string) error {
 	t, err := time.Parse("2006_01", name)
 	if err != nil {
-		return fmt.Errorf("cannot parse partition name %q: %s", name, err)
+		return fmt.Errorf("cannot parse partition name %q: %w", name, err)
 	}
 	tr.fromPartitionTime(t)
 	return nil

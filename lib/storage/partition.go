@@ -208,10 +208,10 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q", name, smallPartsPath, bigPartsPath)
 
 	if err := createPartitionDirs(smallPartsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directories for small parts %q: %s", smallPartsPath, err)
+		return nil, fmt.Errorf("cannot create directories for small parts %q: %w", smallPartsPath, err)
 	}
 	if err := createPartitionDirs(bigPartsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directories for big parts %q: %s", bigPartsPath, err)
+		return nil, fmt.Errorf("cannot create directories for big parts %q: %w", bigPartsPath, err)
 	}
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs)
@@ -252,19 +252,19 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 
 	smallParts, err := openParts(smallPartsPath, bigPartsPath, smallPartsPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open small parts from %q: %s", smallPartsPath, err)
+		return nil, fmt.Errorf("cannot open small parts from %q: %w", smallPartsPath, err)
 	}
 	bigParts, err := openParts(smallPartsPath, bigPartsPath, bigPartsPath)
 	if err != nil {
 		mustCloseParts(smallParts)
-		return nil, fmt.Errorf("cannot open big parts from %q: %s", bigPartsPath, err)
+		return nil, fmt.Errorf("cannot open big parts from %q: %w", bigPartsPath, err)
 	}
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 	if err := pt.tr.fromPartitionName(name); err != nil {
-		return nil, fmt.Errorf("cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
+		return nil, fmt.Errorf("cannot obtain partition time range from smallPartsPath %q: %w", smallPartsPath, err)
 	}
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
@@ -789,7 +789,7 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 	pt.partsLock.Unlock()
 
 	if err := pt.mergePartsOptimal(dstPws); err != nil {
-		return dstPws, fmt.Errorf("cannot merge %d inmemory parts: %s", len(dstPws), err)
+		return dstPws, fmt.Errorf("cannot merge %d inmemory parts: %w", len(dstPws), err)
 	}
 	return dstPws, nil
 }
@@ -797,13 +797,13 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
 	for len(pws) > defaultPartsToMerge {
 		if err := pt.mergeParts(pws[:defaultPartsToMerge], nil); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %s", defaultPartsToMerge, err)
+			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
 	}
 	if len(pws) > 0 {
 		if err := pt.mergeParts(pws, nil); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %s", len(pws), err)
+			return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
 		}
 	}
 	return nil
@@ -1028,7 +1028,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 			bsr.InitFromInmemoryPart(pw.mp)
 		} else {
 			if err := bsr.InitFromFilePart(pw.p.path); err != nil {
-				return fmt.Errorf("cannot open source part for merging: %s", err)
+				return fmt.Errorf("cannot open source part for merging: %w", err)
 			}
 		}
 		bsrs = append(bsrs, bsr)
@@ -1054,7 +1054,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	bsw := getBlockStreamWriter()
 	compressLevel := getCompressLevelForRowsCount(outRowsCount, outBlocksCount)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
-		return fmt.Errorf("cannot create destination part %q: %s", tmpPartPath, err)
+		return fmt.Errorf("cannot create destination part %q: %w", tmpPartPath, err)
 	}
 
 	// Merge parts.
@@ -1072,7 +1072,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		if err == errForciblyStopped {
 			return err
 		}
-		return fmt.Errorf("error when merging parts to %q: %s", tmpPartPath, err)
+		return fmt.Errorf("error when merging parts to %q: %w", tmpPartPath, err)
 	}
 
 	// Close bsrs.
@@ -1098,12 +1098,12 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
 	txnPath := fmt.Sprintf("%s/txn/%016X", ptPath, mergeIdx)
 	if err := fs.WriteFileAtomically(txnPath, bb.B); err != nil {
-		return fmt.Errorf("cannot create transaction file %q: %s", txnPath, err)
+		return fmt.Errorf("cannot create transaction file %q: %w", txnPath, err)
 	}
 
 	// Run the created transaction.
 	if err := runTransaction(&pt.snapshotLock, pt.smallPartsPath, pt.bigPartsPath, txnPath); err != nil {
-		return fmt.Errorf("cannot execute transaction %q: %s", txnPath, err)
+		return fmt.Errorf("cannot execute transaction %q: %w", txnPath, err)
 	}
 
 	var newPW *partWrapper
@@ -1112,7 +1112,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		// Open the merged part if it is non-empty.
 		newP, err := openFilePart(dstPartPath)
 		if err != nil {
-			return fmt.Errorf("cannot open merged part %q: %s", dstPartPath, err)
+			return fmt.Errorf("cannot open merged part %q: %w", dstPartPath, err)
 		}
 		newPSize = newP.size
 		newPW = &partWrapper{
@@ -1316,7 +1316,7 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	}
 	d, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open directory %q: %s", path, err)
+		return nil, fmt.Errorf("cannot open directory %q: %w", path, err)
 	}
 	defer fs.MustClose(d)
 
@@ -1324,7 +1324,7 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	// Snapshots cannot be created yet, so use fakeSnapshotLock.
 	var fakeSnapshotLock sync.RWMutex
 	if err := runTransactions(&fakeSnapshotLock, pathPrefix1, pathPrefix2, path); err != nil {
-		return nil, fmt.Errorf("cannot run transactions from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot run transactions from %q: %w", path, err)
 	}
 
 	txnDir := path + "/txn"
@@ -1332,13 +1332,13 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	tmpDir := path + "/tmp"
 	fs.MustRemoveAll(tmpDir)
 	if err := createPartitionDirs(path); err != nil {
-		return nil, fmt.Errorf("cannot create directories for partition %q: %s", path, err)
+		return nil, fmt.Errorf("cannot create directories for partition %q: %w", path, err)
 	}
 
 	// Open parts.
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read directory %q: %s", d.Name(), err)
+		return nil, fmt.Errorf("cannot read directory %q: %w", d.Name(), err)
 	}
 	var pws []*partWrapper
 	for _, fi := range fis {
@@ -1357,7 +1357,7 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 		p, err := openFilePart(partPath)
 		if err != nil {
 			mustCloseParts(pws)
-			return nil, fmt.Errorf("cannot open part %q: %s", partPath, err)
+			return nil, fmt.Errorf("cannot open part %q: %w", partPath, err)
 		}
 		logger.Infof("opened part %q in %.3f seconds", partPath, time.Since(startTime).Seconds())
 
@@ -1391,7 +1391,7 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 	// Flush inmemory data to disk.
 	pt.flushRawRows(true)
 	if _, err := pt.flushInmemoryParts(nil, true); err != nil {
-		return fmt.Errorf("cannot flush inmemory parts: %s", err)
+		return fmt.Errorf("cannot flush inmemory parts: %w", err)
 	}
 
 	// The snapshot must be created under the lock in order to prevent from
@@ -1400,10 +1400,10 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 	defer pt.snapshotLock.Unlock()
 
 	if err := pt.createSnapshot(pt.smallPartsPath, smallPath); err != nil {
-		return fmt.Errorf("cannot create snapshot for %q: %s", pt.smallPartsPath, err)
+		return fmt.Errorf("cannot create snapshot for %q: %w", pt.smallPartsPath, err)
 	}
 	if err := pt.createSnapshot(pt.bigPartsPath, bigPath); err != nil {
-		return fmt.Errorf("cannot create snapshot for %q: %s", pt.bigPartsPath, err)
+		return fmt.Errorf("cannot create snapshot for %q: %w", pt.bigPartsPath, err)
 	}
 
 	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
@@ -1413,18 +1413,18 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 
 func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %s", dstDir, err)
+		return fmt.Errorf("cannot create snapshot dir %q: %w", dstDir, err)
 	}
 
 	d, err := os.Open(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot open difrectory: %s", err)
+		return fmt.Errorf("cannot open difrectory: %w", err)
 	}
 	defer fs.MustClose(d)
 
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return fmt.Errorf("cannot read directory: %s", err)
+		return fmt.Errorf("cannot read directory: %w", err)
 	}
 	for _, fi := range fis {
 		if !fs.IsDirOrSymlink(fi) {
@@ -1439,7 +1439,7 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 		srcPartPath := srcDir + "/" + fn
 		dstPartPath := dstDir + "/" + fn
 		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
-			return fmt.Errorf("cannot create hard links from %q to %q: %s", srcPartPath, dstPartPath, err)
+			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
 		}
 	}
 
@@ -1462,13 +1462,13 @@ func runTransactions(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, path strin
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("cannot open %q: %s", txnDir, err)
+		return fmt.Errorf("cannot open %q: %w", txnDir, err)
 	}
 	defer fs.MustClose(d)
 
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return fmt.Errorf("cannot read directory %q: %s", d.Name(), err)
+		return fmt.Errorf("cannot read directory %q: %w", d.Name(), err)
 	}
 
 	// Sort transaction files by id.
@@ -1484,7 +1484,7 @@ func runTransactions(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, path strin
 		}
 		txnPath := txnDir + "/" + fn
 		if err := runTransaction(txnLock, pathPrefix1, pathPrefix2, txnPath); err != nil {
-			return fmt.Errorf("cannot run transaction from %q: %s", txnPath, err)
+			return fmt.Errorf("cannot run transaction from %q: %w", txnPath, err)
 		}
 	}
 	return nil
@@ -1498,7 +1498,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 
 	data, err := ioutil.ReadFile(txnPath)
 	if err != nil {
-		return fmt.Errorf("cannot read transaction file: %s", err)
+		return fmt.Errorf("cannot read transaction file: %w", err)
 	}
 	if len(data) > 0 && data[len(data)-1] == '\n' {
 		data = data[:len(data)-1]
@@ -1519,7 +1519,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	for _, path := range rmPaths {
 		path, err := validatePath(pathPrefix1, pathPrefix2, path)
 		if err != nil {
-			return fmt.Errorf("invalid path to remove: %s", err)
+			return fmt.Errorf("invalid path to remove: %w", err)
 		}
 		removeWG.Add(1)
 		fs.MustRemoveAllWithDoneCallback(path, removeWG.Done)
@@ -1530,17 +1530,17 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	dstPath := mvPaths[1]
 	srcPath, err = validatePath(pathPrefix1, pathPrefix2, srcPath)
 	if err != nil {
-		return fmt.Errorf("invalid source path to rename: %s", err)
+		return fmt.Errorf("invalid source path to rename: %w", err)
 	}
 	if len(dstPath) > 0 {
 		// Move srcPath to dstPath.
 		dstPath, err = validatePath(pathPrefix1, pathPrefix2, dstPath)
 		if err != nil {
-			return fmt.Errorf("invalid destination path to rename: %s", err)
+			return fmt.Errorf("invalid destination path to rename: %w", err)
 		}
 		if fs.IsPathExist(srcPath) {
 			if err := os.Rename(srcPath, dstPath); err != nil {
-				return fmt.Errorf("cannot rename %q to %q: %s", srcPath, dstPath, err)
+				return fmt.Errorf("cannot rename %q to %q: %w", srcPath, dstPath, err)
 			}
 		} else if !fs.IsPathExist(dstPath) {
 			// Emit info message for the expected condition after unclean shutdown on NFS disk.
@@ -1579,16 +1579,16 @@ func validatePath(pathPrefix1, pathPrefix2, path string) (string, error) {
 
 	pathPrefix1, err = filepath.Abs(pathPrefix1)
 	if err != nil {
-		return path, fmt.Errorf("cannot determine absolute path for pathPrefix1=%q: %s", pathPrefix1, err)
+		return path, fmt.Errorf("cannot determine absolute path for pathPrefix1=%q: %w", pathPrefix1, err)
 	}
 	pathPrefix2, err = filepath.Abs(pathPrefix2)
 	if err != nil {
-		return path, fmt.Errorf("cannot determine absolute path for pathPrefix2=%q: %s", pathPrefix2, err)
+		return path, fmt.Errorf("cannot determine absolute path for pathPrefix2=%q: %w", pathPrefix2, err)
 	}
 
 	path, err = filepath.Abs(path)
 	if err != nil {
-		return path, fmt.Errorf("cannot determine absolute path for %q: %s", path, err)
+		return path, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
 	}
 	if !strings.HasPrefix(path, pathPrefix1+"/") && !strings.HasPrefix(path, pathPrefix2+"/") {
 		return path, fmt.Errorf("invalid path %q; must start with either %q or %q", path, pathPrefix1+"/", pathPrefix2+"/")
@@ -1600,11 +1600,11 @@ func createPartitionDirs(path string) error {
 	path = filepath.Clean(path)
 	txnPath := path + "/txn"
 	if err := fs.MkdirAllFailIfExist(txnPath); err != nil {
-		return fmt.Errorf("cannot create txn directory %q: %s", txnPath, err)
+		return fmt.Errorf("cannot create txn directory %q: %w", txnPath, err)
 	}
 	tmpPath := path + "/tmp"
 	if err := fs.MkdirAllFailIfExist(tmpPath); err != nil {
-		return fmt.Errorf("cannot create tmp directory %q: %s", tmpPath, err)
+		return fmt.Errorf("cannot create tmp directory %q: %w", tmpPath, err)
 	}
 	fs.MustSyncPath(path)
 	return nil

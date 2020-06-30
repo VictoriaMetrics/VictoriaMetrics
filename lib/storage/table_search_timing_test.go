@@ -14,7 +14,7 @@ import (
 func TestMain(m *testing.M) {
 	n := m.Run()
 	if err := os.RemoveAll("./benchmarkTableSearch"); err != nil {
-		panic(fmt.Errorf("cannot remove benchmark tables: %s", err))
+		panic(fmt.Errorf("cannot remove benchmark tables: %w", err))
 	}
 	os.Exit(n)
 }
@@ -96,7 +96,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 					r.Value = value
 				}
 				if err := tb.AddRows(rows); err != nil {
-					panic(fmt.Errorf("cannot add %d rows: %s", rowsPerInsert, err))
+					panic(fmt.Errorf("cannot add %d rows: %w", rowsPerInsert, err))
 				}
 			}
 			wg.Done()

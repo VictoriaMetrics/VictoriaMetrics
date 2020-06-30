@@ -63,7 +63,7 @@ func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
 	n, err := r.f.Seek(offset, io.SeekStart)
 	if err != nil {
 		r.MustClose()
-		return nil, fmt.Errorf("cannot seek to offset=%d for %q: %s", offset, path, err)
+		return nil, fmt.Errorf("cannot seek to offset=%d for %q: %w", offset, path, err)
 	}
 	if n != offset {
 		r.MustClose()
@@ -78,7 +78,7 @@ func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
 func Open(path string, nocache bool) (*Reader, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file %q: %s", path, err)
+		return nil, fmt.Errorf("cannot open file %q: %w", path, err)
 	}
 	r := &Reader{
 		f:  f,
@@ -124,7 +124,7 @@ func (r *Reader) Read(p []byte) (int, error) {
 		return n, err
 	}
 	if err := r.st.adviseDontNeed(n, false); err != nil {
-		return n, fmt.Errorf("advise error for %q: %s", r.f.Name(), err)
+		return n, fmt.Errorf("advise error for %q: %w", r.f.Name(), err)
 	}
 	return n, nil
 }
@@ -172,12 +172,12 @@ type Writer struct {
 func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %s", path, err)
+		return nil, fmt.Errorf("cannot open %q: %w", path, err)
 	}
 	n, err := f.Seek(offset, io.SeekStart)
 	if err != nil {
 		_ = f.Close()
-		return nil, fmt.Errorf("cannot seek to offset=%d in %q: %s", offset, path, err)
+		return nil, fmt.Errorf("cannot seek to offset=%d in %q: %w", offset, path, err)
 	}
 	if n != offset {
 		_ = f.Close()
@@ -192,7 +192,7 @@ func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
 func Create(path string, nocache bool) (*Writer, error) {
 	f, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create file %q: %s", path, err)
+		return nil, fmt.Errorf("cannot create file %q: %w", path, err)
 	}
 	return newWriter(f, nocache), nil
 }
@@ -248,7 +248,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 		return n, err
 	}
 	if err := w.st.adviseDontNeed(n, true); err != nil {
-		return n, fmt.Errorf("advise error for %q: %s", w.f.Name(), err)
+		return n, fmt.Errorf("advise error for %q: %w", w.f.Name(), err)
 	}
 	return n, nil
 }

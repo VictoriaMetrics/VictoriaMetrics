@@ -30,11 +30,11 @@ type SDConfig struct {
 func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get API config: %s", err)
+		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
 	ms, err := getServiceNodesLabels(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("error when fetching service nodes data from Consul: %s", err)
+		return nil, fmt.Errorf("error when fetching service nodes data from Consul: %w", err)
 	}
 	return ms, nil
 }

@@ -135,7 +135,7 @@ scrape_configs:
 func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	var cfg Config
 	if err := cfg.parse(data, path); err != nil {
-		return nil, fmt.Errorf("cannot parse data: %s", err)
+		return nil, fmt.Errorf("cannot parse data: %w", err)
 	}
 	return cfg.getFileSDScrapeWork(nil), nil
 }
@@ -143,7 +143,7 @@ func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 func getStaticScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	var cfg Config
 	if err := cfg.parse(data, path); err != nil {
-		return nil, fmt.Errorf("cannot parse data: %s", err)
+		return nil, fmt.Errorf("cannot parse data: %w", err)
 	}
 	return cfg.getStaticScrapeWork(), nil
 }

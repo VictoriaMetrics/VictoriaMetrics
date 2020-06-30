@@ -131,31 +131,31 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	path = filepath.Clean(path)
 
 	if err := bsr.ph.ParseFromPath(path); err != nil {
-		return fmt.Errorf("cannot parse partHeader data from %q: %s", path, err)
+		return fmt.Errorf("cannot parse partHeader data from %q: %w", path, err)
 	}
 
 	metaindexPath := path + "/metaindex.bin"
 	metaindexFile, err := filestream.Open(metaindexPath, true)
 	if err != nil {
-		return fmt.Errorf("cannot open metaindex file in stream mode: %s", err)
+		return fmt.Errorf("cannot open metaindex file in stream mode: %w", err)
 	}
 	bsr.mrs, err = unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
 	metaindexFile.MustClose()
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal metaindex rows from file %q: %s", metaindexPath, err)
+		return fmt.Errorf("cannot unmarshal metaindex rows from file %q: %w", metaindexPath, err)
 	}
 
 	indexPath := path + "/index.bin"
 	indexFile, err := filestream.Open(indexPath, true)
 	if err != nil {
-		return fmt.Errorf("cannot open index file in stream mode: %s", err)
+		return fmt.Errorf("cannot open index file in stream mode: %w", err)
 	}
 
 	itemsPath := path + "/items.bin"
 	itemsFile, err := filestream.Open(itemsPath, true)
 	if err != nil {
 		indexFile.MustClose()
-		return fmt.Errorf("cannot open items file in stream mode: %s", err)
+		return fmt.Errorf("cannot open items file in stream mode: %w", err)
 	}
 
 	lensPath := path + "/lens.bin"
@@ -163,7 +163,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	if err != nil {
 		indexFile.MustClose()
 		itemsFile.MustClose()
-		return fmt.Errorf("cannot open lens file in stream mode: %s", err)
+		return fmt.Errorf("cannot open lens file in stream mode: %w", err)
 	}
 
 	bsr.path = path
@@ -200,7 +200,7 @@ func (bsr *blockStreamReader) Next() bool {
 					err = fmt.Errorf("unexpected last item; got %X; want %X", lastItem, bsr.ph.lastItem)
 				}
 			} else {
-				err = fmt.Errorf("cannot read the next index block: %s", err)
+				err = fmt.Errorf("cannot read the next index block: %w", err)
 			}
 			bsr.err = err
 			return false
@@ -212,18 +212,18 @@ func (bsr *blockStreamReader) Next() bool {
 
 	bsr.sb.itemsData = bytesutil.Resize(bsr.sb.itemsData, int(bsr.bh.itemsBlockSize))
 	if err := fs.ReadFullData(bsr.itemsReader, bsr.sb.itemsData); err != nil {
-		bsr.err = fmt.Errorf("cannot read compressed items block with size %d: %s", bsr.bh.itemsBlockSize, err)
+		bsr.err = fmt.Errorf("cannot read compressed items block with size %d: %w", bsr.bh.itemsBlockSize, err)
 		return false
 	}
 
 	bsr.sb.lensData = bytesutil.Resize(bsr.sb.lensData, int(bsr.bh.lensBlockSize))
 	if err := fs.ReadFullData(bsr.lensReader, bsr.sb.lensData); err != nil {
-		bsr.err = fmt.Errorf("cannot read compressed lens block with size %d: %s", bsr.bh.lensBlockSize, err)
+		bsr.err = fmt.Errorf("cannot read compressed lens block with size %d: %w", bsr.bh.lensBlockSize, err)
 		return false
 	}
 
 	if err := bsr.Block.UnmarshalData(&bsr.sb, bsr.bh.firstItem, bsr.bh.commonPrefix, bsr.bh.itemsCount, bsr.bh.marshalType); err != nil {
-		bsr.err = fmt.Errorf("cannot unmarshal inmemoryBlock from storageBlock with firstItem=%X, commonPrefix=%X, itemsCount=%d, marshalType=%d: %s",
+		bsr.err = fmt.Errorf("cannot unmarshal inmemoryBlock from storageBlock with firstItem=%X, commonPrefix=%X, itemsCount=%d, marshalType=%d: %w",
 			bsr.bh.firstItem, bsr.bh.commonPrefix, bsr.bh.itemsCount, bsr.bh.marshalType, err)
 		return false
 	}
@@ -260,14 +260,14 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	// Read compressed index block.
 	bsr.packedBuf = bytesutil.Resize(bsr.packedBuf, int(mr.indexBlockSize))
 	if err := fs.ReadFullData(bsr.indexReader, bsr.packedBuf); err != nil {
-		return fmt.Errorf("cannot read compressed index block with size %d: %s", mr.indexBlockSize, err)
+		return fmt.Errorf("cannot read compressed index block with size %d: %w", mr.indexBlockSize, err)
 	}
 
 	// Unpack the compressed index block.
 	var err error
 	bsr.unpackedBuf, err = encoding.DecompressZSTD(bsr.unpackedBuf[:0], bsr.packedBuf)
 	if err != nil {
-		return fmt.Errorf("cannot decompress index block with size %d: %s", mr.indexBlockSize, err)
+		return fmt.Errorf("cannot decompress index block with size %d: %w", mr.indexBlockSize, err)
 	}
 
 	// Unmarshal the unpacked index block into bsr.bhs.
@@ -280,7 +280,7 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	for i := 0; i < int(mr.blockHeadersCount); i++ {
 		tail, err := bsr.bhs[i].Unmarshal(b)
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal blockHeader #%d in the index block #%d: %s", len(bsr.bhs), bsr.mrIdx, err)
+			return fmt.Errorf("cannot unmarshal blockHeader #%d in the index block #%d: %w", len(bsr.bhs), bsr.mrIdx, err)
 		}
 		b = tail
 	}

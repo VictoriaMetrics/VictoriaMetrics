@@ -71,7 +71,7 @@ func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series 
 	rr.lastExecTime = time.Now()
 	rr.lastExecError = err
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %s", rr.Expr, err)
+		return nil, fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
 	}
 
 	duplicates := make(map[uint64]prompbmarshal.TimeSeries, len(qMetrics))

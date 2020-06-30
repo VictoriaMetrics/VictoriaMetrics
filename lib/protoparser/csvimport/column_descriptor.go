@@ -63,7 +63,7 @@ func ParseColumnDescriptors(s string) ([]ColumnDescriptor, error) {
 		}
 		pos, err := strconv.Atoi(a[0])
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse <column_pos> part from the entry #%d %q: %s", i+1, col, err)
+			return nil, fmt.Errorf("cannot parse <column_pos> part from the entry #%d %q: %w", i+1, col, err)
 		}
 		if pos <= 0 {
 			return nil, fmt.Errorf("<column_pos> cannot be smaller than 1; got %d for entry #%d %q", pos, i+1, col)
@@ -82,7 +82,7 @@ func ParseColumnDescriptors(s string) ([]ColumnDescriptor, error) {
 			}
 			parseTimestamp, err := parseTimeFormat(a[2])
 			if err != nil {
-				return nil, fmt.Errorf("cannot parse time format from the entry #%d %q: %s", i+1, col, err)
+				return nil, fmt.Errorf("cannot parse time format from the entry #%d %q: %w", i+1, col, err)
 			}
 			cd.ParseTimestamp = parseTimestamp
 			hasTimeCol = true
@@ -156,7 +156,7 @@ func parseUnixTimestampNanoseconds(s string) (int64, error) {
 func parseRFC3339(s string) (int64, error) {
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse time in RFC3339 from %q: %s", s, err)
+		return 0, fmt.Errorf("cannot parse time in RFC3339 from %q: %w", s, err)
 	}
 	return t.UnixNano() / 1e6, nil
 }
@@ -165,7 +165,7 @@ func newParseCustomTimeFunc(format string) func(s string) (int64, error) {
 	return func(s string) (int64, error) {
 		t, err := time.Parse(format, s)
 		if err != nil {
-			return 0, fmt.Errorf("cannot parse time in custom format %q from %q: %s", format, s, err)
+			return 0, fmt.Errorf("cannot parse time in custom format %q from %q: %w", format, s, err)
 		}
 		return t.UnixNano() / 1e6, nil
 	}

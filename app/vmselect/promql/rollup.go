@@ -285,7 +285,7 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	case "aggr_over_time":
 		aggrFuncNames, err := getRollupAggrFuncNames(expr)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid args to %s: %s", expr.AppendString(nil), err)
+			return nil, nil, fmt.Errorf("invalid args to %s: %w", expr.AppendString(nil), err)
 		}
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {

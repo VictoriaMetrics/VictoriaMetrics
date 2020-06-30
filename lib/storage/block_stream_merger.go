@@ -39,7 +39,7 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader) {
 			continue
 		}
 		if err := bsr.Error(); err != nil {
-			bsm.err = fmt.Errorf("cannot obtain the next block to merge: %s", err)
+			bsm.err = fmt.Errorf("cannot obtain the next block to merge: %w", err)
 			return
 		}
 	}
@@ -74,7 +74,7 @@ func (bsm *blockStreamMerger) NextBlock() bool {
 	case io.EOF:
 		return false
 	default:
-		bsm.err = fmt.Errorf("cannot obtain the next block to merge: %s", bsm.err)
+		bsm.err = fmt.Errorf("cannot obtain the next block to merge: %w", bsm.err)
 		return false
 	}
 }

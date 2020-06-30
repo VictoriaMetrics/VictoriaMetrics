@@ -1,6 +1,7 @@
 package opentsdb
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -46,19 +47,20 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	if c, ok := r.(net.Conn); ok {
 		if err := c.SetReadDeadline(time.Now().Add(flushTimeout)); err != nil {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot set read deadline: %s", err)
+			ctx.err = fmt.Errorf("cannot set read deadline: %w", err)
 			return false
 		}
 	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
-		if ne, ok := ctx.err.(net.Error); ok && ne.Timeout() {
+		var ne net.Error
+		if errors.As(ctx.err, &ne) && ne.Timeout() {
 			// Flush the read data on timeout and try reading again.
 			ctx.err = nil
 		} else {
 			if ctx.err != io.EOF {
 				readErrors.Inc()
-				ctx.err = fmt.Errorf("cannot read OpenTSDB put protocol data: %s", ctx.err)
+				ctx.err = fmt.Errorf("cannot read OpenTSDB put protocol data: %w", ctx.err)
 			}
 			return false
 		}

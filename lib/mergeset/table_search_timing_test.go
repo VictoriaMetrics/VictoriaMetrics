@@ -27,7 +27,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 
 	tb, items, err := newTestTable(path, itemsCount)
 	if err != nil {
-		panic(fmt.Errorf("cannot create test table at %q with %d items: %s", path, itemsCount, err))
+		panic(fmt.Errorf("cannot create test table at %q with %d items: %w", path, itemsCount, err))
 	}
 
 	// Force finishing pending merges
@@ -106,7 +106,7 @@ func benchmarkTableSearchKeysExt(b *testing.B, tb *Table, keys [][]byte, stripSu
 					}
 				}
 				if err := ts.Error(); err != nil {
-					panic(fmt.Errorf("BUG: unexpected error for searchKeys[%d]=%q: %s", i, searchKey, err))
+					panic(fmt.Errorf("BUG: unexpected error for searchKeys[%d]=%q: %w", i, searchKey, err))
 				}
 			}
 		}

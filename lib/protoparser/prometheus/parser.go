@@ -110,7 +110,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		var err error
 		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal tags: %s", err)
+			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		if len(s) > 0 && s[0] == ' ' {
 			// Fast path - skip whitespace.
@@ -226,7 +226,7 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			var err error
 			value, err = unescapeValue(s[:n+1])
 			if err != nil {
-				return s, dst, fmt.Errorf("cannot unescape value %q for tag %q: %s", s[:n+1], key, err)
+				return s, dst, fmt.Errorf("cannot unescape value %q for tag %q: %w", s[:n+1], key, err)
 			}
 			s = s[n+1:]
 		}

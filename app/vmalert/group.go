@@ -84,7 +84,7 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 			continue
 		}
 		if err := rr.Restore(ctx, q, lookback); err != nil {
-			return fmt.Errorf("error while restoring rule %q: %s", rule, err)
+			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
 	return nil
@@ -251,7 +251,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 	tss, err := rule.Exec(ctx, e.querier, returnSeries)
 	if err != nil {
 		execErrors.Inc()
-		return fmt.Errorf("rule %q: failed to execute: %s", rule, err)
+		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
 
 	if len(tss) > 0 && e.rw != nil {
@@ -259,7 +259,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 		for _, ts := range tss {
 			if err := e.rw.Push(ts); err != nil {
 				remoteWriteErrors.Inc()
-				return fmt.Errorf("rule %q: remote write failure: %s", rule, err)
+				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 			}
 		}
 	}
@@ -293,7 +293,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 	for _, nt := range e.notifiers {
 		if err := nt.Send(ctx, alerts); err != nil {
 			alertsSendErrors.Inc()
-			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %s", rule, err))
+			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %w", rule, err))
 		}
 	}
 	return errGr.Err()
