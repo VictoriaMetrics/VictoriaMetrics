@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -95,9 +94,9 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		}
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
-		var labels []prompb.Label
-		if !hasRelabeling {
-			labels = ic.Labels
+		labels := ic.Labels
+		if hasRelabeling {
+			labels = nil
 		}
 		ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, labels)
 		metricNameBufLen := len(ic.MetricNameBuf)
@@ -110,15 +109,14 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 			metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 			ic.Labels = ic.Labels[:labelsLen]
 			ic.AddLabel("", metricGroup)
-			if hasRelabeling {
-				ic.ApplyRelabeling()
-				labels = ic.Labels
-				if len(labels) == 0 {
-					// Skip metric without labels.
-					continue
-				}
-			} else {
-				labels = ic.Labels[labelsLen : labelsLen+1]
+			ic.ApplyRelabeling() // this must be called even if !hasRelabeling in order to remove labels with empty values
+			if len(ic.Labels) == 0 {
+				// Skip metric without labels.
+				continue
+			}
+			labels = ic.Labels
+			if !hasRelabeling {
+				labels = labels[labelsLen : labelsLen+1]
 			}
 			ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 			for i := range labels {
