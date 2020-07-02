@@ -147,12 +147,18 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `dns_sd_configs` - for scraping targets discovered from DNS records (SRV, A and AAAA).
   See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
 
+File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
+
+`vmagent` also support the following additional options in `scrape_config` section:
+
+* `disable_compression: true` - for disabling response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
+  in order to save network bandwidth.
+* `disable_keepalive: true` - for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
+  By default `vmagent` uses keep-alive connections to scrape targets in order to reduce overhead on connection re-establishing.
+
 Note that `vmagent` doesn't support `refresh_interval` option these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` in order to see default values for `-promscrape.*CheckInterval` flags.
-
-
-File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
 
 ### Adding labels to metrics

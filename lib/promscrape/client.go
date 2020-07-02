@@ -14,19 +14,24 @@ import (
 var (
 	maxScrapeSize = flag.Int("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected")
-	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to scrape targets. "+
-		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization")
-	disableKeepAlive = flag.Bool("promscrape.disableKeepAlive", false, "Whether to disable HTTP keep-alive connections when scraping targets. This may be useful when targets "+
-		"has no support for HTTP keep-alive connection. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
+	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. "+
+		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. "+
+		"It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
+	disableKeepAlive = flag.Bool("promscrape.disableKeepAlive", false, "Whether to disable HTTP keep-alive connections when scraping all the targets. "+
+		"This may be useful when targets has no support for HTTP keep-alive connection. "+
+		"It is possible to set `disable_keepalive: true` individually per each 'scrape_config` section in '-promscrape.config' for fine grained control. "+
+		"Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
 )
 
 type client struct {
 	hc *fasthttp.HostClient
 
-	scrapeURL  string
-	host       string
-	requestURI string
-	authHeader string
+	scrapeURL          string
+	host               string
+	requestURI         string
+	authHeader         string
+	disableCompression bool
+	disableKeepAlive   bool
 }
 
 func newClient(sw *ScrapeWork) *client {
@@ -61,10 +66,12 @@ func newClient(sw *ScrapeWork) *client {
 	return &client{
 		hc: hc,
 
-		scrapeURL:  sw.ScrapeURL,
-		host:       host,
-		requestURI: requestURI,
-		authHeader: sw.AuthConfig.Authorization,
+		scrapeURL:          sw.ScrapeURL,
+		host:               host,
+		requestURI:         requestURI,
+		authHeader:         sw.AuthConfig.Authorization,
+		disableCompression: sw.DisableCompression,
+		disableKeepAlive:   sw.DisableKeepAlive,
 	}
 }
 
@@ -72,10 +79,10 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
 	req.SetHost(c.host)
-	if !*disableCompression {
+	if !*disableCompression || c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}
-	if *disableKeepAlive {
+	if *disableKeepAlive || c.disableKeepAlive {
 		req.SetConnectionClose()
 	}
 	if c.authHeader != "" {

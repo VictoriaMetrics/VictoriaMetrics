@@ -1201,6 +1201,9 @@ scrape_configs:
 	f(`
 scrape_configs:
   - job_name: 'snmp'
+    sample_limit: 100
+    disable_keepalive: true
+    disable_compression: true
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1249,8 +1252,11 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
-			AuthConfig:      &promauth.Config{},
-			jobNameOriginal: "snmp",
+			AuthConfig:         &promauth.Config{},
+			SampleLimit:        100,
+			DisableKeepAlive:   true,
+			DisableCompression: true,
+			jobNameOriginal:    "snmp",
 		},
 	})
 }
