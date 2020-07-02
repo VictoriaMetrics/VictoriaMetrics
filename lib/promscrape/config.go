@@ -76,6 +76,10 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
 	SampleLimit          int                         `yaml:"sample_limit"`
 
+	// These options are supported only by lib/promscrape.
+	DisableCompression bool `yaml:"disable_compression"`
+	DisableKeepAlive   bool `yaml:"disable_keepalive"`
+
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
 }
@@ -404,6 +408,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
+		disableCompression:   sc.DisableCompression,
+		disableKeepAlive:     sc.DisableKeepAlive,
 	}
 	return swc, nil
 }
@@ -422,6 +428,8 @@ type scrapeWorkConfig struct {
 	relabelConfigs       []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
 	sampleLimit          int
+	disableCompression   bool
+	disableKeepAlive     bool
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
@@ -602,6 +610,8 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		SampleLimit:          swc.sampleLimit,
+		DisableCompression:   swc.disableCompression,
+		DisableKeepAlive:     swc.disableKeepAlive,
 
 		jobNameOriginal: swc.jobName,
 	})
