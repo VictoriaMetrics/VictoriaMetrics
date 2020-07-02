@@ -44,6 +44,11 @@ func insertRows(rows []parser.Row) error {
 			tag := &r.Tags[j]
 			ic.AddLabelBytes(tag.Key, tag.Value)
 		}
+		ic.ApplyRelabeling()
+		if len(ic.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		values := r.Values
 		timestamps := r.Timestamps
