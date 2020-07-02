@@ -80,6 +80,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   Use `limitk(1, q)` if you need retaining all the labels from `q`.
 - `keep_last_value(q)` - fills missing data (gaps) in `q` with the previous non-empty value.
 - `keep_next_value(q)` - fills missing data (gaps) in `q` with the next non-empty value.
+- `interpolate(q)` - fills missing data (gaps) in `q` with linearly interpolated values.
 - `distinct_over_time(m[d])` - returns distinct number of values for `m` data points over `d` duration.
 - `distinct(q)` - returns a time series with the number of unique values for each timestamp in `q`.
 - `sum2_over_time(m[d])` - returns sum of squares for all the `m` values over `d` duration.

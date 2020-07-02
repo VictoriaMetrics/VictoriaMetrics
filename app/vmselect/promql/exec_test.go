@@ -4113,6 +4113,44 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1}
 		f(q, resultExpected)
 	})
+	t.Run(`interpolate()`, func(t *testing.T) {
+		t.Parallel()
+		q := `interpolate(label_set(time() < 1300 default time() > 1700, "__name__", "foobar", "x", "y"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("foobar")
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("x"),
+			Value: []byte("y"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`interpolate(tail)`, func(t *testing.T) {
+		t.Parallel()
+		q := `interpolate(time() < 1300)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1200, 1200, 1200, 1200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`interpolate(head)`, func(t *testing.T) {
+		t.Parallel()
+		q := `interpolate(time() > 1500)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1600, 1600, 1600, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 	t.Run(`distinct_over_time([500s])`, func(t *testing.T) {
 		t.Parallel()
 		q := `distinct_over_time((time() < 1700)[500s])`
@@ -5609,6 +5647,7 @@ func TestExecError(t *testing.T) {
 	f(`median("foo", "bar")`)
 	f(`keep_last_value()`)
 	f(`keep_next_value()`)
+	f(`interpolate()`)
 	f(`distinct_over_time()`)
 	f(`distinct()`)
 	f(`alias()`)
