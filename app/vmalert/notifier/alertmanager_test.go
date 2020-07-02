@@ -52,16 +52,16 @@ func TestAlertManager_Send(t *testing.T) {
 				t.Errorf("expected 1 alert in array got %d", len(a))
 			}
 			if a[0].GeneratorURL != "0/0" {
-				t.Errorf("exptected 0/0 as generatorURL got %s", a[0].GeneratorURL)
+				t.Errorf("expected 0/0 as generatorURL got %s", a[0].GeneratorURL)
 			}
 			if a[0].Labels["alertname"] != "alert0" {
-				t.Errorf("exptected alert0 as alert name got %s", a[0].Labels["alertname"])
+				t.Errorf("expected alert0 as alert name got %s", a[0].Labels["alertname"])
 			}
 			if a[0].StartsAt.IsZero() {
-				t.Errorf("exptected non-zero start time")
+				t.Errorf("expected non-zero start time")
 			}
 			if a[0].EndAt.IsZero() {
-				t.Errorf("exptected non-zero end time")
+				t.Errorf("expected non-zero end time")
 			}
 		}
 	})

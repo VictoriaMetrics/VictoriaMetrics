@@ -41,7 +41,7 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	}
 	_, err = getAlertURLGenerator(nil, "foo?{{invalid}}", true)
 	if err == nil {
-		t.Errorf("exptected tempalte validation error got nil")
+		t.Errorf("expected tempalte validation error got nil")
 	}
 	fn, err = getAlertURLGenerator(u, "foo?query={{$value}}", true)
 	if err != nil {
