@@ -81,8 +81,29 @@ func (ctx *Ctx) Reset() {
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
 func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
+	// Remove labels with empty values, since such labels have no sense.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600 .
+	hasEmptyValues := false
+	for _, label := range labels {
+		if len(label.Value) == 0 {
+			hasEmptyValues = true
+			break
+		}
+	}
+	if hasEmptyValues {
+		dst := labels[:0]
+		for _, label := range labels {
+			if len(label.Value) == 0 {
+				continue
+			}
+			dst = append(dst, label)
+		}
+		labels = dst
+	}
+
 	prcs := prcsGlobal.Load().(*[]promrelabel.ParsedRelabelConfig)
 	if len(*prcs) == 0 {
+		// There are no relabeling rules.
 		return labels
 	}
 	// Convert src to prompbmarshal.Label format suitable for relabeling.

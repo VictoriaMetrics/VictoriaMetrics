@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -95,16 +94,14 @@ func insertRows(db string, rows []parser.Row) error {
 			metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 			ic.Labels = ic.Labels[:labelsLen]
 			ic.AddLabel("", metricGroup)
-			var labels []prompb.Label
-			if hasRelabeling {
-				ic.ApplyRelabeling()
-				labels = ic.Labels
-				if len(labels) == 0 {
-					// Skip metric without labels.
-					continue
-				}
-			} else {
-				labels = ic.Labels[labelsLen : labelsLen+1]
+			ic.ApplyRelabeling() // this must be called even if !hasRelabeling in order to remove labels with empty values
+			if len(ic.Labels) == 0 {
+				// Skip metric without labels.
+				continue
+			}
+			labels := ic.Labels
+			if !hasRelabeling {
+				labels = labels[labelsLen : labelsLen+1]
 			}
 			ic.WriteDataPoint(ctx.metricNameBuf, labels, r.Timestamp, f.Value)
 		}

@@ -746,6 +746,7 @@ func (db *indexDB) SearchTagKeys(maxTagKeys int) ([]string, error) {
 
 	keys := make([]string, 0, len(tks))
 	for key := range tks {
+		// Do not skip empty keys, since they are converted to __name__
 		keys = append(keys, key)
 	}
 
@@ -813,6 +814,11 @@ func (db *indexDB) SearchTagValues(tagKey []byte, maxTagValues int) ([]string, e
 
 	tagValues := make([]string, 0, len(tvs))
 	for tv := range tvs {
+		if len(tv) == 0 {
+			// Skip empty values, since they have no any meaning.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600
+			continue
+		}
 		tagValues = append(tagValues, tv)
 	}
 
