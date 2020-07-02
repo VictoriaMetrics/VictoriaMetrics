@@ -72,6 +72,7 @@ var transformFuncs = map[string]transformFunc{
 	"":                   transformUnion, // empty func is a synonim to union
 	"keep_last_value":    transformKeepLastValue,
 	"keep_next_value":    transformKeepNextValue,
+	"interpolate":        transformInterpolate,
 	"start":              newTransformFuncZeroArgs(transformStart),
 	"end":                newTransformFuncZeroArgs(transformEnd),
 	"step":               newTransformFuncZeroArgs(transformStep),
@@ -759,6 +760,52 @@ func transformKeepNextValue(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			values[i] = nextValue
+		}
+	}
+	return rvs, nil
+}
+
+func transformInterpolate(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		if len(values) == 0 {
+			continue
+		}
+		prevValue := nan
+		var nextValue float64
+		for i := 0; i < len(values); i++ {
+			if !math.IsNaN(values[i]) {
+				continue
+			}
+			if i > 0 {
+				prevValue = values[i-1]
+			}
+			j := i + 1
+			for j < len(values) {
+				if !math.IsNaN(values[j]) {
+					break
+				}
+				j++
+			}
+			if j >= len(values) {
+				nextValue = prevValue
+			} else {
+				nextValue = values[j]
+			}
+			if math.IsNaN(prevValue) {
+				prevValue = nextValue
+			}
+			delta := (nextValue - prevValue) / float64(j-i+1)
+			for i < j {
+				prevValue += delta
+				values[i] = prevValue
+				i++
+			}
 		}
 	}
 	return rvs, nil
