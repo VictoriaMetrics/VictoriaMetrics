@@ -16,7 +16,7 @@ var (
 	unparsedLabelsGlobal = flagutil.NewArray("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
 		"Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. These entries are applied to all the metrics "+
-		"before sending them to -remoteWrite.url. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config for details")
+		"before sending them to -remoteWrite.url. See https://victoriametrics.github.io/vmagent.html#relabeling for details")
 	relabelConfigPaths = flagutil.NewArray("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url")
 )
 

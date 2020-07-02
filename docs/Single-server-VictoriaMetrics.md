@@ -79,6 +79,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
   * [/api/v1/import](#how-to-import-time-series-data).
   * [Arbitrary CSV data](#how-to-import-csv-data).
+* Supports metrics' relabeling. See [these docs](#relabeling) for details.
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles).
@@ -111,6 +112,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to delete time series](#how-to-delete-time-series)
 * [How to export time series](#how-to-export-time-series)
 * [How to import time series data](#how-to-import-time-series-data)
+* [Relabeling](#relabeling)
 * [Federation](#federation)
 * [Capacity planning](#capacity-planning)
 * [High availability](#high-availability)
@@ -650,7 +652,7 @@ The delete API is intended mainly for the following cases:
 It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
 
 * Regular cleanups for unneeded data. Just prevent writing unneeded data into VictoriaMetrics.
-  This can be done with relabeling in [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+  This can be done with [relabeling](#relabeling).
   See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
@@ -723,6 +725,22 @@ Note that it could be required to flush response cache after importing historica
 
 Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
 and importing them concurrently. Note that the original file must be split on newlines.
+
+
+### Relabeling
+
+VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
+to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+
+Additionally VictoriaMetrics provides the following extra actions for relabeling rules:
+
+* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
+* `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
+* `keep_if_equal`: keeps the entry if all label values from `source_labels` are equal.
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
+
+See also [relabeling in vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#relabeling).
+
 
 ### Federation
 

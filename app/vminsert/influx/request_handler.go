@@ -8,8 +8,10 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -63,6 +65,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 	ic.Reset() // This line is required for initializing ic internals.
 	rowsTotal := 0
 	atCopy := *at
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -86,25 +89,41 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 		if len(db) > 0 && !hasDBLabel {
 			ic.AddLabel("db", db)
 		}
-		ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, ic.Labels)
-		metricNameBufLen := len(ic.MetricNameBuf)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
 		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
 		if len(ctx.metricGroupBuf) > 0 && !skipFieldKey {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		}
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
-		ic.AddLabel("", "placeholder")
-		placeholderLabel := &ic.Labels[len(ic.Labels)-1]
+		var labels []prompb.Label
+		if !hasRelabeling {
+			labels = ic.Labels
+		}
+		ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, labels)
+		metricNameBufLen := len(ic.MetricNameBuf)
+		labelsLen := len(ic.Labels)
 		for j := range r.Fields {
 			f := &r.Fields[j]
 			if !skipFieldKey {
 				ctx.metricGroupBuf = append(ctx.metricGroupBuf[:metricGroupPrefixLen], f.Key...)
 			}
 			metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
-			ic.Labels = ic.Labels[:len(ic.Labels)-1]
+			ic.Labels = ic.Labels[:labelsLen]
 			ic.AddLabel("", metricGroup)
-			ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf[:metricNameBufLen], placeholderLabel)
+			if hasRelabeling {
+				ic.ApplyRelabeling()
+				labels = ic.Labels
+				if len(labels) == 0 {
+					// Skip metric without labels.
+					continue
+				}
+			} else {
+				labels = ic.Labels[labelsLen : labelsLen+1]
+			}
+			ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
+			for i := range labels {
+				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &labels[i])
+			}
 			storageNodeIdx := ic.GetStorageNodeIdx(&atCopy, ic.Labels)
 			if err := ic.WriteDataPointExt(&atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
 				return err

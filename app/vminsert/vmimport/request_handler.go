@@ -41,6 +41,11 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			tag := &r.Tags[j]
 			ctx.AddLabelBytes(tag.Key, tag.Value)
 		}
+		ctx.ApplyRelabeling()
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
 		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		values := r.Values

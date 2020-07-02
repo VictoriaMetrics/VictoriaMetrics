@@ -90,7 +90,7 @@ func parseRelabelConfig(dst []ParsedRelabelConfig, rc *RelabelConfig) ([]ParsedR
 			return dst, fmt.Errorf("missing `source_labels` for `action=replace_all`")
 		}
 		if targetLabel == "" {
-			return dst, fmt.Errorf("missing `target_label` for `action=replace`")
+			return dst, fmt.Errorf("missing `target_label` for `action=replace_all`")
 		}
 	case "keep_if_equal":
 		if len(sourceLabels) < 2 {
