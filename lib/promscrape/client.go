@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -89,7 +90,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		req.Header.Set("Authorization", c.authHeader)
 	}
 	resp := fasthttp.AcquireResponse()
-	err := doRequestWithPossibleRetry(c.hc, req, resp)
+	err := doRequestWithPossibleRetry(c.hc, req, resp, c.hc.ReadTimeout)
 	statusCode := resp.StatusCode()
 	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
 		// Allow a single redirect.
@@ -144,7 +145,9 @@ var (
 	scrapesGunzipFailed = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
 )
 
-func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
+func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, timeout time.Duration) error {
+	// Round deadline to the smallest value in order to protect from too big deadline misses on retry.
+	deadline := fasttime.UnixTimestamp() + uint64(timeout.Seconds()) - 1
 	attempts := 0
 again:
 	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
@@ -155,7 +158,10 @@ again:
 	if err != fasthttp.ErrConnectionClosed {
 		return err
 	}
-	// Retry request if the server closed the keep-alive connection during the first attempt.
+	// Retry request if the server closes the keep-alive connection unless deadline exceeds.
+	if fasttime.UnixTimestamp() > deadline {
+		return fasthttp.ErrTimeout
+	}
 	attempts++
 	if attempts > 3 {
 		return fmt.Errorf("the server closed 3 subsequent connections: %w", err)
