@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -77,6 +76,7 @@ func newClient(sw *ScrapeWork) *client {
 }
 
 func (c *client) ReadData(dst []byte) ([]byte, error) {
+	deadline := time.Now().Add(c.hc.ReadTimeout)
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
 	req.SetHost(c.host)
@@ -90,7 +90,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		req.Header.Set("Authorization", c.authHeader)
 	}
 	resp := fasthttp.AcquireResponse()
-	err := doRequestWithPossibleRetry(c.hc, req, resp, c.hc.ReadTimeout)
+	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
 	statusCode := resp.StatusCode()
 	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
 		// Allow a single redirect.
@@ -98,7 +98,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		// Otherwise it won't work.
 		if location := resp.Header.Peek("Location"); len(location) > 0 {
 			req.URI().UpdateBytes(location)
-			err = c.hc.Do(req, resp)
+			err = c.hc.DoDeadline(req, resp, deadline)
 			statusCode = resp.StatusCode()
 		}
 	}
@@ -145,13 +145,12 @@ var (
 	scrapesGunzipFailed = metrics.NewCounter(`vm_promscrape_scrapes_gunzip_failed_total`)
 )
 
-func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, timeout time.Duration) error {
-	// Round deadline to the smallest value in order to protect from too big deadline misses on retry.
-	deadline := fasttime.UnixTimestamp() + uint64(timeout.Seconds()) - 1
+func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
 	attempts := 0
 again:
-	// There is no need in calling DoTimeout, since the timeout must be already set in hc.ReadTimeout.
-	err := hc.Do(req, resp)
+	// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
+	// across multiple retries.
+	err := hc.DoDeadline(req, resp, deadline)
 	if err == nil {
 		return nil
 	}
@@ -159,9 +158,6 @@ again:
 		return err
 	}
 	// Retry request if the server closes the keep-alive connection unless deadline exceeds.
-	if fasttime.UnixTimestamp() > deadline {
-		return fasthttp.ErrTimeout
-	}
 	attempts++
 	if attempts > 3 {
 		return fmt.Errorf("the server closed 3 subsequent connections: %w", err)
