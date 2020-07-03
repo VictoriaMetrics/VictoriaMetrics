@@ -85,7 +85,6 @@ func selfScraper(scrapeInterval time.Duration) {
 			mr.Timestamp = currentTimestamp
 			mr.Value = r.Value
 		}
-		logger.Infof("writing %d rows at timestamp %d", len(mrs), currentTimestamp)
 		vmstorage.AddRows(mrs)
 	}
 }

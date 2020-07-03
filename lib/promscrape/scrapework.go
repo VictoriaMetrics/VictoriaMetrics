@@ -67,6 +67,12 @@ type ScrapeWork struct {
 	// The maximum number of metrics to scrape after relabeling.
 	SampleLimit int
 
+	// Whether to disable response compression when querying ScrapeURL.
+	DisableCompression bool
+
+	// Whether to disable HTTP keep-alive when querying ScrapeURL.
+	DisableKeepAlive bool
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
@@ -76,9 +82,9 @@ type ScrapeWork struct {
 // it can be used for comparing for equality two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d",
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit)
+		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive)
 	return key
 }
 
@@ -248,6 +254,7 @@ func (sw *scrapeWork) addRowToTimeseries(r *parser.Row, timestamp int64, needRel
 		sw.labels = promrelabel.ApplyRelabelConfigs(sw.labels, labelsLen, sw.Config.MetricRelabelConfigs, true)
 	} else {
 		sw.labels = promrelabel.FinalizeLabels(sw.labels[:labelsLen], sw.labels[labelsLen:])
+		promrelabel.SortLabels(sw.labels[labelsLen:])
 	}
 	if len(sw.labels) == labelsLen {
 		// Skip row without labels.

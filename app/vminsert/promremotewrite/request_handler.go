@@ -34,10 +34,17 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 	rowsTotal := 0
 	for i := range timeseries {
 		ts := &timeseries[i]
+		// Make a shallow copy of ts.Labels before calling ctx.ApplyRelabeling, since ctx.ApplyRelabeling may modify labels.
+		ctx.Labels = append(ctx.Labels[:0], ts.Labels...)
+		ctx.ApplyRelabeling()
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
 		var metricNameRaw []byte
 		for i := range ts.Samples {
 			r := &ts.Samples[i]
-			metricNameRaw = ctx.WriteDataPointExt(metricNameRaw, ts.Labels, r.Timestamp, r.Value)
+			metricNameRaw = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, r.Timestamp, r.Value)
 		}
 		rowsTotal += len(ts.Samples)
 	}

@@ -61,6 +61,7 @@ run-vmalert: vmalert
 	./bin/vmalert -rule=app/vmalert/config/testdata/rules2-good.rules \
 		-datasource.url=http://localhost:8428 \
 		-notifier.url=http://localhost:9093 \
+		-notifier.url=http://127.0.0.1:9093 \
 		-remoteWrite.url=http://localhost:8428 \
 		-remoteRead.url=http://localhost:8428 \
 		-evaluationInterval=3s

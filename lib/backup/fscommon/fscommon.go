@@ -13,11 +13,11 @@ import (
 func FsyncFile(path string) error {
 	if err := fsync(path); err != nil {
 		_ = os.RemoveAll(path)
-		return fmt.Errorf("cannot fsync file %q: %s", path, err)
+		return fmt.Errorf("cannot fsync file %q: %w", path, err)
 	}
 	dir := filepath.Dir(path)
 	if err := fsync(dir); err != nil {
-		return fmt.Errorf("cannot fsync dir %q: %s", dir, err)
+		return fmt.Errorf("cannot fsync dir %q: %w", dir, err)
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func fsync(path string) error {
 func AppendFiles(dst []string, dir string) ([]string, error) {
 	d, err := os.Open(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %s", dir, err)
+		return nil, fmt.Errorf("cannot open %q: %w", dir, err)
 	}
 	dst, err = appendFilesInternal(dst, d)
 	if err1 := d.Close(); err1 != nil {
@@ -58,14 +58,14 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 	dir := d.Name()
 	dfi, err := d.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("cannot stat %q: %s", dir, err)
+		return nil, fmt.Errorf("cannot stat %q: %w", dir, err)
 	}
 	if !dfi.IsDir() {
 		return nil, fmt.Errorf("%q isn't a directory", dir)
 	}
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read directory contents in %q: %s", dir, err)
+		return nil, fmt.Errorf("cannot read directory contents in %q: %w", dir, err)
 	}
 	for _, fi := range fis {
 		name := fi.Name()
@@ -82,7 +82,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			// Process directory
 			dst, err = AppendFiles(dst, path)
 			if err != nil {
-				return nil, fmt.Errorf("cannot list %q: %s", path, err)
+				return nil, fmt.Errorf("cannot list %q: %w", path, err)
 			}
 			continue
 		}
@@ -100,17 +100,17 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 				// Skip symlink that points to nowhere.
 				continue
 			}
-			return nil, fmt.Errorf("cannot resolve symlink %q: %s", pathOrig, err)
+			return nil, fmt.Errorf("cannot resolve symlink %q: %w", pathOrig, err)
 		}
 		sfi, err := os.Stat(pathReal)
 		if err != nil {
-			return nil, fmt.Errorf("cannot stat %q from symlink %q: %s", pathReal, path, err)
+			return nil, fmt.Errorf("cannot stat %q from symlink %q: %w", pathReal, path, err)
 		}
 		if sfi.IsDir() {
 			// Symlink points to directory
 			dstNew, err := AppendFiles(dst, pathReal)
 			if err != nil {
-				return nil, fmt.Errorf("cannot list files at %q from symlink %q: %s", pathReal, path, err)
+				return nil, fmt.Errorf("cannot list files at %q from symlink %q: %w", pathReal, path, err)
 			}
 			pathReal += "/"
 			for i := len(dst); i < len(dstNew); i++ {
@@ -163,14 +163,14 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	dir := d.Name()
 	dfi, err := d.Stat()
 	if err != nil {
-		return false, fmt.Errorf("cannot stat %q: %s", dir, err)
+		return false, fmt.Errorf("cannot stat %q: %w", dir, err)
 	}
 	if !dfi.IsDir() {
 		return false, fmt.Errorf("%q isn't a directory", dir)
 	}
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return false, fmt.Errorf("cannot read directory contents in %q: %s", dir, err)
+		return false, fmt.Errorf("cannot read directory contents in %q: %w", dir, err)
 	}
 	dirEntries := 0
 	hasFlock := false
@@ -184,7 +184,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 			// Process directory
 			ok, err := removeEmptyDirs(path)
 			if err != nil {
-				return false, fmt.Errorf("cannot list %q: %s", path, err)
+				return false, fmt.Errorf("cannot list %q: %w", path, err)
 			}
 			if !ok {
 				dirEntries++
@@ -209,21 +209,21 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 				// Remove symlink that points to nowere.
 				logger.Infof("removing broken symlink %q", pathOrig)
 				if err := os.Remove(pathOrig); err != nil {
-					return false, fmt.Errorf("cannot remove %q: %s", pathOrig, err)
+					return false, fmt.Errorf("cannot remove %q: %w", pathOrig, err)
 				}
 				continue
 			}
-			return false, fmt.Errorf("cannot resolve symlink %q: %s", pathOrig, err)
+			return false, fmt.Errorf("cannot resolve symlink %q: %w", pathOrig, err)
 		}
 		sfi, err := os.Stat(pathReal)
 		if err != nil {
-			return false, fmt.Errorf("cannot stat %q from symlink %q: %s", pathReal, path, err)
+			return false, fmt.Errorf("cannot stat %q from symlink %q: %w", pathReal, path, err)
 		}
 		if sfi.IsDir() {
 			// Symlink points to directory
 			ok, err := removeEmptyDirs(pathReal)
 			if err != nil {
-				return false, fmt.Errorf("cannot list files at %q from symlink %q: %s", pathReal, path, err)
+				return false, fmt.Errorf("cannot list files at %q from symlink %q: %w", pathReal, path, err)
 			}
 			if !ok {
 				dirEntries++
@@ -231,7 +231,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 				// Remove the symlink
 				logger.Infof("removing symlink that points to empty dir %q", pathOrig)
 				if err := os.Remove(pathOrig); err != nil {
-					return false, fmt.Errorf("cannot remove %q: %s", pathOrig, err)
+					return false, fmt.Errorf("cannot remove %q: %w", pathOrig, err)
 				}
 			}
 			continue
@@ -252,11 +252,11 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	if hasFlock {
 		flockFilepath := dir + "/flock.lock"
 		if err := os.Remove(flockFilepath); err != nil {
-			return false, fmt.Errorf("cannot remove %q: %s", flockFilepath, err)
+			return false, fmt.Errorf("cannot remove %q: %w", flockFilepath, err)
 		}
 	}
 	if err := os.Remove(dir); err != nil {
-		return false, fmt.Errorf("cannot remove %q: %s", dir, err)
+		return false, fmt.Errorf("cannot remove %q: %w", dir, err)
 	}
 	return true, nil
 }

@@ -207,7 +207,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			Dir:           dir,
 		}
 		if err := fs.Init(); err != nil {
-			return nil, fmt.Errorf("cannot initialize connection to gcs: %s", err)
+			return nil, fmt.Errorf("cannot initialize connection to gcs: %w", err)
 		}
 		return fs, nil
 	case "s3":
@@ -226,7 +226,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			Dir:            dir,
 		}
 		if err := fs.Init(); err != nil {
-			return nil, fmt.Errorf("cannot initialize connection to s3: %s", err)
+			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)
 		}
 		return fs, nil
 	default:

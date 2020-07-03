@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -59,6 +60,7 @@ func insertRows(db string, rows []parser.Row) error {
 	ic := &ctx.Common
 	ic.Reset(rowsLen)
 	rowsTotal := 0
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -73,22 +75,35 @@ func insertRows(db string, rows []parser.Row) error {
 		if len(db) > 0 && !hasDBLabel {
 			ic.AddLabel("db", db)
 		}
-		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
 		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
 		if len(ctx.metricGroupBuf) > 0 && !skipFieldKey {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		}
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
+		ctx.metricNameBuf = ctx.metricNameBuf[:0]
+		if !hasRelabeling {
+			ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf, ic.Labels)
+		}
+		labelsLen := len(ic.Labels)
 		for j := range r.Fields {
 			f := &r.Fields[j]
 			if !skipFieldKey {
 				ctx.metricGroupBuf = append(ctx.metricGroupBuf[:metricGroupPrefixLen], f.Key...)
 			}
 			metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
-			ic.Labels = ic.Labels[:0]
+			ic.Labels = ic.Labels[:labelsLen]
 			ic.AddLabel("", metricGroup)
-			ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[:1], r.Timestamp, f.Value)
+			ic.ApplyRelabeling() // this must be called even if !hasRelabeling in order to remove labels with empty values
+			if len(ic.Labels) == 0 {
+				// Skip metric without labels.
+				continue
+			}
+			labels := ic.Labels
+			if !hasRelabeling {
+				labels = labels[labelsLen : labelsLen+1]
+			}
+			ic.WriteDataPoint(ctx.metricNameBuf, labels, r.Timestamp, f.Value)
 		}
 		rowsTotal += len(r.Fields)
 	}

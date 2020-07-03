@@ -54,7 +54,7 @@ func (hs *hexString) UnmarshalJSON(data []byte) error {
 	data = data[1 : len(data)-1]
 	b, err := hex.DecodeString(string(data))
 	if err != nil {
-		return fmt.Errorf("cannot hex-decode %q: %s", data, err)
+		return fmt.Errorf("cannot hex-decode %q: %w", data, err)
 	}
 	*hs = b
 	return nil
@@ -101,7 +101,7 @@ func (ph *partHeader) ParseFromPath(partPath string) error {
 	// Read itemsCount from partName.
 	itemsCount, err := strconv.ParseUint(a[0], 10, 64)
 	if err != nil {
-		return fmt.Errorf("cannot parse itemsCount from partName %q: %s", partName, err)
+		return fmt.Errorf("cannot parse itemsCount from partName %q: %w", partName, err)
 	}
 	ph.itemsCount = itemsCount
 	if ph.itemsCount <= 0 {
@@ -111,7 +111,7 @@ func (ph *partHeader) ParseFromPath(partPath string) error {
 	// Read blocksCount from partName.
 	blocksCount, err := strconv.ParseUint(a[1], 10, 64)
 	if err != nil {
-		return fmt.Errorf("cannot parse blocksCount from partName %q: %s", partName, err)
+		return fmt.Errorf("cannot parse blocksCount from partName %q: %w", partName, err)
 	}
 	ph.blocksCount = blocksCount
 	if ph.blocksCount <= 0 {
@@ -126,12 +126,12 @@ func (ph *partHeader) ParseFromPath(partPath string) error {
 	metadataPath := partPath + "/metadata.json"
 	metadata, err := ioutil.ReadFile(metadataPath)
 	if err != nil {
-		return fmt.Errorf("cannot read %q: %s", metadataPath, err)
+		return fmt.Errorf("cannot read %q: %w", metadataPath, err)
 	}
 
 	var phj partHeaderJSON
 	if err := json.Unmarshal(metadata, &phj); err != nil {
-		return fmt.Errorf("cannot parse %q: %s", metadataPath, err)
+		return fmt.Errorf("cannot parse %q: %w", metadataPath, err)
 	}
 	if ph.itemsCount != phj.ItemsCount {
 		return fmt.Errorf("invalid ItemsCount in %q; got %d; want %d", metadataPath, phj.ItemsCount, ph.itemsCount)
@@ -161,11 +161,11 @@ func (ph *partHeader) WriteMetadata(partPath string) error {
 	}
 	metadata, err := json.MarshalIndent(&phj, "", "\t")
 	if err != nil {
-		return fmt.Errorf("cannot marshal metadata: %s", err)
+		return fmt.Errorf("cannot marshal metadata: %w", err)
 	}
 	metadataPath := partPath + "/metadata.json"
 	if err := fs.WriteFileAtomically(metadataPath, metadata); err != nil {
-		return fmt.Errorf("cannot create %q: %s", metadataPath, err)
+		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
 	}
 	return nil
 }

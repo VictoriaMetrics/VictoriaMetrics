@@ -60,7 +60,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		// Check for correct part size.
 		fi, err := os.Stat(file)
 		if err != nil {
-			return nil, fmt.Errorf("cannot stat file %q for part %q: %s", file, p.Path, err)
+			return nil, fmt.Errorf("cannot stat file %q for part %q: %w", file, p.Path, err)
 		}
 		p.ActualSize = uint64(fi.Size())
 		parts = append(parts, p)
@@ -72,7 +72,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 func (fs *FS) DeletePart(p common.Part) error {
 	path := fs.path(p)
 	if err := os.Remove(path); err != nil {
-		return fmt.Errorf("cannot remove %q: %s", path, err)
+		return fmt.Errorf("cannot remove %q: %w", path, err)
 	}
 	return nil
 }
@@ -103,12 +103,12 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	// Cannot create hardlink. Just copy file contents
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot open file %q: %s", srcPath, err)
+		return fmt.Errorf("cannot open file %q: %w", srcPath, err)
 	}
 	dstFile, err := os.Create(dstPath)
 	if err != nil {
 		_ = srcFile.Close()
-		return fmt.Errorf("cannot create file %q: %s", dstPath, err)
+		return fmt.Errorf("cannot create file %q: %w", dstPath, err)
 	}
 	n, err := io.Copy(dstFile, srcFile)
 	if err1 := dstFile.Close(); err1 != nil {
@@ -137,14 +137,14 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	path := fs.path(p)
 	r, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("cannot open %q: %s", path, err)
+		return fmt.Errorf("cannot open %q: %w", path, err)
 	}
 	n, err := io.Copy(w, r)
 	if err1 := r.Close(); err1 != nil && err == nil {
 		err = err1
 	}
 	if err != nil {
-		return fmt.Errorf("cannot download data from %q: %s", path, err)
+		return fmt.Errorf("cannot download data from %q: %w", path, err)
 	}
 	if uint64(n) != p.Size {
 		return fmt.Errorf("wrong data size downloaded from %q; got %d bytes; want %d bytes", path, n, p.Size)
@@ -160,7 +160,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	}
 	w, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("cannot create file %q: %s", path, err)
+		return fmt.Errorf("cannot create file %q: %w", path, err)
 	}
 	n, err := io.Copy(w, r)
 	if err1 := w.Close(); err1 != nil && err == nil {
@@ -168,7 +168,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	}
 	if err != nil {
 		_ = os.RemoveAll(path)
-		return fmt.Errorf("cannot upload data to %q: %s", path, err)
+		return fmt.Errorf("cannot upload data to %q: %w", path, err)
 	}
 	if uint64(n) != p.Size {
 		_ = os.RemoveAll(path)
@@ -184,7 +184,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 func (fs *FS) mkdirAll(filePath string) error {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("cannot create directory %q: %s", dir, err)
+		return fmt.Errorf("cannot create directory %q: %w", dir, err)
 	}
 	return nil
 }
@@ -200,7 +200,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 	path := filepath.Join(fs.Dir, filePath)
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("cannot remove %q: %s", path, err)
+		return fmt.Errorf("cannot remove %q: %w", path, err)
 	}
 	return nil
 }
@@ -214,7 +214,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		return err
 	}
 	if err := ioutil.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("cannot write %d bytes to %q: %s", len(data), path, err)
+		return fmt.Errorf("cannot write %d bytes to %q: %w", len(data), path, err)
 	}
 	return nil
 }
@@ -227,7 +227,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("cannot stat %q: %s", path, err)
+		return false, fmt.Errorf("cannot stat %q: %w", path, err)
 	}
 	if fi.IsDir() {
 		return false, fmt.Errorf("%q is directory, while file is needed", path)

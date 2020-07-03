@@ -14,17 +14,24 @@ import (
 var (
 	maxScrapeSize = flag.Int("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected")
-	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to scrape targets. "+
-		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization")
+	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. "+
+		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. "+
+		"It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
+	disableKeepAlive = flag.Bool("promscrape.disableKeepAlive", false, "Whether to disable HTTP keep-alive connections when scraping all the targets. "+
+		"This may be useful when targets has no support for HTTP keep-alive connection. "+
+		"It is possible to set `disable_keepalive: true` individually per each 'scrape_config` section in '-promscrape.config' for fine grained control. "+
+		"Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
 )
 
 type client struct {
 	hc *fasthttp.HostClient
 
-	scrapeURL  string
-	host       string
-	requestURI string
-	authHeader string
+	scrapeURL          string
+	host               string
+	requestURI         string
+	authHeader         string
+	disableCompression bool
+	disableKeepAlive   bool
 }
 
 func newClient(sw *ScrapeWork) *client {
@@ -59,10 +66,12 @@ func newClient(sw *ScrapeWork) *client {
 	return &client{
 		hc: hc,
 
-		scrapeURL:  sw.ScrapeURL,
-		host:       host,
-		requestURI: requestURI,
-		authHeader: sw.AuthConfig.Authorization,
+		scrapeURL:          sw.ScrapeURL,
+		host:               host,
+		requestURI:         requestURI,
+		authHeader:         sw.AuthConfig.Authorization,
+		disableCompression: sw.DisableCompression,
+		disableKeepAlive:   sw.DisableKeepAlive,
 	}
 }
 
@@ -70,8 +79,11 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
 	req.SetHost(c.host)
-	if !*disableCompression {
+	if !*disableCompression || c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
+	}
+	if *disableKeepAlive || c.disableKeepAlive {
+		req.SetConnectionClose()
 	}
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
@@ -94,13 +106,13 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		fasthttp.ReleaseResponse(resp)
 		if err == fasthttp.ErrTimeout {
 			scrapesTimedout.Inc()
-			return dst, fmt.Errorf("error when scraping %q with timeout %s: %s", c.scrapeURL, c.hc.ReadTimeout, err)
+			return dst, fmt.Errorf("error when scraping %q with timeout %s: %w", c.scrapeURL, c.hc.ReadTimeout, err)
 		}
 		if err == fasthttp.ErrBodyTooLarge {
 			return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
 				"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, *maxScrapeSize)
 		}
-		return dst, fmt.Errorf("error when scraping %q: %s", c.scrapeURL, err)
+		return dst, fmt.Errorf("error when scraping %q: %w", c.scrapeURL, err)
 	}
 	dstLen := len(dst)
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
@@ -109,7 +121,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		if err != nil {
 			fasthttp.ReleaseResponse(resp)
 			scrapesGunzipFailed.Inc()
-			return dst, fmt.Errorf("cannot ungzip response from %q: %s", c.scrapeURL, err)
+			return dst, fmt.Errorf("cannot ungzip response from %q: %w", c.scrapeURL, err)
 		}
 		scrapesGunzipped.Inc()
 	} else {
@@ -146,7 +158,7 @@ again:
 	// Retry request if the server closed the keep-alive connection during the first attempt.
 	attempts++
 	if attempts > 3 {
-		return fmt.Errorf("the server closed 3 subsequent connections: %s", err)
+		return fmt.Errorf("the server closed 3 subsequent connections: %w", err)
 	}
 	goto again
 }

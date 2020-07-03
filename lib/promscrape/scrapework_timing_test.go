@@ -42,7 +42,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 		timestamp := int64(0)
 		for pb.Next() {
 			if err := sw.scrapeInternal(timestamp); err != nil {
-				panic(fmt.Errorf("unexpected error: %s", err))
+				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 			timestamp++
 		}

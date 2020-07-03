@@ -110,12 +110,12 @@ func newSrcFS() (*fslocal.FS, error) {
 	// Verify the snapshot exists.
 	f, err := os.Open(snapshotPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open snapshot at %q: %s", snapshotPath, err)
+		return nil, fmt.Errorf("cannot open snapshot at %q: %w", snapshotPath, err)
 	}
 	fi, err := f.Stat()
 	_ = f.Close()
 	if err != nil {
-		return nil, fmt.Errorf("cannot stat %q: %s", snapshotPath, err)
+		return nil, fmt.Errorf("cannot stat %q: %w", snapshotPath, err)
 	}
 	if !fi.IsDir() {
 		return nil, fmt.Errorf("snapshot %q must be a directory", snapshotPath)
@@ -126,7 +126,7 @@ func newSrcFS() (*fslocal.FS, error) {
 		MaxBytesPerSecond: *maxBytesPerSecond,
 	}
 	if err := fs.Init(); err != nil {
-		return nil, fmt.Errorf("cannot initialize fs: %s", err)
+		return nil, fmt.Errorf("cannot initialize fs: %w", err)
 	}
 	return fs, nil
 }
@@ -134,7 +134,7 @@ func newSrcFS() (*fslocal.FS, error) {
 func newDstFS() (common.RemoteFS, error) {
 	fs, err := actions.NewRemoteFS(*dst)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `-dst`=%q: %s", *dst, err)
+		return nil, fmt.Errorf("cannot parse `-dst`=%q: %w", *dst, err)
 	}
 	return fs, nil
 }
@@ -145,7 +145,7 @@ func newOriginFS() (common.RemoteFS, error) {
 	}
 	fs, err := actions.NewRemoteFS(*origin)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `-origin`=%q: %s", *origin, err)
+		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}
 	return fs, nil
 }

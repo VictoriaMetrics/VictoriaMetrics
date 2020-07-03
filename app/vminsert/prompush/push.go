@@ -1,13 +1,8 @@
 package prompush
 
 import (
-	"runtime"
-	"sync"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -21,8 +16,8 @@ const maxRowsPerBlock = 10000
 
 // Push pushes wr to storage.
 func Push(wr *prompbmarshal.WriteRequest) {
-	ctx := getPushCtx()
-	defer putPushCtx(ctx)
+	ctx := common.GetInsertCtx()
+	defer common.PutInsertCtx(ctx)
 
 	tss := wr.Timeseries
 	for len(tss) > 0 {
@@ -34,80 +29,39 @@ func Push(wr *prompbmarshal.WriteRequest) {
 		} else {
 			tss = nil
 		}
-		ctx.push(tssBlock)
+		push(ctx, tssBlock)
 	}
 }
 
-func (ctx *pushCtx) push(tss []prompbmarshal.TimeSeries) {
+func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 	rowsLen := 0
 	for i := range tss {
 		rowsLen += len(tss[i].Samples)
 	}
-	ic := &ctx.Common
-	ic.Reset(rowsLen)
+	ctx.Reset(rowsLen)
 	rowsTotal := 0
-	labels := ctx.labels[:0]
 	for i := range tss {
 		ts := &tss[i]
-		labels = labels[:0]
+		ctx.Labels = ctx.Labels[:0]
 		for j := range ts.Labels {
 			label := &ts.Labels[j]
-			labels = append(labels, prompb.Label{
-				Name:  bytesutil.ToUnsafeBytes(label.Name),
-				Value: bytesutil.ToUnsafeBytes(label.Value),
-			})
+			ctx.AddLabel(label.Name, label.Value)
+		}
+		ctx.ApplyRelabeling()
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
 		}
 		var metricNameRaw []byte
 		for i := range ts.Samples {
 			r := &ts.Samples[i]
-			metricNameRaw = ic.WriteDataPointExt(metricNameRaw, labels, r.Timestamp, r.Value)
+			metricNameRaw = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, r.Timestamp, r.Value)
 		}
 		rowsTotal += len(ts.Samples)
 	}
-	ctx.labels = labels
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
-	if err := ic.FlushBufs(); err != nil {
+	if err := ctx.FlushBufs(); err != nil {
 		logger.Errorf("cannot flush promscrape data to storage: %s", err)
 	}
 }
-
-type pushCtx struct {
-	Common common.InsertCtx
-	labels []prompb.Label
-}
-
-func (ctx *pushCtx) reset() {
-	ctx.Common.Reset(0)
-
-	for i := range ctx.labels {
-		label := &ctx.labels[i]
-		label.Name = nil
-		label.Value = nil
-	}
-	ctx.labels = ctx.labels[:0]
-}
-
-func getPushCtx() *pushCtx {
-	select {
-	case ctx := <-pushCtxPoolCh:
-		return ctx
-	default:
-		if v := pushCtxPool.Get(); v != nil {
-			return v.(*pushCtx)
-		}
-		return &pushCtx{}
-	}
-}
-
-func putPushCtx(ctx *pushCtx) {
-	ctx.reset()
-	select {
-	case pushCtxPoolCh <- ctx:
-	default:
-		pushCtxPool.Put(ctx)
-	}
-}
-
-var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))

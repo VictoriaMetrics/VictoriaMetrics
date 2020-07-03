@@ -28,11 +28,11 @@ func getAllServiceNodes(cfg *apiConfig) ([]ServiceNode, error) {
 	// See https://www.consul.io/api/catalog.html#list-services
 	data, err := getAPIResponse(cfg, "/v1/catalog/services")
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain services: %s", err)
+		return nil, fmt.Errorf("cannot obtain services: %w", err)
 	}
 	var m map[string][]string
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("cannot parse services response %q: %s", data, err)
+		return nil, fmt.Errorf("cannot parse services response %q: %w", data, err)
 	}
 	serviceNames := make(map[string]bool)
 	for serviceName, tags := range m {
@@ -125,7 +125,7 @@ func getServiceNodes(cfg *apiConfig, serviceName string) ([]ServiceNode, error) 
 	}
 	data, err := getAPIResponse(cfg, path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain instances for serviceName=%q: %s", serviceName, err)
+		return nil, fmt.Errorf("cannot obtain instances for serviceName=%q: %w", serviceName, err)
 	}
 	return parseServiceNodes(data)
 }
@@ -173,7 +173,7 @@ type Check struct {
 func parseServiceNodes(data []byte) ([]ServiceNode, error) {
 	var sns []ServiceNode
 	if err := json.Unmarshal(data, &sns); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal ServiceNodes from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal ServiceNodes from %q: %w", data, err)
 	}
 	return sns, nil
 }

@@ -247,12 +247,12 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 		bs = append(bs, b)
 	}
 	if err := pts.Error(); err != nil {
-		return fmt.Errorf("unexpected error: %s", err)
+		return fmt.Errorf("unexpected error: %w", err)
 	}
 	pts.MustClose()
 	rbs := newTestRawBlocks(bs, tr)
 	if err := testEqualRawBlocks(rbs, rbsExpected); err != nil {
-		return fmt.Errorf("unequal blocks: %s", err)
+		return fmt.Errorf("unequal blocks: %w", err)
 	}
 
 	if rowsCountExpected >= 0 {
@@ -270,7 +270,7 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 		return fmt.Errorf("unexpected block got for an empty tsids list: %+v", pts.BlockRef)
 	}
 	if err := pts.Error(); err != nil {
-		return fmt.Errorf("unexpected error on empty tsids list: %s", err)
+		return fmt.Errorf("unexpected error on empty tsids list: %w", err)
 	}
 	pts.MustClose()
 

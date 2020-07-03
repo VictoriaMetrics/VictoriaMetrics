@@ -76,6 +76,10 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
 	SampleLimit          int                         `yaml:"sample_limit"`
 
+	// These options are supported only by lib/promscrape.
+	DisableCompression bool `yaml:"disable_compression"`
+	DisableKeepAlive   bool `yaml:"disable_keepalive"`
+
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
 }
@@ -99,11 +103,11 @@ type StaticConfig struct {
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read `static_configs` from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
 	var stcs []StaticConfig
 	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
 	}
 	return stcs, nil
 }
@@ -112,11 +116,11 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	data, err = ioutil.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
 	var cfgObj Config
 	if err := cfgObj.parse(data, path); err != nil {
-		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
 	if *dryRun {
 		// This is a dirty hack for checking Prometheus config only.
@@ -130,18 +134,18 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 
 func (cfg *Config) parse(data []byte, path string) error {
 	if err := unmarshalMaybeStrict(data, cfg); err != nil {
-		return fmt.Errorf("cannot unmarshal data: %s", err)
+		return fmt.Errorf("cannot unmarshal data: %w", err)
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("cannot obtain abs path for %q: %s", path, err)
+		return fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
 	}
 	cfg.baseDir = filepath.Dir(absPath)
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return fmt.Errorf("cannot parse `scrape_config` #%d: %s", i+1, err)
+			return fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
 		}
 		sc.swc = swc
 	}
@@ -378,17 +382,17 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	params := sc.Params
 	ac, err := promauth.NewConfig(baseDir, sc.BasicAuth, sc.BearerToken, sc.BearerTokenFile, sc.TLSConfig)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %s", jobName, err)
+		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
 	var relabelConfigs []promrelabel.ParsedRelabelConfig
 	relabelConfigs, err = promrelabel.ParseRelabelConfigs(relabelConfigs[:0], sc.RelabelConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %s", jobName, err)
+		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
 	var metricRelabelConfigs []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs, err = promrelabel.ParseRelabelConfigs(metricRelabelConfigs[:0], sc.MetricRelabelConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %s", jobName, err)
+		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
@@ -404,6 +408,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
+		disableCompression:   sc.DisableCompression,
+		disableKeepAlive:     sc.DisableKeepAlive,
 	}
 	return swc, nil
 }
@@ -422,6 +428,8 @@ type scrapeWorkConfig struct {
 	relabelConfigs       []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
 	sampleLimit          int
+	disableCompression   bool
+	disableKeepAlive     bool
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
@@ -580,7 +588,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	paramsStr := url.Values(paramsRelabeled).Encode()
 	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, addressRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
 	if _, err := url.Parse(scrapeURL); err != nil {
-		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
+		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %w",
 			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
 	}
 	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
@@ -602,6 +610,8 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		SampleLimit:          swc.sampleLimit,
+		DisableCompression:   swc.disableCompression,
+		DisableKeepAlive:     swc.disableKeepAlive,
 
 		jobNameOriginal: swc.jobName,
 	})

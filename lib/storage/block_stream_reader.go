@@ -131,20 +131,20 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	path = filepath.Clean(path)
 
 	if err := bsr.ph.ParseFromPath(path); err != nil {
-		return fmt.Errorf("cannot parse path to part: %s", err)
+		return fmt.Errorf("cannot parse path to part: %w", err)
 	}
 
 	timestampsPath := path + "/timestamps.bin"
 	timestampsFile, err := filestream.Open(timestampsPath, true)
 	if err != nil {
-		return fmt.Errorf("cannot open timestamps file in stream mode: %s", err)
+		return fmt.Errorf("cannot open timestamps file in stream mode: %w", err)
 	}
 
 	valuesPath := path + "/values.bin"
 	valuesFile, err := filestream.Open(valuesPath, true)
 	if err != nil {
 		timestampsFile.MustClose()
-		return fmt.Errorf("cannot open values file in stream mode: %s", err)
+		return fmt.Errorf("cannot open values file in stream mode: %w", err)
 	}
 
 	indexPath := path + "/index.bin"
@@ -152,7 +152,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	if err != nil {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
-		return fmt.Errorf("cannot open index file in stream mode: %s", err)
+		return fmt.Errorf("cannot open index file in stream mode: %w", err)
 	}
 
 	metaindexPath := path + "/metaindex.bin"
@@ -161,7 +161,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
 		indexFile.MustClose()
-		return fmt.Errorf("cannot open metaindex file in stream mode: %s", err)
+		return fmt.Errorf("cannot open metaindex file in stream mode: %w", err)
 	}
 	mrs, err := unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
 	metaindexFile.MustClose()
@@ -169,7 +169,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
 		indexFile.MustClose()
-		return fmt.Errorf("cannot unmarshal metaindex rows from inmemoryPart: %s", err)
+		return fmt.Errorf("cannot unmarshal metaindex rows from inmemoryPart: %w", err)
 	}
 
 	bsr.path = path
@@ -199,7 +199,7 @@ func (bsr *blockStreamReader) Error() error {
 	if bsr.err == nil || bsr.err == io.EOF {
 		return nil
 	}
-	return fmt.Errorf("error when reading part %q: %s", bsr, bsr.err)
+	return fmt.Errorf("error when reading part %q: %w", bsr, bsr.err)
 }
 
 // NextBlock advances bsr to the next block.
@@ -223,7 +223,7 @@ func (bsr *blockStreamReader) NextBlock() bool {
 		return false
 	}
 
-	bsr.err = fmt.Errorf("cannot read next block: %s", err)
+	bsr.err = fmt.Errorf("cannot read next block: %w", err)
 	return false
 }
 
@@ -238,7 +238,7 @@ func (bsr *blockStreamReader) readBlock() error {
 			if err == io.EOF {
 				return io.EOF
 			}
-			return fmt.Errorf("cannot read index block from index data: %s", err)
+			return fmt.Errorf("cannot read index block from index data: %w", err)
 		}
 	}
 
@@ -251,7 +251,7 @@ func (bsr *blockStreamReader) readBlock() error {
 	bsr.indexCursor = bsr.indexCursor[marshaledBlockHeaderSize:]
 	tail, err := bsr.Block.bh.Unmarshal(bsr.Block.headerData)
 	if err != nil {
-		return fmt.Errorf("cannot parse block header read from index data at offset %d: %s", bsr.prevIndexBlockOffset(), err)
+		return fmt.Errorf("cannot parse block header read from index data at offset %d: %w", bsr.prevIndexBlockOffset(), err)
 	}
 	if len(tail) > 0 {
 		return fmt.Errorf("non-empty tail left after parsing block header at offset %d: %x", bsr.prevIndexBlockOffset(), tail)
@@ -287,13 +287,13 @@ func (bsr *blockStreamReader) readBlock() error {
 	// Read timestamps data.
 	bsr.Block.timestampsData = bytesutil.Resize(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
 	if err := fs.ReadFullData(bsr.timestampsReader, bsr.Block.timestampsData); err != nil {
-		return fmt.Errorf("cannot read timestamps block at offset %d: %s", bsr.timestampsBlockOffset, err)
+		return fmt.Errorf("cannot read timestamps block at offset %d: %w", bsr.timestampsBlockOffset, err)
 	}
 
 	// Read values data.
 	bsr.Block.valuesData = bytesutil.Resize(bsr.Block.valuesData, int(bsr.Block.bh.ValuesBlockSize))
 	if err := fs.ReadFullData(bsr.valuesReader, bsr.Block.valuesData); err != nil {
-		return fmt.Errorf("cannot read values block at offset %d: %s", bsr.valuesBlockOffset, err)
+		return fmt.Errorf("cannot read values block at offset %d: %w", bsr.valuesBlockOffset, err)
 	}
 
 	// Update offsets.
@@ -326,11 +326,11 @@ func (bsr *blockStreamReader) readIndexBlock() error {
 	// Read index block.
 	bsr.compressedIndexData = bytesutil.Resize(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
 	if err := fs.ReadFullData(bsr.indexReader, bsr.compressedIndexData); err != nil {
-		return fmt.Errorf("cannot read index block from index data at offset %d: %s", bsr.indexBlockOffset, err)
+		return fmt.Errorf("cannot read index block from index data at offset %d: %w", bsr.indexBlockOffset, err)
 	}
 	tmpData, err := encoding.DecompressZSTD(bsr.indexData[:0], bsr.compressedIndexData)
 	if err != nil {
-		return fmt.Errorf("cannot decompress index block read at offset %d: %s", bsr.indexBlockOffset, err)
+		return fmt.Errorf("cannot decompress index block read at offset %d: %w", bsr.indexBlockOffset, err)
 	}
 	bsr.indexData = tmpData
 	bsr.indexCursor = bsr.indexData

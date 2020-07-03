@@ -36,7 +36,7 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if len(region) == 0 {
 		r, err := getDefaultRegion()
 		if err != nil {
-			return nil, fmt.Errorf("cannot determine default ec2 region; probably, `region` param in `ec2_sd_configs` is missing; the error: %s", err)
+			return nil, fmt.Errorf("cannot determine default ec2 region; probably, `region` param in `ec2_sd_configs` is missing; the error: %w", err)
 		}
 		region = r
 	}
@@ -88,7 +88,7 @@ func getDefaultRegion() (string, error) {
 	}
 	var id IdentityDocument
 	if err := json.Unmarshal(data, &id); err != nil {
-		return "", fmt.Errorf("cannot parse identity document: %s", err)
+		return "", fmt.Errorf("cannot parse identity document: %w", err)
 	}
 	return id.Region, nil
 }
@@ -109,28 +109,28 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 	sessionTokenURL := "http://169.254.169.254/latest/api/token"
 	req, err := http.NewRequest("PUT", sessionTokenURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %s", sessionTokenURL, err)
+		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %w", sessionTokenURL, err)
 	}
 	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "60")
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain IMDSv2 session token from %q; probably, `region` is missing in `ec2_sd_config`; error: %s", sessionTokenURL, err)
+		return nil, fmt.Errorf("cannot obtain IMDSv2 session token from %q; probably, `region` is missing in `ec2_sd_config`; error: %w", sessionTokenURL, err)
 	}
 	token, err := readResponseBody(resp, sessionTokenURL)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read IMDSv2 session token from %q; probably, `region` is missing in `ec2_sd_config`; error: %s", sessionTokenURL, err)
+		return nil, fmt.Errorf("cannot read IMDSv2 session token from %q; probably, `region` is missing in `ec2_sd_config`; error: %w", sessionTokenURL, err)
 	}
 
 	// Use session token in the request.
 	apiURL := "http://169.254.169.254/latest/" + apiPath
 	req, err = http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot create request to %q: %w", apiURL, err)
 	}
 	req.Header.Set("X-aws-ec2-metadata-token", string(token))
 	resp, err = client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain response for %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot obtain response for %q: %w", apiURL, err)
 	}
 	return readResponseBody(resp, apiURL)
 }
@@ -158,11 +158,11 @@ func getAPIResponse(cfg *apiConfig, action, nextPageToken string) ([]byte, error
 	apiURL += "&Version=2013-10-15"
 	req, err := newSignedRequest(apiURL, "ec2", cfg.region, cfg.accessKey, cfg.secretKey)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create signed request: %s", err)
+		return nil, fmt.Errorf("cannot create signed request: %w", err)
 	}
 	resp, err := discoveryutils.GetHTTPClient().Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot perform http request to %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot perform http request to %q: %w", apiURL, err)
 	}
 	return readResponseBody(resp, apiURL)
 }
@@ -171,7 +171,7 @@ func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 	data, err := ioutil.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		return nil, fmt.Errorf("cannot read response from %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code for %q; got %d; want %d; response body: %q",

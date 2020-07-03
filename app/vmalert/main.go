@@ -105,36 +105,36 @@ var (
 func newManager(ctx context.Context) (*manager, error) {
 	q, err := datasource.Init()
 	if err != nil {
-		return nil, fmt.Errorf("failed to init datasource: %s", err)
+		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
 	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
 	if err != nil {
-		return nil, fmt.Errorf("failed to init `external.url`: %s", err)
+		return nil, fmt.Errorf("failed to init `external.url`: %w", err)
 	}
 	notifier.InitTemplateFunc(eu)
 	aug, err := getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init `external.alert.source`: %s", err)
+		return nil, fmt.Errorf("failed to init `external.alert.source`: %w", err)
 	}
-	nt, err := notifier.Init(aug)
+	nts, err := notifier.Init(aug)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init notifier: %s", err)
+		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
 
 	manager := &manager{
-		groups:   make(map[uint64]*Group),
-		querier:  q,
-		notifier: nt,
+		groups:    make(map[uint64]*Group),
+		querier:   q,
+		notifiers: nts,
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init remoteWrite: %s", err)
+		return nil, fmt.Errorf("failed to init remoteWrite: %w", err)
 	}
 	manager.rw = rw
 
 	rr, err := remoteread.Init()
 	if err != nil {
-		return nil, fmt.Errorf("failed to init remoteRead: %s", err)
+		return nil, fmt.Errorf("failed to init remoteRead: %w", err)
 	}
 	manager.rr = rr
 	return manager, nil
@@ -169,7 +169,7 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		if err := notifier.ValidateTemplates(map[string]string{
 			"tpl": externalAlertSource,
 		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s:%w", externalAlertSource, err)
+			return nil, fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
 		}
 	}
 	m := map[string]string{

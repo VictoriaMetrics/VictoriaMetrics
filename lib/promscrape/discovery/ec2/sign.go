@@ -24,7 +24,7 @@ func newSignedRequest(apiURL, service, region, accessKey, secretKey string) (*ht
 func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey string, t time.Time) (*http.Request, error) {
 	uri, err := url.Parse(apiURL)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot parse %q: %w", apiURL, err)
 	}
 
 	// Create canonicalRequest
@@ -65,7 +65,7 @@ func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey stri
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request from %q: %s", apiURL, err)
+		return nil, fmt.Errorf("cannot create request from %q: %w", apiURL, err)
 	}
 	req.Header.Set("x-amz-date", amzdate)
 	req.Header.Set("Authorization", authHeader)

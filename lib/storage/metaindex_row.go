@@ -77,7 +77,7 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 	// Unmarshal TSID
 	tail, err := mr.TSID.Unmarshal(src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal TSID: %s", err)
+		return src, fmt.Errorf("cannot unmarshal TSID: %w", err)
 	}
 	src = tail
 
@@ -130,11 +130,11 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 func unmarshalMetaindexRows(dst []metaindexRow, r io.Reader) ([]metaindexRow, error) {
 	compressedData, err := ioutil.ReadAll(r)
 	if err != nil {
-		return dst, fmt.Errorf("cannot read metaindex rows: %s", err)
+		return dst, fmt.Errorf("cannot read metaindex rows: %w", err)
 	}
 	data, err := encoding.DecompressZSTD(nil, compressedData)
 	if err != nil {
-		return dst, fmt.Errorf("cannot decompress metaindex rows: %s", err)
+		return dst, fmt.Errorf("cannot decompress metaindex rows: %w", err)
 	}
 
 	dstLen := len(dst)
@@ -147,7 +147,7 @@ func unmarshalMetaindexRows(dst []metaindexRow, r io.Reader) ([]metaindexRow, er
 		mr := &dst[len(dst)-1]
 		tail, err := mr.Unmarshal(data)
 		if err != nil {
-			return dst, fmt.Errorf("cannot unmarshal metaindexRow #%d from metaindex data: %s", len(dst)-dstLen, err)
+			return dst, fmt.Errorf("cannot unmarshal metaindexRow #%d from metaindex data: %w", len(dst)-dstLen, err)
 		}
 		data = tail
 	}

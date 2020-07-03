@@ -373,7 +373,7 @@ func checkMetricsResult(got, want []Metric) error {
 		want = removeIfFoundMetrics(r, want)
 	}
 	if len(want) > 0 {
-		return fmt.Errorf("exptected metrics %+v not found in %+v", want, got)
+		return fmt.Errorf("expected metrics %+v not found in %+v", want, got)
 	}
 	return nil
 }

@@ -279,7 +279,7 @@ func (ps *partSearch) nextBHS() error {
 		var err error
 		idxb, err = ps.readIndexBlock(mr)
 		if err != nil {
-			return fmt.Errorf("cannot read index block: %s", err)
+			return fmt.Errorf("cannot read index block: %w", err)
 		}
 		ps.idxbCache.Put(idxbKey, idxb)
 	}
@@ -294,12 +294,12 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	var err error
 	ps.indexBuf, err = encoding.DecompressZSTD(ps.indexBuf[:0], ps.compressedIndexBuf)
 	if err != nil {
-		return nil, fmt.Errorf("cannot decompress index block with size %d bytes: %s", len(ps.compressedIndexBuf), err)
+		return nil, fmt.Errorf("cannot decompress index block with size %d bytes: %w", len(ps.compressedIndexBuf), err)
 	}
 	idxb := getIndexBlock()
 	idxb.bhs, err = unmarshalBlockHeaders(idxb.bhs[:0], ps.indexBuf, int(mr.blockHeadersCount))
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal block headers from index block (offset=%d, size=%d): %s", mr.indexBlockOffset, mr.indexBlockSize, err)
+		return nil, fmt.Errorf("cannot unmarshal block headers from index block (offset=%d, size=%d): %w", mr.indexBlockOffset, mr.indexBlockSize, err)
 	}
 	return idxb, nil
 }
@@ -340,7 +340,7 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 
 	ib := getInmemoryBlock()
 	if err := ib.UnmarshalData(&ps.sb, bh.firstItem, bh.commonPrefix, bh.itemsCount, bh.marshalType); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal storage block with %d items: %s", bh.itemsCount, err)
+		return nil, fmt.Errorf("cannot unmarshal storage block with %d items: %w", bh.itemsCount, err)
 	}
 
 	return ib, nil

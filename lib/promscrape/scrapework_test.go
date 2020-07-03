@@ -32,7 +32,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	var pushDataErr error
 	sw.PushData = func(wr *prompbmarshal.WriteRequest) {
 		if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
-			pushDataErr = fmt.Errorf("unexpected data pushed: %s\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
+			pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
 		}
 		pushDataCalls++
 	}
@@ -72,7 +72,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		var pushDataErr error
 		sw.PushData = func(wr *prompbmarshal.WriteRequest) {
 			if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
-				pushDataErr = fmt.Errorf("unexpected data pushed: %s\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
+				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
 			}
 			pushDataCalls++
 		}
@@ -336,11 +336,11 @@ func parseData(data string) []prompbmarshal.TimeSeries {
 func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
 	m, err := timeseriesToMap(tss)
 	if err != nil {
-		return fmt.Errorf("invalid generated timeseries: %s", err)
+		return fmt.Errorf("invalid generated timeseries: %w", err)
 	}
 	mExpected, err := timeseriesToMap(tssExpected)
 	if err != nil {
-		return fmt.Errorf("invalid expected timeseries: %s", err)
+		return fmt.Errorf("invalid expected timeseries: %w", err)
 	}
 	if len(m) != len(mExpected) {
 		return fmt.Errorf("unexpected time series len; got %d; want %d", len(m), len(mExpected))

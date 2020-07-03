@@ -43,11 +43,11 @@ func (r *Restore) Run() error {
 
 	// Make sure VictoriaMetrics doesn't run during the restore process.
 	if err := fs.MkdirAllIfNotExist(r.Dst.Dir); err != nil {
-		return fmt.Errorf("cannot create dir %q: %s", r.Dst.Dir, err)
+		return fmt.Errorf("cannot create dir %q: %w", r.Dst.Dir, err)
 	}
 	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
 	if err != nil {
-		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %s", r.Dst.Dir, err)
+		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %w", r.Dst.Dir, err)
 	}
 	defer fs.MustClose(flockF)
 
@@ -71,12 +71,12 @@ func (r *Restore) Run() error {
 	logger.Infof("obtaining list of parts at %s", src)
 	srcParts, err := src.ListParts()
 	if err != nil {
-		return fmt.Errorf("cannot list src parts: %s", err)
+		return fmt.Errorf("cannot list src parts: %w", err)
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := dst.ListParts()
 	if err != nil {
-		return fmt.Errorf("cannot list dst parts: %s", err)
+		return fmt.Errorf("cannot list dst parts: %w", err)
 	}
 
 	backupSize := getPartsSize(srcParts)
@@ -129,7 +129,7 @@ func (r *Restore) Run() error {
 			logger.Infof("deleting %s from %s", path, dst)
 			size, err := dst.DeletePath(path)
 			if err != nil {
-				return fmt.Errorf("cannot delete %s from %s: %s", path, dst, err)
+				return fmt.Errorf("cannot delete %s from %s: %w", path, dst, err)
 			}
 			deleteSize += size
 		}
@@ -137,14 +137,14 @@ func (r *Restore) Run() error {
 			return err
 		}
 		if err := dst.RemoveEmptyDirs(); err != nil {
-			return fmt.Errorf("cannot remove empty directories at %s: %s", dst, err)
+			return fmt.Errorf("cannot remove empty directories at %s: %w", dst, err)
 		}
 	}
 
 	// Re-read dstParts, since additional parts may be removed on the previous step.
 	dstParts, err = dst.ListParts()
 	if err != nil {
-		return fmt.Errorf("cannot list dst parts after the deletion: %s", err)
+		return fmt.Errorf("cannot list dst parts after the deletion: %w", err)
 	}
 
 	partsToCopy := common.PartsDifference(srcParts, dstParts)
@@ -166,17 +166,17 @@ func (r *Restore) Run() error {
 				logger.Infof("downloading %s from %s to %s", &p, src, dst)
 				wc, err := dst.NewWriteCloser(p)
 				if err != nil {
-					return fmt.Errorf("cannot create writer for %q to %s: %s", &p, dst, err)
+					return fmt.Errorf("cannot create writer for %q to %s: %w", &p, dst, err)
 				}
 				sw := &statWriter{
 					w:            wc,
 					bytesWritten: &bytesDownloaded,
 				}
 				if err := src.DownloadPart(p, sw); err != nil {
-					return fmt.Errorf("cannot download %s to %s: %s", &p, dst, err)
+					return fmt.Errorf("cannot download %s to %s: %w", &p, dst, err)
 				}
 				if err := wc.Close(); err != nil {
-					return fmt.Errorf("cannot close reader from %s from %s: %s", &p, src, err)
+					return fmt.Errorf("cannot close reader from %s from %s: %w", &p, src, err)
 				}
 			}
 			return nil

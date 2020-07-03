@@ -46,7 +46,7 @@ const defaultStep = 5 * 60 * 1000
 func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %s", err)
+		return fmt.Errorf("cannot parse request form values: %w", err)
 	}
 	matches := r.Form["match[]"]
 	if len(matches) == 0 {
@@ -82,7 +82,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
 	if err != nil {
-		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -105,7 +105,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 
 	err = <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during data fetching: %s", err)
+		return fmt.Errorf("error during data fetching: %w", err)
 	}
 	federateDuration.UpdateDuration(startTime)
 	return nil
@@ -117,7 +117,7 @@ var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/fe
 func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %s", err)
+		return fmt.Errorf("cannot parse request form values: %w", err)
 	}
 	matches := r.Form["match[]"]
 	if len(matches) == 0 {
@@ -143,7 +143,7 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		end = start + defaultStep
 	}
 	if err := exportHandler(w, matches, start, end, format, maxRowsPerLine, deadline); err != nil {
-		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %s", matches, start, end, err)
+		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %w", matches, start, end, err)
 	}
 	exportDuration.UpdateDuration(startTime)
 	return nil
@@ -202,7 +202,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
 	if err != nil {
-		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
@@ -227,7 +227,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 	}
 	err = <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during data fetching: %s", err)
+		return fmt.Errorf("error during data fetching: %w", err)
 	}
 	return nil
 }
@@ -237,7 +237,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#delete-series
 func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse request form values: %s", err)
+		return fmt.Errorf("cannot parse request form values: %w", err)
 	}
 	if r.FormValue("start") != "" || r.FormValue("end") != "" {
 		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
@@ -255,7 +255,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	}
 	deletedCount, err := netstorage.DeleteSeries(sq)
 	if err != nil {
-		return fmt.Errorf("cannot delete time series matching %q: %s", matches, err)
+		return fmt.Errorf("cannot delete time series matching %q: %w", matches, err)
 	}
 	if deletedCount > 0 {
 		promql.ResetRollupResultCache()
@@ -273,14 +273,14 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	deadline := getDeadlineForQuery(r)
 
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %s", err)
+		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	var labelValues []string
 	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 		var err error
 		labelValues, err = netstorage.GetLabelValues(labelName, deadline)
 		if err != nil {
-			return fmt.Errorf(`cannot obtain label values for %q: %s`, labelName, err)
+			return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
 		}
 	} else {
 		// Extended functionality that allows filtering by label filters and time range
@@ -302,7 +302,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		}
 		labelValues, err = labelValuesWithMatches(labelName, matches, start, end, deadline)
 		if err != nil {
-			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %s", labelName, matches, start, end, err)
+			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %w", labelName, matches, start, end, err)
 		}
 	}
 
@@ -343,7 +343,7 @@ func labelValuesWithMatches(labelName string, matches []string, start, end int64
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
 	m := make(map[string]struct{})
@@ -358,7 +358,7 @@ func labelValuesWithMatches(labelName string, matches []string, start, end int64
 		mLock.Unlock()
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %s", err)
+		return nil, fmt.Errorf("error when data fetching: %w", err)
 	}
 
 	labelValues := make([]string, 0, len(m))
@@ -376,7 +376,7 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	deadline := getDeadlineForQuery(r)
 	labelEntries, err := netstorage.GetLabelEntries(deadline)
 	if err != nil {
-		return fmt.Errorf(`cannot obtain label entries: %s`, err)
+		return fmt.Errorf(`cannot obtain label entries: %w`, err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	WriteLabelsCountResponse(w, labelEntries)
@@ -394,14 +394,14 @@ const secsPerDay = 3600 * 24
 func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := getDeadlineForQuery(r)
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %s", err)
+		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	date := fasttime.UnixDate()
 	dateStr := r.FormValue("date")
 	if len(dateStr) > 0 {
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			return fmt.Errorf("cannot parse `date` arg %q: %s", dateStr, err)
+			return fmt.Errorf("cannot parse `date` arg %q: %w", dateStr, err)
 		}
 		date = uint64(t.Unix()) / secsPerDay
 	}
@@ -410,7 +410,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if len(topNStr) > 0 {
 		n, err := strconv.Atoi(topNStr)
 		if err != nil {
-			return fmt.Errorf("cannot parse `topN` arg %q: %s", topNStr, err)
+			return fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err)
 		}
 		if n <= 0 {
 			n = 1
@@ -422,7 +422,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	}
 	status, err := netstorage.GetTSDBStatusForDate(deadline, date, topN)
 	if err != nil {
-		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %s`, date, topN, err)
+		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	WriteTSDBStatusResponse(w, status)
@@ -439,14 +439,14 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	deadline := getDeadlineForQuery(r)
 
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %s", err)
+		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	var labels []string
 	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 		var err error
 		labels, err = netstorage.GetLabels(deadline)
 		if err != nil {
-			return fmt.Errorf("cannot obtain labels: %s", err)
+			return fmt.Errorf("cannot obtain labels: %w", err)
 		}
 	} else {
 		// Extended functionality that allows filtering by label filters and time range
@@ -466,7 +466,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		}
 		labels, err = labelsWithMatches(matches, start, end, deadline)
 		if err != nil {
-			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %s", matches, start, end, err)
+			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %w", matches, start, end, err)
 		}
 	}
 
@@ -494,7 +494,7 @@ func labelsWithMatches(matches []string, start, end int64, deadline netstorage.D
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
 	m := make(map[string]struct{})
@@ -510,7 +510,7 @@ func labelsWithMatches(matches []string, start, end int64, deadline netstorage.D
 		mLock.Unlock()
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %s", err)
+		return nil, fmt.Errorf("error when data fetching: %w", err)
 	}
 
 	labels := make([]string, 0, len(m))
@@ -528,7 +528,7 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	deadline := getDeadlineForQuery(r)
 	n, err := netstorage.GetSeriesCount(deadline)
 	if err != nil {
-		return fmt.Errorf("cannot obtain series count: %s", err)
+		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	WriteSeriesCountResponse(w, n)
@@ -545,7 +545,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	ct := currentTime()
 
 	if err := r.ParseForm(); err != nil {
-		return fmt.Errorf("cannot parse form values: %s", err)
+		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	matches := r.Form["match[]"]
 	if len(matches) == 0 {
@@ -580,7 +580,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
 	if err != nil {
-		return fmt.Errorf("cannot fetch data for %q: %s", sq, err)
+		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -605,7 +605,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	}
 	err = <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during data fetching: %s", err)
+		return fmt.Errorf("error during data fetching: %w", err)
 	}
 	seriesDuration.UpdateDuration(startTime)
 	return nil
@@ -652,17 +652,17 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if childQuery, windowStr, offsetStr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
 		window, err := parsePositiveDuration(windowStr, step)
 		if err != nil {
-			return fmt.Errorf("cannot parse window: %s", err)
+			return fmt.Errorf("cannot parse window: %w", err)
 		}
 		offset, err := parseDuration(offsetStr, step)
 		if err != nil {
-			return fmt.Errorf("cannot parse offset: %s", err)
+			return fmt.Errorf("cannot parse offset: %w", err)
 		}
 		start -= offset
 		end := start
 		start = end - window
 		if err := exportHandler(w, []string{childQuery}, start, end, "promapi", 0, deadline); err != nil {
-			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %s", childQuery, start, end, err)
+			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
 		return nil
@@ -670,24 +670,24 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if childQuery, windowStr, stepStr, offsetStr := promql.IsRollup(query); childQuery != "" {
 		newStep, err := parsePositiveDuration(stepStr, step)
 		if err != nil {
-			return fmt.Errorf("cannot parse step: %s", err)
+			return fmt.Errorf("cannot parse step: %w", err)
 		}
 		if newStep > 0 {
 			step = newStep
 		}
 		window, err := parsePositiveDuration(windowStr, step)
 		if err != nil {
-			return fmt.Errorf("cannot parse window: %s", err)
+			return fmt.Errorf("cannot parse window: %w", err)
 		}
 		offset, err := parseDuration(offsetStr, step)
 		if err != nil {
-			return fmt.Errorf("cannot parse offset: %s", err)
+			return fmt.Errorf("cannot parse offset: %w", err)
 		}
 		start -= offset
 		end := start
 		start = end - window
 		if err := queryRangeHandler(w, childQuery, start, end, step, r, ct); err != nil {
-			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %s", childQuery, start, end, step, err)
+			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
 		}
 		queryDuration.UpdateDuration(startTime)
 		return nil
@@ -702,7 +702,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	}
 	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
-		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %s", query, start, step, err)
+		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -750,7 +750,7 @@ func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 		return err
 	}
 	if err := queryRangeHandler(w, query, start, end, step, r, ct); err != nil {
-		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %s", query, start, end, step, err)
+		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
 	queryRangeDuration.UpdateDuration(startTime)
 	return nil
@@ -788,7 +788,7 @@ func queryRangeHandler(w http.ResponseWriter, query string, start, end, step int
 	}
 	result, err := promql.Exec(&ec, query, false)
 	if err != nil {
-		return fmt.Errorf("cannot execute query: %s", err)
+		return fmt.Errorf("cannot execute query: %w", err)
 	}
 	queryOffset := getLatencyOffsetMilliseconds()
 	if ct-end < queryOffset {
@@ -897,7 +897,7 @@ func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) 
 			// Try parsing duration relative to the current time
 			d, err1 := time.ParseDuration(argValue)
 			if err1 != nil {
-				return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
+				return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 			}
 			if d > 0 {
 				d = -d
@@ -939,7 +939,7 @@ func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 		// Try parsing string format
 		d, err := time.ParseDuration(argValue)
 		if err != nil {
-			return 0, fmt.Errorf("cannot parse %q=%q: %s", argKey, argValue, err)
+			return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 		}
 		secs = d.Seconds()
 	}
@@ -1001,7 +1001,7 @@ func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) 
 	for _, match := range matches {
 		tagFilters, err := promql.ParseMetricSelector(match)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse %q: %s", match, err)
+			return nil, fmt.Errorf("cannot parse %q: %w", match, err)
 		}
 		tagFilterss = append(tagFilterss, tagFilters)
 	}

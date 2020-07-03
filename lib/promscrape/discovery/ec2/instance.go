@@ -31,11 +31,11 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	for {
 		data, err := getAPIResponse(cfg, action, pageToken)
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain instances: %s", err)
+			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
 		ir, err := parseInstancesResponse(data)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse instance list: %s", err)
+			return nil, fmt.Errorf("cannot parse instance list: %w", err)
 		}
 		rs = append(rs, ir.ReservationSet.Items...)
 		if len(ir.NextPageToken) == 0 {
@@ -121,7 +121,7 @@ type Tag struct {
 func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	var v InstancesResponse
 	if err := xml.Unmarshal(data, &v); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal InstancesResponse from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal InstancesResponse from %q: %w", data, err)
 	}
 	return &v, nil
 }

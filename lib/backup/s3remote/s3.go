@@ -3,6 +3,7 @@ package s3remote
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -66,7 +67,7 @@ func (fs *FS) Init() error {
 	}
 	sess, err := session.NewSessionWithOptions(opts)
 	if err != nil {
-		return fmt.Errorf("cannot create S3 session: %s", err)
+		return fmt.Errorf("cannot create S3 session: %w", err)
 	}
 
 	if len(fs.CustomEndpoint) > 0 {
@@ -81,7 +82,7 @@ func (fs *FS) Init() error {
 		ctx := context.Background()
 		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "")
 		if err != nil {
-			return fmt.Errorf("cannot determine region for bucket %q: %s", fs.Bucket, err)
+			return fmt.Errorf("cannot determine region for bucket %q: %w", fs.Bucket, err)
 		}
 		sess.Config.WithRegion(region)
 		logger.Infof("bucket %q is stored at region %q; switching to this region", fs.Bucket, region)
@@ -133,7 +134,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		err = errOuter
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error when listing s3 objects inside dir %q: %s", dir, err)
+		return nil, fmt.Errorf("error when listing s3 objects inside dir %q: %w", dir, err)
 	}
 	return parts, nil
 }
@@ -147,7 +148,7 @@ func (fs *FS) DeletePart(p common.Part) error {
 	}
 	_, err := fs.s3.DeleteObject(input)
 	if err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %s", p.Path, fs, path, err)
+		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	return nil
 }
@@ -175,7 +176,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	}
 	_, err := fs.s3.CopyObject(input)
 	if err != nil {
-		return fmt.Errorf("cannot copy %q from %s to %s (copySource %q): %s", p.Path, src, fs, copySource, err)
+		return fmt.Errorf("cannot copy %q from %s to %s (copySource %q): %w", p.Path, src, fs, copySource, err)
 	}
 	return nil
 }
@@ -189,7 +190,7 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	}
 	o, err := fs.s3.GetObject(input)
 	if err != nil {
-		return fmt.Errorf("cannot open %q at %s (remote path %q): %s", p.Path, fs, path, err)
+		return fmt.Errorf("cannot open %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	r := o.Body
 	n, err := io.Copy(w, r)
@@ -197,7 +198,7 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 		err = err1
 	}
 	if err != nil {
-		return fmt.Errorf("cannot download %q from at %s (remote path %q): %s", p.Path, fs, path, err)
+		return fmt.Errorf("cannot download %q from at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	if uint64(n) != p.Size {
 		return fmt.Errorf("wrong data size downloaded from %q at %s; got %d bytes; want %d bytes", p.Path, fs, n, p.Size)
@@ -218,7 +219,7 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	}
 	_, err := fs.uploader.Upload(input)
 	if err != nil {
-		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %s", p.Path, fs, path, err)
+		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
 	if uint64(sr.size) != p.Size {
 		return fmt.Errorf("wrong data size uploaded to %q at %s; got %d bytes; want %d bytes", p.Path, fs, sr.size, p.Size)
@@ -249,7 +250,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 		Key:    aws.String(path),
 	}
 	if _, err := fs.s3.DeleteObject(input); err != nil {
-		return fmt.Errorf("cannot delete %q at %s (remote path %q): %s", filePath, fs, path, err)
+		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	return nil
 }
@@ -269,7 +270,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	}
 	_, err := fs.uploader.Upload(input)
 	if err != nil {
-		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %s", filePath, fs, path, err)
+		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	l := int64(len(data))
 	if sr.size != l {
@@ -287,13 +288,14 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 	o, err := fs.s3.GetObject(input)
 	if err != nil {
-		if ae, ok := err.(awserr.Error); ok && ae.Code() == s3.ErrCodeNoSuchKey {
+		var ae awserr.Error
+		if errors.As(err, &ae) && ae.Code() == s3.ErrCodeNoSuchKey {
 			return false, nil
 		}
-		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %s", filePath, fs, path, err)
+		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	if err := o.Body.Close(); err != nil {
-		return false, fmt.Errorf("cannot close %q at %s (remote path %q): %s", filePath, fs, path, err)
+		return false, fmt.Errorf("cannot close %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	return true, nil
 }

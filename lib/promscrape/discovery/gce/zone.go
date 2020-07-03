@@ -14,11 +14,11 @@ func getZonesForProject(client *http.Client, project, filter string) ([]string, 
 	for {
 		data, err := getAPIResponse(client, zonesURL, filter, pageToken)
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain zones: %s", err)
+			return nil, fmt.Errorf("cannot obtain zones: %w", err)
 		}
 		zl, err := parseZoneList(data)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse zone list from %q: %s", zonesURL, err)
+			return nil, fmt.Errorf("cannot parse zone list from %q: %w", zonesURL, err)
 		}
 		for _, z := range zl.Items {
 			zones = append(zones, z.Name)
@@ -45,7 +45,7 @@ type Zone struct {
 func parseZoneList(data []byte) (*ZoneList, error) {
 	var zl ZoneList
 	if err := json.Unmarshal(data, &zl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal ZoneList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal ZoneList from %q: %w", data, err)
 	}
 	return &zl, nil
 }

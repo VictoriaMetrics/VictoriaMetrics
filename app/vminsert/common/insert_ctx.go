@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -17,11 +18,14 @@ type InsertCtx struct {
 
 	mrs            []storage.MetricRow
 	metricNamesBuf []byte
+
+	relabelCtx relabel.Ctx
 }
 
 // Reset resets ctx for future fill with rowsLen rows.
 func (ctx *InsertCtx) Reset(rowsLen int) {
-	for _, label := range ctx.Labels {
+	for i := range ctx.Labels {
+		label := &ctx.Labels[i]
 		label.Name = nil
 		label.Value = nil
 	}
@@ -37,6 +41,8 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 	}
 	ctx.mrs = ctx.mrs[:0]
 	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
+
+	ctx.relabelCtx.Reset()
 }
 
 func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label) []byte {
@@ -118,11 +124,16 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 	ctx.Labels = labels
 }
 
+// ApplyRelabeling applies relabeling to ic.Labels.
+func (ctx *InsertCtx) ApplyRelabeling() {
+	ctx.Labels = ctx.relabelCtx.ApplyRelabeling(ctx.Labels)
+}
+
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
 	if err := vmstorage.AddRows(ctx.mrs); err != nil {
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot store metrics: %s", err),
+			Err:        fmt.Errorf("cannot store metrics: %w", err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}

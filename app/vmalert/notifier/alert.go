@@ -7,6 +7,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 )
 
 // Alert the triggered alert
@@ -77,7 +79,7 @@ func ValidateTemplates(annotations map[string]string) error {
 func templateAnnotations(annotations map[string]string, header string, data alertTplData) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
-	eg := errGroup{}
+	eg := new(utils.ErrGroup)
 	r := make(map[string]string, len(annotations))
 	for key, text := range annotations {
 		r[key] = text
@@ -87,12 +89,12 @@ func templateAnnotations(annotations map[string]string, header string, data aler
 		builder.WriteString(header)
 		builder.WriteString(text)
 		if err := templateAnnotation(&buf, builder.String(), data); err != nil {
-			eg.errs = append(eg.errs, fmt.Sprintf("key %q, template %q: %s", key, text, err))
+			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
 		}
 		r[key] = buf.String()
 	}
-	return r, eg.err()
+	return r, eg.Err()
 }
 
 func templateAnnotation(dst io.Writer, text string, data alertTplData) error {

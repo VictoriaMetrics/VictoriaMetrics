@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -83,7 +84,7 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 			continue
 		}
 		if err := rr.Restore(ctx, q, lookback); err != nil {
-			return fmt.Errorf("error while restoring rule %q: %s", rule, err)
+			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
 	return nil
@@ -155,10 +156,10 @@ func (g *Group) close() {
 	<-g.finishedCh
 }
 
-func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{querier, nr, rw}
+	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 	for {
@@ -201,9 +202,9 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nr notifi
 }
 
 type executor struct {
-	querier  datasource.Querier
-	notifier notifier.Notifier
-	rw       *remotewrite.Client
+	querier   datasource.Querier
+	notifiers []notifier.Notifier
+	rw        *remotewrite.Client
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
@@ -250,7 +251,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 	tss, err := rule.Exec(ctx, e.querier, returnSeries)
 	if err != nil {
 		execErrors.Inc()
-		return fmt.Errorf("rule %q: failed to execute: %s", rule, err)
+		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
 
 	if len(tss) > 0 && e.rw != nil {
@@ -258,7 +259,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 		for _, ts := range tss {
 			if err := e.rw.Push(ts); err != nil {
 				remoteWriteErrors.Inc()
-				return fmt.Errorf("rule %q: remote write failure: %s", rule, err)
+				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 			}
 		}
 	}
@@ -286,10 +287,14 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 	if len(alerts) < 1 {
 		return nil
 	}
+
 	alertsSent.Add(len(alerts))
-	if err := e.notifier.Send(ctx, alerts); err != nil {
-		alertsSendErrors.Inc()
-		return fmt.Errorf("rule %q: failed to send alerts: %s", rule, err)
+	errGr := new(utils.ErrGroup)
+	for _, nt := range e.notifiers {
+		if err := nt.Send(ctx, alerts); err != nil {
+			alertsSendErrors.Inc()
+			errGr.Add(fmt.Errorf("rule %q: failed to send alerts: %w", rule, err))
+		}
 	}
-	return nil
+	return errGr.Err()
 }

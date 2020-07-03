@@ -67,13 +67,13 @@ func openFilePart(path string) (*part, error) {
 
 	var ph partHeader
 	if err := ph.ParseFromPath(path); err != nil {
-		return nil, fmt.Errorf("cannot parse path to part: %s", err)
+		return nil, fmt.Errorf("cannot parse path to part: %w", err)
 	}
 
 	metaindexPath := path + "/metaindex.bin"
 	metaindexFile, err := filestream.Open(metaindexPath, true)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %s", metaindexPath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", metaindexPath, err)
 	}
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
@@ -81,7 +81,7 @@ func openFilePart(path string) (*part, error) {
 	indexFile, err := fs.OpenReaderAt(indexPath)
 	if err != nil {
 		metaindexFile.MustClose()
-		return nil, fmt.Errorf("cannot open %q: %s", indexPath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", indexPath, err)
 	}
 	indexSize := fs.MustFileSize(indexPath)
 
@@ -90,7 +90,7 @@ func openFilePart(path string) (*part, error) {
 	if err != nil {
 		metaindexFile.MustClose()
 		indexFile.MustClose()
-		return nil, fmt.Errorf("cannot open %q: %s", itemsPath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", itemsPath, err)
 	}
 	itemsSize := fs.MustFileSize(itemsPath)
 
@@ -100,7 +100,7 @@ func openFilePart(path string) (*part, error) {
 		metaindexFile.MustClose()
 		indexFile.MustClose()
 		itemsFile.MustClose()
-		return nil, fmt.Errorf("cannot open %q: %s", lensPath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", lensPath, err)
 	}
 	lensSize := fs.MustFileSize(lensPath)
 
@@ -112,7 +112,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	var errors []error
 	mrs, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("cannot unmarshal metaindexRows: %s", err))
+		errors = append(errors, fmt.Errorf("cannot unmarshal metaindexRows: %w", err))
 	}
 	metaindexReader.MustClose()
 
@@ -131,7 +131,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		err := fmt.Errorf("error opening part %s: %s", p.path, errors[0])
+		err := fmt.Errorf("error opening part %s: %w", p.path, errors[0])
 		p.MustClose()
 		return nil, err
 	}

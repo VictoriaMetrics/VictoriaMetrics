@@ -22,7 +22,7 @@ type AgentConfig struct {
 func parseAgent(data []byte) (*Agent, error) {
 	var a Agent
 	if err := json.Unmarshal(data, &a); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal agent info from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal agent info from %q: %w", data, err)
 	}
 	return &a, nil
 }

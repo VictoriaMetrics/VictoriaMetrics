@@ -107,7 +107,7 @@ func (ts *tableSearch) Init(tb *table, tsids []TSID, tr TimeRange) {
 	}
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		ts.err = fmt.Errorf("cannot initialize table search: %s", errors[0])
+		ts.err = fmt.Errorf("cannot initialize table search: %w", errors[0])
 		return
 	}
 	if len(ts.ptsHeap) == 0 {
@@ -135,7 +135,7 @@ func (ts *tableSearch) NextBlock() bool {
 	ts.err = ts.nextBlock()
 	if ts.err != nil {
 		if ts.err != io.EOF {
-			ts.err = fmt.Errorf("cannot obtain the next block to search in the table: %s", ts.err)
+			ts.err = fmt.Errorf("cannot obtain the next block to search in the table: %w", ts.err)
 		}
 		return false
 	}

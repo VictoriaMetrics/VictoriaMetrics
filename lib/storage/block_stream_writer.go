@@ -92,7 +92,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	// Create the directory
 	if err := fs.MkdirAllFailIfExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %s", path, err)
+		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 
 	// Create part files in the directory.
@@ -100,7 +100,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	timestampsFile, err := filestream.Create(timestampsPath, nocache)
 	if err != nil {
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create timestamps file: %s", err)
+		return fmt.Errorf("cannot create timestamps file: %w", err)
 	}
 
 	valuesPath := path + "/values.bin"
@@ -108,7 +108,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	if err != nil {
 		timestampsFile.MustClose()
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create values file: %s", err)
+		return fmt.Errorf("cannot create values file: %w", err)
 	}
 
 	indexPath := path + "/index.bin"
@@ -117,7 +117,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		timestampsFile.MustClose()
 		valuesFile.MustClose()
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create index file: %s", err)
+		return fmt.Errorf("cannot create index file: %w", err)
 	}
 
 	// Always cache metaindex file in OS page cache, since it is immediately
@@ -129,7 +129,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		valuesFile.MustClose()
 		indexFile.MustClose()
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create metaindex file: %s", err)
+		return fmt.Errorf("cannot create metaindex file: %w", err)
 	}
 
 	bsw.reset()

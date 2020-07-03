@@ -84,7 +84,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	// Create the directory
 	if err := fs.MkdirAllFailIfExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %s", path, err)
+		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 
 	// Create part files in the directory.
@@ -95,7 +95,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	metaindexFile, err := filestream.Create(metaindexPath, false)
 	if err != nil {
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create metaindex file: %s", err)
+		return fmt.Errorf("cannot create metaindex file: %w", err)
 	}
 
 	indexPath := path + "/index.bin"
@@ -103,7 +103,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	if err != nil {
 		metaindexFile.MustClose()
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create index file: %s", err)
+		return fmt.Errorf("cannot create index file: %w", err)
 	}
 
 	itemsPath := path + "/items.bin"
@@ -112,7 +112,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		metaindexFile.MustClose()
 		indexFile.MustClose()
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create items file: %s", err)
+		return fmt.Errorf("cannot create items file: %w", err)
 	}
 
 	lensPath := path + "/lens.bin"
@@ -122,7 +122,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		indexFile.MustClose()
 		itemsFile.MustClose()
 		fs.MustRemoveAll(path)
-		return fmt.Errorf("cannot create lens file: %s", err)
+		return fmt.Errorf("cannot create lens file: %w", err)
 	}
 
 	bsw.reset()

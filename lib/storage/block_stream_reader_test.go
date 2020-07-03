@@ -105,14 +105,14 @@ func testBlockStreamReaderReadRows(mp *inmemoryPart, rows []rawRow) error {
 	rowsCount := 0
 	for bsr.NextBlock() {
 		if err := bsr.Block.UnmarshalData(); err != nil {
-			return fmt.Errorf("cannot unmarshal block data: %s", err)
+			return fmt.Errorf("cannot unmarshal block data: %w", err)
 		}
 		for bsr.Block.nextRow() {
 			rowsCount++
 		}
 	}
 	if err := bsr.Error(); err != nil {
-		return fmt.Errorf("unexpected error in bsr.NextBlock: %s", err)
+		return fmt.Errorf("unexpected error in bsr.NextBlock: %w", err)
 	}
 	if rowsCount != len(rows) {
 		return fmt.Errorf("unexpected number of rows read; got %d; want %d", rowsCount, len(rows))

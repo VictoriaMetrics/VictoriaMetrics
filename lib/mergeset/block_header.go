@@ -61,7 +61,7 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 	// Unmarshal commonPrefix
 	tail, cp, err := encoding.UnmarshalBytes(src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal commonPrefix: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal commonPrefix: %w", err)
 	}
 	bh.commonPrefix = append(bh.commonPrefix[:0], cp...)
 	src = tail
@@ -69,7 +69,7 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 	// Unmarshal firstItem
 	tail, fi, err := encoding.UnmarshalBytes(src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal firstItem: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal firstItem: %w", err)
 	}
 	bh.firstItem = append(bh.firstItem[:0], fi...)
 	src = tail
@@ -81,7 +81,7 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 	bh.marshalType = marshalType(src[0])
 	src = src[1:]
 	if err := checkMarshalType(bh.marshalType); err != nil {
-		return src, fmt.Errorf("unexpected marshalType: %s", err)
+		return src, fmt.Errorf("unexpected marshalType: %w", err)
 	}
 
 	// Unmarshal itemsCount
@@ -148,7 +148,7 @@ func unmarshalBlockHeaders(dst []blockHeader, src []byte, blockHeadersCount int)
 	for i := 0; i < blockHeadersCount; i++ {
 		tail, err := dst[dstLen+i].Unmarshal(src)
 		if err != nil {
-			return dst, fmt.Errorf("cannot unmarshal block header: %s", err)
+			return dst, fmt.Errorf("cannot unmarshal block header: %w", err)
 		}
 		src = tail
 	}

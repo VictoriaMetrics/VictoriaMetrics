@@ -78,7 +78,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 					}
 					// Add updated rowsCopy.
 					if err := tb.AddRows(rowsCopy); err != nil {
-						panic(fmt.Errorf("cannot add rows to table %q: %s", tablePath, err))
+						panic(fmt.Errorf("cannot add rows to table %q: %w", tablePath, err))
 					}
 				}
 

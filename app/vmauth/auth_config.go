@@ -82,11 +82,11 @@ var stopCh chan struct{}
 func readAuthConfig(path string) (map[string]*UserInfo, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read %q: %s", path, err)
+		return nil, fmt.Errorf("cannot read %q: %w", path, err)
 	}
 	m, err := parseAuthConfig(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %s", path, err)
+		return nil, fmt.Errorf("cannot parse %q: %w", path, err)
 	}
 	logger.Infof("Loaded information about %d users from %q", len(m), path)
 	return m, nil
@@ -95,7 +95,7 @@ func readAuthConfig(path string) (map[string]*UserInfo, error) {
 func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 	var ac AuthConfig
 	if err := yaml.UnmarshalStrict(data, &ac); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %s", err)
+		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 	uis := ac.Users
 	if len(uis) == 0 {
@@ -115,7 +115,7 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		// Validate urlPrefix
 		target, err := url.Parse(urlPrefix)
 		if err != nil {
-			return nil, fmt.Errorf("invalid `url_prefix: %q`: %s", urlPrefix, err)
+			return nil, fmt.Errorf("invalid `url_prefix: %q`: %w", urlPrefix, err)
 		}
 		if target.Scheme != "http" && target.Scheme != "https" {
 			return nil, fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, target.Scheme)

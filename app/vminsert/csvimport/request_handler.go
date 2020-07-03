@@ -36,6 +36,11 @@ func insertRows(rows []parser.Row) error {
 			tag := &r.Tags[j]
 			ctx.AddLabel(tag.Key, tag.Value)
 		}
+		ctx.ApplyRelabeling()
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
 		ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value)
 	}
 	rowsInserted.Add(len(rows))

@@ -267,7 +267,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	switch mt {
 	case marshalTypePlain:
 		if err := ib.unmarshalDataPlain(sb, firstItem, itemsCount); err != nil {
-			return fmt.Errorf("cannot unmarshal plain data: %s", err)
+			return fmt.Errorf("cannot unmarshal plain data: %w", err)
 		}
 		if !ib.isSorted() {
 			return fmt.Errorf("plain data block contains unsorted items; items:\n%s", ib.debugItemsString())
@@ -289,7 +289,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// Unmarshal lens data.
 	bb.B, err = encoding.DecompressZSTD(bb.B[:0], sb.lensData)
 	if err != nil {
-		return fmt.Errorf("cannot decompress lensData: %s", err)
+		return fmt.Errorf("cannot decompress lensData: %w", err)
 	}
 
 	lb := getLensBuffer(int(2 * itemsCount))
@@ -304,7 +304,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// Unmarshal prefixLens
 	tail, err := encoding.UnmarshalVarUint64s(is.A, bb.B)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal prefixLens from lensData: %s", err)
+		return fmt.Errorf("cannot unmarshal prefixLens from lensData: %w", err)
 	}
 	prefixLens[0] = 0
 	for i, xLen := range is.A {
@@ -314,7 +314,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// Unmarshal lens
 	tail, err = encoding.UnmarshalVarUint64s(is.A, tail)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal lens from lensData: %s", err)
+		return fmt.Errorf("cannot unmarshal lens from lensData: %w", err)
 	}
 	if len(tail) > 0 {
 		return fmt.Errorf("unexpected tail left unmarshaling %d lens; tail size=%d; contents=%X", itemsCount, len(tail), tail)
@@ -331,7 +331,7 @@ func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix
 	// Unmarshal items data.
 	bb.B, err = encoding.DecompressZSTD(bb.B[:0], sb.itemsData)
 	if err != nil {
-		return fmt.Errorf("cannot decompress lensData: %s", err)
+		return fmt.Errorf("cannot decompress lensData: %w", err)
 	}
 	data := bytesutil.Resize(ib.data, maxInmemoryBlockSize)
 	if n := int(itemsCount) - cap(ib.items); n > 0 {

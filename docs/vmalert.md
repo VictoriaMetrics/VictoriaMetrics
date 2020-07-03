@@ -214,6 +214,8 @@ Usage of vmalert:
         Optional basic auth username for -remoteWrite.url
   -remoteWrite.concurrency int
         Defines number of readers that concurrently write into remote storage (default 1)
+  -remoteWrite.flushInterval duration
+        Defines interval of flushes to remote write endpoint (default 5s)
   -remoteWrite.maxBatchSize int
         Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int

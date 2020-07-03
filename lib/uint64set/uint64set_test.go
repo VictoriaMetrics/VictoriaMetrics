@@ -211,7 +211,7 @@ func expectEqual(s *Set, m map[uint64]bool) error {
 	s.ForEach(func(part []uint64) bool {
 		for _, v := range part {
 			if !m[v] {
-				err = fmt.Errorf("miising value %d in m inside s.ForEach; s=%v\nm=%v", v, s.AppendTo(nil), m)
+				err = fmt.Errorf("missing value %d in m inside s.ForEach; s=%v\nm=%v", v, s.AppendTo(nil), m)
 				return false
 			}
 		}
