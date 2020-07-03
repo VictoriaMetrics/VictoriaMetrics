@@ -91,7 +91,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	resp := fasthttp.AcquireResponse()
 	err := doRequestWithPossibleRetry(c.hc, req, resp)
 	statusCode := resp.StatusCode()
-	if statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound {
+	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
 		// Allow a single redirect.
 		// It is expected that the redirect is made on the same host.
 		// Otherwise it won't work.
