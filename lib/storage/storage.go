@@ -1103,7 +1103,6 @@ var (
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	idb := s.idb()
-	dmis := idb.getDeletedMetricIDs()
 	rowsLen := len(rows)
 	if n := rowsLen + len(mrs) - cap(rows); n > 0 {
 		rows = append(rows[:cap(rows)], make([]rawRow, n)...)
@@ -1155,8 +1154,8 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			r.TSID = prevTSID
 			continue
 		}
-		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
-			// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
+		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
+			// Fast path - the TSID for the given MetricName has been found in cache.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 			continue
@@ -1201,8 +1200,8 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				r.TSID = prevTSID
 				continue
 			}
-			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
-				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
+			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
+				// Fast path - the TSID for the given MetricName has been found in cache.
 				prevTSID = r.TSID
 				prevMetricNameRaw = mr.MetricNameRaw
 				continue
