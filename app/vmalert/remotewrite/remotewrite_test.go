@@ -83,7 +83,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		rw.err(w, fmt.Errorf("body read err: %s", err))
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	b, err := snappy.Decode(nil, data)
 	if err != nil {
