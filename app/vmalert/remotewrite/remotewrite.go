@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
 
@@ -61,7 +62,7 @@ const (
 	defaultConcurrency   = 4
 	defaultMaxBatchSize  = 1e3
 	defaultMaxQueueSize  = 1e5
-	defaultFlushInterval = time.Second
+	defaultFlushInterval = 5 * time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
 
@@ -85,6 +86,9 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.WriteTimeout == 0 {
 		cfg.WriteTimeout = defaultWriteTimeout
 	}
+	if cfg.Transport == nil {
+		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+	}
 	c := &Client{
 		c: &http.Client{
 			Timeout:   cfg.WriteTimeout,
@@ -95,7 +99,6 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		baPass:        cfg.BasicAuthPass,
 		flushInterval: cfg.FlushInterval,
 		maxBatchSize:  cfg.MaxBatchSize,
-		maxQueueSize:  cfg.MaxQueueSize,
 		doneCh:        make(chan struct{}),
 		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
 	}
@@ -138,13 +141,10 @@ func (c *Client) Close() error {
 
 func (c *Client) run(ctx context.Context) {
 	ticker := time.NewTicker(c.flushInterval)
-	wr := prompbmarshal.WriteRequest{}
+	wr := &prompbmarshal.WriteRequest{}
 	shutdown := func() {
 		for ts := range c.input {
 			wr.Timeseries = append(wr.Timeseries, ts)
-		}
-		if len(wr.Timeseries) < 1 {
-			return
 		}
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
 		c.flush(lastCtx, wr)
@@ -164,44 +164,80 @@ func (c *Client) run(ctx context.Context) {
 				return
 			case <-ticker.C:
 				c.flush(ctx, wr)
-				wr = prompbmarshal.WriteRequest{}
-			case ts := <-c.input:
+			case ts, ok := <-c.input:
+				if !ok {
+					continue
+				}
 				wr.Timeseries = append(wr.Timeseries, ts)
 				if len(wr.Timeseries) >= c.maxBatchSize {
 					c.flush(ctx, wr)
-					wr = prompbmarshal.WriteRequest{}
 				}
 			}
 		}
 	}()
 }
 
-func (c *Client) flush(ctx context.Context, wr prompbmarshal.WriteRequest) {
+var (
+	sentRows     = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
+	sentBytes    = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	droppedRows  = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
+	droppedBytes = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
+)
+
+// flush is a blocking function that marshals WriteRequest and sends
+// it to remote write endpoint. Flush performs limited amount of retries
+// if request fails.
+func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
 		return
 	}
+	defer prompbmarshal.ResetWriteRequest(wr)
+
 	data, err := wr.Marshal()
 	if err != nil {
 		logger.Errorf("failed to marshal WriteRequest: %s", err)
 		return
 	}
-	req, err := http.NewRequest("POST", c.addr, bytes.NewReader(snappy.Encode(nil, data)))
+
+	const attempts = 5
+	b := snappy.Encode(nil, data)
+	for i := 0; i < attempts; i++ {
+		err := c.send(ctx, b)
+		if err == nil {
+			sentRows.Add(len(wr.Timeseries))
+			sentBytes.Add(len(b))
+			return
+		}
+
+		logger.Errorf("attempt %d to send request failed: %s", i+1, err)
+		// sleeping to avoid remote db hammering
+		time.Sleep(time.Second)
+		continue
+	}
+
+	droppedRows.Add(len(wr.Timeseries))
+	droppedBytes.Add(len(b))
+	logger.Errorf("all %d attempts to send request failed - dropping %d timeseries",
+		attempts, len(wr.Timeseries))
+}
+
+func (c *Client) send(ctx context.Context, data []byte) error {
+	req, err := http.NewRequest("POST", c.addr, bytes.NewReader(data))
 	if err != nil {
-		logger.Errorf("failed to create new HTTP request: %s", err)
-		return
+		return fmt.Errorf("failed to create new HTTP request: %s", err)
 	}
 	if c.baPass != "" {
 		req.SetBasicAuth(c.baUser, c.baPass)
 	}
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
-		logger.Errorf("error getting response from %s:%s", req.URL, err)
-		return
+		return fmt.Errorf("error while sending request to %s: %s", req.URL, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent {
 		body, _ := ioutil.ReadAll(resp.Body)
-		logger.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
-		return
+		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
+			resp.StatusCode, req.URL, body)
 	}
+	return nil
 }
