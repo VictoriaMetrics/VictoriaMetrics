@@ -222,7 +222,8 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 }
 
 func (c *Client) send(ctx context.Context, data []byte) error {
-	req, err := http.NewRequest("POST", c.addr, bytes.NewReader(data))
+	r := bytes.NewReader(data)
+	req, err := http.NewRequest("POST", c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %s", err)
 	}
@@ -231,7 +232,8 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	}
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("error while sending request to %s: %s", req.URL, err)
+		return fmt.Errorf("error while sending request to %s: %s; Data len %d(%d)",
+			req.URL, err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent {
