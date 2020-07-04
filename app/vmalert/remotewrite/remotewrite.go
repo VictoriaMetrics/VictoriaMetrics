@@ -230,6 +230,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if c.baPass != "" {
 		req.SetBasicAuth(c.baUser, c.baPass)
 	}
+	req.Close = true
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %s; Data len %d(%d)",
