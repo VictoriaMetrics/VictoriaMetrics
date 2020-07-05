@@ -877,8 +877,8 @@ func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, star
 		return fmt.Errorf("cannot execute query: %w", err)
 	}
 	queryOffset := getLatencyOffsetMilliseconds()
-	if ct-end < queryOffset {
-		result = adjustLastPoints(result, ct, queryOffset)
+	if ct-queryOffset < end {
+		result = adjustLastPoints(result, ct-queryOffset, end)
 	}
 
 	// Remove NaN values as Prometheus does.
@@ -923,46 +923,24 @@ func removeNaNValuesInplace(tss []netstorage.Result) {
 
 var queryRangeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/query_range"}`)
 
-// adjustLastPoints substitutes the last point values with the previous
-// point values, since the last points may contain garbage.
-func adjustLastPoints(tss []netstorage.Result, ct, queryOffset int64) []netstorage.Result {
-	if len(tss) == 0 {
-		return nil
-	}
-
-	// Search for the last non-NaN value across all the timeseries.
-	lastNonNaNIdx := -1
+// adjustLastPoints substitutes the last point values on the time range (start..end]
+// with the previous point values, since these points may contain garbage.
+func adjustLastPoints(tss []netstorage.Result, start, end int64) []netstorage.Result {
 	for i := range tss {
-		values := tss[i].Values
-		j := len(values) - 1
-		for j >= 0 && math.IsNaN(values[j]) {
+		ts := &tss[i]
+		values := ts.Values
+		timestamps := ts.Timestamps
+		j := len(timestamps) - 1
+		for j >= 0 && timestamps[j] > start {
 			j--
 		}
-		if j > lastNonNaNIdx {
-			lastNonNaNIdx = j
-		}
-	}
-	if lastNonNaNIdx == -1 {
-		// All timeseries contain only NaNs.
-		return nil
-	}
-
-	// Substitute the last two values starting from lastNonNaNIdx
-	// with the previous values for each timeseries.
-	for i := range tss {
-		values := tss[i].Values
-		if lastNonNaNIdx > len(values) {
+		j++
+		if j <= 0 {
 			continue
 		}
-		end := tss[i].Timestamps[lastNonNaNIdx]
-		if ct-end < queryOffset {
-			for j := 1; j < 3; j++ {
-				idx := lastNonNaNIdx + j
-				if idx <= 0 || idx >= len(values) || math.IsNaN(values[idx-1]) {
-					continue
-				}
-				values[idx] = values[idx-1]
-			}
+		for j < len(timestamps) && timestamps[j] <= end {
+			values[j] = values[j-1]
+			j++
 		}
 	}
 	return tss

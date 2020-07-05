@@ -115,9 +115,9 @@ func TestGetTimeError(t *testing.T) {
 }
 
 func TestAdjustLastPoints(t *testing.T) {
-	f := func(tss []netstorage.Result, ct, queryOffset int64, tssExpected []netstorage.Result) {
+	f := func(tss []netstorage.Result, start, end int64, tssExpected []netstorage.Result) {
 		t.Helper()
-		tss = adjustLastPoints(tss, ct, queryOffset)
+		tss = adjustLastPoints(tss, start, end)
 		for i, ts := range tss {
 			for j, value := range ts.Values {
 				expectedValue := tssExpected[i].Values[j]
@@ -138,7 +138,7 @@ func TestAdjustLastPoints(t *testing.T) {
 
 	nan := math.NaN()
 
-	f(nil, 500, 300, nil)
+	f(nil, 300, 500, nil)
 
 	f([]netstorage.Result{
 		{
@@ -149,7 +149,7 @@ func TestAdjustLastPoints(t *testing.T) {
 			Timestamps: []int64{100, 200, 300, 400, 500},
 			Values:     []float64{1, 2, 3, nan, nan},
 		},
-	}, 500, 300, []netstorage.Result{
+	}, 400, 500, []netstorage.Result{
 		{
 			Timestamps: []int64{100, 200, 300, 400, 500},
 			Values:     []float64{1, 2, 3, 4, 4},
@@ -169,7 +169,7 @@ func TestAdjustLastPoints(t *testing.T) {
 			Timestamps: []int64{100, 200, 300, 400, 500},
 			Values:     []float64{1, 2, nan, nan, nan},
 		},
-	}, 500, 300, []netstorage.Result{
+	}, 300, 500, []netstorage.Result{
 		{
 			Timestamps: []int64{100, 200, 300, 400, 500},
 			Values:     []float64{1, 2, 3, 3, 3},
@@ -209,7 +209,7 @@ func TestAdjustLastPoints(t *testing.T) {
 			Timestamps: []int64{100, 200, 300, 400},
 			Values:     []float64{1, 2, 3, 4},
 		},
-	}, 500, 300, []netstorage.Result{
+	}, 400, 500, []netstorage.Result{
 		{
 			Timestamps: []int64{100, 200, 300, 400, 500},
 			Values:     []float64{1, 2, 3, 4, 4},
@@ -229,7 +229,7 @@ func TestAdjustLastPoints(t *testing.T) {
 			Timestamps: []int64{100, 200, 300},
 			Values:     []float64{1, 2, nan},
 		},
-	}, 500, 300, []netstorage.Result{
+	}, 300, 600, []netstorage.Result{
 		{
 			Timestamps: []int64{100, 200, 300, 400, 500},
 			Values:     []float64{1, 2, 3, 3, 3},
