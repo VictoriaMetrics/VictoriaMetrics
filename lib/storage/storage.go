@@ -327,6 +327,8 @@ type Metrics struct {
 	AddRowsConcurrencyCapacity     uint64
 	AddRowsConcurrencyCurrent      uint64
 
+	SearchDelays uint64
+
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
@@ -384,6 +386,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.AddRowsConcurrencyDroppedRows += atomic.LoadUint64(&s.addRowsConcurrencyDroppedRows)
 	m.AddRowsConcurrencyCapacity = uint64(cap(addRowsConcurrencyCh))
 	m.AddRowsConcurrencyCurrent = uint64(len(addRowsConcurrencyCh))
+
+	m.SearchDelays += atomic.LoadUint64(&searchDelays)
 
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
@@ -793,8 +797,26 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 	return deadline.Sub(t)
 }
 
+var (
+	searchTSIDsCondLock sync.Mutex
+	searchTSIDsCond     = sync.NewCond(&searchTSIDsCondLock)
+
+	searchDelays uint64
+)
+
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+	// Make sure that there are enough resources for processing the ingested data via Storage.AddRows
+	// before starting the query.
+	// This should prevent from data ingestion starvation when provessing heavy queries.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/291 .
+	searchTSIDsCondLock.Lock()
+	for len(addRowsConcurrencyCh) >= cap(addRowsConcurrencyCh) {
+		atomic.AddUint64(&searchDelays, 1)
+		searchTSIDsCond.Wait()
+	}
+	searchTSIDsCondLock.Unlock()
+
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics)
@@ -998,7 +1020,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	// goroutines call AddRows.
 	select {
 	case addRowsConcurrencyCh <- struct{}{}:
-		defer func() { <-addRowsConcurrencyCh }()
 	default:
 		// Sleep for a while until giving up
 		atomic.AddUint64(&s.addRowsConcurrencyLimitReached, 1)
@@ -1006,7 +1027,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		select {
 		case addRowsConcurrencyCh <- struct{}{}:
 			timerpool.Put(t)
-			defer func() { <-addRowsConcurrencyCh }()
 		case <-t.C:
 			timerpool.Put(t)
 			atomic.AddUint64(&s.addRowsConcurrencyLimitTimeout, 1)
@@ -1021,6 +1041,10 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	rr := getRawRowsWithSize(len(mrs))
 	rr.rows, err = s.add(rr.rows, mrs, precisionBits)
 	putRawRows(rr)
+
+	// Notify blocked goroutines at Storage.searchTSIDs that they may proceed with their work.
+	<-addRowsConcurrencyCh
+	searchTSIDsCond.Signal()
 
 	return err
 }
