@@ -878,7 +878,7 @@ func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, star
 	}
 	queryOffset := getLatencyOffsetMilliseconds()
 	if ct-end < queryOffset {
-		result = adjustLastPoints(result)
+		result = adjustLastPoints(result, ct, queryOffset)
 	}
 
 	// Remove NaN values as Prometheus does.
@@ -925,7 +925,7 @@ var queryRangeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 
 // adjustLastPoints substitutes the last point values with the previous
 // point values, since the last points may contain garbage.
-func adjustLastPoints(tss []netstorage.Result) []netstorage.Result {
+func adjustLastPoints(tss []netstorage.Result, ct, queryOffset int64) []netstorage.Result {
 	if len(tss) == 0 {
 		return nil
 	}
@@ -951,12 +951,18 @@ func adjustLastPoints(tss []netstorage.Result) []netstorage.Result {
 	// with the previous values for each timeseries.
 	for i := range tss {
 		values := tss[i].Values
-		for j := 0; j < 2; j++ {
-			idx := lastNonNaNIdx + j
-			if idx <= 0 || idx >= len(values) || math.IsNaN(values[idx-1]) {
-				continue
+		if lastNonNaNIdx > len(values) {
+			continue
+		}
+		end := tss[i].Timestamps[lastNonNaNIdx]
+		if ct-end < queryOffset {
+			for j := 1; j < 3; j++ {
+				idx := lastNonNaNIdx + j
+				if idx <= 0 || idx >= len(values) || math.IsNaN(values[idx-1]) {
+					continue
+				}
+				values[idx] = values[idx-1]
 			}
-			values[idx] = values[idx-1]
 		}
 	}
 	return tss
