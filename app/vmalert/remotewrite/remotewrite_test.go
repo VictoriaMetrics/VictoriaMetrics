@@ -60,8 +60,8 @@ func newRWServer() *rwServer {
 }
 
 type rwServer struct {
-	*httptest.Server
 	acceptedRows uint64
+	*httptest.Server
 }
 
 func (rw *rwServer) accepted() int {
