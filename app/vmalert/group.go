@@ -144,7 +144,6 @@ var (
 	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
 	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
 
-	remoteWriteSent   = metrics.NewCounter(`vmalert_remotewrite_sent_total`)
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
@@ -255,7 +254,6 @@ func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, inter
 	}
 
 	if len(tss) > 0 && e.rw != nil {
-		remoteWriteSent.Add(len(tss))
 		for _, ts := range tss {
 			if err := e.rw.Push(ts); err != nil {
 				remoteWriteErrors.Inc()
