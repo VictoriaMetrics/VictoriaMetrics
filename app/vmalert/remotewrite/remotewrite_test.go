@@ -27,7 +27,7 @@ func TestClient_Push(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create client: %s", err)
 	}
-	const rowsN = 1e3
+	const rowsN = 1e4
 	var sent int
 	for i := 0; i < rowsN; i++ {
 		s := prompbmarshal.TimeSeries{
@@ -60,6 +60,8 @@ func newRWServer() *rwServer {
 }
 
 type rwServer struct {
+	// WARN: ordering of fields is important for alignment!
+	// see https://golang.org/pkg/sync/atomic/#pkg-note-BUG
 	acceptedRows uint64
 	*httptest.Server
 }
