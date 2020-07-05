@@ -99,6 +99,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		baPass:        cfg.BasicAuthPass,
 		flushInterval: cfg.FlushInterval,
 		maxBatchSize:  cfg.MaxBatchSize,
+		maxQueueSize:  cfg.MaxQueueSize,
 		doneCh:        make(chan struct{}),
 		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
 	}
