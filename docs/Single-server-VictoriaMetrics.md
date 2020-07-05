@@ -787,6 +787,8 @@ The required resources for query path:
   The higher number of scanned time series and lower `step` argument results in the higher RAM usage.
 
 * CPU cores: a CPU core per 30 millions of scanned data points per second.
+  This means that heavy queries that touch big number of time series (over 10K) and/or big number data points (over 100M)
+  usually require more CPU resources than tiny queries that touch a few time series with small number of data points.
 
 * Network usage: depends on the frequency and the type of incoming requests. Typical Grafana dashboards usually
   require negligible network bandwidth.
@@ -975,7 +977,7 @@ The most interesting metrics are:
   of tweaking these flag values arises.
 
 * It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-  since the issue could be already fixed there.
+  since the encountered issue could be already fixed there.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
