@@ -876,12 +876,13 @@ func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
-	// Do not reset MetricName -> TSID cache (tsidCache), since the obtained
-	// entries must be checked against deleted metricIDs.
-	// See Storage.add for details.
-	//
+	// Reset MetricName->TSID cache in order to prevent from adding new data points
+	// to deleted time series in Storage.add.
+	s.tsidCache.Reset()
+
 	// Do not reset MetricID -> MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
+
 	return deletedCount, nil
 }
 
@@ -1056,7 +1057,6 @@ var (
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	idb := s.idb()
-	dmis := idb.getDeletedMetricIDs()
 	rowsLen := len(rows)
 	if n := rowsLen + len(mrs) - cap(rows); n > 0 {
 		rows = append(rows[:cap(rows)], make([]rawRow, n)...)
@@ -1108,7 +1108,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			r.TSID = prevTSID
 			continue
 		}
-		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
+		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
 			// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -1154,7 +1154,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				r.TSID = prevTSID
 				continue
 			}
-			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
+			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 				prevTSID = r.TSID
 				prevMetricNameRaw = mr.MetricNameRaw
