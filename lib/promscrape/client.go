@@ -80,6 +80,12 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
 	req.SetHost(c.host)
+	// The following `Accept` header has been copied from Prometheus sources.
+	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
+	// This is needed as a workaround for scraping stupid Java-based servers such as Spring Boot.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
+	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
+	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
 	if !*disableCompression || c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}
