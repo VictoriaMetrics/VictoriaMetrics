@@ -1,7 +1,9 @@
 package graphite
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -159,5 +161,29 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Timestamp: 43,
 			},
 		},
+	})
+}
+
+func Test_streamContext_Read(t *testing.T) {
+	f := func(s string, rowsExpected *Rows){
+		t.Helper()
+		ctx := &streamContext{}
+		ctx.Read(strings.NewReader(s))
+		if len(ctx.Rows.Rows) != len(rowsExpected.Rows) {
+			t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows, rowsExpected.Rows)
+		}
+		if !reflect.DeepEqual(ctx.Rows.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows.Rows, rowsExpected.Rows)
+		}
+	}
+
+	// -1 timestamp
+	currentTimestamp := int64(fasttime.UnixTimestamp())
+	f("aaa 1123", &Rows{
+		Rows: []Row{{
+			Metric: "aaa",
+			Value:  1123,
+			Timestamp: currentTimestamp*1000,
+		}},
 	})
 }
