@@ -1122,7 +1122,10 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 }
 
 var (
-	addRowsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1)*2)
+	// Limit the concurrency for data ingestion to GOMAXPROCS, since this operation
+	// is CPU bound, so there is no sense in running more than GOMAXPROCS concurrent
+	// goroutines on data ingestion path.
+	addRowsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1))
 	addRowsTimeout       = 30 * time.Second
 )
 
@@ -1183,6 +1186,9 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
 			// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
+			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
+			// contain MetricName->TSID entries for deleted time series.
+			// See Storage.DeleteMetrics code for details.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
 			continue
@@ -1229,6 +1235,9 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			}
 			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
+				// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
+				// contain MetricName->TSID entries for deleted time series.
+				// See Storage.DeleteMetrics code for details.
 				prevTSID = r.TSID
 				prevMetricNameRaw = mr.MetricNameRaw
 				continue
