@@ -1,7 +1,6 @@
 package vmselect
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -24,8 +23,7 @@ var (
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
 	maxQueueDuration  = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
-	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. Will be replaced by internalAuthKey.")
-	internalAuthKey   = flag.String("internalAuthKey", "", "Optional authKey for operation calls with prefix /internal. Use value of search.resetCacheAuthKey fif not set.")
+	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -68,8 +66,6 @@ var (
 	})
 )
 
-var internalHandlerPrefix = "/internal"
-
 // RequestHandler handles remote read API requests for Prometheus
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
@@ -100,13 +96,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
-	if strings.HasPrefix(path, internalHandlerPrefix) {
-		return internalHandler(w, r)
+	if path == "/internal/resetRollupResultCache" {
+		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
+			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+			return true
+		}
+		promql.ResetRollupResultCache()
+		return true
 	}
-	return apiHandler(startTime, w, r, path)
-}
 
-func apiHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, path string) bool {
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := r.URL.Path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -178,12 +176,16 @@ func apiHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, pat
 		}
 		return true
 	case "/api/v1/status/tsdb":
-		tsdbStatusRequests.Inc()
+		statusTSDBRequests.Inc()
 		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
-			tsdbStatusErrors.Inc()
+			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
+		return true
+	case "/api/v1/status/active_queries":
+		statusActiveQueriesRequests.Inc()
+		promql.WriteActiveQueries(w)
 		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
@@ -238,78 +240,6 @@ func apiHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, pat
 	}
 }
 
-func internalHandler(w http.ResponseWriter, r *http.Request) bool {
-	path := r.URL.Path
-	p := path[len(internalHandlerPrefix):]
-	authKey := *internalAuthKey
-	if authKey == "" {
-		authKey = *resetCacheAuthKey
-	}
-	if authKey != "" && r.FormValue("authKey") != authKey {
-		sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
-		return true
-	}
-
-	switch p {
-	case "/resetRollupResultCache":
-		promql.ResetRollupResultCache()
-		return true
-	case "/query/list":
-		queryListRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		data, err := json.Marshal(promql.GetAllRunningQueries())
-		if err != nil {
-			queryListErrors.Inc()
-			sendPrometheusError(w, r, err)
-			return true
-		}
-		fmt.Fprintf(w, `{"status":"success","data": %v}`, string(data))
-		return true
-	case "/query/info":
-		queryInfoRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		pid := strings.TrimSpace(r.URL.Query().Get("pid"))
-		if pid == "" {
-			queryInfoErrors.Inc()
-			sendPrometheusError(w, r, fmt.Errorf("pid not set"))
-			return true
-		}
-		info, err := promql.GetQueryInfo(pid)
-		if err != nil {
-			queryInfoErrors.Inc()
-			sendPrometheusError(w, r, err)
-			return true
-		}
-		data, err := json.Marshal(info)
-		if err != nil {
-			queryInfoErrors.Inc()
-			sendPrometheusError(w, r, err)
-			return true
-		}
-		fmt.Fprintf(w, `{"status":"success","data": %v}`, string(data))
-		return true
-	case "/query/kill":
-		queryKillRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		pid := strings.TrimSpace(r.URL.Query().Get("pid"))
-		if pid == "" {
-			queryKillErrors.Inc()
-			sendPrometheusError(w, r, fmt.Errorf("pid not set"))
-			return true
-		}
-		err := promql.CancelRunningQuery(pid)
-		if err != nil {
-			queryKillErrors.Inc()
-			sendPrometheusError(w, r, err)
-			return true
-		}
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
-		return true
-	default:
-		return false
-	}
-}
-
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	logger.Warnf("error in %q: %s", r.RequestURI, err)
 
@@ -345,8 +275,10 @@ var (
 	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/labels/count"}`)
 	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/labels/count"}`)
 
-	tsdbStatusRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/tsdb"}`)
-	tsdbStatusErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/tsdb"}`)
+	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/tsdb"}`)
+	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/tsdb"}`)
+
+	statusActiveQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/active_queries"}`)
 
 	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/admin/tsdb/delete_series"}`)
 	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/tsdb/delete_series"}`)
@@ -360,13 +292,4 @@ var (
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
 	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
-
-	queryListRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/list"}`)
-	queryListErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/list"}`)
-
-	queryKillRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/kill"}`)
-	queryKillErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/kill"}`)
-
-	queryInfoRequests = metrics.NewCounter(`vm_http_requests_total{path="/-/{}/query/info"}`)
-	queryInfoErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/-/{}/query/info"}`)
 )

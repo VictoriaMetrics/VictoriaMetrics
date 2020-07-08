@@ -533,6 +533,7 @@ Additionally VictoriaMetrics provides the following handlers:
 * `/api/v1/series/count` - it returns the total number of time series in the database. Note that this handler scans all the inverted index,
   so it can be slow if the database contains tens of millions of time series.
 * `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
+* `/api/v1/status/active_queries` - it returns a list of currently running queries.
 
 ### How to build from sources
 
@@ -969,6 +970,8 @@ The most interesting metrics are:
 * `increase(vm_slow_metric_name_loads_total[5m])` - the number of slow loads of metric names during the last 5 minutes.
   If this number remains high during extended periods of time, then it is likely more RAM is needed for optimal handling
   of the current number of active time series.
+
+VictoriaMetrics also exposes currently running queries with their execution times at `/api/v1/status/active_queries` page.
 
 
 ### Troubleshooting

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,95 +13,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
-
-	"github.com/google/uuid"
 )
 
 var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
-
-type query struct {
-	q       *string
-	ec      *EvalConfig
-	stopCh  chan error
-	startAt time.Time
-}
-
-type queriesMap struct {
-	mu sync.Mutex
-	m  map[string]query
-}
-
-func newQueriesMap() *queriesMap {
-	var qm queriesMap
-	qm.m = make(map[string]query)
-
-	return &qm
-}
-
-func (qm *queriesMap) Add(q query) string {
-	qm.mu.Lock()
-	c := uuid.New().String()
-	qm.m[c] = q
-	qm.mu.Unlock()
-
-	return c
-}
-
-func (qm *queriesMap) Delete(c string) {
-	qm.mu.Lock()
-	delete(qm.m, c)
-	qm.mu.Unlock()
-}
-
-var runningQueries = newQueriesMap()
-
-const truncateQueryLength = 16
-
-// GetAllRunningQueries get all the running queries' list
-func GetAllRunningQueries() map[string]map[string]string {
-	all := make(map[string]map[string]string)
-	runningQueries.mu.Lock()
-	for c, rq := range runningQueries.m {
-		m := make(map[string]string)
-		if len(*rq.q) > truncateQueryLength {
-			m["query"] = (*rq.q)[:truncateQueryLength] + "..."
-		} else {
-			m["query"] = *rq.q
-		}
-		m["cost"] = time.Since(rq.startAt).String()
-		all[c] = m
-	}
-	runningQueries.mu.Unlock()
-
-	return all
-}
-
-// GetQueryInfo get all the running queries' info
-func GetQueryInfo(c string) (map[string]string, error) {
-	if rq, ok := runningQueries.m[c]; ok {
-		m := make(map[string]string)
-		m["query"] = *rq.q
-		m["start"] = strconv.FormatInt(rq.ec.Start, 10)
-		m["end"] = strconv.FormatInt(rq.ec.End, 10)
-		m["step"] = strconv.FormatInt(rq.ec.Step, 10)
-		m["cost"] = time.Since(rq.startAt).String()
-
-		return m, nil
-	}
-	return nil, fmt.Errorf("query of qid {%v} is not running", c)
-}
-
-// CancelRunningQuery cancel the given query's execution
-func CancelRunningQuery(c string) error {
-	runningQueries.mu.Lock()
-	defer runningQueries.mu.Unlock()
-	if rq, ok := runningQueries.m[c]; ok {
-		rq.stopCh <- fmt.Errorf("cancel query manully")
-		return nil
-	}
-	return fmt.Errorf("query of qid {%v} is not running", c)
-
-}
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
@@ -120,40 +33,18 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		}()
 	}
 
-	stopCh := make(chan error, 1)
-	resultCh := make(chan []netstorage.Result)
-	c := runningQueries.Add(query{
-		q:       &q,
-		ec:      ec,
-		startAt: time.Now(),
-		stopCh:  stopCh,
-	})
-	defer runningQueries.Delete(c)
-
-	go exec(ec, q, isFirstPointOnly, stopCh, resultCh)
-
-	select {
-	case err := <-stopCh:
-		logger.Infof(err.Error())
-		return nil, err
-	case result := <-resultCh:
-		return result, nil
-	}
-}
-
-func exec(ec *EvalConfig, q string, isFirstPointOnly bool, stopCh chan error, resultCh chan []netstorage.Result) {
 	ec.validate()
 
 	e, err := parsePromQLWithCache(q)
 	if err != nil {
-		stopCh <- err
-		return
+		return nil, err
 	}
 
+	qid := activeQueriesV.Add(ec, q)
 	rv, err := evalExpr(ec, e)
+	activeQueriesV.Remove(qid)
 	if err != nil {
-		stopCh <- err
-		return
+		return nil, err
 	}
 
 	if isFirstPointOnly {
@@ -167,10 +58,9 @@ func exec(ec *EvalConfig, q string, isFirstPointOnly bool, stopCh chan error, re
 	maySort := maySortResults(e, rv)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
-		stopCh <- err
-		return
+		return nil, err
 	}
-	resultCh <- result
+	return result, err
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
