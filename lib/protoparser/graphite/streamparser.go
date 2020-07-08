@@ -75,7 +75,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	currentTimestamp := int64(fasttime.UnixTimestamp())
 	for i := range rows {
 		r := &rows[i]
-		if r.Timestamp == 0 {
+		if r.Timestamp == 0 || r.Timestamp == -1 {
 			r.Timestamp = currentTimestamp
 		}
 	}
