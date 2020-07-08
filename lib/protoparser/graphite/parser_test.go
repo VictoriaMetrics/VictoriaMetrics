@@ -88,8 +88,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 	f("aaa 1123 -1", &Rows{
 		Rows: []Row{{
-			Metric: "aaa",
-			Value:  1123,
+			Metric:    "aaa",
+			Value:     1123,
 			Timestamp: -1,
 		}},
 	})
@@ -189,19 +189,19 @@ func Test_streamContext_Read(t *testing.T) {
 		Rows: []Row{{
 			Metric:    "aaa",
 			Value:     1123,
-			Timestamp: 345*1000,
+			Timestamp: 345 * 1000,
 		}},
 	})
 	// Full line with tags
 	f("aaa;x=y 1123 345", &Rows{
 		Rows: []Row{{
-			Metric:    "aaa",
+			Metric: "aaa",
 			Tags: []Tag{{
-				Key: "x",
+				Key:   "x",
 				Value: "y",
 			}},
 			Value:     1123,
-			Timestamp: 345*1000,
+			Timestamp: 345 * 1000,
 		}},
 	})
 	// missing timestamp.
