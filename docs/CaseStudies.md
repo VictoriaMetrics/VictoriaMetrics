@@ -26,6 +26,8 @@ VictoriaMetrics is used for the following purposes as a part of "CMS Monitoring 
 
 R&D topic: Evaluate VictoraMetrics vs InfluxDB for large cardinality data.
 
+See also [The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf) publication from CERN with details about VictoriaMetrics usage.
+
 
 ## COLOPL
 
