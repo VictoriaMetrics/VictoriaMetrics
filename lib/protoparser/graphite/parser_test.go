@@ -165,7 +165,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 }
 
 func Test_streamContext_Read(t *testing.T) {
-	f := func(s string, rowsExpected *Rows){
+	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		ctx := &streamContext{}
 		ctx.Read(strings.NewReader(s))
@@ -181,9 +181,9 @@ func Test_streamContext_Read(t *testing.T) {
 	currentTimestamp := int64(fasttime.UnixTimestamp())
 	f("aaa 1123", &Rows{
 		Rows: []Row{{
-			Metric: "aaa",
-			Value:  1123,
-			Timestamp: currentTimestamp*1000,
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: currentTimestamp * 1000,
 		}},
 	})
 }
