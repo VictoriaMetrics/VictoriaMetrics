@@ -72,6 +72,7 @@ var transformFuncs = map[string]transformFunc{
 	"":                   transformUnion, // empty func is a synonim to union
 	"keep_last_value":    transformKeepLastValue,
 	"keep_next_value":    transformKeepNextValue,
+	"interpolate":        transformInterpolate,
 	"start":              newTransformFuncZeroArgs(transformStart),
 	"end":                newTransformFuncZeroArgs(transformEnd),
 	"step":               newTransformFuncZeroArgs(transformStep),
@@ -414,7 +415,7 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	les, err := getScalar(args[0], 0)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse le: %s", err)
+		return nil, fmt.Errorf("cannot parse le: %w", err)
 	}
 
 	// Convert buckets with `vmrange` labels to buckets with `le` labels.
@@ -425,7 +426,7 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 	if len(args) > 2 {
 		s, err := getString(args[2], 2)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse boundsLabel (arg #3): %s", err)
+			return nil, fmt.Errorf("cannot parse boundsLabel (arg #3): %w", err)
 		}
 		boundsLabel = s
 	}
@@ -513,7 +514,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	phis, err := getScalar(args[0], 0)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse phi: %s", err)
+		return nil, fmt.Errorf("cannot parse phi: %w", err)
 	}
 
 	// Convert buckets with `vmrange` labels to buckets with `le` labels.
@@ -524,7 +525,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	if len(args) > 2 {
 		s, err := getString(args[2], 2)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse boundsLabel (arg #3): %s", err)
+			return nil, fmt.Errorf("cannot parse boundsLabel (arg #3): %w", err)
 		}
 		boundsLabel = s
 	}
@@ -759,6 +760,52 @@ func transformKeepNextValue(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			values[i] = nextValue
+		}
+	}
+	return rvs, nil
+}
+
+func transformInterpolate(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		if len(values) == 0 {
+			continue
+		}
+		prevValue := nan
+		var nextValue float64
+		for i := 0; i < len(values); i++ {
+			if !math.IsNaN(values[i]) {
+				continue
+			}
+			if i > 0 {
+				prevValue = values[i-1]
+			}
+			j := i + 1
+			for j < len(values) {
+				if !math.IsNaN(values[j]) {
+					break
+				}
+				j++
+			}
+			if j >= len(values) {
+				nextValue = prevValue
+			} else {
+				nextValue = values[j]
+			}
+			if math.IsNaN(prevValue) {
+				prevValue = nextValue
+			}
+			delta := (nextValue - prevValue) / float64(j-i+1)
+			for i < j {
+				prevValue += delta
+				values[i] = prevValue
+				i++
+			}
 		}
 	}
 	return rvs, nil
@@ -1034,7 +1081,7 @@ func transformLabelMap(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	label, err := getString(args[1], 1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read label name: %s", err)
+		return nil, fmt.Errorf("cannot read label name: %w", err)
 	}
 	srcValues, dstValues, err := getStringPairs(args[2:])
 	if err != nil {
@@ -1179,7 +1226,7 @@ func transformLabelTransform(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	r, err := metricsql.CompileRegexp(regex)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot compile regex %q: %s`, regex, err)
+		return nil, fmt.Errorf(`cannot compile regex %q: %w`, regex, err)
 	}
 	return labelReplace(args[0], label, r, label, replacement)
 }
@@ -1208,7 +1255,7 @@ func transformLabelReplace(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	r, err := metricsql.CompileRegexpAnchored(regex)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot compile regex %q: %s`, regex, err)
+		return nil, fmt.Errorf(`cannot compile regex %q: %w`, regex, err)
 	}
 	return labelReplace(args[0], srcLabel, r, dstLabel, replacement)
 }
@@ -1219,6 +1266,9 @@ func labelReplace(tss []*timeseries, srcLabel string, r *regexp.Regexp, dstLabel
 		mn := &ts.MetricName
 		dstValue := getDstValue(mn, dstLabel)
 		srcValue := mn.GetTagValue(srcLabel)
+		if !r.Match(srcValue) {
+			continue
+		}
 		b := r.ReplaceAll(srcValue, replacementBytes)
 		*dstValue = append((*dstValue)[:0], b...)
 		if len(b) == 0 {
@@ -1235,7 +1285,7 @@ func transformLabelValue(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	labelName, err := getString(args[1], 1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get label name: %s", err)
+		return nil, fmt.Errorf("cannot get label name: %w", err)
 	}
 	rvs := args[0]
 	for _, ts := range rvs {
@@ -1262,15 +1312,15 @@ func transformLabelMatch(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	labelName, err := getString(args[1], 1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get label name: %s", err)
+		return nil, fmt.Errorf("cannot get label name: %w", err)
 	}
 	labelRe, err := getString(args[2], 2)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get regexp: %s", err)
+		return nil, fmt.Errorf("cannot get regexp: %w", err)
 	}
 	r, err := metricsql.CompileRegexpAnchored(labelRe)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot compile regexp %q: %s`, labelRe, err)
+		return nil, fmt.Errorf(`cannot compile regexp %q: %w`, labelRe, err)
 	}
 	tss := args[0]
 	rvs := tss[:0]
@@ -1290,15 +1340,15 @@ func transformLabelMismatch(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	labelName, err := getString(args[1], 1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get label name: %s", err)
+		return nil, fmt.Errorf("cannot get label name: %w", err)
 	}
 	labelRe, err := getString(args[2], 2)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get regexp: %s", err)
+		return nil, fmt.Errorf("cannot get regexp: %w", err)
 	}
 	r, err := metricsql.CompileRegexpAnchored(labelRe)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot compile regexp %q: %s`, labelRe, err)
+		return nil, fmt.Errorf(`cannot compile regexp %q: %w`, labelRe, err)
 	}
 	tss := args[0]
 	rvs := tss[:0]
@@ -1398,7 +1448,7 @@ func newTransformFuncSortByLabel(isDesc bool) transformFunc {
 		}
 		label, err := getString(args[1], 1)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse label name for sorting: %s", err)
+			return nil, fmt.Errorf("cannot parse label name for sorting: %w", err)
 		}
 		rvs := args[0]
 		sort.SliceStable(rvs, func(i, j int) bool {

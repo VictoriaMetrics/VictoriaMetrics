@@ -124,7 +124,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	}
 	path, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot determine absolute path for %q: %s", path, err)
+		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
 	}
 
 	s := &Storage{
@@ -136,11 +136,11 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	}
 
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %s", path, err)
+		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
 	}
 	snapshotsPath := path + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %s", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
 	}
 
 	// Protect from concurrent opens.
@@ -174,11 +174,11 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	idbPath := path + "/indexdb"
 	idbSnapshotsPath := idbPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %s", idbSnapshotsPath, err)
+		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
 	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, &s.currHourMetricIDs, &s.prevHourMetricIDs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open indexdb tables at %q: %s", idbPath, err)
+		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
 	}
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
@@ -188,7 +188,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	tb, err := openTable(tablePath, retentionMonths, s.getDeletedMetricIDs)
 	if err != nil {
 		s.idb().MustClose()
-		return nil, fmt.Errorf("cannot open table at %q: %s", tablePath, err)
+		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
 	}
 	s.tb = tb
 
@@ -198,6 +198,11 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	s.startPrefetchedMetricIDsCleaner()
 
 	return s, nil
+}
+
+// RetentionMonths returns retention months for s.
+func (s *Storage) RetentionMonths() int {
+	return s.retentionMonths
 }
 
 // debugFlush flushes recently added storage data, so it becomes visible to search.
@@ -222,24 +227,24 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	srcDir := s.path
 	dstDir := fmt.Sprintf("%s/snapshots/%s", srcDir, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
-		return "", fmt.Errorf("cannot create dir %q: %s", dstDir, err)
+		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
 	}
 	dstDataDir := dstDir + "/data"
 	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
-		return "", fmt.Errorf("cannot create dir %q: %s", dstDataDir, err)
+		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
 	}
 
 	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName)
 	if err != nil {
-		return "", fmt.Errorf("cannot create table snapshot: %s", err)
+		return "", fmt.Errorf("cannot create table snapshot: %w", err)
 	}
 	dstSmallDir := dstDataDir + "/small"
 	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %s", smallDir, dstSmallDir, err)
+		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", smallDir, dstSmallDir, err)
 	}
 	dstBigDir := dstDataDir + "/big"
 	if err := fs.SymlinkRelative(bigDir, dstBigDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %s", bigDir, dstBigDir, err)
+		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", bigDir, dstBigDir, err)
 	}
 	fs.MustSyncPath(dstDataDir)
 
@@ -247,18 +252,18 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	idb := s.idb()
 	currSnapshot := idbSnapshot + "/" + idb.name
 	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
-		return "", fmt.Errorf("cannot create curr indexDB snapshot: %s", err)
+		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
 	ok := idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := idbSnapshot + "/" + extDB.name
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
 	})
 	if ok && err != nil {
-		return "", fmt.Errorf("cannot create prev indexDB snapshot: %s", err)
+		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
 	dstIdbDir := dstDir + "/indexdb"
 	if err := fs.SymlinkRelative(idbSnapshot, dstIdbDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %s", idbSnapshot, dstIdbDir, err)
+		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
 	}
 
 	fs.MustSyncPath(dstDir)
@@ -275,13 +280,13 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 	snapshotsPath := s.path + "/snapshots"
 	d, err := os.Open(snapshotsPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %s", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", snapshotsPath, err)
 	}
 	defer fs.MustClose(d)
 
 	fnames, err := d.Readdirnames(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read contents of %q: %s", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot read contents of %q: %w", snapshotsPath, err)
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
@@ -336,6 +341,8 @@ type Metrics struct {
 	AddRowsConcurrencyDroppedRows  uint64
 	AddRowsConcurrencyCapacity     uint64
 	AddRowsConcurrencyCurrent      uint64
+
+	SearchDelays uint64
 
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
@@ -394,6 +401,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.AddRowsConcurrencyDroppedRows += atomic.LoadUint64(&s.addRowsConcurrencyDroppedRows)
 	m.AddRowsConcurrencyCapacity = uint64(cap(addRowsConcurrencyCh))
 	m.AddRowsConcurrencyCurrent = uint64(len(addRowsConcurrencyCh))
+
+	m.SearchDelays += atomic.LoadUint64(&searchDelays)
 
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
@@ -851,13 +860,31 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 	return deadline.Sub(t)
 }
 
+var (
+	searchTSIDsCondLock sync.Mutex
+	searchTSIDsCond     = sync.NewCond(&searchTSIDsCondLock)
+
+	searchDelays uint64
+)
+
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+	// Make sure that there are enough resources for processing the ingested data via Storage.AddRows
+	// before starting the query.
+	// This should prevent from data ingestion starvation when provessing heavy queries.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/291 .
+	searchTSIDsCondLock.Lock()
+	for len(addRowsConcurrencyCh) >= cap(addRowsConcurrencyCh) {
+		atomic.AddUint64(&searchDelays, 1)
+		searchTSIDsCond.Wait()
+	}
+	searchTSIDsCondLock.Unlock()
+
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics)
 	if err != nil {
-		return nil, fmt.Errorf("error when searching tsids for tfss %q: %s", tfss, err)
+		return nil, fmt.Errorf("error when searching tsids for tfss %q: %w", tfss, err)
 	}
 	return tsids, nil
 }
@@ -894,7 +921,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 		tsid := tsidsMap[metricID]
 		metricName, err = is.searchMetricName(metricName[:0], metricID, tsid.AccountID, tsid.ProjectID)
 		if err != nil && err != io.EOF {
-			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %s", metricID, err)
+			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
 		}
 	}
 
@@ -913,14 +940,15 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 	deletedCount, err := s.idb().DeleteTSIDs(tfss)
 	if err != nil {
-		return deletedCount, fmt.Errorf("cannot delete tsids: %s", err)
+		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
-	// Do not reset MetricName -> TSID cache (tsidCache), since the obtained
-	// entries must be checked against deleted metricIDs.
-	// See Storage.add for details.
-	//
+	// Reset MetricName->TSID cache in order to prevent from adding new data points
+	// to deleted time series in Storage.add.
+	s.tsidCache.Reset()
+
 	// Do not reset MetricID -> MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
+
 	return deletedCount, nil
 }
 
@@ -945,7 +973,7 @@ func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxT
 	idb := s.idb()
 	keys, err := idb.SearchTagKeys(accountID, projectID, maxTagKeys)
 	if err != nil {
-		return nil, fmt.Errorf("cannot search tag keys: %s", err)
+		return nil, fmt.Errorf("cannot search tag keys: %w", err)
 	}
 
 	// Sort keys for faster seeks below
@@ -955,7 +983,7 @@ func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxT
 	for i, key := range keys {
 		values, err := idb.SearchTagValues(accountID, projectID, []byte(key), maxTagValues)
 		if err != nil {
-			return nil, fmt.Errorf("cannot search values for tag %q: %s", key, err)
+			return nil, fmt.Errorf("cannot search values for tag %q: %w", key, err)
 		}
 		te := &tes[i]
 		te.Key = key
@@ -1032,7 +1060,7 @@ func MarshalMetricRow(dst []byte, metricNameRaw []byte, timestamp int64, value f
 func (mr *MetricRow) Unmarshal(src []byte) ([]byte, error) {
 	tail, metricNameRaw, err := encoding.UnmarshalBytes(src)
 	if err != nil {
-		return tail, fmt.Errorf("cannot unmarshal MetricName: %s", err)
+		return tail, fmt.Errorf("cannot unmarshal MetricName: %w", err)
 	}
 	mr.MetricNameRaw = append(mr.MetricNameRaw[:0], metricNameRaw...)
 
@@ -1064,7 +1092,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	// goroutines call AddRows.
 	select {
 	case addRowsConcurrencyCh <- struct{}{}:
-		defer func() { <-addRowsConcurrencyCh }()
 	default:
 		// Sleep for a while until giving up
 		atomic.AddUint64(&s.addRowsConcurrencyLimitReached, 1)
@@ -1072,7 +1099,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		select {
 		case addRowsConcurrencyCh <- struct{}{}:
 			timerpool.Put(t)
-			defer func() { <-addRowsConcurrencyCh }()
 		case <-t.C:
 			timerpool.Put(t)
 			atomic.AddUint64(&s.addRowsConcurrencyLimitTimeout, 1)
@@ -1088,6 +1114,10 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	rr.rows, err = s.add(rr.rows, mrs, precisionBits)
 	putRawRows(rr)
 
+	// Notify blocked goroutines at Storage.searchTSIDs that they may proceed with their work.
+	<-addRowsConcurrencyCh
+	searchTSIDsCond.Signal()
+
 	return err
 }
 
@@ -1098,7 +1128,6 @@ var (
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	idb := s.idb()
-	dmis := idb.getDeletedMetricIDs()
 	rowsLen := len(rows)
 	if n := rowsLen + len(mrs) - cap(rows); n > 0 {
 		rows = append(rows[:cap(rows)], make([]rawRow, n)...)
@@ -1150,7 +1179,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			r.TSID = prevTSID
 			continue
 		}
-		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
+		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
 			// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -1196,7 +1225,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				r.TSID = prevTSID
 				continue
 			}
-			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) && !dmis.Has(r.TSID.MetricID) {
+			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
 				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
 				prevTSID = r.TSID
 				prevMetricNameRaw = mr.MetricNameRaw
@@ -1207,7 +1236,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				// This guarantees that invalid rows don't prevent
 				// from adding valid rows into the storage.
 				if firstWarn == nil {
-					firstWarn = fmt.Errorf("cannot obtain or create TSID for MetricName %q: %s", pmr.MetricName, err)
+					firstWarn = fmt.Errorf("cannot obtain or create TSID for MetricName %q: %w", pmr.MetricName, err)
 				}
 				j--
 				continue
@@ -1224,13 +1253,13 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 
 	var firstError error
 	if err := s.tb.AddRows(rows); err != nil {
-		firstError = fmt.Errorf("cannot add rows to table: %s", err)
+		firstError = fmt.Errorf("cannot add rows to table: %w", err)
 	}
 	if err := s.updatePerDateData(rows); err != nil && firstError == nil {
-		firstError = fmt.Errorf("cannot update per-date data: %s", err)
+		firstError = fmt.Errorf("cannot update per-date data: %w", err)
 	}
 	if firstError != nil {
-		return rows, fmt.Errorf("error occurred during rows addition: %s", firstError)
+		return rows, fmt.Errorf("error occurred during rows addition: %w", firstError)
 	}
 	return rows, nil
 }
@@ -1266,7 +1295,7 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 	// of many rows for the same metric.
 	if string(mr.MetricNameRaw) != string(pmrs.lastMetricNameRaw) {
 		if err := pmrs.mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
-			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %s", mr.MetricNameRaw, err)
+			return fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 		}
 		pmrs.mn.sortTags()
 		metricNamesBufLen := len(pmrs.metricNamesBuf)
@@ -1426,7 +1455,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		ok, err := is.hasDateMetricID(date, metricID, accountID, projectID)
 		if err != nil {
 			if firstError == nil {
-				firstError = fmt.Errorf("error when locating (date=%d, metricID=%d, accountID=%d, projectID=%d) in database: %s",
+				firstError = fmt.Errorf("error when locating (date=%d, metricID=%d, accountID=%d, projectID=%d) in database: %w",
 					date, metricID, accountID, projectID, err)
 			}
 			continue
@@ -1435,7 +1464,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			// The (date, metricID) entry is missing in the indexDB. Add it there.
 			if err := is.storeDateMetricID(date, metricID, accountID, projectID); err != nil {
 				if firstError == nil {
-					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %s", date, metricID, err)
+					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %w", date, metricID, err)
 				}
 				continue
 			}
@@ -1692,12 +1721,12 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 
 func openIndexDBTables(path string, metricIDCache, metricNameCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, nil, fmt.Errorf("cannot create directory %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 
 	d, err := os.Open(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open directory: %s", err)
+		return nil, nil, fmt.Errorf("cannot open directory: %w", err)
 	}
 	defer fs.MustClose(d)
 
@@ -1705,7 +1734,7 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *workingsetca
 	// the previous one contains backup data.
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read directory: %s", err)
+		return nil, nil, fmt.Errorf("cannot read directory: %w", err)
 	}
 	var tableNames []string
 	for _, fi := range fis {
@@ -1751,13 +1780,13 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache *workingsetca
 
 	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, currHourMetricIDs, prevHourMetricIDs)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %s", currPath, err)
+		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
 	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, currHourMetricIDs, prevHourMetricIDs)
 	if err != nil {
 		curr.MustClose()
-		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %s", prevPath, err)
+		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
 	}
 
 	// Adjust startDateForPerDayInvertedIndex for the previous index.

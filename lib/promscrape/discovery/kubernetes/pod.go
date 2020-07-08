@@ -47,11 +47,11 @@ func getPods(cfg *apiConfig) ([]Pod, error) {
 func getPodsByPath(cfg *apiConfig, path string) ([]Pod, error) {
 	data, err := getAPIResponse(cfg, "pod", path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain pods data from API server: %s", err)
+		return nil, fmt.Errorf("cannot obtain pods data from API server: %w", err)
 	}
 	pl, err := parsePodList(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse pods response from API server: %s", err)
+		return nil, fmt.Errorf("cannot parse pods response from API server: %w", err)
 	}
 	return pl.Items, nil
 }
@@ -118,7 +118,7 @@ type PodCondition struct {
 func parsePodList(data []byte) (*PodList, error) {
 	var pl PodList
 	if err := json.Unmarshal(data, &pl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal PodList from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal PodList from %q: %w", data, err)
 	}
 	return &pl, nil
 }

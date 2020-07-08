@@ -85,7 +85,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	tagsStart := len(tagsPool)
 	tagsPool, err = unmarshalTags(tagsPool, tail[n+1:])
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal tags in %q: %s", s, err)
+		return tagsPool, fmt.Errorf("cannot unmarshal tags in %q: %w", s, err)
 	}
 	tags := tagsPool[tagsStart:]
 	r.Tags = tags[:len(tags):len(tags)]

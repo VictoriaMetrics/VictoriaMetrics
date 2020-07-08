@@ -148,6 +148,30 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 		relabelBufPool.Put(bb)
 		valueStr := prc.Regex.ReplaceAllString(sourceStr, prc.Replacement)
 		return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
+	case "keep_if_equal":
+		// Keep the entry if all the label values in source_labels are equal.
+		// For example:
+		//
+		//   - source_labels: [foo, bar]
+		//     action: keep_if_equal
+		//
+		// Would leave the entry if `foo` value equals `bar` value
+		if areEqualLabelValues(src, prc.SourceLabels) {
+			return labels
+		}
+		return labels[:labelsOffset]
+	case "drop_if_equal":
+		// Drop the entry if all the label values in source_labels are equal.
+		// For example:
+		//
+		//   - source_labels: [foo, bar]
+		//     action: drop_if_equal
+		//
+		// Would drop the entry if `foo` value equals `bar` value.
+		if areEqualLabelValues(src, prc.SourceLabels) {
+			return labels[:labelsOffset]
+		}
+		return labels
 	case "keep":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
@@ -248,6 +272,21 @@ func (prc *ParsedRelabelConfig) expandCaptureGroups(template, source string, mat
 }
 
 var relabelBufPool bytesutil.ByteBufferPool
+
+func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool {
+	if len(labelNames) < 2 {
+		logger.Panicf("BUG: expecting at least 2 labelNames; got %d", len(labelNames))
+		return false
+	}
+	labelValue := GetLabelValueByName(labels, labelNames[0])
+	for _, labelName := range labelNames[1:] {
+		v := GetLabelValueByName(labels, labelName)
+		if v != labelValue {
+			return false
+		}
+	}
+	return true
+}
 
 func concatLabelValues(dst []byte, labels []prompbmarshal.Label, labelNames []string, separator string) []byte {
 	if len(labelNames) == 0 {

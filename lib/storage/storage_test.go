@@ -467,7 +467,7 @@ func testStorageRandTimestamps(s *Storage) error {
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 			errStr := err.Error()
 			if !strings.Contains(errStr, "too big timestamp") && !strings.Contains(errStr, "too small timestamp") {
-				return fmt.Errorf("unexpected error when adding mrs: %s", err)
+				return fmt.Errorf("unexpected error when adding mrs: %w", err)
 			}
 		}
 	}
@@ -594,7 +594,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 			mrs = append(mrs, mr)
 		}
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			return fmt.Errorf("unexpected error when adding mrs: %s", err)
+			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
 	}
 	s.debugFlush()
@@ -602,7 +602,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	// Verify tag values exist
 	tvs, err := s.SearchTagValues(accountID, projectID, workerTag, 1e5)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValues before metrics removal: %s", err)
+		return fmt.Errorf("error in SearchTagValues before metrics removal: %w", err)
 	}
 	if len(tvs) == 0 {
 		return fmt.Errorf("unexpected empty number of tag values for workerTag")
@@ -611,10 +611,10 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	// Verify tag keys exist
 	tks, err := s.SearchTagKeys(accountID, projectID, 1e5)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagKeys before metrics removal: %s", err)
+		return fmt.Errorf("error in SearchTagKeys before metrics removal: %w", err)
 	}
 	if err := checkTagKeys(tks, tksAll); err != nil {
-		return fmt.Errorf("unexpected tag keys before metrics removal: %s", err)
+		return fmt.Errorf("unexpected tag keys before metrics removal: %w", err)
 	}
 
 	var sr Search
@@ -635,18 +635,18 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	for i := 0; i < metricsCount; i++ {
 		tfs := NewTagFilters(accountID, projectID)
 		if err := tfs.Add(nil, []byte("metric_.+"), false, true); err != nil {
-			return fmt.Errorf("cannot add regexp tag filter: %s", err)
+			return fmt.Errorf("cannot add regexp tag filter: %w", err)
 		}
 		job := fmt.Sprintf("job_%d_%d", i, workerNum)
 		if err := tfs.Add([]byte("job"), []byte(job), false, false); err != nil {
-			return fmt.Errorf("cannot add job tag filter: %s", err)
+			return fmt.Errorf("cannot add job tag filter: %w", err)
 		}
 		if n := metricBlocksCount(tfs); n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
 		deletedCount, err := s.DeleteMetrics([]*TagFilters{tfs})
 		if err != nil {
-			return fmt.Errorf("cannot delete metrics: %s", err)
+			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
 		if deletedCount == 0 {
 			return fmt.Errorf("expecting non-zero number of deleted metrics on iteration %d", i)
@@ -658,7 +658,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 		// Try deleting empty tfss
 		deletedCount, err = s.DeleteMetrics(nil)
 		if err != nil {
-			return fmt.Errorf("cannot delete empty tfss: %s", err)
+			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
 		if deletedCount != 0 {
 			return fmt.Errorf("expecting zero deleted metrics for empty tfss; got %d", deletedCount)
@@ -668,14 +668,14 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	// Make sure no more metrics left for the given workerNum
 	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add(nil, []byte(fmt.Sprintf("metric_.+_%d", workerNum)), false, true); err != nil {
-		return fmt.Errorf("cannot add regexp tag filter for worker metrics: %s", err)
+		return fmt.Errorf("cannot add regexp tag filter for worker metrics: %w", err)
 	}
 	if n := metricBlocksCount(tfs); n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
 	tvs, err = s.SearchTagValues(accountID, projectID, workerTag, 1e5)
 	if err != nil {
-		return fmt.Errorf("error in SearchTagValues after all the metrics are removed: %s", err)
+		return fmt.Errorf("error in SearchTagValues after all the metrics are removed: %w", err)
 	}
 	if len(tvs) != 0 {
 		return fmt.Errorf("found non-empty tag values for %q after metrics removal: %q", workerTag, tvs)
@@ -774,7 +774,7 @@ func testStorageAddRows(s *Storage) error {
 			mrs = append(mrs, mr)
 		}
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
-			return fmt.Errorf("unexpected error when adding mrs: %s", err)
+			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
 	}
 
@@ -789,13 +789,13 @@ func testStorageAddRows(s *Storage) error {
 	// Try creating a snapshot from the storage.
 	snapshotName, err := s.CreateSnapshot()
 	if err != nil {
-		return fmt.Errorf("cannot create snapshot from the storage: %s", err)
+		return fmt.Errorf("cannot create snapshot from the storage: %w", err)
 	}
 
 	// Verify the snapshot is visible
 	snapshots, err := s.ListSnapshots()
 	if err != nil {
-		return fmt.Errorf("cannot list snapshots: %s", err)
+		return fmt.Errorf("cannot list snapshots: %w", err)
 	}
 	if !containsString(snapshots, snapshotName) {
 		return fmt.Errorf("cannot find snapshot %q in %q", snapshotName, snapshots)
@@ -805,7 +805,7 @@ func testStorageAddRows(s *Storage) error {
 	snapshotPath := s.path + "/snapshots/" + snapshotName
 	s1, err := OpenStorage(snapshotPath, 0)
 	if err != nil {
-		return fmt.Errorf("cannot open storage from snapshot: %s", err)
+		return fmt.Errorf("cannot open storage from snapshot: %w", err)
 	}
 
 	// Verify the snapshot contains rows
@@ -819,11 +819,11 @@ func testStorageAddRows(s *Storage) error {
 
 	// Delete the snapshot and make sure it is no longer visible.
 	if err := s.DeleteSnapshot(snapshotName); err != nil {
-		return fmt.Errorf("cannot delete snapshot %q: %s", snapshotName, err)
+		return fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 	}
 	snapshots, err = s.ListSnapshots()
 	if err != nil {
-		return fmt.Errorf("cannot list snapshots: %s", err)
+		return fmt.Errorf("cannot list snapshots: %w", err)
 	}
 	if containsString(snapshots, snapshotName) {
 		return fmt.Errorf("snapshot %q must be deleted, but is still visible in %q", snapshotName, snapshots)
@@ -904,7 +904,7 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 			Value:         value,
 		}
 		if err := s.AddRows([]MetricRow{mr}, defaultPrecisionBits); err != nil {
-			return fmt.Errorf("unexpected error when adding mrs: %s", err)
+			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
 	}
 

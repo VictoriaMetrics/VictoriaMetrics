@@ -336,6 +336,92 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
+	t.Run("keep_if_equal-miss", func(t *testing.T) {
+		f([]ParsedRelabelConfig{
+			{
+				Action:       "keep_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+			},
+		}, nil, true, nil)
+		f([]ParsedRelabelConfig{
+			{
+				Action:       "keep_if_equal",
+				SourceLabels: []string{"xxx", "bar"},
+			},
+		}, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		}, true, []prompbmarshal.Label{})
+	})
+	t.Run("keep_if_equal-hit", func(t *testing.T) {
+		f([]ParsedRelabelConfig{
+			{
+				Action:       "keep_if_equal",
+				SourceLabels: []string{"xxx", "bar"},
+			},
+		}, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+			{
+				Name:  "bar",
+				Value: "yyy",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "bar",
+				Value: "yyy",
+			},
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("drop_if_equal-miss", func(t *testing.T) {
+		f([]ParsedRelabelConfig{
+			{
+				Action:       "drop_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+			},
+		}, nil, true, nil)
+		f([]ParsedRelabelConfig{
+			{
+				Action:       "drop_if_equal",
+				SourceLabels: []string{"xxx", "bar"},
+			},
+		}, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("drop_if_equal-hit", func(t *testing.T) {
+		f([]ParsedRelabelConfig{
+			{
+				Action:       "drop_if_equal",
+				SourceLabels: []string{"xxx", "bar"},
+			},
+		}, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+			{
+				Name:  "bar",
+				Value: "yyy",
+			},
+		}, true, []prompbmarshal.Label{})
+	})
 	t.Run("keep-miss", func(t *testing.T) {
 		f([]ParsedRelabelConfig{
 			{

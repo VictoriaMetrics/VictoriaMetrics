@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -23,6 +24,8 @@ type InsertCtx struct {
 
 	bufRowss  []bufRows
 	labelsBuf []byte
+
+	relabelCtx relabel.Ctx
 }
 
 type bufRows struct {
@@ -41,7 +44,7 @@ func (br *bufRows) pushTo(sn *storageNode) error {
 	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %s", bufLen, sn.dialer.Addr(), err),
+			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %w", bufLen, sn.dialer.Addr(), err),
 			StatusCode: http.StatusServiceUnavailable,
 		}
 	}
@@ -50,7 +53,8 @@ func (br *bufRows) pushTo(sn *storageNode) error {
 
 // Reset resets ctx.
 func (ctx *InsertCtx) Reset() {
-	for _, label := range ctx.Labels {
+	for i := range ctx.Labels {
+		label := &ctx.Labels[i]
 		label.Name = nil
 		label.Value = nil
 	}
@@ -64,6 +68,7 @@ func (ctx *InsertCtx) Reset() {
 		ctx.bufRowss[i].reset()
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
+	ctx.relabelCtx.Reset()
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -104,6 +109,11 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 	label.Value = bytesutil.ToUnsafeBytes(value)
 
 	ctx.Labels = labels
+}
+
+// ApplyRelabeling applies relabeling to ctx.Labels.
+func (ctx *InsertCtx) ApplyRelabeling() {
+	ctx.Labels = ctx.relabelCtx.ApplyRelabeling(ctx.Labels)
 }
 
 // WriteDataPoint writes (timestamp, value) data point with the given at and labels to ctx buffer.

@@ -72,7 +72,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 	ar.lastExecError = err
 	ar.lastExecTime = time.Now()
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %s", ar.Expr, err)
+		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
 	for h, a := range ar.alerts {
@@ -103,7 +103,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 		a, err := ar.newAlert(m, ar.lastExecTime)
 		if err != nil {
 			ar.lastExecError = err
-			return nil, fmt.Errorf("failed to create alert: %s", err)
+			return nil, fmt.Errorf("failed to create alert: %w", err)
 		}
 		a.ID = h
 		a.State = notifier.StatePending
@@ -363,7 +363,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 
 		a, err := ar.newAlert(m, time.Unix(int64(m.Value), 0))
 		if err != nil {
-			return fmt.Errorf("failed to create alert: %s", err)
+			return fmt.Errorf("failed to create alert: %w", err)
 		}
 		a.ID = hash(m)
 		a.State = notifier.StatePending

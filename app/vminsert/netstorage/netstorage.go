@@ -50,8 +50,8 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 
 	if sn.isBroken() {
 		// The vmstorage node is temporarily broken. Re-route buf to healthy vmstorage nodes.
-		if err := addToReroutedBuf(buf, rows); err != nil {
-			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %s", rows, err)
+		if err := addToReroutedBufMayBlock(buf, rows); err != nil {
+			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
 		}
 		sn.rowsReroutedFromHere.Add(rows)
 		return nil
@@ -70,8 +70,8 @@ func (sn *storageNode) push(buf []byte, rows int) error {
 	// Slow path: the buf contents doesn't fit sn.buf.
 	// This means that the current vmstorage is slow or will become broken soon.
 	// Re-route buf to healthy vmstorage nodes.
-	if err := addToReroutedBuf(buf, rows); err != nil {
-		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %s", rows, err)
+	if err := addToReroutedBufMayBlock(buf, rows); err != nil {
+		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %w", rows, err)
 	}
 	sn.rowsReroutedFromHere.Add(rows)
 	return nil
@@ -247,7 +247,7 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
 	if err := bc.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set write deadline to %s: %s", deadline, err)
+		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
 	}
 	// sizeBuf guarantees that the rows batch will be either fully
 	// read or fully discarded on the vmstorage side.
@@ -256,23 +256,23 @@ func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	defer sizeBufPool.Put(sizeBuf)
 	sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(buf)))
 	if _, err := bc.Write(sizeBuf.B); err != nil {
-		return fmt.Errorf("cannot write data size %d: %s", len(buf), err)
+		return fmt.Errorf("cannot write data size %d: %w", len(buf), err)
 	}
 	if _, err := bc.Write(buf); err != nil {
-		return fmt.Errorf("cannot write data with size %d: %s", len(buf), err)
+		return fmt.Errorf("cannot write data with size %d: %w", len(buf), err)
 	}
 	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush data with size %d: %s", len(buf), err)
+		return fmt.Errorf("cannot flush data with size %d: %w", len(buf), err)
 	}
 
 	// Wait for `ack` from vmstorage.
 	// This guarantees that the message has been fully received by vmstorage.
 	deadline = time.Now().Add(timeout)
 	if err := bc.SetReadDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %s", err)
+		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %w", err)
 	}
 	if _, err := io.ReadFull(bc, sizeBuf.B[:1]); err != nil {
-		return fmt.Errorf("cannot read `ack` from vmstorage: %s", err)
+		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
 	}
 	if sizeBuf.B[0] != 1 {
 		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want %d", sizeBuf.B[0], 1)
@@ -296,7 +296,7 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 	if err != nil {
 		_ = c.Close()
 		sn.handshakeErrors.Inc()
-		return nil, fmt.Errorf("handshake error: %s", err)
+		return nil, fmt.Errorf("handshake error: %w", err)
 	}
 	return bc, nil
 }
@@ -352,7 +352,7 @@ func rerouteWorker(stopCh <-chan struct{}) {
 		spreadReroutedBufToStorageNodes(sns, &br)
 		// There is no need in br.reset() here, since it is already done in spreadReroutedBufToStorageNodes.
 	}
-	// Notify all the blocked addToReroutedBuf callers, so they may finish the work.
+	// Notify all the blocked addToReroutedBufMayBlock callers, so they may finish the work.
 	reroutedBRCond.Broadcast()
 }
 
@@ -488,7 +488,7 @@ func Stop() {
 	storageNodesWG.Wait()
 }
 
-// addToReroutedBuf adds buf to reroutedBR.
+// addToReroutedBufMayBlock adds buf to reroutedBR.
 //
 // It waits until the reroutedBR has enough space for buf or if Stop is called.
 // This guarantees backpressure if the ingestion rate exceeds vmstorage nodes'
@@ -498,7 +498,7 @@ func Stop() {
 //
 //   - if all the storage nodes are unhealthy.
 //   - if Stop is called.
-func addToReroutedBuf(buf []byte, rows int) error {
+func addToReroutedBufMayBlock(buf []byte, rows int) error {
 	if len(buf) > reroutedBufMaxSize {
 		logger.Panicf("BUG: len(buf)=%d cannot exceed reroutedBufMaxSize=%d", len(buf), reroutedBufMaxSize)
 	}
@@ -552,7 +552,11 @@ func getHealthyStorageNodes() []*storageNode {
 func spreadReroutedBufToStorageNodes(sns []*storageNode, br *bufRows) {
 	var mr storage.MetricRow
 	rowsProcessed := 0
+	defer reroutedRowsProcessed.Add(rowsProcessed)
+
 	src := br.buf
+	dst := br.buf[:0]
+	dstRows := 0
 	for len(src) > 0 {
 		tail, err := mr.Unmarshal(src)
 		if err != nil {
@@ -560,6 +564,7 @@ func spreadReroutedBufToStorageNodes(sns []*storageNode, br *bufRows) {
 		}
 		rowBuf := src[:len(src)-len(tail)]
 		src = tail
+		rowsProcessed++
 
 		idx := uint64(0)
 		if len(sns) > 1 {
@@ -572,41 +577,40 @@ func spreadReroutedBufToStorageNodes(sns []*storageNode, br *bufRows) {
 		attempts := 0
 		for {
 			sn := sns[idx]
-			if sn.sendReroutedRow(rowBuf) {
-				// The row has been successfully re-routed to sn.
-				break
-			}
-
-			// Cannot re-route data to sn. Try sending to the next vmstorage node.
 			idx++
 			if idx >= uint64(len(sns)) {
 				idx = 0
 			}
 			attempts++
-			if attempts < len(sns) {
+			if attempts > len(sns) {
+				// All the storage nodes are broken.
+				// Return the remaining data to br.buf, so it may be processed later.
+				dst = append(dst, rowBuf...)
+				dst = append(dst, src...)
+				br.buf = dst
+				br.rows = dstRows + (br.rows - rowsProcessed + 1)
+				return
+			}
+			if sn.isBroken() {
+				// The sn is broken. Go to the next one.
 				continue
 			}
-
-			// There is no enough buffer space in all the vmstorage nodes.
-			// Return the remaining data to br.buf, so it may be processed later.
-			br.buf = append(br.buf[:0], rowBuf...)
-			br.buf = append(br.buf, src...)
-			br.rows -= rowsProcessed
-			return
+			if !sn.sendReroutedRow(rowBuf) {
+				// The row cannot be re-routed to sn. Return it back to the buf for rerouting.
+				// Do not re-route the row to the remaining storage nodes,
+				// since this may result in increased resource usage (CPU, memory, disk IO) on these nodes,
+				// because they'll have to accept and register new time series (this is resource-intensive operation).
+				dst = append(dst, rowBuf...)
+				dstRows++
+			}
+			break
 		}
-		rowsProcessed++
 	}
-	if rowsProcessed != br.rows {
-		logger.Panicf("BUG: unexpected number of rows processed; got %d; want %d", rowsProcessed, br.rows)
-	}
-	reroutedRowsProcessed.Add(rowsProcessed)
-	br.reset()
+	br.buf = dst
+	br.rows = dstRows
 }
 
 func (sn *storageNode) sendReroutedRow(buf []byte) bool {
-	if sn.isBroken() {
-		return false
-	}
 	sn.brLock.Lock()
 	ok := len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode
 	if ok {

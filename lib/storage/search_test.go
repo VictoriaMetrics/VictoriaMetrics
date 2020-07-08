@@ -192,13 +192,13 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 		tfs := NewTagFilters(uint32(i%accountsCount), 0)
 		metricGroupRe := fmt.Sprintf(`metric_\d*%d%d`, i, i)
 		if err := tfs.Add(nil, []byte(metricGroupRe), false, true); err != nil {
-			return fmt.Errorf("cannot add metricGroupRe=%q: %s", metricGroupRe, err)
+			return fmt.Errorf("cannot add metricGroupRe=%q: %w", metricGroupRe, err)
 		}
 		if err := tfs.Add([]byte("job"), []byte("nonexisting-service"), true, false); err != nil {
-			return fmt.Errorf("cannot add tag filter %q=%q: %s", "job", "nonexsitsing-service", err)
+			return fmt.Errorf("cannot add tag filter %q=%q: %w", "job", "nonexsitsing-service", err)
 		}
 		if err := tfs.Add([]byte("instance"), []byte(".*"), false, true); err != nil {
-			return fmt.Errorf("cannot add tag filter %q=%q: %s", "instance", ".*", err)
+			return fmt.Errorf("cannot add tag filter %q=%q: %w", "instance", ".*", err)
 		}
 
 		// Build extectedMrs.
@@ -211,7 +211,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 				continue
 			}
 			if err := mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
-				return fmt.Errorf("cannot unmarshal MetricName: %s", err)
+				return fmt.Errorf("cannot unmarshal MetricName: %w", err)
 			}
 			if !metricGroupRegexp.Match(mn.MetricGroup) {
 				continue
@@ -237,7 +237,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 			mbs = append(mbs, mb)
 		}
 		if err := s.Error(); err != nil {
-			return fmt.Errorf("search error: %s", err)
+			return fmt.Errorf("search error: %w", err)
 		}
 		s.MustClose()
 
@@ -246,7 +246,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 		for _, mb := range mbs {
 			rb := newTestRawBlock(mb.Block, tr)
 			if err := mn.Unmarshal(mb.MetricName); err != nil {
-				return fmt.Errorf("cannot unmarshal MetricName: %s", err)
+				return fmt.Errorf("cannot unmarshal MetricName: %w", err)
 			}
 			metricNameRaw := mn.marshalRaw(nil)
 			for i, timestamp := range rb.Timestamps {

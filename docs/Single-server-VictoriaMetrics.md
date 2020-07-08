@@ -79,6 +79,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
   * [/api/v1/import](#how-to-import-time-series-data).
   * [Arbitrary CSV data](#how-to-import-csv-data).
+* Supports metrics' relabeling. See [these docs](#relabeling) for details.
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * See also technical [Articles about VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles).
@@ -111,6 +112,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to delete time series](#how-to-delete-time-series)
 * [How to export time series](#how-to-export-time-series)
 * [How to import time series data](#how-to-import-time-series-data)
+* [Relabeling](#relabeling)
 * [Federation](#federation)
 * [Capacity planning](#capacity-planning)
 * [High availability](#high-availability)
@@ -150,9 +152,9 @@ The following command-line flags are used the most:
 
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
 * `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
-* `-httpListenAddr` - TCP address to listen to for http requests. By default, it listens port `8428` on all the network interfaces.
 
 Other flags have good enough default values, so set them only if you really need this.
+VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
 
 Pass `-help` to see all the available flags with description and default values.
 
@@ -583,8 +585,9 @@ Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
-By default the image is built on top of `alpine` image for improved debuggability. It is possible to build the package on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of `scratch` image:
+By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image for improved debuggability.
+It is possible to build the package on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
 ROOT_IMAGE=scratch make package-victoria-metrics
@@ -649,7 +652,7 @@ The delete API is intended mainly for the following cases:
 It isn't recommended using delete API for the following cases, since it brings non-zero overhead:
 
 * Regular cleanups for unneeded data. Just prevent writing unneeded data into VictoriaMetrics.
-  This can be done with relabeling in [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+  This can be done with [relabeling](#relabeling).
   See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
@@ -723,6 +726,22 @@ Note that it could be required to flush response cache after importing historica
 Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
 and importing them concurrently. Note that the original file must be split on newlines.
 
+
+### Relabeling
+
+VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
+to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+
+Additionally VictoriaMetrics provides the following extra actions for relabeling rules:
+
+* `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
+* `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
+* `keep_if_equal`: keeps the entry if all label values from `source_labels` are equal.
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
+
+See also [relabeling in vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md#relabeling).
+
+
 ### Federation
 
 VictoriaMetrics exports [Prometheus-compatible federation data](https://prometheus.io/docs/prometheus/latest/federation/)
@@ -768,6 +787,8 @@ The required resources for query path:
   The higher number of scanned time series and lower `step` argument results in the higher RAM usage.
 
 * CPU cores: a CPU core per 30 millions of scanned data points per second.
+  This means that heavy queries that touch big number of time series (over 10K) and/or big number data points (over 100M)
+  usually require more CPU resources than tiny queries that touch a few time series with small number of data points.
 
 * Network usage: depends on the frequency and the type of incoming requests. Typical Grafana dashboards usually
   require negligible network bandwidth.
@@ -956,7 +977,7 @@ The most interesting metrics are:
   of tweaking these flag values arises.
 
 * It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-  since the issue could be already fixed there.
+  since the encountered issue could be already fixed there.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.

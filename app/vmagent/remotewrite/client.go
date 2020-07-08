@@ -162,7 +162,7 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 	}
 	cfg, err := promauth.NewConfig(".", nil, "", "", tlsConfig)
 	if err != nil {
-		return nil, fmt.Errorf("cannot populate TLS config: %s", err)
+		return nil, fmt.Errorf("cannot populate TLS config: %w", err)
 	}
 	tlsCfg := cfg.NewTLSConfig()
 	return tlsCfg, nil

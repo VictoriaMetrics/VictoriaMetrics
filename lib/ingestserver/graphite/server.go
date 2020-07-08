@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"errors"
 	"io"
 	"net"
 	"runtime"
@@ -86,7 +87,8 @@ func serveTCP(ln net.Listener, insertHandler func(r io.Reader) error) {
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			if ne, ok := err.(net.Error); ok {
+			var ne net.Error
+			if errors.As(err, &ne) {
 				if ne.Temporary() {
 					logger.Errorf("graphite: temporary error when listening for TCP addr %q: %s", ln.Addr(), err)
 					time.Sleep(time.Second)
@@ -125,7 +127,8 @@ func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
 				n, addr, err := ln.ReadFrom(bb.B)
 				if err != nil {
 					writeErrorsUDP.Inc()
-					if ne, ok := err.(net.Error); ok {
+					var ne net.Error
+					if errors.As(err, &ne) {
 						if ne.Temporary() {
 							logger.Errorf("graphite: temporary error when listening for UDP addr %q: %s", ln.LocalAddr(), err)
 							time.Sleep(time.Second)

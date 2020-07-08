@@ -14,7 +14,7 @@ func MarshalWriteRequest(dst []byte, wr *WriteRequest) []byte {
 	dst = dst[:dstLen+size]
 	n, err := wr.MarshalToSizedBuffer(dst[dstLen:])
 	if err != nil {
-		panic(fmt.Errorf("BUG: unexpected error when marshaling WriteRequest: %s", err))
+		panic(fmt.Errorf("BUG: unexpected error when marshaling WriteRequest: %w", err))
 	}
 	return dst[:dstLen+n]
 }

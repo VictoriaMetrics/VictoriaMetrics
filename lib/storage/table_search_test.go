@@ -258,12 +258,12 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 		bs = append(bs, b)
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("unexpected error: %s", err)
+		return fmt.Errorf("unexpected error: %w", err)
 	}
 	ts.MustClose()
 	rbs := newTestRawBlocks(bs, tr)
 	if err := testEqualRawBlocks(rbs, rbsExpected); err != nil {
-		return fmt.Errorf("unequal blocks: %s", err)
+		return fmt.Errorf("unequal blocks: %w", err)
 	}
 
 	if rowsCountExpected >= 0 {
@@ -281,7 +281,7 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 		return fmt.Errorf("unexpected block got for an empty tsids list: %+v", ts.BlockRef)
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("unexpected error on empty tsids list: %s", err)
+		return fmt.Errorf("unexpected error on empty tsids list: %w", err)
 	}
 	ts.MustClose()
 

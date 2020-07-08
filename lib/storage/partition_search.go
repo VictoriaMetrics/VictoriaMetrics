@@ -106,7 +106,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	}
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		pts.err = fmt.Errorf("cannot initialize partition search: %s", errors[0])
+		pts.err = fmt.Errorf("cannot initialize partition search: %w", errors[0])
 		return
 	}
 	if len(pts.psHeap) == 0 {
@@ -134,7 +134,7 @@ func (pts *partitionSearch) NextBlock() bool {
 	pts.err = pts.nextBlock()
 	if pts.err != nil {
 		if pts.err != io.EOF {
-			pts.err = fmt.Errorf("cannot obtain the next block to search in the partition: %s", pts.err)
+			pts.err = fmt.Errorf("cannot obtain the next block to search in the partition: %w", pts.err)
 		}
 		return false
 	}

@@ -121,7 +121,7 @@ func testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock int) error {
 	var bsw blockStreamWriter
 	bsw.InitFromInmemoryPart(&dstIP)
 	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
-		return fmt.Errorf("cannot merge block streams: %s", err)
+		return fmt.Errorf("cannot merge block streams: %w", err)
 	}
 	if itemsMerged != uint64(len(items)) {
 		return fmt.Errorf("unexpected itemsMerged; got %d; want %d", itemsMerged, len(items))
@@ -130,7 +130,7 @@ func testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock int) error {
 	// Verify the resulting part (dstIP) contains all the items
 	// in the correct order.
 	if err := testCheckItems(&dstIP, items); err != nil {
-		return fmt.Errorf("error checking items: %s", err)
+		return fmt.Errorf("error checking items: %w", err)
 	}
 	return nil
 }
@@ -164,7 +164,7 @@ func testCheckItems(dstIP *inmemoryPart, items []string) error {
 		}
 	}
 	if err := dstBsr.Error(); err != nil {
-		return fmt.Errorf("unexpected error in dstBsr: %s", err)
+		return fmt.Errorf("unexpected error in dstBsr: %w", err)
 	}
 	if !reflect.DeepEqual(items, dstItems) {
 		return fmt.Errorf("unequal items\ngot\n%q\nwant\n%q", dstItems, items)

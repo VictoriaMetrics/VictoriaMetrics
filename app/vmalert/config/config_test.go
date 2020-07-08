@@ -70,13 +70,13 @@ func TestParseBad(t *testing.T) {
 
 func TestRule_Validate(t *testing.T) {
 	if err := (&Rule{}).Validate(); err == nil {
-		t.Errorf("exptected empty name error")
+		t.Errorf("expected empty name error")
 	}
 	if err := (&Rule{Alert: "alert"}).Validate(); err == nil {
-		t.Errorf("exptected empty expr error")
+		t.Errorf("expected empty expr error")
 	}
 	if err := (&Rule{Alert: "alert", Expr: "test>0"}).Validate(); err != nil {
-		t.Errorf("exptected valid rule; got %s", err)
+		t.Errorf("expected valid rule; got %s", err)
 	}
 }
 

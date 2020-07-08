@@ -66,6 +66,15 @@ type ScrapeWork struct {
 
 	// The maximum number of metrics to scrape after relabeling.
 	SampleLimit int
+
+	// Whether to disable response compression when querying ScrapeURL.
+	DisableCompression bool
+
+	// Whether to disable HTTP keep-alive when querying ScrapeURL.
+	DisableKeepAlive bool
+
+	// The original 'job_name'
+	jobNameOriginal string
 }
 
 // key returns unique identifier for the given sw.
@@ -73,9 +82,9 @@ type ScrapeWork struct {
 // it can be used for comparing for equality two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d",
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit)
+		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive)
 	return key
 }
 
@@ -204,7 +213,7 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
 	for i := range srcRows {
-		sw.addRowToTimeseries(&srcRows[i], timestamp)
+		sw.addRowToTimeseries(&srcRows[i], timestamp, true)
 	}
 	sw.rows.Reset()
 	if sw.Config.SampleLimit > 0 && len(sw.writeRequest.Timeseries) > sw.Config.SampleLimit {
@@ -235,13 +244,18 @@ func (sw *scrapeWork) addAutoTimeseries(name string, value float64, timestamp in
 	sw.tmpRow.Tags = nil
 	sw.tmpRow.Value = value
 	sw.tmpRow.Timestamp = timestamp
-	sw.addRowToTimeseries(&sw.tmpRow, timestamp)
+	sw.addRowToTimeseries(&sw.tmpRow, timestamp, false)
 }
 
-func (sw *scrapeWork) addRowToTimeseries(r *parser.Row, timestamp int64) {
+func (sw *scrapeWork) addRowToTimeseries(r *parser.Row, timestamp int64, needRelabel bool) {
 	labelsLen := len(sw.labels)
 	sw.labels = appendLabels(sw.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
-	sw.labels = promrelabel.ApplyRelabelConfigs(sw.labels, labelsLen, sw.Config.MetricRelabelConfigs, true)
+	if needRelabel {
+		sw.labels = promrelabel.ApplyRelabelConfigs(sw.labels, labelsLen, sw.Config.MetricRelabelConfigs, true)
+	} else {
+		sw.labels = promrelabel.FinalizeLabels(sw.labels[:labelsLen], sw.labels[labelsLen:])
+		promrelabel.SortLabels(sw.labels[labelsLen:])
+	}
 	if len(sw.labels) == labelsLen {
 		// Skip row without labels.
 		return

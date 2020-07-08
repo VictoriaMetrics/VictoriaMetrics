@@ -2,7 +2,7 @@ version: '3.5'
 services:
   prometheus:
     container_name: prometheus
-    image: prom/prometheus:v2.18.1
+    image: prom/prometheus:v2.19.1
     depends_on:
     - "vminsert"
     - "vmselect"
@@ -18,7 +18,7 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:7.0.2
+    image: grafana/grafana:7.0.3
     entrypoint: >
       /bin/sh -c "
       cd /var/lib/grafana &&

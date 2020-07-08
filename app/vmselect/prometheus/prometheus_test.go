@@ -113,3 +113,130 @@ func TestGetTimeError(t *testing.T) {
 	f("-292273086-05-16T16:47:07Z")
 	f("292277025-08-18T07:12:54.999999998Z")
 }
+
+func TestAdjustLastPoints(t *testing.T) {
+	f := func(tss []netstorage.Result, start, end int64, tssExpected []netstorage.Result) {
+		t.Helper()
+		tss = adjustLastPoints(tss, start, end)
+		for i, ts := range tss {
+			for j, value := range ts.Values {
+				expectedValue := tssExpected[i].Values[j]
+				if math.IsNaN(expectedValue) {
+					if !math.IsNaN(value) {
+						t.Fatalf("unexpected result; got %v; want nan", value)
+					}
+				} else if expectedValue != value {
+					t.Fatalf("unexpected result; got %v; want %v", value, expectedValue)
+				}
+			}
+			if !reflect.DeepEqual(ts.Timestamps, tssExpected[i].Timestamps) {
+				t.Fatalf("unexpected result; got %v; want %v", tss, tssExpected)
+			}
+		}
+
+	}
+
+	nan := math.NaN()
+
+	f(nil, 300, 500, nil)
+
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, 4, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, nan, nan},
+		},
+	}, 400, 500, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, 4, 4},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, nan, nan},
+		},
+	})
+
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, nan, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, nan, nan, nan},
+		},
+	}, 300, 500, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, 3, 3},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, nan, nan, nan},
+		},
+	})
+
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, nan, nan, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, nan, nan, nan, nan},
+		},
+	}, 500, 300, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, nan, nan, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, nan, nan, nan, nan},
+		},
+	})
+
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, 4, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400},
+			Values:     []float64{1, 2, 3, 4},
+		},
+	}, 400, 500, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, 4, 4},
+		},
+		{
+			Timestamps: []int64{100, 200, 300, 400},
+			Values:     []float64{1, 2, 3, 4},
+		},
+	})
+
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, nan, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300},
+			Values:     []float64{1, 2, nan},
+		},
+	}, 300, 600, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, 3, 3},
+		},
+		{
+			Timestamps: []int64{100, 200, 300},
+			Values:     []float64{1, 2, nan},
+		},
+	})
+}

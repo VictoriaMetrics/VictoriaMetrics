@@ -1,6 +1,6 @@
-<img alt="Victoria Metrics" src="logo.png">
-
 # Cluster version
+
+<img alt="Victoria Metrics" src="logo.png">
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -112,8 +112,9 @@ Run `make package`. It will build the following docker images locally:
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
 
-By default images are built on top of `alpine` image in order to improve debuggability. It is possible to build an image on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds images on top of `scratch` image:
+By default images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
+It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
 ROOT_IMAGE=scratch make package

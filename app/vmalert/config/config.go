@@ -46,19 +46,19 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
-			return fmt.Errorf("invalid rule %q.%q: %s", g.Name, ruleName, err)
+			return fmt.Errorf("invalid rule %q.%q: %w", g.Name, ruleName, err)
 		}
 		if validateExpressions {
 			if _, err := metricsql.Parse(r.Expr); err != nil {
-				return fmt.Errorf("invalid expression for rule %q.%q: %s", g.Name, ruleName, err)
+				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
 		if validateAnnotations {
 			if err := notifier.ValidateTemplates(r.Annotations); err != nil {
-				return fmt.Errorf("invalid annotations for rule %q.%q: %s", g.Name, ruleName, err)
+				return fmt.Errorf("invalid annotations for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 			if err := notifier.ValidateTemplates(r.Labels); err != nil {
-				return fmt.Errorf("invalid labels for rule %q.%q: %s", g.Name, ruleName, err)
+				return fmt.Errorf("invalid labels for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
 	}
@@ -137,7 +137,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 	for _, pattern := range pathPatterns {
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
-			return nil, fmt.Errorf("error reading file pattern %s: %v", pattern, err)
+			return nil, fmt.Errorf("error reading file pattern %s: %w", pattern, err)
 		}
 		fp = append(fp, matches...)
 	}
@@ -150,7 +150,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		}
 		for _, g := range gr {
 			if err := g.Validate(validateAnnotations, validateExpressions); err != nil {
-				return nil, fmt.Errorf("invalid group %q in file %q: %s", g.Name, file, err)
+				return nil, fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err)
 			}
 			if _, ok := uniqueGroups[g.Name]; ok {
 				return nil, fmt.Errorf("group name %q duplicate in file %q", g.Name, file)

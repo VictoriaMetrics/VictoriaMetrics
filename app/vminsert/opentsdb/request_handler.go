@@ -52,6 +52,11 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			}
 			ctx.AddLabel(tag.Key, tag.Value)
 		}
+		ctx.ApplyRelabeling()
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
 		if err := ctx.WriteDataPoint(&atCopy, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}

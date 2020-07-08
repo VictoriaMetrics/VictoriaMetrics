@@ -291,7 +291,7 @@ var (
 		var buf [8]byte
 		if _, err := rand.Read(buf[:]); err != nil {
 			// do not use logger.Panicf, since it isn't initialized yet.
-			panic(fmt.Errorf("FATAL: cannot read random data for rollupResultCacheKeyPrefix: %s", err))
+			panic(fmt.Errorf("FATAL: cannot read random data for rollupResultCacheKeyPrefix: %w", err))
 		}
 		return encoding.UnmarshalUint64(buf[:])
 	}()
@@ -421,7 +421,7 @@ func (mi *rollupResultCacheMetainfo) Unmarshal(src []byte) error {
 	for i := 0; i < entriesLen; i++ {
 		tail, err := mi.entries[i].Unmarshal(src)
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal entry #%d: %s", i, err)
+			return fmt.Errorf("cannot unmarshal entry #%d: %w", i, err)
 		}
 		src = tail
 	}

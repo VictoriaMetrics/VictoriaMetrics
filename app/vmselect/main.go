@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -389,7 +390,8 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
-	if esc, ok := err.(*httpserver.ErrorWithStatusCode); ok {
+	var esc *httpserver.ErrorWithStatusCode
+	if errors.As(err, &esc) {
 		statusCode = esc.StatusCode
 	}
 	w.WriteHeader(statusCode)

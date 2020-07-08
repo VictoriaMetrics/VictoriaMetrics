@@ -76,6 +76,10 @@ type ScrapeConfig struct {
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
 	SampleLimit          int                         `yaml:"sample_limit"`
 
+	// These options are supported only by lib/promscrape.
+	DisableCompression bool `yaml:"disable_compression"`
+	DisableKeepAlive   bool `yaml:"disable_keepalive"`
+
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
 }
@@ -99,11 +103,11 @@ type StaticConfig struct {
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read `static_configs` from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
 	var stcs []StaticConfig
 	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
 	}
 	return stcs, nil
 }
@@ -112,11 +116,11 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	data, err = ioutil.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot read Prometheus config from %q: %w", path, err)
 	}
 	var cfgObj Config
 	if err := cfgObj.parse(data, path); err != nil {
-		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %s", path, err)
+		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
 	if *dryRun {
 		// This is a dirty hack for checking Prometheus config only.
@@ -130,18 +134,18 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 
 func (cfg *Config) parse(data []byte, path string) error {
 	if err := unmarshalMaybeStrict(data, cfg); err != nil {
-		return fmt.Errorf("cannot unmarshal data: %s", err)
+		return fmt.Errorf("cannot unmarshal data: %w", err)
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("cannot obtain abs path for %q: %s", path, err)
+		return fmt.Errorf("cannot obtain abs path for %q: %w", path, err)
 	}
 	cfg.baseDir = filepath.Dir(absPath)
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		swc, err := getScrapeWorkConfig(sc, cfg.baseDir, &cfg.Global)
 		if err != nil {
-			return fmt.Errorf("cannot parse `scrape_config` #%d: %s", i+1, err)
+			return fmt.Errorf("cannot parse `scrape_config` #%d: %w", i+1, err)
 		}
 		sc.swc = swc
 	}
@@ -158,77 +162,160 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	return err
 }
 
+func getSWSByJob(sws []ScrapeWork) map[string][]ScrapeWork {
+	m := make(map[string][]ScrapeWork)
+	for _, sw := range sws {
+		m[sw.jobNameOriginal] = append(m[sw.jobNameOriginal], sw)
+	}
+	return m
+}
+
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getKubernetesSDScrapeWork() []ScrapeWork {
+func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
 	var dst []ScrapeWork
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
-			dst = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			var okLocal bool
+			dst, okLocal = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering kubernetes targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
 	return dst
 }
 
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getConsulSDScrapeWork() []ScrapeWork {
+func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
 	var dst []ScrapeWork
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
 		for j := range sc.ConsulSDConfigs {
 			sdc := &sc.ConsulSDConfigs[j]
-			dst = appendConsulScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			var okLocal bool
+			dst, okLocal = appendConsulScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering consul targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
 	return dst
 }
 
 // getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getDNSSDScrapeWork() []ScrapeWork {
+func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
 	var dst []ScrapeWork
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
 		for j := range sc.DNSSDConfigs {
 			sdc := &sc.DNSSDConfigs[j]
-			dst = appendDNSScrapeWork(dst, sdc, sc.swc)
+			var okLocal bool
+			dst, okLocal = appendDNSScrapeWork(dst, sdc, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering dns targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
 	return dst
 }
 
 // getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getEC2SDScrapeWork() []ScrapeWork {
+func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
 	var dst []ScrapeWork
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
 		for j := range sc.EC2SDConfigs {
 			sdc := &sc.EC2SDConfigs[j]
-			dst = appendEC2ScrapeWork(dst, sdc, sc.swc)
+			var okLocal bool
+			dst, okLocal = appendEC2ScrapeWork(dst, sdc, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering ec2 targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
 	return dst
 }
 
 // getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getGCESDScrapeWork() []ScrapeWork {
+func (cfg *Config) getGCESDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
 	var dst []ScrapeWork
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
 		for j := range sc.GCESDConfigs {
 			sdc := &sc.GCESDConfigs[j]
-			dst = appendGCEScrapeWork(dst, sdc, sc.swc)
+			var okLocal bool
+			dst, okLocal = appendGCEScrapeWork(dst, sdc, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering gce targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
 	return dst
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getFileSDScrapeWork(swsPrev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	// Create a map for the previous scrape work.
 	swsMapPrev := make(map[string][]ScrapeWork)
-	for i := range swsPrev {
-		sw := &swsPrev[i]
+	for i := range prev {
+		sw := &prev[i]
 		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
 		if len(filepath) == 0 {
 			logger.Panicf("BUG: missing `__vm_filepath` label")
@@ -295,17 +382,17 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	params := sc.Params
 	ac, err := promauth.NewConfig(baseDir, sc.BasicAuth, sc.BearerToken, sc.BearerTokenFile, sc.TLSConfig)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %s", jobName, err)
+		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
 	var relabelConfigs []promrelabel.ParsedRelabelConfig
 	relabelConfigs, err = promrelabel.ParseRelabelConfigs(relabelConfigs[:0], sc.RelabelConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %s", jobName, err)
+		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
 	var metricRelabelConfigs []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs, err = promrelabel.ParseRelabelConfigs(metricRelabelConfigs[:0], sc.MetricRelabelConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %s", jobName, err)
+		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
@@ -321,6 +408,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
+		disableCompression:   sc.DisableCompression,
+		disableKeepAlive:     sc.DisableKeepAlive,
 	}
 	return swc, nil
 }
@@ -339,51 +428,53 @@ type scrapeWorkConfig struct {
 	relabelConfigs       []promrelabel.ParsedRelabelConfig
 	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
 	sampleLimit          int
+	disableCompression   bool
+	disableKeepAlive     bool
 }
 
-func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
 	targetLabels, err := kubernetes.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering kubernetes targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst
+		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config")
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config"), true
 }
 
-func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
 	targetLabels, err := consul.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering consul targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst
+		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config")
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config"), true
 }
 
-func appendDNSScrapeWork(dst []ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
+func appendDNSScrapeWork(dst []ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
 	targetLabels, err := dns.GetLabels(sdc)
 	if err != nil {
 		logger.Errorf("error when discovering dns targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst
+		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dns_sd_config")
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dns_sd_config"), true
 }
 
-func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
+func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
 	targetLabels, err := ec2.GetLabels(sdc)
 	if err != nil {
 		logger.Errorf("error when discovering ec2 targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst
+		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config")
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config"), true
 }
 
-func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) []ScrapeWork {
+func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
 	targetLabels, err := gce.GetLabels(sdc)
 	if err != nil {
 		logger.Errorf("error when discovering gce targets for `job_name` %q: %s; skippint it", swc.jobName, err)
-		return dst
+		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config")
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config"), true
 }
 
 func appendScrapeWorkForTargetLabels(dst []ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []ScrapeWork {
@@ -497,7 +588,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	paramsStr := url.Values(paramsRelabeled).Encode()
 	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, addressRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
 	if _, err := url.Parse(scrapeURL); err != nil {
-		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %s",
+		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %w",
 			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
 	}
 	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
@@ -519,6 +610,10 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		SampleLimit:          swc.sampleLimit,
+		DisableCompression:   swc.disableCompression,
+		DisableKeepAlive:     swc.disableKeepAlive,
+
+		jobNameOriginal: swc.jobName,
 	})
 	return dst, nil
 }

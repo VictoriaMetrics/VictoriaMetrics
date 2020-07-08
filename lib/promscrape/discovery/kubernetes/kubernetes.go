@@ -39,7 +39,7 @@ type Selector struct {
 func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create API config: %s", err)
+		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
 	switch sdc.Role {
 	case "node":

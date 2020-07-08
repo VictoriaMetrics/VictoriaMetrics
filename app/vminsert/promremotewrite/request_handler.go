@@ -35,12 +35,19 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 	rowsTotal := 0
 	for i := range timeseries {
 		ts := &timeseries[i]
-		storageNodeIdx := ctx.GetStorageNodeIdx(at, ts.Labels)
+		// Make a shallow copy of ts.Labels before calling ctx.ApplyRelabeling, since ctx.ApplyRelabeling may modify labels.
+		ctx.Labels = append(ctx.Labels[:0], ts.Labels...)
+		ctx.ApplyRelabeling()
+		if len(ctx.Labels) == 0 {
+			// Skip metric without labels.
+			continue
+		}
+		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 		for i := range ts.Samples {
 			r := &ts.Samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
-				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ts.Labels)
+				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
 			}
 			if err := ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err

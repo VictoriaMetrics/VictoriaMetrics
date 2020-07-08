@@ -29,7 +29,7 @@ func TestVMSelectQuery(t *testing.T) {
 			t.Errorf("expected %s:%s as basic auth got %s:%s", basicAuthName, basicAuthPass, name, pass)
 		}
 		if r.URL.Query().Get("query") != query {
-			t.Errorf("exptected %s in query param, got %s", query, r.URL.Query().Get("query"))
+			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))
 		}
 		switch c {
 		case 0:
@@ -76,7 +76,7 @@ func TestVMSelectQuery(t *testing.T) {
 		t.Fatalf("unexpected %s", err)
 	}
 	if len(m) != 1 {
-		t.Fatalf("exptected 1 metric  got %d in %+v", len(m), m)
+		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
 	expected := Metric{
 		Labels:    []Label{{Value: "vm_rows", Name: "__name__"}},

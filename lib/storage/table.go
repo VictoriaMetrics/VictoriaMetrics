@@ -86,7 +86,7 @@ func openTable(path string, retentionMonths int, getDeletedMetricIDs func() *uin
 
 	// Create a directory for the table if it doesn't exist yet.
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory for table %q: %s", path, err)
+		return nil, fmt.Errorf("cannot create directory for table %q: %w", path, err)
 	}
 
 	// Protect from concurrent opens.
@@ -98,25 +98,25 @@ func openTable(path string, retentionMonths int, getDeletedMetricIDs func() *uin
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := path + "/small"
 	if err := fs.MkdirAllIfNotExist(smallPartitionsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for small partitions %q: %s", smallPartitionsPath, err)
+		return nil, fmt.Errorf("cannot create directory for small partitions %q: %w", smallPartitionsPath, err)
 	}
 	smallSnapshotsPath := smallPartitionsPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(smallSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %s", smallSnapshotsPath, err)
+		return nil, fmt.Errorf("cannot create %q: %w", smallSnapshotsPath, err)
 	}
 	bigPartitionsPath := path + "/big"
 	if err := fs.MkdirAllIfNotExist(bigPartitionsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for big partitions %q: %s", bigPartitionsPath, err)
+		return nil, fmt.Errorf("cannot create directory for big partitions %q: %w", bigPartitionsPath, err)
 	}
 	bigSnapshotsPath := bigPartitionsPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(bigSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %s", bigSnapshotsPath, err)
+		return nil, fmt.Errorf("cannot create %q: %w", bigSnapshotsPath, err)
 	}
 
 	// Open partitions.
 	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, getDeletedMetricIDs)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open partitions in the table %q: %s", path, err)
+		return nil, fmt.Errorf("cannot open partitions in the table %q: %w", path, err)
 	}
 
 	tb := &table{
@@ -151,18 +151,18 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 
 	dstSmallDir := fmt.Sprintf("%s/small/snapshots/%s", tb.path, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstSmallDir); err != nil {
-		return "", "", fmt.Errorf("cannot create dir %q: %s", dstSmallDir, err)
+		return "", "", fmt.Errorf("cannot create dir %q: %w", dstSmallDir, err)
 	}
 	dstBigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstBigDir); err != nil {
-		return "", "", fmt.Errorf("cannot create dir %q: %s", dstBigDir, err)
+		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
 	}
 
 	for _, ptw := range ptws {
 		smallPath := dstSmallDir + "/" + ptw.pt.name
 		bigPath := dstBigDir + "/" + ptw.pt.name
 		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
-			return "", "", fmt.Errorf("cannot create snapshot for partition %q in %q: %s", ptw.pt.name, tb.path, err)
+			return "", "", fmt.Errorf("cannot create snapshot for partition %q in %q: %w", ptw.pt.name, tb.path, err)
 		}
 	}
 
@@ -348,7 +348,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 
 	if len(errors) > 0 {
 		// Return only the first error, since it has no sense in returning all errors.
-		return fmt.Errorf("errors while adding rows to table %q: %s", tb.path, errors[0])
+		return fmt.Errorf("errors while adding rows to table %q: %w", tb.path, errors[0])
 	}
 	return nil
 }
@@ -453,7 +453,7 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMet
 		pt, err := openPartition(smallPartsPath, bigPartsPath, getDeletedMetricIDs)
 		if err != nil {
 			mustClosePartitions(pts)
-			return nil, fmt.Errorf("cannot open partition %q: %s", ptName, err)
+			return nil, fmt.Errorf("cannot open partition %q: %w", ptName, err)
 		}
 		pts = append(pts, pt)
 	}
@@ -463,13 +463,13 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMet
 func populatePartitionNames(partitionsPath string, ptNames map[string]bool) error {
 	d, err := os.Open(partitionsPath)
 	if err != nil {
-		return fmt.Errorf("cannot open directory with partitions %q: %s", partitionsPath, err)
+		return fmt.Errorf("cannot open directory with partitions %q: %w", partitionsPath, err)
 	}
 	defer fs.MustClose(d)
 
 	fis, err := d.Readdir(-1)
 	if err != nil {
-		return fmt.Errorf("cannot read directory with partitions %q: %s", partitionsPath, err)
+		return fmt.Errorf("cannot read directory with partitions %q: %w", partitionsPath, err)
 	}
 	for _, fi := range fis {
 		if !fs.IsDirOrSymlink(fi) {

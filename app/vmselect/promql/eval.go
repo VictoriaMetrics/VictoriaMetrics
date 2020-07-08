@@ -166,14 +166,14 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		}
 		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %s`, me.AppendString(nil), err)
+			return nil, fmt.Errorf(`cannot evaluate %q: %w`, me.AppendString(nil), err)
 		}
 		return rv, nil
 	}
 	if re, ok := e.(*metricsql.RollupExpr); ok {
 		rv, err := evalRollupFunc(ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %s`, re.AppendString(nil), err)
+			return nil, fmt.Errorf(`cannot evaluate %q: %w`, re.AppendString(nil), err)
 		}
 		return rv, nil
 	}
@@ -195,7 +195,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 			}
 			rv, err := tf(tfa)
 			if err != nil {
-				return nil, fmt.Errorf(`cannot evaluate %q: %s`, fe.AppendString(nil), err)
+				return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
 			}
 			return rv, nil
 		}
@@ -209,7 +209,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		}
 		rv, err := evalRollupFunc(ec, fe.Name, rf, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %s`, fe.AppendString(nil), err)
+			return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
 		}
 		return rv, nil
 	}
@@ -246,7 +246,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		}
 		rv, err := af(afa)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %s`, ae.AppendString(nil), err)
+			return nil, fmt.Errorf(`cannot evaluate %q: %w`, ae.AppendString(nil), err)
 		}
 		return rv, nil
 	}
@@ -270,7 +270,7 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		}
 		rv, err := bf(bfa)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %s`, be.AppendString(nil), err)
+			return nil, fmt.Errorf(`cannot evaluate %q: %w`, be.AppendString(nil), err)
 		}
 		return rv, nil
 	}
@@ -381,7 +381,7 @@ func evalRollupFuncArgs(ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, 
 		}
 		ts, err := evalExpr(ec, arg)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot evaluate arg #%d for %q: %s", i+1, fe.AppendString(nil), err)
+			return nil, nil, fmt.Errorf("cannot evaluate arg #%d for %q: %w", i+1, fe.AppendString(nil), err)
 		}
 		args[i] = ts
 	}
