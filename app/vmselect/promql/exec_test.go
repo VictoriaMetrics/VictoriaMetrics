@@ -4209,6 +4209,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`ifnot`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() ifnot time() > 1400`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`ifnot-no-matching-timeseries`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_set(time(), "foo", "bar") ifnot label_set(time() > 1400, "x", "y")`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`quantile(-2)`, func(t *testing.T) {
 		t.Parallel()
 		q := `quantile(-2, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
