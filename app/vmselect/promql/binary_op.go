@@ -290,12 +290,14 @@ func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		if tssLeft == nil {
 			continue
 		}
-		for i := range tssLeft[0].Values {
-			if !isAllNaNs(tssRight, i) {
-				continue
-			}
-			for _, tsLeft := range tssLeft {
-				tsLeft.Values[i] = nan
+		// Add gaps to tssLeft if there are gaps at valuesRight.
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesRight {
+				if math.IsNaN(v) {
+					valuesLeft[i] = nan
+				}
 			}
 		}
 		tssLeft = removeNaNs(tssLeft)
@@ -340,27 +342,20 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssLeft...)
 			continue
 		}
-		for i := range tssLeft[0].Values {
-			if isAllNaNs(tssRight, i) {
-				continue
-			}
-			for _, tsLeft := range tssLeft {
-				tsLeft.Values[i] = nan
+		// Add gaps to tssLeft if the are no gaps at valuesRight.
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesRight {
+				if !math.IsNaN(v) {
+					valuesLeft[i] = nan
+				}
 			}
 		}
 		tssLeft = removeNaNs(tssLeft)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
-}
-
-func isAllNaNs(tss []*timeseries, idx int) bool {
-	for _, ts := range tss {
-		if !math.IsNaN(ts.Values[idx]) {
-			return false
-		}
-	}
-	return true
 }
 
 func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {
