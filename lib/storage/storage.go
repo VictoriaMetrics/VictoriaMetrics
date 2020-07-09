@@ -256,6 +256,11 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	return s, nil
 }
 
+// RetentionMonths returns retention months for s.
+func (s *Storage) RetentionMonths() int {
+	return s.retentionMonths
+}
+
 // debugFlush flushes recently added storage data, so it becomes visible to search.
 func (s *Storage) debugFlush() {
 	s.tb.flushRawRows()
@@ -402,6 +407,8 @@ type Metrics struct {
 	AddRowsConcurrencyDroppedRows  uint64
 	AddRowsConcurrencyCapacity     uint64
 	AddRowsConcurrencyCurrent      uint64
+
+	SearchDelays uint64
 
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64

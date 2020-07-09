@@ -425,6 +425,10 @@ func registerStorageMetrics(strg *storage.Storage, groupPath ...string) {
 		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
+	metrics.NewGauge(fmt.Sprintf(`vm_search_delays_total{path=%q}`, path), func() float64 {
+		return float64(m().SearchDelays)
+	})
+
 	metrics.NewGauge(fmt.Sprintf(`vm_slow_row_inserts_total{path=%q}`, path), func() float64 {
 		return float64(m().SlowRowInserts)
 	})

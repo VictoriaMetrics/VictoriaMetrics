@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -28,6 +30,10 @@ var (
 
 	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
+
+	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside of the configured -retentionPeriod. "+
+		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
+		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 )
 
 // Server processes connections from vminsert and vmselect.
@@ -932,6 +938,10 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 		MaxTimestamp: ctx.sq.MaxTimestamp,
 	}
 
+	if err := checkTimeRange(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
 	ctx.sr.Init(s.GetSuitableGroup(tr), ctx.tfss, tr, *maxMetricsPerSearch)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
@@ -965,6 +975,22 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send 'end of response' marker")
 	}
 	return nil
+}
+
+// checkTimeRange returns true if the given tr is denied for querying.
+func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
+	if !*denyQueriesOutsideRetention {
+		return nil
+	}
+	retentionPeriod := s.RetentionMonths()
+	minAllowedTimestamp := (int64(fasttime.UnixTimestamp()) - int64(retentionPeriod)*3600*24*30) * 1000
+	if tr.MinTimestamp > minAllowedTimestamp {
+		return nil
+	}
+	return &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf("the given time range %s is outside the allowed retention of %d months according to -denyQueriesOutsideRetention", &tr, retentionPeriod),
+		StatusCode: http.StatusServiceUnavailable,
+	}
 }
 
 var (
