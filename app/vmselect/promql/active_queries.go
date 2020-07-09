@@ -56,7 +56,7 @@ func (aq *activeQueries) Add(ec *EvalConfig, q string) uint64 {
 	aqe.start = ec.Start
 	aqe.end = ec.End
 	aqe.step = ec.Step
-	aqe.qid = getNextActiveQueryID()
+	aqe.qid = atomic.AddUint64(&nextActiveQueryID, 1)
 	aqe.q = q
 	aqe.startTime = time.Now()
 
@@ -80,10 +80,6 @@ func (aq *activeQueries) GetAll() []activeQueryEntry {
 	}
 	aq.mu.Unlock()
 	return aqes
-}
-
-func getNextActiveQueryID() uint64 {
-	return atomic.AddUint64(&nextActiveQueryID, 1)
 }
 
 var nextActiveQueryID = uint64(time.Now().UnixNano())
