@@ -21,7 +21,6 @@ var maxLineLen = flag.Int("import.maxLineLen", 100*1024*1024, "The maximum lengt
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
-	readCalls.Inc()
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(r)
@@ -43,6 +42,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 }
 
 func (ctx *streamContext) Read(r io.Reader) bool {
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
