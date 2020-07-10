@@ -19,7 +19,7 @@ require (
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.7.0
 	github.com/valyala/histogram v1.0.1
-	github.com/valyala/quicktemplate v1.5.0
+	github.com/valyala/quicktemplate v1.5.1
 	go.opencensus.io v0.22.4 // indirect
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
