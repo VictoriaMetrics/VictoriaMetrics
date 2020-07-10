@@ -627,7 +627,7 @@ ROOT_IMAGE=scratch make package-victoria-metrics
 ### Start with docker-compose
 
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
-helps to spin up VictoriaMetrics, Prometheus and Grafana with one command.
+helps to spin up VictoriaMetrics, [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) and Grafana with one command.
 More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 ### Setting up service
