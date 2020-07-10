@@ -25,7 +25,6 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
-	readCalls.Inc()
 	q := req.URL.Query()
 	format := q.Get("format")
 	cds, err := ParseColumnDescriptors(format)
@@ -53,6 +52,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 }
 
 func (ctx *streamContext) Read(r io.Reader, cds []ColumnDescriptor) bool {
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}

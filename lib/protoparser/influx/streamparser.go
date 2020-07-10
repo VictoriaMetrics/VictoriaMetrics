@@ -24,7 +24,6 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {
-	readCalls.Inc()
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -62,6 +61,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 }
 
 func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
