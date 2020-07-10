@@ -120,6 +120,10 @@ type scrapeWork struct {
 	// PushData is called for pushing collected data.
 	PushData func(wr *prompbmarshal.WriteRequest)
 
+	// ScrapeGroup is name of ScrapeGroup that
+	// scrapeWork belongs to
+	ScrapeGroup string
+
 	bodyBuf []byte
 	rows    parser.Rows
 	tmpRow  parser.Row
@@ -232,7 +236,7 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 	prompbmarshal.ResetWriteRequest(&sw.writeRequest)
 	sw.labels = sw.labels[:0]
 	sw.samples = sw.samples[:0]
-	tsmGlobal.Update(&sw.Config, up == 1, timestamp, int64(duration*1000), err)
+	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, timestamp, int64(duration*1000), err)
 	return err
 }
 

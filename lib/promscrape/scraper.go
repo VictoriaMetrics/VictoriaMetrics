@@ -236,11 +236,11 @@ func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest))
 		pushData:     pushData,
 		changesCount: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_config_changes_total{type=%q}`, name)),
 	}
-	metrics.NewGauge(fmt.Sprintf(`vm_promscrape_targets{type=%q}`, name), func() float64 {
-		sg.mLock.Lock()
-		n := len(sg.m)
-		sg.mLock.Unlock()
-		return float64(n)
+	metrics.NewGauge(fmt.Sprintf(`vm_promscrape_targets{type=%q, status="up"}`, name), func() float64 {
+		return float64(tsmGlobal.StatusByGroup(sg.name, true))
+	})
+	metrics.NewGauge(fmt.Sprintf(`vm_promscrape_targets{type=%q, status="down"}`, name), func() float64 {
+		return float64(tsmGlobal.StatusByGroup(sg.name, false))
 	})
 	return sg
 }
@@ -277,7 +277,7 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 		}
 
 		// Start a scraper for the missing key.
-		sc := newScraper(sw, sg.pushData)
+		sc := newScraper(sw, sg.name, sg.pushData)
 		sg.wg.Add(1)
 		go func() {
 			defer sg.wg.Done()
@@ -309,12 +309,13 @@ type scraper struct {
 	stopCh chan struct{}
 }
 
-func newScraper(sw *ScrapeWork, pushData func(wr *prompbmarshal.WriteRequest)) *scraper {
+func newScraper(sw *ScrapeWork, group string, pushData func(wr *prompbmarshal.WriteRequest)) *scraper {
 	sc := &scraper{
 		stopCh: make(chan struct{}),
 	}
 	c := newClient(sw)
 	sc.sw.Config = *sw
+	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData
 	sc.sw.PushData = pushData
 	return sc
