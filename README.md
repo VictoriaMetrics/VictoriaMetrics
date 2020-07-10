@@ -178,6 +178,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
        See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#sending-opentsdb-data-via-http-apiput-requests) for details.
      - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` on `vmselect` (see below).
      - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-csv-data) for details.
+     - `prometheus/api/v1/import/prometheus` - for importing data in Prometheus exposition format. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-prometheus-exposition-format) for details.
 
 * URLs for querying: `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)

@@ -26,6 +26,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
   * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-opentsdb-compatible-agents).
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
   * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data).
+  * Data in Prometheus exposition format. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-prometheus-exposition-format) for details.
   * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-csv-data).
 * Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics

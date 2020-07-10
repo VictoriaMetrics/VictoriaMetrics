@@ -99,6 +99,8 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to send data from Graphite-compatible agents such as StatsD](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [Querying Graphite data](#querying-graphite-data)
 * [How to send data from OpenTSDB-compatible agents](#how-to-send-data-from-opentsdb-compatible-agents)
+* [How to import data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format)
+* [How to import CSV data](#how-to-import-csv-data)
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
 * [How to build from sources](#how-to-build-from-sources)
   * [Development build](#development-build)
@@ -283,6 +285,8 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
 
 In the future other `*_sd_config` types will be supported.
+
+VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
 See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md), which can be used as drop-in replacement for Prometheus.
 
@@ -509,6 +513,32 @@ The following response should be returned:
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 
+### How to import data in Prometheus exposition format
+
+VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
+via `/api/v1/import/prometheus` path. For example, the following line imports a single line in Prometheus exposition format into VictoriaMetrics:
+
+```bash
+curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
+```
+
+The following command may be used for verifying the imported data:
+
+```bash
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
+```
+
+It should return somethins like the following:
+
+```
+{"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
+```
+
+VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
+
+VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+
+
 ### Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
@@ -701,6 +731,7 @@ Time series data can be imported via any supported ingestion protocol:
 * [OpenTSDB http /api/put](#sending-opentsdb-data-via-http-apiput-requests)
 * `/api/v1/import` http POST handler, which accepts data from [/api/v1/export](#how-to-export-time-series).
 * `/api/v1/import/csv` http POST handler, which accepts CSV data. See [these docs](#how-to-import-csv-data) for details.
+* `/api/v1/import/prometheus` http POST handler, which accepts data in Prometheus exposition format. See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
 The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import`. Example for importing data obtained via `/api/v1/export`:
 
