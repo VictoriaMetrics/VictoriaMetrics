@@ -59,7 +59,6 @@ type relabelConfigs struct {
 
 // initLabelsGlobal must be called after parsing command-line flags.
 func initLabelsGlobal() {
-	// Init labelsGlobal
 	labelsGlobal = nil
 	for _, s := range *unparsedLabelsGlobal {
 		n := strings.IndexByte(s, '=')
