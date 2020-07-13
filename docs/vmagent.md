@@ -219,13 +219,27 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
 
-* If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports.
-  Just add the following relabeling rule to `relabel_configs` section in order to filter out targets with unneeded ports:
+* If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
+  or they use init container.
 
-```yml
-- action: keep_if_equal
-  source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
-```
+  The following `relabel_configs` section may help determining `__meta_*` labels resulting in duplicate targets:
+  ```yml
+  - action: labelmap
+    regex: __meta_(.*)
+  ```
+
+  The following relabeling rule may be added to `relabel_configs` section in order to filter out pods with unneeded ports:
+  ```yml
+  - action: keep_if_equal
+    source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
+  ```
+
+  The following relabeling rule may be added to `relabel_configs` section in order to filter out init container pods:
+  ```yml
+  - action: keep
+    source_labels: [__meta_kubernetes_pod_container_init]
+    regex: false
+  ```
 
 
 ### How to build from sources
