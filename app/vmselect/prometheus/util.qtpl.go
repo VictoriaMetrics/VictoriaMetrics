@@ -136,80 +136,78 @@ func streamvaluesWithTimestamps(qw422016 *qt422016.Writer, values []float64, tim
 //line app/vmselect/prometheus/util.qtpl:23
 	qw422016.N().S(`[`)
 //line app/vmselect/prometheus/util.qtpl:25
-	if len(values) == 0 {
-//line app/vmselect/prometheus/util.qtpl:26
-		return
-//line app/vmselect/prometheus/util.qtpl:27
-	}
-//line app/vmselect/prometheus/util.qtpl:28
-	/* inline metricRow call here for the sake of performance optimization */
-
-//line app/vmselect/prometheus/util.qtpl:28
-	qw422016.N().S(`[`)
-//line app/vmselect/prometheus/util.qtpl:29
-	qw422016.N().F(float64(timestamps[0]) / 1e3)
-//line app/vmselect/prometheus/util.qtpl:29
-	qw422016.N().S(`,"`)
-//line app/vmselect/prometheus/util.qtpl:29
-	qw422016.N().F(values[0])
-//line app/vmselect/prometheus/util.qtpl:29
-	qw422016.N().S(`"]`)
-//line app/vmselect/prometheus/util.qtpl:31
-	timestamps = timestamps[1:]
-	values = values[1:]
-
-//line app/vmselect/prometheus/util.qtpl:34
 	if len(values) > 0 {
-//line app/vmselect/prometheus/util.qtpl:36
-		// Remove bounds check inside the loop below
-		_ = timestamps[len(values)-1]
+//line app/vmselect/prometheus/util.qtpl:26
+		/* inline metricRow call here for the sake of performance optimization */
 
+//line app/vmselect/prometheus/util.qtpl:26
+		qw422016.N().S(`[`)
+//line app/vmselect/prometheus/util.qtpl:27
+		qw422016.N().F(float64(timestamps[0]) / 1e3)
+//line app/vmselect/prometheus/util.qtpl:27
+		qw422016.N().S(`,"`)
+//line app/vmselect/prometheus/util.qtpl:27
+		qw422016.N().F(values[0])
+//line app/vmselect/prometheus/util.qtpl:27
+		qw422016.N().S(`"]`)
+//line app/vmselect/prometheus/util.qtpl:29
+		timestamps = timestamps[1:]
+		values = values[1:]
+
+//line app/vmselect/prometheus/util.qtpl:32
+		if len(values) > 0 {
+//line app/vmselect/prometheus/util.qtpl:34
+			// Remove bounds check inside the loop below
+			_ = timestamps[len(values)-1]
+
+//line app/vmselect/prometheus/util.qtpl:37
+			for i, v := range values {
+//line app/vmselect/prometheus/util.qtpl:38
+				/* inline metricRow call here for the sake of performance optimization */
+
+//line app/vmselect/prometheus/util.qtpl:38
+				qw422016.N().S(`,[`)
 //line app/vmselect/prometheus/util.qtpl:39
-		for i, v := range values {
+				qw422016.N().F(float64(timestamps[i]) / 1e3)
+//line app/vmselect/prometheus/util.qtpl:39
+				qw422016.N().S(`,"`)
+//line app/vmselect/prometheus/util.qtpl:39
+				qw422016.N().F(v)
+//line app/vmselect/prometheus/util.qtpl:39
+				qw422016.N().S(`"]`)
 //line app/vmselect/prometheus/util.qtpl:40
-			/* inline metricRow call here for the sake of performance optimization */
-
-//line app/vmselect/prometheus/util.qtpl:40
-			qw422016.N().S(`,[`)
+			}
 //line app/vmselect/prometheus/util.qtpl:41
-			qw422016.N().F(float64(timestamps[i]) / 1e3)
-//line app/vmselect/prometheus/util.qtpl:41
-			qw422016.N().S(`,"`)
-//line app/vmselect/prometheus/util.qtpl:41
-			qw422016.N().F(v)
-//line app/vmselect/prometheus/util.qtpl:41
-			qw422016.N().S(`"]`)
-//line app/vmselect/prometheus/util.qtpl:42
 		}
-//line app/vmselect/prometheus/util.qtpl:43
+//line app/vmselect/prometheus/util.qtpl:42
 	}
-//line app/vmselect/prometheus/util.qtpl:43
+//line app/vmselect/prometheus/util.qtpl:42
 	qw422016.N().S(`]`)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 }
 
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 func writevaluesWithTimestamps(qq422016 qtio422016.Writer, values []float64, timestamps []int64) {
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	streamvaluesWithTimestamps(qw422016, values, timestamps)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 }
 
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 func valuesWithTimestamps(values []float64, timestamps []int64) string {
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	writevaluesWithTimestamps(qb422016, values, timestamps)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 	return qs422016
-//line app/vmselect/prometheus/util.qtpl:45
+//line app/vmselect/prometheus/util.qtpl:44
 }
