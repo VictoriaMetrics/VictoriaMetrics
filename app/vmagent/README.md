@@ -219,13 +219,38 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
 
-* If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports.
-  Just add the following relabeling rule to `relabel_configs` section in order to filter out targets with unneeded ports:
-
-```yml
-- action: keep_if_equal
-  source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
-```
+* If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports or           they use init container.
+  
+  To determinate duplicated targets during service discovery you can use followin pattern:
+  ```yml
+  ...
+  - job_name: my-app
+      metrics_path: /metrics
+      scheme: http
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - kube-system
+    relabel_configs:
+      - action: keep
+        regex: my-app
+        source_labels: [__meta_kubernetes_pod_label_app]
+      - action: labelmap
+        regex: __meta_(.*)
+  ```
+  To filter out targets with init container add the following relabeling rule to `relabel_configs` section:
+  ```yml
+    - action: keep
+      regex: false
+      source_labels: [__meta_kubernetes_pod_container_init]
+  ```
+  
+  To filter out targets with unneeded ports add the following relabeling rule to `relabel_configs` section:
+  ```yml
+  - action: keep_if_equal
+    source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
+  ```
 
 
 ### How to build from sources
