@@ -62,6 +62,8 @@ type Queue struct {
 
 	blocksRead *metrics.Counter
 	bytesRead  *metrics.Counter
+
+	bytesPending *metrics.Gauge
 }
 
 // ResetIfEmpty resets q if it is empty.
@@ -166,6 +168,9 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	q.bytesWritten = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_written_total{path=%q}`, path))
 	q.blocksRead = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_blocks_read_total{path=%q}`, path))
 	q.bytesRead = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_read_total{path=%q}`, path))
+	q.bytesPending = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_bytes_pending{path=%q}`, path), func() float64 {
+		return float64(q.GetPendingBytes())
+	})
 
 	cleanOnError := func() {
 		if q.reader != nil {
