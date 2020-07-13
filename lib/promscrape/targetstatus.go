@@ -46,16 +46,31 @@ func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 	tsm.mu.Unlock()
 }
 
-func (tsm *targetStatusMap) Update(sw *ScrapeWork, up bool, scrapeTime, scrapeDuration int64, err error) {
+func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, err error) {
 	tsm.mu.Lock()
 	tsm.m[sw.ID] = targetStatus{
 		sw:             sw,
 		up:             up,
+		scrapeGroup:    group,
 		scrapeTime:     scrapeTime,
 		scrapeDuration: scrapeDuration,
 		err:            err,
 	}
 	tsm.mu.Unlock()
+}
+
+// StatusByGroup returns the number of targets with status==up
+// for the given group name
+func (tsm *targetStatusMap) StatusByGroup(group string, up bool) int {
+	var count int
+	tsm.mu.Lock()
+	for _, st := range tsm.m {
+		if st.scrapeGroup == group && st.up == up {
+			count++
+		}
+	}
+	tsm.mu.Unlock()
+	return count
 }
 
 func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
@@ -116,6 +131,7 @@ type jobStatus struct {
 type targetStatus struct {
 	sw             *ScrapeWork
 	up             bool
+	scrapeGroup    string
 	scrapeTime     int64
 	scrapeDuration int64
 	err            error
