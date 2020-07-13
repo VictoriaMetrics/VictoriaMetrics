@@ -155,6 +155,7 @@ func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogge
 		if n < 0 {
 			// The last line.
 			dst, tagsPool = unmarshalRow(dst, s, tagsPool, noEscapes, errLogger)
+			break
 		} else {
 			dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes, errLogger)
 			s = s[n+1:]
