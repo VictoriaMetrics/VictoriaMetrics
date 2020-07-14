@@ -236,9 +236,9 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
 
   The following relabeling rule may be added to `relabel_configs` section in order to filter out init container pods:
   ```yml
-  - action: keep
+  - action: drop
     source_labels: [__meta_kubernetes_pod_container_init]
-    regex: false
+    regex: true
   ```
 
 
