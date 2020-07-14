@@ -311,7 +311,8 @@ VictoriaMetrics maps Influx data using the following rules:
   unless `db` tag exists in the Influx line.
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value,
   where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag.
-  See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty, then time series names correspond to field names.
+  See also `-influxSkipSingleField` command-line flag.
+  If `{measurement}` is empty or `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
 

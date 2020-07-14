@@ -19,6 +19,7 @@ import (
 var (
 	measurementFieldSeparator = flag.String("influxMeasurementFieldSeparator", "_", "Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol")
 	skipSingleField           = flag.Bool("influxSkipSingleField", false, "Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field")
+	skipMeasurement           = flag.Bool("influxSkipMeasurement", false, "Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'")
 )
 
 var (
@@ -79,7 +80,10 @@ func insertRows(db string, rows []parser.Row) error {
 				Value: db,
 			})
 		}
-		ctx.metricGroupBuf = append(ctx.metricGroupBuf[:0], r.Measurement...)
+		ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
+		if !*skipMeasurement {
+			ctx.metricGroupBuf = append(ctx.metricGroupBuf, r.Measurement...)
+		}
 		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
 		if len(ctx.metricGroupBuf) > 0 && !skipFieldKey {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
