@@ -233,6 +233,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 
 var tssRelabelPool = &sync.Pool{
 	New: func() interface{} {
-		return []prompbmarshal.TimeSeries{}
+		a := []prompbmarshal.TimeSeries{}
+		return &a
 	},
 }
