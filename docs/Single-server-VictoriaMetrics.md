@@ -138,7 +138,6 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [Contacts](#contacts)
 * [Community and contributions](#community-and-contributions)
 * [Reporting bugs](#reporting-bugs)
-* [Roadmap](#roadmap)
 * [Victoria Metrics Logo](#victoria-metrics-logo)
   * [Logo Usage Guidelines](#logo-usage-guidelines)
     * [Font used](#font-used)
@@ -1157,16 +1156,6 @@ Adhering `KISS` principle simplifies the resulting code and architecture, so it 
 ## Reporting bugs
 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-
-## Roadmap
-
-* [ ] Replication [#118](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/118)
-* [ ] Support of Object Storages (GCS, S3, Azure Storage) [#38](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/38)
-* [ ] Data downsampling [#36](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/36)
-* [ ] Alert Manager Integration [#119](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/119)
-* [ ] CLI tool for data migration, re-balancing and adding/removing nodes [#103](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/103)
-
-The discussion happens [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/129). Feel free to comment on any item or add you own one.
 
 
 ## Victoria Metrics Logo
