@@ -878,7 +878,7 @@ func queryRangeHandler(at *auth.Token, w http.ResponseWriter, query string, star
 	}
 	queryOffset := getLatencyOffsetMilliseconds()
 	if ct-queryOffset < end {
-		result = adjustLastPoints(result, ct-queryOffset, end)
+		result = adjustLastPoints(result, ct-queryOffset, ct+step)
 	}
 
 	// Remove NaN values as Prometheus does.
@@ -923,23 +923,32 @@ func removeNaNValuesInplace(tss []netstorage.Result) {
 
 var queryRangeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/query_range"}`)
 
+var nan = math.NaN()
+
 // adjustLastPoints substitutes the last point values on the time range (start..end]
-// with the previous point values, since these points may contain garbage.
+// with the previous point values, since these points may contain incomplete values.
 func adjustLastPoints(tss []netstorage.Result, start, end int64) []netstorage.Result {
 	for i := range tss {
 		ts := &tss[i]
 		values := ts.Values
 		timestamps := ts.Timestamps
 		j := len(timestamps) - 1
+		if j >= 0 && timestamps[j] > end {
+			// It looks like the `offset` is used in the query, which shifts time range beyond the `end`.
+			// Leave such a time series as is, since it is unclear which points may be incomplete in it.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/625
+			continue
+		}
 		for j >= 0 && timestamps[j] > start {
 			j--
 		}
 		j++
-		if j <= 0 {
-			continue
+		lastValue := nan
+		if j > 0 {
+			lastValue = values[j-1]
 		}
 		for j < len(timestamps) && timestamps[j] <= end {
-			values[j] = values[j-1]
+			values[j] = lastValue
 			j++
 		}
 	}

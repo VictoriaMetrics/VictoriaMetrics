@@ -20,8 +20,6 @@ func TestRemoveNaNValuesInplace(t *testing.T) {
 		}
 	}
 
-	nan := math.NaN()
-
 	f(nil, nil)
 	f([]netstorage.Result{
 		{
@@ -123,14 +121,14 @@ func TestAdjustLastPoints(t *testing.T) {
 				expectedValue := tssExpected[i].Values[j]
 				if math.IsNaN(expectedValue) {
 					if !math.IsNaN(value) {
-						t.Fatalf("unexpected result; got %v; want nan", value)
+						t.Fatalf("unexpected value for time series #%d at position %d; got %v; want nan", i, j, value)
 					}
 				} else if expectedValue != value {
-					t.Fatalf("unexpected result; got %v; want %v", value, expectedValue)
+					t.Fatalf("unexpected value for time series #%d at position %d; got %v; want %v", i, j, value, expectedValue)
 				}
 			}
 			if !reflect.DeepEqual(ts.Timestamps, tssExpected[i].Timestamps) {
-				t.Fatalf("unexpected result; got %v; want %v", tss, tssExpected)
+				t.Fatalf("unexpected timestamps for time series #%d; got %v; want %v", i, tss, tssExpected)
 			}
 		}
 
@@ -237,6 +235,28 @@ func TestAdjustLastPoints(t *testing.T) {
 		{
 			Timestamps: []int64{100, 200, 300},
 			Values:     []float64{1, 2, nan},
+		},
+	})
+
+	// Check for timestamps outside the configured time range.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/625
+	f([]netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, nan, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300},
+			Values:     []float64{1, 2, 45},
+		},
+	}, 250, 400, []netstorage.Result{
+		{
+			Timestamps: []int64{100, 200, 300, 400, 500},
+			Values:     []float64{1, 2, 3, nan, nan},
+		},
+		{
+			Timestamps: []int64{100, 200, 300},
+			Values:     []float64{1, 2, 2},
 		},
 	})
 }
