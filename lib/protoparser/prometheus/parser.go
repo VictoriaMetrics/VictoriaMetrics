@@ -150,18 +150,18 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
+	dstLen := len(dst)
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
 			dst, tagsPool = unmarshalRow(dst, s, tagsPool, noEscapes, errLogger)
 			break
-		} else {
-			dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes, errLogger)
-			s = s[n+1:]
 		}
+		dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes, errLogger)
+		s = s[n+1:]
 	}
-	rowsReadScrape.Add(len(dst))
+	rowsReadScrape.Add(len(dst) - dstLen)
 	return dst, tagsPool
 }
 
