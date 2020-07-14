@@ -128,6 +128,9 @@ type indexDB struct {
 	// Cache for fast MetricID -> MetricName lookup.
 	metricNameCache *workingsetcache.Cache
 
+	// Cache for fast MetricName -> TSID lookups.
+	tsidCache *workingsetcache.Cache
+
 	// Cache for useless TagFilters entries, which have no tag filters
 	// matching low number of metrics.
 	uselessTagFiltersCache *workingsetcache.Cache
@@ -155,12 +158,15 @@ type indexDB struct {
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
+func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
 	if metricIDCache == nil {
 		logger.Panicf("BUG: metricIDCache must be non-nil")
 	}
 	if metricNameCache == nil {
 		logger.Panicf("BUG: metricNameCache must be non-nil")
+	}
+	if tsidCache == nil {
+		logger.Panicf("BUG: tsidCache must be nin-nil")
 	}
 	if currHourMetricIDs == nil {
 		logger.Panicf("BUG: currHourMetricIDs must be non-nil")
@@ -187,6 +193,7 @@ func openIndexDB(path string, metricIDCache, metricNameCache *workingsetcache.Ca
 		tagCache:                       workingsetcache.New(mem/32, time.Hour),
 		metricIDCache:                  metricIDCache,
 		metricNameCache:                metricNameCache,
+		tsidCache:                      tsidCache,
 		uselessTagFiltersCache:         workingsetcache.New(mem/128, time.Hour),
 		metricIDsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
 
@@ -360,6 +367,7 @@ func (db *indexDB) decRef() {
 	db.tagCache = nil
 	db.metricIDCache = nil
 	db.metricNameCache = nil
+	db.tsidCache = nil
 	db.uselessTagFiltersCache = nil
 	db.metricIDsPerDateTagFilterCache = nil
 
@@ -1233,6 +1241,9 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	invalidateTagCache()
 
+	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
+	db.tsidCache.Reset()
+
 	// Do not reset uselessTagFiltersCache, since the found metricIDs
 	// on cache miss are filtered out later with deletedMetricIDs.
 	return nil
@@ -1515,7 +1526,7 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	tsids := make([]TSID, len(metricIDs))
 	i := 0
 	for _, metricID := range metricIDs {
-		// Try obtaining TSIDs from db.tsidCache. This is much faster
+		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
 		// than scanning the mergeset if it contains a lot of metricIDs.
 		tsid := &tsids[i]
 		err := is.db.getFromMetricIDCache(tsid, metricID)
