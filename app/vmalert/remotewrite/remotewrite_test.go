@@ -82,19 +82,19 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		rw.err(w, fmt.Errorf("body read err: %s", err))
+		rw.err(w, fmt.Errorf("body read err: %w", err))
 		return
 	}
 	defer func() { _ = r.Body.Close() }()
 
 	b, err := snappy.Decode(nil, data)
 	if err != nil {
-		rw.err(w, fmt.Errorf("decode err: %s", err))
+		rw.err(w, fmt.Errorf("decode err: %w", err))
 		return
 	}
 	wr := &prompb.WriteRequest{}
 	if err := wr.Unmarshal(b); err != nil {
-		rw.err(w, fmt.Errorf("unmarhsal err: %s", err))
+		rw.err(w, fmt.Errorf("unmarhsal err: %w", err))
 		return
 	}
 	atomic.AddUint64(&rw.acceptedRows, uint64(len(wr.Timeseries)))
