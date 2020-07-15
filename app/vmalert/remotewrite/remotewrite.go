@@ -226,14 +226,14 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
 	req, err := http.NewRequest("POST", c.addr, r)
 	if err != nil {
-		return fmt.Errorf("failed to create new HTTP request: %s", err)
+		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
 	if c.baPass != "" {
 		req.SetBasicAuth(c.baUser, c.baPass)
 	}
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("error while sending request to %s: %s; Data len %d(%d)",
+		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL, err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
