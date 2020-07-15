@@ -44,6 +44,7 @@ services:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
     networks:
       - vm_net
     restart: always
