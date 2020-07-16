@@ -105,7 +105,7 @@ func insertRows(db string, rows []parser.Row) error {
 			}
 			labels := ic.Labels
 			if !hasRelabeling {
-				labels = labels[labelsLen : labelsLen+1]
+				labels = labels[len(labels)-1:]
 			}
 			ic.WriteDataPoint(ctx.metricNameBuf, labels, r.Timestamp, f.Value)
 		}
