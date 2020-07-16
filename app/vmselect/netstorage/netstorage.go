@@ -234,7 +234,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 		}
 		if firstErr == nil {
 			sbs = append(sbs, upw.sb)
-		} else {
+		} else if upw.sb != nil {
 			putSortBlock(upw.sb)
 		}
 	}
