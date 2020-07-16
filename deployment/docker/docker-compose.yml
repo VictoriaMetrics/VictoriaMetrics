@@ -1,39 +1,33 @@
 version: '3.5'
 services:
-  prometheus:
-    container_name: prometheus
-    image: prom/prometheus:v2.19.1
+  vmagent:
+    container_name: vmagent
+    image: victoriametrics/vmagent
     depends_on:
-    - "vminsert"
-    - "vmselect"
+      - "vminsert"
     ports:
-      - 9090:9090
+      - 8429:8429
     volumes:
-      - promdata:/prometheus
+      - vmagentdata:/vmagentdata
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - '--promscrape.config=/etc/prometheus/prometheus.yml'
+      - '--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/'
     restart: always
 
   grafana:
     container_name: grafana
     image: grafana/grafana:7.0.3
-    entrypoint: >
-      /bin/sh -c "
-      cd /var/lib/grafana &&
-      mkdir -p dashboards &&
-      sed 's/$${DS_PROMETHEUS}/Prometheus/g' vm.json > dashboards/vm.json &&
-      /run.sh"
     depends_on:
-      - "prometheus"
+      - "vmselect"
     ports:
       - 3000:3000
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
-      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/vm.json
+      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
 
   vmstorage:
     container_name: vmstorage
@@ -71,6 +65,6 @@ services:
     restart: always
 
 volumes:
-  promdata: {}
+  vmagentdata: {}
   strgdata: {}
   grafanadata: {}
