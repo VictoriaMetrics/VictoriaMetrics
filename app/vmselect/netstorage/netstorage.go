@@ -227,7 +227,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tr storage.TimeRange, fetchData
 		}
 		if firstErr == nil {
 			sbs = append(sbs, upw.sb)
-		} else {
+		} else if upw.sb != nil {
 			putSortBlock(upw.sb)
 		}
 	}
