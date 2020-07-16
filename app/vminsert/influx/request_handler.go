@@ -120,7 +120,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 			}
 			labels = ic.Labels
 			if !hasRelabeling {
-				labels = labels[labelsLen : labelsLen+1]
+				labels = labels[len(labels)-1:]
 			}
 			ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 			for i := range labels {
