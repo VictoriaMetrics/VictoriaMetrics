@@ -86,7 +86,7 @@ func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.Modifie
 }
 
 func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
-	arg := copyTimeseriesMetricNames(argOrig)
+	arg := copyTimeseriesMetricNames(argOrig, keepOriginal)
 
 	// Perform grouping.
 	m := make(map[string][]*timeseries)
