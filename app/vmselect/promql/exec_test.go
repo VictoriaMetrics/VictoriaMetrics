@@ -3835,6 +3835,10 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{10, 10, 10, 10, 10, 10},
 			Timestamps: timestampsExpected,
 		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -5627,6 +5631,7 @@ func TestExecError(t *testing.T) {
 	f(`sum()`)
 	f(`count_values()`)
 	f(`quantile()`)
+	f(`any()`)
 	f(`topk()`)
 	f(`topk_min()`)
 	f(`topk_max()`)
