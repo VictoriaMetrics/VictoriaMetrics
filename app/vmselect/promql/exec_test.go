@@ -3829,12 +3829,13 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`any()`, func(t *testing.T) {
 		t.Parallel()
-		q := `any(label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
+		q := `any(label_set(10, "__name__", "x", "foo", "bar") or label_set(time()/150, "__name__", "y", "baz", "sss"))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},
 			Timestamps: timestampsExpected,
 		}
+		r.MetricName.MetricGroup = []byte("x")
 		r.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("bar"),
