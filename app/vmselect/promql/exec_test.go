@@ -4508,6 +4508,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`mode_over_time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `mode_over_time(round(time()/500)[100s:1s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 3, 3, 3, 4},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`integrate(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `integrate(1)`
@@ -5719,6 +5730,7 @@ func TestExecError(t *testing.T) {
 	f(`hoeffding_bound_upper(0.99, foo, 1)`)
 	f(`outliersk()`)
 	f(`outliersk(1)`)
+	f(`mode_over_time()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
