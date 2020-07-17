@@ -3832,6 +3832,46 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`group() by (test)`, func(t *testing.T) {
+		t.Parallel()
+		q := `group((
+			label_set(5, "__name__", "data", "test", "three samples", "point", "a"),
+			label_set(6, "__name__", "data", "test", "three samples", "point", "b"),
+			label_set(7, "__name__", "data", "test", "three samples", "point", "c"),
+		)) by (test)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = nil
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("test"),
+			Value: []byte("three samples"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`group() without (point)`, func(t *testing.T) {
+		t.Parallel()
+		q := `group((
+			label_set(5, "__name__", "data", "test", "three samples", "point", "a"),
+			label_set(6, "__name__", "data", "test", "three samples", "point", "b"),
+			label_set(7, "__name__", "data", "test", "three samples", "point", "c"),
+		)) without (point)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = nil
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("test"),
+			Value: []byte("three samples"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`topk(-1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(topk(-1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
@@ -5618,6 +5658,7 @@ func TestExecError(t *testing.T) {
 	f(`count_values()`)
 	f(`quantile()`)
 	f(`any()`)
+	f(`group()`)
 	f(`topk()`)
 	f(`topk_min()`)
 	f(`topk_max()`)
