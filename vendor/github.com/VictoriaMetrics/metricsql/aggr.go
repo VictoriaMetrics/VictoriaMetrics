@@ -17,6 +17,7 @@ var aggrFuncs = map[string]bool{
 	"bottomk":      true,
 	"topk":         true,
 	"quantile":     true,
+	"group":        true,
 
 	// MetricsQL extension funcs
 	"median":         true,
