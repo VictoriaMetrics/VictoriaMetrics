@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -251,12 +252,16 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		}
 		return true
 	case "prometheus/api/v1/status/tsdb":
-		tsdbStatusRequests.Inc()
+		statusTSDBRequests.Inc()
 		if err := prometheus.TSDBStatusHandler(startTime, at, w, r); err != nil {
-			tsdbStatusErrors.Inc()
+			statusTSDBErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
 		}
+		return true
+	case "prometheus/api/v1/status/active_queries":
+		statusActiveQueriesRequests.Inc()
+		promql.WriteActiveQueries(w)
 		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
@@ -318,7 +323,8 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
-	if esc, ok := err.(*httpserver.ErrorWithStatusCode); ok {
+	var esc *httpserver.ErrorWithStatusCode
+	if errors.As(err, &esc) {
 		statusCode = esc.StatusCode
 	}
 	w.WriteHeader(statusCode)
@@ -347,8 +353,10 @@ var (
 	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
 	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/labels/count"}`)
 
-	tsdbStatusRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
-	tsdbStatusErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
+	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
+	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
+
+	statusActiveQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}prometheus/api/v1/status/active_queries"}`)
 
 	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)
 	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)

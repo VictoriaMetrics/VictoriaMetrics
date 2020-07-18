@@ -21,12 +21,11 @@ var maxLineLen = flag.Int("import.maxLineLen", 100*1024*1024, "The maximum lengt
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
-	readCalls.Inc()
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
-			return fmt.Errorf("cannot read gzipped vmimport data: %s", err)
+			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
 		}
 		defer common.PutGzipReader(zr)
 		r = zr
@@ -43,6 +42,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 }
 
 func (ctx *streamContext) Read(r io.Reader) bool {
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
@@ -50,7 +50,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read vmimport data: %s", ctx.err)
+			ctx.err = fmt.Errorf("cannot read vmimport data: %w", ctx.err)
 		}
 		return false
 	}

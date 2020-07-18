@@ -98,7 +98,7 @@ func testTableSearchConcurrent(tb *Table, items []string) error {
 		select {
 		case err := <-ch:
 			if err != nil {
-				return fmt.Errorf("unexpected error: %s", err)
+				return fmt.Errorf("unexpected error: %w", err)
 			}
 		case <-time.After(time.Second * 5):
 			return fmt.Errorf("timeout")
@@ -139,7 +139,7 @@ func testTableSearchSerial(tb *Table, items []string) error {
 			return fmt.Errorf("superflouos item found at position %d when searching for %q: %q", n, key, ts.Item)
 		}
 		if err := ts.Error(); err != nil {
-			return fmt.Errorf("unexpected error when searching for %q: %s", key, err)
+			return fmt.Errorf("unexpected error when searching for %q: %w", key, err)
 		}
 	}
 	ts.MustClose()
@@ -153,13 +153,13 @@ func newTestTable(path string, itemsCount int) (*Table, []string, error) {
 	}
 	tb, err := OpenTable(path, flushCallback, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open table: %s", err)
+		return nil, nil, fmt.Errorf("cannot open table: %w", err)
 	}
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
 		item := fmt.Sprintf("%d:%d", rand.Intn(1e9), i)
 		if err := tb.AddItems([][]byte{[]byte(item)}); err != nil {
-			return nil, nil, fmt.Errorf("cannot add item: %s", err)
+			return nil, nil, fmt.Errorf("cannot add item: %w", err)
 		}
 		items[i] = item
 	}

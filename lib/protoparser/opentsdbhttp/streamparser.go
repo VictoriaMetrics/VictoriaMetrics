@@ -33,7 +33,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			readErrors.Inc()
-			return fmt.Errorf("cannot read gzipped http protocol data: %s", err)
+			return fmt.Errorf("cannot read gzipped http protocol data: %w", err)
 		}
 		defer common.PutGzipReader(zr)
 		r = zr
@@ -47,7 +47,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
-		return fmt.Errorf("cannot read HTTP OpenTSDB request: %s", err)
+		return fmt.Errorf("cannot read HTTP OpenTSDB request: %w", err)
 	}
 	if reqLen > int64(*maxInsertRequestSize) {
 		readErrors.Inc()
@@ -60,7 +60,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
 		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %s", err)
+		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %w", err)
 	}
 	ctx.Rows.Unmarshal(v)
 	rowsRead.Add(len(ctx.Rows.Rows))

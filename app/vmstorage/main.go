@@ -126,7 +126,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		w.Header().Set("Content-Type", "application/json")
 		snapshotPath, err := strg.CreateSnapshot()
 		if err != nil {
-			err = fmt.Errorf("cannot create snapshot: %s", err)
+			err = fmt.Errorf("cannot create snapshot: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
@@ -136,7 +136,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := strg.ListSnapshots()
 		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %s", err)
+			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
@@ -153,7 +153,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 		if err := strg.DeleteSnapshot(snapshotName); err != nil {
-			err = fmt.Errorf("cannot delete snapshot %q: %s", snapshotName, err)
+			err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 			jsonResponseError(w, err)
 			return true
 		}
@@ -163,13 +163,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := strg.ListSnapshots()
 		if err != nil {
-			err = fmt.Errorf("cannot list snapshots: %s", err)
+			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
 		for _, snapshotName := range snapshots {
 			if err := strg.DeleteSnapshot(snapshotName); err != nil {
-				err = fmt.Errorf("cannot delete snapshot %q: %s", snapshotName, err)
+				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				return true
 			}
@@ -358,6 +358,10 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_concurrent_addrows_current`, func() float64 {
 		return float64(m().AddRowsConcurrencyCurrent)
+	})
+
+	metrics.NewGauge(`vm_search_delays_total`, func() float64 {
+		return float64(m().SearchDelays)
 	})
 
 	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {

@@ -22,7 +22,7 @@ func BenchmarkRowsUnmarshal(b *testing.B) {
 		for pb.Next() {
 			v, err := p.Parse(s)
 			if err != nil {
-				panic(fmt.Errorf("cannot parse %q: %s", s, err))
+				panic(fmt.Errorf("cannot parse %q: %w", s, err))
 			}
 			rows.Unmarshal(v)
 			if len(rows.Rows) != 4 {

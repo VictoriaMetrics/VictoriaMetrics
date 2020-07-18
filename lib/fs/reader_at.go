@@ -14,7 +14,8 @@ import (
 )
 
 var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread() instead of mmap() for reading data files. "+
-	"By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot data files bigger than 2^32 bytes in memory")
+	"By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
+	"mmap() is usually faster for reading small data chunks than pread()")
 
 const is32BitPtr = (^uintptr(0) >> 32) == 0
 
@@ -90,6 +91,11 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 }
 
 func (r *ReaderAt) isInPageCache(start, end int64) bool {
+	if int64(len(r.mmapData))-end < 4096 {
+		// If standard copy(dst, src) from Go may read beyond len(src), then this should help
+		// fixing SIGBUS panic from https://github.com/VictoriaMetrics/VictoriaMetrics/issues/581
+		return false
+	}
 	startBit := uint64(start) / pageSize
 	endBit := uint64(end) / pageSize
 	m := r.pageCacheBitmap.Load().(*pageCacheBitmap).m
@@ -133,7 +139,7 @@ func (r *ReaderAt) MustClose() {
 
 	fname := r.f.Name()
 	if len(r.mmapData) > 0 {
-		if err := unix.Munmap(r.mmapData); err != nil {
+		if err := unix.Munmap(r.mmapData[:cap(r.mmapData)]); err != nil {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
 		}
 		r.mmapData = nil
@@ -158,7 +164,7 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 func OpenReaderAt(path string) (*ReaderAt, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file %q for reader: %s", path, err)
+		return nil, fmt.Errorf("cannot open file %q for reader: %w", path, err)
 	}
 	var r ReaderAt
 	r.f = f
@@ -166,7 +172,7 @@ func OpenReaderAt(path string) (*ReaderAt, error) {
 	if !*disableMmap {
 		fi, err := f.Stat()
 		if err != nil {
-			return nil, fmt.Errorf("error in stat: %s", err)
+			return nil, fmt.Errorf("error in stat: %w", err)
 		}
 		size := fi.Size()
 		bm := &pageCacheBitmap{
@@ -182,7 +188,7 @@ func OpenReaderAt(path string) (*ReaderAt, error) {
 		data, err := mmapFile(f, size)
 		if err != nil {
 			MustClose(f)
-			return nil, fmt.Errorf("cannot init reader for %q: %s", path, err)
+			return nil, fmt.Errorf("cannot init reader for %q: %w", path, err)
 		}
 		r.mmapData = data
 	}
@@ -223,9 +229,16 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	if int64(int(size)) != size {
 		return nil, fmt.Errorf("file is too big to be mmap'ed: %d bytes", size)
 	}
+	// Round size to multiple of 4KB pages as `man 2 mmap` recommends.
+	// This may help preventing SIGBUS panic at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/581
+	// The SIGBUS could occur if standard copy(dst, src) function may read beyond src bounds.
+	sizeOrig := size
+	if size%4096 != 0 {
+		size += 4096 - size%4096
+	}
 	data, err := unix.Mmap(int(f.Fd()), 0, int(size), unix.PROT_READ, unix.MAP_SHARED)
 	if err != nil {
-		return nil, fmt.Errorf("cannot mmap file with size %d: %s", size, err)
+		return nil, fmt.Errorf("cannot mmap file with size %d: %w", size, err)
 	}
-	return data, nil
+	return data[:sizeOrig], nil
 }

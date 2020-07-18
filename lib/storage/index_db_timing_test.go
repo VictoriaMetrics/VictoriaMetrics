@@ -45,8 +45,10 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 	metricIDCache := workingsetcache.New(1234, time.Hour)
 	metricNameCache := workingsetcache.New(1234, time.Hour)
+	tsidCache := workingsetcache.New(1234, time.Hour)
 	defer metricIDCache.Stop()
 	defer metricNameCache.Stop()
+	defer tsidCache.Stop()
 
 	var hmCurr atomic.Value
 	hmCurr.Store(&hourMetricIDs{})
@@ -54,7 +56,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	hmPrev.Store(&hourMetricIDs{})
 
 	const dbName = "bench-index-db-add-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -106,7 +108,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		if err := is.GetOrCreateTSIDByName(tsid, metricName); err != nil {
-			panic(fmt.Errorf("cannot insert record: %s", err))
+			panic(fmt.Errorf("cannot insert record: %w", err))
 		}
 	}
 }
@@ -116,8 +118,10 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// See https://www.robustperception.io/evaluating-performance-and-correctness for more details.
 	metricIDCache := workingsetcache.New(1234, time.Hour)
 	metricNameCache := workingsetcache.New(1234, time.Hour)
+	tsidCache := workingsetcache.New(1234, time.Hour)
 	defer metricIDCache.Stop()
 	defer metricNameCache.Stop()
+	defer tsidCache.Stop()
 
 	var hmCurr atomic.Value
 	hmCurr.Store(&hourMetricIDs{})
@@ -125,7 +129,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	hmPrev.Store(&hourMetricIDs{})
 
 	const dbName = "bench-head-posting-for-matchers"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -302,8 +306,10 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	metricIDCache := workingsetcache.New(1234, time.Hour)
 	metricNameCache := workingsetcache.New(1234, time.Hour)
+	tsidCache := workingsetcache.New(1234, time.Hour)
 	defer metricIDCache.Stop()
 	defer metricNameCache.Stop()
+	defer tsidCache.Stop()
 
 	var hmCurr atomic.Value
 	hmCurr.Store(&hourMetricIDs{})
@@ -311,7 +317,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	hmPrev.Store(&hourMetricIDs{})
 
 	const dbName = "bench-index-db-get-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -366,7 +372,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
 				if err := is.GetOrCreateTSIDByName(&tsidLocal, metricNameLocal); err != nil {
-					panic(fmt.Errorf("cannot obtain tsid: %s", err))
+					panic(fmt.Errorf("cannot obtain tsid: %w", err))
 				}
 			}
 		}

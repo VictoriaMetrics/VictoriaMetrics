@@ -119,7 +119,7 @@ func (tbf *tmpBlocksFile) WriteBlockData(b []byte) (tmpBlockAddr, error) {
 	_, err := tbf.f.Write(tbf.buf)
 	tbf.buf = append(tbf.buf[:0], b...)
 	if err != nil {
-		return addr, fmt.Errorf("cannot write block to %q: %s", tbf.f.Name(), err)
+		return addr, fmt.Errorf("cannot write block to %q: %w", tbf.f.Name(), err)
 	}
 	return addr, nil
 }
@@ -130,7 +130,7 @@ func (tbf *tmpBlocksFile) Finalize() error {
 	}
 	fname := tbf.f.Name()
 	if _, err := tbf.f.Write(tbf.buf); err != nil {
-		return fmt.Errorf("cannot write the remaining %d bytes to %q: %s", len(tbf.buf), fname, err)
+		return fmt.Errorf("cannot write the remaining %d bytes to %q: %w", len(tbf.buf), fname, err)
 	}
 	tbf.buf = tbf.buf[:0]
 	r, err := fs.OpenReaderAt(fname)

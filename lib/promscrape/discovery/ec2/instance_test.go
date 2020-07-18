@@ -146,6 +146,7 @@ func TestParseInstancesResponse(t *testing.T) {
 									AvailabilityZone: "eu-west-2c",
 								},
 								ID:        "i-0e730b692d9c15460",
+								ImageID:   "ami-0eb89db7593b5d434",
 								Lifecycle: "spot",
 								State: InstanceState{
 									Name: "running",
@@ -197,6 +198,7 @@ func TestParseInstancesResponse(t *testing.T) {
 			"__address__":                   "172.31.11.152:423",
 			"__meta_ec2_architecture":       "x86_64",
 			"__meta_ec2_availability_zone":  "eu-west-2c",
+			"__meta_ec2_ami":                "ami-0eb89db7593b5d434",
 			"__meta_ec2_instance_id":        "i-0e730b692d9c15460",
 			"__meta_ec2_instance_lifecycle": "spot",
 			"__meta_ec2_instance_state":     "running",

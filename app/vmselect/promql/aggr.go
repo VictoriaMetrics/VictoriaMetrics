@@ -27,6 +27,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk":      newAggrFuncTopK(true),
 	"topk":         newAggrFuncTopK(false),
 	"quantile":     aggrFuncQuantile,
+	"group":        aggrFuncGroup,
 
 	// PromQL extension funcs
 	"median":         aggrFuncMedian,
@@ -43,7 +44,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_max":    newAggrFuncRangeTopK(maxValue, true),
 	"bottomk_avg":    newAggrFuncRangeTopK(avgValue, true),
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
-	"any":            newAggrFunc(aggrFuncAny),
+	"any":            aggrFuncAny,
 	"outliersk":      aggrFuncOutliersK,
 }
 
@@ -77,13 +78,15 @@ func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.Modifie
 		metricName.RemoveTagsOn(modifier.Args)
 	case "without":
 		metricName.RemoveTagsIgnoring(modifier.Args)
+		// Reset metric group as Prometheus does on `aggr(...) without (...)` call.
+		metricName.ResetMetricGroup()
 	default:
 		logger.Panicf("BUG: unknown group modifier: %q", groupOp)
 	}
 }
 
 func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
-	arg := copyTimeseriesMetricNames(argOrig)
+	arg := copyTimeseriesMetricNames(argOrig, keepOriginal)
 
 	// Perform grouping.
 	m := make(map[string][]*timeseries)
@@ -120,8 +123,41 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 	return rvs, nil
 }
 
-func aggrFuncAny(tss []*timeseries) []*timeseries {
-	return tss[:1]
+func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		return tss[:1]
+	}
+	limit := afa.ae.Limit
+	if limit > 1 {
+		// Only a single time series per group must be returned
+		limit = 1
+	}
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, true)
+}
+
+func aggrFuncGroup(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
+		values := tss[0].Values
+		for j := range values {
+			values[j] = 1
+		}
+		return tss[:1]
+	}
+	limit := afa.ae.Limit
+	if limit > 1 {
+		// Only a single time series per group must be returned
+		limit = 1
+	}
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, false)
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {

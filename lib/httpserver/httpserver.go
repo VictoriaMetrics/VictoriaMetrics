@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -436,8 +437,9 @@ func Errorf(w http.ResponseWriter, format string, args ...interface{}) {
 
 	// Extract statusCode from args
 	statusCode := http.StatusBadRequest
+	var esc *ErrorWithStatusCode
 	for _, arg := range args {
-		if esc, ok := arg.(*ErrorWithStatusCode); ok {
+		if err, ok := arg.(error); ok && errors.As(err, &esc) {
 			statusCode = esc.StatusCode
 			break
 		}
@@ -451,6 +453,13 @@ func Errorf(w http.ResponseWriter, format string, args ...interface{}) {
 type ErrorWithStatusCode struct {
 	Err        error
 	StatusCode int
+}
+
+// Unwrap returns e.Err.
+//
+// This is used by standard errors package. See https://golang.org/pkg/errors
+func (e *ErrorWithStatusCode) Unwrap() error {
+	return e.Err
 }
 
 // Error implements error interface.

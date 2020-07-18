@@ -44,11 +44,11 @@ func (ctx *pushCtx) Read(r *http.Request) error {
 	ctx.reqBuf, err = readSnappy(ctx.reqBuf[:0], r.Body)
 	if err != nil {
 		readErrors.Inc()
-		return fmt.Errorf("cannot read prompb.WriteRequest: %s", err)
+		return fmt.Errorf("cannot read prompb.WriteRequest: %w", err)
 	}
 	if err = ctx.wr.Unmarshal(ctx.reqBuf); err != nil {
 		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %s", len(ctx.reqBuf), err)
+		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(ctx.reqBuf), err)
 	}
 
 	rows := 0
@@ -65,7 +65,7 @@ var (
 	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="promremotewrite"}`)
 	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="promremotewrite"}`)
 	rowsRead        = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promremotewrite"}`)
-	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors{type="promremotewrite"}`)
+	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="promremotewrite"}`)
 )
 
 func getPushCtx() *pushCtx {
@@ -98,7 +98,7 @@ func readSnappy(dst []byte, r io.Reader) ([]byte, error) {
 	reqLen, err := bb.ReadFrom(lr)
 	if err != nil {
 		bodyBufferPool.Put(bb)
-		return dst, fmt.Errorf("cannot read compressed request: %s", err)
+		return dst, fmt.Errorf("cannot read compressed request: %w", err)
 	}
 	if reqLen > int64(*maxInsertRequestSize) {
 		return dst, fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", *maxInsertRequestSize)
@@ -108,7 +108,7 @@ func readSnappy(dst []byte, r io.Reader) ([]byte, error) {
 	buf, err = snappy.Decode(buf, bb.B)
 	bodyBufferPool.Put(bb)
 	if err != nil {
-		err = fmt.Errorf("cannot decompress request with length %d: %s", reqLen, err)
+		err = fmt.Errorf("cannot decompress request with length %d: %w", reqLen, err)
 		return dst, err
 	}
 	if len(buf) > *maxInsertRequestSize {

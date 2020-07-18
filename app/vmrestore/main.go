@@ -71,7 +71,7 @@ func newDstFS() (*fslocal.FS, error) {
 		MaxBytesPerSecond: *maxBytesPerSecond,
 	}
 	if err := fs.Init(); err != nil {
-		return nil, fmt.Errorf("cannot initialize local fs: %s", err)
+		return nil, fmt.Errorf("cannot initialize local fs: %w", err)
 	}
 	return fs, nil
 }
@@ -79,7 +79,7 @@ func newDstFS() (*fslocal.FS, error) {
 func newSrcFS() (common.RemoteFS, error) {
 	fs, err := actions.NewRemoteFS(*src)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse `-src`=%q: %s", *src, err)
+		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", *src, err)
 	}
 	return fs, nil
 }

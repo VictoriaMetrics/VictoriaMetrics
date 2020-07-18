@@ -1,7 +1,9 @@
 package graphite
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -84,6 +86,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Value:  1123,
 		}},
 	})
+	f("aaa 1123 -1", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: -1,
+		}},
+	})
 
 	// Timestamp bigger than 1<<31
 	f("aaa 1123 429496729600", &Rows{
@@ -159,5 +168,58 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Timestamp: 43,
 			},
 		},
+	})
+}
+
+func Test_streamContext_Read(t *testing.T) {
+	f := func(s string, rowsExpected *Rows) {
+		t.Helper()
+		ctx := &streamContext{}
+		ctx.Read(strings.NewReader(s))
+		if len(ctx.Rows.Rows) != len(rowsExpected.Rows) {
+			t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows, rowsExpected.Rows)
+		}
+		if !reflect.DeepEqual(ctx.Rows.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows.Rows, rowsExpected.Rows)
+		}
+	}
+
+	// Full line without tags
+	f("aaa 1123 345", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: 345 * 1000,
+		}},
+	})
+	// Full line with tags
+	f("aaa;x=y 1123 345", &Rows{
+		Rows: []Row{{
+			Metric: "aaa",
+			Tags: []Tag{{
+				Key:   "x",
+				Value: "y",
+			}},
+			Value:     1123,
+			Timestamp: 345 * 1000,
+		}},
+	})
+	// missing timestamp.
+	// Note that this test may be flaky due to timing issues. TODO: fix it
+	f("aaa 1123", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: int64(fasttime.UnixTimestamp()) * 1000,
+		}},
+	})
+	// -1 timestamp. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/610
+	// Note that this test may be flaky due to timing issues. TODO: fix it.
+	f("aaa 1123 -1", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: int64(fasttime.UnixTimestamp()) * 1000,
+		}},
 	})
 }

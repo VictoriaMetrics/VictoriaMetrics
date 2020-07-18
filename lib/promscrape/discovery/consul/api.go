@@ -47,7 +47,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	ac, err := promauth.NewConfig(baseDir, ba, token, "", sdc.TLSConfig)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse auth config: %s", err)
+		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
 	apiServer := sdc.Server
 	if apiServer == "" {
@@ -62,7 +62,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	client, err := discoveryutils.NewClient(apiServer, ac)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create HTTP client for %q: %s", apiServer, err)
+		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
 	tagSeparator := ","
 	if sdc.TagSeparator != nil {
@@ -92,7 +92,7 @@ func getToken(token *string) (string, error) {
 	if tokenFile := os.Getenv("CONSUL_HTTP_TOKEN_FILE"); tokenFile != "" {
 		data, err := ioutil.ReadFile(tokenFile)
 		if err != nil {
-			return "", fmt.Errorf("cannot read consul token file %q; probably, `token` arg is missing in `consul_sd_config`? error: %s", tokenFile, err)
+			return "", fmt.Errorf("cannot read consul token file %q; probably, `token` arg is missing in `consul_sd_config`? error: %w", tokenFile, err)
 		}
 		return string(data), nil
 	}
@@ -108,7 +108,7 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 	// See https://www.consul.io/api/agent.html#read-configuration
 	data, err := client.GetAPIResponse("/v1/agent/self")
 	if err != nil {
-		return "", fmt.Errorf("cannot query consul agent info: %s", err)
+		return "", fmt.Errorf("cannot query consul agent info: %w", err)
 	}
 	a, err := parseAgent(data)
 	if err != nil {
@@ -124,6 +124,7 @@ func getAPIResponse(cfg *apiConfig, path string) ([]byte, error) {
 	}
 	path += fmt.Sprintf("%sdc=%s", separator, url.QueryEscape(cfg.datacenter))
 	if cfg.allowStale {
+		// See https://www.consul.io/api/features/consistency
 		path += "&stale"
 	}
 	if len(cfg.nodeMeta) > 0 {

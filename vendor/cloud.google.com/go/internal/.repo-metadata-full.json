@@ -23,6 +23,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/asset/apiv1p2beta1",
     "release_level": "beta"
   },
+  "cloud.google.com/go/asset/apiv1p5beta1": {
+    "distribution_name": "cloud.google.com/go/asset/apiv1p5beta1",
+    "description": "Cloud Asset API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/asset/apiv1p5beta1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/automl/apiv1": {
     "distribution_name": "cloud.google.com/go/automl/apiv1",
     "description": "Cloud AutoML API",
@@ -53,7 +61,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/bigquery/connection/apiv1",
-    "release_level": "beta"
+    "release_level": "ga"
   },
   "cloud.google.com/go/bigquery/connection/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/bigquery/connection/apiv1beta1",
@@ -295,6 +303,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/firestore/apiv1/admin",
     "release_level": "ga"
   },
+  "cloud.google.com/go/gaming/apiv1beta": {
+    "distribution_name": "cloud.google.com/go/gaming/apiv1beta",
+    "description": "",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/gaming/apiv1beta",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/iam": {
     "distribution_name": "cloud.google.com/go/iam",
     "description": "Cloud IAM",
@@ -318,14 +334,6 @@
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/iot/apiv1",
     "release_level": "ga"
-  },
-  "cloud.google.com/go/irm/apiv1alpha2": {
-    "distribution_name": "cloud.google.com/go/irm/apiv1alpha2",
-    "description": "Stackdriver Incident Response \u0026 Management API",
-    "language": "Go",
-    "client_library_type": "generated",
-    "docs_url": "https://pkg.go.dev/cloud.google.com/go/irm/apiv1alpha2",
-    "release_level": "alpha"
   },
   "cloud.google.com/go/kms/apiv1": {
     "distribution_name": "cloud.google.com/go/kms/apiv1",
@@ -361,7 +369,7 @@
   },
   "cloud.google.com/go/logging/apiv2": {
     "distribution_name": "cloud.google.com/go/logging/apiv2",
-    "description": "Stackdriver Logging API",
+    "description": "Cloud Logging API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/logging/apiv2",
@@ -391,13 +399,21 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/monitoring/apiv3/v2",
     "release_level": "ga"
   },
+  "cloud.google.com/go/monitoring/dashboard/apiv1": {
+    "distribution_name": "cloud.google.com/go/monitoring/dashboard/apiv1",
+    "description": "",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/monitoring/dashboard/apiv1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/osconfig/agentendpoint/apiv1": {
     "distribution_name": "cloud.google.com/go/osconfig/agentendpoint/apiv1",
     "description": "Cloud OS Config API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/osconfig/agentendpoint/apiv1",
-    "release_level": "beta"
+    "release_level": "ga"
   },
   "cloud.google.com/go/osconfig/agentendpoint/apiv1beta": {
     "distribution_name": "cloud.google.com/go/osconfig/agentendpoint/apiv1beta",
@@ -445,6 +461,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/phishingprotection/apiv1beta1",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/policytroubleshooter/apiv1": {
+    "distribution_name": "cloud.google.com/go/policytroubleshooter/apiv1",
+    "description": "Policy Troubleshooter API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/policytroubleshooter/apiv1",
     "release_level": "beta"
   },
   "cloud.google.com/go/pubsub": {
@@ -553,7 +577,7 @@
   },
   "cloud.google.com/go/securitycenter/apiv1": {
     "distribution_name": "cloud.google.com/go/securitycenter/apiv1",
-    "description": "Cloud Security Command Center API",
+    "description": "Security Command Center API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/securitycenter/apiv1",
@@ -569,7 +593,7 @@
   },
   "cloud.google.com/go/securitycenter/apiv1p1beta1": {
     "distribution_name": "cloud.google.com/go/securitycenter/apiv1p1beta1",
-    "description": "Cloud Security Command Center API",
+    "description": "Security Command Center API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/securitycenter/apiv1p1beta1",
@@ -733,7 +757,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/webrisk/apiv1",
-    "release_level": "beta"
+    "release_level": "ga"
   },
   "cloud.google.com/go/webrisk/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/webrisk/apiv1beta1",

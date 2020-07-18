@@ -56,10 +56,10 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 	// Pool is empty. Create new connection.
 	c, err := cp.d.Dial()
 	if err != nil {
-		return nil, fmt.Errorf("cannot dial %s: %s", cp.d.Addr(), err)
+		return nil, fmt.Errorf("cannot dial %s: %w", cp.d.Addr(), err)
 	}
 	if bc, err = cp.handshakeFunc(c, cp.compressionLevel); err != nil {
-		err = fmt.Errorf("cannot perform %q handshake with server %q: %s", cp.name, cp.d.Addr(), err)
+		err = fmt.Errorf("cannot perform %q handshake with server %q: %w", cp.name, cp.d.Addr(), err)
 		_ = c.Close()
 		return nil, err
 	}

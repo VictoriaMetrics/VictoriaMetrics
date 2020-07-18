@@ -52,6 +52,13 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 		updateAggrFunc:   updateAggrAny,
 		mergeAggrFunc:    mergeAggrAny,
 		finalizeAggrFunc: finalizeAggrCommon,
+
+		keepOriginal: true,
+	},
+	"group": {
+		updateAggrFunc:   updateAggrGroup,
+		mergeAggrFunc:    mergeAggrAny,
+		finalizeAggrFunc: finalizeAggrCommon,
 	},
 }
 
@@ -72,7 +79,7 @@ func newIncrementalAggrFuncContext(ae *metricsql.AggrFuncExpr, callbacks *increm
 	}
 }
 
-func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries, workerID uint) {
+func (iafc *incrementalAggrFuncContext) updateTimeseries(tsOrig *timeseries, workerID uint) {
 	iafc.mLock.Lock()
 	m := iafc.m[workerID]
 	if m == nil {
@@ -81,6 +88,13 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries, workerI
 	}
 	iafc.mLock.Unlock()
 
+	ts := tsOrig
+	keepOriginal := iafc.callbacks.keepOriginal
+	if keepOriginal {
+		var dst timeseries
+		dst.CopyFromMetricNames(tsOrig)
+		ts = &dst
+	}
 	removeGroupTags(&ts.MetricName, &iafc.ae.Modifier)
 	bb := bbPool.Get()
 	bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
@@ -94,6 +108,9 @@ func (iafc *incrementalAggrFuncContext) updateTimeseries(ts *timeseries, workerI
 			Values:     make([]float64, len(ts.Values)),
 			Timestamps: ts.Timestamps,
 			denyReuse:  true,
+		}
+		if keepOriginal {
+			ts = tsOrig
 		}
 		tsAggr.MetricName.CopyFrom(&ts.MetricName)
 		iac = &incrementalAggrContext{
@@ -138,6 +155,9 @@ type incrementalAggrFuncCallbacks struct {
 	updateAggrFunc   func(iac *incrementalAggrContext, values []float64)
 	mergeAggrFunc    func(dst, src *incrementalAggrContext)
 	finalizeAggrFunc func(iac *incrementalAggrContext)
+
+	// Whether to keep the original MetricName for every time series during aggregation
+	keepOriginal bool
 }
 
 func getIncrementalAggrFuncCallbacks(name string) *incrementalAggrFuncCallbacks {
@@ -484,4 +504,18 @@ func mergeAggrAny(dst, src *incrementalAggrContext) {
 	}
 	dstCounts[0] = srcCounts[0]
 	dst.ts.Values = append(dst.ts.Values[:0], srcValues...)
+}
+
+func updateAggrGroup(iac *incrementalAggrContext, values []float64) {
+	dstCounts := iac.values
+	if dstCounts[0] > 0 {
+		return
+	}
+	for i := range values {
+		dstCounts[i] = 1
+	}
+	for i := range values {
+		values[i] = 1
+	}
+	iac.ts.Values = append(iac.ts.Values[:0], values...)
 }

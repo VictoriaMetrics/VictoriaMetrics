@@ -229,7 +229,7 @@ func MarshalBytes(dst, b []byte) []byte {
 func UnmarshalBytes(src []byte) ([]byte, []byte, error) {
 	tail, n, err := UnmarshalVarUint64(src)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot unmarshal string size: %d", err)
+		return nil, nil, fmt.Errorf("cannot unmarshal string size: %w", err)
 	}
 	src = tail
 	if uint64(len(src)) < n {

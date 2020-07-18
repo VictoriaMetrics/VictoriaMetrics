@@ -28,11 +28,11 @@ func getAllServiceNodes(cfg *apiConfig) ([]ServiceNode, error) {
 	// See https://www.consul.io/api/catalog.html#list-services
 	data, err := getAPIResponse(cfg, "/v1/catalog/services")
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain services: %s", err)
+		return nil, fmt.Errorf("cannot obtain services: %w", err)
 	}
 	var m map[string][]string
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("cannot parse services response %q: %s", data, err)
+		return nil, fmt.Errorf("cannot parse services response %q: %w", data, err)
 	}
 	serviceNames := make(map[string]bool)
 	for serviceName, tags := range m {
@@ -109,16 +109,23 @@ func shouldCollectServiceByTags(filterTags, tags []string) bool {
 func getServiceNodes(cfg *apiConfig, serviceName string) ([]ServiceNode, error) {
 	// See https://www.consul.io/api/health.html#list-nodes-for-service
 	path := fmt.Sprintf("/v1/health/service/%s", serviceName)
+	// The /v1/health/service/:service endpoint supports background refresh caching,
+	// which guarantees fresh results obtained from local Consul agent.
+	// See https://www.consul.io/api-docs/health#list-nodes-for-service
+	// and https://www.consul.io/api/features/caching for details.
+	// Query cached results in order to reduce load on Consul cluster.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574 .
+	path += "?cached"
 	var tagsArgs []string
 	for _, tag := range cfg.tags {
 		tagsArgs = append(tagsArgs, fmt.Sprintf("tag=%s", url.QueryEscape(tag)))
 	}
 	if len(tagsArgs) > 0 {
-		path += "?" + strings.Join(tagsArgs, "&")
+		path += "&" + strings.Join(tagsArgs, "&")
 	}
 	data, err := getAPIResponse(cfg, path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain instances for serviceName=%q: %s", serviceName, err)
+		return nil, fmt.Errorf("cannot obtain instances for serviceName=%q: %w", serviceName, err)
 	}
 	return parseServiceNodes(data)
 }
@@ -166,7 +173,7 @@ type Check struct {
 func parseServiceNodes(data []byte) ([]ServiceNode, error) {
 	var sns []ServiceNode
 	if err := json.Unmarshal(data, &sns); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal ServiceNodes from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal ServiceNodes from %q: %w", data, err)
 	}
 	return sns, nil
 }

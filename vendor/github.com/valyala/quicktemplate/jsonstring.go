@@ -1,93 +1,65 @@
 package quicktemplate
 
 import (
-	"io"
+	"fmt"
 	"strings"
 )
 
-func writeJSONString(w io.Writer, s string) {
-	if len(s) > 24 &&
-		strings.IndexByte(s, '"') < 0 &&
-		strings.IndexByte(s, '\\') < 0 &&
-		strings.IndexByte(s, '\n') < 0 &&
-		strings.IndexByte(s, '\r') < 0 &&
-		strings.IndexByte(s, '\t') < 0 &&
-		strings.IndexByte(s, '\f') < 0 &&
-		strings.IndexByte(s, '\b') < 0 &&
-		strings.IndexByte(s, '<') < 0 &&
-		strings.IndexByte(s, '\'') < 0 &&
-		strings.IndexByte(s, 0) < 0 {
-
-		// fast path - nothing to escape
-		w.Write(unsafeStrToBytes(s))
-		return
+func hasSpecialChars(s string) bool {
+	if strings.IndexByte(s, '"') >= 0 || strings.IndexByte(s, '\\') >= 0 || strings.IndexByte(s, '<') >= 0 || strings.IndexByte(s, '\'') >= 0 {
+		return true
 	}
-
-	// slow path
-	write := w.Write
-	b := unsafeStrToBytes(s)
-	j := 0
-	n := len(b)
-	if n > 0 {
-		// Hint the compiler to remove bounds checks in the loop below.
-		_ = b[n-1]
-	}
-	for i := 0; i < n; i++ {
-		switch b[i] {
-		case '"':
-			write(b[j:i])
-			write(strBackslashQuote)
-			j = i + 1
-		case '\\':
-			write(b[j:i])
-			write(strBackslashBackslash)
-			j = i + 1
-		case '\n':
-			write(b[j:i])
-			write(strBackslashN)
-			j = i + 1
-		case '\r':
-			write(b[j:i])
-			write(strBackslashR)
-			j = i + 1
-		case '\t':
-			write(b[j:i])
-			write(strBackslashT)
-			j = i + 1
-		case '\f':
-			write(b[j:i])
-			write(strBackslashF)
-			j = i + 1
-		case '\b':
-			write(b[j:i])
-			write(strBackslashB)
-			j = i + 1
-		case '<':
-			write(b[j:i])
-			write(strBackslashLT)
-			j = i + 1
-		case '\'':
-			write(b[j:i])
-			write(strBackslashQ)
-			j = i + 1
-		case 0:
-			write(b[j:i])
-			write(strBackslashZero)
-			j = i + 1
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 {
+			return true
 		}
 	}
-	write(b[j:])
+	return false
 }
 
-var (
-	strBackslashQuote     = []byte(`\"`)
-	strBackslashBackslash = []byte(`\\`)
-	strBackslashN         = []byte(`\n`)
-	strBackslashR         = []byte(`\r`)
-	strBackslashT         = []byte(`\t`)
-	strBackslashF         = []byte(`\u000c`)
-	strBackslashB         = []byte(`\u0008`)
-	strBackslashLT        = []byte(`\u003c`)
-	strBackslashQ         = []byte(`\u0027`)
-	strBackslashZero      = []byte(`\u0000`)
-)
+func appendJSONString(dst []byte, s string, addQuotes bool) []byte {
+	if !hasSpecialChars(s) {
+		// Fast path - nothing to escape.
+		if !addQuotes {
+			return append(dst, s...)
+		}
+		dst = append(dst, '"')
+		dst = append(dst, s...)
+		dst = append(dst, '"')
+		return dst
+	}
+
+	// Slow path - there are chars to escape.
+	if addQuotes {
+		dst = append(dst, '"')
+	}
+	bb := AcquireByteBuffer()
+	var tmp []byte
+	tmp, bb.B = bb.B, dst
+	_, err := jsonReplacer.WriteString(bb, s)
+	if err != nil {
+		panic(fmt.Errorf("BUG: unexpected error returned from jsonReplacer.WriteString: %s", err))
+	}
+	dst, bb.B = bb.B, tmp
+	ReleaseByteBuffer(bb)
+	if addQuotes {
+		dst = append(dst, '"')
+	}
+	return dst
+}
+
+var jsonReplacer = strings.NewReplacer(func() []string {
+	a := []string{
+		"\n", `\n`,
+		"\r", `\r`,
+		"\t", `\t`,
+		"\"", `\"`,
+		"\\", `\\`,
+		"<", `\u003c`,
+		"'", `\u0027`,
+	}
+	for i := 0; i < 0x20; i++ {
+		a = append(a, string([]byte{byte(i)}), fmt.Sprintf(`\u%04x`, i))
+	}
+	return a
+}()...)

@@ -76,10 +76,11 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `median_over_time(m[d])` - calculates median values for `m` over `d` time window. Shorthand to `quantile_over_time(0.5, m[d])`.
 - `median(q)` - median aggregate. Shorthand to `quantile(0.5, q)`.
 - `limitk(k, q)` - limits the number of time series returned from `q` to `k`.
-- `any(q) by (x)` - returns any time series from `q` for each group in `x`. Note that `any()` removes all the labels except of those listed in `by (x)`.
+- `any(q) by (x)` - returns any time series from `q` for each group in `x`.
   Use `limitk(1, q)` if you need retaining all the labels from `q`.
 - `keep_last_value(q)` - fills missing data (gaps) in `q` with the previous non-empty value.
 - `keep_next_value(q)` - fills missing data (gaps) in `q` with the next non-empty value.
+- `interpolate(q)` - fills missing data (gaps) in `q` with linearly interpolated values.
 - `distinct_over_time(m[d])` - returns distinct number of values for `m` data points over `d` duration.
 - `distinct(q)` - returns a time series with the number of unique values for each timestamp in `q`.
 - `sum2_over_time(m[d])` - returns sum of squares for all the `m` values over `d` duration.
@@ -122,3 +123,4 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   This aggregate function is useful to detect anomalies across groups of similar time series.
 - `ascent_over_time(m[d])` - returns the sum of positive deltas between adjancent data points in `m` over `d`. Useful for tracking height gains in GPS track.
 - `descent_over_time(m[d])` - returns the absolute sum of negative deltas between adjancent data points in `m` over `d`. Useful for tracking height loss in GPS track.
+- `mode_over_time(m[d])` - returns [mode](https://en.wikipedia.org/wiki/Mode_(statistics)) for `m` values over `d`. It is expected that `m` values are discrete.

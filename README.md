@@ -1,6 +1,6 @@
-<img alt="Victoria Metrics" src="logo.png">
-
 # Cluster version
+
+<img alt="Victoria Metrics" src="logo.png">
 
 VictoriaMetrics is fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -112,8 +112,9 @@ Run `make package`. It will build the following docker images locally:
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
 
-By default images are built on top of `alpine` image in order to improve debuggability. It is possible to build an image on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds images on top of `scratch` image:
+By default images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
+It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
 ROOT_IMAGE=scratch make package
@@ -177,6 +178,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
        See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#sending-opentsdb-data-via-http-apiput-requests) for details.
      - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` on `vmselect` (see below).
      - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-csv-data) for details.
+     - `prometheus/api/v1/import/prometheus` - for importing data in Prometheus exposition format. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-prometheus-exposition-format) for details.
 
 * URLs for querying: `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
@@ -189,6 +191,8 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
     - `federate` - returns [federated metrics](https://prometheus.io/docs/prometheus/latest/federation/).
     - `api/v1/export` - exports raw data. See [this article](https://medium.com/@valyala/analyzing-prometheus-data-with-external-tools-5f3e5e147639) for details.
     - `api/v1/status/tsdb` - for time series stats. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
+    - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
+      which is returned in the response.
 
 * URL for time series deletion: `http://<vmselect>:8481/delete/<accountID>/prometheus/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`.
   Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
@@ -276,6 +280,18 @@ bigger number of vCPU cores and bigger amounts of RAM.
 
 In general it is recommended increasing the number of vCPU cores and RAM per `vmselect` node for higher query performance,
 while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
+
+
+### High availability
+
+It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
+This improves cluster performance and availability.
+It isn't recommended spreading components for a single cluster across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency
+and higher error rates comparing the network inside AZ.
+
+If you need multi-AZ setup, then it is recommended running independed clusters in each AZ and setting up
+[vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) in front of these clusters, so it could replicate incoming data
+into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
 
 
 ### Helm

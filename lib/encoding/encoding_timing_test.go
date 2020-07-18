@@ -34,7 +34,7 @@ func BenchmarkUnmarshalGaugeArray(b *testing.B) {
 		for pb.Next() {
 			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledGaugeArray, MarshalTypeZSTDNearestDelta, benchGaugeArray[0], len(benchGaugeArray))
 			if err != nil {
-				panic(fmt.Errorf("cannot unmarshal gauge array: %s", err))
+				panic(fmt.Errorf("cannot unmarshal gauge array: %w", err))
 			}
 			atomic.AddUint64(&Sink, uint64(len(dst)))
 		}
@@ -81,7 +81,7 @@ func BenchmarkUnmarshalDeltaConstArray(b *testing.B) {
 		for pb.Next() {
 			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledDeltaConstArray, MarshalTypeDeltaConst, benchDeltaConstArray[0], len(benchDeltaConstArray))
 			if err != nil {
-				panic(fmt.Errorf("cannot unmarshal delta const array: %s", err))
+				panic(fmt.Errorf("cannot unmarshal delta const array: %w", err))
 			}
 			atomic.AddUint64(&Sink, uint64(len(dst)))
 		}
@@ -128,7 +128,7 @@ func BenchmarkUnmarshalConstArray(b *testing.B) {
 		for pb.Next() {
 			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledConstArray, MarshalTypeConst, benchConstArray[0], len(benchConstArray))
 			if err != nil {
-				panic(fmt.Errorf("cannot unmarshal const array: %s", err))
+				panic(fmt.Errorf("cannot unmarshal const array: %w", err))
 			}
 			atomic.AddUint64(&Sink, uint64(len(dst)))
 		}
@@ -173,7 +173,7 @@ func BenchmarkUnmarshalZeroConstArray(b *testing.B) {
 		for pb.Next() {
 			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledZeroConstArray, MarshalTypeConst, benchZeroConstArray[0], len(benchZeroConstArray))
 			if err != nil {
-				panic(fmt.Errorf("cannot unmarshal zero const array: %s", err))
+				panic(fmt.Errorf("cannot unmarshal zero const array: %w", err))
 			}
 			atomic.AddUint64(&Sink, uint64(len(dst)))
 		}
@@ -212,7 +212,7 @@ func BenchmarkUnmarshalInt64Array(b *testing.B) {
 		for pb.Next() {
 			dst, err = unmarshalInt64Array(dst[:0], benchMarshaledInt64Array, benchMarshalType, benchInt64Array[0], len(benchInt64Array))
 			if err != nil {
-				panic(fmt.Errorf("cannot unmarshal int64 array: %s", err))
+				panic(fmt.Errorf("cannot unmarshal int64 array: %w", err))
 			}
 			atomic.AddUint64(&Sink, uint64(len(dst)))
 		}

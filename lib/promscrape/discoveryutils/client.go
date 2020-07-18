@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	maxConcurrency = flag.Int("promscrape.discovery.concurrency", 500, "The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.)")
+	maxConcurrency = flag.Int("promscrape.discovery.concurrency", 100, "The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.)")
 	maxWaitTime    = flag.Duration("promscrape.discovery.concurrentWaitTime", time.Minute, "The maximum duration for waiting to perform API requests "+
 		"if more than -promscrape.discovery.concurrency requests are simultaneously performed")
 )
@@ -65,7 +65,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		ReadTimeout:         time.Minute,
 		WriteTimeout:        10 * time.Second,
 		MaxResponseBodySize: 300 * 1024 * 1024,
-		MaxConns:            *maxConcurrency,
+		MaxConns:            2 * *maxConcurrency,
 	}
 	return &Client{
 		hc:        hc,
@@ -112,13 +112,13 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 	var resp fasthttp.Response
 	// There is no need in calling DoTimeout, since the timeout is already set in c.hc.ReadTimeout above.
 	if err := c.hc.Do(&req, &resp); err != nil {
-		return nil, fmt.Errorf("cannot fetch %q: %s", requestURL, err)
+		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
 	var data []byte
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
 		dst, err := fasthttp.AppendGunzipBytes(nil, resp.Body())
 		if err != nil {
-			return nil, fmt.Errorf("cannot ungzip response from %q: %s", requestURL, err)
+			return nil, fmt.Errorf("cannot ungzip response from %q: %w", requestURL, err)
 		}
 		data = dst
 	} else {

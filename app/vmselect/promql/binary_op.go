@@ -206,7 +206,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 		resetMetricGroupIfRequired(be, tsLeft)
 		if len(tssRight) == 1 {
 			// Easy case - right part contains only a single matching time series.
-			tsLeft.MetricName.AddMissingTags(joinTags, &tssRight[0].MetricName)
+			tsLeft.MetricName.SetTags(joinTags, &tssRight[0].MetricName)
 			rvsLeft = append(rvsLeft, tsLeft)
 			rvsRight = append(rvsRight, tssRight[0])
 			continue
@@ -225,7 +225,7 @@ func groupJoin(singleTimeseriesSide string, be *metricsql.BinaryOpExpr, rvsLeft,
 		for _, tsRight := range tssRight {
 			var tsCopy timeseries
 			tsCopy.CopyFromShallowTimestamps(tsLeft)
-			tsCopy.MetricName.AddMissingTags(joinTags, &tsRight.MetricName)
+			tsCopy.MetricName.SetTags(joinTags, &tsRight.MetricName)
 			bb.B = marshalMetricTagsSorted(bb.B[:0], &tsCopy.MetricName)
 			if tsExisting := m[string(bb.B)]; tsExisting != nil {
 				// Try merging tsExisting with tsRight if they don't overlap.
@@ -290,12 +290,14 @@ func binaryOpAnd(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		if tssLeft == nil {
 			continue
 		}
-		for i := range tssLeft[0].Values {
-			if !isAllNaNs(tssRight, i) {
-				continue
-			}
-			for _, tsLeft := range tssLeft {
-				tsLeft.Values[i] = nan
+		// Add gaps to tssLeft if there are gaps at valuesRight.
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesRight {
+				if math.IsNaN(v) {
+					valuesLeft[i] = nan
+				}
 			}
 		}
 		tssLeft = removeNaNs(tssLeft)
@@ -340,27 +342,20 @@ func binaryOpUnless(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssLeft...)
 			continue
 		}
-		for i := range tssLeft[0].Values {
-			if isAllNaNs(tssRight, i) {
-				continue
-			}
-			for _, tsLeft := range tssLeft {
-				tsLeft.Values[i] = nan
+		// Add gaps to tssLeft if the are no gaps at valuesRight.
+		valuesRight := tssRight[0].Values
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			for i, v := range valuesRight {
+				if !math.IsNaN(v) {
+					valuesLeft[i] = nan
+				}
 			}
 		}
 		tssLeft = removeNaNs(tssLeft)
 		rvs = append(rvs, tssLeft...)
 	}
 	return rvs, nil
-}
-
-func isAllNaNs(tss []*timeseries, idx int) bool {
-	for _, ts := range tss {
-		if !math.IsNaN(ts.Values[idx]) {
-			return false
-		}
-	}
-	return true
 }
 
 func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*timeseries) (map[string][]*timeseries, map[string][]*timeseries) {

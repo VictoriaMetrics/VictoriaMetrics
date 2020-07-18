@@ -158,6 +158,16 @@ Usage of vmalert:
         Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
         Optional basic auth username for -datasource.url
+  -datasource.tlsCAFile value
+        Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used.
+  -datasource.tlsCertFile value
+        Optional path to client-side TLS certificate file to use when connecting to -datasource.url.
+  -datasource.tlsInsecureSkipVerify
+        Whether to skip tls verification when connecting to -datasource.url
+  -datasource.tlsKeyFile value
+        Optional path to client-side TLS certificate key to use when connecting to -datasource.url.
+  -datasource.tlsServerName value
+        Optional TLS server name to use for connections to -datasource.url. By default the server name from -datasource.url is used.
   -datasource.url string
         Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
   -evaluationInterval duration
@@ -168,6 +178,16 @@ Usage of vmalert:
         Address to listen for http connections (default ":8880")
   -metricsAuthKey string
         Auth key for /metrics. It overrides httpAuth settings
+  -notifier.tlsCAFile value
+        Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used.
+  -notifier.tlsCertFile value
+        Optional path to client-side TLS certificate file to use when connecting to -notifier.url.
+  -notifier.tlsInsecureSkipVerify
+        Whether to skip tls verification when connecting to -notifier.url
+  -notifier.tlsKeyFile value
+        Optional path to client-side TLS certificate key to use when connecting to -notifier.url.
+  -notifier.tlsServerName value
+        Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used.
   -notifier.url string
         Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
   -remoteRead.basicAuth.password string
@@ -176,6 +196,16 @@ Usage of vmalert:
         Optional basic auth username for -remoteRead.url
   -remoteRead.lookback duration
         Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
+  -remoteRead.tlsCAFile value
+        Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used.
+  -remoteRead.tlsCertFile value
+        Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url.
+  -remoteRead.tlsInsecureSkipVerify
+        Whether to skip tls verification when connecting to -remoteRead.url
+  -remoteRead.tlsKeyFile value
+        Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url.
+  -remoteRead.tlsServerName value
+        Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used.
   -remoteRead.url vmalert
         Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
   -remoteWrite.basicAuth.password string
@@ -184,10 +214,22 @@ Usage of vmalert:
         Optional basic auth username for -remoteWrite.url
   -remoteWrite.concurrency int
         Defines number of readers that concurrently write into remote storage (default 1)
+  -remoteWrite.flushInterval duration
+        Defines interval of flushes to remote write endpoint (default 5s)
   -remoteWrite.maxBatchSize int
         Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
         Defines the max number of pending datapoints to remote write endpoint (default 100000)
+  -remoteWrite.tlsCAFile value
+        Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used.
+  -remoteWrite.tlsCertFile value
+        Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url.
+  -remoteWrite.tlsInsecureSkipVerify
+        Whether to skip tls verification when connecting to -remoteWrite.url
+  -remoteWrite.tlsKeyFile value
+        Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url.
+  -remoteWrite.tlsServerName value
+        Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used.
   -remoteWrite.url string
         Optional URL to Victoria Metrics or VMInsert where to persist alerts state in form of timeseries. E.g. http://127.0.0.1:8428
   -rule value

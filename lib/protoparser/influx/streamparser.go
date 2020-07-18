@@ -24,11 +24,10 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {
-	readCalls.Inc()
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
-			return fmt.Errorf("cannot read gzipped influx line protocol data: %s", err)
+			return fmt.Errorf("cannot read gzipped influx line protocol data: %w", err)
 		}
 		defer common.PutGzipReader(zr)
 		r = zr
@@ -62,6 +61,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 }
 
 func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
@@ -69,7 +69,7 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read influx line protocol data: %s", ctx.err)
+			ctx.err = fmt.Errorf("cannot read influx line protocol data: %w", ctx.err)
 		}
 		return false
 	}

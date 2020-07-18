@@ -23,7 +23,7 @@ Docker images for `vmauth` are available [here](https://hub.docker.com/r/victori
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
-Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, accounting, limits, etc.
+Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting, limits, etc.
 
 
 ### Auth config
@@ -110,11 +110,11 @@ Run `make package-vmauth`. It builds `victoriametrics/vmauth:<PKG_TAG>` docker i
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmauth`.
 
-By default the image is built on top of `scratch` image. It is possible to build the package on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of `alpine:3.11` image:
+By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
+by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
-ROOT_IMAGE=alpine:3.11 make package-vmauth
+ROOT_IMAGE=scratch make package-vmauth
 ```
 
 

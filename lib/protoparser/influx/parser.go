@@ -162,7 +162,7 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 	}
 	v, err := parseFieldValue(s[n+1:], hasQuotedFields)
 	if err != nil {
-		return fmt.Errorf("cannot parse field value for %q: %s", f.Key, err)
+		return fmt.Errorf("cannot parse field value for %q: %w", f.Key, err)
 	}
 	f.Value = v
 	return nil

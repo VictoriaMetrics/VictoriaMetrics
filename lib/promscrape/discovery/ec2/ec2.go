@@ -34,11 +34,11 @@ type Filter struct {
 func GetLabels(sdc *SDConfig) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get API config: %s", err)
+		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
 	ms, err := getInstancesLabels(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("error when fetching instances data from EC2: %s", err)
+		return nil, fmt.Errorf("error when fetching instances data from EC2: %w", err)
 	}
 	return ms, nil
 }

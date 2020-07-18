@@ -63,6 +63,9 @@ var rollupFuncs = map[string]bool{
 	// `timestamp` func has been moved here because it must work properly with offsets and samples unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
 	"timestamp": true,
+
+	// See https://en.wikipedia.org/wiki/Mode_(statistics)
+	"mode_over_time": true,
 }
 
 // IsRollupFunc returns whether funcName is known rollup function.

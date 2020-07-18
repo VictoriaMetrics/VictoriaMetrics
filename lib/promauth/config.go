@@ -93,7 +93,7 @@ func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTo
 			path := getFilepath(baseDir, basicAuth.PasswordFile)
 			pass, err := readPasswordFromFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %s", basicAuth.PasswordFile, err)
+				return nil, fmt.Errorf("cannot read password from `password_file`=%q set in `basic_auth` section: %w", basicAuth.PasswordFile, err)
 			}
 			password = pass
 		}
@@ -109,7 +109,7 @@ func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTo
 		path := getFilepath(baseDir, bearerTokenFile)
 		token, err := readPasswordFromFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %s", bearerTokenFile, err)
+			return nil, fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %w", bearerTokenFile, err)
 		}
 		bearerToken = token
 	}
@@ -131,7 +131,7 @@ func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTo
 			keyPath := getFilepath(baseDir, tlsConfig.KeyFile)
 			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 			if err != nil {
-				return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %s", tlsConfig.CertFile, tlsConfig.KeyFile, err)
+				return nil, fmt.Errorf("cannot load TLS certificate from `cert_file`=%q, `key_file`=%q: %w", tlsConfig.CertFile, tlsConfig.KeyFile, err)
 			}
 			tlsCertificate = &cert
 		}
@@ -139,7 +139,7 @@ func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTo
 			path := getFilepath(baseDir, tlsConfig.CAFile)
 			data, err := ioutil.ReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("cannot read `ca_file` %q: %s", tlsConfig.CAFile, err)
+				return nil, fmt.Errorf("cannot read `ca_file` %q: %w", tlsConfig.CAFile, err)
 			}
 			tlsRootCA = x509.NewCertPool()
 			if !tlsRootCA.AppendCertsFromPEM(data) {

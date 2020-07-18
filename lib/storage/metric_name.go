@@ -49,11 +49,11 @@ func (tag *Tag) Unmarshal(src []byte) ([]byte, error) {
 	var err error
 	src, tag.Key, err = unmarshalTagValue(tag.Key[:0], src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal key: %s", err)
+		return src, fmt.Errorf("cannot unmarshal key: %w", err)
 	}
 	src, tag.Value, err = unmarshalTagValue(tag.Value[:0], src)
 	if err != nil {
-		return src, fmt.Errorf("cannot unmarshal value: %s", err)
+		return src, fmt.Errorf("cannot unmarshal value: %w", err)
 	}
 	return src, nil
 }
@@ -298,20 +298,30 @@ func (mn *MetricName) GetTagValue(tagKey string) []byte {
 	return nil
 }
 
-// AddMissingTags adds tags from src with keys matching addTags.
-func (mn *MetricName) AddMissingTags(addTags []string, src *MetricName) {
-	if hasTag(addTags, metricGroupTagKey) {
-		mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
-	}
-	for i := range src.Tags {
-		srcTag := &src.Tags[i]
-		if !hasTag(addTags, srcTag.Key) {
+// SetTags sets tags from src with keys matching addTags.
+func (mn *MetricName) SetTags(addTags []string, src *MetricName) {
+	for _, tagName := range addTags {
+		if tagName == string(metricGroupTagKey) {
+			mn.MetricGroup = append(mn.MetricGroup[:0], src.MetricGroup...)
+			continue
+		}
+		var srcTag *Tag
+		for i := range src.Tags {
+			t := &src.Tags[i]
+			if string(t.Key) == tagName {
+				srcTag = t
+				break
+			}
+		}
+		if srcTag == nil {
+			mn.RemoveTag(tagName)
 			continue
 		}
 		found := false
-		for j := range mn.Tags {
-			tag := &mn.Tags[j]
-			if string(tag.Key) == string(srcTag.Key) {
+		for i := range mn.Tags {
+			t := &mn.Tags[i]
+			if string(t.Key) == tagName {
+				t.Value = append(t.Value[:0], srcTag.Value...)
 				found = true
 				break
 			}
@@ -379,7 +389,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 	var err error
 	src, mn.MetricGroup, err = unmarshalTagValue(mn.MetricGroup[:0], src)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal MetricGroup: %s", err)
+		return fmt.Errorf("cannot unmarshal MetricGroup: %w", err)
 	}
 
 	mn.Tags = mn.Tags[:0]
@@ -388,7 +398,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 		var err error
 		src, err = tag.Unmarshal(src)
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal tag: %s", err)
+			return fmt.Errorf("cannot unmarshal tag: %w", err)
 		}
 	}
 
@@ -529,13 +539,13 @@ func (mn *MetricName) unmarshalRaw(src []byte) error {
 	for len(src) > 0 {
 		tail, key, err := unmarshalBytesFast(src)
 		if err != nil {
-			return fmt.Errorf("cannot decode key: %s", err)
+			return fmt.Errorf("cannot decode key: %w", err)
 		}
 		src = tail
 
 		tail, value, err := unmarshalBytesFast(src)
 		if err != nil {
-			return fmt.Errorf("cannot decode value: %s", err)
+			return fmt.Errorf("cannot decode value: %w", err)
 		}
 		src = tail
 

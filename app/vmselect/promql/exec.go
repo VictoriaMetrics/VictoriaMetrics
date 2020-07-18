@@ -40,7 +40,9 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		return nil, err
 	}
 
+	qid := activeQueriesV.Add(ec, q)
 	rv, err := evalExpr(ec, e)
+	activeQueriesV.Remove(qid)
 	if err != nil {
 		return nil, err
 	}

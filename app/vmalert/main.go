@@ -4,14 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -31,35 +32,17 @@ Examples:
  -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
 absolute path to all .yaml files in root.`)
 
+	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
+
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
 	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
+	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
+eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
 
-	httpListenAddr = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
-
-	datasourceURL = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
-		" E.g. http://127.0.0.1:8428")
-	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
-	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
-
-	remoteWriteURL = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
-		" and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
-	remoteWriteUsername     = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
-	remoteWritePassword     = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
-	remoteWriteMaxQueueSize = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
-	remoteWriteMaxBatchSize = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
-	remoteWriteConcurrency  = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote storage")
-
-	remoteReadURL = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
-		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+
-		" E.g. http://127.0.0.1:8428")
-	remoteReadUsername = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
-	remoteReadPassword = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
-
-	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
-	notifierURL        = flag.String("notifier.url", "", "Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093")
-	externalURL        = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 )
 
 func main() {
@@ -69,40 +52,12 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	checkFlags()
+
 	ctx, cancel := context.WithCancel(context.Background())
-	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
+	manager, err := newManager(ctx)
 	if err != nil {
-		logger.Fatalf("can not get external url: %s ", err)
+		logger.Fatalf("failed to init: %s", err)
 	}
-	notifier.InitTemplateFunc(eu)
-
-	manager := &manager{
-		groups:  make(map[uint64]*Group),
-		storage: datasource.NewVMStorage(*datasourceURL, *basicAuthUsername, *basicAuthPassword, &http.Client{}),
-		notifier: notifier.NewAlertManager(*notifierURL, func(group, alert string) string {
-			return fmt.Sprintf("%s/api/v1/%s/%s/status", eu, group, alert)
-		}, &http.Client{}),
-	}
-	if *remoteWriteURL != "" {
-		c, err := remotewrite.NewClient(ctx, remotewrite.Config{
-			Addr:          *remoteWriteURL,
-			Concurrency:   *remoteWriteConcurrency,
-			MaxQueueSize:  *remoteWriteMaxQueueSize,
-			MaxBatchSize:  *remoteWriteMaxBatchSize,
-			FlushInterval: *evaluationInterval,
-			BasicAuthUser: *remoteWriteUsername,
-			BasicAuthPass: *remoteWritePassword,
-		})
-		if err != nil {
-			logger.Fatalf("failed to init remotewrite client: %s", err)
-		}
-		manager.rw = c
-	}
-	if *remoteReadURL != "" {
-		manager.rr = datasource.NewVMStorage(*remoteReadURL, *remoteReadUsername, *remoteReadPassword, &http.Client{})
-	}
-
 	if err := manager.start(ctx, *rulePath, *validateTemplates, *validateExpressions); err != nil {
 		logger.Fatalf("failed to start: %s", err)
 	}
@@ -147,6 +102,44 @@ var (
 	configTimestamp    = metrics.NewCounter(`vmalert_config_last_reload_success_timestamp_seconds`)
 )
 
+func newManager(ctx context.Context) (*manager, error) {
+	q, err := datasource.Init()
+	if err != nil {
+		return nil, fmt.Errorf("failed to init datasource: %w", err)
+	}
+	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init `external.url`: %w", err)
+	}
+	notifier.InitTemplateFunc(eu)
+	aug, err := getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init `external.alert.source`: %w", err)
+	}
+	nts, err := notifier.Init(aug)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init notifier: %w", err)
+	}
+
+	manager := &manager{
+		groups:    make(map[uint64]*Group),
+		querier:   q,
+		notifiers: nts,
+	}
+	rw, err := remotewrite.Init(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init remoteWrite: %w", err)
+	}
+	manager.rw = rw
+
+	rr, err := remoteread.Init()
+	if err != nil {
+		return nil, fmt.Errorf("failed to init remoteRead: %w", err)
+	}
+	manager.rr = rr
+	return manager, nil
+}
+
 func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL, error) {
 	if externalURL != "" {
 		return url.Parse(externalURL)
@@ -166,15 +159,29 @@ func getExternalURL(externalURL, httpListenAddr string, isSecure bool) (*url.URL
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
 }
 
-func checkFlags() {
-	if *notifierURL == "" {
-		flag.PrintDefaults()
-		logger.Fatalf("notifier.url is empty")
+func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
+	if externalAlertSource == "" {
+		return func(alert notifier.Alert) string {
+			return fmt.Sprintf("%s/api/v1/%s/%s/status", externalURL, strconv.FormatUint(alert.GroupID, 10), strconv.FormatUint(alert.ID, 10))
+		}, nil
 	}
-	if *datasourceURL == "" {
-		flag.PrintDefaults()
-		logger.Fatalf("datasource.url is empty")
+	if validateTemplate {
+		if err := notifier.ValidateTemplates(map[string]string{
+			"tpl": externalAlertSource,
+		}); err != nil {
+			return nil, fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
+		}
 	}
+	m := map[string]string{
+		"tpl": externalAlertSource,
+	}
+	return func(alert notifier.Alert) string {
+		templated, err := alert.ExecTemplate(m)
+		if err != nil {
+			logger.Errorf("can not exec source template %s", err)
+		}
+		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
+	}, nil
 }
 
 func usage() {

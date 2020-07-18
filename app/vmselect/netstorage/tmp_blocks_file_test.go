@@ -84,7 +84,7 @@ func testTmpBlocksFile() error {
 				bb.B = storage.MarshalBlock(bb.B[:0], b)
 				addr, err := tbf.WriteBlockData(bb.B)
 				if err != nil {
-					return fmt.Errorf("cannot write block at offset %d: %s", tbf.offset, err)
+					return fmt.Errorf("cannot write block at offset %d: %w", tbf.offset, err)
 				}
 				if addr.offset+uint64(addr.size) != tbf.offset {
 					return fmt.Errorf("unexpected addr=%+v for offset %v", &addr, tbf.offset)
@@ -93,7 +93,7 @@ func testTmpBlocksFile() error {
 				blocks = append(blocks, b)
 			}
 			if err := tbf.Finalize(); err != nil {
-				return fmt.Errorf("cannot finalize tbf: %s", err)
+				return fmt.Errorf("cannot finalize tbf: %w", err)
 			}
 
 			// Read blocks in parallel and verify them
@@ -108,12 +108,12 @@ func testTmpBlocksFile() error {
 							addr := addrs[idx]
 							b := blocks[idx]
 							if err := b.UnmarshalData(); err != nil {
-								return fmt.Errorf("cannot unmarshal data from the original block: %s", err)
+								return fmt.Errorf("cannot unmarshal data from the original block: %w", err)
 							}
 							b1.Reset()
 							tbf.MustReadBlockAt(&b1, addr)
 							if err := b1.UnmarshalData(); err != nil {
-								return fmt.Errorf("cannot unmarshal data from tbf: %s", err)
+								return fmt.Errorf("cannot unmarshal data from tbf: %w", err)
 							}
 							if b1.RowsCount() != b.RowsCount() {
 								return fmt.Errorf("unexpected number of rows in tbf block; got %d; want %d", b1.RowsCount(), b.RowsCount())

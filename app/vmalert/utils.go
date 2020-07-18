@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"sort"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func newTimeSeries(value float64, labels map[string]string, timestamp time.Time) prompbmarshal.TimeSeries {

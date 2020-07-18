@@ -21,10 +21,11 @@
 {% endfunc %}
 
 {% func valuesWithTimestamps(values []float64, timestamps []int64) %}
-[
 	{% if len(values) == 0 %}
+		[]
 		{% return %}
 	{% endif %}
+[
 	{% code /* inline metricRow call here for the sake of performance optimization */ %}
 	[{%f= float64(timestamps[0])/1e3 %},"{%f= values[0] %}"]
 	{% code

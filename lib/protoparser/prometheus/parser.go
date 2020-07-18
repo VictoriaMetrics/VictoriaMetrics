@@ -110,7 +110,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		var err error
 		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal tags: %s", err)
+			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		if len(s) > 0 && s[0] == ' ' {
 			// Fast path - skip whitespace.
@@ -147,16 +147,21 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 	return tagsPool, nil
 }
 
+var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
+
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
+	dstLen := len(dst)
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			return unmarshalRow(dst, s, tagsPool, noEscapes, errLogger)
+			dst, tagsPool = unmarshalRow(dst, s, tagsPool, noEscapes, errLogger)
+			break
 		}
 		dst, tagsPool = unmarshalRow(dst, s[:n], tagsPool, noEscapes, errLogger)
 		s = s[n+1:]
 	}
+	rowsReadScrape.Add(len(dst) - dstLen)
 	return dst, tagsPool
 }
 
@@ -226,7 +231,7 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			var err error
 			value, err = unescapeValue(s[:n+1])
 			if err != nil {
-				return s, dst, fmt.Errorf("cannot unescape value %q for tag %q: %s", s[:n+1], key, err)
+				return s, dst, fmt.Errorf("cannot unescape value %q for tag %q: %w", s[:n+1], key, err)
 			}
 			s = s[n+1:]
 		}

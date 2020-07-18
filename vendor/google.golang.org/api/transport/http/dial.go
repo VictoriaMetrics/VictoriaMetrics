@@ -269,7 +269,7 @@ func getEndpoint(settings *internal.DialSettings, clientCertSource cert.Source) 
 	if settings.Endpoint == "" {
 		mtlsMode := getMTLSMode()
 		if mtlsMode == mTLSModeAlways || (clientCertSource != nil && mtlsMode == mTLSModeAuto) {
-			return generateDefaultMtlsEndpoint(settings.DefaultEndpoint), nil
+			return settings.DefaultMTLSEndpoint, nil
 		}
 		return settings.DefaultEndpoint, nil
 	}
@@ -301,27 +301,4 @@ func mergeEndpoints(base, newHost string) (string, error) {
 	}
 	u.Host = newHost
 	return u.String(), nil
-}
-
-// generateDefaultMtlsEndpoint attempts to derive the mTLS version of the
-// defaultEndpoint via regex, and returns defaultEndpoint if unsuccessful.
-//
-// We need to applying the following 2 transformations:
-// 1. pubsub.googleapis.com to pubsub.mtls.googleapis.com
-// 2. pubsub.sandbox.googleapis.com to pubsub.mtls.sandbox.googleapis.com
-//
-// TODO(andyzhao): In the future, the mTLS endpoint will be read from the Discovery Document
-// and passed in as defaultMtlsEndpoint instead of generated from defaultEndpoint,
-// and this function will be removed.
-func generateDefaultMtlsEndpoint(defaultEndpoint string) string {
-	var domains = []string{
-		".sandbox.googleapis.com", // must come first because .googleapis.com is a substring
-		".googleapis.com",
-	}
-	for _, domain := range domains {
-		if strings.Contains(defaultEndpoint, domain) {
-			return strings.Replace(defaultEndpoint, domain, ".mtls"+domain, -1)
-		}
-	}
-	return defaultEndpoint
 }

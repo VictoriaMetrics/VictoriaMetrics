@@ -26,11 +26,11 @@ type RelabelConfig struct {
 func LoadRelabelConfigs(path string) ([]ParsedRelabelConfig, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
 	var rcs []RelabelConfig
 	if err := yaml.UnmarshalStrict(data, &rcs); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %s", path, err)
+		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %w", path, err)
 	}
 	return ParseRelabelConfigs(nil, rcs)
 }
@@ -44,7 +44,7 @@ func ParseRelabelConfigs(dst []ParsedRelabelConfig, rcs []RelabelConfig) ([]Pars
 		var err error
 		dst, err = parseRelabelConfig(dst, &rcs[i])
 		if err != nil {
-			return dst, fmt.Errorf("error when parsing `relabel_config` #%d: %s", i+1, err)
+			return dst, fmt.Errorf("error when parsing `relabel_config` #%d: %w", i+1, err)
 		}
 	}
 	return dst, nil
@@ -63,11 +63,11 @@ func parseRelabelConfig(dst []ParsedRelabelConfig, rc *RelabelConfig) ([]ParsedR
 	if rc.Regex != nil {
 		regex := *rc.Regex
 		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
-			regex = "^" + *rc.Regex + "$"
+			regex = "^(?:" + *rc.Regex + ")$"
 		}
 		re, err := regexp.Compile(regex)
 		if err != nil {
-			return dst, fmt.Errorf("cannot parse `regex` %q: %s", regex, err)
+			return dst, fmt.Errorf("cannot parse `regex` %q: %w", regex, err)
 		}
 		regexCompiled = re
 	}
@@ -90,7 +90,15 @@ func parseRelabelConfig(dst []ParsedRelabelConfig, rc *RelabelConfig) ([]ParsedR
 			return dst, fmt.Errorf("missing `source_labels` for `action=replace_all`")
 		}
 		if targetLabel == "" {
-			return dst, fmt.Errorf("missing `target_label` for `action=replace`")
+			return dst, fmt.Errorf("missing `target_label` for `action=replace_all`")
+		}
+	case "keep_if_equal":
+		if len(sourceLabels) < 2 {
+			return dst, fmt.Errorf("`source_labels` must contain at least two entries for `action=keep_if_equal`; got %q", sourceLabels)
+		}
+	case "drop_if_equal":
+		if len(sourceLabels) < 2 {
+			return dst, fmt.Errorf("`source_labels` must contain at least two entries for `action=drop_if_equal`; got %q", sourceLabels)
 		}
 	case "keep":
 		if len(sourceLabels) == 0 {

@@ -62,6 +62,8 @@ type Queue struct {
 
 	blocksRead *metrics.Counter
 	bytesRead  *metrics.Counter
+
+	bytesPending *metrics.Gauge
 }
 
 // ResetIfEmpty resets q if it is empty.
@@ -166,6 +168,9 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	q.bytesWritten = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_written_total{path=%q}`, path))
 	q.blocksRead = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_blocks_read_total{path=%q}`, path))
 	q.bytesRead = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_read_total{path=%q}`, path))
+	q.bytesPending = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_bytes_pending{path=%q}`, path), func() float64 {
+		return float64(q.GetPendingBytes())
+	})
 
 	cleanOnError := func() {
 		if q.reader != nil {
@@ -177,7 +182,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory %q: %s", path, err)
+		return nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 
 	// Read metainfo.
@@ -193,13 +198,13 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		mi.Reset()
 		mi.Name = q.name
 		if err := mi.WriteToFile(metainfoPath); err != nil {
-			return nil, fmt.Errorf("cannot create %q: %s", metainfoPath, err)
+			return nil, fmt.Errorf("cannot create %q: %w", metainfoPath, err)
 		}
 
 		// Create initial chunk file.
 		filepath := q.chunkFilePath(0)
 		if err := fs.WriteFileAtomically(filepath, nil); err != nil {
-			return nil, fmt.Errorf("cannot create %q: %s", filepath, err)
+			return nil, fmt.Errorf("cannot create %q: %w", filepath, err)
 		}
 	}
 	if mi.Name != q.name {
@@ -209,7 +214,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	// Locate reader and writer chunks in the path.
 	fis, err := ioutil.ReadDir(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read contents of the directory %q: %s", path, err)
+		return nil, fmt.Errorf("cannot read contents of the directory %q: %w", path, err)
 	}
 	for _, fi := range fis {
 		fname := fi.Name()
@@ -406,11 +411,11 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 		q.writerPath = q.chunkFilePath(q.writerOffset)
 		w, err := filestream.Create(q.writerPath, false)
 		if err != nil {
-			return fmt.Errorf("cannot create chunk file %q: %s", q.writerPath, err)
+			return fmt.Errorf("cannot create chunk file %q: %w", q.writerPath, err)
 		}
 		q.writer = w
 		if err := q.flushMetainfo(); err != nil {
-			return fmt.Errorf("cannot flush metainfo: %s", err)
+			return fmt.Errorf("cannot flush metainfo: %w", err)
 		}
 	}
 
@@ -421,12 +426,12 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 	err := q.write(header.B)
 	headerBufPool.Put(header)
 	if err != nil {
-		return fmt.Errorf("cannot write header with size 8 bytes to %q: %s", q.writerPath, err)
+		return fmt.Errorf("cannot write header with size 8 bytes to %q: %w", q.writerPath, err)
 	}
 
 	// Write block contents.
 	if err := q.write(block); err != nil {
-		return fmt.Errorf("cannot write block contents with size %d bytes to %q: %s", len(block), q.writerPath, err)
+		return fmt.Errorf("cannot write block contents with size %d bytes to %q: %w", len(block), q.writerPath, err)
 	}
 	q.blocksWritten.Inc()
 	q.bytesWritten.Add(len(block))
@@ -474,11 +479,11 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 		q.readerPath = q.chunkFilePath(q.readerOffset)
 		r, err := filestream.Open(q.readerPath, true)
 		if err != nil {
-			return dst, fmt.Errorf("cannot open chunk file %q: %s", q.readerPath, err)
+			return dst, fmt.Errorf("cannot open chunk file %q: %w", q.readerPath, err)
 		}
 		q.reader = r
 		if err := q.flushMetainfo(); err != nil {
-			return dst, fmt.Errorf("cannot flush metainfo: %s", err)
+			return dst, fmt.Errorf("cannot flush metainfo: %w", err)
 		}
 	}
 
@@ -489,7 +494,7 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 	blockLen := encoding.UnmarshalUint64(header.B)
 	headerBufPool.Put(header)
 	if err != nil {
-		return dst, fmt.Errorf("cannot read header with size 8 bytes from %q: %s", q.readerPath, err)
+		return dst, fmt.Errorf("cannot read header with size 8 bytes from %q: %w", q.readerPath, err)
 	}
 	if blockLen > q.maxBlockSize {
 		return dst, fmt.Errorf("too big block size read from %q: %d bytes; cannot exceed %d bytes", q.readerPath, blockLen, q.maxBlockSize)
@@ -499,7 +504,7 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 	dstLen := len(dst)
 	dst = bytesutil.Resize(dst, dstLen+int(blockLen))
 	if err := q.readFull(dst[dstLen:]); err != nil {
-		return dst, fmt.Errorf("cannot read block contents with size %d bytes from %q: %s", blockLen, q.readerPath, err)
+		return dst, fmt.Errorf("cannot read block contents with size %d bytes from %q: %w", blockLen, q.readerPath, err)
 	}
 	q.blocksRead.Inc()
 	q.bytesRead.Add(int(blockLen))
@@ -546,7 +551,7 @@ func (q *Queue) flushMetainfo() error {
 	}
 	metainfoPath := q.metainfoPath()
 	if err := mi.WriteToFile(metainfoPath); err != nil {
-		return fmt.Errorf("cannot write metainfo to %q: %s", metainfoPath, err)
+		return fmt.Errorf("cannot write metainfo to %q: %w", metainfoPath, err)
 	}
 	return nil
 }
@@ -567,10 +572,10 @@ func (mi *metainfo) Reset() {
 func (mi *metainfo) WriteToFile(path string) error {
 	data, err := json.Marshal(mi)
 	if err != nil {
-		return fmt.Errorf("cannot marshal persistent queue metainfo %#v: %s", mi, err)
+		return fmt.Errorf("cannot marshal persistent queue metainfo %#v: %w", mi, err)
 	}
 	if err := ioutil.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("cannot write persistent queue metainfo to %q: %s", path, err)
+		return fmt.Errorf("cannot write persistent queue metainfo to %q: %w", path, err)
 	}
 	return nil
 }
@@ -582,10 +587,10 @@ func (mi *metainfo) ReadFromFile(path string) error {
 		if os.IsNotExist(err) {
 			return err
 		}
-		return fmt.Errorf("cannot read %q: %s", path, err)
+		return fmt.Errorf("cannot read %q: %w", path, err)
 	}
 	if err := json.Unmarshal(data, mi); err != nil {
-		return fmt.Errorf("cannot unmarshal persistent queue metainfo from %q: %s", path, err)
+		return fmt.Errorf("cannot unmarshal persistent queue metainfo from %q: %w", path, err)
 	}
 	if mi.ReaderOffset > mi.WriterOffset {
 		return fmt.Errorf("invalid data read from %q: readerOffset=%d cannot exceed writerOffset=%d", path, mi.ReaderOffset, mi.WriterOffset)

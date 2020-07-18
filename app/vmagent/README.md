@@ -26,6 +26,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
   * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-opentsdb-compatible-agents).
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
   * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-time-series-data).
+  * Data in Prometheus exposition format. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-prometheus-exposition-format) for details.
   * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-csv-data).
 * Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
@@ -147,12 +148,18 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `dns_sd_configs` - for scraping targets discovered from DNS records (SRV, A and AAAA).
   See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
 
+File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
+
+`vmagent` also support the following additional options in `scrape_config` section:
+
+* `disable_compression: true` - for disabling response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
+  in order to save network bandwidth.
+* `disable_keepalive: true` - for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
+  By default `vmagent` uses keep-alive connections to scrape targets in order to reduce overhead on connection re-establishing.
+
 Note that `vmagent` doesn't support `refresh_interval` option these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` in order to see default values for `-promscrape.*CheckInterval` flags.
-
-
-File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
 
 ### Adding labels to metrics
@@ -170,6 +177,8 @@ Additionally it provides the following extra actions:
 
 * `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
 * `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
+* `keep_if_equal`: keeps the entry if all label values from `source_labels` are equal.
+* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
 
 The relabeling can be defined in the following places:
 
@@ -210,6 +219,28 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
 
+* If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
+  or they use init container.
+
+  The following `relabel_configs` section may help determining `__meta_*` labels resulting in duplicate targets:
+  ```yml
+  - action: labelmap
+    regex: __meta_(.*)
+  ```
+
+  The following relabeling rule may be added to `relabel_configs` section in order to filter out pods with unneeded ports:
+  ```yml
+  - action: keep_if_equal
+    source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
+  ```
+
+  The following relabeling rule may be added to `relabel_configs` section in order to filter out init container pods:
+  ```yml
+  - action: drop
+    source_labels: [__meta_kubernetes_pod_container_init]
+    regex: true
+  ```
+
 
 ### How to build from sources
 
@@ -234,11 +265,11 @@ Run `make package-vmagent`. It builds `victoriametrics/vmagent:<PKG_TAG>` docker
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 
-By default the image is built on top of `scratch` image. It is possible to build the package on top of any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of `alpine:3.11` image:
+By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
+by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
-ROOT_IMAGE=alpine:3.11 make package-vmagent
+ROOT_IMAGE=scratch make package-vmagent
 ```
 
 

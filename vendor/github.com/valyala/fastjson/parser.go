@@ -32,7 +32,7 @@ func (p *Parser) Parse(s string) (*Value, error) {
 	p.b = append(p.b[:0], s...)
 	p.c.reset()
 
-	v, tail, err := parseValue(b2s(p.b), &p.c)
+	v, tail, err := parseValue(b2s(p.b), &p.c, 0)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse JSON: %s; unparsed tail: %q", err, startEndString(tail))
 	}
@@ -95,20 +95,27 @@ type kv struct {
 	v *Value
 }
 
-func parseValue(s string, c *cache) (*Value, string, error) {
+// MaxDepth is the maximum depth for nested JSON.
+const MaxDepth = 300
+
+func parseValue(s string, c *cache, depth int) (*Value, string, error) {
 	if len(s) == 0 {
 		return nil, s, fmt.Errorf("cannot parse empty string")
 	}
+	depth++
+	if depth > MaxDepth {
+		return nil, s, fmt.Errorf("too big depth for the nested JSON; it exceeds %d", MaxDepth)
+	}
 
 	if s[0] == '{' {
-		v, tail, err := parseObject(s[1:], c)
+		v, tail, err := parseObject(s[1:], c, depth)
 		if err != nil {
 			return nil, tail, fmt.Errorf("cannot parse object: %s", err)
 		}
 		return v, tail, nil
 	}
 	if s[0] == '[' {
-		v, tail, err := parseArray(s[1:], c)
+		v, tail, err := parseArray(s[1:], c, depth)
 		if err != nil {
 			return nil, tail, fmt.Errorf("cannot parse array: %s", err)
 		}
@@ -160,7 +167,7 @@ func parseValue(s string, c *cache) (*Value, string, error) {
 	return v, tail, nil
 }
 
-func parseArray(s string, c *cache) (*Value, string, error) {
+func parseArray(s string, c *cache, depth int) (*Value, string, error) {
 	s = skipWS(s)
 	if len(s) == 0 {
 		return nil, s, fmt.Errorf("missing ']'")
@@ -181,7 +188,7 @@ func parseArray(s string, c *cache) (*Value, string, error) {
 		var err error
 
 		s = skipWS(s)
-		v, s, err = parseValue(s, c)
+		v, s, err = parseValue(s, c, depth)
 		if err != nil {
 			return nil, s, fmt.Errorf("cannot parse array value: %s", err)
 		}
@@ -203,7 +210,7 @@ func parseArray(s string, c *cache) (*Value, string, error) {
 	}
 }
 
-func parseObject(s string, c *cache) (*Value, string, error) {
+func parseObject(s string, c *cache, depth int) (*Value, string, error) {
 	s = skipWS(s)
 	if len(s) == 0 {
 		return nil, s, fmt.Errorf("missing '}'")
@@ -240,7 +247,7 @@ func parseObject(s string, c *cache) (*Value, string, error) {
 
 		// Parse value
 		s = skipWS(s)
-		kv.v, s, err = parseValue(s, c)
+		kv.v, s, err = parseValue(s, c, depth)
 		if err != nil {
 			return nil, s, fmt.Errorf("cannot parse object value: %s", err)
 		}

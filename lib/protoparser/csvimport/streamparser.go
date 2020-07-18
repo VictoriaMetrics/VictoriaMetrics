@@ -25,18 +25,17 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
-	readCalls.Inc()
 	q := req.URL.Query()
 	format := q.Get("format")
 	cds, err := ParseColumnDescriptors(format)
 	if err != nil {
-		return fmt.Errorf("cannot parse the provided csv format: %s", err)
+		return fmt.Errorf("cannot parse the provided csv format: %w", err)
 	}
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
-			return fmt.Errorf("cannot read gzipped csv data: %s", err)
+			return fmt.Errorf("cannot read gzipped csv data: %w", err)
 		}
 		defer common.PutGzipReader(zr)
 		r = zr
@@ -53,6 +52,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 }
 
 func (ctx *streamContext) Read(r io.Reader, cds []ColumnDescriptor) bool {
+	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
@@ -60,7 +60,7 @@ func (ctx *streamContext) Read(r io.Reader, cds []ColumnDescriptor) bool {
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read csv data: %s", ctx.err)
+			ctx.err = fmt.Errorf("cannot read csv data: %w", ctx.err)
 		}
 		return false
 	}

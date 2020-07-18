@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 
@@ -79,6 +80,9 @@ var rollupFuncs = map[string]newRollupFunc{
 	// in order to properly handle offset and timestamps unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
 	"timestamp": newRollupFuncOneArg(rollupTimestamp),
+
+	// See https://en.wikipedia.org/wiki/Mode_(statistics)
+	"mode_over_time": newRollupFuncOneArg(rollupModeOverTime),
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -121,6 +125,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"ascent_over_time":    rollupAscentOverTime,
 	"descent_over_time":   rollupDescentOverTime,
 	"timestamp":           rollupTimestamp,
+	"mode_over_time":      rollupModeOverTime,
 }
 
 var rollupFuncsCannotAdjustWindow = map[string]bool{
@@ -167,6 +172,7 @@ var rollupFuncsKeepMetricGroup = map[string]bool{
 	"hoeffding_bound_upper": true,
 	"first_over_time":       true,
 	"last_over_time":        true,
+	"mode_over_time":        true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
@@ -285,7 +291,7 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	case "aggr_over_time":
 		aggrFuncNames, err := getRollupAggrFuncNames(expr)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid args to %s: %s", expr.AppendString(nil), err)
+			return nil, nil, fmt.Errorf("invalid args to %s: %w", expr.AppendString(nil), err)
 		}
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
@@ -1532,6 +1538,32 @@ func rollupTimestamp(rfa *rollupFuncArg) float64 {
 		return nan
 	}
 	return float64(timestamps[len(timestamps)-1]) / 1e3
+}
+
+func rollupModeOverTime(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	prevValue := rfa.prevValue
+	if len(values) == 0 {
+		return prevValue
+	}
+	sort.Float64s(values)
+	j := -1
+	dMax := 0
+	mode := prevValue
+	for i, v := range values {
+		if prevValue == v {
+			continue
+		}
+		if d := i - j; d > dMax {
+			dMax = d
+			mode = prevValue
+		}
+		j = i
+		prevValue = v
+	}
+	return mode
 }
 
 func rollupAscentOverTime(rfa *rollupFuncArg) float64 {

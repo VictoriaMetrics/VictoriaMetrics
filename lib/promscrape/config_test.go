@@ -135,7 +135,7 @@ scrape_configs:
 func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	var cfg Config
 	if err := cfg.parse(data, path); err != nil {
-		return nil, fmt.Errorf("cannot parse data: %s", err)
+		return nil, fmt.Errorf("cannot parse data: %w", err)
 	}
 	return cfg.getFileSDScrapeWork(nil), nil
 }
@@ -143,7 +143,7 @@ func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 func getStaticScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	var cfg Config
 	if err := cfg.parse(data, path); err != nil {
-		return nil, fmt.Errorf("cannot parse data: %s", err)
+		return nil, fmt.Errorf("cannot parse data: %w", err)
 	}
 	return cfg.getStaticScrapeWork(), nil
 }
@@ -451,7 +451,8 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "http://host2:80/abc/de",
@@ -489,7 +490,8 @@ scrape_configs:
 					Value: "rty",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "http://localhost:9090/abc/de",
@@ -527,7 +529,8 @@ scrape_configs:
 					Value: "test",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 }
@@ -579,7 +582,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -628,7 +632,8 @@ scrape_configs:
 					Value: "xxx",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -700,6 +705,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer xyz",
 			},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "https://aaa:443/foo/bar?p=x%26y&p=%3D",
@@ -740,6 +746,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer xyz",
 			},
+			jobNameOriginal: "foo",
 		},
 		{
 			ScrapeURL:       "http://1.2.3.4:80/metrics",
@@ -774,6 +781,7 @@ scrape_configs:
 				TLSServerName:         "foobar",
 				TLSInsecureSkipVerify: true,
 			},
+			jobNameOriginal: "qwer",
 		},
 	})
 	f(`
@@ -846,7 +854,8 @@ scrape_configs:
 					Value: "http://foo.bar:1234/metrics",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -907,7 +916,8 @@ scrape_configs:
 					Value: "https",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -949,7 +959,8 @@ scrape_configs:
 					Value: "3",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "foo",
 		},
 	})
 
@@ -997,6 +1008,7 @@ scrape_configs:
 			},
 			AuthConfig:           &promauth.Config{},
 			MetricRelabelConfigs: prcs,
+			jobNameOriginal:      "foo",
 		},
 	})
 	f(`
@@ -1037,6 +1049,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Basic eHl6OnNlY3JldC1wYXNz",
 			},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -1075,6 +1088,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer secret-pass",
 			},
+			jobNameOriginal: "foo",
 		},
 	})
 	snakeoilCert, err := tls.LoadX509KeyPair("testdata/ssl-cert-snakeoil.pem", "testdata/ssl-cert-snakeoil.key")
@@ -1119,6 +1133,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				TLSCertificate: &snakeoilCert,
 			},
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -1179,12 +1194,16 @@ scrape_configs:
 					Value: "qwe",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			jobNameOriginal: "aaa",
 		},
 	})
 	f(`
 scrape_configs:
   - job_name: 'snmp'
+    sample_limit: 100
+    disable_keepalive: true
+    disable_compression: true
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1233,7 +1252,11 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:         &promauth.Config{},
+			SampleLimit:        100,
+			DisableKeepAlive:   true,
+			DisableCompression: true,
+			jobNameOriginal:    "snmp",
 		},
 	})
 }

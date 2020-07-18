@@ -1,13 +1,10 @@
 package notifier
 
 import (
-	"net/url"
 	"testing"
 )
 
 func TestAlert_ExecTemplate(t *testing.T) {
-	u, _ := url.Parse("https://victoriametrics.com/path")
-	InitTemplateFunc(u)
 	testCases := []struct {
 		name        string
 		alert       *Alert

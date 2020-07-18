@@ -55,13 +55,13 @@ func (b *Backup) Run() error {
 	}
 
 	if err := dst.DeleteFile(fscommon.BackupCompleteFilename); err != nil {
-		return fmt.Errorf("cannot delete `backup complete` file at %s: %s", dst, err)
+		return fmt.Errorf("cannot delete `backup complete` file at %s: %w", dst, err)
 	}
 	if err := runBackup(src, dst, origin, concurrency); err != nil {
 		return err
 	}
 	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte("ok")); err != nil {
-		return fmt.Errorf("cannot create `backup complete` file at %s: %s", dst, err)
+		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
 	return nil
 }
@@ -74,17 +74,17 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 	logger.Infof("obtaining list of parts at %s", src)
 	srcParts, err := src.ListParts()
 	if err != nil {
-		return fmt.Errorf("cannot list src parts: %s", err)
+		return fmt.Errorf("cannot list src parts: %w", err)
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := dst.ListParts()
 	if err != nil {
-		return fmt.Errorf("cannot list dst parts: %s", err)
+		return fmt.Errorf("cannot list dst parts: %w", err)
 	}
 	logger.Infof("obtaining list of parts at %s", origin)
 	originParts, err := origin.ListParts()
 	if err != nil {
-		return fmt.Errorf("cannot list origin parts: %s", err)
+		return fmt.Errorf("cannot list origin parts: %w", err)
 	}
 
 	backupSize := getPartsSize(srcParts)
@@ -97,7 +97,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 		err = runParallel(concurrency, partsToDelete, func(p common.Part) error {
 			logger.Infof("deleting %s from %s", &p, dst)
 			if err := dst.DeletePart(p); err != nil {
-				return fmt.Errorf("cannot delete %s from %s: %s", &p, dst, err)
+				return fmt.Errorf("cannot delete %s from %s: %w", &p, dst, err)
 			}
 			atomic.AddUint64(&deletedParts, 1)
 			return nil
@@ -109,7 +109,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			return err
 		}
 		if err := dst.RemoveEmptyDirs(); err != nil {
-			return fmt.Errorf("cannot remove empty directories at %s: %s", dst, err)
+			return fmt.Errorf("cannot remove empty directories at %s: %w", dst, err)
 		}
 	}
 
@@ -122,7 +122,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 		err = runParallel(concurrency, originCopyParts, func(p common.Part) error {
 			logger.Infof("server-side copying %s from %s to %s", &p, origin, dst)
 			if err := dst.CopyPart(origin, p); err != nil {
-				return fmt.Errorf("cannot copy %s from %s to %s: %s", &p, origin, dst, err)
+				return fmt.Errorf("cannot copy %s from %s to %s: %w", &p, origin, dst, err)
 			}
 			atomic.AddUint64(&copiedParts, 1)
 			return nil
@@ -144,17 +144,17 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			logger.Infof("uploading %s from %s to %s", &p, src, dst)
 			rc, err := src.NewReadCloser(p)
 			if err != nil {
-				return fmt.Errorf("cannot create reader for %s from %s: %s", &p, src, err)
+				return fmt.Errorf("cannot create reader for %s from %s: %w", &p, src, err)
 			}
 			sr := &statReader{
 				r:         rc,
 				bytesRead: &bytesUploaded,
 			}
 			if err := dst.UploadPart(p, sr); err != nil {
-				return fmt.Errorf("cannot upload %s to %s: %s", &p, dst, err)
+				return fmt.Errorf("cannot upload %s to %s: %w", &p, dst, err)
 			}
 			if err = rc.Close(); err != nil {
-				return fmt.Errorf("cannot close reader for %s from %s: %s", &p, src, err)
+				return fmt.Errorf("cannot close reader for %s from %s: %w", &p, src, err)
 			}
 			return nil
 		}, func(elapsed time.Duration) {

@@ -31,11 +31,11 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	for {
 		data, err := getAPIResponse(cfg, action, pageToken)
 		if err != nil {
-			return nil, fmt.Errorf("cannot obtain instances: %s", err)
+			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
 		ir, err := parseInstancesResponse(data)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse instance list: %s", err)
+			return nil, fmt.Errorf("cannot parse instance list: %w", err)
 		}
 		rs = append(rs, ir.ReservationSet.Items...)
 		if len(ir.NextPageToken) == 0 {
@@ -72,6 +72,7 @@ type Instance struct {
 	PrivateIPAddress    string              `xml:"privateIpAddress"`
 	Architecture        string              `xml:"architecture"`
 	Placement           Placement           `xml:"placement"`
+	ImageID             string              `xml:"imageId"`
 	ID                  string              `xml:"instanceId"`
 	Lifecycle           string              `xml:"instanceLifecycle"`
 	State               InstanceState       `xml:"instanceState"`
@@ -120,7 +121,7 @@ type Tag struct {
 func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	var v InstancesResponse
 	if err := xml.Unmarshal(data, &v); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal InstancesResponse from %q: %s", data, err)
+		return nil, fmt.Errorf("cannot unmarshal InstancesResponse from %q: %w", data, err)
 	}
 	return &v, nil
 }
@@ -134,6 +135,7 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string,
 	m := map[string]string{
 		"__address__":                   addr,
 		"__meta_ec2_architecture":       inst.Architecture,
+		"__meta_ec2_ami":                inst.ImageID,
 		"__meta_ec2_availability_zone":  inst.Placement.AvailabilityZone,
 		"__meta_ec2_instance_id":        inst.ID,
 		"__meta_ec2_instance_lifecycle": inst.Lifecycle,

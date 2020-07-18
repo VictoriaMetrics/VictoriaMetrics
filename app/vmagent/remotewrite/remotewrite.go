@@ -25,7 +25,7 @@ var (
 	queues      = flag.Int("remoteWrite.queues", 1, "The number of concurrent queues to each -remoteWrite.url. Set more queues if a single queue "+
 		"isn't enough for sending high volume of collected data to remote storage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
-		"It is hidden by default, since it can contain sensistive auth info")
+		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flag.Int("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. "+
@@ -128,7 +128,7 @@ func Push(wr *prompbmarshal.WriteRequest) {
 	}
 	tss := wr.Timeseries
 	for len(tss) > 0 {
-		// Process big tss in smaller blocks in order to reduce maxmimum memory usage
+		// Process big tss in smaller blocks in order to reduce the maximum memory usage
 		tssBlock := tss
 		if len(tssBlock) > maxRowsPerBlock {
 			tssBlock = tss[:maxRowsPerBlock]
@@ -161,8 +161,6 @@ type remoteWriteCtx struct {
 	c          *client
 	pss        []*pendingSeries
 	pssNextIdx uint64
-
-	tss []prompbmarshal.TimeSeries
 
 	relabelMetricsDropped *metrics.Counter
 }
@@ -208,15 +206,17 @@ func (rwctx *remoteWriteCtx) MustStop() {
 
 func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	var rctx *relabelCtx
+	var v *[]prompbmarshal.TimeSeries
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
 	prcs := rcs.perURL[rwctx.idx]
 	if len(prcs) > 0 {
+		rctx = getRelabelCtx()
 		// Make a copy of tss before applying relabeling in order to prevent
 		// from affecting time series for other remoteWrite.url configs.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467 for details.
-		rwctx.tss = append(rwctx.tss[:0], tss...)
-		tss = rwctx.tss
-		rctx = getRelabelCtx()
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
+		v = tssRelabelPool.Get().(*[]prompbmarshal.TimeSeries)
+		tss = append(*v, tss...)
 		tssLen := len(tss)
 		tss = rctx.applyRelabeling(tss, nil, prcs)
 		rwctx.relabelMetricsDropped.Add(tssLen - len(tss))
@@ -225,8 +225,15 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)
 	if rctx != nil {
+		*v = prompbmarshal.ResetTimeSeries(tss)
+		tssRelabelPool.Put(v)
 		putRelabelCtx(rctx)
-		// Zero rwctx.tss in order to free up GC references.
-		rwctx.tss = prompbmarshal.ResetTimeSeries(rwctx.tss)
 	}
+}
+
+var tssRelabelPool = &sync.Pool{
+	New: func() interface{} {
+		a := []prompbmarshal.TimeSeries{}
+		return &a
+	},
 }
