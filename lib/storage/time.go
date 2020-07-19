@@ -31,6 +31,10 @@ func (tr *TimeRange) String() string {
 	return fmt.Sprintf("[%s - %s]", minTime, maxTime)
 }
 
+func (tr *TimeRange) TimeIntervalHour() int {
+	return int((tr.MaxTimestamp - tr.MinTimestamp) / msecPerHour)
+}
+
 // timestampToPartitionName returns partition name for the given timestamp.
 func timestampToPartitionName(timestamp int64) string {
 	t := timestampToTime(timestamp)
