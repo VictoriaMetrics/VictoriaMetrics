@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -101,6 +103,10 @@ type Storage struct {
 	// which may be in the process of flushing to disk by concurrently running
 	// snapshot process.
 	snapshotLock sync.Mutex
+
+	//Re-store the data in different group to speed up query efficiency for long time span.
+	//This will increase limited memory consumption,but increase query efficiency by N times
+	groupInfo *GroupInfo
 }
 
 type pendingHourMetricIDEntry struct {
@@ -112,6 +118,56 @@ type pendingHourMetricIDEntry struct {
 type accountProjectKey struct {
 	AccountID uint32
 	ProjectID uint32
+}
+
+type GroupInfo struct {
+	Step            int                     //Data sampling point interval
+	Path            string                  //the path to storage data
+	QueryRangeMin   int                     //queryInterval greater than this will use this group
+	Switch          bool                    // the switch to control this group used or not
+	MetricsMapGroup map[string]*MetricsInfo //this is ued when insert data to the storage
+}
+type MetricsInfo struct {
+	Value  float64
+	Number int
+}
+
+type StorageGroups struct {
+	GroupSwitch      bool       //group switch
+	StorageGroupsAll []*Storage //all the group storage
+}
+
+//encode input string info to GroupInfo
+func StorageGroupEncode(input string) *GroupInfo {
+	var group GroupInfo
+	info := strings.Split(input, " ")
+	if len(info) != 4 {
+		logger.Fatalf("input:%s error", info)
+	}
+	step, err := strconv.Atoi(info[0])
+	if err != nil {
+		logger.Fatalf("the step of storageGroups must be int number")
+	}
+	group.Step = step
+	group.Path = info[1]
+
+	timeDuration, err := time.ParseDuration(info[2])
+	if err != nil {
+		logger.Fatalf("the TimeSpan of storageGroups error,error is:%s", err.Error())
+	}
+	group.QueryRangeMin = int(timeDuration.Hours())
+	sw, err := strconv.ParseBool(info[3])
+	if err != nil {
+		logger.Fatalf("the switch convert error,err is:%s", err.Error())
+	}
+	group.Switch = sw
+	group.MetricsMapGroup = make(map[string]*MetricsInfo) //init map
+
+	return &group
+}
+
+func (s *Storage) GroupQueryOK(timeIntervalHour int) bool {
+	return timeIntervalHour >= s.GetGroupInfo().QueryRangeMin
 }
 
 // OpenStorage opens storage on the given path with the given number of retention months.
@@ -209,6 +265,16 @@ func (s *Storage) RetentionMonths() int {
 func (s *Storage) debugFlush() {
 	s.tb.flushRawRows()
 	s.idb().tb.DebugFlush()
+}
+
+//set the info of groupInfo
+func (s *Storage) SetGroupInfo(info *GroupInfo) {
+	s.groupInfo = info
+}
+
+//return the info of groupInfo
+func (s *Storage) GetGroupInfo() *GroupInfo {
+	return s.groupInfo
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
