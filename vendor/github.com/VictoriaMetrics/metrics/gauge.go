@@ -18,6 +18,8 @@ import (
 // f must be safe for concurrent calls.
 //
 // The returned gauge is safe to use from concurrent goroutines.
+//
+// See also FloatCounter for working with floating-point values.
 func NewGauge(name string, f func() float64) *Gauge {
 	return defaultSet.NewGauge(name, f)
 }
@@ -58,6 +60,8 @@ func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 // The returned gauge is safe to use from concurrent goroutines.
 //
 // Performance tip: prefer NewGauge instead of GetOrCreateGauge.
+//
+// See also FloatCounter for working with floating-point values.
 func GetOrCreateGauge(name string, f func() float64) *Gauge {
 	return defaultSet.GetOrCreateGauge(name, f)
 }
