@@ -46,6 +46,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
 	"any":            aggrFuncAny,
 	"outliersk":      aggrFuncOutliersK,
+	"mode":           newAggrFunc(aggrFuncMode),
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -420,6 +421,52 @@ func aggrFuncDistinct(tss []*timeseries) []*timeseries {
 		}
 	}
 	return tss[:1]
+}
+
+func aggrFuncMode(tss []*timeseries) []*timeseries {
+	dst := tss[0]
+	a := make([]float64, 0, len(tss))
+	for i := range dst.Values {
+		a := a[:0]
+		for _, ts := range tss {
+			v := ts.Values[i]
+			if !math.IsNaN(v) {
+				a = append(a, v)
+			}
+		}
+		dst.Values[i] = modeNoNaNs(nan, a)
+	}
+	return tss[:1]
+}
+
+// modeNoNaNs returns mode for a.
+//
+// It is expected that a doesn't contain NaNs.
+//
+// See https://en.wikipedia.org/wiki/Mode_(statistics)
+func modeNoNaNs(prevValue float64, a []float64) float64 {
+	if len(a) == 0 {
+		return prevValue
+	}
+	sort.Float64s(a)
+	j := -1
+	dMax := 0
+	mode := prevValue
+	for i, v := range a {
+		if prevValue == v {
+			continue
+		}
+		if d := i - j; d > dMax || math.IsNaN(mode) {
+			dMax = d
+			mode = prevValue
+		}
+		j = i
+		prevValue = v
+	}
+	if d := len(a) - j; d > dMax || math.IsNaN(mode) {
+		mode = prevValue
+	}
+	return mode
 }
 
 func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {

@@ -3242,6 +3242,24 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`mode()`, func(t *testing.T) {
+		t.Parallel()
+		q := `mode((
+			alias(3, "m1"),
+			alias(2, "m2"),
+			alias(3, "m3"),
+			alias(4, "m4"),
+			alias(3, "m5"),
+			alias(2, "m6"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`avg(scalar) without (xx, yy)`, func(t *testing.T) {
 		t.Parallel()
 		q := `avg without (xx, yy) (123)`
@@ -4513,7 +4531,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `mode_over_time(round(time()/500)[100s:1s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{2, 2, 3, 3, 3, 4},
+			Values:     []float64{2, 2, 3, 3, 4, 4},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -5731,6 +5749,7 @@ func TestExecError(t *testing.T) {
 	f(`outliersk()`)
 	f(`outliersk(1)`)
 	f(`mode_over_time()`)
+	f(`mode()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
