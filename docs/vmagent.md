@@ -200,6 +200,8 @@ Read more about relabeling in the following articles:
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. It is recommended setting up regular scraping of this page
 either via `vmagent` itself or via Prometheus, so the exported metrics could be analyzed later.
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
+If you have suggestions, improvements or found a bug - feel free to open an issue on github or add review to the dashboard.
 
 `vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format.
 
