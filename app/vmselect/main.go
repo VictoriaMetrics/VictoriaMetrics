@@ -90,7 +90,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 					*maxConcurrentRequests, *maxQueueDuration),
 				StatusCode: http.StatusServiceUnavailable,
 			}
-			httpserver.Errorf(w, "%s", err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 	}
@@ -191,7 +191,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, w, r); err != nil {
 			exportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
@@ -199,7 +199,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		federateRequests.Inc()
 		if err := prometheus.FederateHandler(startTime, w, r); err != nil {
 			federateErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
@@ -225,12 +225,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		deleteRequests.Inc()
 		authKey := r.FormValue("authKey")
 		if authKey != *deleteAuthKey {
-			httpserver.Errorf(w, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
 			return true
 		}
 		if err := prometheus.DeleteHandler(startTime, r); err != nil {
 			deleteErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)

@@ -181,7 +181,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	authKey := r.FormValue("authKey")
 	if authKey != *snapshotAuthKey {
-		httpserver.Errorf(w, "invalid authKey %q. It must match the value from -snapshotAuthKey command line flag", authKey)
+		httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -snapshotAuthKey command line flag", authKey)
 		return true
 	}
 	path = path[len("/snapshot"):]

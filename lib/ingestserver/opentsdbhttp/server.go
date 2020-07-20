@@ -28,7 +28,7 @@ type Server struct {
 // MustStart starts HTTP OpenTSDB server on the given addr.
 //
 // MustStop must be called on the returned server when it is no longer needed.
-func MustStart(addr string, insertHandler func(req *http.Request) error) *Server {
+func MustStart(addr string, insertHandler func(r *http.Request) error) *Server {
 	logger.Infof("starting HTTP OpenTSDB server at %q", addr)
 	lnTCP, err := netutil.NewTCPListener("opentsdbhttp", addr)
 	if err != nil {
@@ -40,7 +40,7 @@ func MustStart(addr string, insertHandler func(req *http.Request) error) *Server
 // MustServe serves OpenTSDB HTTP put requests from ln.
 //
 // MustStop must be called on the returned server when it is no longer needed.
-func MustServe(ln net.Listener, insertHandler func(req *http.Request) error) *Server {
+func MustServe(ln net.Listener, insertHandler func(r *http.Request) error) *Server {
 	h := newRequestHandler(insertHandler)
 	hs := &http.Server{
 		Handler:           h,
@@ -84,12 +84,12 @@ func (s *Server) MustStop() {
 	logger.Infof("OpenTSDB HTTP server at %q has been stopped", s.ln.Addr())
 }
 
-func newRequestHandler(insertHandler func(req *http.Request) error) http.Handler {
-	rh := func(w http.ResponseWriter, req *http.Request) {
+func newRequestHandler(insertHandler func(r *http.Request) error) http.Handler {
+	rh := func(w http.ResponseWriter, r *http.Request) {
 		writeRequests.Inc()
-		if err := insertHandler(req); err != nil {
+		if err := insertHandler(r); err != nil {
 			writeErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", req.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
