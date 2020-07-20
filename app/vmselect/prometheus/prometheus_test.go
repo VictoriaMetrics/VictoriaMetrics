@@ -11,10 +11,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 )
 
-func TestRemoveNaNValuesInplace(t *testing.T) {
+func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
 	f := func(tss []netstorage.Result, tssExpected []netstorage.Result) {
 		t.Helper()
-		removeNaNValuesInplace(tss)
+		tss = removeEmptyValuesAndTimeseries(tss)
 		if !reflect.DeepEqual(tss, tssExpected) {
 			t.Fatalf("unexpected result; got %v; want %v", tss, tssExpected)
 		}
@@ -29,6 +29,14 @@ func TestRemoveNaNValuesInplace(t *testing.T) {
 		{
 			Timestamps: []int64{100, 200, 300, 400},
 			Values:     []float64{nan, nan, 3, nan},
+		},
+		{
+			Timestamps: []int64{1, 2},
+			Values:     []float64{nan, nan},
+		},
+		{
+			Timestamps: nil,
+			Values:     nil,
 		},
 	}, []netstorage.Result{
 		{
