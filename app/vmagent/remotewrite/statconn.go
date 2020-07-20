@@ -1,7 +1,9 @@
 package remotewrite
 
 import (
+	"fmt"
 	"net"
+	"strings"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -9,7 +11,10 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func statDial(addr string) (conn net.Conn, err error) {
+func statDial(network, addr string) (conn net.Conn, err error) {
+	if !strings.HasPrefix(network, "tcp") {
+		return nil, fmt.Errorf("unexpected network passed to statDial: %q; it must start from `tcp`", network)
+	}
 	if netutil.TCP6Enabled() {
 		conn, err = fasthttp.DialDualStack(addr)
 	} else {
