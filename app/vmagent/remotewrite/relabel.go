@@ -43,6 +43,10 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 	}
 	rcs.perURL = make([][]promrelabel.ParsedRelabelConfig, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
+		if len(path) == 0 {
+			// Skip empty relabel config.
+			continue
+		}
 		prc, err := promrelabel.LoadRelabelConfigs(path)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %w", path, err)
