@@ -144,7 +144,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 					*maxConcurrentRequests, *maxQueueDuration),
 				StatusCode: http.StatusServiceUnavailable,
 			}
-			httpserver.Errorf(w, "%s", err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 	}
@@ -161,12 +161,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
-		httpserver.Errorf(w, "cannot parse path %q: %s", path, err)
+		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
 	}
 	at, err := auth.NewToken(p.AuthToken)
 	if err != nil {
-		httpserver.Errorf(w, "auth error: %s", err)
+		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
 	}
 	switch p.Prefix {
@@ -267,7 +267,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
 			exportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
@@ -275,7 +275,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		federateRequests.Inc()
 		if err := prometheus.FederateHandler(startTime, at, w, r); err != nil {
 			federateErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		return true
@@ -308,7 +308,7 @@ func deleteHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, at, r); err != nil {
 			deleteErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)

@@ -147,7 +147,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	requestsTotal.Inc()
 	path, err := getCanonicalPath(r.URL.Path)
 	if err != nil {
-		Errorf(w, "cannot get canonical path: %s", err)
+		Errorf(w, r, "cannot get canonical path: %s", err)
 		unsupportedRequestErrors.Inc()
 		return
 	}
@@ -201,7 +201,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			return
 		}
 
-		Errorf(w, "unsupported path requested: %q", r.URL.Path)
+		Errorf(w, r, "unsupported path requested: %q", r.URL.Path)
 		unsupportedRequestErrors.Inc()
 		return
 	}
@@ -431,8 +431,9 @@ var (
 )
 
 // Errorf writes formatted error message to w and to logger.
-func Errorf(w http.ResponseWriter, format string, args ...interface{}) {
+func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...interface{}) {
 	errStr := fmt.Sprintf(format, args...)
+	errStr = fmt.Sprintf("remoteAddr: %s; %s", r.RemoteAddr, errStr)
 	logger.WarnfSkipframes(1, "%s", errStr)
 
 	// Extract statusCode from args

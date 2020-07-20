@@ -136,7 +136,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(r); err != nil {
 			prometheusWriteErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -145,7 +145,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		vmimportRequests.Inc()
 		if err := vmimport.InsertHandler(r); err != nil {
 			vmimportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -154,7 +154,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -163,7 +163,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(r); err != nil {
 			prometheusimportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -172,7 +172,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(r); err != nil {
 			influxWriteErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
