@@ -697,9 +697,10 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
 		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
+			"total available memory for concurrent requests: %d bytes; "+
 			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
 			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
-			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
+			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, float64(ec.Step)/1e3)
 	}
 	defer rml.Put(uint64(rollupMemorySize))
 
