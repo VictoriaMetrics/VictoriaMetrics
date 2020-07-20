@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 	"sync"
 
@@ -1543,27 +1542,7 @@ func rollupTimestamp(rfa *rollupFuncArg) float64 {
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	values := rfa.values
-	prevValue := rfa.prevValue
-	if len(values) == 0 {
-		return prevValue
-	}
-	sort.Float64s(values)
-	j := -1
-	dMax := 0
-	mode := prevValue
-	for i, v := range values {
-		if prevValue == v {
-			continue
-		}
-		if d := i - j; d > dMax {
-			dMax = d
-			mode = prevValue
-		}
-		j = i
-		prevValue = v
-	}
-	return mode
+	return modeNoNaNs(rfa.prevValue, rfa.values)
 }
 
 func rollupAscentOverTime(rfa *rollupFuncArg) float64 {
