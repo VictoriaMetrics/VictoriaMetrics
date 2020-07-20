@@ -797,14 +797,15 @@ func queryRangeHandler(w http.ResponseWriter, query string, start, end, step int
 
 	// Remove NaN values as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
-	removeNaNValuesInplace(result)
+	result = removeEmptyValuesAndTimeseries(result)
 
 	w.Header().Set("Content-Type", "application/json")
 	WriteQueryRangeResponse(w, result)
 	return nil
 }
 
-func removeNaNValuesInplace(tss []netstorage.Result) {
+func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result {
+	dst := tss[:0]
 	for i := range tss {
 		ts := &tss[i]
 		hasNaNs := false
@@ -816,6 +817,9 @@ func removeNaNValuesInplace(tss []netstorage.Result) {
 		}
 		if !hasNaNs {
 			// Fast path: nothing to remove.
+			if len(ts.Values) > 0 {
+				dst = append(dst, *ts)
+			}
 			continue
 		}
 
@@ -832,7 +836,11 @@ func removeNaNValuesInplace(tss []netstorage.Result) {
 		}
 		ts.Values = dstValues
 		ts.Timestamps = dstTimestamps
+		if len(ts.Values) > 0 {
+			dst = append(dst, *ts)
+		}
 	}
+	return dst
 }
 
 var queryRangeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/query_range"}`)
