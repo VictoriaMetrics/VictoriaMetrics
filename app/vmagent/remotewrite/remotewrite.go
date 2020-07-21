@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -30,6 +31,9 @@ var (
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. "+
 		"Disk usage is unlimited if the value is set to 0")
+	decimalPlaces = flag.Int("remoteWrite.decimalPlaces", 0, "The number of significant decimal places to leave in metric values before writing them to remote storage. "+
+		"See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant decimal places. "+
+		"This option may be used for increasing on-disk compression level for the stored metrics")
 )
 
 var rwctxs []*remoteWriteCtx
@@ -118,8 +122,19 @@ func Stop() {
 
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
-// Note that wr may be modified by Push due to relabeling.
+// Note that wr may be modified by Push due to relabeling and rounding.
 func Push(wr *prompbmarshal.WriteRequest) {
+	if *decimalPlaces > 0 {
+		// Round values according to decimalPlaces
+		for i := range wr.Timeseries {
+			samples := wr.Timeseries[i].Samples
+			for j := range samples {
+				s := &samples[j]
+				s.Value = decimal.Round(s.Value, *decimalPlaces)
+			}
+		}
+	}
+
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
 	prcsGlobal := rcs.global
