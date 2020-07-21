@@ -1024,3 +1024,42 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 		}
 	}
 }
+
+func TestRollupIncrease(t *testing.T) {
+	f := func(prevValue float64, values []float64, resultExpected float64) {
+		t.Helper()
+		rfa := &rollupFuncArg{
+			prevValue:     prevValue,
+			realPrevValue: prevValue,
+			values:        values,
+		}
+		result := rollupIncrease(rfa)
+		if math.IsNaN(result) {
+			if !math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+			}
+			return
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+	f(nan, nil, nan)
+
+	// Small initial value
+	f(nan, []float64{1}, 1)
+	f(nan, []float64{10}, 10)
+	f(nan, []float64{100}, 100)
+	f(nan, []float64{1, 2, 3}, 3)
+	f(1, []float64{1, 2, 3}, 2)
+	f(nan, []float64{5, 6, 8}, 8)
+	f(2, []float64{5, 6, 8}, 6)
+
+	// Too big initial value must be skipped.
+	f(nan, []float64{1000}, 0)
+	f(nan, []float64{1000, 1001, 1002}, 2)
+
+	// Empty values
+	f(1, nil, 0)
+	f(100, nil, 0)
+}
