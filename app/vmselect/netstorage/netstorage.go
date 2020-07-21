@@ -93,7 +93,7 @@ func timeseriesWorker(workerID uint) {
 	var rsLastResetTime uint64
 	for tsw := range timeseriesWorkCh {
 		rss := tsw.rss
-		if time.Until(rss.deadline.Deadline) < 0 {
+		if rss.deadline.Exceeded() {
 			tsw.doneCh <- fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 			continue
 		}
@@ -438,6 +438,9 @@ func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline Deadline) (i
 
 // GetLabels returns labels until the given deadline.
 func GetLabels(at *auth.Token, deadline Deadline) ([]string, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		labels []string
@@ -507,6 +510,9 @@ func GetLabels(at *auth.Token, deadline Deadline) ([]string, bool, error) {
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
 func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]string, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	if labelName == "__name__" {
 		labelName = ""
 	}
@@ -572,6 +578,9 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 
 // GetLabelEntries returns all the label entries for at until the given deadline.
 func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		labelEntries []storage.TagEntry
@@ -677,6 +686,9 @@ func deduplicateStrings(a []string) []string {
 
 // GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 func GetTSDBStatusForDate(at *auth.Token, deadline Deadline, date uint64, topN int) (*storage.TSDBStatus, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		status *storage.TSDBStatus
@@ -778,6 +790,9 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 
 // GetSeriesCount returns the number of unique series for the given at.
 func GetSeriesCount(at *auth.Token, deadline Deadline) (uint64, bool, error) {
+	if deadline.Exceeded() {
+		return 0, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		n   uint64
@@ -857,6 +872,9 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
 func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool, deadline Deadline) (*Results, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
@@ -1138,7 +1156,8 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 	if err != nil {
 		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
 	}
-	if err := bc.SetDeadline(deadline.Deadline); err != nil {
+	d := time.Unix(int64(deadline.deadline), 0)
+	if err := bc.SetDeadline(d); err != nil {
 		_ = bc.Close()
 		logger.Panicf("FATAL: cannot set connection deadline: %s", err)
 	}
@@ -1626,7 +1645,7 @@ const maxConcurrentQueriesPerStorageNode = 100
 
 // Deadline contains deadline with the corresponding timeout for pretty error messages.
 type Deadline struct {
-	Deadline time.Time
+	deadline uint64
 
 	timeout  time.Duration
 	flagHint string
@@ -1636,12 +1655,17 @@ type Deadline struct {
 //
 // flagHint must contain a hit for command-line flag, which could be used
 // in order to increase timeout.
-func NewDeadline(timeout time.Duration, flagHint string) Deadline {
+func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) Deadline {
 	return Deadline{
-		Deadline: time.Now().Add(timeout),
+		deadline: uint64(startTime.Add(timeout).Unix()),
 		timeout:  timeout,
 		flagHint: flagHint,
 	}
+}
+
+// Exceeded returns true if deadline is exceeded.
+func (d *Deadline) Exceeded() bool {
+	return fasttime.UnixTimestamp() > d.deadline
 }
 
 // String returns human-readable string representation for d.
