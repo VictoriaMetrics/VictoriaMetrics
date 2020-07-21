@@ -21,7 +21,7 @@ func TestExecSuccess(t *testing.T) {
 			Start:    start,
 			End:      end,
 			Step:     step,
-			Deadline: netstorage.NewDeadline(time.Minute, ""),
+			Deadline: netstorage.NewDeadline(time.Now(), time.Minute, ""),
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(ec, q, false)
@@ -5623,7 +5623,7 @@ func TestExecError(t *testing.T) {
 			Start:    1000,
 			End:      2000,
 			Step:     100,
-			Deadline: netstorage.NewDeadline(time.Minute, ""),
+			Deadline: netstorage.NewDeadline(time.Now(), time.Minute, ""),
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(ec, q, false)
