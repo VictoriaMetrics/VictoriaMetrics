@@ -126,14 +126,51 @@ func (s *Set) Add(x uint64) {
 			return
 		}
 	}
-	s.addAlloc(hi32, lo32)
+	b32 := s.addBucket32()
+	b32.hi = hi32
+	_ = b32.add(lo32)
+	s.itemsCount++
 }
 
-func (s *Set) addAlloc(hi, lo uint32) {
-	b32 := s.addBucket32()
-	b32.hi = hi
-	_ = b32.add(lo)
-	s.itemsCount++
+// AddMulti adds all the items from a to s.
+//
+// It is usually faster than calling s.Add() for each item in a.
+//
+// The caller is responsible for splitting a into items with clustered values.
+func (s *Set) AddMulti(a []uint64) {
+	if len(a) == 0 {
+		return
+	}
+	slowPath := false
+	hi := uint32(a[0] >> 32)
+	for _, x := range a[1:] {
+		if hi != uint32(x>>32) {
+			slowPath = true
+			break
+		}
+	}
+	if slowPath {
+		for _, x := range a {
+			s.Add(x)
+		}
+		return
+	}
+	// Fast path - all the items in a have identical higher 32 bits.
+	// Put them in a bulk into the corresponding bucket32.
+	bs := s.buckets
+	var b32 *bucket32
+	for i := range bs {
+		if bs[i].hi == hi {
+			b32 = &bs[i]
+			break
+		}
+	}
+	if b32 == nil {
+		b32 = s.addBucket32()
+		b32.hi = hi
+	}
+	n := b32.addMulti(a)
+	s.itemsCount += n
 }
 
 func (s *Set) addBucket32() *bucket32 {
@@ -568,11 +605,53 @@ func (b *bucket32) add(x uint32) bool {
 	return b.addSlow(hi, lo)
 }
 
+func (b *bucket32) addMulti(a []uint64) int {
+	if len(a) == 0 {
+		return 0
+	}
+	hi := uint16(a[0] >> 16)
+	slowPath := false
+	for _, x := range a[1:] {
+		if hi != uint16(x>>16) {
+			slowPath = true
+			break
+		}
+	}
+	if slowPath {
+		count := 0
+		for _, x := range a {
+			if b.add(uint32(x)) {
+				count++
+			}
+		}
+		return count
+	}
+	// Fast path - all the items in a have identical higher 32+16 bits.
+	// Put them to a single bucket16 in a bulk.
+	var b16 *bucket16
+	his := b.b16his
+	bs := b.buckets
+	if n := b.getHint(); n < uint32(len(his)) && his[n] == hi {
+		b16 = &bs[n]
+	}
+	if b16 == nil {
+		n := binarySearch16(his, hi)
+		if n < 0 || n >= len(his) || his[n] != hi {
+			b16 = b.addBucketAtPos(hi, n)
+		} else {
+			b.setHint(n)
+			b16 = &bs[n]
+		}
+	}
+	return b16.addMulti(a)
+}
+
 func (b *bucket32) addSlow(hi, lo uint16) bool {
 	his := b.b16his
 	n := binarySearch16(his, hi)
 	if n < 0 || n >= len(his) || his[n] != hi {
-		b.addAlloc(hi, lo, n)
+		b16 := b.addBucketAtPos(hi, n)
+		b16.add(lo)
 		return true
 	}
 	b.setHint(n)
@@ -586,22 +665,20 @@ func (b *bucket32) addBucket16(hi uint16) *bucket16 {
 	return &b.buckets[len(b.buckets)-1]
 }
 
-func (b *bucket32) addAlloc(hi, lo uint16, n int) {
-	if n < 0 {
+func (b *bucket32) addBucketAtPos(hi uint16, pos int) *bucket16 {
+	if pos < 0 {
 		// This is a hint to Go compiler to remove automatic bounds checks below.
-		return
+		return nil
 	}
-	if n >= len(b.b16his) {
-		b16 := b.addBucket16(hi)
-		_ = b16.add(lo)
-		return
+	if pos >= len(b.b16his) {
+		return b.addBucket16(hi)
 	}
-	b.b16his = append(b.b16his[:n+1], b.b16his[n:]...)
-	b.b16his[n] = hi
-	b.buckets = append(b.buckets[:n+1], b.buckets[n:]...)
-	b16 := &b.buckets[n]
+	b.b16his = append(b.b16his[:pos+1], b.b16his[pos:]...)
+	b.b16his[pos] = hi
+	b.buckets = append(b.buckets[:pos+1], b.buckets[pos:]...)
+	b16 := &b.buckets[pos]
 	*b16 = bucket16{}
-	_ = b16.add(lo)
+	return b16
 }
 
 func (b *bucket32) has(x uint32) bool {
@@ -764,6 +841,29 @@ func (b *bucket16) add(x uint16) bool {
 	ok := *word&bitMask == 0
 	*word |= bitMask
 	return ok
+}
+
+func (b *bucket16) addMulti(a []uint64) int {
+	count := 0
+	if b.bits == nil {
+		// Slow path
+		for _, x := range a {
+			if b.add(uint16(x)) {
+				count++
+			}
+		}
+	} else {
+		// Fast path
+		for _, x := range a {
+			wordNum, bitMask := getWordNumBitMask(uint16(x))
+			word := &b.bits[wordNum]
+			if *word&bitMask == 0 {
+				count++
+			}
+			*word |= bitMask
+		}
+	}
+	return count
 }
 
 func (b *bucket16) addToSmallPool(x uint16) bool {

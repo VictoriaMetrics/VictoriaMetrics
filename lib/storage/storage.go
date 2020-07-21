@@ -927,9 +927,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
 	prefetchedMetricIDsNew := prefetchedMetricIDs.Clone()
-	for _, metricID := range metricIDs {
-		prefetchedMetricIDsNew.Add(metricID)
-	}
+	prefetchedMetricIDsNew.AddMulti(metricIDs)
 	s.prefetchedMetricIDs.Store(prefetchedMetricIDsNew)
 	return nil
 }

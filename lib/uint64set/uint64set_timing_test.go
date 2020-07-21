@@ -8,6 +8,28 @@ import (
 	"github.com/valyala/fastrand"
 )
 
+func BenchmarkAddMulti(b *testing.B) {
+	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
+		start := uint64(time.Now().UnixNano())
+		sa := createRangeSet(start, itemsCount)
+		a := sa.AppendTo(nil)
+		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
+			benchmarkAddMulti(b, a)
+		})
+	}
+}
+
+func BenchmarkAdd(b *testing.B) {
+	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
+		start := uint64(time.Now().UnixNano())
+		sa := createRangeSet(start, itemsCount)
+		a := sa.AppendTo(nil)
+		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
+			benchmarkAdd(b, a)
+		})
+	}
+}
+
 func BenchmarkUnionNoOverlap(b *testing.B) {
 	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
 		start := uint64(time.Now().UnixNano())
@@ -39,6 +61,38 @@ func BenchmarkUnionFullOverlap(b *testing.B) {
 			benchmarkUnion(b, sa, sb)
 		})
 	}
+}
+
+func benchmarkAdd(b *testing.B, a []uint64) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(a)))
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var s Set
+			for _, x := range a {
+				s.Add(x)
+			}
+		}
+	})
+}
+
+func benchmarkAddMulti(b *testing.B, a []uint64) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(a)))
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var s Set
+			n := 0
+			for n < len(a) {
+				m := n + 64
+				if m > len(a) {
+					m = len(a)
+				}
+				s.AddMulti(a[n:m])
+				n = m
+			}
+		}
+	})
 }
 
 func benchmarkUnion(b *testing.B, sa, sb *Set) {
