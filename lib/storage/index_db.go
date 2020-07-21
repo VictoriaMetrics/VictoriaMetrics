@@ -1218,9 +1218,7 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 
 	// atomically add deleted metricIDs to an inmemory map.
 	dmis := &uint64set.Set{}
-	for _, metricID := range metricIDs {
-		dmis.Add(metricID)
-	}
+	dmis.AddMulti(metricIDs)
 	db.updateDeletedMetricIDs(dmis)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
@@ -2177,9 +2175,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 			return errFallbackToMetricNameMatch
 		}
 		mp.ParseMetricIDs()
-		for _, metricID := range mp.MetricIDs {
-			metricIDs.Add(metricID)
-		}
+		metricIDs.AddMulti(mp.MetricIDs)
 	}
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error when searching for tag filter prefix %q: %w", prefix, err)
@@ -2750,9 +2746,7 @@ func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64
 			return err
 		}
 		mp.ParseMetricIDs()
-		for _, metricID := range mp.MetricIDs {
-			metricIDs.Add(metricID)
-		}
+		metricIDs.AddMulti(mp.MetricIDs)
 		if metricIDs.Len() >= maxMetrics {
 			return nil
 		}
