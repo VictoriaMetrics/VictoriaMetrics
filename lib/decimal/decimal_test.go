@@ -7,6 +7,29 @@ import (
 	"testing"
 )
 
+func TestRoundInplace(t *testing.T) {
+	f := func(f float64, digits int, resultExpected float64) {
+		t.Helper()
+		result := Round(f, digits)
+		if math.IsNaN(result) {
+			if !math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+			}
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+	f(1234, 0, 1234)
+	f(-12.34, 20, -12.34)
+	f(12, 1, 10)
+	f(25, 1, 30)
+	f(2.5, 1, 3)
+	f(-0.56, 1, -0.6)
+	f(1234567, 3, 1230000)
+	f(-1.234567, 4, -1.235)
+}
+
 func TestPositiveFloatToDecimal(t *testing.T) {
 	f := func(f float64, decimalExpected int64, exponentExpected int16) {
 		t.Helper()
