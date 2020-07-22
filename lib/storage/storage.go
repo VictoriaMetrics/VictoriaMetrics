@@ -1041,8 +1041,10 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	putRawRows(rr)
 
 	// Notify blocked goroutines at Storage.searchTSIDs that they may proceed with their work.
+	searchTSIDsCondLock.Lock()
 	<-addRowsConcurrencyCh
 	searchTSIDsCond.Signal()
+	searchTSIDsCondLock.Unlock()
 
 	return err
 }
