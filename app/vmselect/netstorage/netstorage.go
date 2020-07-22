@@ -177,9 +177,38 @@ type unpackWork struct {
 	tr        storage.TimeRange
 	fetchData bool
 	at        *auth.Token
-	doneCh    chan error
 	sb        *sortBlock
+	doneCh    chan error
 }
+
+func (upw *unpackWork) reset() {
+	upw.tbf = nil
+	upw.addr = tmpBlockAddr{}
+	upw.tr = storage.TimeRange{}
+	upw.fetchData = false
+	upw.at = nil
+	upw.sb = nil
+	if n := len(upw.doneCh); n > 0 {
+		logger.Panicf("BUG: upw.doneCh must be empty; it contains %d items now", n)
+	}
+}
+
+func getUnpackWork() *unpackWork {
+	v := unpackWorkPool.Get()
+	if v != nil {
+		return v.(*unpackWork)
+	}
+	return &unpackWork{
+		doneCh: make(chan error, 1),
+	}
+}
+
+func putUnpackWork(upw *unpackWork) {
+	upw.reset()
+	unpackWorkPool.Put(upw)
+}
+
+var unpackWorkPool sync.Pool
 
 func init() {
 	for i := 0; i < gomaxprocs; i++ {
@@ -211,14 +240,12 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 	// Feed workers with work
 	upws := make([]*unpackWork, len(pts.addrs))
 	for i, addr := range pts.addrs {
-		upw := &unpackWork{
-			tbf:       tbf,
-			addr:      addr,
-			tr:        tr,
-			fetchData: fetchData,
-			at:        at,
-			doneCh:    make(chan error, 1),
-		}
+		upw := getUnpackWork()
+		upw.tbf = tbf
+		upw.addr = addr
+		upw.tr = tr
+		upw.fetchData = fetchData
+		upw.at = at
 		unpackWorkCh <- upw
 		upws[i] = upw
 	}
@@ -237,6 +264,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 		} else if upw.sb != nil {
 			putSortBlock(upw.sb)
 		}
+		putUnpackWork(upw)
 	}
 	if firstErr != nil {
 		return firstErr
