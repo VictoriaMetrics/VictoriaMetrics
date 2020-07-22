@@ -977,14 +977,14 @@ func getTime(r *http.Request, argKey string, defaultValue int64) (int64, error) 
 				return maxTimeMsecs, nil
 			}
 			// Try parsing duration relative to the current time
-			d, err1 := time.ParseDuration(argValue)
+			d, err1 := metricsql.DurationValue(argValue, 0)
 			if err1 != nil {
 				return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 			}
 			if d > 0 {
 				d = -d
 			}
-			t = time.Now().Add(d)
+			t = time.Now().Add(time.Duration(d) * time.Millisecond)
 		}
 		secs = float64(t.UnixNano()) / 1e9
 	}
@@ -1019,11 +1019,11 @@ func getDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
 		// Try parsing string format
-		d, err := time.ParseDuration(argValue)
+		d, err := metricsql.DurationValue(argValue, 0)
 		if err != nil {
 			return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 		}
-		secs = d.Seconds()
+		secs = float64(d) / 1000
 	}
 	msecs := int64(secs * 1e3)
 	if msecs <= 0 || msecs > maxDurationMsecs {
