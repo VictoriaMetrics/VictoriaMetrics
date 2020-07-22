@@ -1066,7 +1066,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		rowsDeleted = &pt.bigRowsDeleted
 	}
 	dmis := pt.getDeletedMetricIDs()
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, rowsMerged, dmis, rowsDeleted)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, rowsMerged, rowsDeleted)
 	putBlockStreamWriter(bsw)
 	if err != nil {
 		if err == errForciblyStopped {
