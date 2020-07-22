@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
@@ -566,7 +567,11 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 		}
 
 		// The added part exceeds maxParts count. Assist with merging other parts.
+		//
+		// Prioritize assisted merges over searches.
+		storagepacelimiter.Search.Inc()
 		err := tb.mergeExistingParts(false)
+		storagepacelimiter.Search.Dec()
 		if err == nil {
 			atomic.AddUint64(&tb.assistedMerges, 1)
 			continue
@@ -630,7 +635,12 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
 	// since it may be final after stopCh is closed.
-	if err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, &tb.itemsMerged); err != nil {
+	//
+	// Prioritize merging of inmemory blocks over merging file parts.
+	storagepacelimiter.BigMerges.Inc()
+	err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, nil, &tb.itemsMerged)
+	storagepacelimiter.BigMerges.Dec()
+	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
 	putBlockStreamWriter(bsw)
@@ -791,7 +801,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	// Merge parts into a temporary location.
 	var ph partHeader
-	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, &tb.itemsMerged)
+	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, storagepacelimiter.BigMerges, &tb.itemsMerged)
 	putBlockStreamWriter(bsw)
 	if err != nil {
 		if err == errForciblyStopped {

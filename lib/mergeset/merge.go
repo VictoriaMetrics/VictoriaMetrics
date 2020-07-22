@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pacelimiter"
 )
 
 // PrepareBlockCallback can transform the passed items allocated at the given data.
@@ -27,9 +28,10 @@ type PrepareBlockCallback func(data []byte, items [][]byte) ([]byte, [][]byte)
 // The function immediately returns when stopCh is closed.
 //
 // It also atomically adds the number of items merged to itemsMerged.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{}, itemsMerged *uint64) error {
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, stopCh <-chan struct{},
+	pl *pacelimiter.PaceLimiter, itemsMerged *uint64) error {
 	bsm := bsmPool.Get().(*blockStreamMerger)
-	if err := bsm.Init(bsrs, prepareBlock); err != nil {
+	if err := bsm.Init(bsrs, prepareBlock, pl); err != nil {
 		return fmt.Errorf("cannot initialize blockStreamMerger: %w", err)
 	}
 	err := bsm.Merge(bsw, ph, stopCh, itemsMerged)
@@ -61,6 +63,9 @@ type blockStreamMerger struct {
 
 	phFirstItemCaught bool
 
+	// optional pace limiter for merge process.
+	pl *pacelimiter.PaceLimiter
+
 	// This are auxiliary buffers used in flushIB
 	// for consistency checks after prepareBlock call.
 	firstItem []byte
@@ -77,11 +82,13 @@ func (bsm *blockStreamMerger) reset() {
 	bsm.ib.Reset()
 
 	bsm.phFirstItemCaught = false
+	bsm.pl = nil
 }
 
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback) error {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock PrepareBlockCallback, pl *pacelimiter.PaceLimiter) error {
 	bsm.reset()
 	bsm.prepareBlock = prepareBlock
+	bsm.pl = pl
 	for _, bsr := range bsrs {
 		if bsr.Next() {
 			bsm.bsrHeap = append(bsm.bsrHeap, bsr)
@@ -104,6 +111,9 @@ var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
 func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *uint64) error {
 again:
+	if bsm.pl != nil {
+		bsm.pl.WaitIfNeeded()
+	}
 	if len(bsm.bsrHeap) == 0 {
 		// Write the last (maybe incomplete) inmemoryBlock to bsw.
 		bsm.flushIB(bsw, ph, itemsMerged)
