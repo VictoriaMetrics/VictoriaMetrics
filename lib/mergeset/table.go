@@ -337,11 +337,11 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	}
 	tb.partsLock.Unlock()
 
-	m.DataBlocksCacheRequests += atomic.LoadUint64(&historicalDataBlockCacheRequests)
-	m.DataBlocksCacheMisses += atomic.LoadUint64(&historicalDataBlockCacheMisses)
+	m.DataBlocksCacheRequests = atomic.LoadUint64(&historicalDataBlockCacheRequests)
+	m.DataBlocksCacheMisses = atomic.LoadUint64(&historicalDataBlockCacheMisses)
 
-	m.IndexBlocksCacheRequests += atomic.LoadUint64(&historicalIndexBlockCacheRequests)
-	m.IndexBlocksCacheMisses += atomic.LoadUint64(&historicalIndexBlockCacheMisses)
+	m.IndexBlocksCacheRequests = atomic.LoadUint64(&historicalIndexBlockCacheRequests)
+	m.IndexBlocksCacheMisses = atomic.LoadUint64(&historicalIndexBlockCacheMisses)
 }
 
 // AddItems adds the given items to the tb.
