@@ -1013,6 +1013,8 @@ VictoriaMetrics also exposes currently running queries with their execution time
 * It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
   since the encountered issue could be already fixed there.
 
+* It is recommended inspecting logs during troubleshooting, since they may contain useful information.
+
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
   VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
