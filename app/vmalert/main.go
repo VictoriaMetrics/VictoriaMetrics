@@ -84,7 +84,6 @@ func main() {
 			}
 			configSuccess.Set(1)
 			configTimestamp.Set(fasttime.UnixTimestamp())
-			logger.Infof("Rules reloaded successfully from %q", *rulePath)
 		}
 	}()
 

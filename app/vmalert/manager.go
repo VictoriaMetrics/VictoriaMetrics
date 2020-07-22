@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -95,21 +96,39 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 
 	m.groupsMu.Lock()
 	for _, og := range m.groups {
+		startAt := time.Now()
 		ng, ok := groupsRegistry[og.ID()]
 		if !ok {
 			// old group is not present in new list
 			// and must be stopped and deleted
 			og.close()
 			delete(m.groups, og.ID())
+			logger.Infof("group %q delete success, took %v seconds", og.Name, time.Since(startAt).Seconds())
 			og = nil
 			continue
 		}
-		og.updateCh <- ng
+		go func(og *Group, ng *Group) {
+			for {
+				select {
+				case <-ctx.Done():
+					logger.Infof("group %q: context cancelled", og.Name)
+					return
+				case <-og.doneCh:
+					logger.Infof("group %q: received stop signal", og.Name)
+					return
+				case og.updateCh <- ng:
+					logger.Infof("group %q reload success, took %v seconds", og.Name, time.Since(startAt).Seconds())
+					return
+				}
+			}
+		}(og, ng)
 		delete(groupsRegistry, ng.ID())
 	}
 
 	for _, ng := range groupsRegistry {
+		startAt := time.Now()
 		m.startGroup(ctx, ng, restore)
+		logger.Infof("group %q new start success, took %v seconds", ng.Name, time.Since(startAt).Seconds())
 	}
 	m.groupsMu.Unlock()
 	return nil
