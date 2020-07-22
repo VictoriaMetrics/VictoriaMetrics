@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -328,6 +329,7 @@ type partitionMetrics struct {
 	SmallPartsRefCount uint64
 
 	SmallAssistedMerges uint64
+	BigMergesDelays     uint64
 }
 
 // UpdateMetrics updates m with metrics from pt.
@@ -386,6 +388,8 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.SmallRowsDeleted += atomic.LoadUint64(&pt.smallRowsDeleted)
 
 	m.SmallAssistedMerges += atomic.LoadUint64(&pt.smallAssistedMerges)
+
+	m.BigMergesDelays = storagepacelimiter.BigMerges.DelaysTotal()
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -574,7 +578,11 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 	}
 
 	// The added part exceeds available limit. Help merging parts.
+	//
+	// Prioritize assisted merges over searches.
+	storagepacelimiter.Search.Inc()
 	err = pt.mergeSmallParts(false)
+	storagepacelimiter.Search.Dec()
 	if err == nil {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
@@ -952,13 +960,7 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 	if len(pws) == 0 {
 		return errNothingToMerge
 	}
-
-	atomic.AddUint64(&pt.bigMergesCount, 1)
-	atomic.AddUint64(&pt.activeBigMerges, 1)
-	err := pt.mergeParts(pws, pt.stopCh)
-	atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
-
-	return err
+	return pt.mergeParts(pws, pt.stopCh)
 }
 
 func (pt *partition) mergeSmallParts(isFinal bool) error {
@@ -984,13 +986,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	if len(pws) == 0 {
 		return errNothingToMerge
 	}
-
-	atomic.AddUint64(&pt.smallMergesCount, 1)
-	atomic.AddUint64(&pt.activeSmallMerges, 1)
-	err := pt.mergeParts(pws, pt.stopCh)
-	atomic.AddUint64(&pt.activeSmallMerges, ^uint64(0))
-
-	return err
+	return pt.mergeParts(pws, pt.stopCh)
 }
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
@@ -1058,15 +1054,30 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	// Merge parts.
+	dmis := pt.getDeletedMetricIDs()
 	var ph partHeader
 	rowsMerged := &pt.smallRowsMerged
 	rowsDeleted := &pt.smallRowsDeleted
+	pl := storagepacelimiter.BigMerges
 	if isBigPart {
 		rowsMerged = &pt.bigRowsMerged
 		rowsDeleted = &pt.bigRowsDeleted
+		atomic.AddUint64(&pt.bigMergesCount, 1)
+		atomic.AddUint64(&pt.activeBigMerges, 1)
+	} else {
+		pl = nil
+		atomic.AddUint64(&pt.smallMergesCount, 1)
+		atomic.AddUint64(&pt.activeSmallMerges, 1)
+		// Prioritize small merges over big merges.
+		storagepacelimiter.BigMerges.Inc()
 	}
-	dmis := pt.getDeletedMetricIDs()
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, rowsMerged, rowsDeleted)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pl, dmis, rowsMerged, rowsDeleted)
+	if isBigPart {
+		atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
+	} else {
+		atomic.AddUint64(&pt.activeSmallMerges, ^uint64(0))
+		storagepacelimiter.BigMerges.Dec()
+	}
 	putBlockStreamWriter(bsw)
 	if err != nil {
 		if err == errForciblyStopped {

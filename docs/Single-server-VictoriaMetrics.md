@@ -1023,6 +1023,9 @@ VictoriaMetrics also exposes currently running queries with their execution time
   Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
   option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
+* VictoriaMetrics prioritizes data ingestion over data querying. So if it has no enough resources for data ingestion,
+  then data querying may slow down significantly.
+
 * VictoriaMetrics requires free disk space for [merging data files to bigger ones](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
   It may slow down when there is no enough free space left. So make sure `-storageDataPath` directory
   has at least 20% of free space comparing to disk size. The remaining amount of free space
