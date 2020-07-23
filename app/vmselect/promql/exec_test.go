@@ -4537,6 +4537,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`rate_over_sum()`, func(t *testing.T) {
+		t.Parallel()
+		q := `rate_over_sum(round(time()/500)[100s:5s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.4, 0.4, 0.6, 0.6, 0.71, 0.8},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`integrate(1)`, func(t *testing.T) {
 		t.Parallel()
 		q := `integrate(1)`
@@ -5749,6 +5760,7 @@ func TestExecError(t *testing.T) {
 	f(`outliersk()`)
 	f(`outliersk(1)`)
 	f(`mode_over_time()`)
+	f(`rate_over_sum()`)
 	f(`mode()`)
 
 	// Invalid argument type
