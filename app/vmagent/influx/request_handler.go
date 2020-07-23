@@ -63,18 +63,17 @@ func insertRows(db string, rows []parser.Row) error {
 	for i := range rows {
 		r := &rows[i]
 		commonLabels = commonLabels[:0]
-		hasDBLabel := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			if tag.Key == "db" {
-				hasDBLabel = true
+				db = ""
 			}
 			commonLabels = append(commonLabels, prompbmarshal.Label{
 				Name:  tag.Key,
 				Value: tag.Value,
 			})
 		}
-		if len(db) > 0 && !hasDBLabel {
+		if len(db) > 0 {
 			commonLabels = append(commonLabels, prompbmarshal.Label{
 				Name:  "db",
 				Value: db,
