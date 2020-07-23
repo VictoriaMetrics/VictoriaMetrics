@@ -889,10 +889,17 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 	if err == nil {
 		metricName := mb.MetricName
 		addrs := tbfw.m[string(metricName)]
-		if len(addrs) == 0 {
-			tbfw.orderedMetricNames = append(tbfw.orderedMetricNames, string(metricName))
+		addrs = append(addrs, addr)
+		if len(addrs) > 0 {
+			// An optimization: avoid memory allocation and copy for already existing metricName key in tbfw.m.
+			tbfw.m[string(metricName)] = addrs
+		} else {
+			// An optimization for big number of time series with long names: store only a single copy of metricNameStr
+			// in both tbfw.orderedMetricNames and tbfw.m.
+			metricNameStr := string(metricName)
+			tbfw.orderedMetricNames = append(tbfw.orderedMetricNames, metricNameStr)
+			tbfw.m[metricNameStr] = addrs
 		}
-		tbfw.m[string(metricName)] = append(addrs, addr)
 	}
 	tbfw.mu.Unlock()
 	return err
