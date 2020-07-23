@@ -579,9 +579,8 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		} else {
 			// An optimization for big number of time series with long metricName values:
 			// use only a single copy of metricName for both orderedMetricNames and m.
-			metricNameStr := string(metricName)
-			orderedMetricNames = append(orderedMetricNames, metricNameStr)
-			m[metricNameStr] = brs
+			orderedMetricNames = append(orderedMetricNames, string(metricName))
+			m[orderedMetricNames[len(orderedMetricNames)-1]] = brs
 		}
 	}
 	if err := sr.Error(); err != nil {
