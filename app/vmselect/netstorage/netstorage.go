@@ -572,10 +572,17 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		}
 		metricName := sr.MetricBlockRef.MetricName
 		brs := m[string(metricName)]
-		if len(brs) == 0 {
-			orderedMetricNames = append(orderedMetricNames, string(metricName))
+		brs = append(brs, *sr.MetricBlockRef.BlockRef)
+		if len(brs) > 0 {
+			// An optimization: do not allocate a string for already existing metricName key in m
+			m[string(metricName)] = brs
+		} else {
+			// An optimization for big number of time series with long metricName values:
+			// use only a single copy of metricName for both orderedMetricNames and m.
+			metricNameStr := string(metricName)
+			orderedMetricNames = append(orderedMetricNames, metricNameStr)
+			m[metricNameStr] = brs
 		}
-		m[string(metricName)] = append(brs, *sr.MetricBlockRef.BlockRef)
 	}
 	if err := sr.Error(); err != nil {
 		return nil, fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
