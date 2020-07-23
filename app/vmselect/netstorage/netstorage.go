@@ -890,7 +890,7 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 		metricName := mb.MetricName
 		addrs := tbfw.m[string(metricName)]
 		addrs = append(addrs, addr)
-		if len(addrs) > 0 {
+		if len(addrs) > 1 {
 			// An optimization: avoid memory allocation and copy for already existing metricName key in tbfw.m.
 			tbfw.m[string(metricName)] = addrs
 		} else {
