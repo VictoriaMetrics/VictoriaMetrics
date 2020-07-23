@@ -573,7 +573,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		metricName := sr.MetricBlockRef.MetricName
 		brs := m[string(metricName)]
 		brs = append(brs, *sr.MetricBlockRef.BlockRef)
-		if len(brs) > 0 {
+		if len(brs) > 1 {
 			// An optimization: do not allocate a string for already existing metricName key in m
 			m[string(metricName)] = brs
 		} else {
