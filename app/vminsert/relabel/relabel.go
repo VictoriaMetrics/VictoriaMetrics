@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var relabelConfig = flag.String("relabelConfig", "", "Optional path to a file with relabeling rules, which are applied to all the ingested metrics. "+
@@ -103,6 +104,9 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	// Apply relabeling
 	tmpLabels = promrelabel.ApplyRelabelConfigs(tmpLabels, 0, *prcs, true)
 	ctx.tmpLabels = tmpLabels
+	if len(tmpLabels) == 0 {
+		metricsDropped.Inc()
+	}
 
 	// Return back labels to the desired format.
 	dst := labels[:0]
@@ -119,3 +123,5 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	}
 	return dst
 }
+
+var metricsDropped = metrics.NewCounter(`vm_relabel_metrics_dropped_total`)
