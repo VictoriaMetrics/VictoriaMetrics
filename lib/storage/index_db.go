@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -768,10 +769,15 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 	mp := &is.mp
 	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
+	loopsPaceLimiter := 0
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tks) < maxTagKeys && ts.NextItem() {
+		if loopsPaceLimiter&(1<<16) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			break
@@ -840,11 +846,16 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 	mp := &is.mp
 	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
+	loopsPaceLimiter := 0
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, tagKey)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tvs) < maxTagValues && ts.NextItem() {
+		if loopsPaceLimiter&(1<<16) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			break
@@ -908,12 +919,17 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
+	loopsPaceLimiter := 0
 	var metricIDsLen uint64
 	// Extract the number of series from ((__name__=value): metricIDs) rows
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, nil)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
+		if loopsPaceLimiter&(1<<16) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, kb.B) {
 			break
@@ -974,11 +990,16 @@ func (is *indexSearch) getTSDBStatusForDate(date uint64, topN int) (*TSDBStatus,
 	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
 	nameEqualBytes := []byte("__name__=")
 
+	loopsPaceLimiter := 0
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for ts.NextItem() {
+		if loopsPaceLimiter&(1<<16) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			break
@@ -1496,7 +1517,10 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	// Obtain TSID values for the given metricIDs.
 	tsids := make([]TSID, len(metricIDs))
 	i := 0
-	for _, metricID := range metricIDs {
+	for loopsPaceLimiter, metricID := range metricIDs {
+		if loopsPaceLimiter&(1<<10) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
 		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
 		// than scanning the mergeset if it contains a lot of metricIDs.
 		tsid := &tsids[i]
@@ -1563,7 +1587,10 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	defer kbPool.Put(metricName)
 	mn := GetMetricName()
 	defer PutMetricName(mn)
-	for _, metricID := range sortedMetricIDs {
+	for loopsPaceLimiter, metricID := range sortedMetricIDs {
+		if loopsPaceLimiter&(1<<10) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
 		var err error
 		metricName.B, err = is.searchMetricName(metricName.B[:0], metricID)
 		if err != nil {
@@ -2036,16 +2063,21 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 	}
 
 	// Scan all the rows with tf.prefix and call f on every tf match.
-	loops := 0
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
 	mp.Reset()
 	var prevMatchingSuffix []byte
 	var prevMatch bool
+	loops := 0
+	loopsPaceLimiter := 0
 	prefix := tf.prefix
 	ts.Seek(prefix)
 	for ts.NextItem() {
+		if loopsPaceLimiter&(1<<14) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2161,8 +2193,13 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 	mp.Reset()
 	maxLoops := maxMetrics * maxIndexScanLoopsPerMetric
 	loops := 0
+	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for metricIDs.Len() < maxMetrics && ts.NextItem() {
+		if loopsPaceLimiter&(1<<16) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2194,10 +2231,15 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 	mp.Reset()
 	maxLoops := len(sortedFilter) * maxIndexScanLoopsPerMetric
 	loops := 0
+	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	var sf []uint64
 	var metricID uint64
 	for ts.NextItem() {
+		if loopsPaceLimiter&(1<<12) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2730,8 +2772,13 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, maxMetrics i
 func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64set.Set, maxMetrics int) error {
 	ts := &is.ts
 	mp := &is.mp
+	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for ts.NextItem() {
+		if loopsPaceLimiter&(1<<16) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil

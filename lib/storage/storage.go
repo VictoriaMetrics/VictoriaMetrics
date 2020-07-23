@@ -800,11 +800,6 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
-	// Make sure that there are enough resources for processing data ingestion before starting the query.
-	// This should prevent from data ingestion starvation when provessing heavy queries.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/291 .
-	storagepacelimiter.Search.WaitIfNeeded()
-
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics)
@@ -818,10 +813,14 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) 
 //
 // This should speed-up further searchMetricName calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(tsids []TSID) error {
+	if len(tsids) == 0 {
+		return nil
+	}
 	var metricIDs uint64Sorter
 	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
 	for i := range tsids {
-		metricID := tsids[i].MetricID
+		tsid := &tsids[i]
+		metricID := tsid.MetricID
 		if prefetchedMetricIDs.Has(metricID) {
 			continue
 		}
@@ -840,7 +839,10 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	idb := s.idb()
 	is := idb.getIndexSearch()
 	defer idb.putIndexSearch(is)
-	for _, metricID := range metricIDs {
+	for loops, metricID := range metricIDs {
+		if loops&(1<<10) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
 		metricName, err = is.searchMetricName(metricName[:0], metricID)
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
