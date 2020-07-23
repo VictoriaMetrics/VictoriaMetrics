@@ -82,6 +82,8 @@ var rollupFuncs = map[string]newRollupFunc{
 
 	// See https://en.wikipedia.org/wiki/Mode_(statistics)
 	"mode_over_time": newRollupFuncOneArg(rollupModeOverTime),
+
+	"rate_over_sum": newRollupFuncOneArg(rollupRateOverSum),
 }
 
 // rollupAggrFuncs are functions that can be passed to `aggr_over_time()`
@@ -125,6 +127,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"descent_over_time":   rollupDescentOverTime,
 	"timestamp":           rollupTimestamp,
 	"mode_over_time":      rollupModeOverTime,
+	"rate_over_sum":       rollupRateOverSum,
 }
 
 var rollupFuncsCannotAdjustWindow = map[string]bool{
@@ -1081,6 +1084,31 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 		sum += v
 	}
 	return sum
+}
+
+func rollupRateOverSum(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	timestamps := rfa.timestamps
+	prevTimestamp := rfa.prevTimestamp
+	if math.IsNaN(rfa.prevValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		prevTimestamp = timestamps[1]
+		values = values[1:]
+		timestamps = timestamps[1:]
+	}
+	if len(values) == 0 {
+		return nan
+	}
+	sum := float64(0)
+	for _, v := range values {
+		sum += v
+	}
+	dt := timestamps[len(timestamps)-1] - prevTimestamp
+	return sum / (float64(dt) / 1e3)
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {

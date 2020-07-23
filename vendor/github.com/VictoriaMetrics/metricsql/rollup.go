@@ -66,6 +66,8 @@ var rollupFuncs = map[string]bool{
 
 	// See https://en.wikipedia.org/wiki/Mode_(statistics)
 	"mode_over_time": true,
+
+	"rate_over_sum": true,
 }
 
 // IsRollupFunc returns whether funcName is known rollup function.
