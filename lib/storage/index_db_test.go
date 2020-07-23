@@ -629,7 +629,7 @@ func testIndexDBBigMetricName(db *indexDB) error {
 	var mn MetricName
 	var tsid TSID
 
-	is := db.getIndexSearch(noDeadline)
+	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
 
 	// Try creating too big metric group
@@ -690,7 +690,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	var mns []MetricName
 	var tsids []TSID
 
-	is := db.getIndexSearch(noDeadline)
+	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
 
 	var metricNameBuf []byte
@@ -732,7 +732,9 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 	for i := range tsids {
 		tsid := &tsids[i]
-		if err := is.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
+		is.accountID = tsid.AccountID
+		is.projectID = tsid.ProjectID
+		if err := is.storeDateMetricID(date, tsid.MetricID); err != nil {
 			return nil, nil, fmt.Errorf("error in storeDateMetricID(%d, %d, %d, %d): %w", date, tsid.MetricID, tsid.AccountID, tsid.ProjectID, err)
 		}
 	}
@@ -1570,12 +1572,11 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		}
 	}()
 
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
-
 	// Create a bunch of per-day time series
 	const accountID = 12345
 	const projectID = 85453
+	is := db.getIndexSearch(accountID, projectID, noDeadline)
+	defer db.putIndexSearch(is)
 	const days = 5
 	const metricsPerDay = 1000
 	theDay := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC)
@@ -1623,7 +1624,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		date := baseDate - uint64(day*msecPerDay)
 		for i := range tsids {
 			tsid := &tsids[i]
-			if err := is.storeDateMetricID(date, tsid.MetricID, tsid.AccountID, tsid.ProjectID); err != nil {
+			if err := is.storeDateMetricID(date, tsid.MetricID); err != nil {
 				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
 			}
 		}

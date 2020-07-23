@@ -907,7 +907,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	var metricName []byte
 	var err error
 	idb := s.idb()
-	is := idb.getIndexSearch(deadline)
+	is := idb.getIndexSearch(accountID, projectID, deadline)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
 		if loops&(1<<10) == 0 {
@@ -915,7 +915,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 				return err
 			}
 		}
-		metricName, err = is.searchMetricName(metricName[:0], metricID, accountID, projectID)
+		metricName, err = is.searchMetricName(metricName[:0], metricID)
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
 		}
@@ -1210,7 +1210,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		sort.Slice(pendingMetricRows, func(i, j int) bool {
 			return string(pendingMetricRows[i].MetricName) < string(pendingMetricRows[j].MetricName)
 		})
-		is := idb.getIndexSearch(noDeadline)
+		is := idb.getIndexSearch(0, 0, noDeadline)
 		prevMetricNameRaw = nil
 		for i := range pendingMetricRows {
 			pmr := &pendingMetricRows[i]
@@ -1435,7 +1435,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		return a.metricID < b.metricID
 	})
 	idb := s.idb()
-	is := idb.getIndexSearch(noDeadline)
+	is := idb.getIndexSearch(0, 0, noDeadline)
 	defer idb.putIndexSearch(is)
 	var firstError error
 	prevMetricID = 0
@@ -1443,8 +1443,6 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	for _, dateMetricID := range pendingDateMetricIDs {
 		date := dateMetricID.date
 		metricID := dateMetricID.metricID
-		accountID := dateMetricID.accountID
-		projectID := dateMetricID.projectID
 		if metricID == prevMetricID && date == prevDate {
 			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
 			continue
@@ -1456,17 +1454,19 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			// The metricID has been already added to per-day inverted index.
 			continue
 		}
-		ok, err := is.hasDateMetricID(date, metricID, accountID, projectID)
+		is.accountID = dateMetricID.accountID
+		is.projectID = dateMetricID.projectID
+		ok, err := is.hasDateMetricID(date, metricID)
 		if err != nil {
 			if firstError == nil {
 				firstError = fmt.Errorf("error when locating (date=%d, metricID=%d, accountID=%d, projectID=%d) in database: %w",
-					date, metricID, accountID, projectID, err)
+					date, metricID, is.accountID, is.projectID, err)
 			}
 			continue
 		}
 		if !ok {
 			// The (date, metricID) entry is missing in the indexDB. Add it there.
-			if err := is.storeDateMetricID(date, metricID, accountID, projectID); err != nil {
+			if err := is.storeDateMetricID(date, metricID); err != nil {
 				if firstError == nil {
 					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %w", date, metricID, err)
 				}
