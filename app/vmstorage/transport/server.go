@@ -398,6 +398,9 @@ type vmselectRequestCtx struct {
 	tfss []*storage.TagFilters
 	sr   storage.Search
 	mb   storage.MetricBlock
+
+	// deadline in unix timestamp seconds for the current request.
+	deadline uint64
 }
 
 func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
@@ -502,6 +505,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 		}
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
+	rpcName := string(ctx.dataBuf)
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -511,20 +515,27 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 		_ = ctx.bc.SetReadDeadline(zeroTime)
 	}()
 
-	switch string(ctx.dataBuf) {
-	case "search_v3":
+	// Read the timeout for request execution.
+	timeout, err := ctx.readUint32()
+	if err != nil {
+		return fmt.Errorf("cannot read timeout for the request %q: %w", rpcName, err)
+	}
+	ctx.deadline = fasttime.UnixTimestamp() + uint64(timeout)
+
+	switch rpcName {
+	case "search_v4":
 		return s.processVMSelectSearchQuery(ctx)
-	case "labelValues":
+	case "labelValues_v2":
 		return s.processVMSelectLabelValues(ctx)
-	case "labelEntries":
+	case "labelEntries_v2":
 		return s.processVMSelectLabelEntries(ctx)
-	case "labels":
+	case "labels_v2":
 		return s.processVMSelectLabels(ctx)
-	case "seriesCount":
+	case "seriesCount_v2":
 		return s.processVMSelectSeriesCount(ctx)
-	case "tsdbStatus":
+	case "tsdbStatus_v2":
 		return s.processVMSelectTSDBStatus(ctx)
-	case "deleteMetrics_v2":
+	case "deleteMetrics_v3":
 		return s.processVMSelectDeleteMetrics(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", ctx.dataBuf)
@@ -584,7 +595,7 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 	}
 
 	// Search for tag keys
-	labels, err := s.storage.SearchTagKeys(accountID, projectID, *maxTagKeysPerSearch)
+	labels, err := s.storage.SearchTagKeys(accountID, projectID, *maxTagKeysPerSearch, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -632,7 +643,7 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 	labelName := ctx.dataBuf
 
 	// Search for tag values
-	labelValues, err := s.storage.SearchTagValues(accountID, projectID, labelName, *maxTagValuesPerSearch)
+	labelValues, err := s.storage.SearchTagValues(accountID, projectID, labelName, *maxTagValuesPerSearch, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -676,7 +687,7 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 	}
 
 	// Perform the request
-	labelEntries, err := s.storage.SearchTagEntries(accountID, projectID, *maxTagKeysPerSearch, *maxTagValuesPerSearch)
+	labelEntries, err := s.storage.SearchTagEntries(accountID, projectID, *maxTagKeysPerSearch, *maxTagValuesPerSearch, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -723,7 +734,7 @@ func (s *Server) processVMSelectSeriesCount(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	n, err := s.storage.GetSeriesCount(accountID, projectID)
+	n, err := s.storage.GetSeriesCount(accountID, projectID, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -762,7 +773,7 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Execute the request
-	status, err := s.storage.GetTSDBStatusForDate(accountID, projectID, uint64(date), int(topN))
+	status, err := s.storage.GetTSDBStatusForDate(accountID, projectID, uint64(date), int(topN), ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -833,7 +844,7 @@ func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
 	if err := checkTimeRange(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
-	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch)
+	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
 		return ctx.writeErrorMessage(err)

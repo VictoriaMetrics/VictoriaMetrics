@@ -1047,10 +1047,10 @@ func (sn *storageNode) deleteMetrics(requestData []byte, deadline Deadline) (int
 		deletedCount += n
 		return nil
 	}
-	if err := sn.execOnConn("deleteMetrics_v2", f, deadline); err != nil {
+	if err := sn.execOnConn("deleteMetrics_v3", f, deadline); err != nil {
 		// Try again before giving up.
 		// There is no need in zeroing deletedCount.
-		if err = sn.execOnConn("deleteMetrics_v2", f, deadline); err != nil {
+		if err = sn.execOnConn("deleteMetrics_v3", f, deadline); err != nil {
 			return deletedCount, err
 		}
 	}
@@ -1067,10 +1067,10 @@ func (sn *storageNode) getLabels(accountID, projectID uint32, deadline Deadline)
 		labels = ls
 		return nil
 	}
-	if err := sn.execOnConn("labels", f, deadline); err != nil {
+	if err := sn.execOnConn("labels_v2", f, deadline); err != nil {
 		// Try again before giving up.
 		labels = nil
-		if err = sn.execOnConn("labels", f, deadline); err != nil {
+		if err = sn.execOnConn("labels_v2", f, deadline); err != nil {
 			return nil, err
 		}
 	}
@@ -1087,10 +1087,10 @@ func (sn *storageNode) getLabelValues(accountID, projectID uint32, labelName str
 		labelValues = lvs
 		return nil
 	}
-	if err := sn.execOnConn("labelValues", f, deadline); err != nil {
+	if err := sn.execOnConn("labelValues_v2", f, deadline); err != nil {
 		// Try again before giving up.
 		labelValues = nil
-		if err = sn.execOnConn("labelValues", f, deadline); err != nil {
+		if err = sn.execOnConn("labelValues_v2", f, deadline); err != nil {
 			return nil, err
 		}
 	}
@@ -1107,10 +1107,10 @@ func (sn *storageNode) getLabelEntries(accountID, projectID uint32, deadline Dea
 		tagEntries = tes
 		return nil
 	}
-	if err := sn.execOnConn("labelEntries", f, deadline); err != nil {
+	if err := sn.execOnConn("labelEntries_v2", f, deadline); err != nil {
 		// Try again before giving up.
 		tagEntries = nil
-		if err = sn.execOnConn("labelEntries", f, deadline); err != nil {
+		if err = sn.execOnConn("labelEntries_v2", f, deadline); err != nil {
 			return nil, err
 		}
 	}
@@ -1127,10 +1127,10 @@ func (sn *storageNode) getTSDBStatusForDate(accountID, projectID uint32, date ui
 		status = st
 		return nil
 	}
-	if err := sn.execOnConn("tsdbStatus", f, deadline); err != nil {
+	if err := sn.execOnConn("tsdbStatus_v2", f, deadline); err != nil {
 		// Try again before giving up.
 		status = nil
-		if err = sn.execOnConn("tsdbStatus", f, deadline); err != nil {
+		if err = sn.execOnConn("tsdbStatus_v2", f, deadline); err != nil {
 			return nil, err
 		}
 	}
@@ -1147,10 +1147,10 @@ func (sn *storageNode) getSeriesCount(accountID, projectID uint32, deadline Dead
 		n = nn
 		return nil
 	}
-	if err := sn.execOnConn("seriesCount", f, deadline); err != nil {
+	if err := sn.execOnConn("seriesCount_v2", f, deadline); err != nil {
 		// Try again before giving up.
 		n = 0
-		if err = sn.execOnConn("seriesCount", f, deadline); err != nil {
+		if err = sn.execOnConn("seriesCount_v2", f, deadline); err != nil {
 			return 0, err
 		}
 	}
@@ -1167,9 +1167,9 @@ func (sn *storageNode) processSearchQuery(tbfw *tmpBlocksFileWrapper, requestDat
 		blocksRead = n
 		return nil
 	}
-	if err := sn.execOnConn("search_v3", f, deadline); err != nil && blocksRead == 0 {
+	if err := sn.execOnConn("search_v4", f, deadline); err != nil && blocksRead == 0 {
 		// Try again before giving up if zero blocks read on the previous attempt.
-		if err = sn.execOnConn("search_v3", f, deadline); err != nil {
+		if err = sn.execOnConn("search_v4", f, deadline); err != nil {
 			return err
 		}
 	}
@@ -1200,6 +1200,23 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 		// since it may be broken.
 		_ = bc.Close()
 		return fmt.Errorf("cannot send rpcName=%q to the server: %w", rpcName, err)
+	}
+
+	// Send the remaining timeout instead of deadline to remote server, since it may have different time.
+	now := fasttime.UnixTimestamp()
+	timeout := uint64(0)
+	if deadline.deadline > now {
+		timeout = deadline.deadline - now
+	}
+	if timeout > (1<<32)-2 {
+		timeout = (1 << 32) - 2
+	}
+	timeout++
+	if err := writeUint32(bc, uint32(timeout)); err != nil {
+		// Close the connection instead of returning it to the pool,
+		// since it may be broken.
+		_ = bc.Close()
+		return fmt.Errorf("cannot send timeout=%d for rpcName=%q to the server: %w", timeout, rpcName, err)
 	}
 
 	if err := f(bc); err != nil {

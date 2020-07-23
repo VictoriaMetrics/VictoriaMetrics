@@ -862,10 +862,10 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 }
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
-func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
-	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics)
+	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, fmt.Errorf("error when searching tsids for tfss %q: %w", tfss, err)
 	}
@@ -877,7 +877,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) 
 // It is expected that all the tsdis have the same (accountID, projectID)
 //
 // This should speed-up further searchMetricName calls for metricIDs from tsids.
-func (s *Storage) prefetchMetricNames(tsids []TSID) error {
+func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	if len(tsids) == 0 {
 		return nil
 	}
@@ -907,11 +907,13 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	var metricName []byte
 	var err error
 	idb := s.idb()
-	is := idb.getIndexSearch()
+	is := idb.getIndexSearch(deadline)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
 		if loops&(1<<10) == 0 {
-			storagepacelimiter.Search.WaitIfNeeded()
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
 		}
 		metricName, err = is.searchMetricName(metricName[:0], metricID, accountID, projectID)
 		if err != nil && err != io.EOF {
@@ -925,6 +927,8 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	s.prefetchedMetricIDs.Store(prefetchedMetricIDsNew)
 	return nil
 }
+
+var errDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
 // DeleteMetrics deletes all the metrics matching the given tfss.
 //
@@ -950,19 +954,19 @@ func (s *Storage) searchMetricName(dst []byte, metricID uint64, accountID, proje
 }
 
 // SearchTagKeys searches for tag keys for the given (accountID, projectID).
-func (s *Storage) SearchTagKeys(accountID, projectID uint32, maxTagKeys int) ([]string, error) {
-	return s.idb().SearchTagKeys(accountID, projectID, maxTagKeys)
+func (s *Storage) SearchTagKeys(accountID, projectID uint32, maxTagKeys int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagKeys(accountID, projectID, maxTagKeys, deadline)
 }
 
 // SearchTagValues searches for tag values for the given tagKey in (accountID, projectID).
-func (s *Storage) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int) ([]string, error) {
-	return s.idb().SearchTagValues(accountID, projectID, tagKey, maxTagValues)
+func (s *Storage) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagValues(accountID, projectID, tagKey, maxTagValues, deadline)
 }
 
 // SearchTagEntries returns a list of (tagName -> tagValues) for (accountID, projectID).
-func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxTagValues int) ([]TagEntry, error) {
+func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxTagValues int, deadline uint64) ([]TagEntry, error) {
 	idb := s.idb()
-	keys, err := idb.SearchTagKeys(accountID, projectID, maxTagKeys)
+	keys, err := idb.SearchTagKeys(accountID, projectID, maxTagKeys, deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot search tag keys: %w", err)
 	}
@@ -972,7 +976,7 @@ func (s *Storage) SearchTagEntries(accountID, projectID uint32, maxTagKeys, maxT
 
 	tes := make([]TagEntry, len(keys))
 	for i, key := range keys {
-		values, err := idb.SearchTagValues(accountID, projectID, []byte(key), maxTagValues)
+		values, err := idb.SearchTagValues(accountID, projectID, []byte(key), maxTagValues, deadline)
 		if err != nil {
 			return nil, fmt.Errorf("cannot search values for tag %q: %w", key, err)
 		}
@@ -996,15 +1000,15 @@ type TagEntry struct {
 //
 // It includes the deleted series too and may count the same series
 // up to two times - in db and extDB.
-func (s *Storage) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
-	return s.idb().GetSeriesCount(accountID, projectID)
+func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
+	return s.idb().GetSeriesCount(accountID, projectID, deadline)
 }
 
 // GetTSDBStatusForDate returns TSDB status data for /api/v1/status/tsdb for the given (accountID, projectID).
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func (s *Storage) GetTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatusForDate(accountID, projectID, date, topN)
+func (s *Storage) GetTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatusForDate(accountID, projectID, date, topN, deadline)
 }
 
 // MetricRow is a metric to insert into storage.
@@ -1206,7 +1210,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		sort.Slice(pendingMetricRows, func(i, j int) bool {
 			return string(pendingMetricRows[i].MetricName) < string(pendingMetricRows[j].MetricName)
 		})
-		is := idb.getIndexSearch()
+		is := idb.getIndexSearch(noDeadline)
 		prevMetricNameRaw = nil
 		for i := range pendingMetricRows {
 			pmr := &pendingMetricRows[i]
@@ -1431,7 +1435,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		return a.metricID < b.metricID
 	})
 	idb := s.idb()
-	is := idb.getIndexSearch()
+	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
 	var firstError error
 	prevMetricID = 0

@@ -6,6 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 )
@@ -129,6 +130,9 @@ type Search struct {
 
 	ts tableSearch
 
+	// deadline in unix timestamp seconds for the current search.
+	deadline uint64
+
 	err error
 
 	needClosing bool
@@ -142,6 +146,7 @@ func (s *Search) reset() {
 
 	s.storage = nil
 	s.ts.reset()
+	s.deadline = 0
 	s.err = nil
 	s.needClosing = false
 	s.loops = 0
@@ -150,17 +155,18 @@ func (s *Search) reset() {
 // Init initializes s from the given storage, tfss and tr.
 //
 // MustClose must be called when the search is done.
-func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int) {
+func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) {
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
 
 	s.reset()
+	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := storage.searchTSIDs(tfss, tr, maxMetrics)
+	tsids, err := storage.searchTSIDs(tfss, tr, maxMetrics, deadline)
 	if err == nil {
-		err = storage.prefetchMetricNames(tsids)
+		err = storage.prefetchMetricNames(tsids, deadline)
 	}
 	// It is ok to call Init on error from storage.searchTSIDs.
 	// Init must be called before returning because it will fail
@@ -199,7 +205,10 @@ func (s *Search) NextMetricBlock() bool {
 	}
 	for s.ts.NextBlock() {
 		if s.loops&(1<<10) == 0 {
-			storagepacelimiter.Search.WaitIfNeeded()
+			if err := checkSearchDeadlineAndPace(s.deadline); err != nil {
+				s.err = err
+				return false
+			}
 		}
 		s.loops++
 		tsid := &s.ts.BlockRef.bh.TSID
@@ -400,4 +409,12 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	}
 
 	return src, nil
+}
+
+func checkSearchDeadlineAndPace(deadline uint64) error {
+	if fasttime.UnixTimestamp() > deadline {
+		return errDeadlineExceeded
+	}
+	storagepacelimiter.Search.WaitIfNeeded()
+	return nil
 }

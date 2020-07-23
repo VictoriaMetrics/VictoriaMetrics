@@ -489,7 +489,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	}
 
 	// Verify no tag keys exist
-	tks, err := s.SearchTagKeys(0, 0, 1e5)
+	tks, err := s.SearchTagKeys(0, 0, 1e5, noDeadline)
 	if err != nil {
 		t.Fatalf("error in SearchTagKeys at the start: %s", err)
 	}
@@ -540,7 +540,7 @@ func TestStorageDeleteMetrics(t *testing.T) {
 	})
 
 	// Verify no more tag keys exist
-	tks, err = s.SearchTagKeys(0, 0, 1e5)
+	tks, err = s.SearchTagKeys(0, 0, 1e5, noDeadline)
 	if err != nil {
 		t.Fatalf("error in SearchTagKeys after the test: %s", err)
 	}
@@ -600,7 +600,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	s.debugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchTagValues(accountID, projectID, workerTag, 1e5)
+	tvs, err := s.SearchTagValues(accountID, projectID, workerTag, 1e5, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagValues before metrics removal: %w", err)
 	}
@@ -609,7 +609,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	}
 
 	// Verify tag keys exist
-	tks, err := s.SearchTagKeys(accountID, projectID, 1e5)
+	tks, err := s.SearchTagKeys(accountID, projectID, 1e5, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeys before metrics removal: %w", err)
 	}
@@ -625,7 +625,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	metricBlocksCount := func(tfs *TagFilters) int {
 		// Verify the number of blocks
 		n := 0
-		sr.Init(s, []*TagFilters{tfs}, tr, 1e5)
+		sr.Init(s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		for sr.NextMetricBlock() {
 			n++
 		}
@@ -673,7 +673,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 	if n := metricBlocksCount(tfs); n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchTagValues(accountID, projectID, workerTag, 1e5)
+	tvs, err = s.SearchTagValues(accountID, projectID, workerTag, 1e5, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchTagValues after all the metrics are removed: %w", err)
 	}
