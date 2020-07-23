@@ -393,7 +393,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("descent_over_time", 231)
 	f("timestamp", 0.13)
 	f("mode_over_time", 34)
-	f("rate_over_sum", 3843.478260869565)
+	f("rate_over_sum", 3536)
 }
 
 func TestRollupNewRollupFuncError(t *testing.T) {
@@ -978,7 +978,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, 4238.095238095238, 3738.461538461538, 4059.523809523809, 6200}
+		valuesExpected := []float64{nan, 2870.967741935484, 3240, 4059.523809523809, 6200}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
