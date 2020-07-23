@@ -426,7 +426,7 @@ func GetLabels(deadline Deadline) ([]string, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labels, err := vmstorage.SearchTagKeys(*maxTagKeysPerSearch)
+	labels, err := vmstorage.SearchTagKeys(*maxTagKeysPerSearch, deadline.deadline)
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search: %w", err)
 	}
@@ -455,7 +455,7 @@ func GetLabelValues(labelName string, deadline Deadline) ([]string, error) {
 	}
 
 	// Search for tag values
-	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), *maxTagValuesPerSearch)
+	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), *maxTagValuesPerSearch, deadline.deadline)
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search for labelName=%q: %w", labelName, err)
 	}
@@ -471,7 +471,7 @@ func GetLabelEntries(deadline Deadline) ([]storage.TagEntry, error) {
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	labelEntries, err := vmstorage.SearchTagEntries(*maxTagKeysPerSearch, *maxTagValuesPerSearch)
+	labelEntries, err := vmstorage.SearchTagEntries(*maxTagKeysPerSearch, *maxTagValuesPerSearch, deadline.deadline)
 	if err != nil {
 		return nil, fmt.Errorf("error during label entries request: %w", err)
 	}
@@ -501,7 +501,7 @@ func GetTSDBStatusForDate(deadline Deadline, date uint64, topN int) (*storage.TS
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	status, err := vmstorage.GetTSDBStatusForDate(date, topN)
+	status, err := vmstorage.GetTSDBStatusForDate(date, topN, deadline.deadline)
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
@@ -513,7 +513,7 @@ func GetSeriesCount(deadline Deadline) (uint64, error) {
 	if deadline.Exceeded() {
 		return 0, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	n, err := vmstorage.GetSeriesCount()
+	n, err := vmstorage.GetSeriesCount(deadline.deadline)
 	if err != nil {
 		return 0, fmt.Errorf("error during series count request: %w", err)
 	}
@@ -560,7 +560,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch)
+	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.deadline)
 
 	m := make(map[string][]storage.BlockRef)
 	var orderedMetricNames []string

@@ -117,41 +117,41 @@ func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
 }
 
 // SearchTagKeys searches for tag keys
-func SearchTagKeys(maxTagKeys int) ([]string, error) {
+func SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	keys, err := Storage.SearchTagKeys(maxTagKeys)
+	keys, err := Storage.SearchTagKeys(maxTagKeys, deadline)
 	WG.Done()
 	return keys, err
 }
 
 // SearchTagValues searches for tag values for the given tagKey
-func SearchTagValues(tagKey []byte, maxTagValues int) ([]string, error) {
+func SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	values, err := Storage.SearchTagValues(tagKey, maxTagValues)
+	values, err := Storage.SearchTagValues(tagKey, maxTagValues, deadline)
 	WG.Done()
 	return values, err
 }
 
 // SearchTagEntries searches for tag entries.
-func SearchTagEntries(maxTagKeys, maxTagValues int) ([]storage.TagEntry, error) {
+func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.TagEntry, error) {
 	WG.Add(1)
-	tagEntries, err := Storage.SearchTagEntries(maxTagKeys, maxTagValues)
+	tagEntries, err := Storage.SearchTagEntries(maxTagKeys, maxTagValues, deadline)
 	WG.Done()
 	return tagEntries, err
 }
 
 // GetTSDBStatusForDate returns TSDB status for the given date.
-func GetTSDBStatusForDate(date uint64, topN int) (*storage.TSDBStatus, error) {
+func GetTSDBStatusForDate(date uint64, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	WG.Add(1)
-	status, err := Storage.GetTSDBStatusForDate(date, topN)
+	status, err := Storage.GetTSDBStatusForDate(date, topN, deadline)
 	WG.Done()
 	return status, err
 }
 
 // GetSeriesCount returns the number of time series in the storage.
-func GetSeriesCount() (uint64, error) {
+func GetSeriesCount(deadline uint64) (uint64, error) {
 	WG.Add(1)
-	n, err := Storage.GetSeriesCount()
+	n, err := Storage.GetSeriesCount(deadline)
 	WG.Done()
 	return n, err
 }
