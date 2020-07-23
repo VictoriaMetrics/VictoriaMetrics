@@ -34,8 +34,11 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 	rowsTotal := 0
 	for i := range timeseries {
 		ts := &timeseries[i]
-		// Make a shallow copy of ts.Labels before calling ctx.ApplyRelabeling, since ctx.ApplyRelabeling may modify labels.
-		ctx.Labels = append(ctx.Labels[:0], ts.Labels...)
+		ctx.Labels = ctx.Labels[:0]
+		srcLabels := ts.Labels
+		for _, srcLabel := range srcLabels {
+			ctx.AddLabelBytes(srcLabel.Name, srcLabel.Value)
+		}
 		ctx.ApplyRelabeling()
 		if len(ctx.Labels) == 0 {
 			// Skip metric without labels.
