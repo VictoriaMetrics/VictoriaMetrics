@@ -896,9 +896,8 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 		} else {
 			// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 			// in both tbfw.orderedMetricNames and tbfw.m.
-			metricNameStr := string(metricName)
-			tbfw.orderedMetricNames = append(tbfw.orderedMetricNames, metricNameStr)
-			tbfw.m[metricNameStr] = addrs
+			tbfw.orderedMetricNames = append(tbfw.orderedMetricNames, string(metricName))
+			tbfw.m[tbfw.orderedMetricNames[len(tbfw.orderedMetricNames)-1]] = addrs
 		}
 	}
 	tbfw.mu.Unlock()
