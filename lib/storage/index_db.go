@@ -776,7 +776,7 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
 	loopsPaceLimiter := 0
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tks) < maxTagKeys && ts.NextItem() {
@@ -803,7 +803,7 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 		// Search for the next tag key.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
-		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
@@ -855,7 +855,7 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
 	loopsPaceLimiter := 0
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, tagKey)
 	prefix := kb.B
 	ts.Seek(prefix)
@@ -889,7 +889,7 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 		// Search for the next tag value.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag value.
-		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		kb.B[len(kb.B)-1]++
@@ -932,7 +932,7 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	loopsPaceLimiter := 0
 	var metricIDsLen uint64
 	// Extract the number of series from ((__name__=value): metricIDs) rows
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, nil)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
@@ -1003,7 +1003,7 @@ func (is *indexSearch) getTSDBStatusForDate(date uint64, topN int) (*TSDBStatus,
 	nameEqualBytes := []byte("__name__=")
 
 	loopsPaceLimiter := 0
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	prefix := kb.B
 	ts.Seek(prefix)
@@ -1446,7 +1446,7 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, er
 
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
 		if err == io.EOF {
@@ -1493,7 +1493,7 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 
 	// Verify whether the maximum date in `ts` covers tr.MinTimestamp.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	prefix := kb.B
 	kb.B = encoding.MarshalUint64(kb.B, minDate)
 	ts.Seek(kb.B)
@@ -1574,7 +1574,7 @@ func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) error {
 	// must be checked by the caller.
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
 		if err == io.EOF {
@@ -2628,7 +2628,7 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	items := getIndexItems()
 	defer putIndexItems(items)
 
-	items.B = marshalCommonPrefix(items.B, nsPrefixDateToMetricID)
+	items.B = is.marshalCommonPrefix(items.B, nsPrefixDateToMetricID)
 	items.B = encoding.MarshalUint64(items.B, date)
 	items.B = encoding.MarshalUint64(items.B, metricID)
 	items.Next()
@@ -2657,7 +2657,7 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	if err = mn.Unmarshal(kb.B); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q obtained by metricID %d: %w", metricID, kb.B, err)
 	}
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 
 	items.B = append(items.B, kb.B...)
@@ -2714,7 +2714,7 @@ func reverseBytes(dst, src []byte) []byte {
 func (is *indexSearch) hasDateMetricID(date, metricID uint64) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
@@ -2736,7 +2736,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 	}
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = append(kb.B, tf.prefix[len(commonPrefix):]...)
 
@@ -2769,7 +2769,7 @@ func (is *indexSearch) getMetricIDsForDate(date uint64, maxMetrics int) (*uint64
 	// Extract all the metricIDs from (date, __name__=value)->metricIDs entries.
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = marshalTagValue(kb.B, nil)
 	var metricIDs uint64set.Set
@@ -2788,7 +2788,7 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, maxMetrics i
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
 	// Extract all the metricIDs from (__name__=value)->metricIDs entries.
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, nil)
 	return is.updateMetricIDsForPrefix(kb.B, metricIDs, maxMetrics)
 }
@@ -2924,6 +2924,11 @@ var nextUniqueMetricID = uint64(time.Now().UnixNano())
 func marshalCommonPrefix(dst []byte, nsPrefix byte) []byte {
 	dst = append(dst, nsPrefix)
 	return dst
+}
+
+// This function is needed only for minimizing the difference between code for single-node and cluster version.
+func (is *indexSearch) marshalCommonPrefix(dst []byte, nsPrefix byte) []byte {
+	return marshalCommonPrefix(dst, nsPrefix)
 }
 
 func unmarshalCommonPrefix(src []byte) ([]byte, byte, error) {
