@@ -115,7 +115,7 @@ func timeseriesWorker(workerID uint) {
 	}
 }
 
-// RunParallel runs in parallel f for all the results from rss.
+// RunParallel runs f in parallel for all the results from rss.
 //
 // f shouldn't hold references to rs after returning.
 // workerID is the id of the worker goroutine that calls f.

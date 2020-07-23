@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 )
 
 // BlockRef references a Block.
@@ -131,6 +132,8 @@ type Search struct {
 	err error
 
 	needClosing bool
+
+	loops int
 }
 
 func (s *Search) reset() {
@@ -141,6 +144,7 @@ func (s *Search) reset() {
 	s.ts.reset()
 	s.err = nil
 	s.needClosing = false
+	s.loops = 0
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -194,6 +198,10 @@ func (s *Search) NextMetricBlock() bool {
 		return false
 	}
 	for s.ts.NextBlock() {
+		if s.loops&(1<<10) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		s.loops++
 		tsid := &s.ts.BlockRef.bh.TSID
 		var err error
 		s.MetricBlockRef.MetricName, err = s.storage.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)

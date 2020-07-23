@@ -863,11 +863,6 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
-	// Make sure that there are enough resources for processing data ingestion before starting the query.
-	// This should prevent from data ingestion starvation when provessing heavy queries.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/291 .
-	storagepacelimiter.Search.WaitIfNeeded()
-
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics)
@@ -879,18 +874,27 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) 
 
 // prefetchMetricNames pre-fetches metric names for the given tsids into metricID->metricName cache.
 //
+// It is expected that all the tsdis have the same (accountID, projectID)
+//
 // This should speed-up further searchMetricName calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(tsids []TSID) error {
+	if len(tsids) == 0 {
+		return nil
+	}
+	accountID := tsids[0].AccountID
+	projectID := tsids[0].ProjectID
 	var metricIDs uint64Sorter
-	tsidsMap := make(map[uint64]*TSID)
 	prefetchedMetricIDs := s.prefetchedMetricIDs.Load().(*uint64set.Set)
 	for i := range tsids {
-		metricID := tsids[i].MetricID
+		tsid := &tsids[i]
+		if tsid.AccountID != accountID || tsid.ProjectID != projectID {
+			logger.Panicf("BUG: unexpected (accountID, projectID) in tsid=%#v; want accountID=%d, projectID=%d", tsid, accountID, projectID)
+		}
+		metricID := tsid.MetricID
 		if prefetchedMetricIDs.Has(metricID) {
 			continue
 		}
 		metricIDs = append(metricIDs, metricID)
-		tsidsMap[metricID] = &tsids[i]
 	}
 	if len(metricIDs) < 500 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
@@ -905,9 +909,11 @@ func (s *Storage) prefetchMetricNames(tsids []TSID) error {
 	idb := s.idb()
 	is := idb.getIndexSearch()
 	defer idb.putIndexSearch(is)
-	for _, metricID := range metricIDs {
-		tsid := tsidsMap[metricID]
-		metricName, err = is.searchMetricName(metricName[:0], metricID, tsid.AccountID, tsid.ProjectID)
+	for loops, metricID := range metricIDs {
+		if loops&(1<<10) == 0 {
+			storagepacelimiter.Search.WaitIfNeeded()
+		}
+		metricName, err = is.searchMetricName(metricName[:0], metricID, accountID, projectID)
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
 		}
