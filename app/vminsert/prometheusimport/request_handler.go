@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -31,6 +32,7 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
 		ctx.Labels = ctx.Labels[:0]
@@ -39,7 +41,9 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			tag := &r.Tags[j]
 			ctx.AddLabel(tag.Key, tag.Value)
 		}
-		ctx.ApplyRelabeling()
+		if hasRelabeling {
+			ctx.ApplyRelabeling()
+		}
 		if len(ctx.Labels) == 0 {
 			// Skip metric without labels.
 			continue

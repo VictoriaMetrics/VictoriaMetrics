@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
@@ -33,6 +34,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range timeseries {
 		ts := &timeseries[i]
 		ctx.Labels = ctx.Labels[:0]
@@ -40,7 +42,9 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 		for _, srcLabel := range srcLabels {
 			ctx.AddLabelBytes(srcLabel.Name, srcLabel.Value)
 		}
-		ctx.ApplyRelabeling()
+		if hasRelabeling {
+			ctx.ApplyRelabeling()
+		}
 		if len(ctx.Labels) == 0 {
 			// Skip metric without labels.
 			continue
