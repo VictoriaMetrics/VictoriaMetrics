@@ -135,6 +135,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"increase":            true,
 	"predict_linear":      true,
 	"resets":              true,
+	"avg_over_time":       true,
 	"sum_over_time":       true,
 	"count_over_time":     true,
 	"quantile_over_time":  true,
