@@ -1096,7 +1096,7 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 		if len(values) == 0 {
 			return nan
 		}
-		prevTimestamp = timestamps[1]
+		prevTimestamp = timestamps[0]
 		values = values[1:]
 		timestamps = timestamps[1:]
 	}
