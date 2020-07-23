@@ -97,7 +97,7 @@ func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
 	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
-		Name: name,
+		Name:  name,
 		Value: value,
 	})
 }
@@ -115,7 +115,7 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
-		Name: bytesutil.ToUnsafeBytes(name),
+		Name:  bytesutil.ToUnsafeBytes(name),
 		Value: bytesutil.ToUnsafeBytes(value),
 	})
 }

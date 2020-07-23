@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -37,6 +38,7 @@ func insertRows(rows []parser.Row) error {
 	ic := &ctx.Common
 	ic.Reset(rowsLen)
 	rowsTotal := 0
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
@@ -44,7 +46,9 @@ func insertRows(rows []parser.Row) error {
 			tag := &r.Tags[j]
 			ic.AddLabelBytes(tag.Key, tag.Value)
 		}
-		ic.ApplyRelabeling()
+		if hasRelabeling {
+			ic.ApplyRelabeling()
+		}
 		if len(ic.Labels) == 0 {
 			// Skip metric without labels.
 			continue
