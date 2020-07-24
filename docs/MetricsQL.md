@@ -90,6 +90,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `rand()`, `rand_normal()` and `rand_exponential()` functions - for generating pseudo-random series with even, normal and exponential distribution.
 - `increases_over_time(m[d])` and `decreases_over_time(m[d])` - returns the number of `m` increases or decreases over the given duration `d`.
 - `prometheus_buckets(q)` - converts [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) buckets to Prometheus buckets with `le` labels.
+- `buckets_limit(k, q)` - limits the number of buckets (Prometheus-style or [VictoriaMetrics-style](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram))
+  per each metric returned by by `q` to `k`. It also converts VictoriaMetrics-style buckets to Prometheus-style buckets, i.e. the end result are buckets with with `le` labels.
 - `histogram(q)` - calculates aggregate histogram over `q` time series for each point on the graph. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
 - `histogram_over_time(m[d])` - calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) for `m` over `d`.
   For example, the following query calculates median temperature by country over the last 24 hours:
