@@ -41,7 +41,6 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 	}
 	ctx.mrs = ctx.mrs[:0]
 	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
-
 	ctx.relabelCtx.Reset()
 }
 
@@ -54,23 +53,28 @@ func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label)
 }
 
 // WriteDataPoint writes (timestamp, value) with the given prefix and labels into ctx buffer.
-func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompb.Label, timestamp int64, value float64) {
+func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompb.Label, timestamp int64, value float64) error {
 	metricNameRaw := ctx.marshalMetricNameRaw(prefix, labels)
-	ctx.addRow(metricNameRaw, timestamp, value)
+	return ctx.addRow(metricNameRaw, timestamp, value)
 }
 
 // WriteDataPointExt writes (timestamp, value) with the given metricNameRaw and labels into ctx buffer.
 //
 // It returns metricNameRaw for the given labels if len(metricNameRaw) == 0.
-func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompb.Label, timestamp int64, value float64) []byte {
+func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompb.Label, timestamp int64, value float64) ([]byte, error) {
 	if len(metricNameRaw) == 0 {
 		metricNameRaw = ctx.marshalMetricNameRaw(nil, labels)
 	}
-	ctx.addRow(metricNameRaw, timestamp, value)
-	return metricNameRaw
+	err := ctx.addRow(metricNameRaw, timestamp, value)
+	return metricNameRaw, err
 }
 
-func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) {
+func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) error {
+	if len(ctx.metricNamesBuf) > 16*1024*1024 {
+		if err := ctx.FlushBufs(); err != nil {
+			return err
+		}
+	}
 	mrs := ctx.mrs
 	if cap(mrs) > len(mrs) {
 		mrs = mrs[:len(mrs)+1]
@@ -82,6 +86,7 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 	mr.MetricNameRaw = metricNameRaw
 	mr.Timestamp = timestamp
 	mr.Value = value
+	return nil
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -127,11 +132,13 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
-	if err := vmstorage.AddRows(ctx.mrs); err != nil {
-		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot store metrics: %w", err),
-			StatusCode: http.StatusServiceUnavailable,
-		}
+	err := vmstorage.AddRows(ctx.mrs)
+	ctx.Reset(0)
+	if err == nil {
+		return nil
 	}
-	return nil
+	return &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf("cannot store metrics: %w", err),
+		StatusCode: http.StatusServiceUnavailable,
+	}
 }

@@ -98,7 +98,9 @@ func insertRows(db string, rows []parser.Row) error {
 					// Skip metric without labels.
 					continue
 				}
-				ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, f.Value)
+				if err := ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, f.Value); err != nil {
+					return err
+				}
 			}
 		} else {
 			ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
@@ -115,7 +117,9 @@ func insertRows(db string, rows []parser.Row) error {
 					// Skip metric without labels.
 					continue
 				}
-				ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value)
+				if err := ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value); err != nil {
+					return err
+				}
 			}
 		}
 		rowsTotal += len(r.Fields)

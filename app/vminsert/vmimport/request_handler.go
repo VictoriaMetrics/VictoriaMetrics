@@ -59,7 +59,9 @@ func insertRows(rows []parser.Row) error {
 		_ = timestamps[len(values)-1]
 		for j, value := range values {
 			timestamp := timestamps[j]
-			ic.WriteDataPoint(ctx.metricNameBuf, nil, timestamp, value)
+			if err := ic.WriteDataPoint(ctx.metricNameBuf, nil, timestamp, value); err != nil {
+				return err
+			}
 		}
 		rowsTotal += len(values)
 	}

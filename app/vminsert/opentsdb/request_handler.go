@@ -45,7 +45,9 @@ func insertRows(rows []parser.Row) error {
 			// Skip metric without labels.
 			continue
 		}
-		ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value)
+		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
+			return err
+		}
 	}
 	rowsInserted.Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
