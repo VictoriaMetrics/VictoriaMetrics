@@ -98,6 +98,7 @@ var transformFuncs = map[string]transformFunc{
 	"asin":               newTransformFuncOneArg(transformAsin),
 	"acos":               newTransformFuncOneArg(transformAcos),
 	"prometheus_buckets": transformPrometheusBuckets,
+	"buckets_limit":      transformBucketsLimit,
 	"histogram_share":    transformHistogramShare,
 	"sort_by_label":      newTransformFuncSortByLabel(false),
 	"sort_by_label_desc": newTransformFuncSortByLabel(true),
@@ -280,6 +281,86 @@ func transformExp(v float64) float64 {
 
 func transformFloor(v float64) float64 {
 	return math.Floor(v)
+}
+
+func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	limits, err := getScalar(args[0], 1)
+	if err != nil {
+		return nil, err
+	}
+	limit := int(limits[0])
+	if limit <= 0 {
+		return nil, nil
+	}
+	tss := vmrangeBucketsToLE(args[1])
+	if len(tss) == 0 {
+		return nil, nil
+	}
+
+	// Group timeseries by all MetricGroup+tags excluding `le` tag.
+	type x struct {
+		le    float64
+		delta float64
+		ts    *timeseries
+	}
+	m := make(map[string][]x)
+	var b []byte
+	var mn storage.MetricName
+	for _, ts := range tss {
+		leStr := ts.MetricName.GetTagValue("le")
+		if len(leStr) == 0 {
+			// Skip time series without `le` tag.
+			continue
+		}
+		le, err := strconv.ParseFloat(string(leStr), 64)
+		if err != nil {
+			// Skip time series with invalid `le` tag.
+			continue
+		}
+		mn.CopyFrom(&ts.MetricName)
+		mn.RemoveTag("le")
+		b = marshalMetricNameSorted(b[:0], &mn)
+		m[string(b)] = append(m[string(b)], x{
+			le: le,
+			ts: ts,
+		})
+	}
+
+	// Remove buckets with the smallest counters.
+	rvs := make([]*timeseries, 0, len(tss))
+	for _, leGroup := range m {
+		if len(leGroup) <= limit {
+			// The number of buckets in leGroup doesn't exceed the limit.
+			for _, xx := range leGroup {
+				rvs = append(rvs, xx.ts)
+			}
+			continue
+		}
+		// The number of buckets in leGroup exceeds the limit. Remove buckets with the smallest sums.
+		sort.Slice(leGroup, func(i, j int) bool {
+			return leGroup[i].le < leGroup[j].le
+		})
+		for n := range tss[0].Values {
+			prevValue := float64(0)
+			for i := range leGroup {
+				xx := &leGroup[i]
+				value := xx.ts.Values[n]
+				xx.delta += value - prevValue
+				prevValue = value
+			}
+		}
+		sort.Slice(leGroup, func(i, j int) bool {
+			return leGroup[i].delta < leGroup[j].delta
+		})
+		for _, xx := range leGroup[len(leGroup)-limit:] {
+			rvs = append(rvs, xx.ts)
+		}
+	}
+	return rvs, nil
 }
 
 func transformPrometheusBuckets(tfa *transformFuncArg) ([]*timeseries, error) {
