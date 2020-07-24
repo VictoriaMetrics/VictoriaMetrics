@@ -333,30 +333,30 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	// Remove buckets with the smallest counters.
 	rvs := make([]*timeseries, 0, len(tss))
 	for _, leGroup := range m {
-		if len(leGroup) <= limit {
-			// The number of buckets in leGroup doesn't exceed the limit.
-			for _, xx := range leGroup {
-				rvs = append(rvs, xx.ts)
-			}
-			continue
-		}
-		// The number of buckets in leGroup exceeds the limit. Remove buckets with the smallest sums.
-		sort.Slice(leGroup, func(i, j int) bool {
-			return leGroup[i].le < leGroup[j].le
-		})
-		for n := range tss[0].Values {
-			prevValue := float64(0)
+		for len(leGroup) > limit {
+			// Remove a single bucket with the smallest sum.
+			// TODO: optimize this dumb implementation a bit, since it may be slow on big number of buckets.
+			sort.Slice(leGroup, func(i, j int) bool {
+				return leGroup[i].le < leGroup[j].le
+			})
 			for i := range leGroup {
-				xx := &leGroup[i]
-				value := xx.ts.Values[n]
-				xx.delta += value - prevValue
-				prevValue = value
+				leGroup[i].delta = 0
 			}
+			for n := range limits {
+				prevValue := float64(0)
+				for i := range leGroup {
+					xx := &leGroup[i]
+					value := xx.ts.Values[n]
+					xx.delta += value - prevValue
+					prevValue = value
+				}
+			}
+			sort.Slice(leGroup, func(i, j int) bool {
+				return leGroup[i].delta < leGroup[j].delta
+			})
+			leGroup = leGroup[1:]
 		}
-		sort.Slice(leGroup, func(i, j int) bool {
-			return leGroup[i].delta < leGroup[j].delta
-		})
-		for _, xx := range leGroup[len(leGroup)-limit:] {
+		for _, xx := range leGroup {
 			rvs = append(rvs, xx.ts)
 		}
 	}
