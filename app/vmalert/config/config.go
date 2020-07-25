@@ -90,6 +90,14 @@ func (r *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// Name returns Rule name according to its type
+func (r *Rule) Name() string {
+	if r.Record != "" {
+		return r.Record
+	}
+	return r.Alert
+}
+
 // HashRule hashes significant Rule fields into
 // unique hash value
 func HashRule(r Rule) uint64 {
