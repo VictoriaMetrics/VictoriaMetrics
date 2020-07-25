@@ -363,9 +363,11 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 					xxMinIdx = i
 				}
 			}
-			if xxMinIdx+1 < len(leGroup) {
-				leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
+			if xxMinIdx+1 == len(leGroup) {
+				// Merge the `inf` bucket with the previous bucket in order to save accuracy.
+				xxMinIdx--
 			}
+			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
 			leGroup = append(leGroup[:xxMinIdx], leGroup[xxMinIdx+1:]...)
 		}
 		for _, xx := range leGroup {
