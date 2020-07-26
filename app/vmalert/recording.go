@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // RecordingRule is a Rule that supposed
@@ -32,6 +33,12 @@ type RecordingRule struct {
 	// resets on every successful Exec
 	// may be used as Health state
 	lastExecError error
+
+	metrics *recordingRuleMetrics
+}
+
+type recordingRuleMetrics struct {
+	errors *metrics.Gauge
 }
 
 // String implements Stringer interface
@@ -45,14 +52,30 @@ func (rr *RecordingRule) ID() uint64 {
 	return rr.RuleID
 }
 
-func newRecordingRule(gID uint64, cfg config.Rule) *RecordingRule {
-	return &RecordingRule{
+func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
+	rr := &RecordingRule{
 		RuleID:  cfg.ID,
 		Name:    cfg.Record,
 		Expr:    cfg.Expr,
 		Labels:  cfg.Labels,
-		GroupID: gID,
+		GroupID: group.ID(),
+		metrics: &recordingRuleMetrics{},
 	}
+	rr.metrics.errors = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{recording=%q, group=%q}`, rr.Name, group.Name),
+		func() float64 {
+			rr.mu.Lock()
+			defer rr.mu.Unlock()
+			if rr.lastExecError == nil {
+				return 0
+			}
+			return 1
+		})
+	return rr
+}
+
+// Close unregisters rule metrics
+func (rr *RecordingRule) Close() {
+	// TODO: unregister metrics on exit
 }
 
 var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")

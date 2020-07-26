@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // AlertingRule is basic alert entity
@@ -36,19 +37,68 @@ type AlertingRule struct {
 	// resets on every successful Exec
 	// may be used as Health state
 	lastExecError error
+
+	metrics *alertingRuleMetrics
 }
 
-func newAlertingRule(gID uint64, cfg config.Rule) *AlertingRule {
-	return &AlertingRule{
+type alertingRuleMetrics struct {
+	errors  *metrics.Gauge
+	pending *metrics.Gauge
+	active  *metrics.Gauge
+}
+
+func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
+	ar := &AlertingRule{
 		RuleID:      cfg.ID,
 		Name:        cfg.Alert,
 		Expr:        cfg.Expr,
 		For:         cfg.For,
 		Labels:      cfg.Labels,
 		Annotations: cfg.Annotations,
-		GroupID:     gID,
+		GroupID:     group.ID(),
 		alerts:      make(map[uint64]*notifier.Alert),
+		metrics:     &alertingRuleMetrics{},
 	}
+
+	ar.metrics.pending = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{alertname=%q, group=%q}`, ar.Name, group.Name),
+		func() float64 {
+			ar.mu.Lock()
+			defer ar.mu.Unlock()
+			var num int
+			for _, a := range ar.alerts {
+				if a.State == notifier.StatePending {
+					num++
+				}
+			}
+			return float64(num)
+		})
+	ar.metrics.active = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{alertname=%q, group=%q}`, ar.Name, group.Name),
+		func() float64 {
+			ar.mu.Lock()
+			defer ar.mu.Unlock()
+			var num int
+			for _, a := range ar.alerts {
+				if a.State == notifier.StateFiring {
+					num++
+				}
+			}
+			return float64(num)
+		})
+	ar.metrics.errors = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_error{alertname=%q, group=%q}`, ar.Name, group.Name),
+		func() float64 {
+			ar.mu.Lock()
+			defer ar.mu.Unlock()
+			if ar.lastExecError == nil {
+				return 0
+			}
+			return 1
+		})
+	return ar
+}
+
+// Close unregisters rule metrics
+func (ar *AlertingRule) Close() {
+	// TODO: unregister metrics on exit
 }
 
 // String implements Stringer interface

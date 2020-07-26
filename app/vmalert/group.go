@@ -30,6 +30,21 @@ type Group struct {
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan *Group
+
+	metrics *groupMetrics
+}
+
+type groupMetrics struct {
+	iterationTotal    *metrics.Counter
+	iterationDuration *metrics.Summary
+}
+
+func newGroupMetrics(name, file string) *groupMetrics {
+	m := &groupMetrics{}
+	labels := fmt.Sprintf("group=%q, file=%q", name, file)
+	m.iterationTotal = metrics.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	m.iterationDuration = metrics.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	return m
 }
 
 func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
@@ -42,6 +57,7 @@ func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 		finishedCh:  make(chan struct{}),
 		updateCh:    make(chan *Group),
 	}
+	g.metrics = newGroupMetrics(g.Name, g.File)
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
 	}
@@ -58,9 +74,9 @@ func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 
 func (g *Group) newRule(rule config.Rule) Rule {
 	if rule.Alert != "" {
-		return newAlertingRule(g.ID(), rule)
+		return newAlertingRule(g, rule)
 	}
-	return newRecordingRule(g.ID(), rule)
+	return newRecordingRule(g, rule)
 }
 
 // ID return unique group ID that consists of
@@ -133,18 +149,9 @@ func (g *Group) updateWith(newGroup *Group) error {
 }
 
 var (
-	iterationTotal    = metrics.NewCounter(`vmalert_iteration_total`)
-	iterationDuration = metrics.NewSummary(`vmalert_iteration_duration_seconds`)
-
-	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
-	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
-	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
-
 	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
 	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
 	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
-
-	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
 func (g *Group) close() {
@@ -153,6 +160,7 @@ func (g *Group) close() {
 	}
 	close(g.doneCh)
 	<-g.finishedCh
+	// TODO: unregister metrics
 }
 
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
@@ -185,7 +193,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
-			iterationTotal.Inc()
+			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 
 			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, g.Interval)
@@ -195,7 +203,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 				}
 			}
 
-			iterationDuration.UpdateDuration(iterationStart)
+			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
 	}
 }
@@ -239,6 +247,14 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 	}()
 	return res
 }
+
+var (
+	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
+	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
+	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+
+	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
+)
 
 func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, interval time.Duration) error {
 	execTotal.Inc()
