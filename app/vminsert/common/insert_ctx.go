@@ -70,11 +70,6 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompb.La
 }
 
 func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) error {
-	if len(ctx.metricNamesBuf) > 16*1024*1024 {
-		if err := ctx.FlushBufs(); err != nil {
-			return err
-		}
-	}
 	mrs := ctx.mrs
 	if cap(mrs) > len(mrs) {
 		mrs = mrs[:len(mrs)+1]
@@ -86,6 +81,11 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 	mr.MetricNameRaw = metricNameRaw
 	mr.Timestamp = timestamp
 	mr.Value = value
+	if len(ctx.metricNamesBuf) > 16*1024*1024 {
+		if err := ctx.FlushBufs(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
