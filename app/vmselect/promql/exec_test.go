@@ -3066,6 +3066,7 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `sort(buckets_limit(2, (
 			alias(label_set(100, "le", "inf", "x", "y"), "metric"),
+			alias(label_set(98, "le", "300", "x", "y"), "metric"),
 			alias(label_set(52, "le", "200", "x", "y"), "metric"),
 			alias(label_set(50, "le", "120", "x", "y"), "metric"),
 			alias(label_set(20, "le", "70", "x", "y"), "metric"),
@@ -3074,14 +3075,14 @@ func TestExecSuccess(t *testing.T) {
 		)))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{50, 50, 50, 50, 50, 50},
+			Values:     []float64{52, 52, 52, 52, 52, 52},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.MetricGroup = []byte("metric")
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("120"),
+				Value: []byte("200"),
 			},
 			{
 				Key:   []byte("x"),

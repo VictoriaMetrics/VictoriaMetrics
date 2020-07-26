@@ -363,8 +363,9 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 					xxMinIdx = i
 				}
 			}
-			if xxMinIdx+1 == len(leGroup) {
-				// Merge the `inf` bucket with the previous bucket in order to save accuracy.
+			// Merge the leGroup[xxMinIdx] bucket with the smallest adjacent bucket in order to preserve
+			// the maximum accuracy.
+			if xxMinIdx+1 == len(leGroup) || (xxMinIdx > 0 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits) {
 				xxMinIdx--
 			}
 			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
