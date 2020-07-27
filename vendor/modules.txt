@@ -14,7 +14,7 @@ github.com/VictoriaMetrics/fastcache
 github.com/VictoriaMetrics/fasthttp
 github.com/VictoriaMetrics/fasthttp/fasthttputil
 github.com/VictoriaMetrics/fasthttp/stackless
-# github.com/VictoriaMetrics/metrics v1.12.0
+# github.com/VictoriaMetrics/metrics v1.12.1
 github.com/VictoriaMetrics/metrics
 # github.com/VictoriaMetrics/metricsql v0.2.9
 github.com/VictoriaMetrics/metricsql

@@ -62,3 +62,8 @@ func WriteProcessMetrics(w io.Writer) {
 	writeGoMetrics(w)
 	writeProcessMetrics(w)
 }
+
+// UnregisterMetric removes metric with the given name from default set.
+func UnregisterMetric(name string) bool {
+	return defaultSet.UnregisterMetric(name)
+}
