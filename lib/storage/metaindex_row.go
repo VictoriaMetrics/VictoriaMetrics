@@ -16,10 +16,6 @@ type metaindexRow struct {
 	// TSID is the first TSID in the corresponding index block.
 	TSID TSID
 
-	// BlockHeadersCount is the number of block headers
-	// in the given index block.
-	BlockHeadersCount uint32
-
 	// MinTimestamp is the minimum timestamp in the given index block.
 	MinTimestamp int64
 
@@ -28,6 +24,10 @@ type metaindexRow struct {
 
 	// IndexBlockOffset is the offset of index block.
 	IndexBlockOffset uint64
+
+	// BlockHeadersCount is the number of block headers
+	// in the given index block.
+	BlockHeadersCount uint32
 
 	// IndexBlockSize is the size of compressed index block.
 	IndexBlockSize uint32
