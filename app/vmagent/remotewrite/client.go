@@ -182,6 +182,9 @@ func (c *client) runWorker() {
 }
 
 func (c *client) sendBlock(block []byte) {
+	retryDuration := time.Second
+
+again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
 		logger.Panicf("BUG: unexected error from http.NewRequest(%q): %s", c.remoteWriteURL, err)
@@ -195,9 +198,6 @@ func (c *client) sendBlock(block []byte) {
 		req.Header.Set("Authorization", c.authHeader)
 	}
 
-	retryDuration := time.Second
-
-again:
 	startTime := time.Now()
 	resp, err := c.hc.Do(req)
 	c.requestDuration.UpdateDuration(startTime)
