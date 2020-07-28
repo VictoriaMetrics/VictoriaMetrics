@@ -473,6 +473,12 @@ func (s *Set) UnregisterMetric(name string) bool {
 		return true
 	}
 
+	// Remove summary metric name including quantile labels from set
+	for _, q := range sm.quantiles {
+		quantileValueName := addTag(name, fmt.Sprintf(`quantile="%g"`, q))
+		delete(s.m, quantileValueName)
+	}
+
 	// Remove sm from s.summaries
 	found = false
 	for i, xsm := range s.summaries {
