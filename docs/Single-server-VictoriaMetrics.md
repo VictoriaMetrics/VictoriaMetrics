@@ -394,6 +394,7 @@ or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/mas
 
 VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
 and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) for ingesting OpenTSDB data.
+The same protocol is used for [ingesting data in KairosDB](https://kairosdb.github.io/docs/build/html/PushingData.html).
 
 #### Sending data via `telnet put` protocol
 
