@@ -27,7 +27,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk":      newAggrFuncTopK(true),
 	"topk":         newAggrFuncTopK(false),
 	"quantile":     aggrFuncQuantile,
-	"group":        aggrFuncGroup,
+	"group":        newAggrFunc(aggrFuncGroup),
 
 	// PromQL extension funcs
 	"median":         aggrFuncMedian,
@@ -140,25 +140,20 @@ func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
 	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, true)
 }
 
-func aggrFuncGroup(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
-		return nil, err
-	}
-	afe := func(tss []*timeseries) []*timeseries {
-		// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
-		values := tss[0].Values
-		for j := range values {
-			values[j] = 1
+func aggrFuncGroup(tss []*timeseries) []*timeseries {
+	// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
+	dst := tss[0]
+	for i := range dst.Values {
+		v := nan
+		for _, ts := range tss {
+			if math.IsNaN(ts.Values[i]) {
+				continue
+			}
+			v = 1
 		}
-		return tss[:1]
+		dst.Values[i] = v
 	}
-	limit := afa.ae.Limit
-	if limit > 1 {
-		// Only a single time series per group must be returned
-		limit = 1
-	}
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, false)
+	return tss[:1]
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {
