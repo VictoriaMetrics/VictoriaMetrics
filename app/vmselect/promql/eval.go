@@ -75,7 +75,8 @@ type EvalConfig struct {
 	End   int64
 	Step  int64
 
-	Deadline netstorage.Deadline
+	RemoteAddr string
+	Deadline   netstorage.Deadline
 
 	MayCache bool
 
