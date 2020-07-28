@@ -774,6 +774,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		Start:         start,
 		End:           start,
 		Step:          step,
+		RemoteAddr:    r.RemoteAddr,
 		Deadline:      deadline,
 		LookbackDelta: lookbackDelta,
 
@@ -861,6 +862,7 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		Start:         start,
 		End:           end,
 		Step:          step,
+		RemoteAddr:    r.RemoteAddr,
 		Deadline:      deadline,
 		MayCache:      mayCache,
 		LookbackDelta: lookbackDelta,
