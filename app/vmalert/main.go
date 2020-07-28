@@ -40,6 +40,8 @@ absolute path to all .yaml files in root.`)
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
 eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
+	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'name=value' to add to all generated recording rules and alerts. "+
+		"Pass multiple -label flags in order to add multiple label sets.")
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
@@ -125,6 +127,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		groups:    make(map[uint64]*Group),
 		querier:   q,
 		notifiers: nts,
+		labels:    map[string]string{},
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {
@@ -137,6 +140,14 @@ func newManager(ctx context.Context) (*manager, error) {
 		return nil, fmt.Errorf("failed to init remoteRead: %w", err)
 	}
 	manager.rr = rr
+
+	for _, s := range *externalLabels {
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
+		}
+		manager.labels[s[:n]] = s[n+1:]
+	}
 	return manager, nil
 }
 

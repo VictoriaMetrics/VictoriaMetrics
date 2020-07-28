@@ -331,15 +331,22 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
-func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
 	if q == nil {
 		return fmt.Errorf("querier is nil")
 	}
+
+	// account for external labels in filter
+	var labelsFilter string
+	for k, v := range labels {
+		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
+	}
+
 	// Get the last datapoint in range via MetricsQL `last_over_time`.
 	// We don't use plain PromQL since Prometheus doesn't support
 	// remote write protocol which is used for state persistence in vmalert.
-	expr := fmt.Sprintf("last_over_time(%s{alertname=%q}[%ds])",
-		alertForStateMetricName, ar.Name, int(lookback.Seconds()))
+	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
+		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
 	qMetrics, err := q.Query(ctx, expr)
 	if err != nil {
 		return err
