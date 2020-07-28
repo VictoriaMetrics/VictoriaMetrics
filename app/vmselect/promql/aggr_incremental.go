@@ -56,9 +56,9 @@ var incrementalAggrFuncCallbacksMap = map[string]*incrementalAggrFuncCallbacks{
 		keepOriginal: true,
 	},
 	"group": {
-		updateAggrFunc:   updateAggrGroup,
-		mergeAggrFunc:    mergeAggrAny,
-		finalizeAggrFunc: finalizeAggrCommon,
+		updateAggrFunc:   updateAggrCount,
+		mergeAggrFunc:    mergeAggrCount,
+		finalizeAggrFunc: finalizeAggrGroup,
 	},
 }
 
@@ -391,6 +391,17 @@ func finalizeAggrCount(iac *incrementalAggrContext) {
 	}
 }
 
+func finalizeAggrGroup(iac *incrementalAggrContext) {
+	dstValues := iac.ts.Values
+	for i, v := range dstValues {
+		if v == 0 {
+			dstValues[i] = nan
+		} else {
+			dstValues[i] = 1
+		}
+	}
+}
+
 func updateAggrSum2(iac *incrementalAggrContext, values []float64) {
 	dstValues := iac.ts.Values
 	dstCounts := iac.values
@@ -504,18 +515,4 @@ func mergeAggrAny(dst, src *incrementalAggrContext) {
 	}
 	dstCounts[0] = srcCounts[0]
 	dst.ts.Values = append(dst.ts.Values[:0], srcValues...)
-}
-
-func updateAggrGroup(iac *incrementalAggrContext, values []float64) {
-	dstCounts := iac.values
-	if dstCounts[0] > 0 {
-		return
-	}
-	for i := range values {
-		dstCounts[i] = 1
-	}
-	for i := range values {
-		values[i] = 1
-	}
-	iac.ts.Values = append(iac.ts.Values[:0], values...)
 }
