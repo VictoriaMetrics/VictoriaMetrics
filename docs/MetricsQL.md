@@ -24,6 +24,7 @@ Feel free [filing a feature request](https://github.com/VictoriaMetrics/Victoria
 This functionality can be tried at [an editable Grafana dashboard](http://play-grafana.victoriametrics.com:3000/d/4ome8yJmz/node-exporter-on-victoriametrics-demo).
 
 - [`WITH` templates](https://play.victoriametrics.com/promql/expand-with-exprs). This feature simplifies writing and managing complex queries. Go to [`WITH` templates playground](https://victoriametrics.com/promql/expand-with-exprs) and try it.
+- Range duration in functions such as [rate](https://prometheus.io/docs/prometheus/latest/querying/functions/#rate()) may be omitted. VictoriaMetrics automatically selects range duration depending on the current step used for building the graph. For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
 - All the aggregate functions support optional `limit N` suffix in order to limit the number of output series. For example, `sum(x) by (y) limit 10` limits
   the number of output time series after the aggregation to 10. All the other time series are dropped.
 - Metric names and metric labels may contain escaped chars. For instance, `foo\-bar{baz\=aa="b"}` is valid expression. It returns time series with name `foo-bar` containing label `baz=aa` with value `b`. Additionally, `\xXX` escape sequence is supported, where `XX` is hexadecimal representation of escaped char.
@@ -31,14 +32,13 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   For instance, `rate(metric[10i] offset 5i)` would return per-second rate over a range covering 10 previous steps with the offset of 5 steps.
 - `offset` may be put anywere in the query. For instance, `sum(foo) offset 24h`.
 - `offset` may be negative. For example, `q offset -1h`.
-- `default` binary operator. `q1 default q2` substitutes `NaN` values from `q1` with the corresponding values from `q2`.
+- [Range duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors) and [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier) may be fractional. For instance, `rate(node_network_receive_bytes_total[1.5m] offset 0.5d)`.
+- `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`.
 - `histogram_quantile` accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile. See [this issue for details](https://github.com/prometheus/prometheus/issues/5706).
-- `if` binary operator. `q1 if q2` removes values from `q1` for `NaN` values from `q2`.
-- `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for non-`NaN` values from `q2`.
+- `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
+- `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
 - Trailing commas on all the lists are allowed - label filters, function args and with expressions. For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`. This simplifies maintenance of multi-line queries.
 - String literals may be concatenated. This is useful with `WITH` templates: `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
-- Range duration in functions such as [rate](https://prometheus.io/docs/prometheus/latest/querying/functions/#rate()) may be omitted. VictoriaMetrics automatically selects range duration depending on the current step used for building the graph. For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
-- [Range duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors) and [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier) may be fractional. For instance, `rate(node_network_receive_bytes_total[1.5m] offset 0.5d)`.
 - Comments starting with `#` and ending with newline. For instance, `up # this is a comment for 'up' metric`.
 - Rollup functions - `rollup(m[d])`, `rollup_rate(m[d])`, `rollup_deriv(m[d])`, `rollup_increase(m[d])`, `rollup_delta(m[d])` - return `min`, `max` and `avg`
   values for all the `m` data points over `d` duration.
@@ -77,7 +77,6 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `median(q)` - median aggregate. Shorthand to `quantile(0.5, q)`.
 - `limitk(k, q)` - limits the number of time series returned from `q` to `k`.
 - `any(q) by (x)` - returns any time series from `q` for each group in `x`.
-  Use `limitk(1, q)` if you need retaining all the labels from `q`.
 - `keep_last_value(q)` - fills missing data (gaps) in `q` with the previous non-empty value.
 - `keep_next_value(q)` - fills missing data (gaps) in `q` with the next non-empty value.
 - `interpolate(q)` - fills missing data (gaps) in `q` with linearly interpolated values.
