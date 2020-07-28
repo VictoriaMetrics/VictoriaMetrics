@@ -32,7 +32,7 @@ type Group struct {
 	updateCh chan *Group
 }
 
-func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
+func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
 		Name:        cfg.Name,
 		File:        cfg.File,
@@ -50,6 +50,17 @@ func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 	}
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
+		// override rule labels with external labels
+		for k, v := range labels {
+			if prevV, ok := r.Labels[k]; ok {
+				logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
+					k, prevV, g.Name, r.Name(), k, v)
+			}
+			if r.Labels == nil {
+				r.Labels = map[string]string{}
+			}
+			r.Labels[k] = v
+		}
 		rules[i] = g.newRule(r)
 	}
 	g.Rules = rules
@@ -74,7 +85,7 @@ func (g *Group) ID() uint64 {
 }
 
 // Restore restores alerts state for group rules
-func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
 	for _, rule := range g.Rules {
 		rr, ok := rule.(*AlertingRule)
 		if !ok {
@@ -83,7 +94,7 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 		if rr.For < 1 {
 			continue
 		}
-		if err := rr.Restore(ctx, q, lookback); err != nil {
+		if err := rr.Restore(ctx, q, lookback, labels); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}

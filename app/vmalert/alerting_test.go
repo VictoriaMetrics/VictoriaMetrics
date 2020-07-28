@@ -419,7 +419,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 			fq := &fakeQuerier{}
 			tc.rule.GroupID = fakeGroup.ID()
 			fq.add(tc.metrics...)
-			if err := tc.rule.Restore(context.TODO(), fq, time.Hour); err != nil {
+			if err := tc.rule.Restore(context.TODO(), fq, time.Hour, nil); err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 			if len(tc.rule.alerts) != len(tc.expAlerts) {

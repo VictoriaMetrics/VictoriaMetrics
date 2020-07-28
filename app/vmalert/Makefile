@@ -64,6 +64,8 @@ run-vmalert: vmalert
 		-notifier.url=http://127.0.0.1:9093 \
 		-remoteWrite.url=http://localhost:8428 \
 		-remoteRead.url=http://localhost:8428 \
+		-external.label=cluster=east-1 \
+		-external.label=replica=a \
 		-evaluationInterval=3s
 
 vmalert-amd64:
