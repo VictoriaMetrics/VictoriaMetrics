@@ -325,7 +325,7 @@ type rollupFuncArg struct {
 
 	currTimestamp int64
 	idx           int
-	step          int64
+	window        int64
 
 	tsm *timeseriesMap
 }
@@ -337,7 +337,7 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.timestamps = nil
 	rfa.currTimestamp = 0
 	rfa.idx = 0
-	rfa.step = 0
+	rfa.window = 0
 	rfa.tsm = nil
 }
 
@@ -481,7 +481,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	}
 	rfa := getRollupFuncArg()
 	rfa.idx = 0
-	rfa.step = rc.Step
+	rfa.window = window
 	rfa.tsm = tsm
 
 	i := 0
@@ -1080,17 +1080,7 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	values := rfa.values
 	timestamps := rfa.timestamps
-	prevTimestamp := rfa.prevTimestamp
-	if math.IsNaN(rfa.prevValue) {
-		if len(timestamps) == 0 {
-			return nan
-		}
-		prevTimestamp = timestamps[0]
-		values = values[1:]
-		timestamps = timestamps[1:]
-	}
 	if len(timestamps) == 0 {
 		if math.IsNaN(rfa.prevValue) {
 			return nan
@@ -1098,11 +1088,14 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 		// Assume that the value didn't change since rfa.prevValue.
 		return 0
 	}
+	dt := rfa.window
+	if !math.IsNaN(rfa.prevValue) {
+		dt = timestamps[len(timestamps)-1] - rfa.prevTimestamp
+	}
 	sum := float64(0)
-	for _, v := range values {
+	for _, v := range rfa.values {
 		sum += v
 	}
-	dt := timestamps[len(timestamps)-1] - prevTimestamp
 	return sum / (float64(dt) / 1e3)
 }
 
@@ -1486,7 +1479,7 @@ func getCandlestickValues(rfa *rollupFuncArg) []float64 {
 }
 
 func getFirstValueForCandlestick(rfa *rollupFuncArg) float64 {
-	if rfa.prevTimestamp+rfa.step >= rfa.currTimestamp {
+	if rfa.prevTimestamp+rfa.window >= rfa.currTimestamp {
 		return rfa.prevValue
 	}
 	return nan
