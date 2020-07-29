@@ -1040,15 +1040,14 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 	}
 }
 
-func TestRollupIncrease(t *testing.T) {
+func TestRollupDelta(t *testing.T) {
 	f := func(prevValue float64, values []float64, resultExpected float64) {
 		t.Helper()
 		rfa := &rollupFuncArg{
-			prevValue:     prevValue,
-			realPrevValue: prevValue,
-			values:        values,
+			prevValue: prevValue,
+			values:    values,
 		}
-		result := rollupIncrease(rfa)
+		result := rollupDelta(rfa)
 		if math.IsNaN(result) {
 			if !math.IsNaN(resultExpected) {
 				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
