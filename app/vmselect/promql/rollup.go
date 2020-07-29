@@ -516,6 +516,8 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		rfa.currTimestamp = tEnd
 		if i > 0 {
 			rfa.realPrevValue = values[i-1]
+		} else {
+			rfa.realPrevValue = nan
 		}
 		value := rc.Func(rfa)
 		rfa.idx++
@@ -1093,15 +1095,19 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 	timestamps := rfa.timestamps
 	prevTimestamp := rfa.prevTimestamp
 	if math.IsNaN(rfa.prevValue) {
-		if len(values) == 0 {
+		if len(timestamps) == 0 {
 			return nan
 		}
 		prevTimestamp = timestamps[0]
 		values = values[1:]
 		timestamps = timestamps[1:]
 	}
-	if len(values) == 0 {
-		return nan
+	if len(timestamps) == 0 {
+		if math.IsNaN(rfa.prevValue) {
+			return nan
+		}
+		// Assume that the value didn't change since rfa.prevValue.
+		return 0
 	}
 	sum := float64(0)
 	for _, v := range values {
@@ -1235,6 +1241,7 @@ func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 			}
 		} else {
 			prevValue = values[0]
+			values = values[1:]
 		}
 	}
 	if len(values) == 0 {
