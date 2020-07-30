@@ -20,7 +20,6 @@ import (
 )
 
 var (
-	disableCache         = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 	cacheTimestampOffset = flag.Duration("search.cacheTimestampOffset", 5*time.Minute, "The maximum duration since the current time for response data, "+
 		"which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses "+
 		"due to time synchronization issues between VictoriaMetrics and data sources")
@@ -137,7 +136,7 @@ func ResetRollupResultCache() {
 }
 
 func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
-	if *disableCache || !ec.mayCache() {
+	if !ec.mayCache() {
 		return nil, ec.Start
 	}
 
@@ -218,7 +217,7 @@ func (rrc *rollupResultCache) Get(ec *EvalConfig, expr metricsql.Expr, window in
 var resultBufPool bytesutil.ByteBufferPool
 
 func (rrc *rollupResultCache) Put(ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
-	if *disableCache || len(tss) == 0 || !ec.mayCache() {
+	if len(tss) == 0 || !ec.mayCache() {
 		return
 	}
 

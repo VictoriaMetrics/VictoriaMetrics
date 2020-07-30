@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from the search")
 )
 
@@ -42,6 +43,11 @@ func ValidateMaxPointsPerTimeseries(start, end, step int64) error {
 //
 // See EvalConfig.mayCache for details.
 func AdjustStartEnd(start, end, step int64) (int64, int64) {
+	if *disableCache {
+		// Do not adjust start and end values when cache is disabled.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/563
+		return start, end
+	}
 	points := (end-start)/step + 1
 	if points < minTimeseriesPointsForTimeRounding {
 		// Too small number of points for rounding.
@@ -111,6 +117,9 @@ func (ec *EvalConfig) validate() {
 }
 
 func (ec *EvalConfig) mayCache() bool {
+	if *disableCache {
+		return false
+	}
 	if !ec.MayCache {
 		return false
 	}
