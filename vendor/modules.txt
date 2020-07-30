@@ -110,7 +110,7 @@ github.com/valyala/fastrand
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.1.2
 github.com/valyala/histogram
-# github.com/valyala/quicktemplate v1.5.2
+# github.com/valyala/quicktemplate v1.6.0
 github.com/valyala/quicktemplate
 # go.opencensus.io v0.22.4
 go.opencensus.io
