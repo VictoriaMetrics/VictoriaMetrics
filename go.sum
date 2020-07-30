@@ -175,8 +175,8 @@ github.com/valyala/histogram v1.0.1 h1:FzA7n2Tz/wKRMejgu3PV1vw3htAklTjjuoI6z3d4K
 github.com/valyala/histogram v1.0.1/go.mod h1:lQy0xA4wUz2+IUnf97SivorsJIp8FxsnRd6x25q7Mto=
 github.com/valyala/histogram v1.1.2 h1:vOk5VrGjMBIoPR5k6wA8vBaC8toeJ8XO0yfRjFEc1h8=
 github.com/valyala/histogram v1.1.2/go.mod h1:CZAr6gK9dbD7hYx2s8WSPh0p5x5wETjC+2b3PJVtEdg=
-github.com/valyala/quicktemplate v1.5.2 h1:DEMJ2olL+6C89OmCcmcChI53k8kHbfSCFfsz1Uc0/n4=
-github.com/valyala/quicktemplate v1.5.2/go.mod h1:v7yYWpBEiutDyNfVaph6oC/yKwejzVyTX/2cwwHxyok=
+github.com/valyala/quicktemplate v1.6.0 h1:9fKw4ebNjg3jzbfLSTu6i0tgqhpS80h2uN6brwbweKg=
+github.com/valyala/quicktemplate v1.6.0/go.mod h1:v7yYWpBEiutDyNfVaph6oC/yKwejzVyTX/2cwwHxyok=
 github.com/valyala/tcplisten v0.0.0-20161114210144-ceec8f93295a/go.mod h1:v3UYOV9WzVtRmSR+PDvWpU/qWl4Wa5LApYYX4ZtKbio=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

@@ -18,7 +18,7 @@ require (
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/gozstd v1.7.0
 	github.com/valyala/histogram v1.1.2
-	github.com/valyala/quicktemplate v1.5.2
+	github.com/valyala/quicktemplate v1.6.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1
 	golang.org/x/tools v0.0.0-20200729041821-df70183b1872 // indirect
