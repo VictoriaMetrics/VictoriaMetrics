@@ -635,11 +635,7 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
 	// since it may be final after stopCh is closed.
-	//
-	// Prioritize merging of inmemory blocks over merging file parts.
-	storagepacelimiter.BigMerges.Inc()
-	err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, nil, &tb.itemsMerged)
-	storagepacelimiter.BigMerges.Dec()
+	err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, &tb.itemsMerged)
 	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
@@ -801,7 +797,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 
 	// Merge parts into a temporary location.
 	var ph partHeader
-	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, storagepacelimiter.BigMerges, &tb.itemsMerged)
+	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, &tb.itemsMerged)
 	putBlockStreamWriter(bsw)
 	if err != nil {
 		if err == errForciblyStopped {
@@ -949,9 +945,7 @@ func (tb *Table) maxOutPartItemsSlow() uint64 {
 	return freeSpace / uint64(mergeWorkersCount) / 4
 }
 
-var mergeWorkersCount = func() int {
-	return runtime.GOMAXPROCS(-1)
-}()
+var mergeWorkersCount = runtime.GOMAXPROCS(-1)
 
 func openParts(path string) ([]*partWrapper, error) {
 	// The path can be missing after restoring from backup, so create it if needed.

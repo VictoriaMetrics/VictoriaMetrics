@@ -363,9 +363,6 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_search_delays_total`, func() float64 {
 		return float64(m().SearchDelays)
 	})
-	metrics.NewGauge(`vm_big_merges_delays_total`, func() float64 {
-		return float64(tm().BigMergesDelays)
-	})
 
 	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {
 		return float64(m().SlowRowInserts)

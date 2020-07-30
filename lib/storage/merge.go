@@ -6,7 +6,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
@@ -16,11 +15,11 @@ import (
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
 func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{},
-	pl *pacelimiter.PaceLimiter, dmis *uint64set.Set, rowsMerged, rowsDeleted *uint64) error {
+	dmis *uint64set.Set, rowsMerged, rowsDeleted *uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
-	bsm.Init(bsrs, pl)
+	bsm.Init(bsrs)
 	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, dmis, rowsMerged, rowsDeleted)
 	bsm.reset()
 	bsmPool.Put(bsm)

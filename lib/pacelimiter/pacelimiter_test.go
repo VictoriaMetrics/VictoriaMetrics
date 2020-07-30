@@ -1,6 +1,7 @@
 package pacelimiter
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 	"testing"
@@ -73,6 +74,43 @@ func TestPacelimiter(t *testing.T) {
 		}
 		// Verify that the pl is unblocked now.
 		pl.WaitIfNeeded()
+
+		// Verify that negative count doesn't block pl.
+		pl.Dec()
+		pl.WaitIfNeeded()
+		if n := pl.DelaysTotal(); n == 0 {
+			t.Fatalf("expecting non-zero number of delays after subsequent pl.Dec()")
+		}
+	})
+	t.Run("negative_count", func(t *testing.T) {
+		n := 10
+		pl := New()
+		for i := 0; i < n; i++ {
+			pl.Dec()
+		}
+
+		doneCh := make(chan error)
+		go func() {
+			defer close(doneCh)
+			for i := 0; i < n; i++ {
+				pl.Inc()
+				pl.WaitIfNeeded()
+				if n := pl.DelaysTotal(); n != 0 {
+					doneCh <- fmt.Errorf("expecting zero number of delays")
+					return
+				}
+			}
+			doneCh <- nil
+		}()
+
+		select {
+		case err := <-doneCh:
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout")
+		}
 	})
 	t.Run("concurrent_inc_dec", func(t *testing.T) {
 		pl := New()
