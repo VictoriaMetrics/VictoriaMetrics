@@ -3,8 +3,6 @@ package storage
 import (
 	"math/rand"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 )
 
 func TestMergeBlockStreamsOneStreamOneRow(t *testing.T) {
@@ -366,7 +364,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	ch := make(chan struct{})
 	var rowsMerged, rowsDeleted uint64
 	close(ch)
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, nil, nil, &rowsMerged, &rowsDeleted); err != errForciblyStopped {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, nil, &rowsMerged, &rowsDeleted); err != errForciblyStopped {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
 	if rowsMerged != 0 {
@@ -386,7 +384,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	bsw.InitFromInmemoryPart(&mp)
 
 	var rowsMerged, rowsDeleted uint64
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, storagepacelimiter.BigMerges, nil, &rowsMerged, &rowsDeleted); err != nil {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, nil, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
 
