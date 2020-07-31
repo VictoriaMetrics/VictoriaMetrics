@@ -18,9 +18,6 @@ vminsert-pure-prod:
 vminsert-prod-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) app-via-docker
 
-vminsert-pure:
-	APP_NAME=vminsert $(MAKE) app-local-pure
-
 package-vminsert:
 	APP_NAME=vminsert $(MAKE) package-via-docker
 

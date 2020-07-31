@@ -22,9 +22,6 @@ vmstorage-pure-prod:
 vmstorage-prod-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) app-via-docker
 
-vmstorage-pure:
-	APP_NAME=vmstorage $(MAKE) app-local-pure
-
 package-vmstorage:
 	APP_NAME=vmstorage $(MAKE) package-via-docker
 

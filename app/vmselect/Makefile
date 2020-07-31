@@ -22,9 +22,6 @@ vmselect-pure-prod:
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
 
-vmselect-pure:
-	APP_NAME=vmselect $(MAKE) app-local-pure
-
 package-vmselect:
 	APP_NAME=vmselect $(MAKE) package-via-docker
 
