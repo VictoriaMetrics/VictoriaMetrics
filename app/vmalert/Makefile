@@ -69,19 +69,22 @@ run-vmalert: vmalert
 		-evaluationInterval=3s
 
 vmalert-amd64:
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmalert-amd64 ./app/vmalert
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmalert-local-with-goarch
 
 vmalert-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmalert-arm ./app/vmalert
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmalert-local-with-goarch
 
 vmalert-arm64:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmalert-arm64 ./app/vmalert
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmalert-local-with-goarch
 
 vmalert-ppc64le:
-	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmalert-ppc64le ./app/vmalert
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmalert-local-with-goarch
 
 vmalert-386:
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmalert-386 ./app/vmalert
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmalert-local-with-goarch
+
+vmalert-local-with-goarch:
+	APP_NAME=vmalert $(MAKE) app-local-with-goarch
 
 vmalert-pure:
 	APP_NAME=vmalert $(MAKE) app-local-pure

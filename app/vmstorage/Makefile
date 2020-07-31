@@ -36,3 +36,24 @@ publish-vmstorage:
 
 publish-vmstorage-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) publish-via-docker
+
+vmstorage-amd64:
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmstorage-local-with-goarch
+
+vmstorage-arm:
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmstorage-local-with-goarch
+
+vmstorage-arm64:
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmstorage-local-with-goarch
+
+vmstorage-ppc64le:
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmstorage-local-with-goarch
+
+vmstorage-386:
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmstorage-local-with-goarch
+
+vmstorage-local-with-goarch:
+	APP_NAME=vmstorage $(MAKE) app-local-with-goarch
+
+vmstorage-pure:
+	APP_NAME=vmstorage $(MAKE) app-local-pure
