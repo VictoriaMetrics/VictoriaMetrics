@@ -249,7 +249,9 @@ It is safe upgrading VictoriaMetrics to new versions unless [release notes](http
 say otherwise. It is recommended performing regular upgrades to the latest version,
 since it may contain important bug fixes, performance optimizations or new features.
 
-Follow the following steps during the upgrade:
+It is also safe downgrading to the previous version unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+
+The following steps must be performed during the upgrade / downgrade:
 
 1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
 2) Wait until the process stops. This can take a few seconds.
