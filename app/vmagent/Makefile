@@ -59,19 +59,22 @@ run-vmagent:
 	$(MAKE) run-via-docker
 
 vmagent-amd64:
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmagent-amd64 ./app/vmagent
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmagent-local-with-goarch
 
 vmagent-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmagent-arm ./app/vmagent
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmagent-local-with-goarch
 
 vmagent-arm64:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmagent-arm64 ./app/vmagent
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmagent-local-with-goarch
 
 vmagent-ppc64le:
-	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmagent-ppc64le ./app/vmagent
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmagent-local-with-goarch
 
 vmagent-386:
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmagent-386 ./app/vmagent
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmagent-local-with-goarch
+
+vmagent-local-with-goarch:
+	APP_NAME=vmagent $(MAKE) app-local-with-goarch
 
 vmagent-pure:
 	APP_NAME=vmagent $(MAKE) app-local-pure
