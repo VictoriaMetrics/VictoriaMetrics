@@ -430,13 +430,19 @@ var (
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)
 )
 
-// Errorf writes formatted error message to w and to logger.
-func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...interface{}) {
-	errStr := fmt.Sprintf(format, args...)
+// GetQuotedRemoteAddr returns quoted remote address.
+func GetQuotedRemoteAddr(r *http.Request) string {
 	remoteAddr := strconv.Quote(r.RemoteAddr) // quote remoteAddr and X-Forwarded-For, since they may contain untrusted input
 	if addr := r.Header.Get("X-Forwarded-For"); addr != "" {
 		remoteAddr += ", X-Forwarded-For: " + strconv.Quote(addr)
 	}
+	return remoteAddr
+}
+
+// Errorf writes formatted error message to w and to logger.
+func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...interface{}) {
+	errStr := fmt.Sprintf(format, args...)
+	remoteAddr := GetQuotedRemoteAddr(r)
 	errStr = fmt.Sprintf("remoteAddr: %s; %s", remoteAddr, errStr)
 	logger.WarnfSkipframes(1, "%s", errStr)
 

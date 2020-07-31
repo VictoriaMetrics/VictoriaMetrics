@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -770,13 +771,13 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	}
 
 	ec := promql.EvalConfig{
-		AuthToken:     at,
-		Start:         start,
-		End:           start,
-		Step:          step,
-		RemoteAddr:    r.RemoteAddr,
-		Deadline:      deadline,
-		LookbackDelta: lookbackDelta,
+		AuthToken:        at,
+		Start:            start,
+		End:              start,
+		Step:             step,
+		QuotedRemoteAddr: httpserver.GetQuotedRemoteAddr(r),
+		Deadline:         deadline,
+		LookbackDelta:    lookbackDelta,
 
 		DenyPartialResponse: getDenyPartialResponse(r),
 	}
@@ -858,14 +859,14 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	}
 
 	ec := promql.EvalConfig{
-		AuthToken:     at,
-		Start:         start,
-		End:           end,
-		Step:          step,
-		RemoteAddr:    r.RemoteAddr,
-		Deadline:      deadline,
-		MayCache:      mayCache,
-		LookbackDelta: lookbackDelta,
+		AuthToken:        at,
+		Start:            start,
+		End:              end,
+		Step:             step,
+		QuotedRemoteAddr: httpserver.GetQuotedRemoteAddr(r),
+		Deadline:         deadline,
+		MayCache:         mayCache,
+		LookbackDelta:    lookbackDelta,
 
 		DenyPartialResponse: getDenyPartialResponse(r),
 	}

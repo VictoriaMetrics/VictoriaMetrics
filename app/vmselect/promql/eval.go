@@ -83,8 +83,10 @@ type EvalConfig struct {
 	End       int64
 	Step      int64
 
-	RemoteAddr string
-	Deadline   netstorage.Deadline
+	// QuotedRemoteAddr contains quoted remote address.
+	QuotedRemoteAddr string
+
+	Deadline netstorage.Deadline
 
 	MayCache bool
 
