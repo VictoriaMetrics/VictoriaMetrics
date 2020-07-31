@@ -274,6 +274,22 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
+#### ARM build
+
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
+#### Development ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of the repository.
+   It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
+
+#### Production ARM build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of the repository.
+   It builds `vmagent-arm-prod` or `vmagent-arm64-prod` binary respectively and puts it into the `bin` folder.
+
 
 ### Profiling
 

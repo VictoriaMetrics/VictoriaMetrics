@@ -286,3 +286,20 @@ It is recommended using
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmalert-prod` from the root folder of the repository.
    It builds `vmalert-prod` binary and puts it into the `bin` folder.
+
+
+#### ARM build
+
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
+#### Development ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of the repository.
+   It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
+
+#### Production ARM build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmalert-arm-prod` or `make vmalert-arm64-prod` from the root folder of the repository.
+   It builds `vmalert-arm-prod` or `vmalert-arm64-prod` binary respectively and puts it into the `bin` folder.
