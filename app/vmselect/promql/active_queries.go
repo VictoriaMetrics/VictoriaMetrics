@@ -20,8 +20,8 @@ func WriteActiveQueries(w io.Writer) {
 	now := time.Now()
 	for _, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
-		fmt.Fprintf(w, "\tduration: %.3fs, id=%016X, remote_addr=%q, query=%q, start=%d, end=%d, step=%d\n",
-			d.Seconds(), aqe.qid, aqe.remoteAddr, aqe.q, aqe.start, aqe.end, aqe.step)
+		fmt.Fprintf(w, "\tduration: %.3fs, id=%016X, remote_addr=%s, query=%q, start=%d, end=%d, step=%d\n",
+			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.q, aqe.start, aqe.end, aqe.step)
 	}
 }
 
@@ -33,13 +33,13 @@ type activeQueries struct {
 }
 
 type activeQueryEntry struct {
-	start      int64
-	end        int64
-	step       int64
-	qid        uint64
-	remoteAddr string
-	q          string
-	startTime  time.Time
+	start            int64
+	end              int64
+	step             int64
+	qid              uint64
+	quotedRemoteAddr string
+	q                string
+	startTime        time.Time
 }
 
 func newActiveQueries() *activeQueries {
@@ -54,7 +54,7 @@ func (aq *activeQueries) Add(ec *EvalConfig, q string) uint64 {
 	aqe.end = ec.End
 	aqe.step = ec.Step
 	aqe.qid = atomic.AddUint64(&nextActiveQueryID, 1)
-	aqe.remoteAddr = ec.RemoteAddr
+	aqe.quotedRemoteAddr = ec.QuotedRemoteAddr
 	aqe.q = q
 	aqe.startTime = time.Now()
 
