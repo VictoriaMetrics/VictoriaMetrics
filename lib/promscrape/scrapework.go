@@ -224,6 +224,16 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	srcRows := sw.rows.Rows
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
+
+	// if the cap of slice is empty, init the slice to avoid array copy
+	if cap(sw.labels) == 0 {
+		capacity := 0
+		for i := range srcRows {
+			capacity = capacity + 1 + len(sw.Config.Labels) + len(srcRows[i].Tags)
+		}
+		sw.labels = make([]prompbmarshal.Label, 0, capacity)
+	}
+
 	for i := range srcRows {
 		sw.addRowToTimeseries(&srcRows[i], scrapeTimestamp, true)
 	}
@@ -326,10 +336,6 @@ func (sw *scrapeWork) addRowToTimeseries(r *parser.Row, timestamp int64, needRel
 }
 
 func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, extraLabels []prompbmarshal.Label, honorLabels bool) []prompbmarshal.Label {
-	// if the cap of slice is empty, init the slice to avoid array copy
-	if cap(dst) == 0 {
-		dst = make([]prompbmarshal.Label, 0, 1+len(src)+len(extraLabels))
-	}
 	dstLen := len(dst)
 	dst = append(dst, prompbmarshal.Label{
 		Name:  "__name__",
