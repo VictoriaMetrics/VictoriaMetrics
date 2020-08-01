@@ -326,6 +326,10 @@ func (sw *scrapeWork) addRowToTimeseries(r *parser.Row, timestamp int64, needRel
 }
 
 func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, extraLabels []prompbmarshal.Label, honorLabels bool) []prompbmarshal.Label {
+	// if the cap of slice is empty, init the slice to avoid array copy
+	if cap(dst) == 0 {
+		dst = make([]prompbmarshal.Label, 0, 1+len(src)+len(extraLabels))
+	}
 	dstLen := len(dst)
 	dst = append(dst, prompbmarshal.Label{
 		Name:  "__name__",
