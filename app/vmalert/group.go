@@ -35,15 +35,15 @@ type Group struct {
 }
 
 type groupMetrics struct {
-	iterationTotal    *metrics.Counter
-	iterationDuration *metrics.Summary
+	iterationTotal    *counter
+	iterationDuration *summary
 }
 
 func newGroupMetrics(name, file string) *groupMetrics {
 	m := &groupMetrics{}
-	labels := fmt.Sprintf("group=%q, file=%q", name, file)
-	m.iterationTotal = metrics.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
-	m.iterationDuration = metrics.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	labels := fmt.Sprintf(`group=%q, file=%q`, name, file)
+	m.iterationTotal = getOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	m.iterationDuration = getOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
 	return m
 }
 
@@ -122,6 +122,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		if !ok {
 			// old rule is not present in the new list
 			// so we mark it for removing
+			g.Rules[i].Close()
 			g.Rules[i] = nil
 			continue
 		}
@@ -160,7 +161,12 @@ func (g *Group) close() {
 	}
 	close(g.doneCh)
 	<-g.finishedCh
-	// TODO: unregister metrics
+
+	metrics.UnregisterMetric(g.metrics.iterationDuration.name)
+	metrics.UnregisterMetric(g.metrics.iterationTotal.name)
+	for _, rule := range g.Rules {
+		rule.Close()
+	}
 }
 
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {

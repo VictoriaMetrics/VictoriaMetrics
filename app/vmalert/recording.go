@@ -38,7 +38,7 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors *metrics.Gauge
+	errors *gauge
 }
 
 // String implements Stringer interface
@@ -61,7 +61,8 @@ func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
 	}
-	rr.metrics.errors = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{recording=%q, group=%q}`, rr.Name, group.Name),
+	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
+	rr.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
 		func() float64 {
 			rr.mu.Lock()
 			defer rr.mu.Unlock()
@@ -75,7 +76,7 @@ func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 
 // Close unregisters rule metrics
 func (rr *RecordingRule) Close() {
-	// TODO: unregister metrics on exit
+	metrics.UnregisterMetric(rr.metrics.errors.name)
 }
 
 var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")

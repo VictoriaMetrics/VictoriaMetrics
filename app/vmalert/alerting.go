@@ -42,9 +42,9 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors  *metrics.Gauge
-	pending *metrics.Gauge
-	active  *metrics.Gauge
+	errors  *gauge
+	pending *gauge
+	active  *gauge
 }
 
 func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
@@ -60,7 +60,8 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 		metrics:     &alertingRuleMetrics{},
 	}
 
-	ar.metrics.pending = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{alertname=%q, group=%q}`, ar.Name, group.Name),
+	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
+	ar.metrics.pending = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
 			ar.mu.Lock()
 			defer ar.mu.Unlock()
@@ -72,7 +73,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 			}
 			return float64(num)
 		})
-	ar.metrics.active = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{alertname=%q, group=%q}`, ar.Name, group.Name),
+	ar.metrics.active = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
 		func() float64 {
 			ar.mu.Lock()
 			defer ar.mu.Unlock()
@@ -84,7 +85,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = metrics.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_error{alertname=%q, group=%q}`, ar.Name, group.Name),
+	ar.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_error{%s}`, labels),
 		func() float64 {
 			ar.mu.Lock()
 			defer ar.mu.Unlock()
@@ -98,7 +99,9 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 
 // Close unregisters rule metrics
 func (ar *AlertingRule) Close() {
-	// TODO: unregister metrics on exit
+	metrics.UnregisterMetric(ar.metrics.active.name)
+	metrics.UnregisterMetric(ar.metrics.pending.name)
+	metrics.UnregisterMetric(ar.metrics.errors.name)
 }
 
 // String implements Stringer interface
