@@ -47,6 +47,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"any":            aggrFuncAny,
 	"outliersk":      aggrFuncOutliersK,
 	"mode":           newAggrFunc(aggrFuncMode),
+	"zscore":         aggrFuncZScore,
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -355,9 +356,7 @@ func aggrFuncStdvar(tss []*timeseries) []*timeseries {
 	dst := tss[0]
 	for i := range dst.Values {
 		// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
-		var avg float64
-		var count float64
-		var q float64
+		var avg, count, q float64
 		for _, ts := range tss {
 			v := ts.Values[i]
 			if math.IsNaN(v) {
@@ -432,6 +431,52 @@ func aggrFuncMode(tss []*timeseries) []*timeseries {
 		dst.Values[i] = modeNoNaNs(nan, a)
 	}
 	return tss[:1]
+}
+
+func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		for i := range tss[0].Values {
+			// Calculate avg and stddev for tss points at position i.
+			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
+			var avg, count, q float64
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				count++
+				avgNew := avg + (v-avg)/count
+				q += (v - avg) * (v - avgNew)
+				avg = avgNew
+			}
+			if count == 0 {
+				// Cannot calculate z-score for NaN points.
+				continue
+			}
+
+			// Calculate z-score for tss points at position i.
+			// See https://en.wikipedia.org/wiki/Standard_score
+			stddev := math.Sqrt(q / count)
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				ts.Values[i] = (v - avg) / stddev
+			}
+		}
+
+		// Remove MetricGroup from all the tss.
+		for _, ts := range tss {
+			ts.MetricName.ResetMetricGroup()
+		}
+		return tss
+	}
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 // modeNoNaNs returns mode for a.

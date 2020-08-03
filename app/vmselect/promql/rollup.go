@@ -74,6 +74,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"hoeffding_bound_lower": newRollupHoeffdingBoundLower,
 	"ascent_over_time":      newRollupFuncOneArg(rollupAscentOverTime),
 	"descent_over_time":     newRollupFuncOneArg(rollupDescentOverTime),
+	"zscore_over_time":      newRollupFuncOneArg(rollupZScoreOverTime),
 
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
@@ -125,6 +126,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"tmax_over_time":      rollupTmax,
 	"ascent_over_time":    rollupAscentOverTime,
 	"descent_over_time":   rollupDescentOverTime,
+	"zscore_over_time":    rollupZScoreOverTime,
 	"timestamp":           rollupTimestamp,
 	"mode_over_time":      rollupModeOverTime,
 	"rate_over_sum":       rollupRateOverSum,
@@ -153,6 +155,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"integrate":           true,
 	"ascent_over_time":    true,
 	"descent_over_time":   true,
+	"zscore_over_time":    true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -1604,6 +1607,20 @@ func rollupDescentOverTime(rfa *rollupFuncArg) float64 {
 		prevValue = v
 	}
 	return s
+}
+
+func rollupZScoreOverTime(rfa *rollupFuncArg) float64 {
+	// See https://about.gitlab.com/blog/2019/07/23/anomaly-detection-using-prometheus/#using-z-score-for-anomaly-detection
+	scrapeInterval := rollupScrapeInterval(rfa)
+	lag := rollupLag(rfa)
+	if math.IsNaN(scrapeInterval) || math.IsNaN(lag) || lag > scrapeInterval {
+		return nan
+	}
+	d := rollupLast(rfa) - rollupAvg(rfa)
+	if d == 0 {
+		return 0
+	}
+	return d / rollupStddev(rfa)
 }
 
 func rollupFirst(rfa *rollupFuncArg) float64 {
