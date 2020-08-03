@@ -392,6 +392,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("increases_over_time", 5)
 	f("ascent_over_time", 142)
 	f("descent_over_time", 231)
+	f("zscore_over_time", -0.4254336383156416)
 	f("timestamp", 0.13)
 	f("mode_over_time", 34)
 	f("rate_over_sum", 4520)
@@ -980,6 +981,20 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
 		valuesExpected := []float64{nan, 1262.5, 3187.5, 4059.523809523809, 6200}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("zscore_over_time", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupZScoreOverTime,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 80,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 0.9397878236968458, 1.1969836716333457, 2.3112921116373175, nan}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
