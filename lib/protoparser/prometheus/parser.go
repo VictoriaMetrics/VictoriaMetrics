@@ -17,6 +17,11 @@ type Rows struct {
 	tagsPool []Tag
 }
 
+// TagsCnt tags count of the rows
+func (rs *Rows) TagsCnt() int {
+	return len(rs.tagsPool)
+}
+
 // Reset resets rs.
 func (rs *Rows) Reset() {
 	// Reset items, so they can be GC'ed

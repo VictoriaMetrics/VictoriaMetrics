@@ -225,13 +225,11 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
 
-	// if the cap of slice is empty, init the slice to avoid array copy
+	// get the desire cap of labels when first scrape, we can pre allocate space for the slice
+	// this avoids array copy and saves memory
 	if cap(sw.labels) == 0 {
-		capacity := 0
-		for i := range srcRows {
-			capacity = capacity + 1 + len(sw.Config.Labels) + len(srcRows[i].Tags)
-		}
-		sw.labels = make([]prompbmarshal.Label, 0, capacity)
+		desireCap := len(sw.rows.Rows)*(1+len(sw.Config.Labels)) + sw.rows.TagsCnt()
+		sw.labels = make([]prompbmarshal.Label, 0, desireCap)
 	}
 
 	for i := range srcRows {
