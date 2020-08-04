@@ -69,7 +69,9 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 		TLSClientConfig:     tlsCfg,
 		TLSHandshakeTimeout: 5 * time.Second,
 		MaxConnsPerHost:     2 * concurrency,
-		WriteBufferSize:     16 * 1024,
+		MaxIdleConnsPerHost: 2 * concurrency,
+		IdleConnTimeout:     time.Minute,
+		WriteBufferSize:     64 * 1024,
 	}
 	pURL := proxyURL.GetOptionalArg(argIdx)
 	if len(pURL) > 0 {
