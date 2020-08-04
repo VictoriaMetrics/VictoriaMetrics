@@ -80,7 +80,7 @@ func (fs *FS) Init() error {
 	} else {
 		// Determine bucket region.
 		ctx := context.Background()
-		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "")
+		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "us-west-2")
 		if err != nil {
 			return fmt.Errorf("cannot determine region for bucket %q: %w", fs.Bucket, err)
 		}
