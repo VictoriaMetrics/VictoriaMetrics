@@ -143,6 +143,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/billing/apiv1",
     "release_level": "ga"
   },
+  "cloud.google.com/go/billing/budgets/apiv1beta1": {
+    "distribution_name": "cloud.google.com/go/billing/budgets/apiv1beta1",
+    "description": "",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/billing/budgets/apiv1beta1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/cloudbuild/apiv1/v2": {
     "distribution_name": "cloud.google.com/go/cloudbuild/apiv1/v2",
     "description": "Cloud Build API",
@@ -303,6 +311,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/firestore/apiv1/admin",
     "release_level": "ga"
   },
+  "cloud.google.com/go/functions/apiv1": {
+    "distribution_name": "cloud.google.com/go/functions/apiv1",
+    "description": "",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/functions/apiv1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/gaming/apiv1beta": {
     "distribution_name": "cloud.google.com/go/gaming/apiv1beta",
     "description": "",
@@ -405,6 +421,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/monitoring/dashboard/apiv1",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/notebooks/apiv1beta1": {
+    "distribution_name": "cloud.google.com/go/notebooks/apiv1beta1",
+    "description": "Notebooks API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/notebooks/apiv1beta1",
     "release_level": "beta"
   },
   "cloud.google.com/go/osconfig/agentendpoint/apiv1": {
@@ -585,7 +609,7 @@
   },
   "cloud.google.com/go/securitycenter/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/securitycenter/apiv1beta1",
-    "description": "Cloud Security Command Center API",
+    "description": "Security Command Center API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/securitycenter/apiv1beta1",
