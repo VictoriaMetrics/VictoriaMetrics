@@ -10,7 +10,7 @@ cloud.google.com/go/internal/version
 cloud.google.com/go/storage
 # github.com/VictoriaMetrics/fastcache v1.5.7
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/fasthttp v1.0.1
+# github.com/VictoriaMetrics/fasthttp v1.0.4
 github.com/VictoriaMetrics/fasthttp
 github.com/VictoriaMetrics/fasthttp/fasthttputil
 github.com/VictoriaMetrics/fasthttp/stackless
@@ -99,7 +99,7 @@ github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/valyala/fastjson v1.5.3
+# github.com/valyala/fastjson v1.5.4
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
 # github.com/valyala/fastrand v1.0.0
@@ -108,7 +108,7 @@ github.com/valyala/fastrand
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.1.2
 github.com/valyala/histogram
-# github.com/valyala/quicktemplate v1.6.0
+# github.com/valyala/quicktemplate v1.6.2
 github.com/valyala/quicktemplate
 # go.opencensus.io v0.22.4
 go.opencensus.io

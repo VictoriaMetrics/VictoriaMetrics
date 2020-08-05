@@ -201,18 +201,18 @@ func equalColumnDescriptors(a, b []ColumnDescriptor) bool {
 }
 
 func equalColumnDescriptor(x, y ColumnDescriptor) bool {
-	sh1 := &reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&x.ParseTimestamp)),
-		Len:  int(unsafe.Sizeof(x.ParseTimestamp)),
-		Cap:  int(unsafe.Sizeof(x.ParseTimestamp)),
-	}
-	b1 := *(*[]byte)(unsafe.Pointer(sh1))
-	sh2 := &reflect.SliceHeader{
-		Data: uintptr(unsafe.Pointer(&y.ParseTimestamp)),
-		Len:  int(unsafe.Sizeof(y.ParseTimestamp)),
-		Cap:  int(unsafe.Sizeof(y.ParseTimestamp)),
-	}
-	b2 := *(*[]byte)(unsafe.Pointer(sh2))
+	var b1, b2 []byte
+
+	sh1 := (*reflect.SliceHeader)(unsafe.Pointer(&b1))
+	sh1.Data = uintptr(unsafe.Pointer(&x.ParseTimestamp))
+	sh1.Len = int(unsafe.Sizeof(x.ParseTimestamp))
+	sh1.Cap = int(unsafe.Sizeof(x.ParseTimestamp))
+
+	sh2 := (*reflect.SliceHeader)(unsafe.Pointer(&b2))
+	sh2.Data = uintptr(unsafe.Pointer(&y.ParseTimestamp))
+	sh2.Len = int(unsafe.Sizeof(y.ParseTimestamp))
+	sh2.Cap = int(unsafe.Sizeof(y.ParseTimestamp))
+
 	if !bytes.Equal(b1, b2) {
 		return false
 	}
