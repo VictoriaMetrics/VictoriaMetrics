@@ -168,17 +168,11 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 
 var rollupFuncsKeepMetricGroup = map[string]bool{
 	"default_rollup":        true,
-	"avg_over_time":         true,
-	"min_over_time":         true,
-	"max_over_time":         true,
-	"quantile_over_time":    true,
 	"rollup":                true,
-	"geomean_over_time":     true,
 	"hoeffding_bound_lower": true,
 	"hoeffding_bound_upper": true,
 	"first_over_time":       true,
 	"last_over_time":        true,
-	"mode_over_time":        true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
