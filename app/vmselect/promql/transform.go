@@ -17,11 +17,6 @@ import (
 	"github.com/valyala/histogram"
 )
 
-var transformFuncsKeepMetricGroup = map[string]bool{
-	"clamp_max": true,
-	"clamp_min": true,
-}
-
 var transformFuncs = map[string]transformFunc{
 	// Standard promql funcs
 	// See funcs accepting instant-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
@@ -130,12 +125,8 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 }
 
 func doTransformValues(arg []*timeseries, tf func(values []float64), fe *metricsql.FuncExpr) ([]*timeseries, error) {
-	name := strings.ToLower(fe.Name)
-	keepMetricGroup := transformFuncsKeepMetricGroup[name]
 	for _, ts := range arg {
-		if !keepMetricGroup {
-			ts.MetricName.ResetMetricGroup()
-		}
+		ts.MetricName.ResetMetricGroup()
 		tf(ts.Values)
 	}
 	return arg, nil

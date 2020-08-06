@@ -645,7 +645,6 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1000, 1200, 1400, 1400, 1400, 1400},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.MetricGroup = []byte("foobar")
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -657,7 +656,6 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1000, 1200, 1400, 1400, 1400, 1400},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.MetricGroup = []byte("foobar")
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
