@@ -51,8 +51,8 @@ github.com/VictoriaMetrics/fasthttp v1.0.4 h1:Aw6UqmPc0v5PunYOpiiyf4hk5B9PTMswdT
 github.com/VictoriaMetrics/fasthttp v1.0.4/go.mod h1:m5wCmg1dJN6s1B/lp8/dcKrnnM2l3DWB2eAGZGCTK3g=
 github.com/VictoriaMetrics/metrics v1.12.2 h1:SG8iAmqavDNuh7GIdHPoGHUhDL23KeKfvSZSozucNeA=
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
-github.com/VictoriaMetrics/metricsql v0.3.0 h1:610HmpZixn1KiQhV+/BNK/OAHE5M+8Fiy8LtI/xEguo=
-github.com/VictoriaMetrics/metricsql v0.3.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
+github.com/VictoriaMetrics/metricsql v0.4.0 h1:1CMGiUzOgR83Y+hVS83/DaHYLaR6PFw1XWcvQnHn2V8=
+github.com/VictoriaMetrics/metricsql v0.4.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156 h1:eMwmnE/GDgah4HI848JfFxHt+iPb26b4zyfspmqY0/8=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=
 github.com/andybalholm/brotli v1.0.0/go.mod h1:loMXtMfwqflxFJPmdbJO0a3KNoPuLBgiu3qAvBg8x/Y=
