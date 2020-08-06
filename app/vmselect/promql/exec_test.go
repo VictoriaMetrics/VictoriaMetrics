@@ -1713,6 +1713,51 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`scalar < time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `123 < time()`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`time() > scalar`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 123`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar > time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `123 > time()`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`time() < scalar`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() < 123`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar1 < time() < scalar2`, func(t *testing.T) {
+		t.Parallel()
+		q := `1300 < time() < 1700`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1600, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`a cmp scalar (leave MetricGroup)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc((
