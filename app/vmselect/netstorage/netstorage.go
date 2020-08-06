@@ -594,10 +594,10 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.deadline)
+	maxSeriesCount := sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.deadline)
 
-	m := make(map[string][]storage.BlockRef)
-	var orderedMetricNames []string
+	m := make(map[string][]storage.BlockRef, maxSeriesCount)
+	orderedMetricNames := make([]string, 0, maxSeriesCount)
 	blocksRead := 0
 	for sr.NextMetricBlock() {
 		blocksRead++
