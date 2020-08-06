@@ -2,6 +2,7 @@ package pacelimiter
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 // PaceLimiter throttles WaitIfNeeded callers while the number of Inc calls is bigger than the number of Dec calls.
@@ -14,7 +15,7 @@ type PaceLimiter struct {
 	mu          sync.Mutex
 	cond        *sync.Cond
 	delaysTotal uint64
-	n           int
+	n           int32
 }
 
 // New returns pace limiter that throttles WaitIfNeeded callers while the number of Inc calls is bigger than the number of Dec calls.
@@ -26,27 +27,27 @@ func New() *PaceLimiter {
 
 // Inc increments pl.
 func (pl *PaceLimiter) Inc() {
-	pl.mu.Lock()
-	pl.n++
-	pl.mu.Unlock()
+	atomic.AddInt32(&pl.n, 1)
 }
 
 // Dec decrements pl.
 func (pl *PaceLimiter) Dec() {
-	pl.mu.Lock()
-	pl.n--
-	if pl.n == 0 {
+	if atomic.AddInt32(&pl.n, -1) == 0 {
 		// Wake up all the goroutines blocked in WaitIfNeeded,
 		// since the number of Dec calls equals the number of Inc calls.
 		pl.cond.Broadcast()
 	}
-	pl.mu.Unlock()
 }
 
 // WaitIfNeeded blocks while the number of Inc calls is bigger than the number of Dec calls.
 func (pl *PaceLimiter) WaitIfNeeded() {
+	if atomic.LoadInt32(&pl.n) <= 0 {
+		// Fast path - there is no need in lock.
+		return
+	}
+	// Slow path - wait until Dec is called.
 	pl.mu.Lock()
-	for pl.n > 0 {
+	for atomic.LoadInt32(&pl.n) > 0 {
 		pl.delaysTotal++
 		pl.cond.Wait()
 	}
