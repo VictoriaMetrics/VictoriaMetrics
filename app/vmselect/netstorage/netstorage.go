@@ -72,7 +72,7 @@ func (rss *Results) mustClose() {
 	rss.sr = nil
 }
 
-var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs)
+var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs*16)
 
 type timeseriesWork struct {
 	rss    *Results
@@ -167,7 +167,7 @@ type packedTimeseries struct {
 	brs        []storage.BlockRef
 }
 
-var unpackWorkCh = make(chan *unpackWork, gomaxprocs)
+var unpackWorkCh = make(chan *unpackWork, gomaxprocs*128)
 
 type unpackWork struct {
 	br        storage.BlockRef
