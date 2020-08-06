@@ -71,7 +71,7 @@ func (rss *Results) Cancel() {
 	rss.tbf = nil
 }
 
-var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs)
+var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs*16)
 
 type timeseriesWork struct {
 	rss    *Results
@@ -169,7 +169,7 @@ type packedTimeseries struct {
 	addrs      []tmpBlockAddr
 }
 
-var unpackWorkCh = make(chan *unpackWork, gomaxprocs)
+var unpackWorkCh = make(chan *unpackWork, gomaxprocs*128)
 
 type unpackWork struct {
 	tbf       *tmpBlocksFile
