@@ -204,7 +204,7 @@ func (s *Search) NextMetricBlock() bool {
 		return false
 	}
 	for s.ts.NextBlock() {
-		if s.loops&(1<<10) == 0 {
+		if s.loops&(1<<12) == 0 {
 			if err := checkSearchDeadlineAndPace(s.deadline); err != nil {
 				s.err = err
 				return false
