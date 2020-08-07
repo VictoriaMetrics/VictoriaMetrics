@@ -2,7 +2,6 @@ package bytesutil
 
 import (
 	"reflect"
-	"runtime"
 	"unsafe"
 )
 
@@ -24,13 +23,11 @@ func ToUnsafeString(b []byte) string {
 // ToUnsafeBytes converts s to a byte slice without memory allocations.
 //
 // The returned byte slice is valid only until s is reachable and unmodified.
-func ToUnsafeBytes(s string) []byte {
+func ToUnsafeBytes(s string) (b []byte) {
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	var slh reflect.SliceHeader
+	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	slh.Data = sh.Data
 	slh.Len = sh.Len
 	slh.Cap = sh.Len
-	b := *(*[]byte)(unsafe.Pointer(&slh))
-	runtime.KeepAlive(s)
 	return b
 }

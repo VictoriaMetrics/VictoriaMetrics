@@ -4,8 +4,6 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pacelimiter"
 )
 
 // blockStreamMerger is used for merging block streams.
@@ -18,9 +16,6 @@ type blockStreamMerger struct {
 	// Whether the call to NextBlock must be no-op.
 	nextBlockNoop bool
 
-	// Optional pace limiter for limiting the pace for NextBlock calls.
-	pl *pacelimiter.PaceLimiter
-
 	// The last error
 	err error
 }
@@ -32,14 +27,11 @@ func (bsm *blockStreamMerger) reset() {
 	}
 	bsm.bsrHeap = bsm.bsrHeap[:0]
 	bsm.nextBlockNoop = false
-	bsm.pl = nil
 	bsm.err = nil
 }
 
 // Init initializes bsm with the given bsrs.
-//
-// pl is an optional pace limiter, which allows limiting the pace for NextBlock calls.
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, pl *pacelimiter.PaceLimiter) {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader) {
 	bsm.reset()
 	for _, bsr := range bsrs {
 		if bsr.NextBlock() {
@@ -60,7 +52,6 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, pl *pacelimiter.Pa
 	heap.Init(&bsm.bsrHeap)
 	bsm.Block = &bsm.bsrHeap[0].Block
 	bsm.nextBlockNoop = true
-	bsm.pl = pl
 }
 
 // NextBlock stores the next block in bsm.Block.
@@ -74,9 +65,6 @@ func (bsm *blockStreamMerger) NextBlock() bool {
 	if bsm.nextBlockNoop {
 		bsm.nextBlockNoop = false
 		return true
-	}
-	if bsm.pl != nil {
-		bsm.pl.WaitIfNeeded()
 	}
 
 	bsm.err = bsm.nextBlock()

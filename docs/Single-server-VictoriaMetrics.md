@@ -130,6 +130,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
 * [Backfilling](#backfilling)
+* [Data updates](#data-updates)
 * [Replication](#replication)
 * [Backups](#backups)
 * [Profiling](#profiling)
@@ -249,7 +250,9 @@ It is safe upgrading VictoriaMetrics to new versions unless [release notes](http
 say otherwise. It is recommended performing regular upgrades to the latest version,
 since it may contain important bug fixes, performance optimizations or new features.
 
-Follow the following steps during the upgrade:
+It is also safe downgrading to the previous version unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+
+The following steps must be performed during the upgrade / downgrade:
 
 1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
 2) Wait until the process stops. This can take a few seconds.
@@ -394,6 +397,7 @@ or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/mas
 
 VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
 and [HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html) for ingesting OpenTSDB data.
+The same protocol is used for [ingesting data in KairosDB](https://kairosdb.github.io/docs/build/html/PushingData.html).
 
 #### Sending data via `telnet put` protocol
 
@@ -1072,6 +1076,14 @@ the query cache, which could contain incomplete data cached during the backfilli
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time.
+
+
+### Data updates
+
+VictoriaMetrics doesn't support updating already exiting sample values to new ones. It stores all the ingested data points
+for the same time series with identical timestamps. While is possible substituting old time series with new time series via
+[removal of old time series](#how-to-delete-timeseries) and then [writing new time series](#backfilling), this approach
+should be used only for one-off updates. It shouldn't be used for frequent updates because of non-zero overhead related to data removal.
 
 
 ### Replication

@@ -58,19 +58,22 @@ run-vmauth:
 	$(MAKE) run-via-docker
 
 vmauth-amd64:
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmauth-amd64 ./app/vmauth
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmauth-local-with-goarch
 
 vmauth-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmauth-arm ./app/vmauth
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmauth-local-with-goarch
 
 vmauth-arm64:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmauth-arm64 ./app/vmauth
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmauth-local-with-goarch
 
 vmauth-ppc64le:
-	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmauth-ppc64le ./app/vmauth
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmauth-local-with-goarch
 
 vmauth-386:
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmauth-386 ./app/vmauth
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmauth-local-with-goarch
+
+vmauth-local-with-goarch:
+	APP_NAME=vmauth $(MAKE) app-local-with-goarch
 
 vmauth-pure:
 	APP_NAME=vmauth $(MAKE) app-local-pure

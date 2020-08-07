@@ -39,7 +39,12 @@ func mustRemoveAll(path string, done func()) bool {
 	return false
 }
 
-var nfsDirRemoveFailedAttempts = metrics.NewCounter(`vm_nfs_dir_remove_failed_attempts_total`)
+var (
+	nfsDirRemoveFailedAttempts = metrics.NewCounter(`vm_nfs_dir_remove_failed_attempts_total`)
+	_                          = metrics.NewGauge(`vm_nfs_pending_dirs_to_remove`, func() float64 {
+		return float64(len(removeDirCh))
+	})
+)
 
 type removeDirWork struct {
 	path string

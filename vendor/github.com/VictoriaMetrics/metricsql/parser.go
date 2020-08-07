@@ -399,7 +399,7 @@ func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
 	case "{":
 		return p.parseMetricExpr()
 	case "-":
-		// Unary minus. Substitute -expr with (0 - expr)
+		// Unary minus. Substitute `-expr` with `0 - expr`
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
@@ -414,8 +414,7 @@ func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
 			},
 			Right: e,
 		}
-		pe := parensExpr{be}
-		return &pe, nil
+		return be, nil
 	case "+":
 		// Unary plus
 		if err := p.lex.Next(); err != nil {
@@ -431,18 +430,24 @@ func (p *parser) parsePositiveNumberExpr() (*NumberExpr, error) {
 	if !isPositiveNumberPrefix(p.lex.Token) && !isInfOrNaN(p.lex.Token) {
 		return nil, fmt.Errorf(`positiveNumberExpr: unexpected token %q; want "number"`, p.lex.Token)
 	}
-
-	n, err := strconv.ParseFloat(p.lex.Token, 64)
-	if err != nil {
-		return nil, fmt.Errorf(`positiveNumberExpr: cannot parse %q: %s`, p.lex.Token, err)
+	var ne NumberExpr
+	if isSpecialIntegerPrefix(p.lex.Token) {
+		in, err := strconv.ParseInt(p.lex.Token, 0, 64)
+		if err != nil {
+			return nil, fmt.Errorf(`positiveNumberExpr: cannot parse integer %q: %s`, p.lex.Token, err)
+		}
+		ne.N = float64(in)
+	} else {
+		n, err := strconv.ParseFloat(p.lex.Token, 64)
+		if err != nil {
+			return nil, fmt.Errorf(`positiveNumberExpr: cannot parse %q: %s`, p.lex.Token, err)
+		}
+		ne.N = n
 	}
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
-	ne := &NumberExpr{
-		N: n,
-	}
-	return ne, nil
+	return &ne, nil
 }
 
 func (p *parser) parseStringExpr() (*StringExpr, error) {

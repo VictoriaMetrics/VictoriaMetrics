@@ -21,7 +21,8 @@ type manager struct {
 	rw *remotewrite.Client
 	rr datasource.Querier
 
-	wg sync.WaitGroup
+	wg     sync.WaitGroup
+	labels map[string]string
 
 	groupsMu sync.RWMutex
 	groups   map[uint64]*Group
@@ -64,7 +65,7 @@ func (m *manager) close() {
 
 func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) {
 	if restore && m.rr != nil {
-		err := group.Restore(ctx, m.rr, *remoteReadLookBack)
+		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
 		if err != nil {
 			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
 		}
@@ -88,7 +89,7 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 
 	groupsRegistry := make(map[uint64]*Group)
 	for _, cfg := range groupsCfg {
-		ng := newGroup(cfg, *evaluationInterval)
+		ng := newGroup(cfg, *evaluationInterval, m.labels)
 		groupsRegistry[ng.ID()] = ng
 	}
 

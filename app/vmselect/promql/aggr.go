@@ -27,7 +27,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk":      newAggrFuncTopK(true),
 	"topk":         newAggrFuncTopK(false),
 	"quantile":     aggrFuncQuantile,
-	"group":        aggrFuncGroup,
+	"group":        newAggrFunc(aggrFuncGroup),
 
 	// PromQL extension funcs
 	"median":         aggrFuncMedian,
@@ -47,6 +47,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"any":            aggrFuncAny,
 	"outliersk":      aggrFuncOutliersK,
 	"mode":           newAggrFunc(aggrFuncMode),
+	"zscore":         aggrFuncZScore,
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -140,25 +141,20 @@ func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
 	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, true)
 }
 
-func aggrFuncGroup(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
-		return nil, err
-	}
-	afe := func(tss []*timeseries) []*timeseries {
-		// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
-		values := tss[0].Values
-		for j := range values {
-			values[j] = 1
+func aggrFuncGroup(tss []*timeseries) []*timeseries {
+	// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
+	dst := tss[0]
+	for i := range dst.Values {
+		v := nan
+		for _, ts := range tss {
+			if math.IsNaN(ts.Values[i]) {
+				continue
+			}
+			v = 1
 		}
-		return tss[:1]
+		dst.Values[i] = v
 	}
-	limit := afa.ae.Limit
-	if limit > 1 {
-		// Only a single time series per group must be returned
-		limit = 1
-	}
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, false)
+	return tss[:1]
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {
@@ -360,9 +356,7 @@ func aggrFuncStdvar(tss []*timeseries) []*timeseries {
 	dst := tss[0]
 	for i := range dst.Values {
 		// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
-		var avg float64
-		var count float64
-		var q float64
+		var avg, count, q float64
 		for _, ts := range tss {
 			v := ts.Values[i]
 			if math.IsNaN(v) {
@@ -437,6 +431,52 @@ func aggrFuncMode(tss []*timeseries) []*timeseries {
 		dst.Values[i] = modeNoNaNs(nan, a)
 	}
 	return tss[:1]
+}
+
+func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
+	args := afa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		for i := range tss[0].Values {
+			// Calculate avg and stddev for tss points at position i.
+			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
+			var avg, count, q float64
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				count++
+				avgNew := avg + (v-avg)/count
+				q += (v - avg) * (v - avgNew)
+				avg = avgNew
+			}
+			if count == 0 {
+				// Cannot calculate z-score for NaN points.
+				continue
+			}
+
+			// Calculate z-score for tss points at position i.
+			// See https://en.wikipedia.org/wiki/Standard_score
+			stddev := math.Sqrt(q / count)
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				ts.Values[i] = (v - avg) / stddev
+			}
+		}
+
+		// Remove MetricGroup from all the tss.
+		for _, ts := range tss {
+			ts.MetricName.ResetMetricGroup()
+		}
+		return tss
+	}
+	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 // modeNoNaNs returns mode for a.

@@ -429,11 +429,21 @@ func registerStorageMetrics() {
 		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
+	metrics.NewGauge(`vm_concurrent_search_tsids_limit_reached_total`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyLimitReached)
+	})
+	metrics.NewGauge(`vm_concurrent_search_tsids_limit_timeout_total`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyLimitTimeout)
+	})
+	metrics.NewGauge(`vm_concurrent_search_tsids_capacity`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyCapacity)
+	})
+	metrics.NewGauge(`vm_concurrent_search_tsids_current`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyCurrent)
+	})
+
 	metrics.NewGauge(`vm_search_delays_total`, func() float64 {
 		return float64(m().SearchDelays)
-	})
-	metrics.NewGauge(`vm_big_merges_delays_total`, func() float64 {
-		return float64(tm().BigMergesDelays)
 	})
 
 	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {
@@ -513,7 +523,7 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
 	})
-	metrics.NewGauge(`vm_cache_size_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
+	metrics.NewGauge(`vm_cache_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSize)
 	})
 

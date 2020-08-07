@@ -44,9 +44,18 @@ compatible storage address for storing recording rules results and alerts state 
 Then configure `vmalert` accordingly:
 ```
 ./bin/vmalert -rule=alert.rules \
-		-datasource.url=http://localhost:8428 \
-        -notifier.url=http://localhost:9093
+    -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
+    -notifier.url=http://localhost:9093 \    # AlertManager URL
+    -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
+    -remoteWrite.url=http://localhost:8428 \ # remote write compatible storage to persist rules
+    -remoteRead.url=http://localhost:8428 \  # PromQL compatible datasource to restore alerts state from
+    -external.label=cluster=east-1 \         # External label to be applied for each rule
+    -external.label=replica=a \              # Multiple external labels may be set
+    -evaluationInterval=3s                   # Default evaluation interval if not specified in rules group
 ```
+
+If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
+to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts. 
 
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) 
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very 
@@ -174,6 +183,8 @@ Usage of vmalert:
         How often to evaluate the rules (default 1m0s)
   -external.url string
         External URL is used as alert's source for sent alerts to the notifier
+  -external.label array
+        Optional label in the form 'name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
   -httpListenAddr string
         Address to listen for http connections (default ":8880")
   -metricsAuthKey string
@@ -275,3 +286,20 @@ It is recommended using
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmalert-prod` from the root folder of the repository.
    It builds `vmalert-prod` binary and puts it into the `bin` folder.
+
+
+#### ARM build
+
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
+#### Development ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of the repository.
+   It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
+
+#### Production ARM build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmalert-arm-prod` or `make vmalert-arm64-prod` from the root folder of the repository.
+   It builds `vmalert-arm-prod` or `vmalert-arm64-prod` binary respectively and puts it into the `bin` folder.

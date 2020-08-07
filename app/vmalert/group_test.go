@@ -150,7 +150,7 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
 	const evalInterval = time.Millisecond
-	g := newGroup(groups[0], evalInterval)
+	g := newGroup(groups[0], evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
 	fn := &fakeNotifier{}

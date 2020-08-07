@@ -66,14 +66,17 @@ func insertRows(db string, rows []parser.Row) error {
 	for i := range rows {
 		r := &rows[i]
 		ic.Labels = ic.Labels[:0]
+		hasDBKey := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			if tag.Key == "db" {
-				db = ""
+				hasDBKey = true
 			}
 			ic.AddLabel(tag.Key, tag.Value)
 		}
-		ic.AddLabel("db", db)
+		if !hasDBKey {
+			ic.AddLabel("db", db)
+		}
 		ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 		if !*skipMeasurement {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, r.Measurement...)

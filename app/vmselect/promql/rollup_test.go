@@ -174,6 +174,7 @@ func testRollupFunc(t *testing.T, funcName string, args []interface{}, meExpecte
 	rfa.prevTimestamp = 0
 	rfa.values = append(rfa.values, testValues...)
 	rfa.timestamps = append(rfa.timestamps, testTimestamps...)
+	rfa.window = rfa.timestamps[len(rfa.timestamps)-1] - rfa.timestamps[0]
 	if rollupFuncsRemoveCounterResets[funcName] {
 		removeCounterResets(rfa.values)
 	}
@@ -391,9 +392,10 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("increases_over_time", 5)
 	f("ascent_over_time", 142)
 	f("descent_over_time", 231)
+	f("zscore_over_time", -0.4254336383156416)
 	f("timestamp", 0.13)
 	f("mode_over_time", 34)
-	f("rate_over_sum", 3536)
+	f("rate_over_sum", 4520)
 }
 
 func TestRollupNewRollupFuncError(t *testing.T) {
@@ -978,7 +980,21 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, 2870.967741935484, 3240, 4059.523809523809, 6200}
+		valuesExpected := []float64{nan, 1262.5, 3187.5, 4059.523809523809, 6200}
+		timestampsExpected := []int64{0, 40, 80, 120, 160}
+		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	t.Run("zscore_over_time", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:   rollupZScoreOverTime,
+			Start:  0,
+			End:    160,
+			Step:   40,
+			Window: 80,
+		}
+		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
+		values := rc.Do(nil, testValues, testTimestamps)
+		valuesExpected := []float64{nan, 0.9397878236968458, 1.1969836716333457, 2.3112921116373175, nan}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -1040,15 +1056,14 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 	}
 }
 
-func TestRollupIncrease(t *testing.T) {
+func TestRollupDelta(t *testing.T) {
 	f := func(prevValue float64, values []float64, resultExpected float64) {
 		t.Helper()
 		rfa := &rollupFuncArg{
-			prevValue:     prevValue,
-			realPrevValue: prevValue,
-			values:        values,
+			prevValue: prevValue,
+			values:    values,
 		}
-		result := rollupIncrease(rfa)
+		result := rollupDelta(rfa)
 		if math.IsNaN(result) {
 			if !math.IsNaN(resultExpected) {
 				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)

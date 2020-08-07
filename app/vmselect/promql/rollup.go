@@ -28,8 +28,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"deriv_fast":         newRollupFuncOneArg(rollupDerivFast),
 	"holt_winters":       newRollupHoltWinters,
 	"idelta":             newRollupFuncOneArg(rollupIdelta),
-	"increase":           newRollupFuncOneArg(rollupIncrease), // + rollupFuncsRemoveCounterResets
-	"irate":              newRollupFuncOneArg(rollupIderiv),   // + rollupFuncsRemoveCounterResets
+	"increase":           newRollupFuncOneArg(rollupDelta),  // + rollupFuncsRemoveCounterResets
+	"irate":              newRollupFuncOneArg(rollupIderiv), // + rollupFuncsRemoveCounterResets
 	"predict_linear":     newRollupPredictLinear,
 	"rate":               newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
 	"resets":             newRollupFuncOneArg(rollupResets),
@@ -74,6 +74,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"hoeffding_bound_lower": newRollupHoeffdingBoundLower,
 	"ascent_over_time":      newRollupFuncOneArg(rollupAscentOverTime),
 	"descent_over_time":     newRollupFuncOneArg(rollupDescentOverTime),
+	"zscore_over_time":      newRollupFuncOneArg(rollupZScoreOverTime),
 
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
@@ -94,7 +95,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"deriv":            rollupDerivSlow,
 	"deriv_fast":       rollupDerivFast,
 	"idelta":           rollupIdelta,
-	"increase":         rollupIncrease,  // + rollupFuncsRemoveCounterResets
+	"increase":         rollupDelta,     // + rollupFuncsRemoveCounterResets
 	"irate":            rollupIderiv,    // + rollupFuncsRemoveCounterResets
 	"rate":             rollupDerivFast, // + rollupFuncsRemoveCounterResets
 	"resets":           rollupResets,
@@ -125,6 +126,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"tmax_over_time":      rollupTmax,
 	"ascent_over_time":    rollupAscentOverTime,
 	"descent_over_time":   rollupDescentOverTime,
+	"zscore_over_time":    rollupZScoreOverTime,
 	"timestamp":           rollupTimestamp,
 	"mode_over_time":      rollupModeOverTime,
 	"rate_over_sum":       rollupRateOverSum,
@@ -153,6 +155,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"integrate":           true,
 	"ascent_over_time":    true,
 	"descent_over_time":   true,
+	"zscore_over_time":    true,
 }
 
 var rollupFuncsRemoveCounterResets = map[string]bool{
@@ -165,17 +168,11 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 
 var rollupFuncsKeepMetricGroup = map[string]bool{
 	"default_rollup":        true,
-	"avg_over_time":         true,
-	"min_over_time":         true,
-	"max_over_time":         true,
-	"quantile_over_time":    true,
 	"rollup":                true,
-	"geomean_over_time":     true,
 	"hoeffding_bound_lower": true,
 	"hoeffding_bound_upper": true,
 	"first_over_time":       true,
 	"last_over_time":        true,
-	"mode_over_time":        true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
@@ -325,11 +322,7 @@ type rollupFuncArg struct {
 
 	currTimestamp int64
 	idx           int
-	step          int64
-
-	// Real previous value even if it is located too far from the current window.
-	// It matches prevValue if prevValue is not nan.
-	realPrevValue float64
+	window        int64
 
 	tsm *timeseriesMap
 }
@@ -341,8 +334,7 @@ func (rfa *rollupFuncArg) reset() {
 	rfa.timestamps = nil
 	rfa.currTimestamp = 0
 	rfa.idx = 0
-	rfa.step = 0
-	rfa.realPrevValue = nan
+	rfa.window = 0
 	rfa.tsm = nil
 }
 
@@ -486,8 +478,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	}
 	rfa := getRollupFuncArg()
 	rfa.idx = 0
-	rfa.step = rc.Step
-	rfa.realPrevValue = nan
+	rfa.window = window
 	rfa.tsm = tsm
 
 	i := 0
@@ -514,9 +505,6 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
 		rfa.currTimestamp = tEnd
-		if i > 0 {
-			rfa.realPrevValue = values[i-1]
-		}
 		value := rc.Func(rfa)
 		rfa.idx++
 		dstValues = append(dstValues, value)
@@ -1089,25 +1077,22 @@ func rollupSum(rfa *rollupFuncArg) float64 {
 func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	values := rfa.values
 	timestamps := rfa.timestamps
-	prevTimestamp := rfa.prevTimestamp
-	if math.IsNaN(rfa.prevValue) {
-		if len(values) == 0 {
+	if len(timestamps) == 0 {
+		if math.IsNaN(rfa.prevValue) {
 			return nan
 		}
-		prevTimestamp = timestamps[0]
-		values = values[1:]
-		timestamps = timestamps[1:]
+		// Assume that the value didn't change since rfa.prevValue.
+		return 0
 	}
-	if len(values) == 0 {
-		return nan
+	dt := rfa.window
+	if !math.IsNaN(rfa.prevValue) {
+		dt = timestamps[len(timestamps)-1] - rfa.prevTimestamp
 	}
 	sum := float64(0)
-	for _, v := range values {
+	for _, v := range rfa.values {
 		sum += v
 	}
-	dt := timestamps[len(timestamps)-1] - prevTimestamp
 	return sum / (float64(dt) / 1e3)
 }
 
@@ -1199,14 +1184,6 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 }
 
 func rollupDelta(rfa *rollupFuncArg) float64 {
-	return rollupDeltaInternal(rfa, false)
-}
-
-func rollupIncrease(rfa *rollupFuncArg) float64 {
-	return rollupDeltaInternal(rfa, true)
-}
-
-func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
@@ -1230,11 +1207,9 @@ func rollupDeltaInternal(rfa *rollupFuncArg, canUseRealPrevValue bool) float64 {
 		}
 		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
 			prevValue = 0
-			if canUseRealPrevValue && !math.IsNaN(rfa.realPrevValue) {
-				prevValue = rfa.realPrevValue
-			}
 		} else {
 			prevValue = values[0]
+			values = values[1:]
 		}
 	}
 	if len(values) == 0 {
@@ -1501,7 +1476,7 @@ func getCandlestickValues(rfa *rollupFuncArg) []float64 {
 }
 
 func getFirstValueForCandlestick(rfa *rollupFuncArg) float64 {
-	if rfa.prevTimestamp+rfa.step >= rfa.currTimestamp {
+	if rfa.prevTimestamp+rfa.window >= rfa.currTimestamp {
 		return rfa.prevValue
 	}
 	return nan
@@ -1626,6 +1601,20 @@ func rollupDescentOverTime(rfa *rollupFuncArg) float64 {
 		prevValue = v
 	}
 	return s
+}
+
+func rollupZScoreOverTime(rfa *rollupFuncArg) float64 {
+	// See https://about.gitlab.com/blog/2019/07/23/anomaly-detection-using-prometheus/#using-z-score-for-anomaly-detection
+	scrapeInterval := rollupScrapeInterval(rfa)
+	lag := rollupLag(rfa)
+	if math.IsNaN(scrapeInterval) || math.IsNaN(lag) || lag > scrapeInterval {
+		return nan
+	}
+	d := rollupLast(rfa) - rollupAvg(rfa)
+	if d == 0 {
+		return 0
+	}
+	return d / rollupStddev(rfa)
 }
 
 func rollupFirst(rfa *rollupFuncArg) float64 {

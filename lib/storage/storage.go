@@ -40,6 +40,9 @@ type Storage struct {
 	addRowsConcurrencyLimitTimeout uint64
 	addRowsConcurrencyDroppedRows  uint64
 
+	searchTSIDsConcurrencyLimitReached uint64
+	searchTSIDsConcurrencyLimitTimeout uint64
+
 	slowRowInserts         uint64
 	slowPerDayIndexInserts uint64
 	slowMetricNameLoads    uint64
@@ -92,10 +95,9 @@ type Storage struct {
 
 	stop chan struct{}
 
-	currHourMetricIDsUpdaterWG   sync.WaitGroup
-	nextDayMetricIDsUpdaterWG    sync.WaitGroup
-	retentionWatcherWG           sync.WaitGroup
-	prefetchedMetricIDsCleanerWG sync.WaitGroup
+	currHourMetricIDsUpdaterWG sync.WaitGroup
+	nextDayMetricIDsUpdaterWG  sync.WaitGroup
+	retentionWatcherWG         sync.WaitGroup
 
 	// The snapshotLock prevents from concurrent creation of snapshots,
 	// since this may result in snapshots without recently added data,
@@ -186,7 +188,6 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-	s.startPrefetchedMetricIDsCleaner()
 
 	return s, nil
 }
@@ -328,6 +329,11 @@ type Metrics struct {
 	AddRowsConcurrencyCapacity     uint64
 	AddRowsConcurrencyCurrent      uint64
 
+	SearchTSIDsConcurrencyLimitReached uint64
+	SearchTSIDsConcurrencyLimitTimeout uint64
+	SearchTSIDsConcurrencyCapacity     uint64
+	SearchTSIDsConcurrencyCurrent      uint64
+
 	SearchDelays uint64
 
 	SlowRowInserts         uint64
@@ -388,6 +394,11 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.AddRowsConcurrencyCapacity = uint64(cap(addRowsConcurrencyCh))
 	m.AddRowsConcurrencyCurrent = uint64(len(addRowsConcurrencyCh))
 
+	m.SearchTSIDsConcurrencyLimitReached += atomic.LoadUint64(&s.searchTSIDsConcurrencyLimitReached)
+	m.SearchTSIDsConcurrencyLimitTimeout += atomic.LoadUint64(&s.searchTSIDsConcurrencyLimitTimeout)
+	m.SearchTSIDsConcurrencyCapacity = uint64(cap(searchTSIDsConcurrencyCh))
+	m.SearchTSIDsConcurrencyCurrent = uint64(len(searchTSIDsConcurrencyCh))
+
 	m.SearchDelays = storagepacelimiter.Search.DelaysTotal()
 
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
@@ -443,27 +454,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
-}
-
-func (s *Storage) startPrefetchedMetricIDsCleaner() {
-	s.prefetchedMetricIDsCleanerWG.Add(1)
-	go func() {
-		s.prefetchedMetricIDsCleaner()
-		s.prefetchedMetricIDsCleanerWG.Done()
-	}()
-}
-
-func (s *Storage) prefetchedMetricIDsCleaner() {
-	t := time.NewTicker(7 * time.Minute)
-	for {
-		select {
-		case <-s.stop:
-			t.Stop()
-			return
-		case <-t.C:
-			s.prefetchedMetricIDs.Store(&uint64set.Set{})
-		}
-	}
 }
 
 func (s *Storage) startRetentionWatcher() {
@@ -802,12 +792,46 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	// Do not cache tfss -> tsids here, since the caching is performed
 	// on idb level.
+
+	// Limit the number of concurrent goroutines that may search TSIDS in the storage.
+	// This should prevent from out of memory errors and CPU trashing when too many
+	// goroutines call searchTSIDs.
+	select {
+	case searchTSIDsConcurrencyCh <- struct{}{}:
+	default:
+		// Sleep for a while until giving up
+		atomic.AddUint64(&s.searchTSIDsConcurrencyLimitReached, 1)
+		currentTime := fasttime.UnixTimestamp()
+		timeoutSecs := uint64(0)
+		if currentTime < deadline {
+			timeoutSecs = deadline - currentTime
+		}
+		timeout := time.Second * time.Duration(timeoutSecs)
+		t := timerpool.Get(timeout)
+		select {
+		case searchTSIDsConcurrencyCh <- struct{}{}:
+			timerpool.Put(t)
+		case <-t.C:
+			timerpool.Put(t)
+			atomic.AddUint64(&s.searchTSIDsConcurrencyLimitTimeout, 1)
+			return nil, fmt.Errorf("cannot search for tsids, since more than %d concurrent searches are performed during %.3f secs; add more CPUs or reduce query load",
+				cap(searchTSIDsConcurrencyCh), timeout.Seconds())
+		}
+	}
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics, deadline)
+	<-searchTSIDsConcurrencyCh
 	if err != nil {
 		return nil, fmt.Errorf("error when searching tsids for tfss %q: %w", tfss, err)
 	}
 	return tsids, nil
 }
+
+var (
+	// Limit the concurrency for TSID searches to GOMAXPROCS*2, since this operation
+	// is CPU bound and sometimes disk IO bound, so there is no sense in running more
+	// than GOMAXPROCS*2 concurrent goroutines for TSID searches.
+	searchTSIDsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1)*2)
+)
 
 // prefetchMetricNames pre-fetches metric names for the given tsids into metricID->metricName cache.
 //
@@ -840,7 +864,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	is := idb.getIndexSearch(deadline)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
-		if loops&(1<<10) == 0 {
+		if loops&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -852,8 +876,13 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	}
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
+
 	prefetchedMetricIDsNew := prefetchedMetricIDs.Clone()
 	prefetchedMetricIDsNew.AddMulti(metricIDs)
+	if prefetchedMetricIDsNew.SizeBytes() > uint64(memory.Allowed())/32 {
+		// Reset prefetchedMetricIDsNew if it occupies too much space.
+		prefetchedMetricIDsNew = &uint64set.Set{}
+	}
 	s.prefetchedMetricIDs.Store(prefetchedMetricIDsNew)
 	return nil
 }
@@ -1016,14 +1045,20 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		// Sleep for a while until giving up
 		atomic.AddUint64(&s.addRowsConcurrencyLimitReached, 1)
 		t := timerpool.Get(addRowsTimeout)
+
+		// Prioritize data ingestion over concurrent searches.
+		storagepacelimiter.Search.Inc()
+
 		select {
 		case addRowsConcurrencyCh <- struct{}{}:
 			timerpool.Put(t)
+			storagepacelimiter.Search.Dec()
 		case <-t.C:
 			timerpool.Put(t)
+			storagepacelimiter.Search.Dec()
 			atomic.AddUint64(&s.addRowsConcurrencyLimitTimeout, 1)
 			atomic.AddUint64(&s.addRowsConcurrencyDroppedRows, uint64(len(mrs)))
-			return fmt.Errorf("Cannot add %d rows to storage in %s, since it is overloaded with %d concurrent writers. Add more CPUs or reduce load",
+			return fmt.Errorf("cannot add %d rows to storage in %s, since it is overloaded with %d concurrent writers; add more CPUs or reduce load",
 				len(mrs), addRowsTimeout, cap(addRowsConcurrencyCh))
 		}
 	}
@@ -1129,7 +1164,6 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 	}
 	if pmrs != nil {
-		atomic.AddUint64(&s.slowRowInserts, uint64(len(pmrs.pmrs)))
 		// Sort pendingMetricRows by canonical metric name in order to speed up search via `is` in the loop below.
 		pendingMetricRows := pmrs.pmrs
 		sort.Slice(pendingMetricRows, func(i, j int) bool {
@@ -1137,6 +1171,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		})
 		is := idb.getIndexSearch(noDeadline)
 		prevMetricNameRaw = nil
+		var slowInsertsCount uint64
 		for i := range pendingMetricRows {
 			pmr := &pendingMetricRows[i]
 			mr := &pmr.mr
@@ -1160,6 +1195,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				prevMetricNameRaw = mr.MetricNameRaw
 				continue
 			}
+			slowInsertsCount++
 			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName); err != nil {
 				// Do not stop adding rows on error - just skip invalid row.
 				// This guarantees that invalid rows don't prevent
@@ -1174,6 +1210,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		}
 		idb.putIndexSearch(is)
 		putPendingMetricRows(pmrs)
+		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
 		logger.Errorf("warn occurred during rows addition: %s", firstWarn)

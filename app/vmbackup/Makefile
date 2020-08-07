@@ -51,20 +51,23 @@ package-vmbackup-386:
 publish-vmbackup:
 	APP_NAME=vmbackup $(MAKE) publish-via-docker
 
-vmbackup-pure:
-	APP_NAME=vmbackup $(MAKE) app-local-pure
-
 vmbackup-amd64:
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-amd64 ./app/vmbackup
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmbackup-local-with-goarch
 
 vmbackup-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-arm ./app/vmbackup
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmbackup-local-with-goarch
 
 vmbackup-arm64:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-arm64 ./app/vmbackup
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmbackup-local-with-goarch
 
 vmbackup-ppc64le:
-	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-ppc64le ./app/vmbackup
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmbackup-local-with-goarch
 
 vmbackup-386:
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmbackup-386 ./app/vmbackup
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmbackup-local-with-goarch
+
+vmbackup-local-with-goarch:
+	APP_NAME=vmbackup $(MAKE) app-local-with-goarch
+
+vmbackup-pure:
+	APP_NAME=vmbackup $(MAKE) app-local-pure

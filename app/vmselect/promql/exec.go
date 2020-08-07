@@ -26,7 +26,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 		defer func() {
 			d := time.Since(startTime)
 			if d >= *logSlowQueryDuration {
-				logger.Infof("slow query according to -search.logSlowQueryDuration=%s: duration=%.3f seconds, start=%d, end=%d, step=%d, query=%q",
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: duration=%.3f seconds, start=%d, end=%d, step=%d, query=%q",
 					*logSlowQueryDuration, d.Seconds(), ec.Start/1000, ec.End/1000, ec.Step/1000, q)
 				slowQueries.Inc()
 			}
@@ -133,10 +133,50 @@ func removeNaNs(tss []*timeseries) []*timeseries {
 	return rvs
 }
 
+func adjustCmpOps(e metricsql.Expr) metricsql.Expr {
+	metricsql.VisitAll(e, func(expr metricsql.Expr) {
+		be, ok := expr.(*metricsql.BinaryOpExpr)
+		if !ok {
+			return
+		}
+		if !metricsql.IsBinaryOpCmp(be.Op) {
+			return
+		}
+		if _, ok := be.Left.(*metricsql.NumberExpr); !ok {
+			return
+		}
+		// Convert 'num cmpOp query' expression to `query reverseCmpOp num` expression
+		// like Prometheus does. For isntance, `0.5 < foo` must be converted to `foo > 0.5`
+		// in order to return valid values for `foo` that are bigger than 0.5.
+		be.Right, be.Left = be.Left, be.Right
+		be.Op = getReverseCmpOp(be.Op)
+	})
+	return e
+}
+
+func getReverseCmpOp(op string) string {
+	switch op {
+	case ">":
+		return "<"
+	case "<":
+		return ">"
+	case ">=":
+		return "<="
+	case "<=":
+		return ">="
+	default:
+		// there is no need in changing `==` and `!=`.
+		return op
+	}
+}
+
 func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 	pcv := parseCacheV.Get(q)
 	if pcv == nil {
 		e, err := metricsql.Parse(q)
+		if err == nil {
+			e = adjustCmpOps(e)
+		}
 		pcv = &parseCacheValue{
 			e:   e,
 			err: err,

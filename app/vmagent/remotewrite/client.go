@@ -69,7 +69,9 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 		TLSClientConfig:     tlsCfg,
 		TLSHandshakeTimeout: 5 * time.Second,
 		MaxConnsPerHost:     2 * concurrency,
-		WriteBufferSize:     16 * 1024,
+		MaxIdleConnsPerHost: 2 * concurrency,
+		IdleConnTimeout:     time.Minute,
+		WriteBufferSize:     64 * 1024,
 	}
 	pURL := proxyURL.GetOptionalArg(argIdx)
 	if len(pURL) > 0 {
@@ -182,6 +184,9 @@ func (c *client) runWorker() {
 }
 
 func (c *client) sendBlock(block []byte) {
+	retryDuration := time.Second
+
+again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
 		logger.Panicf("BUG: unexected error from http.NewRequest(%q): %s", c.remoteWriteURL, err)
@@ -195,9 +200,6 @@ func (c *client) sendBlock(block []byte) {
 		req.Header.Set("Authorization", c.authHeader)
 	}
 
-	retryDuration := time.Second
-
-again:
 	startTime := time.Now()
 	resp, err := c.hc.Do(req)
 	c.requestDuration.UpdateDuration(startTime)
@@ -220,28 +222,33 @@ again:
 		goto again
 	}
 	statusCode := resp.StatusCode
-	if statusCode/100 != 2 {
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.urlLabelValue, statusCode)).Inc()
-		retryDuration *= 2
-		if retryDuration > time.Minute {
-			retryDuration = time.Minute
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Errorf("cannot read response body from %q: %s", c.remoteWriteURL, err)
-		} else {
-			logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q: %d; response body=%q; re-sending the block in %.3f seconds",
-				len(block), c.remoteWriteURL, statusCode, body, retryDuration.Seconds())
-		}
-		t := time.NewTimer(retryDuration)
-		select {
-		case <-c.stopCh:
-			t.Stop()
-			return
-		case <-t.C:
-		}
-		c.retriesCount.Inc()
-		goto again
+	if statusCode/100 == 2 {
+		_ = resp.Body.Close()
+		c.requestsOKCount.Inc()
+		return
 	}
-	c.requestsOKCount.Inc()
+
+	// Unexpected status code returned
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.urlLabelValue, statusCode)).Inc()
+	retryDuration *= 2
+	if retryDuration > time.Minute {
+		retryDuration = time.Minute
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		logger.Errorf("cannot read response body from %q: %s", c.remoteWriteURL, err)
+	} else {
+		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q: %d; response body=%q; re-sending the block in %.3f seconds",
+			len(block), c.remoteWriteURL, statusCode, body, retryDuration.Seconds())
+	}
+	t := time.NewTimer(retryDuration)
+	select {
+	case <-c.stopCh:
+		t.Stop()
+		return
+	case <-t.C:
+	}
+	c.retriesCount.Inc()
+	goto again
 }

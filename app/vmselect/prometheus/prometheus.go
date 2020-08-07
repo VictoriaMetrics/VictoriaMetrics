@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -690,11 +691,12 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	}
 
 	ec := promql.EvalConfig{
-		Start:         start,
-		End:           start,
-		Step:          step,
-		Deadline:      deadline,
-		LookbackDelta: lookbackDelta,
+		Start:            start,
+		End:              start,
+		Step:             step,
+		QuotedRemoteAddr: httpserver.GetQuotedRemoteAddr(r),
+		Deadline:         deadline,
+		LookbackDelta:    lookbackDelta,
 	}
 	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
@@ -774,12 +776,13 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 	}
 
 	ec := promql.EvalConfig{
-		Start:         start,
-		End:           end,
-		Step:          step,
-		Deadline:      deadline,
-		MayCache:      mayCache,
-		LookbackDelta: lookbackDelta,
+		Start:            start,
+		End:              end,
+		Step:             step,
+		QuotedRemoteAddr: httpserver.GetQuotedRemoteAddr(r),
+		Deadline:         deadline,
+		MayCache:         mayCache,
+		LookbackDelta:    lookbackDelta,
 	}
 	result, err := promql.Exec(&ec, query, false)
 	if err != nil {
