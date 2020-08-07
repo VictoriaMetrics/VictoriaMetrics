@@ -203,7 +203,7 @@ func addTag(name, tag string) string {
 	return fmt.Sprintf("%s,%s}", name[:len(name)-1], tag)
 }
 
-func registerSummary(sm *Summary) {
+func registerSummaryLocked(sm *Summary) {
 	window := sm.window
 	summariesLock.Lock()
 	summaries[window] = append(summaries[window], sm)
