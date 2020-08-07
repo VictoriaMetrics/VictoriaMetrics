@@ -858,10 +858,21 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run("time()*-1^0.5", func(t *testing.T) {
+	t.Run("time()*(-4)^0.5", func(t *testing.T) {
 		t.Parallel()
-		q := `time()*-1^0.5`
+		q := `time()*(-4)^0.5`
 		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run("time()*-4^0.5", func(t *testing.T) {
+		t.Parallel()
+		q := `time()*-4^0.5`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-2000, -2400, -2800, -3200, -3600, -4000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`alias()`, func(t *testing.T) {
