@@ -12,6 +12,9 @@ The following functionality is implemented differently in MetricsQL comparing to
 * MetricsQL returns the expected non-empty responses for requests with `step` values smaller than scrape interval. This addresses [this issue from Grafana](https://github.com/grafana/grafana/issues/11451).
 * MetricsQL treats `scalar` type the same as `instant vector` without labels, since subtle difference between these types usually confuses users.
   See [the corresponding Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) for details.
+* MetricsQL removes all the `NaN` values from the output, so some queries like `(-1)^0.5` return empty results in VictoriaMetrics, while returning
+  a series of `NaN` values in Prometheus. Note that Grafana doesn't draw any lines or dots for `NaN` values, so usually the end result looks the same for both
+  VictoriaMetrics and Prometheus.
 
 Other PromQL functionality should work the same in MetricsQL. [File an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 if you notice discrepancies between PromQL and MetricsQL results other than mentioned above.
