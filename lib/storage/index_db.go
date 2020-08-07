@@ -780,7 +780,7 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tks) < maxTagKeys && ts.NextItem() {
-		if loopsPaceLimiter&(1<<18) == 0 {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -860,7 +860,7 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tvs) < maxTagValues && ts.NextItem() {
-		if loopsPaceLimiter&(1<<18) == 0 {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -936,7 +936,7 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 	kb.B = marshalTagValue(kb.B, nil)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
-		if loopsPaceLimiter&(1<<18) == 0 {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return 0, err
 			}
@@ -1008,7 +1008,7 @@ func (is *indexSearch) getTSDBStatusForDate(date uint64, topN int) (*TSDBStatus,
 	prefix := kb.B
 	ts.Seek(prefix)
 	for ts.NextItem() {
-		if loopsPaceLimiter&(1<<18) == 0 {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return nil, err
 			}
@@ -1532,7 +1532,7 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	tsids := make([]TSID, len(metricIDs))
 	i := 0
 	for loopsPaceLimiter, metricID := range metricIDs {
-		if loopsPaceLimiter&(1<<12) == 0 {
+		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return nil, err
 			}
@@ -1604,7 +1604,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 	for loopsPaceLimiter, metricID := range sortedMetricIDs {
-		if loopsPaceLimiter&(1<<12) == 0 {
+		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -2092,7 +2092,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 	prefix := tf.prefix
 	ts.Seek(prefix)
 	for ts.NextItem() {
-		if loopsPaceLimiter&(1<<16) == 0 {
+		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -2216,7 +2216,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for metricIDs.Len() < maxMetrics && ts.NextItem() {
-		if loopsPaceLimiter&(1<<18) == 0 {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -2258,7 +2258,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 	var sf []uint64
 	var metricID uint64
 	for ts.NextItem() {
-		if loopsPaceLimiter&(1<<14) == 0 {
+		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
@@ -2799,7 +2799,7 @@ func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64
 	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for ts.NextItem() {
-		if loopsPaceLimiter&(1<<18) == 0 {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}

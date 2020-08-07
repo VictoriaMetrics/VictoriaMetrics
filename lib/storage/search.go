@@ -142,7 +142,7 @@ func (s *Search) NextMetricBlock() bool {
 		return false
 	}
 	for s.ts.NextBlock() {
-		if s.loops&(1<<12) == 0 {
+		if s.loops&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(s.deadline); err != nil {
 				s.err = err
 				return false
@@ -340,3 +340,9 @@ func checkSearchDeadlineAndPace(deadline uint64) error {
 	storagepacelimiter.Search.WaitIfNeeded()
 	return nil
 }
+
+const (
+	paceLimiterFastIterationsMask   = 1<<16 - 1
+	paceLimiterMediumIterationsMask = 1<<14 - 1
+	paceLimiterSlowIterationsMask   = 1<<12 - 1
+)

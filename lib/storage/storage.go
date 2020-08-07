@@ -864,7 +864,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	is := idb.getIndexSearch(deadline)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {
-		if loops&(1<<10) == 0 {
+		if loops&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
 				return err
 			}
