@@ -12,7 +12,8 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func writePrometheusMetrics(w io.Writer) {
+// WritePrometheusMetrics writes all the registered metrics to w in Prometheus exposition format.
+func WritePrometheusMetrics(w io.Writer) {
 	metrics.WritePrometheus(w, true)
 
 	fmt.Fprintf(w, "vm_app_version{version=%q} 1\n", buildinfo.Version)

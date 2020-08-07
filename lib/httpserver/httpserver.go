@@ -25,9 +25,14 @@ import (
 )
 
 var (
+	tlsEnable   = flag.Bool("tls", false, "Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set")
+	tlsCertFile = flag.String("tlsCertFile", "", "Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow")
+	tlsKeyFile  = flag.String("tlsKeyFile", "", "Path to file with TLS key. Used only if -tls is set")
+
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
 		"See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus")
+
 	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, "The maximum duration for graceful shutdown of HTTP server. "+
 		"Highly loaded server may require increased value for graceful shutdown")
@@ -61,11 +66,27 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
 func Serve(addr string, rh RequestHandler) {
-	logger.Infof("starting http server at http://%s/", addr)
-	logger.Infof("pprof handlers are exposed at http://%s/debug/pprof/", addr)
-	ln, err := netutil.NewTCPListener("http", addr)
+	scheme := "http"
+	if *tlsEnable {
+		scheme = "https"
+	}
+	logger.Infof("starting http server at %s://%s/", scheme, addr)
+	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, addr)
+	lnTmp, err := netutil.NewTCPListener(scheme, addr)
 	if err != nil {
-		logger.Panicf("FATAL: cannot start http server at %s: %s", addr, err)
+		logger.Fatalf("cannot start http server at %s: %s", addr, err)
+	}
+	ln := net.Listener(lnTmp)
+
+	if *tlsEnable {
+		cert, err := tls.LoadX509KeyPair(*tlsCertFile, *tlsKeyFile)
+		if err != nil {
+			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
+		}
+		cfg := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+		ln = tls.NewListener(ln, cfg)
 	}
 	serveWithListener(addr, ln, rh)
 }
@@ -187,7 +208,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsRequests.Inc()
 		startTime := time.Now()
 		w.Header().Set("Content-Type", "text/plain")
-		writePrometheusMetrics(w)
+		WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	default:
@@ -484,4 +505,9 @@ func isTrivialNetworkError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// IsTLS indicates is tls enabled or not
+func IsTLS() bool {
+	return *tlsEnable
 }

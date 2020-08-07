@@ -109,7 +109,7 @@ func newManager(ctx context.Context) (*manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
-	eu, err := getExternalURL(*externalURL, *httpListenAddr, false)
+	eu, err := getExternalURL(*externalURL, *httpListenAddr, httpserver.IsTLS())
 	if err != nil {
 		return nil, fmt.Errorf("failed to init `external.url`: %w", err)
 	}
