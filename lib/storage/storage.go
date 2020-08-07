@@ -1045,11 +1045,17 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		// Sleep for a while until giving up
 		atomic.AddUint64(&s.addRowsConcurrencyLimitReached, 1)
 		t := timerpool.Get(addRowsTimeout)
+
+		// Prioritize data ingestion over concurrent searches.
+		storagepacelimiter.Search.Inc()
+
 		select {
 		case addRowsConcurrencyCh <- struct{}{}:
 			timerpool.Put(t)
+			storagepacelimiter.Search.Dec()
 		case <-t.C:
 			timerpool.Put(t)
+			storagepacelimiter.Search.Dec()
 			atomic.AddUint64(&s.addRowsConcurrencyLimitTimeout, 1)
 			atomic.AddUint64(&s.addRowsConcurrencyDroppedRows, uint64(len(mrs)))
 			return fmt.Errorf("cannot add %d rows to storage in %s, since it is overloaded with %d concurrent writers; add more CPUs or reduce load",
