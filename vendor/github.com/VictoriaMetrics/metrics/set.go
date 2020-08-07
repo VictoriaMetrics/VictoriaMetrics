@@ -324,13 +324,20 @@ func (s *Set) NewSummary(name string) *Summary {
 //
 // The returned summary is safe to use from concurrent goroutines.
 func (s *Set) NewSummaryExt(name string, window time.Duration, quantiles []float64) *Summary {
+	if err := validateMetric(name); err != nil {
+		panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
+	}
 	sm := newSummary(window, quantiles)
-	s.registerMetric(name, sm)
-	registerSummary(sm)
-	s.registerSummaryQuantiles(name, sm)
+
 	s.mu.Lock()
+	// defer will unlock in case of panic
+	// checks in tests
+	defer s.mu.Unlock()
+
+	s.mustRegisterLocked(name, sm)
+	registerSummaryLocked(sm)
+	s.registerSummaryQuantilesLocked(name, sm)
 	s.summaries = append(s.summaries, sm)
-	s.mu.Unlock()
 	return sm
 }
 
@@ -379,21 +386,17 @@ func (s *Set) GetOrCreateSummaryExt(name string, window time.Duration, quantiles
 			name:   name,
 			metric: sm,
 		}
-		mustRegisterQuantiles := false
 		s.mu.Lock()
 		nm = s.m[name]
 		if nm == nil {
 			nm = nmNew
 			s.m[name] = nm
 			s.a = append(s.a, nm)
-			registerSummary(sm)
-			mustRegisterQuantiles = true
+			registerSummaryLocked(sm)
+			s.registerSummaryQuantilesLocked(name, sm)
 		}
 		s.summaries = append(s.summaries, sm)
 		s.mu.Unlock()
-		if mustRegisterQuantiles {
-			s.registerSummaryQuantiles(name, sm)
-		}
 	}
 	sm, ok := nm.metric.(*Summary)
 	if !ok {
@@ -408,14 +411,14 @@ func (s *Set) GetOrCreateSummaryExt(name string, window time.Duration, quantiles
 	return sm
 }
 
-func (s *Set) registerSummaryQuantiles(name string, sm *Summary) {
+func (s *Set) registerSummaryQuantilesLocked(name string, sm *Summary) {
 	for i, q := range sm.quantiles {
 		quantileValueName := addTag(name, fmt.Sprintf(`quantile="%g"`, q))
 		qv := &quantileValue{
 			sm:  sm,
 			idx: i,
 		}
-		s.registerMetric(quantileValueName, qv)
+		s.mustRegisterLocked(quantileValueName, qv)
 	}
 }
 
@@ -424,6 +427,16 @@ func (s *Set) registerMetric(name string, m metric) {
 		panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
 	}
 	s.mu.Lock()
+	// defer will unlock in case of panic
+	// checks in test
+	defer s.mu.Unlock()
+	s.mustRegisterLocked(name, m)
+}
+
+// mustRegisterLocked registers given metric with
+// the given name. Panics if the given name was
+// already registered before.
+func (s *Set) mustRegisterLocked(name string, m metric) {
 	nm, ok := s.m[name]
 	if !ok {
 		nm = &namedMetric{
@@ -433,7 +446,6 @@ func (s *Set) registerMetric(name string, m metric) {
 		s.m[name] = nm
 		s.a = append(s.a, nm)
 	}
-	s.mu.Unlock()
 	if ok {
 		panic(fmt.Errorf("BUG: metric %q is already registered", name))
 	}
@@ -455,32 +467,34 @@ func (s *Set) UnregisterMetric(name string) bool {
 
 	delete(s.m, name)
 
-	// remove metric from s.a
-	found := false
-	for i, nm := range s.a {
-		if nm.name == name {
-			s.a = append(s.a[:i], s.a[i+1:]...)
-			found = true
-			break
+	deleteFromList := func(metricName string) {
+		for i, nm := range s.a {
+			if nm.name == metricName {
+				s.a = append(s.a[:i], s.a[i+1:]...)
+				return
+			}
 		}
-	}
-	if !found {
 		panic(fmt.Errorf("BUG: cannot find metric %q in the list of registered metrics", name))
 	}
+
+	// remove metric from s.a
+	deleteFromList(name)
+
 	sm, ok := m.(*Summary)
 	if !ok {
-		// There is no need in cleaning up s.summaries.
+		// There is no need in cleaning up summary.
 		return true
 	}
 
-	// Remove summary metric name including quantile labels from set
+	// cleanup registry from per-quantile metrics
 	for _, q := range sm.quantiles {
 		quantileValueName := addTag(name, fmt.Sprintf(`quantile="%g"`, q))
 		delete(s.m, quantileValueName)
+		deleteFromList(quantileValueName)
 	}
 
 	// Remove sm from s.summaries
-	found = false
+	found := false
 	for i, xsm := range s.summaries {
 		if xsm == sm {
 			s.summaries = append(s.summaries[:i], s.summaries[i+1:]...)
