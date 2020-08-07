@@ -399,7 +399,7 @@ func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
 	case "{":
 		return p.parseMetricExpr()
 	case "-":
-		// Unary minus. Substitute -expr with (0 - expr)
+		// Unary minus. Substitute `-expr` with `0 - expr`
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
@@ -414,8 +414,7 @@ func (p *parser) parseSingleExprWithoutRollupSuffix() (Expr, error) {
 			},
 			Right: e,
 		}
-		pe := parensExpr{be}
-		return &pe, nil
+		return be, nil
 	case "+":
 		// Unary plus
 		if err := p.lex.Next(); err != nil {
