@@ -49,7 +49,8 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		httpserver.Errorf(w, r, "missing `Authorization: Basic *` header")
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		http.Error(w, "missing `Authorization: Basic *` header", http.StatusUnauthorized)
 		return true
 	}
 	ac := authConfig.Load().(map[string]*UserInfo)
