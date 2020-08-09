@@ -1972,7 +1972,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 		return faccessat(dirfd, path, mode)
 	}
 
-	if err := Faccessat2(dirfd, path, mode, flags); err != ENOSYS {
+	if err := Faccessat2(dirfd, path, mode, flags); err != ENOSYS && err != EPERM {
 		return err
 	}
 

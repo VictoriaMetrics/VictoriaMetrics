@@ -1,5 +1,16 @@
 # Changes
 
+## [0.63.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.62.0...v0.63.0) (2020-08-05)
+
+
+### Features
+
+* **all:** auto-regenerate gapics ([#2682](https://www.github.com/googleapis/google-cloud-go/issues/2682)) ([63bfd63](https://www.github.com/googleapis/google-cloud-go/commit/63bfd638da169e0f1f4fa4a5125da2955022dc04))
+* **analytics/admin:** start generating apiv1alpha ([#2670](https://www.github.com/googleapis/google-cloud-go/issues/2670)) ([268199e](https://www.github.com/googleapis/google-cloud-go/commit/268199e5350a64a83ecf198e0e0fa4863f00fa6c))
+* **functions/metadata:** Special-case marshaling ([#2669](https://www.github.com/googleapis/google-cloud-go/issues/2669)) ([d8d7fc6](https://www.github.com/googleapis/google-cloud-go/commit/d8d7fc66cbc42f79bec25fb0daaf53d926e3645b))
+* **gaming:** start generate apiv1 ([#2681](https://www.github.com/googleapis/google-cloud-go/issues/2681)) ([1adfd0a](https://www.github.com/googleapis/google-cloud-go/commit/1adfd0aed6b2c0e1dd0c575a5ec0f49388fa5601))
+* **internal/kokoro:** add script to test compatibility with samples ([#2637](https://www.github.com/googleapis/google-cloud-go/issues/2637)) ([f2aa76a](https://www.github.com/googleapis/google-cloud-go/commit/f2aa76a0058e86c1c33bb634d2c084b58f77ab32))
+
 ## v0.62.0
 
 ### Announcements
@@ -1590,4 +1601,3 @@ Natural Language.
 [`cloud.google.com/go/preview/logging`](https://godoc.org/cloud.google.com/go/preview/logging).
 This client uses gRPC as its transport layer, and supports log reading, sinks
 and metrics. It will replace the current client at `cloud.google.com/go/logging` shortly.
-

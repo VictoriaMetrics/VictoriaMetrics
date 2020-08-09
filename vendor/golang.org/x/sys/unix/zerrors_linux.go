@@ -839,6 +839,7 @@ const (
 	IPPROTO_EGP                                 = 0x8
 	IPPROTO_ENCAP                               = 0x62
 	IPPROTO_ESP                                 = 0x32
+	IPPROTO_ETHERNET                            = 0x8f
 	IPPROTO_FRAGMENT                            = 0x2c
 	IPPROTO_GRE                                 = 0x2f
 	IPPROTO_HOPOPTS                             = 0x0
@@ -852,6 +853,7 @@ const (
 	IPPROTO_L2TP                                = 0x73
 	IPPROTO_MH                                  = 0x87
 	IPPROTO_MPLS                                = 0x89
+	IPPROTO_MPTCP                               = 0x106
 	IPPROTO_MTP                                 = 0x5c
 	IPPROTO_NONE                                = 0x3b
 	IPPROTO_PIM                                 = 0x67
