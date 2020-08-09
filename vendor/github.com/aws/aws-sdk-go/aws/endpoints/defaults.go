@@ -839,6 +839,7 @@ var awsPartition = partition{
 				"ca-central-1":   endpoint{},
 				"eu-central-1":   endpoint{},
 				"eu-north-1":     endpoint{},
+				"eu-south-1":     endpoint{},
 				"eu-west-1":      endpoint{},
 				"eu-west-2":      endpoint{},
 				"eu-west-3":      endpoint{},
@@ -2083,6 +2084,7 @@ var awsPartition = partition{
 				Protocols: []string{"http", "https"},
 			},
 			Endpoints: endpoints{
+				"af-south-1":     endpoint{},
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
@@ -2092,6 +2094,7 @@ var awsPartition = partition{
 				"ca-central-1":   endpoint{},
 				"eu-central-1":   endpoint{},
 				"eu-north-1":     endpoint{},
+				"eu-south-1":     endpoint{},
 				"eu-west-1":      endpoint{},
 				"eu-west-2":      endpoint{},
 				"eu-west-3":      endpoint{},
@@ -3958,6 +3961,12 @@ var awsPartition = partition{
 		"neptune": service{
 
 			Endpoints: endpoints{
+				"ap-east-1": endpoint{
+					Hostname: "rds.ap-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ap-east-1",
+					},
+				},
 				"ap-northeast-1": endpoint{
 					Hostname: "rds.ap-northeast-1.amazonaws.com",
 					CredentialScope: credentialScope{
@@ -4028,6 +4037,12 @@ var awsPartition = partition{
 					Hostname: "rds.me-south-1.amazonaws.com",
 					CredentialScope: credentialScope{
 						Region: "me-south-1",
+					},
+				},
+				"sa-east-1": endpoint{
+					Hostname: "rds.sa-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "sa-east-1",
 					},
 				},
 				"us-east-1": endpoint{
