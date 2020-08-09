@@ -69,6 +69,73 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestBlackboxExporter(t *testing.T) {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/684
+	data := `
+scrape_configs:
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [dns_udp_example]  # Look for  dns response
+    static_configs:
+      - targets:
+        - 8.8.8.8
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: black:9115  # The blackbox exporter's real hostname:port.%
+`
+	var cfg Config
+	if err := cfg.parse([]byte(data), "sss"); err != nil {
+		t.Fatalf("cannot parase data: %s", err)
+	}
+	sws := cfg.getStaticScrapeWork()
+	resetScrapeWorkIDs(sws)
+	swsExpected := []ScrapeWork{{
+		ScrapeURL:      "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
+		ScrapeInterval: defaultScrapeInterval,
+		ScrapeTimeout:  defaultScrapeTimeout,
+		Labels: []prompbmarshal.Label{
+			{
+				Name:  "__address__",
+				Value: "black:9115",
+			},
+			{
+				Name:  "__metrics_path__",
+				Value: "/probe",
+			},
+			{
+				Name:  "__param_module",
+				Value: "dns_udp_example",
+			},
+			{
+				Name:  "__param_target",
+				Value: "8.8.8.8",
+			},
+			{
+				Name:  "__scheme__",
+				Value: "http",
+			},
+			{
+				Name:  "instance",
+				Value: "8.8.8.8",
+			},
+			{
+				Name:  "job",
+				Value: "blackbox",
+			},
+		},
+		AuthConfig:      &promauth.Config{},
+		jobNameOriginal: "blackbox",
+	}}
+	if !reflect.DeepEqual(sws, swsExpected) {
+		t.Fatalf("unexpected scrapeWork;\ngot\n%+v\nwant\n%+v", sws, swsExpected)
+	}
+}
+
 func TestGetFileSDScrapeWork(t *testing.T) {
 	data := `
 scrape_configs:
