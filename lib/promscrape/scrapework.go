@@ -131,6 +131,10 @@ type scrapeWork struct {
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
 	samples      []prompbmarshal.Sample
+
+	// the prevSeriesMap and lh are used for fast calculation of `scrape_series_added` metric.
+	prevSeriesMap map[uint64]struct{}
+	lh            *xxhash.Digest
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
@@ -226,10 +230,12 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 		scrapesSkippedBySampleLimit.Inc()
 	}
 	samplesPostRelabeling := len(sw.writeRequest.Timeseries)
+	seriesAdded := sw.getSeriesAdded()
 	sw.addAutoTimeseries("up", float64(up), timestamp)
 	sw.addAutoTimeseries("scrape_duration_seconds", duration, timestamp)
 	sw.addAutoTimeseries("scrape_samples_scraped", float64(samplesScraped), timestamp)
 	sw.addAutoTimeseries("scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), timestamp)
+	sw.addAutoTimeseries("scrape_series_added", float64(seriesAdded), timestamp)
 	startTime := time.Now()
 	sw.PushData(&sw.writeRequest)
 	pushDataDuration.UpdateDuration(startTime)
@@ -238,6 +244,44 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 	sw.samples = sw.samples[:0]
 	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, timestamp, int64(duration*1000), err)
 	return err
+}
+
+func (sw *scrapeWork) getSeriesAdded() int {
+	if sw.lh == nil {
+		sw.lh = xxhash.New()
+	}
+	mPrev := sw.prevSeriesMap
+	seriesAdded := 0
+	for _, ts := range sw.writeRequest.Timeseries {
+		h := getLabelsHash(sw.lh, ts.Labels)
+		if _, ok := mPrev[h]; !ok {
+			seriesAdded++
+		}
+	}
+	if seriesAdded == 0 {
+		// Fast path: no new time series added during the last scrape.
+		return 0
+	}
+
+	// Slow path: update the sw.prevSeriesMap, since new time series were added.
+	m := make(map[uint64]struct{}, len(sw.writeRequest.Timeseries))
+	for _, ts := range sw.writeRequest.Timeseries {
+		h := getLabelsHash(sw.lh, ts.Labels)
+		m[h] = struct{}{}
+	}
+	sw.prevSeriesMap = m
+	return seriesAdded
+}
+
+func getLabelsHash(lh *xxhash.Digest, labels []prompbmarshal.Label) uint64 {
+	// It is OK if there will be hash collisions for distinct sets of labels,
+	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
+	lh.Reset()
+	for _, label := range labels {
+		lh.WriteString(label.Name)
+		lh.WriteString(label.Value)
+	}
+	return lh.Sum64()
 }
 
 // addAutoTimeseries adds automatically generated time series with the given name, value and timestamp.
