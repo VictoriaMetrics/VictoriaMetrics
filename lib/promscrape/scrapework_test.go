@@ -17,6 +17,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 		scrape_samples_scraped 0 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
 `
 	timeseriesExpected := parseData(dataExpected)
 
@@ -97,6 +98,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped 0 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
 	`)
 	f(`
 		foo{bar="baz",empty_label=""} 34.45 3
@@ -108,6 +110,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped 2 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
+		scrape_series_added 2 123
 	`)
 	f(`
 		foo{bar="baz"} 34.45 3
@@ -127,6 +130,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{foo="x"} 2 123
 		scrape_duration_seconds{foo="x"} 0 123
 		scrape_samples_post_metric_relabeling{foo="x"} 2 123
+		scrape_series_added{foo="x"} 2 123
 	`)
 	f(`
 		foo{job="orig",bar="baz"} 34.45
@@ -146,6 +150,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{job="override"} 2 123
 		scrape_duration_seconds{job="override"} 0 123
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
+		scrape_series_added{job="override"} 2 123
 	`)
 	// Empty instance override. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
 	f(`
@@ -170,6 +175,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{instance="foobar",job="xxx"} 2 123
 		scrape_duration_seconds{instance="foobar",job="xxx"} 0 123
 		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
+		scrape_series_added{instance="foobar",job="xxx"} 2 123
 	`)
 	f(`
 		no_instance{instance="",job="some_job",label="val1",test=""} 5555
@@ -193,6 +199,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{instance="foobar",job="xxx"} 2 123
 		scrape_duration_seconds{instance="foobar",job="xxx"} 0 123
 		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
+		scrape_series_added{instance="foobar",job="xxx"} 2 123
 	`)
 	f(`
 		foo{job="orig",bar="baz"} 34.45
@@ -212,6 +219,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{job="override"} 2 123
 		scrape_duration_seconds{job="override"} 0 123
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
+		scrape_series_added{job="override"} 2 123
 	`)
 	f(`
 		foo{bar="baz"} 34.44
@@ -249,6 +257,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{job="xx"} 2 123
 		scrape_duration_seconds{job="xx"} 0 123
 		scrape_samples_post_metric_relabeling{job="xx"} 2 123
+		scrape_series_added{job="xx"} 2 123
 	`)
 	f(`
 		foo{bar="baz"} 34.44
@@ -285,6 +294,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped{job="xx",instance="foo.com"} 4 123
 		scrape_duration_seconds{job="xx",instance="foo.com"} 0 123
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
+		scrape_series_added{job="xx",instance="foo.com"} 1 123
 	`)
 	f(`
 		foo{bar="baz"} 34.44
@@ -297,6 +307,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_scraped 2 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
 	`)
 }
 
