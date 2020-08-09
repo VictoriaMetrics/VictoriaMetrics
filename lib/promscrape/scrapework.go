@@ -278,8 +278,8 @@ func getLabelsHash(lh *xxhash.Digest, labels []prompbmarshal.Label) uint64 {
 	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
 	lh.Reset()
 	for _, label := range labels {
-		lh.WriteString(label.Name)
-		lh.WriteString(label.Value)
+		_, _ = lh.WriteString(label.Name)
+		_, _ = lh.WriteString(label.Value)
 	}
 	return lh.Sum64()
 }
