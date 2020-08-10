@@ -1,12 +1,47 @@
 #!/bin/bash
 
+set -e
+
+usage() {
+    cat << EOF
+USAGE: $0 [-v VAR_VERSION] [-b VAR_BUILD] [-e EXENAME_BASE] [ARCH]
+
+Build debian package of various VictoriaMetrics binaries. Required binary must
+exist in bin/. To build the binary run:
+    make EXENAME_BASE-ARCH-prod
+
+    -v VAR_VERSION:  debian package version string [default $(dirname "$0")/VAR_VERSION contents]
+    -b VAR_BUILD:    debian package build string [default $(dirname "$0")/VAR_BUILD contents]
+    -e EXENAME_BASE: supported: victoria-metrics, vmagent, vmalert [default victoria-metrics]
+
+    ARCH:            amd64, arm or arm64 [default amd64]
+
+Basic systemd units are included in the package. In most cases you probably
+should change the unit before build in $(dirname "$0")/EXENAME_BASE.service or
+create an override systemd unit after install.
+EOF
+    exit 1
+}
+
+PACKDIR=$(dirname "$0")
 ARCH="amd64"
-if [[ $# -ge 1 ]]
-then
+EXENAME_BASE="victoria-metrics"
+VERSION=`cat ${PACKDIR}/VAR_VERSION | perl -ne 'chomp and print'`
+BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
+
+while getopts 'v:b:e:h' c; do
+    case "$c" in
+        b) BUILD="$OPTARG";;
+        v) VERSION="$OPTARG";;
+        e) EXENAME_BASE="$OPTARG";;
+        h) usage;;
+        *) usage;;
+    esac
+done
+shift $(($OPTIND - 1))
+if [ $# -ge 1 ]; then
     ARCH="$1"
 fi
-
-EXENAME_BASE="${EXENAME_BASE:-victoria-metrics}"
 
 # Map to Debian architecture
 if [[ "$ARCH" == "amd64" ]]; then
@@ -23,22 +58,8 @@ else
     exit 1
 fi
 
-PACKDIR="./package"
 TEMPDIR="${PACKDIR}/temp-deb-${DEB_ARCH}"
 EXENAME_DST="${EXENAME_BASE}-prod"
-
-# Pull in version info
-
-if [ -z "$VAR_VERSION" ]; then
-	VERSION=`cat ${PACKDIR}/VAR_VERSION | perl -ne 'chomp and print'`
-else
-	VERSION="$VAR_VERSION"
-fi
-if [ -z "$VAR_BUILD" ]; then
-	BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
-else
-	BUILD="$VAR_BUILD"
-fi
 
 # Create directories
 
