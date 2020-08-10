@@ -65,6 +65,9 @@ type Search struct {
 
 	ts tableSearch
 
+	// tfss contains tag filters used in the search.
+	tfss []*TagFilters
+
 	// deadline in unix timestamp seconds for the current search.
 	deadline uint64
 
@@ -81,6 +84,7 @@ func (s *Search) reset() {
 
 	s.storage = nil
 	s.ts.reset()
+	s.tfss = nil
 	s.deadline = 0
 	s.err = nil
 	s.needClosing = false
@@ -98,6 +102,7 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMet
 	}
 
 	s.reset()
+	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
@@ -130,10 +135,10 @@ func (s *Search) MustClose() {
 
 // Error returns the last error from s.
 func (s *Search) Error() error {
-	if s.err == io.EOF {
+	if s.err == io.EOF || s.err == nil {
 		return nil
 	}
-	return s.err
+	return fmt.Errorf("error when searching for tagFilters=%s: %w", s.tfss, s.err)
 }
 
 // NextMetricBlock proceeds to the next MetricBlockRef.
