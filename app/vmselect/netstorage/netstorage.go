@@ -2,6 +2,7 @@ package netstorage
 
 import (
 	"container/heap"
+	"errors"
 	"flag"
 	"fmt"
 	"runtime"
@@ -618,6 +619,9 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline Deadli
 		}
 	}
 	if err := sr.Error(); err != nil {
+		if errors.Is(err, storage.ErrDeadlineExceeded) {
+			return nil, fmt.Errorf("timeout exceeded during the query: %s", deadline.String())
+		}
 		return nil, fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
 	}
 
