@@ -3,6 +3,7 @@ package promscrape
 import (
 	"flag"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -162,7 +163,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 	case <-timer.C:
 		ticker = time.NewTicker(scrapeInterval)
 		timestamp = time.Now().UnixNano() / 1e6
-		sw.scrapeAndLogError(timestamp)
+		sw.scrapeAndLogError(timestamp, timestamp)
 	}
 	defer ticker.Stop()
 	for {
@@ -170,13 +171,13 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		select {
 		case <-stopCh:
 			return
-		case <-ticker.C:
-			t := time.Now().UnixNano() / 1e6
-			if d := t - timestamp; d > 0 && float64(d)/float64(scrapeInterval.Milliseconds()) > 0.1 {
+		case tt := <-ticker.C:
+			t := tt.UnixNano() / 1e6
+			if d := math.Abs(float64(t - timestamp)); d > 0 && d/float64(scrapeInterval.Milliseconds()) > 0.1 {
 				// Too big jitter. Adjust timestamp
 				timestamp = t
 			}
-			sw.scrapeAndLogError(timestamp)
+			sw.scrapeAndLogError(timestamp, t)
 		}
 	}
 }
@@ -187,8 +188,8 @@ func (sw *scrapeWork) logError(s string) {
 	}
 }
 
-func (sw *scrapeWork) scrapeAndLogError(timestamp int64) {
-	if err := sw.scrapeInternal(timestamp); err != nil && !*suppressScrapeErrors {
+func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
+	if err := sw.scrapeInternal(scrapeTimestamp, realTimestamp); err != nil && !*suppressScrapeErrors {
 		logger.Errorf("error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
 	}
 }
@@ -202,11 +203,11 @@ var (
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
 )
 
-func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
+func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
 	var err error
 	sw.bodyBuf, err = sw.ReadData(sw.bodyBuf[:0])
 	endTimestamp := time.Now().UnixNano() / 1e6
-	duration := float64(endTimestamp-timestamp) / 1e3
+	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
 	scrapeResponseSize.Update(float64(len(sw.bodyBuf)))
 	up := 1
@@ -221,7 +222,7 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
 	for i := range srcRows {
-		sw.addRowToTimeseries(&srcRows[i], timestamp, true)
+		sw.addRowToTimeseries(&srcRows[i], scrapeTimestamp, true)
 	}
 	sw.rows.Reset()
 	if sw.Config.SampleLimit > 0 && len(sw.writeRequest.Timeseries) > sw.Config.SampleLimit {
@@ -231,18 +232,18 @@ func (sw *scrapeWork) scrapeInternal(timestamp int64) error {
 	}
 	samplesPostRelabeling := len(sw.writeRequest.Timeseries)
 	seriesAdded := sw.getSeriesAdded()
-	sw.addAutoTimeseries("up", float64(up), timestamp)
-	sw.addAutoTimeseries("scrape_duration_seconds", duration, timestamp)
-	sw.addAutoTimeseries("scrape_samples_scraped", float64(samplesScraped), timestamp)
-	sw.addAutoTimeseries("scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), timestamp)
-	sw.addAutoTimeseries("scrape_series_added", float64(seriesAdded), timestamp)
+	sw.addAutoTimeseries("up", float64(up), scrapeTimestamp)
+	sw.addAutoTimeseries("scrape_duration_seconds", duration, scrapeTimestamp)
+	sw.addAutoTimeseries("scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
+	sw.addAutoTimeseries("scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
+	sw.addAutoTimeseries("scrape_series_added", float64(seriesAdded), scrapeTimestamp)
 	startTime := time.Now()
 	sw.PushData(&sw.writeRequest)
 	pushDataDuration.UpdateDuration(startTime)
 	prompbmarshal.ResetWriteRequest(&sw.writeRequest)
 	sw.labels = sw.labels[:0]
 	sw.samples = sw.samples[:0]
-	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, timestamp, int64(duration*1000), err)
+	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
 	return err
 }
 

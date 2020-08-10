@@ -39,7 +39,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	timestamp := int64(123)
-	if err := sw.scrapeInternal(timestamp); err == nil {
+	if err := sw.scrapeInternal(timestamp, timestamp); err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
 	if pushDataErr != nil {
@@ -79,7 +79,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		}
 
 		timestamp := int64(123)
-		if err := sw.scrapeInternal(timestamp); err != nil {
+		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if pushDataErr != nil {
