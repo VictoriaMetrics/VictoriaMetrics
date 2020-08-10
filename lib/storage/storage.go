@@ -884,7 +884,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, 
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics, deadline)
 	<-searchTSIDsConcurrencyCh
 	if err != nil {
-		return nil, fmt.Errorf("error when searching tsids for tfss %q: %w", tfss, err)
+		return nil, fmt.Errorf("error when searching tsids: %w", err)
 	}
 	return tsids, nil
 }
