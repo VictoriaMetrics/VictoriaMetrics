@@ -6,16 +6,18 @@ then
     ARCH="$1"
 fi
 
+EXENAME_BASE="${EXENAME_BASE:-victoria-metrics}"
+
 # Map to Debian architecture
 if [[ "$ARCH" == "amd64" ]]; then
     DEB_ARCH=amd64
-	EXENAME_SRC="victoria-metrics-prod"
+    EXENAME_SRC="${EXENAME_BASE}-prod"
 elif [[ "$ARCH" == "arm64" ]]; then
     DEB_ARCH=arm64
-    EXENAME_SRC="victoria-metrics-arm64-prod"
+    EXENAME_SRC="${EXENAME_BASE}-arm64-prod"
 elif [[ "$ARCH" == "arm" ]]; then
     DEB_ARCH=armhf
-    EXENAME_SRC="victoria-metrics-arm-prod"
+    EXENAME_SRC="${EXENAME_BASE}-arm-prod"
 else
     echo "*** Unknown arch $ARCH"
     exit 1
@@ -23,12 +25,20 @@ fi
 
 PACKDIR="./package"
 TEMPDIR="${PACKDIR}/temp-deb-${DEB_ARCH}"
-EXENAME_DST="victoria-metrics-prod"
+EXENAME_DST="${EXENAME_BASE}-prod"
 
 # Pull in version info
 
-VERSION=`cat ${PACKDIR}/VAR_VERSION | perl -ne 'chomp and print'`
-BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
+if [ -z "$VAR_VERSION" ]; then
+	VERSION=`cat ${PACKDIR}/VAR_VERSION | perl -ne 'chomp and print'`
+else
+	VERSION="$VAR_VERSION"
+fi
+if [ -z "$VAR_BUILD" ]; then
+	BUILD=`cat ${PACKDIR}/VAR_BUILD | perl -ne 'chomp and print'`
+else
+	BUILD="$VAR_BUILD"
+fi
 
 # Create directories
 
@@ -42,7 +52,7 @@ mkdir -p "${TEMPDIR}/lib/systemd/system/"
 echo "*** Version   : ${VERSION}-${BUILD}"
 echo "*** Arch      : ${DEB_ARCH}"
 
-OUT_DEB="victoria-metrics_${VERSION}-${BUILD}_$DEB_ARCH.deb"
+OUT_DEB="${EXENAME_BASE}_${VERSION}-${BUILD}_$DEB_ARCH.deb"
 
 echo "*** Out .deb  : ${OUT_DEB}"
 
@@ -52,7 +62,7 @@ cp "./bin/${EXENAME_SRC}" "${TEMPDIR}/usr/bin/${EXENAME_DST}"
 
 # Copy supporting files
 
-cp "${PACKDIR}/victoria-metrics.service" "${TEMPDIR}/lib/systemd/system/"
+cp "${PACKDIR}/${EXENAME_BASE}.service" "${TEMPDIR}/lib/systemd/system/"
 
 # Generate debian-binary
 
@@ -63,7 +73,7 @@ echo "2.0" > "${TEMPDIR}/debian-binary"
 echo "Version: $VERSION-$BUILD" > "${TEMPDIR}/control"
 echo "Installed-Size:" `du -sb "${TEMPDIR}" | awk '{print int($1/1024)}'` >> "${TEMPDIR}/control"
 echo "Architecture: $DEB_ARCH" >> "${TEMPDIR}/control"
-cat "${PACKDIR}/deb/control" >> "${TEMPDIR}/control"
+cat "${PACKDIR}/deb/${EXENAME_BASE}.control" >> "${TEMPDIR}/control"
 
 # Copy conffile
 
@@ -72,7 +82,7 @@ cp "${PACKDIR}/deb/conffile" "${TEMPDIR}/conffile"
 # Copy postinst and postrm
 
 cp "${PACKDIR}/deb/postinst" "${TEMPDIR}/postinst"
-cp "${PACKDIR}/deb/prerm" "${TEMPDIR}/prerm"
+cp "${PACKDIR}/deb/${EXENAME_BASE}.prerm" "${TEMPDIR}/prerm"
 cp "${PACKDIR}/deb/postrm" "${TEMPDIR}/postrm"
 
 (

@@ -1,0 +1,16 @@
+[Unit]
+Description=Data scraping for high-performance, cost-effective and scalable time series database, long-term remote storage for Prometheus.
+After=network.target
+
+[Service]
+Type=simple
+StartLimitBurst=5
+StartLimitInterval=0
+Restart=on-failure
+RestartSec=1
+ExecStart=/usr/bin/vmagent-prod -remoteWrite.url=http://localhost:8428/ -remoteWrite.tmpDataPath=/var/lib/victoria-metrics-vmagent -httpListenAddr=localhost:8429
+ExecStop=/bin/kill -s SIGTERM $MAINPID
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
