@@ -957,7 +957,8 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	return nil
 }
 
-var errDeadlineExceeded = fmt.Errorf("deadline exceeded")
+// ErrDeadlineExceeded is returned when the request times out.
+var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
 // DeleteMetrics deletes all the metrics matching the given tfss.
 //

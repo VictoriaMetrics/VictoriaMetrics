@@ -416,7 +416,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 
 func checkSearchDeadlineAndPace(deadline uint64) error {
 	if fasttime.UnixTimestamp() > deadline {
-		return errDeadlineExceeded
+		return ErrDeadlineExceeded
 	}
 	storagepacelimiter.Search.WaitIfNeeded()
 	return nil

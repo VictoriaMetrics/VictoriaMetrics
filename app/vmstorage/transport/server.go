@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -381,6 +382,9 @@ func (s *Server) processVMSelectConn(bc *handshake.BufferedConn) error {
 				// Remote client gracefully closed the connection.
 				return nil
 			}
+			if errors.Is(err, storage.ErrDeadlineExceeded) {
+				return fmt.Errorf("cannot process vmselect request in %d seconds: %w", ctx.timeout, err)
+			}
 			return fmt.Errorf("cannot process vmselect request: %w", err)
 		}
 		if err := bc.Flush(); err != nil {
@@ -398,6 +402,9 @@ type vmselectRequestCtx struct {
 	tfss []*storage.TagFilters
 	sr   storage.Search
 	mb   storage.MetricBlock
+
+	// timeout in seconds for the current request
+	timeout uint64
 
 	// deadline in unix timestamp seconds for the current request.
 	deadline uint64
@@ -466,6 +473,9 @@ func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 const maxErrorMessageSize = 64 * 1024
 
 func (ctx *vmselectRequestCtx) writeErrorMessage(err error) error {
+	if errors.Is(err, storage.ErrDeadlineExceeded) {
+		err = fmt.Errorf("cannot execute request in %d seconds: %w", ctx.timeout, err)
+	}
 	errMsg := err.Error()
 	if len(errMsg) > maxErrorMessageSize {
 		// Trim too long error message.
@@ -520,6 +530,7 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read timeout for the request %q: %w", rpcName, err)
 	}
+	ctx.timeout = uint64(timeout)
 	ctx.deadline = fasttime.UnixTimestamp() + uint64(timeout)
 
 	switch rpcName {
