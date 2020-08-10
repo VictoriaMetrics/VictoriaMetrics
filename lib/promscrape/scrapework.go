@@ -135,7 +135,7 @@ type scrapeWork struct {
 
 	// the prevSeriesMap and lh are used for fast calculation of `scrape_series_added` metric.
 	prevSeriesMap map[uint64]struct{}
-	lh            *xxhash.Digest
+	labelsHashBuf []byte
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
@@ -248,13 +248,10 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 }
 
 func (sw *scrapeWork) getSeriesAdded() int {
-	if sw.lh == nil {
-		sw.lh = xxhash.New()
-	}
 	mPrev := sw.prevSeriesMap
 	seriesAdded := 0
 	for _, ts := range sw.writeRequest.Timeseries {
-		h := getLabelsHash(sw.lh, ts.Labels)
+		h := sw.getLabelsHash(ts.Labels)
 		if _, ok := mPrev[h]; !ok {
 			seriesAdded++
 		}
@@ -267,22 +264,23 @@ func (sw *scrapeWork) getSeriesAdded() int {
 	// Slow path: update the sw.prevSeriesMap, since new time series were added.
 	m := make(map[uint64]struct{}, len(sw.writeRequest.Timeseries))
 	for _, ts := range sw.writeRequest.Timeseries {
-		h := getLabelsHash(sw.lh, ts.Labels)
+		h := sw.getLabelsHash(ts.Labels)
 		m[h] = struct{}{}
 	}
 	sw.prevSeriesMap = m
 	return seriesAdded
 }
 
-func getLabelsHash(lh *xxhash.Digest, labels []prompbmarshal.Label) uint64 {
+func (sw *scrapeWork) getLabelsHash(labels []prompbmarshal.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
 	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
-	lh.Reset()
+	b := sw.labelsHashBuf[:0]
 	for _, label := range labels {
-		_, _ = lh.WriteString(label.Name)
-		_, _ = lh.WriteString(label.Value)
+		b = append(b, label.Name...)
+		b = append(b, label.Value...)
 	}
-	return lh.Sum64()
+	sw.labelsHashBuf = b
+	return xxhash.Sum64(b)
 }
 
 // addAutoTimeseries adds automatically generated time series with the given name, value and timestamp.
