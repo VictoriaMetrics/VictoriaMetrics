@@ -125,9 +125,8 @@ type scrapeWork struct {
 	// scrapeWork belongs to
 	ScrapeGroup string
 
-	bodyBuf []byte
-	rows    parser.Rows
-	tmpRow  parser.Row
+	rows   parser.Rows
+	tmpRow parser.Row
 
 	writeRequest prompbmarshal.WriteRequest
 	labels       []prompbmarshal.Label
@@ -203,21 +202,25 @@ var (
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
 )
 
+var tmpBufPool bytesutil.ByteBufferPool
+
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
 	var err error
-	sw.bodyBuf, err = sw.ReadData(sw.bodyBuf[:0])
+	bb := tmpBufPool.Get()
+	bb.B, err = sw.ReadData(bb.B)
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
-	scrapeResponseSize.Update(float64(len(sw.bodyBuf)))
+	scrapeResponseSize.Update(float64(len(bb.B)))
 	up := 1
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		bodyString := bytesutil.ToUnsafeString(sw.bodyBuf)
+		bodyString := bytesutil.ToUnsafeString(bb.B)
 		sw.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 	}
+	tmpBufPool.Put(bb)
 	srcRows := sw.rows.Rows
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
