@@ -1,5 +1,5 @@
 Package: vmalert
-Maintainer: Aliaksandr Valialkin
+Maintainer: Arne Rusek https://github.com/zonk1
 Depends: libc6 (>= 2.7-1)
 Section: net
 Priority: optional
