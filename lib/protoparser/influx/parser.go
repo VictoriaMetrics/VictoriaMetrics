@@ -42,7 +42,7 @@ func (rs *Rows) Reset() {
 //
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.Rows, rs.tagsPool, rs.fieldsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], rs.fieldsPool[:0])
 }
