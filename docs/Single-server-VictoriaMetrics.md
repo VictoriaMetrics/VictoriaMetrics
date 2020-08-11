@@ -247,8 +247,8 @@ VictoriaMetrics supports native PromQL and [extends it with useful features](htt
 ### How to upgrade VictoriaMetrics
 
 It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
-say otherwise. It is recommended performing regular upgrades to the latest version,
-since it may contain important bug fixes, performance optimizations or new features.
+say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
 It is also safe downgrading to the previous version unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
 
