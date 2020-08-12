@@ -299,7 +299,10 @@ into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could b
 Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
 It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-charts) repository.
 
-Upgrade follows `Cluster resizing procedure` under the hood.
+
+### Kubernetes operator
+
+[K8s operator](https://github.com/VictoriaMetrics/operator) simplifies managing VictoriaMetrics components in Kubernetes.
 
 
 ### Replication and data safety
