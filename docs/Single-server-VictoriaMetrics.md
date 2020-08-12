@@ -1125,6 +1125,9 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 ## Integrations
 
+* [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
+* [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
+* [vmctl tool for data migration to VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl).
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
