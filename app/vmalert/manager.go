@@ -96,9 +96,9 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 
 	m.groupsMu.Lock()
 	for _, og := range m.groups {
-		startAt := time.Now()
 		ng, ok := groupsRegistry[og.ID()]
 		if !ok {
+			startAt := time.Now()
 			// old group is not present in new list
 			// and must be stopped and deleted
 			og.close()
@@ -108,18 +108,17 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 			continue
 		}
 		go func(og *Group, ng *Group) {
-			for {
-				select {
-				case <-ctx.Done():
-					logger.Infof("group %q: context cancelled", og.Name)
-					return
-				case <-og.doneCh:
-					logger.Infof("group %q: received stop signal", og.Name)
-					return
-				case og.updateCh <- ng:
-					logger.Infof("group %q reload success, took %v seconds", og.Name, time.Since(startAt).Seconds())
-					return
-				}
+			startAt := time.Now()
+			select {
+			case <-ctx.Done():
+				logger.Infof("group %q: context cancelled", og.Name)
+				return
+			case <-og.doneCh:
+				logger.Infof("group %q: received stop signal", og.Name)
+				return
+			case og.updateCh <- ng:
+				logger.Infof("group %q reload success, took %v seconds", og.Name, time.Since(startAt).Seconds())
+				return
 			}
 		}(og, ng)
 		delete(groupsRegistry, ng.ID())
