@@ -161,9 +161,12 @@ func (g *Group) updateWith(newGroup *Group) error {
 }
 
 var (
-	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
-	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
-	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
+	alertsFired          = metrics.NewCounter(`vmalert_alerts_fired_total`)
+	alertsSent           = metrics.NewCounter(`vmalert_alerts_sent_total`)
+	alertsSendErrors     = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
+	groupReloadRequested = metrics.NewCounter(`vmalert_group_reload_requested_total`)
+	groupReloadSucceeded = metrics.NewCounter(`vmalert_group_reload_succeeded_total`)
+	groupReloadFailed    = metrics.NewCounter(`vmalert_group_reload_failed_total`)
 )
 
 func (g *Group) close() {
@@ -198,6 +201,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 			g.mu.Lock()
 			err := g.updateWith(ng)
 			if err != nil {
+				groupReloadFailed.Inc()
 				logger.Errorf("group %q: failed to update: %s", g.Name, err)
 				g.mu.Unlock()
 				continue
@@ -208,6 +212,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 				t = time.NewTicker(g.Interval)
 			}
 			g.mu.Unlock()
+			groupReloadSucceeded.Inc()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
 			g.metrics.iterationTotal.Inc()

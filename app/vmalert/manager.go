@@ -108,6 +108,7 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 			continue
 		}
 		go func(og *Group, ng *Group) {
+			groupReloadRequested.Inc()
 			select {
 			case <-ctx.Done():
 				return
