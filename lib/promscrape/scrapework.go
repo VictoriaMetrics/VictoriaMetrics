@@ -133,9 +133,9 @@ type scrapeWork struct {
 	prevSeriesMap map[uint64]struct{}
 	labelsHashBuf []byte
 
-	// prevBodyCapacity contains the previous response body capacity for the given scrape work.
+	// prevBodyLen contains the previous response body length for the given scrape work.
 	// It is used as a hint in order to reduce memory usage for body buffers.
-	prevBodyCapacity int
+	prevBodyLen int
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
@@ -204,7 +204,7 @@ var (
 )
 
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
-	body := leveledbytebufferpool.Get(sw.prevBodyCapacity)
+	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	var err error
 	body.B, err = sw.ReadData(body.B[:0])
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -244,7 +244,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	// body must be released only after wc is released, since wc refers to body.
-	sw.prevBodyCapacity = cap(body.B)
+	sw.prevBodyLen = len(body.B)
 	leveledbytebufferpool.Put(body)
 	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
 	return err
