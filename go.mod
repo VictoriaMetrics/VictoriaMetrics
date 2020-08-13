@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go v1.34.0
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.1
-	github.com/klauspost/compress v1.10.10
+	github.com/klauspost/compress v1.10.11
 	github.com/valyala/fastjson v1.5.4
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/fasttemplate v1.2.1
