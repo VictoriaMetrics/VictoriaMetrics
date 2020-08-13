@@ -49,8 +49,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/VictoriaMetrics/fastcache v1.5.7 h1:4y6y0G8PRzszQUYIQHHssv/jgPHAb5qQuuDNdCbyAgw=
 github.com/VictoriaMetrics/fastcache v1.5.7/go.mod h1:ptDBkNMQI4RtmVo8VS/XwRY6RoTu1dAWCbrk+6WsEM8=
-github.com/VictoriaMetrics/fasthttp v1.0.4 h1:Aw6UqmPc0v5PunYOpiiyf4hk5B9PTMswdTct/Bvh7Wk=
-github.com/VictoriaMetrics/fasthttp v1.0.4/go.mod h1:m5wCmg1dJN6s1B/lp8/dcKrnnM2l3DWB2eAGZGCTK3g=
+github.com/VictoriaMetrics/fasthttp v1.0.5 h1:DvNn5bStvgb7cZbWUkvd7psaPY9ul+7b2gA6uoiCmHc=
+github.com/VictoriaMetrics/fasthttp v1.0.5/go.mod h1:88NVQ+fmidWtXEFT153t7lAEZNu6Q3DgK1g0l1ZyQtw=
 github.com/VictoriaMetrics/metrics v1.12.2 h1:SG8iAmqavDNuh7GIdHPoGHUhDL23KeKfvSZSozucNeA=
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metrics v1.12.3 h1:Fe6JHC6MSEKa+BtLhPN8WIvS+HKPzMc2evEpNeCGy7I=
