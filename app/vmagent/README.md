@@ -161,6 +161,8 @@ Note that `vmagent` doesn't support `refresh_interval` option these scrape confi
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` in order to see default values for `-promscrape.*CheckInterval` flags.
 
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
+
 
 ### Adding labels to metrics
 
