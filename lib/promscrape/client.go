@@ -152,21 +152,19 @@ var (
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
-	attempts := 0
-again:
-	// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
-	// across multiple retries.
-	err := hc.DoDeadline(req, resp, deadline)
-	if err == nil {
-		return nil
+	for {
+		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
+		// across multiple retries.
+		err := hc.DoDeadline(req, resp, deadline)
+		if err == nil {
+			return nil
+		}
+		if err != fasthttp.ErrConnectionClosed {
+			return err
+		}
+		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
+		if time.Since(deadline) >= 0 {
+			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+		}
 	}
-	if err != fasthttp.ErrConnectionClosed {
-		return err
-	}
-	// Retry request if the server closes the keep-alive connection unless deadline exceeds.
-	attempts++
-	if attempts > 3 {
-		return fmt.Errorf("the server closed 3 subsequent connections: %w", err)
-	}
-	goto again
 }
