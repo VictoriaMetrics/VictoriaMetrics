@@ -10,7 +10,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.0.5
 	github.com/VictoriaMetrics/metrics v1.12.3
 	github.com/VictoriaMetrics/metricsql v0.4.1
-	github.com/aws/aws-sdk-go v1.34.0
+	github.com/aws/aws-sdk-go v1.34.4
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.10.11
@@ -20,11 +20,12 @@ require (
 	github.com/valyala/gozstd v1.7.0
 	github.com/valyala/histogram v1.1.2
 	github.com/valyala/quicktemplate v1.6.2
+	golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20200808120158-1030fc2bf1d9
-	golang.org/x/tools v0.0.0-20200809012840-6f4f008689da // indirect
+	golang.org/x/sys v0.0.0-20200812155832-6a926be9bd1d
+	golang.org/x/tools v0.0.0-20200813203630-136574234359 // indirect
 	google.golang.org/api v0.30.0
-	google.golang.org/genproto v0.0.0-20200808173500-a06252235341 // indirect
+	google.golang.org/genproto v0.0.0-20200813001606-1ccf2a5ae4fd // indirect
 	gopkg.in/yaml.v2 v2.3.0
 )
 
