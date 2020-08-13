@@ -111,7 +111,7 @@ type UploadInput struct {
 	// Specifies the customer-provided encryption key for Amazon S3 to use in encrypting
 	// data. This value is used to store the object and then it is discarded; Amazon
 	// S3 does not store the encryption key. The key must be appropriate for use
-	// with the algorithm specified in the x-amz-server-side-encryption-customer-algorithm
+	// with the algorithm specified in the x-amz-server-side​-encryption​-customer-algorithm
 	// header.
 	SSECustomerKey *string `marshal-as:"blob" location:"header" locationName:"x-amz-server-side-encryption-customer-key" type:"string" sensitive:"true"`
 
