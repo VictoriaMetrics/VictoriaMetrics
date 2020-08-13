@@ -64,6 +64,9 @@ users:
   url_prefix: "http://vminsert:8480/insert/42/prometheus"
 ```
 
+The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
+This may be useful for passing secrets to the config.
+
 
 ### Security
 

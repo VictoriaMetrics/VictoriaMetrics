@@ -16,6 +16,7 @@ require (
 	github.com/klauspost/compress v1.10.10
 	github.com/valyala/fastjson v1.5.4
 	github.com/valyala/fastrand v1.0.0
+	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.7.0
 	github.com/valyala/histogram v1.1.2
 	github.com/valyala/quicktemplate v1.6.2

@@ -288,6 +288,8 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 
 In the future other `*_sd_config` types will be supported.
 
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
+
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
 See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md), which can be used as drop-in replacement for Prometheus.
@@ -768,7 +770,7 @@ and importing them concurrently. Note that the original file must be split on ne
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
 
-Additionally VictoriaMetrics provides the following extra actions for relabeling rules:
+VictoriaMetrics provides the following extra actions for relabeling rules:
 
 * `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
 * `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
