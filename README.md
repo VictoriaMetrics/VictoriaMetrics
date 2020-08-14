@@ -799,7 +799,7 @@ A rough estimation of the required resources for ingestion path:
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
   The number of active time series may be obtained from `vm_cache_entries{type="storage/hour_metric_ids"}` metric
   exported on the `/metrics` page.
-  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited by `-memory.allowedPercent` flag.
+  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with `-memory.allowedPercent` or `-memory.allowedBytes` flags.
 
 * CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
   the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data or for time series with high number of labels.
