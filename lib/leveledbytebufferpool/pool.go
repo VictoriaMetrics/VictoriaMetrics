@@ -18,6 +18,9 @@ var pools [30]sync.Pool
 
 // Get returns byte buffer with the given capacity.
 func Get(capacity int) *bytesutil.ByteBuffer {
+	if capacity <= 0 {
+		capacity = 1
+	}
 	for i := 0; i < 2; i++ {
 		v := getPool(capacity).Get()
 		if v != nil {
@@ -28,7 +31,9 @@ func Get(capacity int) *bytesutil.ByteBuffer {
 		}
 		capacity *= 2
 	}
-	return &bytesutil.ByteBuffer{}
+	return &bytesutil.ByteBuffer{
+		B: make([]byte, 0, capacity),
+	}
 }
 
 // Put returns bb to the pool.
