@@ -3380,6 +3380,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`sum(multi-args)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(1, 2, 3)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6, 6, 6, 6, 6, 6},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum(union-args)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum((1, 2, 3))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(scalar) by ()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum(123) by ()`
@@ -5966,7 +5988,6 @@ func TestExecError(t *testing.T) {
 	f(`label_move()`)
 	f(`median_over_time()`)
 	f(`median()`)
-	f(`median("foo", "bar")`)
 	f(`keep_last_value()`)
 	f(`keep_next_value()`)
 	f(`interpolate()`)
@@ -6068,7 +6089,6 @@ func TestExecError(t *testing.T) {
 	) + 10`)
 
 	// Invalid aggregates
-	f(`sum(1, 2)`)
 	f(`sum(1) foo (bar)`)
 	f(`sum foo () (bar)`)
 	f(`sum(foo) by (1)`)
