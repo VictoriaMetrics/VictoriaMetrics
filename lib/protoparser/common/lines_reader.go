@@ -60,10 +60,14 @@ again:
 			return dstBuf, tailBuf, nil
 		}
 		var ne net.Error
-		if errors.As(err, &ne) && ne.Timeout() && fasttime.UnixTimestamp() == startTime {
-			// Prevent from busy loop when timeout erorrs are returned immediately.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/696 .
-			return dstBuf, tailBuf, fmt.Errorf("detected busy loop with repeated timeout error")
+		if errors.As(err, &ne) && ne.Timeout() {
+			if fasttime.UnixTimestamp() == startTime {
+				// Prevent from busy loop when timeout erorrs are returned immediately.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/696 .
+				return dstBuf, tailBuf, fmt.Errorf("detected busy loop with repeated timeout error")
+			}
+			// Return empty results for an ordinary timeout.
+			return dstBuf, tailBuf, nil
 		}
 		return dstBuf, tailBuf, err
 	}

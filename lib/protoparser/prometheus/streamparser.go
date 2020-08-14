@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -54,17 +53,11 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
-		var ne net.Error
-		if errors.As(ctx.err, &ne) && ne.Timeout() {
-			// Flush the read data on timeout and try reading again.
-			ctx.err = nil
-		} else {
-			if ctx.err != io.EOF {
-				readErrors.Inc()
-				ctx.err = fmt.Errorf("cannot read Prometheus exposition data: %w", ctx.err)
-			}
-			return false
+		if ctx.err != io.EOF {
+			readErrors.Inc()
+			ctx.err = fmt.Errorf("cannot read Prometheus exposition data: %w", ctx.err)
 		}
+		return false
 	}
 	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 	rowsRead.Add(len(ctx.Rows.Rows))
