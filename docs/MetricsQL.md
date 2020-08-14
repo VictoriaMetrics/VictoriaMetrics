@@ -37,6 +37,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `offset` may be negative. For example, `q offset -1h`.
 - [Range duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors) and [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier) may be fractional. For instance, `rate(node_network_receive_bytes_total[1.5m] offset 0.5d)`.
 - `default` binary operator. `q1 default q2` fills gaps in `q1` with the corresponding values from `q2`.
+- Most aggregate functions accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across `q1`, `q2` and `q3`.
 - `histogram_quantile` accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile. See [this issue for details](https://github.com/prometheus/prometheus/issues/5706).
 - `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 - `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
