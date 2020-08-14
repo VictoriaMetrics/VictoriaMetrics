@@ -61,7 +61,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 		} else {
 			if ctx.err != io.EOF {
 				readErrors.Inc()
-				ctx.err = fmt.Errorf("cannot read graphite plaintext protocol data: %w", ctx.err)
+				ctx.err = fmt.Errorf("cannot read Prometheus exposition data: %w", ctx.err)
 			}
 			return false
 		}
