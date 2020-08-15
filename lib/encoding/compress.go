@@ -1,6 +1,8 @@
 package encoding
 
 import (
+	"fmt"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -22,7 +24,11 @@ func CompressZSTDLevel(dst, src []byte, compressLevel int) []byte {
 // the appended dst.
 func DecompressZSTD(dst, src []byte) ([]byte, error) {
 	decompressCalls.Inc()
-	return zstd.Decompress(dst, src)
+	b, err := zstd.Decompress(dst, src)
+	if err != nil {
+		return b, fmt.Errorf("cannot decompress zstd block with len=%d to a buffer with len=%d: %w; block data (hex): %X", len(src), len(dst), err, src)
+	}
+	return b, nil
 }
 
 var (
