@@ -108,7 +108,7 @@ github.com/valyala/fastjson/fastfloat
 github.com/valyala/fastrand
 # github.com/valyala/fasttemplate v1.2.1
 github.com/valyala/fasttemplate
-# github.com/valyala/gozstd v1.7.0
+# github.com/valyala/gozstd v1.8.1
 github.com/valyala/gozstd
 # github.com/valyala/histogram v1.1.2
 github.com/valyala/histogram

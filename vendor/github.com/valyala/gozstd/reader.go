@@ -227,11 +227,13 @@ readAgain:
 		}
 		return nil
 	}
-	if err != io.EOF {
-		return fmt.Errorf("cannot read data from the underlying reader: %s", err)
+	if n > 0 {
+		// Do not return error if at least a single byte read, i.e. forward progress is made.
+		return nil
 	}
-	if n == 0 {
-		return io.EOF
+	if err == io.EOF {
+		// Do not wrap io.EOF, so the caller may notify the end of stream.
+		return err
 	}
-	return nil
+	return fmt.Errorf("cannot read data from the underlying reader: %s", err)
 }

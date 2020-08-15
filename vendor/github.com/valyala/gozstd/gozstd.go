@@ -266,7 +266,7 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	case uint64(C.ZSTD_CONTENTSIZE_UNKNOWN):
 		return streamDecompress(dst, src, dd)
 	case uint64(C.ZSTD_CONTENTSIZE_ERROR):
-		return dst, fmt.Errorf("cannod decompress invalid src")
+		return dst, fmt.Errorf("cannot decompress invalid src")
 	}
 	decompressBound++
 

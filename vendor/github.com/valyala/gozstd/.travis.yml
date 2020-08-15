@@ -6,7 +6,7 @@ os:
   - freebsd
   
 go:
-  - 1.12
+  - 1.14
 
 script:
   # build test for supported platforms
