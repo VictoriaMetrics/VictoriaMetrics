@@ -17,9 +17,7 @@ require (
 	github.com/valyala/fastjson v1.5.4
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/fasttemplate v1.2.1
-
-	// Do not upgrade gozstd version until https://github.com/facebook/zstd/issues/2222 is fixed
-	github.com/valyala/gozstd v1.7.1
+	github.com/valyala/gozstd v1.8.3
 	github.com/valyala/histogram v1.1.2
 	github.com/valyala/quicktemplate v1.6.2
 	golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc // indirect

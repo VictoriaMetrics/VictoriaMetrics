@@ -242,7 +242,7 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	}
 
 	dstLen := len(dst)
-	if cap(dst) > dstLen {
+	if cap(dst)-dstLen >= len(src) {
 		// Fast path - try decompressing without dst resize.
 		result := decompressInternal(dctx, dctxDict, dst[dstLen:cap(dst)], src, dd)
 		decompressedSize := int(result)
