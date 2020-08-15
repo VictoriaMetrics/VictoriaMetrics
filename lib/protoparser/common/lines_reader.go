@@ -2,13 +2,10 @@ package common
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
-	"net"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // The maximum size of a single line returned by ReadLinesBlock.
@@ -44,7 +41,6 @@ func ReadLinesBlockExt(r io.Reader, dstBuf, tailBuf []byte, maxLineLen int) ([]b
 	dstBuf = append(dstBuf[:0], tailBuf...)
 	tailBuf = tailBuf[:0]
 again:
-	startTime := fasttime.UnixTimestamp()
 	n, err := r.Read(dstBuf[len(dstBuf):cap(dstBuf)])
 	// Check for error only if zero bytes read from r, i.e. no forward progress made.
 	// Otherwise process the read data.
@@ -57,16 +53,6 @@ again:
 			// so suppress io.EOF for now. It will be returned during the next
 			// call to ReadLinesBlock.
 			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/60 .
-			return dstBuf, tailBuf, nil
-		}
-		var ne net.Error
-		if errors.As(err, &ne) && ne.Timeout() {
-			if fasttime.UnixTimestamp() == startTime {
-				// Prevent from busy loop when timeout erorrs are returned immediately.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/696 .
-				return dstBuf, tailBuf, fmt.Errorf("detected busy loop with repeated timeout error")
-			}
-			// Return empty results for an ordinary timeout.
 			return dstBuf, tailBuf, nil
 		}
 		return dstBuf, tailBuf, err
