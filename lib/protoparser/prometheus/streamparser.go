@@ -3,7 +3,6 @@ package prometheus
 import (
 	"fmt"
 	"io"
-	"net"
 	"runtime"
 	"sync"
 	"time"
@@ -37,19 +36,10 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) e
 	return ctx.Error()
 }
 
-const flushTimeout = 3 * time.Second
-
 func (ctx *streamContext) Read(r io.Reader) bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
-	}
-	if c, ok := r.(net.Conn); ok {
-		if err := c.SetReadDeadline(time.Now().Add(flushTimeout)); err != nil {
-			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot set read deadline: %w", err)
-			return false
-		}
 	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
