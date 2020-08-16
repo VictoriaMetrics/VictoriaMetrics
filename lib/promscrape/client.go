@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	maxScrapeSize = flag.Int("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
+	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected")
 	disableCompression = flag.Bool("promscrape.disableCompression", false, "Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. "+
 		"This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. "+
@@ -60,7 +61,7 @@ func newClient(sw *ScrapeWork) *client {
 		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
 		ReadTimeout:                  sw.ScrapeTimeout,
 		WriteTimeout:                 10 * time.Second,
-		MaxResponseBodySize:          *maxScrapeSize,
+		MaxResponseBodySize:          maxScrapeSize.N,
 		MaxIdempotentRequestAttempts: 1,
 	}
 	return &client{
@@ -117,7 +118,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		}
 		if err == fasthttp.ErrBodyTooLarge {
 			return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d; "+
-				"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, *maxScrapeSize)
+				"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, maxScrapeSize.N)
 		}
 		return dst, fmt.Errorf("error when scraping %q: %w", c.scrapeURL, err)
 	}

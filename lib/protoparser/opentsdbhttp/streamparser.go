@@ -11,12 +11,13 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
+	maxInsertRequestSize = flagutil.NewBytes("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
 	trimTimestamp        = flag.Duration("opentsdbhttpTrimTimestamp", time.Millisecond, "Trim timestamps for OpenTSDB HTTP data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
@@ -43,15 +44,15 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	defer putStreamContext(ctx)
 
 	// Read the request in ctx.reqBuf
-	lr := io.LimitReader(r, int64(*maxInsertRequestSize)+1)
+	lr := io.LimitReader(r, int64(maxInsertRequestSize.N)+1)
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
 		return fmt.Errorf("cannot read HTTP OpenTSDB request: %w", err)
 	}
-	if reqLen > int64(*maxInsertRequestSize) {
+	if reqLen > int64(maxInsertRequestSize.N) {
 		readErrors.Inc()
-		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed `-opentsdbhttp.maxInsertRequestSize=%d` bytes", *maxInsertRequestSize)
+		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed `-opentsdbhttp.maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
 	}
 
 	// Unmarshal the request to ctx.Rows
