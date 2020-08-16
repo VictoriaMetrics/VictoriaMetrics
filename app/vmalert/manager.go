@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"strings"
+	"sync"
 )
 
 // manager controls group states
@@ -98,12 +96,11 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 	for _, og := range m.groups {
 		ng, ok := groupsRegistry[og.ID()]
 		if !ok {
-			startAt := time.Now()
 			// old group is not present in new list
 			// and must be stopped and deleted
 			og.close()
 			delete(m.groups, og.ID())
-			logger.Infof("group %q delete success, took %v seconds", og.Name, time.Since(startAt).Seconds())
+			logger.Infof("group %q stopped", og.Name)
 			og = nil
 			continue
 		}
@@ -122,9 +119,7 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 	}
 
 	for _, ng := range groupsRegistry {
-		startAt := time.Now()
 		m.startGroup(ctx, ng, restore)
-		logger.Infof("group %q new start success, took %v seconds", ng.Name, time.Since(startAt).Seconds())
 	}
 	m.groupsMu.Unlock()
 	return nil
