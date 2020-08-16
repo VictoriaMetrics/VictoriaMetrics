@@ -316,7 +316,8 @@ Pass `-help` to `vmalert` in order to see the full list of supported
 command-line flags with their descriptions.
 
 To reload configuration without `vmalert` restart send SIGHUP signal
-or send GET request to `/-/reload` endpoint.
+or send GET request to `/-/reload` endpoint. The reloading is running 
+asynchronously by groups.
 
 ### Contributing
 
