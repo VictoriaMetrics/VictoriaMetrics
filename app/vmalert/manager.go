@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"strings"
-	"sync"
 )
 
 // manager controls group states
