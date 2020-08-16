@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -28,7 +29,7 @@ var (
 		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded")
 	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
-	maxBytesPerSecond = flag.Int("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
+	maxBytesPerSecond = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum upload speed. There is no limit if it is set to 0")
 )
 
 func main() {
@@ -126,7 +127,7 @@ func newSrcFS() (*fslocal.FS, error) {
 
 	fs := &fslocal.FS{
 		Dir:               snapshotPath,
-		MaxBytesPerSecond: *maxBytesPerSecond,
+		MaxBytesPerSecond: maxBytesPerSecond.N,
 	}
 	if err := fs.Init(); err != nil {
 		return nil, fmt.Errorf("cannot initialize fs: %w", err)

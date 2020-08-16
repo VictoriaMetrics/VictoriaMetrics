@@ -31,7 +31,7 @@ var (
 		"Too small value can result in incomplete last points for query results")
 	maxExportDuration = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
 	maxQueryDuration  = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for search query execution")
-	maxQueryLen       = flag.Int("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
+	maxQueryLen       = flagutil.NewBytes("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
 	maxLookback       = flag.Duration("search.maxLookback", 0, "Synonim to -search.lookback-delta from Prometheus. "+
 		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. "+
 		"See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons")
@@ -728,8 +728,8 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	}
 	deadline := getDeadlineForQuery(r, startTime)
 
-	if len(query) > *maxQueryLen {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
+	if len(query) > maxQueryLen.N {
+		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	queryOffset := getLatencyOffsetMilliseconds()
 	if !getBool(r, "nocache") && ct-start < queryOffset {
@@ -856,8 +856,8 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	}
 
 	// Validate input args.
-	if len(query) > *maxQueryLen {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
+	if len(query) > maxQueryLen.N {
+		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	if start > end {
 		end = start + defaultStep

@@ -1,7 +1,6 @@
 package vmimport
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,11 +8,12 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxLineLen = flag.Int("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import")
+var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import")
 
 // ParseStream parses /api/v1/import lines from req and calls callback for the parsed rows.
 //
@@ -46,7 +46,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	if ctx.err != nil {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(r, ctx.reqBuf, ctx.tailBuf, *maxLineLen)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(r, ctx.reqBuf, ctx.tailBuf, maxLineLen.N)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
