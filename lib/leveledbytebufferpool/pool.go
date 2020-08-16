@@ -9,10 +9,11 @@ import (
 
 // pools contains pools for byte slices of various capacities.
 //
-//    pools[0] is for capacities from 0 to 7
-//    pools[1] is for capacities from 8 to 15
-//    pools[2] is for capacities from 16 to 31
-//    pools[3] is for capacities from 32 to 63
+//    pools[0] is for capacities from 0 to 8
+//    pools[1] is for capacities from 9 to 16
+//    pools[2] is for capacities from 17 to 32
+//    ...
+//    pools[n] is for capacities from 2^(n+2)+1 to 2^(n+3)
 //
 var pools [30]sync.Pool
 
@@ -21,39 +22,38 @@ func Get(capacity int) *bytesutil.ByteBuffer {
 	if capacity <= 0 {
 		capacity = 1
 	}
+	id, capacityNeeded := getPoolIdAndCapacity(capacity)
 	for i := 0; i < 2; i++ {
-		v := getPool(capacity).Get()
-		if v != nil {
-			return v.(*bytesutil.ByteBuffer)
-		}
-		if capacity > 1<<30 {
+		if id < 0 || id >= len(pools) {
 			break
 		}
-		capacity *= 2
+		if v := pools[id].Get(); v != nil {
+			return v.(*bytesutil.ByteBuffer)
+		}
+		id++
 	}
 	return &bytesutil.ByteBuffer{
-		B: make([]byte, 0, capacity),
+		B: make([]byte, 0, capacityNeeded),
 	}
 }
 
 // Put returns bb to the pool.
 func Put(bb *bytesutil.ByteBuffer) {
 	capacity := cap(bb.B)
+	id, _ := getPoolIdAndCapacity(capacity)
 	bb.Reset()
-	getPool(capacity).Put(bb)
+	pools[id].Put(bb)
 }
 
-func getPool(size int) *sync.Pool {
+func getPoolIdAndCapacity(size int) (int, int) {
+	size--
 	if size < 0 {
 		size = 0
 	}
 	size >>= 3
-	n := bits.Len(uint(size))
-	if n > len(pools) {
-		n = len(pools) - 1
+	id := bits.Len(uint(size))
+	if id > len(pools) {
+		id = len(pools) - 1
 	}
-	if n < 0 {
-		n = 0
-	}
-	return &pools[n]
+	return id, (1 << (id + 3))
 }
