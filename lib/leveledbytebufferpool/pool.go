@@ -19,9 +19,6 @@ var pools [30]sync.Pool
 
 // Get returns byte buffer with the given capacity.
 func Get(capacity int) *bytesutil.ByteBuffer {
-	if capacity <= 0 {
-		capacity = 1
-	}
 	id, capacityNeeded := getPoolIdAndCapacity(capacity)
 	for i := 0; i < 2; i++ {
 		if id < 0 || id >= len(pools) {
