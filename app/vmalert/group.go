@@ -30,6 +30,10 @@ type Group struct {
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan *Group
+	// evalCancel stores cancel func for interrupting
+	// evaluation process in case of config reload
+	// or Group close.
+	evalCancel context.CancelFunc
 
 	metrics *groupMetrics
 }
@@ -185,6 +189,10 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)
+	g.mu.Lock()
+	evalCtx, evalCancel := context.WithCancel(ctx)
+	g.evalCancel = evalCancel
+	g.mu.Unlock()
 	defer t.Stop()
 	for {
 		select {
@@ -196,6 +204,9 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 			return
 		case ng := <-g.updateCh:
 			g.mu.Lock()
+			// reset evaluation context and cancel func
+			evalCtx, evalCancel = context.WithCancel(ctx)
+			g.evalCancel = evalCancel
 			err := g.updateWith(ng)
 			if err != nil {
 				logger.Errorf("group %q: failed to update: %s", g.Name, err)
@@ -213,7 +224,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 
-			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, g.Interval)
+			errs := e.execConcurrently(evalCtx, g.Rules, g.Concurrency, g.Interval)
 			for err := range errs {
 				if err != nil {
 					logger.Errorf("group %q: %s", g.Name, err)
@@ -222,6 +233,22 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 
 			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
+	}
+}
+
+// updateWithTimeout tries to send update signal.
+// If timeout reached - it interrupts rules evaluation
+// and retries update attempt.
+func (g *Group) updateWithTimeout(ng *Group, timeout time.Duration) {
+	t := time.After(timeout)
+	select {
+	case <-t:
+		g.mu.Lock()
+		g.evalCancel()
+		g.mu.Unlock()
+		g.updateCh <- ng
+	case g.updateCh <- ng:
+		return
 	}
 }
 
@@ -238,10 +265,15 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 		returnSeries = true
 	}
 
-	if concurrency == 1 {
-		// fast path
+	if concurrency == 1 { // fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, rule, returnSeries, interval)
+			select {
+			// break rules eval if context was cancelled
+			case <-ctx.Done():
+				break
+			default:
+				res <- e.exec(ctx, rule, returnSeries, interval)
+			}
 		}
 		close(res)
 		return res
@@ -250,14 +282,21 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 	sem := make(chan struct{}, concurrency)
 	go func() {
 		wg := sync.WaitGroup{}
+	L:
 		for _, rule := range rules {
-			sem <- struct{}{}
-			wg.Add(1)
-			go func(r Rule) {
-				res <- e.exec(ctx, r, returnSeries, interval)
-				<-sem
-				wg.Done()
-			}(rule)
+			select {
+			case <-ctx.Done():
+				// break rules eval if context was cancelled
+				break L
+			default:
+				sem <- struct{}{}
+				wg.Add(1)
+				go func(r Rule) {
+					res <- e.exec(ctx, r, returnSeries, interval)
+					<-sem
+					wg.Done()
+				}(rule)
+			}
 		}
 		wg.Wait()
 		close(res)

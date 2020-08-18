@@ -47,6 +47,9 @@ eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	reloadTimeout = flag.Duration("reloadTimeout", 5*time.Second, "Timeout per-group for rules evaluation while waiting for config reload."+
+		" Heavy groups with hundreds of rules could take significant time to finish evaluation round while waiting for configuration reload to be applied."+
+		" Flag allows to define the timeout for how long to wait before interrupting round to apply configuration reload.")
 )
 
 func main() {
@@ -127,10 +130,11 @@ func newManager(ctx context.Context) (*manager, error) {
 	}
 
 	manager := &manager{
-		groups:    make(map[uint64]*Group),
-		querier:   q,
-		notifiers: nts,
-		labels:    map[string]string{},
+		groups:        make(map[uint64]*Group),
+		querier:       q,
+		notifiers:     nts,
+		labels:        map[string]string{},
+		reloadTimeout: *reloadTimeout,
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {

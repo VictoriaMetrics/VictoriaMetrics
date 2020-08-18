@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -23,6 +24,10 @@ type manager struct {
 
 	wg     sync.WaitGroup
 	labels map[string]string
+
+	// reloadTimeout defines timeout for group
+	// to accept update signal
+	reloadTimeout time.Duration
 
 	groupsMu sync.RWMutex
 	groups   map[uint64]*Group
@@ -104,7 +109,7 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 			og = nil
 			continue
 		}
-		og.updateCh <- ng
+		og.updateWithTimeout(ng, m.reloadTimeout)
 		delete(groupsRegistry, ng.ID())
 	}
 

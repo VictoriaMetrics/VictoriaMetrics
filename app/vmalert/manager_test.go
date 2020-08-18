@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
@@ -37,9 +38,10 @@ func TestManagerUpdateError(t *testing.T) {
 // Should be executed with -race flag
 func TestManagerUpdateConcurrent(t *testing.T) {
 	m := &manager{
-		groups:    make(map[uint64]*Group),
-		querier:   &fakeQuerier{},
-		notifiers: []notifier.Notifier{&fakeNotifier{}},
+		groups:        make(map[uint64]*Group),
+		querier:       &fakeQuerier{},
+		notifiers:     []notifier.Notifier{&fakeNotifier{}},
+		reloadTimeout: 100 * time.Millisecond,
 	}
 	paths := []string{
 		"config/testdata/dir/rules0-good.rules",
@@ -70,6 +72,63 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+type querierWithDelay struct {
+	delay time.Duration
+}
+
+func (qd *querierWithDelay) Query(ctx context.Context, _ string) ([]datasource.Metric, error) {
+	const stepDelay = time.Millisecond * 10
+	start := time.Now()
+	for time.Since(start) < qd.delay {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			time.Sleep(stepDelay)
+		}
+	}
+	return nil, nil
+}
+
+func TestManagerUpdateTimeout(t *testing.T) {
+	ei := *evaluationInterval
+	*evaluationInterval = time.Millisecond
+
+	updateWithTimeout(t, "config/testdata/rules1-good.rules", time.Millisecond*100)
+	updateWithTimeout(t, "config/testdata/rules1-good.rules", time.Second)
+	updateWithTimeout(t, "config/testdata/rules2-good.rules", time.Millisecond*100)
+	updateWithTimeout(t, "config/testdata/rules2-good.rules", time.Second)
+
+	*evaluationInterval = ei
+}
+
+func updateWithTimeout(t *testing.T, rules string, timeout time.Duration) {
+	t.Helper()
+
+	m := &manager{
+		groups:        make(map[uint64]*Group),
+		querier:       &querierWithDelay{delay: 2 * timeout},
+		notifiers:     []notifier.Notifier{&fakeNotifier{}},
+		reloadTimeout: timeout / 2,
+	}
+	*evaluationInterval = time.Millisecond
+	if err := m.start(context.Background(), []string{rules}, true, true); err != nil {
+		t.Fatalf("failed to start: %s", err)
+	}
+	time.Sleep(*evaluationInterval * 2)
+	syncCh := make(chan struct{})
+	go func() {
+		_ = m.update(context.Background(), []string{rules}, true, true, false)
+		close(syncCh)
+	}()
+	deadline := time.After(timeout)
+	select {
+	case <-deadline:
+		t.Fatalf("failed to update group with rules %q, timeout %v", rules, timeout)
+	case <-syncCh:
+	}
 }
 
 // TestManagerUpdate tests sequential configuration
