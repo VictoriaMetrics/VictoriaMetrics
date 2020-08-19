@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 )
 
 // Group is an entity for grouping rules
@@ -182,10 +184,22 @@ func (g *Group) close() {
 
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
-	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
-	e := &executor{querier, nts, rw}
-	t := time.NewTicker(g.Interval)
-	defer t.Stop()
+	// This should spread load of rule evaluation by group
+	h := uint32(xxhash.Sum64([]byte(strconv.FormatUint(g.ID(), 10))))
+	randSleep := uint64(float64(g.Interval) * (float64(h) / (1 << 32)))
+	sleeper := time.NewTimer(time.Duration(randSleep))
+	var t *time.Ticker
+	var e *executor
+	select {
+	case <-g.finishedCh:
+		sleeper.Stop()
+		return
+	case <-sleeper.C:
+		logger.Infof("sleep for %v, group %q started; interval=%v; concurrency=%d", time.Duration(randSleep), g.Name, g.Interval, g.Concurrency)
+		e = &executor{querier, nts, rw}
+		t = time.NewTicker(g.Interval)
+		defer t.Stop()
+	}
 	for {
 		select {
 		case <-ctx.Done():
