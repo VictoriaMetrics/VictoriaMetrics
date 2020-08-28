@@ -19,7 +19,7 @@ var pools [30]sync.Pool
 
 // Get returns byte buffer with the given capacity.
 func Get(capacity int) *bytesutil.ByteBuffer {
-	id, capacityNeeded := getPoolIdAndCapacity(capacity)
+	id, capacityNeeded := getPoolIDAndCapacity(capacity)
 	for i := 0; i < 2; i++ {
 		if id < 0 || id >= len(pools) {
 			break
@@ -37,12 +37,12 @@ func Get(capacity int) *bytesutil.ByteBuffer {
 // Put returns bb to the pool.
 func Put(bb *bytesutil.ByteBuffer) {
 	capacity := cap(bb.B)
-	id, _ := getPoolIdAndCapacity(capacity)
+	id, _ := getPoolIDAndCapacity(capacity)
 	bb.Reset()
 	pools[id].Put(bb)
 }
 
-func getPoolIdAndCapacity(size int) (int, int) {
+func getPoolIDAndCapacity(size int) (int, int) {
 	size--
 	if size < 0 {
 		size = 0
