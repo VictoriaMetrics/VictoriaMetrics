@@ -12,6 +12,8 @@ import (
 // This function must be called after logger.Init().
 func UpdateGOMAXPROCSToCPUQuota() {
 	if v := os.Getenv("GOMAXPROCS"); v != "" {
+		// Do not override explicitly set GOMAXPROCS.
+		logger.Infof("using GOMAXPROCS=%q set via environment variable", v)
 		return
 	}
 	q := getCPUQuota()
@@ -20,6 +22,12 @@ func UpdateGOMAXPROCSToCPUQuota() {
 		return
 	}
 	gomaxprocs := int(q + 0.5)
+	numCPU := runtime.NumCPU()
+	if gomaxprocs > numCPU {
+		// There is no sense in setting more GOMAXPROCS than the number of available CPU cores.
+		logger.Infof("cgroup CPU quota=%d exceeds NumCPU=%d; using GOMAXPROCS=NumCPU", gomaxprocs, numCPU)
+		return
+	}
 	if gomaxprocs <= 0 {
 		gomaxprocs = 1
 	}
