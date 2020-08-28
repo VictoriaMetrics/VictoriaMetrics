@@ -265,7 +265,7 @@ type leveledWriteRequestCtxPool struct {
 }
 
 func (lwp *leveledWriteRequestCtxPool) Get(labelsCapacity int) *writeRequestCtx {
-	id, capacityNeeded := lwp.getPoolIdAndCapacity(labelsCapacity)
+	id, capacityNeeded := lwp.getPoolIDAndCapacity(labelsCapacity)
 	for i := 0; i < 2; i++ {
 		if id < 0 || id >= len(lwp.pools) {
 			break
@@ -282,12 +282,12 @@ func (lwp *leveledWriteRequestCtxPool) Get(labelsCapacity int) *writeRequestCtx 
 
 func (lwp *leveledWriteRequestCtxPool) Put(wc *writeRequestCtx) {
 	capacity := cap(wc.labels)
-	id, _ := lwp.getPoolIdAndCapacity(capacity)
+	id, _ := lwp.getPoolIDAndCapacity(capacity)
 	wc.reset()
 	lwp.pools[id].Put(wc)
 }
 
-func (lwp *leveledWriteRequestCtxPool) getPoolIdAndCapacity(size int) (int, int) {
+func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int) {
 	size--
 	if size < 0 {
 		size = 0
