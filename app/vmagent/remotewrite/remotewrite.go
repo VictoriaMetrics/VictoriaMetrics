@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -41,6 +42,10 @@ var rwctxs []*remoteWriteCtx
 // Contains the current relabelConfigs.
 var allRelabelConfigs atomic.Value
 
+// maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
+// since it may lead to high memory usage due to big number of buffers.
+var maxQueues = runtime.GOMAXPROCS(-1) * 4
+
 // Init initializes remotewrite.
 //
 // It must be called after flag.Parse().
@@ -48,9 +53,14 @@ var allRelabelConfigs atomic.Value
 // Stop must be called for graceful shutdown.
 func Init() {
 	if len(*remoteWriteURLs) == 0 {
-		logger.Fatalf("at least one `-remoteWrite.url` must be set")
+		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
-
+	if *queues > maxQueues {
+		*queues = maxQueues
+	}
+	if *queues <= 0 {
+		*queues = 1
+	}
 	if !*showRemoteWriteURL {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
 		httpserver.RegisterSecretFlag("remoteWrite.url")
