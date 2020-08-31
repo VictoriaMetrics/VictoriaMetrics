@@ -558,6 +558,9 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 
+Additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) VictoriaMetrics accepts relative times in `time`, `start` and `end` query args.
+For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
+
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
 See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
 
