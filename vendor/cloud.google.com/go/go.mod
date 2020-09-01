@@ -13,12 +13,12 @@ require (
 	github.com/jstemmer/go-junit-report v0.9.1
 	go.opencensus.io v0.22.4
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
-	golang.org/x/net v0.0.0-20200707034311-ab3426394381
+	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/text v0.3.3
-	golang.org/x/tools v0.0.0-20200806022845-90696ccdc692
+	golang.org/x/tools v0.0.0-20200825202427-b303f430e36d
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.30.0
-	google.golang.org/genproto v0.0.0-20200806141610-86f49bd18e98
+	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987
 	google.golang.org/grpc v1.31.0
 )
