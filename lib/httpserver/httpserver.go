@@ -38,6 +38,7 @@ var (
 		"Highly loaded server may require increased value for graceful shutdown")
 	shutdownDelay = flag.Duration("http.shutdownDelay", 0, "Optional delay before http server shutdown. During this dealy the servier returns non-OK responses "+
 		"from /health page, so load balancers can route new requests to other servers")
+	idleConnTimeout = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 )
 
 var (
@@ -100,7 +101,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 
 		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       time.Minute,
+		IdleTimeout:       *idleConnTimeout,
 
 		// Do not set ReadTimeout and WriteTimeout here,
 		// since these timeouts must be controlled by request handlers.
