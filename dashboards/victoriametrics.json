@@ -87,7 +87,7 @@
   "panels": [
     {
       "collapsed": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -101,7 +101,7 @@
     },
     {
       "content": "<div style=\"text-align: center; font-size: 2em\">$version</div>",
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -131,7 +131,7 @@
     },
     {
       "columns": [],
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "Run VM with `-help` flag to see all the available flags with description and default values",
       "fieldConfig": {
         "defaults": {
@@ -230,7 +230,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "How many datapoints are in storage",
       "fieldConfig": {
         "defaults": {
@@ -320,7 +320,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "How many entries inverted index contains. This value is proportional to the number of unique timeseries in storage(cardinality).",
       "fieldConfig": {
         "defaults": {
@@ -410,7 +410,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -491,7 +491,7 @@
     },
     {
       "collapsed": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -508,7 +508,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -608,7 +608,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -708,7 +708,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
@@ -811,7 +811,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
       "fieldConfig": {
         "defaults": {
@@ -922,7 +922,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2\n* `current` - current number of goroutines busy with inserting rows into storage\n\nWhen `current` hits `max` constantly, it means storage is overloaded and require more CPU.",
       "fieldConfig": {
         "defaults": {
@@ -1038,7 +1038,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
@@ -1135,7 +1135,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1149,7 +1149,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "How many datapoints are inserted into storage per second",
           "fieldConfig": {
             "defaults": {
@@ -1255,7 +1255,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second.",
           "fieldConfig": {
             "defaults": {
@@ -1367,7 +1367,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Shows how many datapoints are in the storage and what is average disk usage per datapoint.",
           "fieldConfig": {
             "defaults": {
@@ -1479,7 +1479,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
           "fieldConfig": {
             "defaults": {
@@ -1576,7 +1576,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`",
           "fieldConfig": {
             "defaults": {
@@ -1684,7 +1684,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Shows amount of on-disk space occupied by inverted index.",
           "fieldConfig": {
             "defaults": {
@@ -1780,7 +1780,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
           "fieldConfig": {
             "defaults": {
@@ -1875,7 +1875,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "The number of rows merged per second by storage nodes.",
           "fieldConfig": {
             "defaults": {
@@ -1970,7 +1970,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
           "fieldConfig": {
             "defaults": {
@@ -2069,7 +2069,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
           "fieldConfig": {
             "defaults": {
@@ -2169,7 +2169,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2183,7 +2183,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
           "fieldConfig": {
             "defaults": {
@@ -2277,7 +2277,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "Slow queries rate according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
           "fieldConfig": {
             "defaults": {
@@ -2376,7 +2376,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>50%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
           "fieldConfig": {
             "defaults": {
@@ -2477,7 +2477,7 @@
     },
     {
       "collapsed": true,
-      "datasource": "$datasource",
+      "datasource": "$ds",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -2491,7 +2491,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -2605,7 +2605,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
               "custom": {}
@@ -2702,7 +2702,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
               "custom": {}
@@ -2799,7 +2799,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
               "custom": {}
@@ -2895,7 +2895,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
               "custom": {}
@@ -2992,7 +2992,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -3091,7 +3091,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$datasource",
+          "datasource": "$ds",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -3206,7 +3206,7 @@
         "includeAll": false,
         "label": null,
         "multi": false,
-        "name": "datasource",
+        "name": "ds",
         "options": [],
         "query": "prometheus",
         "queryValue": "",
@@ -3218,7 +3218,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$datasource",
+        "datasource": "$ds",
         "definition": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
         "hide": 0,
         "includeAll": false,
@@ -3240,7 +3240,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "$datasource",
+        "datasource": "$ds",
         "definition": "label_values(vm_app_version{job=\"$job\"},  version)",
         "hide": 2,
         "includeAll": false,
