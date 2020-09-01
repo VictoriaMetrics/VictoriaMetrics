@@ -228,24 +228,26 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	srcRows := wc.rows.Rows
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
+	if sw.Config.SampleLimit > 0 && samplesScraped > sw.Config.SampleLimit {
+		srcRows = srcRows[:0]
+		up = 0
+		scrapesSkippedBySampleLimit.Inc()
+	}
+	samplesPostRelabeling := 0
 	for i := range srcRows {
 		sw.addRowToTimeseries(wc, &srcRows[i], scrapeTimestamp, true)
 		if len(wc.labels) > 10000 {
 			// Limit the maximum size of wc.writeRequest.
 			// This should reduce memory usage when scraping targets with millions of metrics and/or labels.
 			// For example, when scraping /federate handler from Prometheus - see https://prometheus.io/docs/prometheus/latest/federation/
+			samplesPostRelabeling += len(wc.writeRequest.Timeseries)
 			startTime := time.Now()
 			sw.PushData(&wc.writeRequest)
 			pushDataDuration.UpdateDuration(startTime)
 			wc.reset()
 		}
 	}
-	if sw.Config.SampleLimit > 0 && len(wc.writeRequest.Timeseries) > sw.Config.SampleLimit {
-		prompbmarshal.ResetWriteRequest(&wc.writeRequest)
-		up = 0
-		scrapesSkippedBySampleLimit.Inc()
-	}
-	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
+	samplesPostRelabeling += len(wc.writeRequest.Timeseries)
 	seriesAdded := sw.getSeriesAdded(wc)
 	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
