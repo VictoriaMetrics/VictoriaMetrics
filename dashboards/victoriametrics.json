@@ -5,7 +5,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "7.0.3"
+      "version": "7.1.1"
     },
     {
       "type": "panel",
@@ -35,7 +35,7 @@
       "type": "panel",
       "id": "text",
       "name": "Text",
-      "version": ""
+      "version": "7.1.0"
     }
   ],
   "annotations": {
@@ -56,7 +56,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1593345560631,
+  "iteration": 1598996857592,
   "links": [
     {
       "icon": "doc",
@@ -124,6 +124,11 @@
         }
       ],
       "mode": "html",
+      "options": {
+        "content": "<div style=\"text-align: center; font-size: 2em\">$version</div>",
+        "mode": "html"
+      },
+      "pluginVersion": "7.1.0",
       "timeFrom": null,
       "timeShift": null,
       "title": "Version",
@@ -208,7 +213,7 @@
       ],
       "targets": [
         {
-          "expr": "flag{job=\"$job\", value!=\"secret\", value!=\"\"}",
+          "expr": "flag{job=\"$job\", instance=~\"$instance\", value!=\"secret\", value!=\"\"}",
           "format": "table",
           "instant": true,
           "intervalFactor": 1,
@@ -289,7 +294,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(vm_rows{job=\"$job\", type!=\"indexdb\"})",
+          "expr": "sum(vm_rows{job=\"$job\", instance=~\"$instance\", type!=\"indexdb\"})",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -379,7 +384,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(vm_rows{job=\"$job\", type=\"indexdb\"})",
+          "expr": "sum(vm_rows{job=\"$job\", instance=~\"$instance\", type=\"indexdb\"})",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -468,7 +473,7 @@
       "tableColumn": "vm_app_uptime_seconds{instance=\"victoriametrics:8428\", job=\"victoriametrics\"}",
       "targets": [
         {
-          "expr": "vm_app_uptime_seconds{job=\"$job\"}",
+          "expr": "vm_app_uptime_seconds{job=\"$job\", instance=\"$instance\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -512,7 +517,8 @@
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -542,10 +548,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -555,8 +559,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_http_requests_total{job=\"$job\", path!~\"/favicon.ico\"}[$__interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__interval])) by (path) > 0",
           "format": "time_series",
+          "interval": "",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
           "refId": "A"
@@ -566,7 +571,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Requests rate",
+      "title": "Requests rate ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -612,7 +617,8 @@
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -642,10 +648,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -655,7 +659,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "max(vm_request_duration_seconds{job=\"$job\", quantile=~\"(0.5|0.99)\"}) by (path, quantile) > 0",
+          "expr": "max(vm_request_duration_seconds{job=\"$job\", instance=~\"$instance\", quantile=~\"(0.5|0.99)\"}) by (path, quantile) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{quantile}} ({{path}})",
@@ -666,7 +670,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Query duration",
+      "title": "Query duration ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -712,7 +716,8 @@
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -745,10 +750,8 @@
         }
       ],
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -758,7 +761,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "vm_cache_entries{job=\"$job\", type=\"storage/hour_metric_ids\"}",
+          "expr": "vm_cache_entries{job=\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Active time series",
@@ -769,7 +772,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Active time series",
+      "title": "Active time series ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -815,7 +818,8 @@
       "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -842,10 +846,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -860,7 +862,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_cache_size_bytes{job=\"$job\"})",
+          "expr": "sum(vm_cache_size_bytes{job=\"$job\", instance=\"$instance\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -868,7 +870,7 @@
           "refId": "A"
         },
         {
-          "expr": "max(vm_allowed_memory_bytes{job=\"$job\"})",
+          "expr": "max(vm_allowed_memory_bytes{job=\"$job\", instance=\"$instance\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -880,7 +882,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Cache size",
+      "title": "Cache size ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -926,7 +928,8 @@
       "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2\n* `current` - current number of goroutines busy with inserting rows into storage\n\nWhen `current` hits `max` constantly, it means storage is overloaded and require more CPU.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -958,10 +961,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -976,14 +977,14 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_concurrent_addrows_capacity{job=\"$job\"})",
+          "expr": "sum(vm_concurrent_addrows_capacity{job=\"$job\", instance=\"$instance\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "max",
           "refId": "A"
         },
         {
-          "expr": "sum(vm_concurrent_addrows_current{job=\"$job\"})",
+          "expr": "sum(vm_concurrent_addrows_current{job=\"$job\", instance=\"$instance\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "current",
@@ -994,7 +995,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Concurrent inserts",
+      "title": "Concurrent inserts ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -1042,7 +1043,8 @@
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -1072,10 +1074,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1085,7 +1085,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_http_request_errors_total{job=\"$job\"}[$__interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=\"$job\", instance=\"$instance\"}[$__interval])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -1096,7 +1096,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Requests error rate",
+      "title": "Requests error rate ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 2,
@@ -1153,7 +1153,8 @@
           "description": "How many datapoints are inserted into storage per second",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1163,7 +1164,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 10,
@@ -1182,10 +1183,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1200,7 +1199,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rows_inserted_total{job=\"$job\"}[$__interval])) by (type) > 0",
+              "expr": "sum(rate(vm_rows_inserted_total{job=\"$job\", instance=\"$instance\"}[$__interval])) by (type) > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1212,7 +1211,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Datapoints ingestion rate",
+          "title": "Datapoints ingestion rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 2,
@@ -1259,7 +1258,8 @@
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1269,7 +1269,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 34,
@@ -1286,10 +1286,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1304,7 +1302,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "vm_pending_rows{job=\"$job\", type=\"storage\"}",
+              "expr": "vm_pending_rows{job=\"$job\", instance=~\"$instance\", type=\"storage\"}",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1312,7 +1310,7 @@
               "refId": "A"
             },
             {
-              "expr": "vm_pending_rows{job=\"$job\", type=\"indexdb\"}",
+              "expr": "vm_pending_rows{job=\"$job\", instance=~\"$instance\", type=\"indexdb\"}",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1324,7 +1322,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Pending datapoints",
+          "title": "Pending datapoints ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1371,7 +1369,8 @@
           "description": "Shows how many datapoints are in the storage and what is average disk usage per datapoint.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1381,7 +1380,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 30,
@@ -1398,10 +1397,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1416,7 +1413,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_rows{job=\"$job\", type != \"indexdb\"})",
+              "expr": "sum(vm_rows{job=\"$job\", instance=~\"$instance\", type != \"indexdb\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1424,7 +1421,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(vm_data_size_bytes{job=\"$job\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job\", type != \"indexdb\"})",
+              "expr": "sum(vm_data_size_bytes{job=\"$job\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job\", instance=~\"$instance\", type != \"indexdb\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1436,7 +1433,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Datapoints",
+          "title": "Datapoints ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 2,
@@ -1483,7 +1480,8 @@
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1493,7 +1491,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 36,
@@ -1510,10 +1508,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1523,7 +1519,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_parts{job=\"$job\"}) by (type)",
+              "expr": "sum(vm_parts{job=\"$job\", instance=\"$instance\"}) by (type)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{type}}",
@@ -1534,7 +1530,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "LSM parts",
+          "title": "LSM parts ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 2,
@@ -1580,7 +1576,8 @@
           "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1590,7 +1587,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 52
           },
           "hiddenSeries": false,
           "id": 53,
@@ -1609,10 +1606,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1622,7 +1617,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_data_size_bytes{job=\"$job\", type!=\"indexdb\"})",
+              "expr": "sum(vm_data_size_bytes{job=\"$job\", instance=~\"$instance\", type!=\"indexdb\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1630,7 +1625,7 @@
               "refId": "A"
             },
             {
-              "expr": "vm_free_disk_space_bytes{job=\"$job\"}",
+              "expr": "vm_free_disk_space_bytes{job=\"$job\", instance=\"$instance\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1642,7 +1637,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Disk space usage (datapoints)",
+          "title": "Disk space usage - datapoints ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1688,7 +1683,8 @@
           "description": "Shows amount of on-disk space occupied by inverted index.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1698,7 +1694,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 52
           },
           "hiddenSeries": false,
           "id": 55,
@@ -1715,10 +1711,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1728,7 +1722,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "vm_data_size_bytes{job=\"$job\", type=\"indexdb\"}",
+              "expr": "vm_data_size_bytes{job=\"$job\", instance=~\"$instance\", type=\"indexdb\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "refId": "A"
@@ -1738,7 +1732,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Disk space usage (index)",
+          "title": "Disk space usage - index ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1784,7 +1778,8 @@
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1794,7 +1789,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 60
           },
           "hiddenSeries": false,
           "id": 62,
@@ -1810,10 +1805,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1823,7 +1816,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_active_merges{job=\"$job\"}) by(type)",
+              "expr": "sum(vm_active_merges{job=\"$job\", instance=\"$instance\"}) by(type)",
               "legendFormat": "{{type}}",
               "refId": "A"
             }
@@ -1832,7 +1825,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Active merges",
+          "title": "Active merges ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1879,7 +1872,8 @@
           "description": "The number of rows merged per second by storage nodes.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1889,7 +1883,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 60
           },
           "hiddenSeries": false,
           "id": 64,
@@ -1905,10 +1899,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1918,7 +1910,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rows_merged_total{job=\"$job\"}[5m])) by(type)",
+              "expr": "sum(rate(vm_rows_merged_total{job=\"$job\", instance=\"$instance\"}[5m])) by(type)",
               "legendFormat": "{{type}}",
               "refId": "A"
             }
@@ -1927,7 +1919,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Merge speed",
+          "title": "Merge speed ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1974,7 +1966,8 @@
           "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1984,7 +1977,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 68
           },
           "hiddenSeries": false,
           "id": 58,
@@ -2001,10 +1994,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2014,7 +2005,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_rows_ignored_total{job=\"$job\"}) by (reason) > 0",
+              "expr": "sum(vm_rows_ignored_total{job=\"$job\", instance=\"$instance\"}) by (reason) > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -2026,7 +2017,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Rows ignored",
+          "title": "Rows ignored ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2073,7 +2064,8 @@
           "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2083,7 +2075,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 68
           },
           "hiddenSeries": false,
           "id": 67,
@@ -2100,10 +2092,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2113,7 +2103,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_log_messages_total{job=\"$job\"}[5m])) by (level) ",
+              "expr": "sum(rate(vm_log_messages_total{job=\"$job\", instance=\"$instance\"}[5m])) by (level) ",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -2125,7 +2115,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Logging rate",
+          "title": "Logging rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2226,7 +2216,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_new_timeseries_created_total{job=\"$job\"}[5m]))",
+              "expr": "sum(rate(vm_new_timeseries_created_total{job=\"$job\", instance=\"$instance\"}[5m]))",
               "legendFormat": "churn rate",
               "refId": "A"
             }
@@ -2235,7 +2225,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Churn rate",
+          "title": "Churn rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2321,7 +2311,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_queries_total{job=\"$job\"}[5m]))",
+              "expr": "sum(rate(vm_slow_queries_total{job=\"$job\", instance=\"$instance\"}[5m]))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -2333,7 +2323,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Slow queries rate",
+          "title": "Slow queries rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2420,7 +2410,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_slow_row_inserts_total{job=\"$job\"}[5m])) / sum(rate(vm_rows_inserted_total{job=\"$job\"}[5m]))",
+              "expr": "sum(rate(vm_slow_row_inserts_total{job=\"$job\", instance=\"$instance\"}[5m])) / sum(rate(vm_rows_inserted_total{job=\"$job\", instance=\"$instance\"}[5m]))",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2433,7 +2423,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Slow inserts",
+          "title": "Slow inserts ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2495,7 +2485,8 @@
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2505,7 +2496,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5
+            "y": 78
           },
           "hiddenSeries": false,
           "id": 44,
@@ -2522,10 +2513,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2535,7 +2524,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(go_memstats_sys_bytes{job=\"$job\"}) + sum(vm_cache_size_bytes{job=\"$job\"})",
+              "expr": "sum(go_memstats_sys_bytes{job=\"$job\", instance=\"$instance\"}) + sum(vm_cache_size_bytes{job=\"$job\", instance=\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -2543,7 +2532,7 @@
               "refId": "A"
             },
             {
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=\"$job\"}) + sum(vm_cache_size_bytes{job=\"$job\"})",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=\"$job\", instance=\"$instance\"}) + sum(vm_cache_size_bytes{job=\"$job\", instance=\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -2551,7 +2540,7 @@
               "refId": "B"
             },
             {
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=\"$job\"})",
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=\"$job\", instance=\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -2563,7 +2552,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Memory usage",
+          "title": "Memory usage ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2608,7 +2597,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2618,7 +2608,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5
+            "y": 78
           },
           "hiddenSeries": false,
           "id": 57,
@@ -2635,10 +2625,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2648,7 +2636,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(process_cpu_seconds_total{job=\"$job\"}[5m])",
+              "expr": "rate(process_cpu_seconds_total{job=\"$job\", instance=\"$instance\"}[5m])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -2660,7 +2648,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "CPU",
+          "title": "CPU ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2705,7 +2693,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2715,7 +2704,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 13
+            "y": 86
           },
           "hiddenSeries": false,
           "id": 47,
@@ -2732,10 +2721,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2745,7 +2732,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(go_goroutines{job=\"$job\"})",
+              "expr": "sum(go_goroutines{job=\"$job\", instance=\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "gc duration",
@@ -2756,7 +2743,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Goroutines",
+          "title": "Goroutines ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2802,7 +2789,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2812,7 +2800,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 13
+            "y": 86
           },
           "hiddenSeries": false,
           "id": 42,
@@ -2829,10 +2817,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2842,7 +2828,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(go_gc_duration_seconds_sum{job=\"$job\"}[2m]))",
+              "expr": "sum(rate(go_gc_duration_seconds_sum{job=\"$job\", instance=\"$instance\"}[2m]))",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "gc duration",
@@ -2853,7 +2839,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "GC duration",
+          "title": "GC duration ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2898,7 +2884,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2908,7 +2895,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 94
           },
           "hiddenSeries": false,
           "id": 48,
@@ -2925,10 +2912,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2938,7 +2923,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(process_num_threads{job=\"$job\"})",
+              "expr": "sum(process_num_threads{job=\"$job\", instance=\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "threads",
@@ -2949,7 +2934,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Threads",
+          "title": "Threads ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2996,7 +2981,8 @@
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -3006,7 +2992,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 94
           },
           "hiddenSeries": false,
           "id": 37,
@@ -3023,10 +3009,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3036,7 +3020,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(vm_tcplistener_conns{job=\"$job\"})",
+              "expr": "sum(vm_tcplistener_conns{job=\"$job\", instance=\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -3048,7 +3032,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "TCP connections",
+          "title": "TCP connections ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -3095,7 +3079,8 @@
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -3105,7 +3090,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 29
+            "y": 102
           },
           "hiddenSeries": false,
           "id": 49,
@@ -3122,10 +3107,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3135,7 +3118,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=\"$job\"}[$__interval]))",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=\"$job\", instance=\"$instance\"}[$__interval]))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -3147,7 +3130,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "TCP connections rate",
+          "title": "TCP connections rate ($instance)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -3191,7 +3174,7 @@
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 25,
+  "schemaVersion": 26,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -3241,18 +3224,40 @@
         "allValue": null,
         "current": {},
         "datasource": "$ds",
-        "definition": "label_values(vm_app_version{job=\"$job\"},  version)",
+        "definition": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
         "hide": 2,
         "includeAll": false,
         "label": null,
         "multi": false,
         "name": "version",
         "options": [],
-        "query": "label_values(vm_app_version{job=\"$job\"},  version)",
+        "query": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
         "refresh": 1,
         "regex": "/.*-tags-(v\\d+\\.\\d+\\.\\d+)/",
         "skipUrlSync": false,
         "sort": 2,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": "$ds",
+        "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "instance",
+        "options": [],
+        "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
