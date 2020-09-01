@@ -230,6 +230,15 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	scrapedSamples.Update(float64(samplesScraped))
 	for i := range srcRows {
 		sw.addRowToTimeseries(wc, &srcRows[i], scrapeTimestamp, true)
+		if len(wc.labels) > 10000 {
+			// Limit the maximum size of wc.writeRequest.
+			// This should reduce memory usage when scraping targets with millions of metrics and/or labels.
+			// For example, when scraping /federate handler from Prometheus - see https://prometheus.io/docs/prometheus/latest/federation/
+			startTime := time.Now()
+			sw.PushData(&wc.writeRequest)
+			pushDataDuration.UpdateDuration(startTime)
+			wc.reset()
+		}
 	}
 	if sw.Config.SampleLimit > 0 && len(wc.writeRequest.Timeseries) > sw.Config.SampleLimit {
 		prompbmarshal.ResetWriteRequest(&wc.writeRequest)
@@ -256,7 +265,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	return err
 }
 
-// leveldWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
+// leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
 // structs contain mixed number of labels.
 //
 // Its logic has been copied from leveledbytebufferpool.
