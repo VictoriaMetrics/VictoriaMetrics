@@ -54,6 +54,10 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	err := flagutil.ParseConfig()
+	if err != nil {
+		logger.Fatalf("cannot parse config file: %v", err)
+	}
 	buildinfo.Init()
 	logger.Init()
 	cgroup.UpdateGOMAXPROCSToCPUQuota()

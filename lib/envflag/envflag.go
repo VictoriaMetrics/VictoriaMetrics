@@ -24,15 +24,14 @@ func Parse() {
 	if !*enable {
 		return
 	}
-
 	// Remember explicitly set command-line flags.
 	flagsSet := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) {
 		flagsSet[f.Name] = true
 	})
-
 	// Obtain the remaining flag values from environment vars.
 	flag.VisitAll(func(f *flag.Flag) {
+
 		if flagsSet[f.Name] {
 			// The flag is explicitly set via command-line.
 			return
@@ -46,6 +45,7 @@ func Parse() {
 			}
 		}
 	})
+
 }
 
 func getEnvFlagName(s string) string {
