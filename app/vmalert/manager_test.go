@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -23,12 +22,8 @@ func TestManagerUpdateError(t *testing.T) {
 	m := &manager{groups: make(map[uint64]*Group)}
 	path := []string{"foo/bar"}
 	err := m.update(context.Background(), path, true, true, false)
-	if err == nil {
-		t.Fatalf("expected to have err; got nil instead")
-	}
-	expErr := "no groups found"
-	if !strings.Contains(err.Error(), expErr) {
-		t.Fatalf("expected to got err %s; got %s", expErr, err)
+	if err != nil {
+		t.Fatalf("expected to load succesfully with empty rules dir; got err instead: %v", err)
 	}
 }
 

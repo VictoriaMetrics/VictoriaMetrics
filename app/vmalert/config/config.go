@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"hash/fnv"
 	"io/ioutil"
 	"path/filepath"
@@ -169,7 +170,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		}
 	}
 	if len(groups) < 1 {
-		return nil, fmt.Errorf("no groups found in %s", strings.Join(pathPatterns, ";"))
+		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
 	}
 	return groups, nil
 }
