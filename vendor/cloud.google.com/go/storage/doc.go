@@ -39,7 +39,9 @@ To start working with this package, create a client:
         // TODO: Handle error.
     }
 
-The client will use your default application credentials.
+The client will use your default application credentials. Clients should be
+reused instead of created as needed. The methods of Client are safe for
+concurrent use by multiple goroutines.
 
 If you only wish to access public data, you can create
 an unauthenticated client with

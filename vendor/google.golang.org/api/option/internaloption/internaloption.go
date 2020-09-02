@@ -20,7 +20,7 @@ func (o defaultEndpointOption) Apply(settings *internal.DialSettings) {
 //
 // It should only be used internally by generated clients.
 //
-// This is similar to WithEndpoint, but allows us to determine whether the user has overriden the default endpoint.
+// This is similar to WithEndpoint, but allows us to determine whether the user has overridden the default endpoint.
 func WithDefaultEndpoint(url string) option.ClientOption {
 	return defaultEndpointOption(url)
 }
