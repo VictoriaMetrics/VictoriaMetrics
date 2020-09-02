@@ -18,13 +18,29 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestManagerUpdateError(t *testing.T) {
+// TestManagerEmptyRulesDir tests
+// successful cases of
+// starting with empty rules folder
+// adding rules to folder
+// and removing them
+func TestManagerEmptyRulesDir(t *testing.T) {
 	m := &manager{groups: make(map[uint64]*Group)}
 	path := []string{"foo/bar"}
 	err := m.update(context.Background(), path, true, true, false)
 	if err != nil {
 		t.Fatalf("expected to load succesfully with empty rules dir; got err instead: %v", err)
 	}
+	path = []string{"config/testdata/dir/rules0-good.rules"}
+	err = m.update(context.Background(), path, true, true, false)
+	if err != nil {
+		t.Fatalf("expected to load new rules succesfully; got err instead: %v", err)
+	}
+	path = []string{"foo/bar"}
+	err = m.update(context.Background(), path, true, true, false)
+	if err != nil {
+		t.Fatalf("expected to load empty rules succesfully; got err instead: %v", err)
+	}
+
 }
 
 // TestManagerUpdateConcurrent supposed to test concurrent
