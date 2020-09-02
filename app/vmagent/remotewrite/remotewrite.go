@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -27,12 +28,12 @@ var (
 		"isn't enough for sending high volume of collected data to remote storage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
-	maxPendingBytesPerURL = flag.Int("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+	maxPendingBytesPerURL = flagutil.NewBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. "+
 		"Disk usage is unlimited if the value is set to 0")
-	decimalPlaces = flag.Int("remoteWrite.decimalPlaces", 0, "The number of significant decimal places to leave in metric values before writing them to remote storage. "+
-		"See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant decimal places. "+
+	significantFigures = flag.Int("remoteWrite.significantFigures", 0, "The number of significant figures to leave in metric values before writing them to remote storage. "+
+		"See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
 		"This option may be used for increasing on-disk compression level for the stored metrics")
 )
 
@@ -41,6 +42,10 @@ var rwctxs []*remoteWriteCtx
 // Contains the current relabelConfigs.
 var allRelabelConfigs atomic.Value
 
+// maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
+// since it may lead to high memory usage due to big number of buffers.
+var maxQueues = runtime.GOMAXPROCS(-1) * 4
+
 // Init initializes remotewrite.
 //
 // It must be called after flag.Parse().
@@ -48,9 +53,14 @@ var allRelabelConfigs atomic.Value
 // Stop must be called for graceful shutdown.
 func Init() {
 	if len(*remoteWriteURLs) == 0 {
-		logger.Fatalf("at least one `-remoteWrite.url` must be set")
+		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
-
+	if *queues > maxQueues {
+		*queues = maxQueues
+	}
+	if *queues <= 0 {
+		*queues = 1
+	}
 	if !*showRemoteWriteURL {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
 		httpserver.RegisterSecretFlag("remoteWrite.url")
@@ -124,13 +134,13 @@ func Stop() {
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
 func Push(wr *prompbmarshal.WriteRequest) {
-	if *decimalPlaces > 0 {
-		// Round values according to decimalPlaces
+	if *significantFigures > 0 {
+		// Round values according to significantFigures
 		for i := range wr.Timeseries {
 			samples := wr.Timeseries[i].Samples
 			for j := range samples {
 				s := &samples[j]
-				s.Value = decimal.Round(s.Value, *decimalPlaces)
+				s.Value = decimal.Round(s.Value, *significantFigures)
 			}
 		}
 	}
@@ -183,7 +193,7 @@ type remoteWriteCtx struct {
 func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
 	h := xxhash.Sum64([]byte(remoteWriteURL))
 	path := fmt.Sprintf("%s/persistent-queue/%016X", *tmpDataPath, h)
-	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, *maxPendingBytesPerURL)
+	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})

@@ -259,8 +259,8 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 * The recommended total number of vCPU cores for all the `vminsert` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
 * The recommended number of vCPU cores per each `vminsert` instance should equal to the number of `vmstorage` instances in the cluster.
 * The amount of RAM per each `vminsert` instance should be 1GB or more. RAM is used as a buffer for spikes in ingestion rate.
-  The maximum amount of used RAM per `vminsert` node can be tuned with `-memory.allowedPercent` command-line flag. For instance, `-memory.allowedPercent=20`
-  limits the maximum amount of used RAM to 20% of the available RAM on the host system.
+  The maximum amount of used RAM per `vminsert` node can be tuned with `-memory.allowedPercent` or `-memory.allowedBytes` command-line flags.
+  For instance, `-memory.allowedPercent=20` limits the maximum amount of used RAM to 20% of the available RAM on the host system.
 * Sometimes `-rpc.disableCompression` command-line flag on `vminsert` instances could increase ingestion capacity at the cost
   of higher network bandwidth usage between `vminsert` and `vmstorage`.
 
@@ -299,7 +299,10 @@ into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could b
 Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
 It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-charts) repository.
 
-Upgrade follows `Cluster resizing procedure` under the hood.
+
+### Kubernetes operator
+
+[K8s operator](https://github.com/VictoriaMetrics/operator) simplifies managing VictoriaMetrics components in Kubernetes.
 
 
 ### Replication and data safety

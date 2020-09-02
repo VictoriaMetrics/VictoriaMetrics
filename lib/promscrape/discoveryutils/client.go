@@ -110,8 +110,8 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 		req.Header.Set("Authorization", c.ac.Authorization)
 	}
 	var resp fasthttp.Response
-	// There is no need in calling DoTimeout, since the timeout is already set in c.hc.ReadTimeout above.
-	if err := c.hc.Do(&req, &resp); err != nil {
+	deadline := time.Now().Add(c.hc.ReadTimeout)
+	if err := doRequestWithPossibleRetry(c.hc, &req, &resp, deadline); err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
 	var data []byte
@@ -130,4 +130,22 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 			requestURL, statusCode, fasthttp.StatusOK, data)
 	}
 	return data, nil
+}
+
+func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+	for {
+		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
+		// across multiple retries.
+		err := hc.DoDeadline(req, resp, deadline)
+		if err == nil {
+			return nil
+		}
+		if err != fasthttp.ErrConnectionClosed {
+			return err
+		}
+		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
+		if time.Since(deadline) >= 0 {
+			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+		}
+	}
 }

@@ -161,6 +161,8 @@ Note that `vmagent` doesn't support `refresh_interval` option these scrape confi
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` in order to see default values for `-promscrape.*CheckInterval` flags.
 
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
+
 
 ### Adding labels to metrics
 
@@ -208,6 +210,8 @@ If you have suggestions, improvements or found a bug - feel free to open an issu
 
 ### Troubleshooting
 
+* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor `vmagent` state.
+
 * It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping big number of targets,
   since `vmagent` establishes at least a single TCP connection per each target.
 
@@ -216,6 +220,10 @@ If you have suggestions, improvements or found a bug - feel free to open an issu
 
 * It is recommended to increase `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
   and `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
+
+* If you see gaps on the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set, then try increasing `-remoteWrite.queues`.
+  Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage, so it starts dropping the buffered data
+  if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.

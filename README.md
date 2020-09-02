@@ -247,8 +247,8 @@ VictoriaMetrics supports native PromQL and [extends it with useful features](htt
 ### How to upgrade VictoriaMetrics
 
 It is safe upgrading VictoriaMetrics to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
-say otherwise. It is recommended performing regular upgrades to the latest version,
-since it may contain important bug fixes, performance optimizations or new features.
+say otherwise. It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 
 It is also safe downgrading to the previous version unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
 
@@ -287,6 +287,8 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config)
 
 In the future other `*_sd_config` types will be supported.
+
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
@@ -556,6 +558,9 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
 
+Additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) VictoriaMetrics accepts relative times in `time`, `start` and `end` query args.
+For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
+
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
 See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
 
@@ -768,7 +773,7 @@ and importing them concurrently. Note that the original file must be split on ne
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
 
-Additionally VictoriaMetrics provides the following extra actions for relabeling rules:
+VictoriaMetrics provides the following extra actions for relabeling rules:
 
 * `replace_all`: replaces all the occurences of `regex` in the values of `source_labels` with the `replacement` and stores the result in the `target_label`.
 * `labelmap_all`: replaces all the occurences of `regex` in all the label names with the `replacement`.
@@ -797,7 +802,7 @@ A rough estimation of the required resources for ingestion path:
   Time series is considered active if new data points have been added to it recently or if it has been recently queried.
   The number of active time series may be obtained from `vm_cache_entries{type="storage/hour_metric_ids"}` metric
   exported on the `/metrics` page.
-  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited by `-memory.allowedPercent` flag.
+  VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with `-memory.allowedPercent` or `-memory.allowedBytes` flags.
 
 * CPU cores: a CPU core per 300K inserted data points per second. So, ~4 CPU cores are required for processing
   the insert stream of 1M data points per second. The ingestion rate may be lower for high cardinality data or for time series with high number of labels.
@@ -1125,6 +1130,9 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 ## Integrations
 
+* [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
+* [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
+* [vmctl tool for data migration to VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl).
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.

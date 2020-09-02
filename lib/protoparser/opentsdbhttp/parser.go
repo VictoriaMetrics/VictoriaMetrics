@@ -35,7 +35,7 @@ func (rs *Rows) Reset() {
 //
 // See http://opentsdb.net/docs/build/html/api_http/put.html
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(av *fastjson.Value) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], av, rs.tagsPool[:0])
 }

@@ -9,9 +9,9 @@ import (
 
 // NewArray returns new Array with the given name and description.
 func NewArray(name, description string) *Array {
-	var a Array
 	description += "\nSupports `array` of values separated by comma" +
 		" or specified via multiple flags."
+	var a Array
 	flag.Var(&a, name, description)
 	return &a
 }

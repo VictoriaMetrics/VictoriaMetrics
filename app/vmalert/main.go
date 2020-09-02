@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -28,9 +29,10 @@ var (
 	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules. 
 Supports patterns. Flag can be specified multiple times. 
 Examples:
- -rule /path/to/file. Path to a single file with alerting rules
- -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
-absolute path to all .yaml files in root.`)
+ -rule="/path/to/file". Path to a single file with alerting rules
+ -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder, 
+absolute path to all .yaml files in root.
+Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
 	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
@@ -54,6 +56,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	manager, err := newManager(ctx)

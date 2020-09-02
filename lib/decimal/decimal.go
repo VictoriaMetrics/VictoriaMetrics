@@ -256,7 +256,7 @@ func maxUpExponent(v int64) int16 {
 	}
 }
 
-// Round f to value with the given number of significant decimal digits.
+// Round f to value with the given number of significant figures.
 func Round(f float64, digits int) float64 {
 	if digits <= 0 || digits >= 18 {
 		return f

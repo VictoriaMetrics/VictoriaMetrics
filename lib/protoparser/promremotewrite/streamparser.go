@@ -1,7 +1,6 @@
 package promremotewrite
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,12 +8,13 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
 
-var maxInsertRequestSize = flag.Int("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
+var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
 
 // ParseStream parses Prometheus remote_write message req and calls callback for the parsed timeseries.
 //
@@ -93,15 +93,15 @@ var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))
 
 func readSnappy(dst []byte, r io.Reader) ([]byte, error) {
-	lr := io.LimitReader(r, int64(*maxInsertRequestSize)+1)
+	lr := io.LimitReader(r, int64(maxInsertRequestSize.N)+1)
 	bb := bodyBufferPool.Get()
 	reqLen, err := bb.ReadFrom(lr)
 	if err != nil {
 		bodyBufferPool.Put(bb)
 		return dst, fmt.Errorf("cannot read compressed request: %w", err)
 	}
-	if reqLen > int64(*maxInsertRequestSize) {
-		return dst, fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", *maxInsertRequestSize)
+	if reqLen > int64(maxInsertRequestSize.N) {
+		return dst, fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
 	}
 
 	buf := dst[len(dst):cap(dst)]
@@ -111,8 +111,8 @@ func readSnappy(dst []byte, r io.Reader) ([]byte, error) {
 		err = fmt.Errorf("cannot decompress request with length %d: %w", reqLen, err)
 		return dst, err
 	}
-	if len(buf) > *maxInsertRequestSize {
-		return dst, fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", *maxInsertRequestSize, len(buf))
+	if len(buf) > maxInsertRequestSize.N {
+		return dst, fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(buf))
 	}
 	if len(buf) > 0 && len(dst) < cap(dst) && &buf[0] == &dst[len(dst):cap(dst)][0] {
 		dst = dst[:len(dst)+len(buf)]

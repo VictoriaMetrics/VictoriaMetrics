@@ -5,12 +5,20 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-var allowedMemPercent = flag.Float64("memory.allowedPercent", 60, "Allowed percent of system memory VictoriaMetrics caches may occupy. "+
-	"Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. "+
-	"Too high value may evict too much data from OS page cache, which will result in higher disk IO usage")
+var (
+	allowedPercent = flag.Float64("memory.allowedPercent", 60, "Allowed percent of system memory VictoriaMetrics caches may occupy. "+
+		"See also -memory.allowedBytes. "+
+		"Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. "+
+		"Too high value may evict too much data from OS page cache, which will result in higher disk IO usage")
+	allowedBytes = flagutil.NewBytes("memory.allowedBytes", 0, "Allowed size of system memory VictoriaMetrics caches may occupy. "+
+		"This option overrides -memory.allowedPercent if set to non-zero value. "+
+		"Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. "+
+		"Too high value may evict too much data from OS page cache, which will result in higher disk IO usage")
+)
 
 var (
 	allowedMemory   int
@@ -24,15 +32,20 @@ func initOnce() {
 		// Do not use logger.Panicf here, since logger may be uninitialized yet.
 		panic(fmt.Errorf("BUG: memory.Allowed must be called only after flag.Parse call"))
 	}
-	if *allowedMemPercent < 1 || *allowedMemPercent > 200 {
-		logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %f", *allowedMemPercent)
-	}
-	percent := *allowedMemPercent / 100
-
 	mem := sysTotalMemory()
-	allowedMemory = int(float64(mem) * percent)
-	remainingMemory = mem - allowedMemory
-	logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g", allowedMemory, remainingMemory, *allowedMemPercent)
+	if allowedBytes.N <= 0 {
+		if *allowedPercent < 1 || *allowedPercent > 200 {
+			logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %f", *allowedPercent)
+		}
+		percent := *allowedPercent / 100
+		allowedMemory = int(float64(mem) * percent)
+		remainingMemory = mem - allowedMemory
+		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%f", allowedMemory, remainingMemory, *allowedPercent)
+	} else {
+		allowedMemory = allowedBytes.N
+		remainingMemory = mem - allowedMemory
+		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
+	}
 }
 
 // Allowed returns the amount of system memory allowed to use by the app.

@@ -185,6 +185,7 @@ func (c *client) runWorker() {
 
 func (c *client) sendBlock(block []byte) {
 	retryDuration := time.Second
+	retriesCount := 0
 
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
@@ -229,6 +230,7 @@ again:
 	}
 
 	// Unexpected status code returned
+	retriesCount++
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.urlLabelValue, statusCode)).Inc()
 	retryDuration *= 2
 	if retryDuration > time.Minute {
@@ -237,10 +239,10 @@ again:
 	body, err := ioutil.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		logger.Errorf("cannot read response body from %q: %s", c.remoteWriteURL, err)
+		logger.Errorf("cannot read response body from %q during retry #%d: %s", c.remoteWriteURL, retriesCount, err)
 	} else {
-		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q: %d; response body=%q; re-sending the block in %.3f seconds",
-			len(block), c.remoteWriteURL, statusCode, body, retryDuration.Seconds())
+		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
+			"re-sending the block in %.3f seconds", len(block), c.remoteWriteURL, retriesCount, statusCode, body, retryDuration.Seconds())
 	}
 	t := time.NewTimer(retryDuration)
 	select {

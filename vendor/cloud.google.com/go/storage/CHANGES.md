@@ -1,5 +1,9 @@
 # Changes
 
+## v1.11.0
+- Add support for CustomTime and NoncurrentTime object lifecycle management
+  features.
+
 ## v1.10.0
 - Bump dependency on google.golang.org/api to capture changes to retry logic
   which will make retries on writes more resilient.

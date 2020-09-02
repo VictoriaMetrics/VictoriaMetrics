@@ -1,10 +1,8 @@
 package prometheus
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"net"
 	"runtime"
 	"sync"
 	"time"
@@ -38,33 +36,18 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) e
 	return ctx.Error()
 }
 
-const flushTimeout = 3 * time.Second
-
 func (ctx *streamContext) Read(r io.Reader) bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
-	if c, ok := r.(net.Conn); ok {
-		if err := c.SetReadDeadline(time.Now().Add(flushTimeout)); err != nil {
-			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot set read deadline: %w", err)
-			return false
-		}
-	}
 	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
-		var ne net.Error
-		if errors.As(ctx.err, &ne) && ne.Timeout() {
-			// Flush the read data on timeout and try reading again.
-			ctx.err = nil
-		} else {
-			if ctx.err != io.EOF {
-				readErrors.Inc()
-				ctx.err = fmt.Errorf("cannot read graphite plaintext protocol data: %w", ctx.err)
-			}
-			return false
+		if ctx.err != io.EOF {
+			readErrors.Inc()
+			ctx.err = fmt.Errorf("cannot read Prometheus exposition data: %w", ctx.err)
 		}
+		return false
 	}
 	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
 	rowsRead.Add(len(ctx.Rows.Rows))
