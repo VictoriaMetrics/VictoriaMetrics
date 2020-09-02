@@ -194,7 +194,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 		return
 	case <-sleeper.C:
 	}
-	logger.Infof("sleep for %v, group %q started; interval=%v; concurrency=%d", time.Duration(randSleep), g.Name, g.Interval, g.Concurrency)
+	logger.Infof("group %q started with delay %v; interval=%v; concurrency=%d", time.Duration(randSleep), g.Name, g.Interval, g.Concurrency)
 	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
