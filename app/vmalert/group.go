@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"strconv"
 	"sync"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 // Group is an entity for grouping rules
@@ -182,19 +180,32 @@ func (g *Group) close() {
 	}
 }
 
+var skipRandSleepOnGroupStart bool
+
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
-	// This should spread load of rule evaluation by group
-	h := uint32(xxhash.Sum64([]byte(strconv.FormatUint(g.ID(), 10))))
-	randSleep := uint64(float64(g.Interval) * (float64(h) / (1 << 32)))
-	sleeper := time.NewTimer(time.Duration(randSleep))
-	select {
-	case <-g.finishedCh:
-		sleeper.Stop()
-		return
-	case <-sleeper.C:
+
+	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	if !skipRandSleepOnGroupStart {
+		randSleep := uint64(float64(g.Interval) * (float64(uint32(g.ID())) / (1 << 32)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(g.Interval)
+		}
+		randSleep -= sleepOffset
+		sleepTimer := time.NewTimer(time.Duration(randSleep))
+		select {
+		case <-ctx.Done():
+			sleepTimer.Stop()
+			return
+		case <-g.doneCh:
+			sleepTimer.Stop()
+			return
+		case <-sleepTimer.C:
+		}
 	}
-	logger.Infof("group %q started with delay %v; interval=%v; concurrency=%d", time.Duration(randSleep), g.Name, g.Interval, g.Concurrency)
+
+	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
