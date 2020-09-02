@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"hash/fnv"
 	"io/ioutil"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/metricsql"
