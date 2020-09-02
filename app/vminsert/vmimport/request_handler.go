@@ -6,6 +6,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -22,14 +24,18 @@ var (
 //
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6
 func InsertHandler(at *auth.Token, req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(req, func(rows []parser.Row) error {
-			return insertRows(at, rows)
+			return insertRows(at, rows, extraLabels)
 		})
 	})
 }
 
-func insertRows(at *auth.Token, rows []parser.Row) error {
+func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
@@ -42,6 +48,10 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			ctx.AddLabelBytes(tag.Key, tag.Value)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ctx.AddLabel(label.Name, label.Value)
 		}
 		if hasRelabeling {
 			ctx.ApplyRelabeling()
