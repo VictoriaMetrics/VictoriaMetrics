@@ -5,6 +5,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -17,13 +19,19 @@ var (
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
 func InsertHandler(req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		return parser.ParseStream(req.Body, isGzipped, insertRows)
+		return parser.ParseStream(req.Body, isGzipped, func(rows []parser.Row) error {
+			return insertRows(rows, extraLabels)
+		})
 	})
 }
 
-func insertRows(rows []parser.Row) error {
+func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -36,6 +44,10 @@ func insertRows(rows []parser.Row) error {
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			ctx.AddLabel(tag.Key, tag.Value)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ctx.AddLabel(label.Name, label.Value)
 		}
 		if hasRelabeling {
 			ctx.ApplyRelabeling()

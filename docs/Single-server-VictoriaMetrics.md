@@ -516,6 +516,9 @@ The following response should be returned:
 {"metric":{"__name__":"ask","market":"NYSE","ticker":"GOOG"},"values":[1.23],"timestamps":[1583865146495]}
 ```
 
+Extra labels may be added to all the imported lines by passing `extra_label=name=value` query args.
+For example, `/api/v1/import/csv?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported lines.
+
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 
@@ -539,6 +542,9 @@ It should return somethins like the following:
 ```
 {"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
 ```
+
+Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
+For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
 
 VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
 
@@ -761,6 +767,9 @@ curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export
 # Import gzipped data to <destination-victoriametrics>:
 curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import -T exported_data.jsonl.gz
 ```
+
+Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
+For example, `/api/v1/import?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported time series.
 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 

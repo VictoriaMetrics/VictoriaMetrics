@@ -7,6 +7,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -22,12 +24,18 @@ var (
 //
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6
 func InsertHandler(req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, insertRows)
+		return parser.ParseStream(req, func(rows []parser.Row) error {
+			return insertRows(rows, extraLabels)
+		})
 	})
 }
 
-func insertRows(rows []parser.Row) error {
+func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -45,6 +53,10 @@ func insertRows(rows []parser.Row) error {
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			ic.AddLabelBytes(tag.Key, tag.Value)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ic.AddLabel(label.Name, label.Value)
 		}
 		if hasRelabeling {
 			ic.ApplyRelabeling()
