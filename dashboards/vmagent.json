@@ -5,7 +5,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "7.0.3"
+      "version": "7.1.1"
     },
     {
       "type": "panel",
@@ -51,12 +51,12 @@
       }
     ]
   },
-  "description": "Overview for VictoriaMetrics vmagent v1.38.1 or higher",
+  "description": "Overview for VictoriaMetrics vmagent v1.40.0 or higher",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1594939790534,
+  "iteration": 1598997251171,
   "links": [
     {
       "icon": "doc",
@@ -136,9 +136,10 @@
           ],
           "fields": "",
           "values": false
-        }
+        },
+        "textMode": "auto"
       },
-      "pluginVersion": "7.0.3",
+      "pluginVersion": "7.1.1",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"up\"})",
@@ -199,9 +200,10 @@
           ],
           "fields": "",
           "values": false
-        }
+        },
+        "textMode": "auto"
       },
-      "pluginVersion": "7.0.3",
+      "pluginVersion": "7.1.1",
       "targets": [
         {
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"down\"})",
@@ -265,9 +267,10 @@
           ],
           "fields": "",
           "values": false
-        }
+        },
+        "textMode": "auto"
       },
-      "pluginVersion": "7.0.3",
+      "pluginVersion": "7.1.1",
       "targets": [
         {
           "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
@@ -323,9 +326,10 @@
           ],
           "fields": "",
           "values": false
-        }
+        },
+        "textMode": "auto"
       },
-      "pluginVersion": "7.0.3",
+      "pluginVersion": "7.1.1",
       "targets": [
         {
           "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
@@ -444,7 +448,8 @@
       "datasource": "$ds",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -477,10 +482,8 @@
       "lines": true,
       "linewidth": 1,
       "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -550,7 +553,8 @@
       "description": "Shows in/out samples rate including push and pull models. \n\nThe out-rate could be different to in-rate because of replication or additional timeseries added by vmagent for every scraped target.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -576,10 +580,8 @@
       "lines": true,
       "linewidth": 1,
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -657,7 +659,8 @@
       "description": "Shows the rate of requests served by vmagent HTTP server.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -684,10 +687,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -727,7 +728,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -753,7 +754,8 @@
       "description": "Network usage shows the bytes rate for data accepted by vmagent and pushed via remotewrite protocol.\nDiscrepancies are possible because of different protocols used for ingesting, scraping and writing data.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -779,10 +781,8 @@
       "lines": true,
       "linewidth": 1,
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -859,7 +859,8 @@
       "description": "Errors rate shows rate for multiple metrics that track possible errors in vmagent, such as network or parsing errors.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -892,10 +893,8 @@
         }
       ],
       "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -959,7 +958,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -985,7 +984,8 @@
       "description": "Shows rate of dropped samples from persistent queue. VMagent drops samples from queue if in-memory and on-disk queues are full and it is unable to flush them to remote storage.\nThe max size of on-disk queue is configured by `-remoteWrite.maxDiskUsagePerURL` flag.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -1018,10 +1018,8 @@
         }
       ],
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1061,7 +1059,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -1087,7 +1085,8 @@
       "description": "Shows the persistent queue size of pending samples in bytes which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -1119,10 +1118,8 @@
         }
       ],
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1162,7 +1159,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -1188,7 +1185,8 @@
       "description": "Shows the rate of dropped samples due to relabeling. \nMetric tracks drops for `-remoteWrite.relabelConfig` configuration only.",
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "custom": {},
+          "links": []
         },
         "overrides": []
       },
@@ -1221,10 +1219,8 @@
         }
       ],
       "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
       "percentage": false,
+      "pluginVersion": "7.1.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1270,7 +1266,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -1307,18 +1303,7 @@
           "fieldConfig": {
             "defaults": {
               "custom": {},
-              "decimals": 0,
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "short"
+              "links": []
             },
             "overrides": []
           },
@@ -1344,11 +1329,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
-          "pluginVersion": "7.0.3",
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1390,7 +1372,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -1416,18 +1398,7 @@
           "fieldConfig": {
             "defaults": {
               "custom": {},
-              "decimals": 0,
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "short"
+              "links": []
             },
             "overrides": []
           },
@@ -1453,11 +1424,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
-          "pluginVersion": "7.0.3",
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1499,7 +1467,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -1524,7 +1492,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1550,10 +1519,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1629,7 +1596,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1655,10 +1623,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1716,7 +1682,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -1741,7 +1707,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1767,10 +1734,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1817,7 +1782,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -1862,7 +1827,7 @@
             "y": 17
           },
           "heatmap": {},
-          "hideZeroBuckets": true,
+          "hideZeroBuckets": false,
           "highlightCards": true,
           "id": 33,
           "legend": {
@@ -1871,7 +1836,7 @@
           "reverseYBuckets": false,
           "targets": [
             {
-              "expr": "prometheus_buckets(sum(rate(vm_promscrape_scrape_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange))",
+              "expr": "buckets_limit(12, prometheus_buckets(sum(rate(vm_promscrape_scrape_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange)))",
               "format": "heatmap",
               "interval": "",
               "intervalFactor": 10,
@@ -1929,7 +1894,8 @@
           "description": "Shows the rate of write requests served by ingestserver (UDP, TCP connections) and HTTP server.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -1956,10 +1922,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2005,7 +1969,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2031,7 +1995,8 @@
           "description": "Shows the rate of write errors in ingestserver (UDP, TCP connections) and HTTP server.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2058,10 +2023,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2107,7 +2070,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2133,7 +2096,8 @@
           "description": "Shows the rate of parsed rows from write or scrape requests.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2160,10 +2124,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2203,7 +2165,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2229,7 +2191,8 @@
           "description": "Tracks the rate of dropped invalid rows because of errors while unmarshaling write requests. The exact errors messages will be printed in logs.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2255,10 +2218,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2298,7 +2259,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2339,7 +2300,8 @@
           "description": "Shows the rate of requests to configured remote write endpoints by url and status code.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.\n\n",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2365,10 +2327,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2409,7 +2369,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2435,7 +2395,8 @@
           "description": "Shows the global rate for number of written bytes via remote write connections.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2461,10 +2422,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2504,7 +2463,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2530,7 +2489,8 @@
           "description": "Shows requests retry rate by url. Number of retries is unlimited but protected with delays up to 1m between attempts.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.\n\n",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2556,10 +2516,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2625,7 +2583,8 @@
           "description": "Shows current number of established connections to remote write endpoints.\n\n",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2651,10 +2610,8 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2694,7 +2651,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -2748,7 +2705,7 @@
           "reverseYBuckets": false,
           "targets": [
             {
-              "expr": "prometheus_buckets(sum(rate(vmagent_remotewrite_block_size_rows_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange))  ",
+              "expr": "buckets_limit(12, prometheus_buckets(sum(rate(vmagent_remotewrite_block_size_rows_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange)))",
               "format": "heatmap",
               "interval": "",
               "intervalFactor": 10,
@@ -2819,7 +2776,7 @@
           "reverseYBuckets": false,
           "targets": [
             {
-              "expr": "prometheus_buckets(sum(rate(vmagent_remotewrite_block_size_bytes_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange))  ",
+              "expr": "buckets_limit(12, prometheus_buckets(sum(rate(vmagent_remotewrite_block_size_bytes_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange)))",
               "format": "heatmap",
               "interval": "",
               "intervalFactor": 10,
@@ -2890,7 +2847,7 @@
           "reverseYBuckets": false,
           "targets": [
             {
-              "expr": "prometheus_buckets(sum(rate(vmagent_remotewrite_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange))  ",
+              "expr": "buckets_limit(12, prometheus_buckets(sum(rate(vmagent_remotewrite_duration_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange)))",
               "format": "heatmap",
               "interval": "",
               "intervalFactor": 10,
@@ -2948,7 +2905,8 @@
           "description": "Shows the CPU usage per vmagent instance. \nIf you think that usage is abnormal or unexpected pls file an issue and attach CPU profile if possible.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -2958,7 +2916,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 35,
@@ -2981,10 +2939,8 @@
             }
           ],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3025,7 +2981,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -3051,7 +3007,8 @@
           "description": "Amount of used memory (resident)\n\nIf you think that usage is abnormal or unexpected pls file an issue and attach memory profile if possible.",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -3061,7 +3018,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 37,
@@ -3084,10 +3041,8 @@
             }
           ],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3152,7 +3107,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -3162,7 +3118,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 41,
@@ -3179,10 +3135,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3249,7 +3203,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -3259,7 +3214,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 39,
@@ -3276,10 +3231,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3346,7 +3299,8 @@
           "datasource": "$ds",
           "fieldConfig": {
             "defaults": {
-              "custom": {}
+              "custom": {},
+              "links": []
             },
             "overrides": []
           },
@@ -3356,7 +3310,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 43,
@@ -3373,10 +3327,8 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
-          "options": {
-            "dataLinks": []
-          },
           "percentage": false,
+          "pluginVersion": "7.1.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3417,7 +3369,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": null,
+              "min": "0",
               "show": true
             },
             {
@@ -3440,7 +3392,7 @@
     }
   ],
   "refresh": false,
-  "schemaVersion": 25,
+  "schemaVersion": 26,
   "style": "dark",
   "tags": [
     "vmagent",
