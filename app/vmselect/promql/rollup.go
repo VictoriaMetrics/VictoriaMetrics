@@ -62,6 +62,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"tmax_over_time":        newRollupFuncOneArg(rollupTmax),
 	"share_le_over_time":    newRollupShareLE,
 	"share_gt_over_time":    newRollupShareGT,
+	"count_le_over_time":    newRollupCountLE,
+	"count_gt_over_time":    newRollupCountGT,
 	"histogram_over_time":   newRollupFuncOneArg(rollupHistogram),
 	"rollup":                newRollupFuncOneArg(rollupFake),
 	"rollup_rate":           newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
@@ -834,6 +836,25 @@ func countFilterGT(values []float64, gt float64) int {
 }
 
 func newRollupShareFilter(args []interface{}, countFilter func(values []float64, limit float64) int) (rollupFunc, error) {
+	rf, err := newRollupCountFilter(args, countFilter)
+	if err != nil {
+		return nil, err
+	}
+	return func(rfa *rollupFuncArg) float64 {
+		n := rf(rfa)
+		return n / float64(len(rfa.values))
+	}, nil
+}
+
+func newRollupCountLE(args []interface{}) (rollupFunc, error) {
+	return newRollupCountFilter(args, countFilterLE)
+}
+
+func newRollupCountGT(args []interface{}) (rollupFunc, error) {
+	return newRollupCountFilter(args, countFilterGT)
+}
+
+func newRollupCountFilter(args []interface{}, countFilter func(values []float64, limit float64) int) (rollupFunc, error) {
 	if err := expectRollupArgsNum(args, 2); err != nil {
 		return nil, err
 	}
@@ -849,8 +870,7 @@ func newRollupShareFilter(args []interface{}, countFilter func(values []float64,
 			return nan
 		}
 		limit := limits[rfa.idx]
-		n := countFilter(values, limit)
-		return float64(n) / float64(len(values))
+		return float64(countFilter(values, limit))
 	}
 	return rf, nil
 }

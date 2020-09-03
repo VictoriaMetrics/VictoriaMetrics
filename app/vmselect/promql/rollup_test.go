@@ -239,6 +239,52 @@ func TestRollupShareGTOverTime(t *testing.T) {
 	f(1000, 0)
 }
 
+func TestRollupCountLEOverTime(t *testing.T) {
+	f := func(le, vExpected float64) {
+		t.Helper()
+		les := []*timeseries{{
+			Values:     []float64{le},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
+		testRollupFunc(t, "count_le_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 0)
+	f(0, 0)
+	f(10, 0)
+	f(12, 1)
+	f(30, 2)
+	f(50, 9)
+	f(100, 11)
+	f(123, 12)
+	f(1000, 12)
+}
+
+func TestRollupCountGTOverTime(t *testing.T) {
+	f := func(gt, vExpected float64) {
+		t.Helper()
+		gts := []*timeseries{{
+			Values:     []float64{gt},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
+		testRollupFunc(t, "count_gt_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 12)
+	f(0, 12)
+	f(10, 12)
+	f(12, 11)
+	f(30, 10)
+	f(50, 3)
+	f(100, 1)
+	f(123, 0)
+	f(1000, 0)
+}
+
 func TestRollupQuantileOverTime(t *testing.T) {
 	f := func(phi, vExpected float64) {
 		t.Helper()
