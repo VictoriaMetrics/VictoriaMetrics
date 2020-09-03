@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -39,6 +40,8 @@ var (
 	shutdownDelay = flag.Duration("http.shutdownDelay", 0, "Optional delay before http server shutdown. During this dealy the servier returns non-OK responses "+
 		"from /health page, so load balancers can route new requests to other servers")
 	idleConnTimeout = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
+	connTimeout     = flag.Duration("http.connTimeout", 2*time.Minute, "Incoming http connections are closed after the configured timeout. This may help spreading incoming load "+
+		"among a cluster of services behind load balancer")
 )
 
 var (
@@ -107,6 +110,11 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		// since these timeouts must be controlled by request handlers.
 
 		ErrorLog: logger.StdErrorLogger(),
+
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			startTime := fasttime.UnixTimestamp()
+			return context.WithValue(ctx, connStartTimeKey, &startTime)
+		},
 	}
 	serversLock.Lock()
 	servers[addr] = &s
@@ -119,6 +127,15 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		logger.Panicf("FATAL: cannot serve http at %s: %s", addr, err)
 	}
 }
+
+func whetherToCloseConn(r *http.Request) bool {
+	ctx := r.Context()
+	v := ctx.Value(connStartTimeKey)
+	st, ok := v.(*uint64)
+	return ok && fasttime.UnixTimestamp()-*st > uint64(*connTimeout/time.Second)
+}
+
+var connStartTimeKey = interface{}("startTime")
 
 // Stop stops the http server on the given addr, which has been started
 // via Serve func.
@@ -164,9 +181,14 @@ func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 }
 
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
+var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
 
 func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
+	if whetherToCloseConn(r) {
+		connTimeoutClosedConns.Inc()
+		w.Header().Set("Connection", "close")
+	}
 	path, err := getCanonicalPath(r.URL.Path)
 	if err != nil {
 		Errorf(w, r, "cannot get canonical path: %s", err)
