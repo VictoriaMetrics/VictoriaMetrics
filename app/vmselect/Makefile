@@ -22,9 +22,6 @@ vmselect-pure-prod:
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
 
-vmselect-pure:
-	APP_NAME=vmselect $(MAKE) app-local-pure
-
 package-vmselect:
 	APP_NAME=vmselect $(MAKE) package-via-docker
 
@@ -36,3 +33,24 @@ publish-vmselect:
 
 publish-vmselect-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) publish-via-docker
+
+vmselect-amd64:
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmselect-local-with-goarch
+
+vmselect-arm:
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmselect-local-with-goarch
+
+vmselect-arm64:
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmselect-local-with-goarch
+
+vmselect-ppc64le:
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmselect-local-with-goarch
+
+vmselect-386:
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmselect-local-with-goarch
+
+vmselect-local-with-goarch:
+	APP_NAME=vmselect $(MAKE) app-local-with-goarch
+
+vmselect-pure:
+	APP_NAME=vmselect $(MAKE) app-local-pure

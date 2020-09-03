@@ -44,9 +44,18 @@ compatible storage address for storing recording rules results and alerts state 
 Then configure `vmalert` accordingly:
 ```
 ./bin/vmalert -rule=alert.rules \
-		-datasource.url=http://localhost:8428 \
-        -notifier.url=http://localhost:9093
+    -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
+    -notifier.url=http://localhost:9093 \    # AlertManager URL
+    -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
+    -remoteWrite.url=http://localhost:8428 \ # remote write compatible storage to persist rules
+    -remoteRead.url=http://localhost:8428 \  # PromQL compatible datasource to restore alerts state from
+    -external.label=cluster=east-1 \         # External label to be applied for each rule
+    -external.label=replica=a \              # Multiple external labels may be set
+    -evaluationInterval=3s                   # Default evaluation interval if not specified in rules group
 ```
+
+If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
+to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts. 
 
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) 
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very 
@@ -153,96 +162,154 @@ Used as alert source in AlertManager.
 
 The shortlist of configuration flags is the following:
 ```
-Usage of vmalert:
   -datasource.basicAuth.password string
-        Optional basic auth password for -datasource.url
+    	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
-        Optional basic auth username for -datasource.url
-  -datasource.tlsCAFile value
-        Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used.
-  -datasource.tlsCertFile value
-        Optional path to client-side TLS certificate file to use when connecting to -datasource.url.
+    	Optional basic auth username for -datasource.url
+  -datasource.tlsCAFile string
+    	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used
+  -datasource.tlsCertFile string
+    	Optional path to client-side TLS certificate file to use when connecting to -datasource.url
   -datasource.tlsInsecureSkipVerify
-        Whether to skip tls verification when connecting to -datasource.url
-  -datasource.tlsKeyFile value
-        Optional path to client-side TLS certificate key to use when connecting to -datasource.url.
-  -datasource.tlsServerName value
-        Optional TLS server name to use for connections to -datasource.url. By default the server name from -datasource.url is used.
+    	Whether to skip tls verification when connecting to -datasource.url
+  -datasource.tlsKeyFile string
+    	Optional path to client-side TLS certificate key to use when connecting to -datasource.url
+  -datasource.tlsServerName string
+    	Optional TLS server name to use for connections to -datasource.url. By default the server name from -datasource.url is used
   -datasource.url string
-        Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
+    	Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
+  -enableTCP6
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
+  -envflag.enable
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+  -envflag.prefix string
+    	Prefix for environment variables if -envflag.enable is set
   -evaluationInterval duration
-        How often to evaluate the rules (default 1m0s)
+    	How often to evaluate the rules (default 1m0s)
+  -external.alert.source string
+    	External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
+    	eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
+  -external.label array
+    	Optional label in the form 'name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
+    	Supports array of values separated by comma or specified via multiple flags.
   -external.url string
-        External URL is used as alert's source for sent alerts to the notifier
+    	External URL is used as alert's source for sent alerts to the notifier
+  -http.disableResponseCompression
+    	Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth
+  -http.maxGracefulShutdownDuration duration
+    	The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
+  -http.pathPrefix string
+    	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
+  -http.shutdownDelay duration
+    	Optional delay before http server shutdown. During this dealy the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+    	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+    	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-        Address to listen for http connections (default ":8880")
+    	Address to listen for http connections (default ":8880")
+  -loggerErrorsPerSecondLimit int
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit (default 10)
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
+  -loggerLevel string
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
+  -memory.allowedBytes int
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+  -memory.allowedPercent float
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
-        Auth key for /metrics. It overrides httpAuth settings
-  -notifier.tlsCAFile value
-        Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used.
-  -notifier.tlsCertFile value
-        Optional path to client-side TLS certificate file to use when connecting to -notifier.url.
+    	Auth key for /metrics. It overrides httpAuth settings
+  -notifier.basicAuth.password array
+    	Optional basic auth password for -datasource.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -notifier.basicAuth.username array
+    	Optional basic auth username for -datasource.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -notifier.tlsCAFile array
+    	Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
+    	Supports array of values separated by comma or specified via multiple flags.
+  -notifier.tlsCertFile array
+    	Optional path to client-side TLS certificate file to use when connecting to -notifier.url
+    	Supports array of values separated by comma or specified via multiple flags.
   -notifier.tlsInsecureSkipVerify
-        Whether to skip tls verification when connecting to -notifier.url
-  -notifier.tlsKeyFile value
-        Optional path to client-side TLS certificate key to use when connecting to -notifier.url.
-  -notifier.tlsServerName value
-        Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used.
-  -notifier.url string
-        Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
+    	Whether to skip tls verification when connecting to -notifier.url
+  -notifier.tlsKeyFile array
+    	Optional path to client-side TLS certificate key to use when connecting to -notifier.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -notifier.tlsServerName array
+    	Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
+    	Supports array of values separated by comma or specified via multiple flags.
+  -notifier.url array
+    	Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
+    	Supports array of values separated by comma or specified via multiple flags.
+  -pprofAuthKey string
+    	Auth key for /debug/pprof. It overrides httpAuth settings
   -remoteRead.basicAuth.password string
-        Optional basic auth password for -remoteRead.url
+    	Optional basic auth password for -remoteRead.url
   -remoteRead.basicAuth.username string
-        Optional basic auth username for -remoteRead.url
+    	Optional basic auth username for -remoteRead.url
   -remoteRead.lookback duration
-        Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
-  -remoteRead.tlsCAFile value
-        Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used.
-  -remoteRead.tlsCertFile value
-        Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url.
+    	Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
+  -remoteRead.tlsCAFile string
+    	Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
+  -remoteRead.tlsCertFile string
+    	Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url
   -remoteRead.tlsInsecureSkipVerify
-        Whether to skip tls verification when connecting to -remoteRead.url
-  -remoteRead.tlsKeyFile value
-        Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url.
-  -remoteRead.tlsServerName value
-        Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used.
+    	Whether to skip tls verification when connecting to -remoteRead.url
+  -remoteRead.tlsKeyFile string
+    	Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url
+  -remoteRead.tlsServerName string
+    	Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
   -remoteRead.url vmalert
-        Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
+    	Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
   -remoteWrite.basicAuth.password string
-        Optional basic auth password for -remoteWrite.url
+    	Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.username string
-        Optional basic auth username for -remoteWrite.url
+    	Optional basic auth username for -remoteWrite.url
   -remoteWrite.concurrency int
-        Defines number of readers that concurrently write into remote storage (default 1)
+    	Defines number of writers for concurrent writing into remote querier (default 1)
   -remoteWrite.flushInterval duration
-        Defines interval of flushes to remote write endpoint (default 5s)
+    	Defines interval of flushes to remote write endpoint (default 5s)
   -remoteWrite.maxBatchSize int
-        Defines defines max number of timeseries to be flushed at once (default 1000)
+    	Defines defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
-        Defines the max number of pending datapoints to remote write endpoint (default 100000)
-  -remoteWrite.tlsCAFile value
-        Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used.
-  -remoteWrite.tlsCertFile value
-        Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url.
+    	Defines the max number of pending datapoints to remote write endpoint (default 100000)
+  -remoteWrite.tlsCAFile string
+    	Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
+  -remoteWrite.tlsCertFile string
+    	Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url
   -remoteWrite.tlsInsecureSkipVerify
-        Whether to skip tls verification when connecting to -remoteWrite.url
-  -remoteWrite.tlsKeyFile value
-        Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url.
-  -remoteWrite.tlsServerName value
-        Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used.
+    	Whether to skip tls verification when connecting to -remoteWrite.url
+  -remoteWrite.tlsKeyFile string
+    	Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url
+  -remoteWrite.tlsServerName string
+    	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
-        Optional URL to Victoria Metrics or VMInsert where to persist alerts state in form of timeseries. E.g. http://127.0.0.1:8428
-  -rule value
-        Path to the file with alert rules. 
-        Supports patterns. Flag can be specified multiple times. 
-        Examples:
-         -rule /path/to/file. Path to a single file with alerting rules
-         -rule dir/*.yaml -rule /*.yaml. Relative path to all .yaml files in "dir" folder, 
-        absolute path to all .yaml files in root.
+    	Optional URL to Victoria Metrics or VMInsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
+  -rule array
+    	Path to the file with alert rules. 
+    	Supports patterns. Flag can be specified multiple times. 
+    	Examples:
+         -rule="/path/to/file". Path to a single file with alerting rules
+         -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder, 
+    	absolute path to all .yaml files in root.
+    	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+    	Supports array of values separated by comma or specified via multiple flags.
   -rule.validateExpressions
-        Whether to validate rules expressions via MetricsQL engine (default true)
+    	Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
-        Whether to validate annotation and label templates (default true)
+    	Whether to validate annotation and label templates (default true)
+  -tls
+    	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+  -tlsCertFile string
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
+  -tlsKeyFile string
+    	Path to file with TLS key. Used only if -tls is set
+  -version
+    	Show VictoriaMetrics version
 ```
 
 Pass `-help` to `vmalert` in order to see the full list of supported 
@@ -275,3 +342,20 @@ It is recommended using
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmalert-prod` from the root folder of the repository.
    It builds `vmalert-prod` binary and puts it into the `bin` folder.
+
+
+#### ARM build
+
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
+#### Development ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of the repository.
+   It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
+
+#### Production ARM build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmalert-arm-prod` or `make vmalert-arm64-prod` from the root folder of the repository.
+   It builds `vmalert-arm-prod` or `vmalert-arm64-prod` binary respectively and puts it into the `bin` folder.

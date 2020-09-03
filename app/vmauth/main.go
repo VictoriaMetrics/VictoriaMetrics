@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -27,6 +28,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	cgroup.UpdateGOMAXPROCSToCPUQuota()
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
 	startTime := time.Now()
 	initAuthConfig()
@@ -49,20 +51,21 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		httpserver.Errorf(w, "Missing `Authorization: Basic *` header")
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		http.Error(w, "missing `Authorization: Basic *` header", http.StatusUnauthorized)
 		return true
 	}
 	ac := authConfig.Load().(map[string]*UserInfo)
 	info := ac[username]
 	if info == nil || info.Password != password {
-		httpserver.Errorf(w, "Cannot find the provided username %q or password in config", username)
+		httpserver.Errorf(w, r, "cannot find the provided username %q or password in config", username)
 		return true
 	}
 	info.requests.Inc()
 
 	targetURL := createTargetURL(info.URLPrefix, r.URL)
 	if _, err := url.Parse(targetURL); err != nil {
-		httpserver.Errorf(w, "Invalid targetURL=%q: %s", targetURL, err)
+		httpserver.Errorf(w, r, "invalid targetURL=%q: %s", targetURL, err)
 		return true
 	}
 	r.Header.Set("vm-target-url", targetURL)

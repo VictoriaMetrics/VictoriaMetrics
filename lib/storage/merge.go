@@ -14,13 +14,13 @@ import (
 // mergeBlockStreams returns immediately if stopCh is closed.
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, rowsMerged *uint64,
-	deletedMetricIDs *uint64set.Set, rowsDeleted *uint64) error {
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{},
+	dmis *uint64set.Set, rowsMerged, rowsDeleted *uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
 	bsm.Init(bsrs)
-	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, rowsMerged, deletedMetricIDs, rowsDeleted)
+	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, dmis, rowsMerged, rowsDeleted)
 	bsm.reset()
 	bsmPool.Put(bsm)
 	bsw.MustClose()
@@ -41,8 +41,8 @@ var bsmPool = &sync.Pool{
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, rowsMerged *uint64,
-	deletedMetricIDs *uint64set.Set, rowsDeleted *uint64) error {
+func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{},
+	dmis *uint64set.Set, rowsMerged, rowsDeleted *uint64) error {
 	// Search for the first block to merge
 	var pendingBlock *Block
 	for bsm.NextBlock() {
@@ -51,7 +51,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			return errForciblyStopped
 		default:
 		}
-		if deletedMetricIDs.Has(bsm.Block.bh.TSID.MetricID) {
+		if dmis.Has(bsm.Block.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
 			*rowsDeleted += uint64(bsm.Block.bh.RowsCount)
 			continue
@@ -73,7 +73,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			return errForciblyStopped
 		default:
 		}
-		if deletedMetricIDs.Has(bsm.Block.bh.TSID.MetricID) {
+		if dmis.Has(bsm.Block.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
 			*rowsDeleted += uint64(bsm.Block.bh.RowsCount)
 			continue

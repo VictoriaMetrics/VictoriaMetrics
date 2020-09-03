@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var relabelConfig = flag.String("relabelConfig", "", "Optional path to a file with relabeling rules, which are applied to all the ingested metrics. "+
@@ -81,26 +82,6 @@ func (ctx *Ctx) Reset() {
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
 func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
-	// Remove labels with empty values, since such labels have no sense.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600 .
-	hasEmptyValues := false
-	for _, label := range labels {
-		if len(label.Value) == 0 {
-			hasEmptyValues = true
-			break
-		}
-	}
-	if hasEmptyValues {
-		dst := labels[:0]
-		for _, label := range labels {
-			if len(label.Value) == 0 {
-				continue
-			}
-			dst = append(dst, label)
-		}
-		labels = dst
-	}
-
 	prcs := prcsGlobal.Load().(*[]promrelabel.ParsedRelabelConfig)
 	if len(*prcs) == 0 {
 		// There are no relabeling rules.
@@ -123,6 +104,9 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	// Apply relabeling
 	tmpLabels = promrelabel.ApplyRelabelConfigs(tmpLabels, 0, *prcs, true)
 	ctx.tmpLabels = tmpLabels
+	if len(tmpLabels) == 0 {
+		metricsDropped.Inc()
+	}
 
 	// Return back labels to the desired format.
 	dst := labels[:0]
@@ -139,3 +123,5 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	}
 	return dst
 }
+
+var metricsDropped = metrics.NewCounter(`vm_relabel_metrics_dropped_total`)

@@ -59,6 +59,7 @@ var rollupFuncs = map[string]bool{
 	"hoeffding_bound_lower": true,
 	"ascent_over_time":      true,
 	"descent_over_time":     true,
+	"zscore_over_time":      true,
 
 	// `timestamp` func has been moved here because it must work properly with offsets and samples unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
@@ -66,6 +67,8 @@ var rollupFuncs = map[string]bool{
 
 	// See https://en.wikipedia.org/wiki/Mode_(statistics)
 	"mode_over_time": true,
+
+	"rate_over_sum": true,
 }
 
 // IsRollupFunc returns whether funcName is known rollup function.

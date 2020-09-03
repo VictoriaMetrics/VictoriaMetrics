@@ -36,7 +36,7 @@ func (rs *Rows) Reset() {
 //
 // See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified while rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.UnmarshalWithErrLogger(s, stdErrLogger)
 }
@@ -48,6 +48,8 @@ func stdErrLogger(s string) {
 // UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
 //
 // It calls errLogger for logging parsing errors.
+//
+// s shouldn't be modified while rs is in use.
 func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	noEscapes := strings.IndexByte(s, '\\') < 0
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)

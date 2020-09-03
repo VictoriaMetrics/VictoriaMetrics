@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/transport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -41,6 +42,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
@@ -116,7 +118,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	}
 	authKey := r.FormValue("authKey")
 	if authKey != *snapshotAuthKey {
-		httpserver.Errorf(w, "invalid authKey %q. It must match the value from -snapshotAuthKey command line flag", authKey)
+		httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -snapshotAuthKey command line flag", authKey)
 		return true
 	}
 	path = path[len("/snapshot"):]
@@ -360,6 +362,19 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
+	metrics.NewGauge(`vm_concurrent_search_tsids_limit_reached_total`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyLimitReached)
+	})
+	metrics.NewGauge(`vm_concurrent_search_tsids_limit_timeout_total`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyLimitTimeout)
+	})
+	metrics.NewGauge(`vm_concurrent_search_tsids_capacity`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyCapacity)
+	})
+	metrics.NewGauge(`vm_concurrent_search_tsids_current`, func() float64 {
+		return float64(m().SearchTSIDsConcurrencyCurrent)
+	})
+
 	metrics.NewGauge(`vm_search_delays_total`, func() float64 {
 		return float64(m().SearchDelays)
 	})
@@ -441,7 +456,7 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
 	})
-	metrics.NewGauge(`vm_cache_size_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
+	metrics.NewGauge(`vm_cache_entries{type="storage/prefetchedMetricIDs"}`, func() float64 {
 		return float64(m().PrefetchedMetricIDsSize)
 	})
 

@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from the search")
 )
 
@@ -43,6 +44,11 @@ func ValidateMaxPointsPerTimeseries(start, end, step int64) error {
 //
 // See EvalConfig.mayCache for details.
 func AdjustStartEnd(start, end, step int64) (int64, int64) {
+	if *disableCache {
+		// Do not adjust start and end values when cache is disabled.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/563
+		return start, end
+	}
 	points := (end-start)/step + 1
 	if points < minTimeseriesPointsForTimeRounding {
 		// Too small number of points for rounding.
@@ -76,6 +82,9 @@ type EvalConfig struct {
 	Start     int64
 	End       int64
 	Step      int64
+
+	// QuotedRemoteAddr contains quoted remote address.
+	QuotedRemoteAddr string
 
 	Deadline netstorage.Deadline
 
@@ -116,6 +125,9 @@ func (ec *EvalConfig) validate() {
 }
 
 func (ec *EvalConfig) mayCache() bool {
+	if *disableCache {
+		return false
+	}
 	if !ec.MayCache {
 		return false
 	}
@@ -697,9 +709,10 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
 		return nil, fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
+			"total available memory for concurrent requests: %d bytes; "+
 			"possible solutions are: reducing the number of matching time series; switching to node with more RAM; "+
 			"increasing -memory.allowedPercent; increasing `step` query arg (%gs)",
-			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, float64(ec.Step)/1e3)
+			rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, float64(ec.Step)/1e3)
 	}
 	defer rml.Put(uint64(rollupMemorySize))
 

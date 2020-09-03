@@ -34,7 +34,7 @@ var (
 		"This works only if `gce_sd_configs` is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config for details")
+		"See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.

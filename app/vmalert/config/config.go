@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/metricsql"
 	"gopkg.in/yaml.v2"
 )
@@ -88,6 +89,14 @@ func (r *Rule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	r.ID = HashRule(*r)
 	return nil
+}
+
+// Name returns Rule name according to its type
+func (r *Rule) Name() string {
+	if r.Record != "" {
+		return r.Record
+	}
+	return r.Alert
 }
 
 // HashRule hashes significant Rule fields into
@@ -171,6 +180,7 @@ func parseFile(path string) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading alert rule file: %w", err)
 	}
+	data = envtemplate.Replace(data)
 	g := struct {
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.

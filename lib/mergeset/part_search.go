@@ -294,7 +294,7 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	var err error
 	ps.indexBuf, err = encoding.DecompressZSTD(ps.indexBuf[:0], ps.compressedIndexBuf)
 	if err != nil {
-		return nil, fmt.Errorf("cannot decompress index block with size %d bytes: %w", len(ps.compressedIndexBuf), err)
+		return nil, fmt.Errorf("cannot decompress index block: %w", err)
 	}
 	idxb := getIndexBlock()
 	idxb.bhs, err = unmarshalBlockHeaders(idxb.bhs[:0], ps.indexBuf, int(mr.blockHeadersCount))

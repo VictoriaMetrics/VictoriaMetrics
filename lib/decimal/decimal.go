@@ -256,6 +256,38 @@ func maxUpExponent(v int64) int16 {
 	}
 }
 
+// Round f to value with the given number of significant figures.
+func Round(f float64, digits int) float64 {
+	if digits <= 0 || digits >= 18 {
+		return f
+	}
+	if math.IsNaN(f) || math.IsInf(f, 0) || f == 0 {
+		return f
+	}
+	n := int64(math.Pow10(digits))
+	isNegative := f < 0
+	if isNegative {
+		f = -f
+	}
+	v, e := positiveFloatToDecimal(f)
+	if v > vMax {
+		v = vMax
+	}
+	var rem int64
+	for v > n {
+		rem = v % 10
+		v /= 10
+		e++
+	}
+	if rem >= 5 {
+		v++
+	}
+	if isNegative {
+		v = -v
+	}
+	return ToFloat(v, e)
+}
+
 // ToFloat returns f=v*10^e.
 func ToFloat(v int64, e int16) float64 {
 	f := float64(v)

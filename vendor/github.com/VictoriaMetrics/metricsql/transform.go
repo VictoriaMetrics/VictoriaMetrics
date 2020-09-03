@@ -77,6 +77,7 @@ var transformFuncs = map[string]bool{
 	"asin":               true,
 	"acos":               true,
 	"prometheus_buckets": true,
+	"buckets_limit":      true,
 	"histogram_share":    true,
 	"sort_by_label":      true,
 	"sort_by_label_desc": true,

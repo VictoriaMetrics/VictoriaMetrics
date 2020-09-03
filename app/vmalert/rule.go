@@ -21,4 +21,7 @@ type Rule interface {
 	// UpdateWith performs modification of current Rule
 	// with fields of the given Rule.
 	UpdateWith(Rule) error
+	// Close performs the shutdown procedures for rule
+	// such as metrics unregister
+	Close()
 }

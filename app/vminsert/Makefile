@@ -18,9 +18,6 @@ vminsert-pure-prod:
 vminsert-prod-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) app-via-docker
 
-vminsert-pure:
-	APP_NAME=vminsert $(MAKE) app-local-pure
-
 package-vminsert:
 	APP_NAME=vminsert $(MAKE) package-via-docker
 
@@ -32,3 +29,24 @@ publish-vminsert:
 
 publish-vminsert-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) publish-via-docker
+
+vminsert-amd64:
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vminsert-local-with-goarch
+
+vminsert-arm:
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vminsert-local-with-goarch
+
+vminsert-arm64:
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vminsert-local-with-goarch
+
+vminsert-ppc64le:
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vminsert-local-with-goarch
+
+vminsert-386:
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vminsert-local-with-goarch
+
+vminsert-local-with-goarch:
+	APP_NAME=vminsert $(MAKE) app-local-with-goarch
+
+vminsert-pure:
+	APP_NAME=vminsert $(MAKE) app-local-pure

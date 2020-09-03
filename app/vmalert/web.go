@@ -27,7 +27,6 @@ var pathList = [][]string{
 }
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
-	resph := responseHandler{w}
 	switch r.URL.Path {
 	case "/":
 		for _, path := range pathList {
@@ -36,10 +35,22 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/api/v1/groups":
-		resph.handle(rh.listGroups())
+		data, err := rh.listGroups()
+		if err != nil {
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
 		return true
 	case "/api/v1/alerts":
-		resph.handle(rh.listAlerts())
+		data, err := rh.listAlerts()
+		if err != nil {
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
 		return true
 	case "/-/reload":
 		logger.Infof("api config reload was called, sending sighup")
@@ -47,12 +58,18 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	default:
+		if !strings.HasSuffix(r.URL.Path, "/status") {
+			return false
+		}
 		// /api/v1/<groupName>/<alertID>/status
-		if strings.HasSuffix(r.URL.Path, "/status") {
-			resph.handle(rh.alert(r.URL.Path))
+		data, err := rh.alert(r.URL.Path)
+		if err != nil {
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
-		return false
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	}
 }
 
@@ -149,18 +166,6 @@ func (rh *requestHandler) alert(path string) ([]byte, error) {
 		return nil, errResponse(err, http.StatusNotFound)
 	}
 	return json.Marshal(resp)
-}
-
-// responseHandler wrapper on http.ResponseWriter with sugar
-type responseHandler struct{ http.ResponseWriter }
-
-func (w responseHandler) handle(b []byte, err error) {
-	if err != nil {
-		httpserver.Errorf(w, "%s", err)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(b)
 }
 
 func uint64FromPath(path string) (uint64, error) {

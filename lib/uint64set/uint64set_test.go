@@ -688,3 +688,72 @@ func testSetSparseItems(t *testing.T, itemsCount int) {
 		}
 	}
 }
+
+func TestAddMulti(t *testing.T) {
+	f := func(a []uint64) {
+		t.Helper()
+		var s1, s2 Set
+		s1.AddMulti(a)
+		for _, x := range a {
+			s2.Add(x)
+		}
+		if s1.Len() != s2.Len() {
+			t.Fatalf("unexpected number of items in the set; got %d; want %d\nset:\n%d", s1.Len(), s2.Len(), s1.AppendTo(nil))
+		}
+		for _, x := range a {
+			if !s1.Has(x) {
+				t.Fatalf("missing item %d in the set", x)
+			}
+		}
+		a1 := s1.AppendTo(nil)
+		a2 := s2.AppendTo(nil)
+		if !reflect.DeepEqual(a1, a2) {
+			t.Fatalf("unexpected items in the set;\ngot\n%d\nwant\n%d", a1, a2)
+		}
+
+		// Try removing and then adding again all the items via AddMulti() to s1.
+		for _, x := range a {
+			s1.Del(x)
+		}
+		if s1.Len() != 0 {
+			t.Fatalf("non-zero number of items left after deletion: %d", s1.Len())
+		}
+		s1.AddMulti(a)
+		if s1.Len() != s2.Len() {
+			t.Fatalf("unexpected number of items in the reused set; got %d; want %d", s1.Len(), s2.Len())
+		}
+		for _, x := range a {
+			if !s1.Has(x) {
+				t.Fatalf("missing item %d in the reused set", x)
+			}
+		}
+		a1 = s1.AppendTo(nil)
+		a2 = s2.AppendTo(nil)
+		if !reflect.DeepEqual(a1, a2) {
+			t.Fatalf("unexpected items in the reused set;\ngot\n%d\nwant\n%d", a1, a2)
+		}
+	}
+	f(nil)
+	f([]uint64{1})
+	f([]uint64{0, 1, 2, 3, 4, 5})
+	f([]uint64{0, 1 << 16, 2 << 16, 2<<16 + 1})
+	f([]uint64{0, 1 << 16, 2 << 16, 2<<16 + 1, 1 << 32, 2 << 32, 2<<32 + 1})
+
+	var a []uint64
+	for i := 0; i < 32000; i++ {
+		a = append(a, uint64(i))
+	}
+	f(a)
+
+	a = nil
+	for i := 0; i < 32000; i++ {
+		a = append(a, 1<<16+uint64(i))
+	}
+	f(a)
+
+	a = nil
+	for i := 0; i < 100000; i++ {
+		a = append(a, 1<<32+uint64(i))
+	}
+	f(a)
+}

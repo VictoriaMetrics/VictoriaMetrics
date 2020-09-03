@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -38,7 +39,8 @@ import (
 
 var (
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
-	influxListenAddr   = flag.String("influxListenAddr", "", "TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty")
+	influxListenAddr   = flag.String("influxListenAddr", "", "TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. "+
+		"This flag isn't needed when ingesting data over HTTP - just send it to `http://<vminsert>:8480/insert/<accountID>/influx/write`")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB metrics. "+
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty")
@@ -61,6 +63,7 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
@@ -136,7 +139,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	p, err := httpserver.ParsePath(r.URL.Path)
 	if err != nil {
-		httpserver.Errorf(w, "cannot parse path %q: %s", r.URL.Path, err)
+		httpserver.Errorf(w, r, "cannot parse path %q: %s", r.URL.Path, err)
 		return true
 	}
 	if p.Prefix != "insert" {
@@ -145,7 +148,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	at, err := auth.NewToken(p.AuthToken)
 	if err != nil {
-		httpserver.Errorf(w, "auth error: %s", err)
+		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
 	}
 
@@ -154,7 +157,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(at, r); err != nil {
 			prometheusWriteErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -163,7 +166,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		vmimportRequests.Inc()
 		if err := vmimport.InsertHandler(at, r); err != nil {
 			vmimportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -172,7 +175,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(at, r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -181,7 +184,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(at, r); err != nil {
 			prometheusimportErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -190,7 +193,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(at, r); err != nil {
 			influxWriteErrors.Inc()
-			httpserver.Errorf(w, "error in %q: %s", r.URL.Path, err)
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)

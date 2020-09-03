@@ -51,20 +51,23 @@ package-vmrestore-386:
 publish-vmrestore:
 	APP_NAME=vmrestore $(MAKE) publish-via-docker
 
-vmrestore-pure:
-	APP_NAME=vmrestore $(MAKE) app-local-pure
-
 vmrestore-amd64:
-	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-amd64 ./app/vmrestore
+	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) vmrestore-local-with-goarch
 
 vmrestore-arm:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-arm ./app/vmrestore
+	CGO_ENABLED=0 GOARCH=arm $(MAKE) vmrestore-local-with-goarch
 
 vmrestore-arm64:
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-arm64 ./app/vmrestore
+	CGO_ENABLED=0 GOARCH=arm64 $(MAKE) vmrestore-local-with-goarch
 
 vmrestore-ppc64le:
-	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-ppc64le ./app/vmrestore
+	CGO_ENABLED=0 GOARCH=ppc64le $(MAKE) vmrestore-local-with-goarch
 
 vmrestore-386:
-	CGO_ENABLED=0 GOOS=linux GOARCH=386 GO111MODULE=on go build -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/vmrestore-386 ./app/vmrestore
+	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmrestore-local-with-goarch
+
+vmrestore-local-with-goarch:
+	APP_NAME=vmrestore $(MAKE) app-local-with-goarch
+
+vmrestore-pure:
+	APP_NAME=vmrestore $(MAKE) app-local-pure

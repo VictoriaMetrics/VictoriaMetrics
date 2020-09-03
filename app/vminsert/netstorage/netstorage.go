@@ -509,8 +509,9 @@ func addToReroutedBufMayBlock(buf []byte, rows int) error {
 	for len(reroutedBR.buf)+len(buf) > reroutedBufMaxSize {
 		if getHealthyStorageNodesCount() == 0 {
 			rowsLostTotal.Add(rows)
-			return fmt.Errorf("all the vmstorage nodes are unavailable and reroutedBR has no enough space for storing %d bytes; only %d bytes left in reroutedBR",
-				len(buf), reroutedBufMaxSize-len(reroutedBR.buf))
+			return fmt.Errorf("all the vmstorage nodes are unavailable and reroutedBR has no enough space for storing %d bytes; "+
+				"only %d out of %d bytes left in reroutedBR",
+				len(buf), reroutedBufMaxSize-len(reroutedBR.buf), reroutedBufMaxSize)
 		}
 		select {
 		case <-rerouteWorkerStopCh:

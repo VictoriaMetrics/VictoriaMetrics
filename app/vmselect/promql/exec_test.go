@@ -31,7 +31,7 @@ func TestExecSuccess(t *testing.T) {
 			Start:    start,
 			End:      end,
 			Step:     step,
-			Deadline: netstorage.NewDeadline(time.Minute, ""),
+			Deadline: netstorage.NewDeadline(time.Now(), time.Minute, ""),
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(ec, q, false)
@@ -645,7 +645,6 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1000, 1200, 1400, 1400, 1400, 1400},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.MetricGroup = []byte("foobar")
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -657,7 +656,6 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1000, 1200, 1400, 1400, 1400, 1400},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.MetricGroup = []byte("foobar")
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -870,10 +868,21 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run("time()*-1^0.5", func(t *testing.T) {
+	t.Run("time()*(-4)^0.5", func(t *testing.T) {
 		t.Parallel()
-		q := `time()*-1^0.5`
+		q := `time()*(-4)^0.5`
 		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run("time()*-4^0.5", func(t *testing.T) {
+		t.Parallel()
+		q := `time()*-4^0.5`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-2000, -2400, -2800, -3200, -3600, -4000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`alias()`, func(t *testing.T) {
@@ -1721,6 +1730,51 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r2.MetricName.MetricGroup = []byte("bar")
 		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar < time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `123 < time()`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`time() > scalar`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 123`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar > time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `123 > time()`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`time() < scalar`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() < 123`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar1 < time() < scalar2`, func(t *testing.T) {
+		t.Parallel()
+		q := `1300 < time() < 1700`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1600, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`a cmp scalar (leave MetricGroup)`, func(t *testing.T) {
@@ -3012,6 +3066,102 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`buckets_limit(zero)`, func(t *testing.T) {
+		t.Parallel()
+		q := `buckets_limit(0, (
+			alias(label_set(100, "le", "inf", "x", "y"), "metric"),
+			alias(label_set(50, "le", "120", "x", "y"), "metric"),
+		))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`buckets_limit(unused)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(buckets_limit(5, (
+			alias(label_set(100, "le", "inf", "x", "y"), "metric"),
+			alias(label_set(50, "le", "120", "x", "y"), "metric"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{50, 50, 50, 50, 50, 50},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("metric")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("120"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("metric")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("inf"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`buckets_limit(used)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(buckets_limit(2, (
+			alias(label_set(100, "le", "inf", "x", "y"), "metric"),
+			alias(label_set(98, "le", "300", "x", "y"), "metric"),
+			alias(label_set(52, "le", "200", "x", "y"), "metric"),
+			alias(label_set(50, "le", "120", "x", "y"), "metric"),
+			alias(label_set(20, "le", "70", "x", "y"), "metric"),
+			alias(label_set(10, "le", "30", "x", "y"), "metric"),
+			alias(label_set(9, "le", "10", "x", "y"), "metric"),
+		)))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{52, 52, 52, 52, 52, 52},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("metric")
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("200"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("metric")
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("inf"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`prometheus_buckets(missing-vmrange)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(prometheus_buckets((
@@ -3230,6 +3380,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`sum(multi-args)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(1, 2, 3)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6, 6, 6, 6, 6, 6},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`sum(union-args)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum((1, 2, 3))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(scalar) by ()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sum(123) by ()`
@@ -3250,6 +3422,71 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`mode()`, func(t *testing.T) {
+		t.Parallel()
+		q := `mode((
+			alias(3, "m1"),
+			alias(2, "m2"),
+			alias(3, "m3"),
+			alias(4, "m4"),
+			alias(3, "m5"),
+			alias(2, "m6"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`zscore()`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(round(zscore((
+			label_set(time()/100+10, "k", "v1"),
+			label_set(time()/200+5, "k", "v2"),
+			label_set(time()/110-10, "k", "v3"),
+			label_set(time()/90-5, "k", "v4"),
+		)), 0.001), "k")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1.482, 1.511, 1.535, 1.552, 1.564, 1.57},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("k"),
+			Value: []byte("v1"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.159, 0.058, -0.042, -0.141, -0.237, -0.329},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("k"),
+			Value: []byte("v2"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-1.285, -1.275, -1.261, -1.242, -1.219, -1.193},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("k"),
+			Value: []byte("v3"),
+		}}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-0.356, -0.294, -0.232, -0.17, -0.108, -0.048},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("k"),
+			Value: []byte("v4"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
 	t.Run(`avg(scalar) without (xx, yy)`, func(t *testing.T) {
@@ -3406,7 +3643,6 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{6.8, 8.8, 10.9, 12.9, 14.9, 16.9},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.MetricGroup = []byte("foobar")
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -4523,7 +4759,40 @@ func TestExecSuccess(t *testing.T) {
 		q := `mode_over_time(round(time()/500)[100s:1s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{2, 2, 3, 3, 3, 4},
+			Values:     []float64{2, 2, 3, 3, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`rate_over_sum()`, func(t *testing.T) {
+		t.Parallel()
+		q := `rate_over_sum(round(time()/500)[100s:5s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.4, 0.4, 0.6, 0.6, 0.71, 0.8},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`zscore_over_time(rand)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(zscore_over_time(rand(0)[100s:10s]), 0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-1.17, -0.08, 0.98, 0.67, 1.61, 1.55},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`zscore_over_time(const)`, func(t *testing.T) {
+		t.Parallel()
+		q := `zscore_over_time(1[100s:10s])`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 0, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -5619,7 +5888,7 @@ func TestExecError(t *testing.T) {
 			Start:    1000,
 			End:      2000,
 			Step:     100,
-			Deadline: netstorage.NewDeadline(time.Minute, ""),
+			Deadline: netstorage.NewDeadline(time.Now(), time.Minute, ""),
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(ec, q, false)
@@ -5719,7 +5988,6 @@ func TestExecError(t *testing.T) {
 	f(`label_move()`)
 	f(`median_over_time()`)
 	f(`median()`)
-	f(`median("foo", "bar")`)
 	f(`keep_last_value()`)
 	f(`keep_next_value()`)
 	f(`interpolate()`)
@@ -5745,6 +6013,13 @@ func TestExecError(t *testing.T) {
 	f(`outliersk()`)
 	f(`outliersk(1)`)
 	f(`mode_over_time()`)
+	f(`rate_over_sum()`)
+	f(`zscore_over_time()`)
+	f(`mode()`)
+	f(`zscore()`)
+	f(`prometheus_buckets()`)
+	f(`buckets_limit()`)
+	f(`buckets_limit(1)`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -5814,7 +6089,6 @@ func TestExecError(t *testing.T) {
 	) + 10`)
 
 	// Invalid aggregates
-	f(`sum(1, 2)`)
 	f(`sum(1) foo (bar)`)
 	f(`sum foo () (bar)`)
 	f(`sum(foo) by (1)`)

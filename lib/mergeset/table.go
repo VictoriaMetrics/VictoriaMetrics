@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
@@ -337,11 +338,11 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	}
 	tb.partsLock.Unlock()
 
-	m.DataBlocksCacheRequests += atomic.LoadUint64(&historicalDataBlockCacheRequests)
-	m.DataBlocksCacheMisses += atomic.LoadUint64(&historicalDataBlockCacheMisses)
+	m.DataBlocksCacheRequests = atomic.LoadUint64(&historicalDataBlockCacheRequests)
+	m.DataBlocksCacheMisses = atomic.LoadUint64(&historicalDataBlockCacheMisses)
 
-	m.IndexBlocksCacheRequests += atomic.LoadUint64(&historicalIndexBlockCacheRequests)
-	m.IndexBlocksCacheMisses += atomic.LoadUint64(&historicalIndexBlockCacheMisses)
+	m.IndexBlocksCacheRequests = atomic.LoadUint64(&historicalIndexBlockCacheRequests)
+	m.IndexBlocksCacheMisses = atomic.LoadUint64(&historicalIndexBlockCacheMisses)
 }
 
 // AddItems adds the given items to the tb.
@@ -566,7 +567,11 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 		}
 
 		// The added part exceeds maxParts count. Assist with merging other parts.
+		//
+		// Prioritize assisted merges over searches.
+		storagepacelimiter.Search.Inc()
 		err := tb.mergeExistingParts(false)
+		storagepacelimiter.Search.Dec()
 		if err == nil {
 			atomic.AddUint64(&tb.assistedMerges, 1)
 			continue
@@ -630,7 +635,8 @@ func (tb *Table) mergeInmemoryBlocks(blocksToMerge []*inmemoryBlock) *partWrappe
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
 	// since it may be final after stopCh is closed.
-	if err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, &tb.itemsMerged); err != nil {
+	err := mergeBlockStreams(&mpDst.ph, bsw, bsrs, tb.prepareBlock, nil, &tb.itemsMerged)
+	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
 	putBlockStreamWriter(bsw)
@@ -939,9 +945,7 @@ func (tb *Table) maxOutPartItemsSlow() uint64 {
 	return freeSpace / uint64(mergeWorkersCount) / 4
 }
 
-var mergeWorkersCount = func() int {
-	return runtime.GOMAXPROCS(-1)
-}()
+var mergeWorkersCount = runtime.GOMAXPROCS(-1)
 
 func openParts(path string) ([]*partWrapper, error) {
 	// The path can be missing after restoring from backup, so create it if needed.

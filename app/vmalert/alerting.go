@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 // AlertingRule is basic alert entity
@@ -36,19 +37,71 @@ type AlertingRule struct {
 	// resets on every successful Exec
 	// may be used as Health state
 	lastExecError error
+
+	metrics *alertingRuleMetrics
 }
 
-func newAlertingRule(gID uint64, cfg config.Rule) *AlertingRule {
-	return &AlertingRule{
+type alertingRuleMetrics struct {
+	errors  *gauge
+	pending *gauge
+	active  *gauge
+}
+
+func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
+	ar := &AlertingRule{
 		RuleID:      cfg.ID,
 		Name:        cfg.Alert,
 		Expr:        cfg.Expr,
 		For:         cfg.For,
 		Labels:      cfg.Labels,
 		Annotations: cfg.Annotations,
-		GroupID:     gID,
+		GroupID:     group.ID(),
 		alerts:      make(map[uint64]*notifier.Alert),
+		metrics:     &alertingRuleMetrics{},
 	}
+
+	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
+	ar.metrics.pending = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
+		func() float64 {
+			ar.mu.Lock()
+			defer ar.mu.Unlock()
+			var num int
+			for _, a := range ar.alerts {
+				if a.State == notifier.StatePending {
+					num++
+				}
+			}
+			return float64(num)
+		})
+	ar.metrics.active = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
+		func() float64 {
+			ar.mu.Lock()
+			defer ar.mu.Unlock()
+			var num int
+			for _, a := range ar.alerts {
+				if a.State == notifier.StateFiring {
+					num++
+				}
+			}
+			return float64(num)
+		})
+	ar.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_alerts_error{%s}`, labels),
+		func() float64 {
+			ar.mu.Lock()
+			defer ar.mu.Unlock()
+			if ar.lastExecError == nil {
+				return 0
+			}
+			return 1
+		})
+	return ar
+}
+
+// Close unregisters rule metrics
+func (ar *AlertingRule) Close() {
+	metrics.UnregisterMetric(ar.metrics.active.name)
+	metrics.UnregisterMetric(ar.metrics.pending.name)
+	metrics.UnregisterMetric(ar.metrics.errors.name)
 }
 
 // String implements Stringer interface
@@ -331,15 +384,22 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
-func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
 	if q == nil {
 		return fmt.Errorf("querier is nil")
 	}
+
+	// account for external labels in filter
+	var labelsFilter string
+	for k, v := range labels {
+		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
+	}
+
 	// Get the last datapoint in range via MetricsQL `last_over_time`.
 	// We don't use plain PromQL since Prometheus doesn't support
 	// remote write protocol which is used for state persistence in vmalert.
-	expr := fmt.Sprintf("last_over_time(%s{alertname=%q}[%ds])",
-		alertForStateMetricName, ar.Name, int(lookback.Seconds()))
+	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
+		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
 	qMetrics, err := q.Query(ctx, expr)
 	if err != nil {
 		return err

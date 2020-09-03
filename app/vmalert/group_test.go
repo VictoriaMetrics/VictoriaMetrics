@@ -10,6 +10,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
+func init() {
+	// Disable rand sleep on group start during tests in order to speed up test execution.
+	// Rand sleep is needed only in prod code.
+	skipRandSleepOnGroupStart = true
+}
+
 func TestUpdateWith(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -150,7 +156,7 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("failed to parse rules: %s", err)
 	}
 	const evalInterval = time.Millisecond
-	g := newGroup(groups[0], evalInterval)
+	g := newGroup(groups[0], evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
 	fn := &fakeNotifier{}

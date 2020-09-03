@@ -27,7 +27,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk":      newAggrFuncTopK(true),
 	"topk":         newAggrFuncTopK(false),
 	"quantile":     aggrFuncQuantile,
-	"group":        aggrFuncGroup,
+	"group":        newAggrFunc(aggrFuncGroup),
 
 	// PromQL extension funcs
 	"median":         aggrFuncMedian,
@@ -46,6 +46,8 @@ var aggrFuncs = map[string]aggrFunc{
 	"bottomk_median": newAggrFuncRangeTopK(medianValue, true),
 	"any":            aggrFuncAny,
 	"outliersk":      aggrFuncOutliersK,
+	"mode":           newAggrFunc(aggrFuncMode),
+	"zscore":         aggrFuncZScore,
 }
 
 type aggrFunc func(afa *aggrFuncArg) ([]*timeseries, error)
@@ -63,12 +65,23 @@ func getAggrFunc(s string) aggrFunc {
 
 func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 	return func(afa *aggrFuncArg) ([]*timeseries, error) {
-		args := afa.args
-		if err := expectTransformArgsNum(args, 1); err != nil {
+		tss, err := getAggrTimeseries(afa.args)
+		if err != nil {
 			return nil, err
 		}
-		return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
+		return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, false)
 	}
+}
+
+func getAggrTimeseries(args [][]*timeseries) ([]*timeseries, error) {
+	if len(args) == 0 {
+		return nil, fmt.Errorf("expecting at least one arg")
+	}
+	tss := args[0]
+	for _, arg := range args[1:] {
+		tss = append(tss, arg...)
+	}
+	return tss, nil
 }
 
 func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.ModifierExpr) {
@@ -124,8 +137,8 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 }
 
 func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
 		return nil, err
 	}
 	afe := func(tss []*timeseries) []*timeseries {
@@ -136,28 +149,23 @@ func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
 		// Only a single time series per group must be returned
 		limit = 1
 	}
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, true)
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, limit, true)
 }
 
-func aggrFuncGroup(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
-		return nil, err
-	}
-	afe := func(tss []*timeseries) []*timeseries {
-		// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
-		values := tss[0].Values
-		for j := range values {
-			values[j] = 1
+func aggrFuncGroup(tss []*timeseries) []*timeseries {
+	// See https://github.com/prometheus/prometheus/commit/72425d4e3d14d209cc3f3f6e10e3240411303399
+	dst := tss[0]
+	for i := range dst.Values {
+		v := nan
+		for _, ts := range tss {
+			if math.IsNaN(ts.Values[i]) {
+				continue
+			}
+			v = 1
 		}
-		return tss[:1]
+		dst.Values[i] = v
 	}
-	limit := afa.ae.Limit
-	if limit > 1 {
-		// Only a single time series per group must be returned
-		limit = 1
-	}
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, false)
+	return tss[:1]
 }
 
 func aggrFuncSum(tss []*timeseries) []*timeseries {
@@ -359,9 +367,7 @@ func aggrFuncStdvar(tss []*timeseries) []*timeseries {
 	dst := tss[0]
 	for i := range dst.Values {
 		// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
-		var avg float64
-		var count float64
-		var q float64
+		var avg, count, q float64
 		for _, ts := range tss {
 			v := ts.Values[i]
 			if math.IsNaN(v) {
@@ -420,6 +426,98 @@ func aggrFuncDistinct(tss []*timeseries) []*timeseries {
 		}
 	}
 	return tss[:1]
+}
+
+func aggrFuncMode(tss []*timeseries) []*timeseries {
+	dst := tss[0]
+	a := make([]float64, 0, len(tss))
+	for i := range dst.Values {
+		a := a[:0]
+		for _, ts := range tss {
+			v := ts.Values[i]
+			if !math.IsNaN(v) {
+				a = append(a, v)
+			}
+		}
+		dst.Values[i] = modeNoNaNs(nan, a)
+	}
+	return tss[:1]
+}
+
+func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries) []*timeseries {
+		for i := range tss[0].Values {
+			// Calculate avg and stddev for tss points at position i.
+			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
+			var avg, count, q float64
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				count++
+				avgNew := avg + (v-avg)/count
+				q += (v - avg) * (v - avgNew)
+				avg = avgNew
+			}
+			if count == 0 {
+				// Cannot calculate z-score for NaN points.
+				continue
+			}
+
+			// Calculate z-score for tss points at position i.
+			// See https://en.wikipedia.org/wiki/Standard_score
+			stddev := math.Sqrt(q / count)
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				ts.Values[i] = (v - avg) / stddev
+			}
+		}
+
+		// Remove MetricGroup from all the tss.
+		for _, ts := range tss {
+			ts.MetricName.ResetMetricGroup()
+		}
+		return tss
+	}
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
+// modeNoNaNs returns mode for a.
+//
+// It is expected that a doesn't contain NaNs.
+//
+// See https://en.wikipedia.org/wiki/Mode_(statistics)
+func modeNoNaNs(prevValue float64, a []float64) float64 {
+	if len(a) == 0 {
+		return prevValue
+	}
+	sort.Float64s(a)
+	j := -1
+	dMax := 0
+	mode := prevValue
+	for i, v := range a {
+		if prevValue == v {
+			continue
+		}
+		if d := i - j; d > dMax || math.IsNaN(mode) {
+			dMax = d
+			mode = prevValue
+		}
+		j = i
+		prevValue = v
+	}
+	if d := len(a) - j; d > dMax || math.IsNaN(mode) {
+		mode = prevValue
+	}
+	return mode
 }
 
 func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -724,13 +822,13 @@ func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
 }
 
 func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
 		return nil, err
 	}
 	phis := evalNumber(afa.ec, 0.5)[0].Values
 	afe := newAggrQuantileFunc(phis)
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries) []*timeseries {

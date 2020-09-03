@@ -201,7 +201,7 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		prevHourMetricIDs: prevHourMetricIDs,
 	}
 
-	is := db.getIndexSearch()
+	is := db.getIndexSearch(0, 0, noDeadline)
 	dmis, err := is.loadDeletedMetricIDs()
 	db.putIndexSearch(is)
 	if err != nil {
@@ -209,7 +209,7 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 	}
 	db.setDeletedMetricIDs(dmis)
 
-	is = db.getIndexSearch()
+	is = db.getIndexSearch(0, 0, noDeadline)
 	date, err := is.getStartDateForPerDayInvertedIndex()
 	db.putIndexSearch(is)
 	if err != nil {
@@ -219,6 +219,8 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 
 	return db, nil
 }
+
+const noDeadline = 1<<64 - 1
 
 // IndexDBMetrics contains essential metrics for indexDB.
 type IndexDBMetrics struct {
@@ -524,7 +526,7 @@ var tagFiltersKeyGen uint64
 //
 // It returns io.EOF if the given mn isn't found locally.
 func (db *indexDB) getTSIDByNameNoCreate(dst *TSID, metricName []byte) error {
-	is := db.getIndexSearch()
+	is := db.getIndexSearch(0, 0, noDeadline)
 	err := is.getTSIDByMetricName(dst, metricName)
 	db.putIndexSearch(is)
 	if err == nil {
@@ -546,6 +548,12 @@ type indexSearch struct {
 	ts mergeset.TableSearch
 	kb bytesutil.ByteBuffer
 	mp tagToMetricIDsRowParser
+
+	accountID uint32
+	projectID uint32
+
+	// deadline in unix timestamp seconds for the given search.
+	deadline uint64
 
 	// tsidByNameMisses and tsidByNameSkips is used for a performance
 	// hack in GetOrCreateTSIDByName. See the comment there.
@@ -585,7 +593,7 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte) error
 	return nil
 }
 
-func (db *indexDB) getIndexSearch() *indexSearch {
+func (db *indexDB) getIndexSearch(accountID, projectID uint32, deadline uint64) *indexSearch {
 	v := db.indexSearchPool.Get()
 	if v == nil {
 		v = &indexSearch{
@@ -594,6 +602,9 @@ func (db *indexDB) getIndexSearch() *indexSearch {
 	}
 	is := v.(*indexSearch)
 	is.ts.Init(db.tb, shouldCacheBlock)
+	is.accountID = accountID
+	is.projectID = projectID
+	is.deadline = deadline
 	return is
 }
 
@@ -601,6 +612,9 @@ func (db *indexDB) putIndexSearch(is *indexSearch) {
 	is.ts.MustClose()
 	is.kb.Reset()
 	is.mp.Reset()
+	is.accountID = 0
+	is.projectID = 0
+	is.deadline = 0
 
 	// Do not reset tsidByNameMisses and tsidByNameSkips,
 	// since they are used in GetOrCreateTSIDByName across call boundaries.
@@ -746,21 +760,21 @@ func putIndexItems(ii *indexItems) {
 var indexItemsPool sync.Pool
 
 // SearchTagKeys returns all the tag keys for the given accountID, projectID.
-func (db *indexDB) SearchTagKeys(accountID, projectID uint32, maxTagKeys int) ([]string, error) {
+func (db *indexDB) SearchTagKeys(accountID, projectID uint32, maxTagKeys int, deadline uint64) ([]string, error) {
 	// TODO: cache results?
 
 	tks := make(map[string]struct{})
 
-	is := db.getIndexSearch()
-	err := is.searchTagKeys(accountID, projectID, tks, maxTagKeys)
+	is := db.getIndexSearch(accountID, projectID, deadline)
+	err := is.searchTagKeys(tks, maxTagKeys)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
 	}
 
 	ok := db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch()
-		err = is.searchTagKeys(accountID, projectID, tks, maxTagKeys)
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		err = is.searchTagKeys(tks, maxTagKeys)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -777,16 +791,23 @@ func (db *indexDB) SearchTagKeys(accountID, projectID uint32, maxTagKeys int) ([
 	return keys, nil
 }
 
-func (is *indexSearch) searchTagKeys(accountID, projectID uint32, tks map[string]struct{}, maxTagKeys int) error {
+func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) error {
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
 	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	loopsPaceLimiter := 0
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tks) < maxTagKeys && ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			break
@@ -804,7 +825,7 @@ func (is *indexSearch) searchTagKeys(accountID, projectID uint32, tks map[string
 		// Search for the next tag key.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
-		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
@@ -816,19 +837,19 @@ func (is *indexSearch) searchTagKeys(accountID, projectID uint32, tks map[string
 }
 
 // SearchTagValues returns all the tag values for the given tagKey
-func (db *indexDB) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int) ([]string, error) {
+func (db *indexDB) SearchTagValues(accountID, projectID uint32, tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
 	// TODO: cache results?
 
 	tvs := make(map[string]struct{})
-	is := db.getIndexSearch()
-	err := is.searchTagValues(accountID, projectID, tvs, tagKey, maxTagValues)
+	is := db.getIndexSearch(accountID, projectID, deadline)
+	err := is.searchTagValues(tvs, tagKey, maxTagValues)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
 	}
 	ok := db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch()
-		err = is.searchTagValues(accountID, projectID, tvs, tagKey, maxTagValues)
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		err = is.searchTagValues(tvs, tagKey, maxTagValues)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -849,17 +870,24 @@ func (db *indexDB) SearchTagValues(accountID, projectID uint32, tagKey []byte, m
 	return tagValues, nil
 }
 
-func (is *indexSearch) searchTagValues(accountID, projectID uint32, tvs map[string]struct{}, tagKey []byte, maxTagValues int) error {
+func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, maxTagValues int) error {
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
 	mp.Reset()
 	dmis := is.db.getDeletedMetricIDs()
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	loopsPaceLimiter := 0
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, tagKey)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for len(tvs) < maxTagValues && ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			break
@@ -883,7 +911,7 @@ func (is *indexSearch) searchTagValues(accountID, projectID uint32, tvs map[stri
 		// Search for the next tag value.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag value.
-		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
 		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
 		kb.B[len(kb.B)-1]++
@@ -899,9 +927,9 @@ func (is *indexSearch) searchTagValues(accountID, projectID uint32, tvs map[stri
 //
 // It includes the deleted series too and may count the same series
 // up to two times - in db and extDB.
-func (db *indexDB) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
-	is := db.getIndexSearch()
-	n, err := is.getSeriesCount(accountID, projectID)
+func (db *indexDB) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
+	is := db.getIndexSearch(accountID, projectID, deadline)
+	n, err := is.getSeriesCount()
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
@@ -909,8 +937,8 @@ func (db *indexDB) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
 
 	var nExt uint64
 	ok := db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch()
-		nExt, err = is.getSeriesCount(accountID, projectID)
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		nExt, err = is.getSeriesCount()
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -919,16 +947,23 @@ func (db *indexDB) GetSeriesCount(accountID, projectID uint32) (uint64, error) {
 	return n + nExt, nil
 }
 
-func (is *indexSearch) getSeriesCount(accountID, projectID uint32) (uint64, error) {
+func (is *indexSearch) getSeriesCount() (uint64, error) {
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
+	loopsPaceLimiter := 0
 	var metricIDsLen uint64
 	// Extract the number of series from ((__name__=value): metricIDs) rows
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, nil)
 	ts.Seek(kb.B)
 	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return 0, err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, kb.B) {
 			break
@@ -954,9 +989,9 @@ func (is *indexSearch) getSeriesCount(accountID, projectID uint32) (uint64, erro
 }
 
 // GetTSDBStatusForDate returns topN entries for tsdb status for the given date, accountID and projectID.
-func (db *indexDB) GetTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int) (*TSDBStatus, error) {
-	is := db.getIndexSearch()
-	status, err := is.getTSDBStatusForDate(accountID, projectID, date, topN)
+func (db *indexDB) GetTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int, deadline uint64) (*TSDBStatus, error) {
+	is := db.getIndexSearch(accountID, projectID, deadline)
+	status, err := is.getTSDBStatusForDate(date, topN)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
@@ -968,8 +1003,8 @@ func (db *indexDB) GetTSDBStatusForDate(accountID, projectID uint32, date uint64
 
 	// The entries weren't found in the db. Try searching them in extDB.
 	ok := db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch()
-		status, err = is.getTSDBStatusForDate(accountID, projectID, date, topN)
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		status, err = is.getTSDBStatusForDate(date, topN)
 		extDB.putIndexSearch(is)
 	})
 	if ok && err != nil {
@@ -978,7 +1013,7 @@ func (db *indexDB) GetTSDBStatusForDate(accountID, projectID uint32, date uint64
 	return status, nil
 }
 
-func (is *indexSearch) getTSDBStatusForDate(accountID, projectID uint32, date uint64, topN int) (*TSDBStatus, error) {
+func (is *indexSearch) getTSDBStatusForDate(date uint64, topN int) (*TSDBStatus, error) {
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
@@ -989,11 +1024,18 @@ func (is *indexSearch) getTSDBStatusForDate(accountID, projectID uint32, date ui
 	var labelValueCountByLabelName, seriesCountByLabelValuePair uint64
 	nameEqualBytes := []byte("__name__=")
 
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	loopsPaceLimiter := 0
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return nil, err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			break
@@ -1143,8 +1185,8 @@ func (th *topHeap) Pop() interface{} {
 // searchMetricName appends metric name for the given metricID to dst
 // and returns the result.
 func (db *indexDB) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32) ([]byte, error) {
-	is := db.getIndexSearch()
-	dst, err := is.searchMetricName(dst, metricID, accountID, projectID)
+	is := db.getIndexSearch(accountID, projectID, noDeadline)
+	dst, err := is.searchMetricName(dst, metricID)
 	db.putIndexSearch(is)
 
 	if err != io.EOF {
@@ -1153,8 +1195,8 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, accountID, proj
 
 	// Try searching in the external indexDB.
 	if db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch()
-		dst, err = is.searchMetricName(dst, metricID, accountID, projectID)
+		is := extDB.getIndexSearch(accountID, projectID, noDeadline)
+		dst, err = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
 	}) {
 		return dst, err
@@ -1188,7 +1230,7 @@ func (db *indexDB) DeleteTSIDs(tfss []*TagFilters) (int, error) {
 		MinTimestamp: 0,
 		MaxTimestamp: (1 << 63) - 1,
 	}
-	is := db.getIndexSearch()
+	is := db.getIndexSearch(tfss[0].accountID, tfss[0].projectID, noDeadline)
 	metricIDs, err := is.searchMetricIDs(tfss, tr, 2e9)
 	db.putIndexSearch(is)
 	if err != nil {
@@ -1233,9 +1275,7 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 
 	// atomically add deleted metricIDs to an inmemory map.
 	dmis := &uint64set.Set{}
-	for _, metricID := range metricIDs {
-		dmis.Add(metricID)
-	}
+	dmis.AddMulti(metricIDs)
 	db.updateDeletedMetricIDs(dmis)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
@@ -1330,7 +1370,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 }
 
 // searchTSIDs returns sorted tsids matching the given tfss over the given tr.
-func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
+func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	if len(tfss) == 0 {
 		return nil, nil
 	}
@@ -1346,7 +1386,9 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 	}
 
 	// Slow path - search for tsids in the db and extDB.
-	is := db.getIndexSearch()
+	accountID := tfss[0].accountID
+	projectID := tfss[0].projectID
+	is := db.getIndexSearch(accountID, projectID, deadline)
 	localTSIDs, err := is.searchTSIDs(tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
@@ -1365,7 +1407,7 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int)
 			extTSIDs = tsids
 			return
 		}
-		is := extDB.getIndexSearch()
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
 		extTSIDs, err = is.searchTSIDs(tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 
@@ -1430,7 +1472,7 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte) error {
 	return io.EOF
 }
 
-func (is *indexSearch) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32) ([]byte, error) {
+func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
 	metricName := is.db.getMetricNameFromCache(dst, metricID)
 	if len(metricName) > len(dst) {
 		return metricName, nil
@@ -1438,7 +1480,7 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64, accountID, 
 
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
 		if err == io.EOF {
@@ -1479,13 +1521,13 @@ func mergeTSIDs(a, b []TSID) []TSID {
 	return tsids
 }
 
-func (is *indexSearch) containsTimeRange(tr TimeRange, accountID, projectID uint32) (bool, error) {
+func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
 
 	// Verify whether the maximum date in `ts` covers tr.MinTimestamp.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	prefix := kb.B
 	kb.B = encoding.MarshalUint64(kb.B, minDate)
 	ts.Seek(kb.B)
@@ -1503,9 +1545,7 @@ func (is *indexSearch) containsTimeRange(tr TimeRange, accountID, projectID uint
 }
 
 func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
-	accountID := tfss[0].accountID
-	projectID := tfss[0].projectID
-	ok, err := is.containsTimeRange(tr, accountID, projectID)
+	ok, err := is.containsTimeRange(tr)
 	if err != nil {
 		return nil, err
 	}
@@ -1525,7 +1565,12 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	// Obtain TSID values for the given metricIDs.
 	tsids := make([]TSID, len(metricIDs))
 	i := 0
-	for _, metricID := range metricIDs {
+	for loopsPaceLimiter, metricID := range metricIDs {
+		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return nil, err
+			}
+		}
 		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
 		// than scanning the mergeset if it contains a lot of metricIDs.
 		tsid := &tsids[i]
@@ -1538,7 +1583,7 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 		if err != io.EOF {
 			return nil, err
 		}
-		if err := is.getTSIDByMetricID(&tsids[i], metricID, accountID, projectID); err != nil {
+		if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
 			if err == io.EOF {
 				// Cannot find TSID for the given metricID.
 				// This may be the case on incomplete indexDB
@@ -1558,12 +1603,12 @@ func (is *indexSearch) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics 
 	return tsids, nil
 }
 
-func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64, accountID, projectID uint32) error {
+func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) error {
 	// There is no need in checking for deleted metricIDs here, since they
 	// must be checked by the caller.
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
 		if err == io.EOF {
@@ -1584,7 +1629,7 @@ func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64, accountID, 
 
 // updateMetricIDsByMetricNameMatch matches metricName values for the given srcMetricIDs against tfs
 // and adds matching metrics to metricIDs.
-func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs *uint64set.Set, tfs []*tagFilter, accountID, projectID uint32) error {
+func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs *uint64set.Set, tfs []*tagFilter) error {
 	// sort srcMetricIDs in order to speed up Seek below.
 	sortedMetricIDs := srcMetricIDs.AppendTo(nil)
 
@@ -1592,9 +1637,14 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	defer kbPool.Put(metricName)
 	mn := GetMetricName()
 	defer PutMetricName(mn)
-	for _, metricID := range sortedMetricIDs {
+	for loopsPaceLimiter, metricID := range sortedMetricIDs {
+		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
 		var err error
-		metricName.B, err = is.searchMetricName(metricName.B[:0], metricID, accountID, projectID)
+		metricName.B, err = is.searchMetricName(metricName.B[:0], metricID)
 		if err != nil {
 			if err == io.EOF {
 				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
@@ -1641,7 +1691,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	// Allow fetching up to 20*maxMetrics metrics for the given time range
 	// in the hope these metricIDs will be filtered out by other filters later.
 	maxTimeRangeMetrics := 20 * maxMetrics
-	metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1, tfs.accountID, tfs.projectID)
+	metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1)
 	if err == errMissingMetricIDsForDate {
 		// Slow path: try to find the tag filter without maxMetrics adjustement.
 		minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
@@ -1758,7 +1808,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 
 		kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 		kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
-		kb.B = tf.Marshal(kb.B, tfs.accountID, tfs.projectID)
+		kb.B = tf.Marshal(kb.B, is.accountID, is.projectID)
 		if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 			// Skip useless work below, since the tf matches at least maxMetrics metrics.
 			uselessTagFilters++
@@ -1771,7 +1821,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 				// Skip tag filters requiring to scan for too many metrics.
 				kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 				kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
-				kb.B = tf.Marshal(kb.B, tfs.accountID, tfs.projectID)
+				kb.B = tf.Marshal(kb.B, is.accountID, is.projectID)
 				is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 				uselessTagFilters++
 				continue
@@ -1782,7 +1832,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 			// The tf matches at least maxMetrics. Skip it
 			kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
 			kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
-			kb.B = tf.Marshal(kb.B, tfs.accountID, tfs.projectID)
+			kb.B = tf.Marshal(kb.B, is.accountID, is.projectID)
 			is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 			uselessTagFilters++
 			continue
@@ -1814,7 +1864,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 		return nil, nil, errTooManyMetrics
 	}
 	metricIDs := &uint64set.Set{}
-	if err := is.updateMetricIDsAll(metricIDs, tfs.accountID, tfs.projectID, maxMetrics); err != nil {
+	if err := is.updateMetricIDsAll(metricIDs, maxMetrics); err != nil {
 		return nil, nil, err
 	}
 	if metricIDs.Len() >= maxMetrics {
@@ -1922,7 +1972,7 @@ func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetr
 	for _, tfs := range tfss {
 		if len(tfs.tfs) == 0 {
 			// Return all the metric ids
-			if err := is.updateMetricIDsAll(metricIDs, tfs.accountID, tfs.projectID, maxMetrics+1); err != nil {
+			if err := is.updateMetricIDsAll(metricIDs, maxMetrics+1); err != nil {
 				return nil, err
 			}
 			if metricIDs.Len() > maxMetrics {
@@ -1989,7 +2039,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		if tf == minTf {
 			continue
 		}
-		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs, tfs.accountID, tfs.projectID)
+		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
 		if err == errFallbackToMetricNameMatch {
 			// The tag filter requires too many index scans. Postpone it,
 			// so tag filters with lower number of index scans may be applied.
@@ -2003,12 +2053,12 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		successfulIntersects++
 	}
 	if len(tfsPostponed) > 0 && successfulIntersects == 0 {
-		return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed, tfs.accountID, tfs.projectID)
+		return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed)
 	}
 	for i, tf := range tfsPostponed {
-		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs, tfs.accountID, tfs.projectID)
+		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
 		if err == errFallbackToMetricNameMatch {
-			return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed[i:], tfs.accountID, tfs.projectID)
+			return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed[i:])
 		}
 		if err != nil {
 			return err
@@ -2065,16 +2115,23 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 	}
 
 	// Scan all the rows with tf.prefix and call f on every tf match.
-	loops := 0
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
 	mp.Reset()
 	var prevMatchingSuffix []byte
 	var prevMatch bool
+	loops := 0
+	loopsPaceLimiter := 0
 	prefix := tf.prefix
 	ts.Seek(prefix)
 	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2190,8 +2247,15 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 	mp.Reset()
 	maxLoops := maxMetrics * maxIndexScanLoopsPerMetric
 	loops := 0
+	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for metricIDs.Len() < maxMetrics && ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2204,9 +2268,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 			return errFallbackToMetricNameMatch
 		}
 		mp.ParseMetricIDs()
-		for _, metricID := range mp.MetricIDs {
-			metricIDs.Add(metricID)
-		}
+		metricIDs.AddMulti(mp.MetricIDs)
 	}
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error when searching for tag filter prefix %q: %w", prefix, err)
@@ -2225,10 +2287,17 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 	mp.Reset()
 	maxLoops := len(sortedFilter) * maxIndexScanLoopsPerMetric
 	loops := 0
+	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	var sf []uint64
 	var metricID uint64
 	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2299,9 +2368,9 @@ var errFallbackToMetricNameMatch = errors.New("fall back to updateMetricIDsByMet
 
 var errMissingMetricIDsForDate = errors.New("missing metricIDs for date")
 
-func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, accountID, projectID uint32) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
 	atomic.AddUint64(&is.db.recentHourMetricIDsSearchCalls, 1)
-	metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics, accountID, projectID)
+	metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics)
 	if ok {
 		// Fast path: tr covers the current and / or the previous hour.
 		// Return the full list of metric ids for this time range.
@@ -2319,7 +2388,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 	}
 	if minDate == maxDate {
 		// Fast path - query on a single day.
-		metricIDs, err := is.getMetricIDsForDate(minDate, accountID, projectID, maxMetrics)
+		metricIDs, err := is.getMetricIDsForDate(minDate, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -2336,9 +2405,9 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int, ac
 		wg.Add(1)
 		go func(date uint64) {
 			defer wg.Done()
-			isLocal := is.db.getIndexSearch()
+			isLocal := is.db.getIndexSearch(is.accountID, is.projectID, is.deadline)
 			defer is.db.putIndexSearch(isLocal)
-			m, err := isLocal.getMetricIDsForDate(date, accountID, projectID, maxMetrics)
+			m, err := isLocal.getMetricIDsForDate(date, maxMetrics)
 			mu.Lock()
 			defer mu.Unlock()
 			if errGlobal != nil {
@@ -2393,7 +2462,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 		wg.Add(1)
 		go func(date uint64) {
 			defer wg.Done()
-			isLocal := is.db.getIndexSearch()
+			isLocal := is.db.getIndexSearch(is.accountID, is.projectID, is.deadline)
 			defer is.db.putIndexSearch(isLocal)
 			m, err := isLocal.getMetricIDsForDateAndFilters(date, tfs, maxMetrics)
 			mu.Lock()
@@ -2438,7 +2507,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	var buf []byte
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
-		kb.B = appendDateTagFilterCacheKey(kb.B[:0], date, tf, tfs.accountID, tfs.projectID)
+		kb.B = appendDateTagFilterCacheKey(kb.B[:0], date, tf, is.accountID, is.projectID)
 		buf = is.db.metricIDsPerDateTagFilterCache.Get(buf[:0], kb.B)
 		count := uint64(0)
 		if len(buf) == 8 {
@@ -2468,7 +2537,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			tfsRemainingWithCount = append(tfsRemainingWithCount, tfsWithCount[i])
 			continue
 		}
-		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, tfs.accountID, tfs.projectID, maxDateMetrics)
+		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, maxDateMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -2489,7 +2558,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		// All the filters in tfs are negative or match too many time series.
 		// Populate all the metricIDs for the given (date),
 		// so later they can be filtered out with negative filters.
-		m, err := is.getMetricIDsForDate(date, tfs.accountID, tfs.projectID, maxDateMetrics)
+		m, err := is.getMetricIDsForDate(date, maxDateMetrics)
 		if err != nil {
 			if err == errMissingMetricIDsForDate {
 				// Zero time series were written on the given date.
@@ -2519,7 +2588,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			break
 		}
 		tf := tfWithCount.tf
-		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, tfs.accountID, tfs.projectID, maxDateMetrics)
+		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, maxDateMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -2546,7 +2615,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		}
 		// Apply the postponed filters via metricName match.
 		var m uint64set.Set
-		if err := is.updateMetricIDsByMetricNameMatch(&m, metricIDs, tfsPostponed, tfs.accountID, tfs.projectID); err != nil {
+		if err := is.updateMetricIDsByMetricNameMatch(&m, metricIDs, tfsPostponed); err != nil {
 			return nil, err
 		}
 		return &m, nil
@@ -2554,12 +2623,12 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	return metricIDs, nil
 }
 
-func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, accountID, projectID uint32) (*uint64set.Set, bool) {
+func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) (*uint64set.Set, bool) {
 	// Return all the metricIDs for all the (AccountID, ProjectID) entries.
 	// The caller is responsible for proper filtering later.
 	k := accountProjectKey{
-		AccountID: accountID,
-		ProjectID: projectID,
+		AccountID: is.accountID,
+		ProjectID: is.projectID,
 	}
 	minHour := uint64(tr.MinTimestamp) / msecPerHour
 	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
@@ -2600,11 +2669,11 @@ func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int, 
 	return nil, false
 }
 
-func (is *indexSearch) storeDateMetricID(date, metricID uint64, accountID, projectID uint32) error {
+func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	items := getIndexItems()
 	defer putIndexItems(items)
 
-	items.B = marshalCommonPrefix(items.B, nsPrefixDateToMetricID, accountID, projectID)
+	items.B = is.marshalCommonPrefix(items.B, nsPrefixDateToMetricID)
 	items.B = encoding.MarshalUint64(items.B, date)
 	items.B = encoding.MarshalUint64(items.B, metricID)
 	items.Next()
@@ -2618,7 +2687,7 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64, accountID, proje
 	// There is no need in searching for metric name in is.db.extDB,
 	// Since the storeDateMetricID function is called only after the metricID->metricName
 	// is added into the current is.db.
-	kb.B, err = is.searchMetricName(kb.B[:0], metricID, accountID, projectID)
+	kb.B, err = is.searchMetricName(kb.B[:0], metricID)
 	if err != nil {
 		if err == io.EOF {
 			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
@@ -2633,7 +2702,7 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64, accountID, proje
 	if err = mn.Unmarshal(kb.B); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q obtained by metricID %d: %w", metricID, kb.B, err)
 	}
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 
 	items.B = append(items.B, kb.B...)
@@ -2687,10 +2756,10 @@ func reverseBytes(dst, src []byte) []byte {
 	return dst
 }
 
-func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, projectID uint32) (bool, error) {
+func (is *indexSearch) hasDateMetricID(date, metricID uint64) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = encoding.MarshalUint64(kb.B, metricID)
 	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
@@ -2705,14 +2774,14 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64, accountID, project
 	return true, nil
 }
 
-func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, commonPrefix []byte, accountID, projectID uint32, maxMetrics int) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int) (*uint64set.Set, error) {
 	// Augument tag filter prefix for per-date search instead of global search.
 	if !bytes.HasPrefix(tf.prefix, commonPrefix) {
 		logger.Panicf("BUG: unexpected tf.prefix %q; must start with commonPrefix %q", tf.prefix, commonPrefix)
 	}
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = append(kb.B, tf.prefix[len(commonPrefix):]...)
 
@@ -2723,7 +2792,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 
 	// Store the number of matching metricIDs in the cache in order to sort tag filters
 	// in ascending number of matching metricIDs on the next search.
-	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf, accountID, projectID)
+	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf, is.accountID, is.projectID)
 	metricIDsLen := uint64(metricIDs.Len())
 	if err != nil {
 		// Set metricIDsLen to maxMetrics, so the given entry will be moved to the end
@@ -2741,11 +2810,11 @@ func appendDateTagFilterCacheKey(dst []byte, date uint64, tf *tagFilter, account
 	return dst
 }
 
-func (is *indexSearch) getMetricIDsForDate(date uint64, accountID, projectID uint32, maxMetrics int) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForDate(date uint64, maxMetrics int) (*uint64set.Set, error) {
 	// Extract all the metricIDs from (date, __name__=value)->metricIDs entries.
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = marshalTagValue(kb.B, nil)
 	var metricIDs uint64set.Set
@@ -2760,11 +2829,11 @@ func (is *indexSearch) getMetricIDsForDate(date uint64, accountID, projectID uin
 	return &metricIDs, nil
 }
 
-func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, accountID, projectID uint32, maxMetrics int) error {
+func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, maxMetrics int) error {
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
 	// Extract all the metricIDs from (__name__=value)->metricIDs entries.
-	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, accountID, projectID)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	kb.B = marshalTagValue(kb.B, nil)
 	return is.updateMetricIDsForPrefix(kb.B, metricIDs, maxMetrics)
 }
@@ -2772,8 +2841,15 @@ func (is *indexSearch) updateMetricIDsAll(metricIDs *uint64set.Set, accountID, p
 func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64set.Set, maxMetrics int) error {
 	ts := &is.ts
 	mp := &is.mp
+	loopsPaceLimiter := 0
 	ts.Seek(prefix)
 	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
 			return nil
@@ -2788,9 +2864,7 @@ func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64
 			return err
 		}
 		mp.ParseMetricIDs()
-		for _, metricID := range mp.MetricIDs {
-			metricIDs.Add(metricID)
-		}
+		metricIDs.AddMulti(mp.MetricIDs)
 		if metricIDs.Len() >= maxMetrics {
 			return nil
 		}
@@ -2811,7 +2885,7 @@ const maxIndexScanLoopsPerMetric = 100
 // over the found metrics.
 const maxIndexScanSlowLoopsPerMetric = 20
 
-func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set, accountID, projectID uint32) (*uint64set.Set, error) {
+func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	if filter.Len() == 0 {
 		return nil, nil
 	}
@@ -2819,7 +2893,7 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *ui
 	filterLenRounded := (uint64(filter.Len()) / 1024) * 1024
 	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
 	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
-	kb.B = tf.Marshal(kb.B, accountID, projectID)
+	kb.B = tf.Marshal(kb.B, is.accountID, is.projectID)
 	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
 		// Skip useless work, since the intersection will return
 		// errFallbackToMetricNameMatc for the given filter.
@@ -2834,7 +2908,7 @@ func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *ui
 	}
 	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
 	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
-	kb.B = tf.Marshal(kb.B, accountID, projectID)
+	kb.B = tf.Marshal(kb.B, is.accountID, is.projectID)
 	is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
 	return nil, errFallbackToMetricNameMatch
 }
@@ -2897,6 +2971,10 @@ func marshalCommonPrefix(dst []byte, nsPrefix byte, accountID, projectID uint32)
 	dst = encoding.MarshalUint32(dst, accountID)
 	dst = encoding.MarshalUint32(dst, projectID)
 	return dst
+}
+
+func (is *indexSearch) marshalCommonPrefix(dst []byte, nsPrefix byte) []byte {
+	return marshalCommonPrefix(dst, nsPrefix, is.accountID, is.projectID)
 }
 
 func unmarshalCommonPrefix(src []byte) ([]byte, byte, uint32, uint32, error) {

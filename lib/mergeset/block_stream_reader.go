@@ -267,7 +267,7 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	var err error
 	bsr.unpackedBuf, err = encoding.DecompressZSTD(bsr.unpackedBuf[:0], bsr.packedBuf)
 	if err != nil {
-		return fmt.Errorf("cannot decompress index block with size %d: %w", mr.indexBlockSize, err)
+		return fmt.Errorf("cannot decompress index block: %w", err)
 	}
 
 	// Unmarshal the unpacked index block into bsr.bhs.

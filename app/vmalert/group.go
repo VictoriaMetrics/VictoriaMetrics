@@ -30,9 +30,24 @@ type Group struct {
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan *Group
+
+	metrics *groupMetrics
 }
 
-func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
+type groupMetrics struct {
+	iterationTotal    *counter
+	iterationDuration *summary
+}
+
+func newGroupMetrics(name, file string) *groupMetrics {
+	m := &groupMetrics{}
+	labels := fmt.Sprintf(`group=%q, file=%q`, name, file)
+	m.iterationTotal = getOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	m.iterationDuration = getOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	return m
+}
+
+func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
 		Name:        cfg.Name,
 		File:        cfg.File,
@@ -42,6 +57,7 @@ func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 		finishedCh:  make(chan struct{}),
 		updateCh:    make(chan *Group),
 	}
+	g.metrics = newGroupMetrics(g.Name, g.File)
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
 	}
@@ -50,6 +66,17 @@ func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 	}
 	rules := make([]Rule, len(cfg.Rules))
 	for i, r := range cfg.Rules {
+		// override rule labels with external labels
+		for k, v := range labels {
+			if prevV, ok := r.Labels[k]; ok {
+				logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
+					k, prevV, g.Name, r.Name(), k, v)
+			}
+			if r.Labels == nil {
+				r.Labels = map[string]string{}
+			}
+			r.Labels[k] = v
+		}
 		rules[i] = g.newRule(r)
 	}
 	g.Rules = rules
@@ -58,9 +85,9 @@ func newGroup(cfg config.Group, defaultInterval time.Duration) *Group {
 
 func (g *Group) newRule(rule config.Rule) Rule {
 	if rule.Alert != "" {
-		return newAlertingRule(g.ID(), rule)
+		return newAlertingRule(g, rule)
 	}
-	return newRecordingRule(g.ID(), rule)
+	return newRecordingRule(g, rule)
 }
 
 // ID return unique group ID that consists of
@@ -74,7 +101,7 @@ func (g *Group) ID() uint64 {
 }
 
 // Restore restores alerts state for group rules
-func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration) error {
+func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
 	for _, rule := range g.Rules {
 		rr, ok := rule.(*AlertingRule)
 		if !ok {
@@ -83,7 +110,7 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 		if rr.For < 1 {
 			continue
 		}
-		if err := rr.Restore(ctx, q, lookback); err != nil {
+		if err := rr.Restore(ctx, q, lookback, labels); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
@@ -106,6 +133,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		if !ok {
 			// old rule is not present in the new list
 			// so we mark it for removing
+			g.Rules[i].Close()
 			g.Rules[i] = nil
 			continue
 		}
@@ -133,18 +161,9 @@ func (g *Group) updateWith(newGroup *Group) error {
 }
 
 var (
-	iterationTotal    = metrics.NewCounter(`vmalert_iteration_total`)
-	iterationDuration = metrics.NewSummary(`vmalert_iteration_duration_seconds`)
-
-	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
-	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
-	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
-
 	alertsFired      = metrics.NewCounter(`vmalert_alerts_fired_total`)
 	alertsSent       = metrics.NewCounter(`vmalert_alerts_sent_total`)
 	alertsSendErrors = metrics.NewCounter(`vmalert_alerts_send_errors_total`)
-
-	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
 func (g *Group) close() {
@@ -153,10 +172,39 @@ func (g *Group) close() {
 	}
 	close(g.doneCh)
 	<-g.finishedCh
+
+	metrics.UnregisterMetric(g.metrics.iterationDuration.name)
+	metrics.UnregisterMetric(g.metrics.iterationTotal.name)
+	for _, rule := range g.Rules {
+		rule.Close()
+	}
 }
+
+var skipRandSleepOnGroupStart bool
 
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
+
+	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	if !skipRandSleepOnGroupStart {
+		randSleep := uint64(float64(g.Interval) * (float64(uint32(g.ID())) / (1 << 32)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(g.Interval)
+		}
+		randSleep -= sleepOffset
+		sleepTimer := time.NewTimer(time.Duration(randSleep))
+		select {
+		case <-ctx.Done():
+			sleepTimer.Stop()
+			return
+		case <-g.doneCh:
+			sleepTimer.Stop()
+			return
+		case <-sleepTimer.C:
+		}
+	}
+
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)
@@ -185,7 +233,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
-			iterationTotal.Inc()
+			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 
 			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, g.Interval)
@@ -195,7 +243,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 				}
 			}
 
-			iterationDuration.UpdateDuration(iterationStart)
+			g.metrics.iterationDuration.UpdateDuration(iterationStart)
 		}
 	}
 }
@@ -239,6 +287,14 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurren
 	}()
 	return res
 }
+
+var (
+	execTotal    = metrics.NewCounter(`vmalert_execution_total`)
+	execErrors   = metrics.NewCounter(`vmalert_execution_errors_total`)
+	execDuration = metrics.NewSummary(`vmalert_execution_duration_seconds`)
+
+	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
+)
 
 func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, interval time.Duration) error {
 	execTotal.Inc()

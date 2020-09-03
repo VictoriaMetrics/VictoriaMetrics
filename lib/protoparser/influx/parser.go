@@ -42,7 +42,7 @@ func (rs *Rows) Reset() {
 //
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.Rows, rs.tagsPool, rs.fieldsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], rs.fieldsPool[:0])
 }
@@ -111,6 +111,10 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 	// Parse timestamp
 	timestamp := fastfloat.ParseInt64BestEffort(s)
 	if timestamp == 0 && s != "0" {
+		if strings.HasPrefix(s, "HTTP/") {
+			return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
+				"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
+		}
 		return tagsPool, fieldsPool, fmt.Errorf("cannot parse timestamp %q", s)
 	}
 	r.Timestamp = timestamp

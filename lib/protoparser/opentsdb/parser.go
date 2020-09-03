@@ -35,7 +35,7 @@ func (rs *Rows) Reset() {
 //
 // See http://opentsdb.net/docs/build/html/api_telnet/put.html
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0])
 }

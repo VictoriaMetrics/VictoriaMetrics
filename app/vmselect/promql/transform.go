@@ -17,14 +17,6 @@ import (
 	"github.com/valyala/histogram"
 )
 
-var transformFuncsKeepMetricGroup = map[string]bool{
-	"ceil":      true,
-	"clamp_max": true,
-	"clamp_min": true,
-	"floor":     true,
-	"round":     true,
-}
-
 var transformFuncs = map[string]transformFunc{
 	// Standard promql funcs
 	// See funcs accepting instant-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
@@ -98,6 +90,7 @@ var transformFuncs = map[string]transformFunc{
 	"asin":               newTransformFuncOneArg(transformAsin),
 	"acos":               newTransformFuncOneArg(transformAcos),
 	"prometheus_buckets": transformPrometheusBuckets,
+	"buckets_limit":      transformBucketsLimit,
 	"histogram_share":    transformHistogramShare,
 	"sort_by_label":      newTransformFuncSortByLabel(false),
 	"sort_by_label_desc": newTransformFuncSortByLabel(true),
@@ -132,12 +125,8 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 }
 
 func doTransformValues(arg []*timeseries, tf func(values []float64), fe *metricsql.FuncExpr) ([]*timeseries, error) {
-	name := strings.ToLower(fe.Name)
-	keepMetricGroup := transformFuncsKeepMetricGroup[name]
 	for _, ts := range arg {
-		if !keepMetricGroup {
-			ts.MetricName.ResetMetricGroup()
-		}
+		ts.MetricName.ResetMetricGroup()
 		tf(ts.Values)
 	}
 	return arg, nil
@@ -280,6 +269,101 @@ func transformExp(v float64) float64 {
 
 func transformFloor(v float64) float64 {
 	return math.Floor(v)
+}
+
+func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	limits, err := getScalar(args[0], 1)
+	if err != nil {
+		return nil, err
+	}
+	limit := int(limits[0])
+	if limit <= 0 {
+		return nil, nil
+	}
+	tss := vmrangeBucketsToLE(args[1])
+	if len(tss) == 0 {
+		return nil, nil
+	}
+
+	// Group timeseries by all MetricGroup+tags excluding `le` tag.
+	type x struct {
+		le   float64
+		hits float64
+		ts   *timeseries
+	}
+	m := make(map[string][]x)
+	var b []byte
+	var mn storage.MetricName
+	for _, ts := range tss {
+		leStr := ts.MetricName.GetTagValue("le")
+		if len(leStr) == 0 {
+			// Skip time series without `le` tag.
+			continue
+		}
+		le, err := strconv.ParseFloat(string(leStr), 64)
+		if err != nil {
+			// Skip time series with invalid `le` tag.
+			continue
+		}
+		mn.CopyFrom(&ts.MetricName)
+		mn.RemoveTag("le")
+		b = marshalMetricNameSorted(b[:0], &mn)
+		m[string(b)] = append(m[string(b)], x{
+			le: le,
+			ts: ts,
+		})
+	}
+
+	// Remove buckets with the smallest counters.
+	rvs := make([]*timeseries, 0, len(tss))
+	for _, leGroup := range m {
+		if len(leGroup) <= limit {
+			// Fast path - the number of buckets doesn't exceed the given limit.
+			// Keep all the buckets as is.
+			for _, xx := range leGroup {
+				rvs = append(rvs, xx.ts)
+			}
+			continue
+		}
+		// Slow path - remove buckets with the smallest number of hits until their count reaches the limit.
+
+		// Calculate per-bucket hits.
+		sort.Slice(leGroup, func(i, j int) bool {
+			return leGroup[i].le < leGroup[j].le
+		})
+		for n := range limits {
+			prevValue := float64(0)
+			for i := range leGroup {
+				xx := &leGroup[i]
+				value := xx.ts.Values[n]
+				xx.hits += value - prevValue
+				prevValue = value
+			}
+		}
+		for len(leGroup) > limit {
+			xxMinIdx := 0
+			for i, xx := range leGroup {
+				if xx.hits < leGroup[xxMinIdx].hits {
+					xxMinIdx = i
+				}
+			}
+			// Merge the leGroup[xxMinIdx] bucket with the smallest adjacent bucket in order to preserve
+			// the maximum accuracy.
+			if xxMinIdx+1 == len(leGroup) || (xxMinIdx > 0 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits) {
+				xxMinIdx--
+			}
+			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
+			leGroup = append(leGroup[:xxMinIdx], leGroup[xxMinIdx+1:]...)
+		}
+		for _, xx := range leGroup {
+			rvs = append(rvs, xx.ts)
+		}
+	}
+	return rvs, nil
 }
 
 func transformPrometheusBuckets(tfa *transformFuncArg) ([]*timeseries, error) {

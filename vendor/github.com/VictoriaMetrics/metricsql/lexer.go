@@ -149,6 +149,9 @@ func scanString(s string) (string, error) {
 func scanPositiveNumber(s string) (string, error) {
 	// Scan integer part. It may be empty if fractional part exists.
 	i := 0
+	if n := scanSpecialIntegerPrefix(s); n > 0 {
+		i += n
+	}
 	for i < len(s) && isDecimalChar(s[i]) {
 		i++
 	}
@@ -364,6 +367,29 @@ func isPositiveNumberPrefix(s string) bool {
 		return false
 	}
 	return isDecimalChar(s[1])
+}
+
+func isSpecialIntegerPrefix(s string) bool {
+	return scanSpecialIntegerPrefix(s) > 0
+}
+
+func scanSpecialIntegerPrefix(s string) int {
+	if len(s) < 1 || s[0] != '0' {
+		return 0
+	}
+	s = strings.ToLower(s[1:])
+	if len(s) == 0 {
+		return 0
+	}
+	if isDecimalChar(s[0]) {
+		// octal number: 0123
+		return 1
+	}
+	if s[0] == 'x' || s[0] == 'o' || s[0] == 'b' {
+		// 0x, 0o or 0b prefix
+		return 2
+	}
+	return 0
 }
 
 func isPositiveDuration(s string) bool {

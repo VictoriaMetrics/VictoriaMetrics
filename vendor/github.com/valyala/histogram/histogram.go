@@ -41,8 +41,14 @@ func (f *Fast) Reset() {
 	f.max = infNeg
 	f.min = infPos
 	f.count = 0
-	f.a = f.a[:0]
-	f.tmp = f.tmp[:0]
+	if len(f.a) > 0 {
+		f.a = f.a[:0]
+		f.tmp = f.tmp[:0]
+	} else {
+		// Free up memory occupied by unused histogram.
+		f.a = nil
+		f.tmp = nil
+	}
 }
 
 // Update updates the f with v.

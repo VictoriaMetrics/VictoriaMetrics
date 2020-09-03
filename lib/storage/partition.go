@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -367,11 +368,11 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	pt.partsLock.Unlock()
 
-	m.BigIndexBlocksCacheRequests += atomic.LoadUint64(&historicalBigIndexBlocksCacheRequests)
-	m.BigIndexBlocksCacheMisses += atomic.LoadUint64(&historicalBigIndexBlocksCacheMisses)
+	m.BigIndexBlocksCacheRequests = atomic.LoadUint64(&historicalBigIndexBlocksCacheRequests)
+	m.BigIndexBlocksCacheMisses = atomic.LoadUint64(&historicalBigIndexBlocksCacheMisses)
 
-	m.SmallIndexBlocksCacheRequests += atomic.LoadUint64(&historicalSmallIndexBlocksCacheRequests)
-	m.SmallIndexBlocksCacheMisses += atomic.LoadUint64(&historicalSmallIndexBlocksCacheMisses)
+	m.SmallIndexBlocksCacheRequests = atomic.LoadUint64(&historicalSmallIndexBlocksCacheRequests)
+	m.SmallIndexBlocksCacheMisses = atomic.LoadUint64(&historicalSmallIndexBlocksCacheMisses)
 
 	m.ActiveBigMerges += atomic.LoadUint64(&pt.activeBigMerges)
 	m.ActiveSmallMerges += atomic.LoadUint64(&pt.activeSmallMerges)
@@ -574,7 +575,11 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 	}
 
 	// The added part exceeds available limit. Help merging parts.
+	//
+	// Prioritize assisted merges over searches.
+	storagepacelimiter.Search.Inc()
 	err = pt.mergeSmallParts(false)
+	storagepacelimiter.Search.Dec()
 	if err == nil {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
@@ -809,17 +814,9 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
 	return nil
 }
 
-var mergeWorkersCount = func() int {
-	n := runtime.GOMAXPROCS(-1) / 2
-	if n <= 0 {
-		n = 1
-	}
-	return n
-}()
-
 var (
-	bigMergeConcurrencyLimitCh   = make(chan struct{}, mergeWorkersCount)
-	smallMergeConcurrencyLimitCh = make(chan struct{}, mergeWorkersCount)
+	bigMergeWorkersCount   = (runtime.GOMAXPROCS(-1) + 1) / 2
+	smallMergeWorkersCount = (runtime.GOMAXPROCS(-1) + 1) / 2
 )
 
 // SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.
@@ -830,7 +827,7 @@ func SetBigMergeWorkersCount(n int) {
 		// Do nothing
 		return
 	}
-	bigMergeConcurrencyLimitCh = make(chan struct{}, n)
+	bigMergeWorkersCount = n
 }
 
 // SetSmallMergeWorkersCount sets the maximum number of concurrent mergers for small blocks.
@@ -841,18 +838,18 @@ func SetSmallMergeWorkersCount(n int) {
 		// Do nothing
 		return
 	}
-	smallMergeConcurrencyLimitCh = make(chan struct{}, n)
+	smallMergeWorkersCount = n
 }
 
 func (pt *partition) startMergeWorkers() {
-	for i := 0; i < mergeWorkersCount; i++ {
+	for i := 0; i < smallMergeWorkersCount; i++ {
 		pt.smallPartsMergerWG.Add(1)
 		go func() {
 			pt.smallPartsMerger()
 			pt.smallPartsMergerWG.Done()
 		}()
 	}
-	for i := 0; i < mergeWorkersCount; i++ {
+	for i := 0; i < bigMergeWorkersCount; i++ {
 		pt.bigPartsMergerWG.Add(1)
 		go func() {
 			pt.bigPartsMerger()
@@ -925,12 +922,11 @@ func maxRowsByPath(path string) uint64 {
 	freeSpace := fs.MustGetFreeSpace(path)
 
 	// Calculate the maximum number of rows in the output merge part
-	// by dividing the freeSpace by the number of concurrent
-	// mergeWorkersCount for big parts.
-	// This assumes each row is compressed into 1 byte. Production
-	// simulation shows that each row usually occupies up to 0.5 bytes,
-	// so this is quite safe assumption.
-	maxRows := freeSpace / uint64(mergeWorkersCount)
+	// by dividing the freeSpace by the maximum number of concurrent
+	// workers for big parts.
+	// This assumes each row is compressed into 1 byte
+	// according to production data.
+	maxRows := freeSpace / uint64(bigMergeWorkersCount)
 	if maxRows > maxRowsPerBigPart {
 		maxRows = maxRowsPerBigPart
 	}
@@ -938,11 +934,6 @@ func maxRowsByPath(path string) uint64 {
 }
 
 func (pt *partition) mergeBigParts(isFinal bool) error {
-	bigMergeConcurrencyLimitCh <- struct{}{}
-	defer func() {
-		<-bigMergeConcurrencyLimitCh
-	}()
-
 	maxRows := maxRowsByPath(pt.bigPartsPath)
 
 	pt.partsLock.Lock()
@@ -952,21 +943,10 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 	if len(pws) == 0 {
 		return errNothingToMerge
 	}
-
-	atomic.AddUint64(&pt.bigMergesCount, 1)
-	atomic.AddUint64(&pt.activeBigMerges, 1)
-	err := pt.mergeParts(pws, pt.stopCh)
-	atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
-
-	return err
+	return pt.mergeParts(pws, pt.stopCh)
 }
 
 func (pt *partition) mergeSmallParts(isFinal bool) error {
-	smallMergeConcurrencyLimitCh <- struct{}{}
-	defer func() {
-		<-smallMergeConcurrencyLimitCh
-	}()
-
 	maxRows := maxRowsByPath(pt.smallPartsPath)
 	if maxRows > maxRowsPerSmallPart() {
 		// The output part may go to big part,
@@ -984,13 +964,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	if len(pws) == 0 {
 		return errNothingToMerge
 	}
-
-	atomic.AddUint64(&pt.smallMergesCount, 1)
-	atomic.AddUint64(&pt.activeSmallMerges, 1)
-	err := pt.mergeParts(pws, pt.stopCh)
-	atomic.AddUint64(&pt.activeSmallMerges, ^uint64(0))
-
-	return err
+	return pt.mergeParts(pws, pt.stopCh)
 }
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
@@ -1058,15 +1032,26 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	// Merge parts.
+	dmis := pt.getDeletedMetricIDs()
 	var ph partHeader
 	rowsMerged := &pt.smallRowsMerged
 	rowsDeleted := &pt.smallRowsDeleted
 	if isBigPart {
 		rowsMerged = &pt.bigRowsMerged
 		rowsDeleted = &pt.bigRowsDeleted
+		atomic.AddUint64(&pt.bigMergesCount, 1)
+		atomic.AddUint64(&pt.activeBigMerges, 1)
+	} else {
+		atomic.AddUint64(&pt.smallMergesCount, 1)
+		atomic.AddUint64(&pt.activeSmallMerges, 1)
+		// Prioritize small merges over big merges.
 	}
-	dmis := pt.getDeletedMetricIDs()
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, rowsMerged, dmis, rowsDeleted)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, rowsMerged, rowsDeleted)
+	if isBigPart {
+		atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
+	} else {
+		atomic.AddUint64(&pt.activeSmallMerges, ^uint64(0))
+	}
 	putBlockStreamWriter(bsw)
 	if err != nil {
 		if err == errForciblyStopped {
@@ -1247,7 +1232,7 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	}
 
 	// Filter out too big parts.
-	// This should reduce N for O(n^2) algorithm below.
+	// This should reduce N for O(N^2) algorithm below.
 	maxInPartRows := maxRows / 2
 	tmp := make([]*partWrapper, 0, len(src))
 	for _, pw := range src {

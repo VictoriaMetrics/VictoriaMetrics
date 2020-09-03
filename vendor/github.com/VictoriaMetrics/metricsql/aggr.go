@@ -36,6 +36,8 @@ var aggrFuncs = map[string]bool{
 	"bottomk_median": true,
 	"any":            true,
 	"outliersk":      true,
+	"mode":           true,
+	"zscore":         true,
 }
 
 func isAggrFunc(s string) bool {
