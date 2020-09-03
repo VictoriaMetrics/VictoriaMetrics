@@ -51,10 +51,6 @@ func TestParseBad(t *testing.T) {
 			[]string{"testdata/dir/rules4-bad.rules"},
 			"either `record` or `alert` must be set",
 		},
-		{
-			[]string{"testdata/*.yaml"},
-			"no groups found",
-		},
 	}
 	for _, tc := range testCases {
 		_, err := Parse(tc.path, true, true)

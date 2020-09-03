@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,16 +18,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestManagerUpdateError(t *testing.T) {
+// TestManagerEmptyRulesDir tests
+// successful cases of
+// starting with empty rules folder
+func TestManagerEmptyRulesDir(t *testing.T) {
 	m := &manager{groups: make(map[uint64]*Group)}
 	path := []string{"foo/bar"}
 	err := m.update(context.Background(), path, true, true, false)
-	if err == nil {
-		t.Fatalf("expected to have err; got nil instead")
-	}
-	expErr := "no groups found"
-	if !strings.Contains(err.Error(), expErr) {
-		t.Fatalf("expected to got err %s; got %s", expErr, err)
+	if err != nil {
+		t.Fatalf("expected to load succesfully with empty rules dir; got err instead: %v", err)
 	}
 }
 
@@ -178,6 +176,27 @@ func TestManagerUpdate(t *testing.T) {
 						Conns,
 						ExampleAlertAlwaysFiring,
 					}},
+			},
+		},
+		{
+			name:       "update empty dir rules from 0 to 2 groups",
+			initPath:   "config/testdata/empty/*",
+			updatePath: "config/testdata/rules0-good.rules",
+			want: []*Group{
+				{
+					File:     "config/testdata/rules0-good.rules",
+					Name:     "groupGorSingleAlert",
+					Interval: defaultEvalInterval,
+					Rules:    []Rule{VMRows},
+				},
+				{
+					File:     "config/testdata/rules0-good.rules",
+					Interval: defaultEvalInterval,
+					Name:     "TestGroup", Rules: []Rule{
+						Conns,
+						ExampleAlertAlwaysFiring,
+					},
+				},
 			},
 		},
 	}

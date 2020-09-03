@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metricsql"
 	"gopkg.in/yaml.v2"
 )
@@ -170,7 +171,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		}
 	}
 	if len(groups) < 1 {
-		return nil, fmt.Errorf("no groups found in %s", strings.Join(pathPatterns, ";"))
+		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
 	}
 	return groups, nil
 }
