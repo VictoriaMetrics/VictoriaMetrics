@@ -14,3 +14,18 @@ func GetMemoryLimit() int64 {
 	}
 	return n
 }
+
+// GetHierarchicalMemoryLimit returns hierarchical memory limit
+func GetHierarchicalMemoryLimit() int64 {
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/699
+	n, err := readInt64FromCommand("cat /sys/fs/cgroup/memory/memory.stat | grep hierarchical_memory_limit | cut -d' ' -f 2")
+	if err == nil {
+		return n
+	}
+	n, err = readInt64FromCommand(
+		"cat /sys/fs/cgroup/memory$(cat /proc/self/cgroup | grep memory | cut -d: -f3)/memory.stat | grep hierarchical_memory_limit | cut -d' ' -f 2")
+	if err != nil {
+		return 0
+	}
+	return n
+}
