@@ -56,14 +56,7 @@ func AdjustStartEnd(start, end, step int64) (int64, int64) {
 
 	// Round start and end to values divisible by step in order
 	// to enable response caching (see EvalConfig.mayCache).
-
-	// Round start to the nearest smaller value divisible by step.
-	start -= start % step
-	// Round end to the nearest bigger value divisible by step.
-	adjust := end % step
-	if adjust > 0 {
-		end += step - adjust
-	}
+	start, end = alignStartEnd(start, end, step)
 
 	// Make sure that the new number of points is the same as the initial number of points.
 	newPoints := (end-start)/step + 1
@@ -72,6 +65,17 @@ func AdjustStartEnd(start, end, step int64) (int64, int64) {
 		newPoints--
 	}
 
+	return start, end
+}
+
+func alignStartEnd(start, end, step int64) (int64, int64) {
+	// Round start to the nearest smaller value divisible by step.
+	start -= start % step
+	// Round end to the nearest bigger value divisible by step.
+	adjust := end % step
+	if adjust > 0 {
+		end += step - adjust
+	}
 	return start, end
 }
 
@@ -501,11 +505,13 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr
 
 	ecSQ := newEvalConfig(ec)
 	ecSQ.Start -= window + maxSilenceInterval + step
+	ecSQ.End += step
 	ecSQ.Step = step
 	if err := ValidateMaxPointsPerTimeseries(ecSQ.Start, ecSQ.End, ecSQ.Step); err != nil {
 		return nil, err
 	}
-	ecSQ.Start, ecSQ.End = AdjustStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
+	// unconditionally align start and end args to step for subquery as Prometheus does.
+	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
 	tssSQ, err := evalExpr(ecSQ, re.Expr)
 	if err != nil {
 		return nil, err
@@ -517,7 +523,6 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr
 		}
 		return nil, nil
 	}
-
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step)
 	preFunc, rcs, err := getRollupConfigs(name, rf, expr, ec.Start, ec.End, ec.Step, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
