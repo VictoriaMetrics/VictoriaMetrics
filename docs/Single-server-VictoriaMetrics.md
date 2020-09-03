@@ -569,6 +569,7 @@ Additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.t
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
 
 VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series` if `start` query arg is missing there.
+`end` query arg defaults to the current time if it is missing.
 
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
 See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
@@ -688,7 +689,7 @@ where `<timeseries_selector_for_delete>` may contain any [time series selector](
 for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
 the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
-It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>&start=1`
+It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>&start=0`
 before actually deleting the metrics.
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
