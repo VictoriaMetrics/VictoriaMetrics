@@ -169,19 +169,58 @@ func simplifyConstants(e Expr) Expr {
 	be.Left = simplifyConstants(be.Left)
 	be.Right = simplifyConstants(be.Right)
 
-	lne, ok := be.Left.(*NumberExpr)
-	if !ok {
+	lne, lok := be.Left.(*NumberExpr)
+	rne, rok := be.Right.(*NumberExpr)
+	if lok && rok {
+		n := binaryOpEvalNumber(be.Op, lne.N, rne.N, be.Bool)
+		return &NumberExpr{
+			N: n,
+		}
+	}
+
+	// Check whether both operands are string literals.
+	lse, lok := be.Left.(*StringExpr)
+	rse, rok := be.Right.(*StringExpr)
+	if !lok || !rok {
 		return be
 	}
-	rne, ok := be.Right.(*NumberExpr)
-	if !ok {
+	if be.Op == "+" {
+		// convert "foo" + "bar" to "foobar".
+		return &StringExpr{
+			S: lse.S + rse.S,
+		}
+	}
+	if !IsBinaryOpCmp(be.Op) {
 		return be
 	}
-	n := binaryOpEval(be.Op, lne.N, rne.N, be.Bool)
-	ne := &NumberExpr{
+	// Perform string comparisons.
+	ok = false
+	switch be.Op {
+	case "==":
+		ok = lse.S == rse.S
+	case "!=":
+		ok = lse.S != rse.S
+	case ">":
+		ok = lse.S > rse.S
+	case "<":
+		ok = lse.S < rse.S
+	case ">=":
+		ok = lse.S >= rse.S
+	case "<=":
+		ok = lse.S <= rse.S
+	default:
+		panic(fmt.Errorf("BUG: unexpected comparison binaryOp: %q", be.Op))
+	}
+	n := float64(0)
+	if ok {
+		n = 1
+	}
+	if !be.Bool && n == 0 {
+		n = nan
+	}
+	return &NumberExpr{
 		N: n,
 	}
-	return ne
 }
 
 func simplifyConstantsInplace(args []Expr) {
