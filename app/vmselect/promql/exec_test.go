@@ -3996,6 +3996,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`count_gt_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `count_gt_over_time(rand(0)[200s:10s], 0.7)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{7, 6, 10, 6, 6, 5},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`count_le_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `count_le_over_time(rand(0)[200s:10s], 0.7)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{13, 14, 10, 14, 14, 15},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`increases_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `increases_over_time(rand(0)[200s:10s])`
@@ -6020,6 +6042,10 @@ func TestExecError(t *testing.T) {
 	f(`prometheus_buckets()`)
 	f(`buckets_limit()`)
 	f(`buckets_limit(1)`)
+	f(`share_le_over_time()`)
+	f(`share_gt_over_time()`)
+	f(`count_le_over_time()`)
+	f(`count_gt_over_time()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
