@@ -91,6 +91,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 	if isPartial && getDenyPartialResponse(r) {
+		rss.Cancel()
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
@@ -669,6 +670,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 	if isPartial && getDenyPartialResponse(r) {
+		rss.Cancel()
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 

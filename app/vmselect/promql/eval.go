@@ -670,6 +670,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		return nil, err
 	}
 	if isPartial && ec.DenyPartialResponse {
+		rss.Cancel()
 		return nil, fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 	rssLen := rss.Len()
