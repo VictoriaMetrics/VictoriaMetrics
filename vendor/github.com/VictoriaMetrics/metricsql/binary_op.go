@@ -139,7 +139,7 @@ func isBinaryOpLogicalSet(op string) bool {
 	}
 }
 
-func binaryOpEval(op string, left, right float64, isBool bool) float64 {
+func binaryOpEvalNumber(op string, left, right float64, isBool bool) float64 {
 	if IsBinaryOpCmp(op) {
 		evalCmp := func(cf func(left, right float64) bool) float64 {
 			if isBool {
