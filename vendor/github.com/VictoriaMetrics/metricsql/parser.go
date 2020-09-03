@@ -260,7 +260,7 @@ func (p *parser) parseWithArgExpr() (*withArgExpr, error) {
 	if !isIdentPrefix(p.lex.Token) {
 		return nil, fmt.Errorf(`withArgExpr: unexpected token %q; want "ident"`, p.lex.Token)
 	}
-	wa.Name = p.lex.Token
+	wa.Name = unescapeIdent(p.lex.Token)
 	if isAggrFunc(wa.Name) || IsRollupFunc(wa.Name) || IsTransformFunc(wa.Name) || isWith(wa.Name) {
 		return nil, fmt.Errorf(`withArgExpr: cannot use reserved name %q`, wa.Name)
 	}
@@ -533,7 +533,7 @@ func (p *parser) parseAggrFuncExpr() (*AggrFuncExpr, error) {
 	}
 
 	var ae AggrFuncExpr
-	ae.Name = strings.ToLower(p.lex.Token)
+	ae.Name = strings.ToLower(unescapeIdent(p.lex.Token))
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
@@ -772,7 +772,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		if !t.hasNonEmptyMetricGroup() {
 			return t, nil
 		}
-		k := string(appendEscapedIdent(nil, t.LabelFilters[0].Value))
+		k := t.LabelFilters[0].Value
 		wa := getWithArgExpr(was, k)
 		if wa == nil {
 			return t, nil
@@ -956,7 +956,7 @@ func (p *parser) parseFuncExpr() (*FuncExpr, error) {
 	}
 
 	var fe FuncExpr
-	fe.Name = p.lex.Token
+	fe.Name = unescapeIdent(p.lex.Token)
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
@@ -1008,7 +1008,7 @@ func (p *parser) parseIdentList() ([]string, error) {
 		if !isIdentPrefix(p.lex.Token) {
 			return nil, fmt.Errorf(`identList: unexpected token %q; want "ident"`, p.lex.Token)
 		}
-		idents = append(idents, p.lex.Token)
+		idents = append(idents, unescapeIdent(p.lex.Token))
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
@@ -1115,7 +1115,7 @@ func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
 		return nil, fmt.Errorf(`labelFilterExpr: unexpected token %q; want "ident"`, p.lex.Token)
 	}
 	var lfe labelFilterExpr
-	lfe.Label = p.lex.Token
+	lfe.Label = unescapeIdent(p.lex.Token)
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
@@ -1167,12 +1167,8 @@ func (lfe *labelFilterExpr) toLabelFilter() (*LabelFilter, error) {
 	}
 
 	var lf LabelFilter
-	lf.Label = unescapeIdent(lfe.Label)
-	if lf.Label == "__name__" {
-		lf.Value = unescapeIdent(lfe.Value.S)
-	} else {
-		lf.Value = lfe.Value.S
-	}
+	lf.Label = lfe.Label
+	lf.Value = lfe.Value.S
 	lf.IsRegexp = lfe.IsRegexp
 	lf.IsNegative = lfe.IsNegative
 	if !lf.IsRegexp {
@@ -1319,7 +1315,7 @@ func (p *parser) parseMetricExpr() (*MetricExpr, error) {
 		var lfe labelFilterExpr
 		lfe.Label = "__name__"
 		lfe.Value = &StringExpr{
-			tokens: []string{strconv.Quote(p.lex.Token)},
+			tokens: []string{strconv.Quote(unescapeIdent(p.lex.Token))},
 		}
 		me.labelFilters = append(me.labelFilters[:0], &lfe)
 		if err := p.lex.Next(); err != nil {
@@ -1465,7 +1461,7 @@ func (me *ModifierExpr) AppendString(dst []byte) []byte {
 	dst = append(dst, me.Op...)
 	dst = append(dst, " ("...)
 	for i, arg := range me.Args {
-		dst = append(dst, arg...)
+		dst = appendEscapedIdent(dst, arg)
 		if i+1 < len(me.Args) {
 			dst = append(dst, ", "...)
 		}
@@ -1497,7 +1493,7 @@ type FuncExpr struct {
 
 // AppendString appends string representation of fe to dst and returns the result.
 func (fe *FuncExpr) AppendString(dst []byte) []byte {
-	dst = append(dst, fe.Name...)
+	dst = appendEscapedIdent(dst, fe.Name)
 	dst = appendStringArgListExpr(dst, fe.Args)
 	return dst
 }
@@ -1522,7 +1518,7 @@ type AggrFuncExpr struct {
 
 // AppendString appends string representation of ae to dst and returns the result.
 func (ae *AggrFuncExpr) AppendString(dst []byte) []byte {
-	dst = append(dst, ae.Name...)
+	dst = appendEscapedIdent(dst, ae.Name)
 	dst = appendStringArgListExpr(dst, ae.Args)
 	if ae.Modifier.Op != "" {
 		dst = append(dst, ' ')
@@ -1568,11 +1564,11 @@ type withArgExpr struct {
 
 // AppendString appends string representation of wa to dst and returns the result.
 func (wa *withArgExpr) AppendString(dst []byte) []byte {
-	dst = append(dst, wa.Name...)
+	dst = appendEscapedIdent(dst, wa.Name)
 	if len(wa.Args) > 0 {
 		dst = append(dst, '(')
 		for i, arg := range wa.Args {
-			dst = append(dst, arg...)
+			dst = appendEscapedIdent(dst, arg)
 			if i+1 < len(wa.Args) {
 				dst = append(dst, ',')
 			}
