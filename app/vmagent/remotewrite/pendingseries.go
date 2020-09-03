@@ -120,15 +120,16 @@ func (wr *writeRequest) flush() {
 }
 
 func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
+	// flush if exceed maxRowsPerBlock
+	if len(wr.tss) >= maxRowsPerBlock {
+		wr.flush()
+	}
+
 	tssDst := wr.tss
 	for i := range src {
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
 		dst := &tssDst[len(tssDst)-1]
 		wr.copyTimeSeries(dst, &src[i])
-		if len(wr.tss) >= maxRowsPerBlock {
-			wr.flush()
-			tssDst = wr.tss
-		}
 	}
 	wr.tss = tssDst
 }
