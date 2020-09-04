@@ -691,7 +691,7 @@ for metrics to delete. After that all the time series matching the given selecto
 the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
-before actually deleting the metrics.  By default this query will only scan active series in the past 5 minutes.  You may need to
+before actually deleting the metrics.  By default this query will only scan active series in the past 5 minutes, so you may need to
 adjust `start` and `end` to a suitable range to achieve match hits.
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
