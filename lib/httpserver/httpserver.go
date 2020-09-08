@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/klauspost/compress/gzip"
+	"github.com/valyala/fastrand"
 )
 
 var (
@@ -41,7 +42,7 @@ var (
 		"from /health page, so load balancers can route new requests to other servers")
 	idleConnTimeout = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 	connTimeout     = flag.Duration("http.connTimeout", 2*time.Minute, "Incoming http connections are closed after the configured timeout. This may help spreading incoming load "+
-		"among a cluster of services behind load balancer")
+		"among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem")
 )
 
 var (
@@ -112,8 +113,13 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		ErrorLog: logger.StdErrorLogger(),
 
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
-			startTime := fasttime.UnixTimestamp()
-			return context.WithValue(ctx, connStartTimeKey, &startTime)
+			timeoutSec := connTimeout.Seconds()
+			// Add a jitter for connection timeout in order to prevent Thundering herd problem
+			// when all the connections are established at the same time.
+			// See https://en.wikipedia.org/wiki/Thundering_herd_problem
+			jitterSec := fastrand.Uint32n(uint32(timeoutSec / 10))
+			deadline := fasttime.UnixTimestamp() + uint64(timeoutSec) + uint64(jitterSec)
+			return context.WithValue(ctx, connDeadlineTimeKey, &deadline)
 		},
 	}
 	serversLock.Lock()
@@ -130,12 +136,12 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 
 func whetherToCloseConn(r *http.Request) bool {
 	ctx := r.Context()
-	v := ctx.Value(connStartTimeKey)
-	st, ok := v.(*uint64)
-	return ok && fasttime.UnixTimestamp()-*st > uint64(*connTimeout/time.Second)
+	v := ctx.Value(connDeadlineTimeKey)
+	deadline, ok := v.(*uint64)
+	return ok && fasttime.UnixTimestamp() > *deadline
 }
 
-var connStartTimeKey = interface{}("startTime")
+var connDeadlineTimeKey = interface{}("connDeadlineSecs")
 
 // Stop stops the http server on the given addr, which has been started
 // via Serve func.
