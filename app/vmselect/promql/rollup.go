@@ -1707,7 +1707,7 @@ func rollupIntegrate(rfa *rollupFuncArg) float64 {
 		prevTimestamp = timestamp
 		prevValue = v
 	}
-	dt := float64(rfa.currTimestamp - prevTimestamp) / 1e3
+	dt := float64(rfa.currTimestamp-prevTimestamp) / 1e3
 	sum += prevValue * dt
 	return sum
 }
