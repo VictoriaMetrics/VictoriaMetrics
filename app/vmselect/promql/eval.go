@@ -851,7 +851,7 @@ func evalTime(ec *EvalConfig) []*timeseries {
 	timestamps := rv[0].Timestamps
 	values := rv[0].Values
 	for i, ts := range timestamps {
-		values[i] = float64(ts) * 1e-3
+		values[i] = float64(ts) / 1e3
 	}
 	return rv
 }

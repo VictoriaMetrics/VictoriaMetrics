@@ -1674,15 +1674,15 @@ func newTransformFuncZeroArgs(f func(tfa *transformFuncArg) float64) transformFu
 }
 
 func transformStep(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.Step) * 1e-3
+	return float64(tfa.ec.Step) / 1e3
 }
 
 func transformStart(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.Start) * 1e-3
+	return float64(tfa.ec.Start) / 1e3
 }
 
 func transformEnd(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.End) * 1e-3
+	return float64(tfa.ec.End) / 1e3
 }
 
 // copyTimeseriesMetricNames returns a copy of tss with real copy of MetricNames,
