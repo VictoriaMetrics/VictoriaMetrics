@@ -1683,27 +1683,20 @@ func rollupDistinct(rfa *rollupFuncArg) float64 {
 }
 
 func rollupIntegrate(rfa *rollupFuncArg) float64 {
-	prevTimestamp := rfa.prevTimestamp
-
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
 	timestamps := rfa.timestamps
-	if len(values) == 0 {
-		if math.IsNaN(rfa.prevValue) {
+	prevValue := rfa.prevValue
+	prevTimestamp := rfa.currTimestamp - rfa.window
+	if math.IsNaN(prevValue) {
+		if len(values) == 0 {
 			return nan
 		}
-		return 0
-	}
-	prevValue := rfa.prevValue
-	if math.IsNaN(prevValue) {
 		prevValue = values[0]
 		prevTimestamp = timestamps[0]
 		values = values[1:]
 		timestamps = timestamps[1:]
-	}
-	if len(values) == 0 {
-		return 0
 	}
 
 	var sum float64
@@ -1714,6 +1707,8 @@ func rollupIntegrate(rfa *rollupFuncArg) float64 {
 		prevTimestamp = timestamp
 		prevValue = v
 	}
+	dt := float64(rfa.currTimestamp - prevTimestamp) / 1e3
+	sum += prevValue * dt
 	return sum
 }
 
