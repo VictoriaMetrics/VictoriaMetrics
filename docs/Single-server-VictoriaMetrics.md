@@ -1101,7 +1101,7 @@ for data with timestamps close to the current time.
 
 ### Data updates
 
-VictoriaMetrics doesn't support updating already exiting sample values to new ones. It stores all the ingested data points
+VictoriaMetrics doesn't support updating already existing sample values to new ones. It stores all the ingested data points
 for the same time series with identical timestamps. While is possible substituting old time series with new time series via
 [removal of old time series](#how-to-delete-timeseries) and then [writing new time series](#backfilling), this approach
 should be used only for one-off updates. It shouldn't be used for frequent updates because of non-zero overhead related to data removal.
