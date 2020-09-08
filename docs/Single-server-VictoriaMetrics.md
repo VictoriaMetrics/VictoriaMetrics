@@ -538,7 +538,7 @@ The following command may be used for verifying the imported data:
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
 ```
 
-It should return somethins like the following:
+It should return something like the following:
 
 ```
 {"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
