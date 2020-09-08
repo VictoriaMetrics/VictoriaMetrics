@@ -158,6 +158,7 @@ func (s *VMStorage) Query(ctx context.Context, at *auth.Token, query string) ([]
 		at = s.defaultAuthToken
 	}
 	queryURL := fmt.Sprintf("%v/%d:%d/%s%s%s", s.baseURL, at.AccountID, at.ProjectID, s.suffix, queryPath, url.QueryEscape(query))
+	fmt.Printf("*** queryURL: %s\n", queryURL)
 	req, err := http.NewRequest("POST", queryURL, nil)
 	if err != nil {
 		return nil, err

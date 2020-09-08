@@ -27,6 +27,12 @@ type APIGroup struct {
 	Concurrency    int                `json:"concurrency"`
 	AlertingRules  []APIAlertingRule  `json:"alerting_rules"`
 	RecordingRules []APIRecordingRule `json:"recording_rules"`
+	AuthToken      *APIAuthToken      `json:"auth_token"`
+}
+
+type APIAuthToken struct {
+	AccountID uint32 `json:"account_id"`
+	ProjectID uint32 `json:"project_id"`
 }
 
 // APIAlertingRule represents AlertingRule for WEB view
