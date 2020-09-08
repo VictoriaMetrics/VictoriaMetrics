@@ -4826,7 +4826,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `integrate(time()/1e3)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{180, 220.00000000000003, 259.99999999999994, 300, 340.00000000000006, 380},
+			Values:     []float64{160, 200, 240, 280, 320, 360},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
