@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -119,8 +120,8 @@ func (ar *AlertingRule) ID() uint64 {
 
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
-	qMetrics, err := q.Query(ctx, ar.Expr)
+func (ar *AlertingRule) Exec(ctx context.Context, at *auth.Token, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
+	qMetrics, err := q.Query(ctx, at, ar.Expr)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
@@ -392,7 +393,7 @@ func alertForToTimeSeries(name string, a *notifier.Alert, timestamp time.Time) p
 // Restore restores only Start field. Field State will be always Pending and supposed
 // to be updated on next Exec, as well as Value field.
 // Only rules with For > 0 will be restored.
-func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
+func (ar *AlertingRule) Restore(ctx context.Context, at *auth.Token, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
 	if q == nil {
 		return fmt.Errorf("querier is nil")
 	}
@@ -408,7 +409,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, err := q.Query(ctx, expr)
+	qMetrics, err := q.Query(ctx, at, expr)
 	if err != nil {
 		return err
 	}

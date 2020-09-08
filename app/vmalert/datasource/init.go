@@ -34,5 +34,6 @@ func Init() (Querier, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, c), nil
+
+	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, c)
 }

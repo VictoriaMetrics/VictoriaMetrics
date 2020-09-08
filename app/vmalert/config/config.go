@@ -25,6 +25,7 @@ type Group struct {
 	Interval    time.Duration `yaml:"interval,omitempty"`
 	Rules       []Rule        `yaml:"rules"`
 	Concurrency int           `yaml:"concurrency"`
+	Tenant      *Tenant       `yaml:"tenant"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
 	Checksum string
@@ -150,6 +151,11 @@ func (r *Rule) Validate() error {
 		return fmt.Errorf("expression can't be empty")
 	}
 	return checkOverflow(r.XXX, "rule")
+}
+
+type Tenant struct {
+	AccountID uint32 `yaml:"accountID"`
+	ProjectID uint32 `yaml:"projectID"`
 }
 
 // Parse parses rule configs from given file patterns

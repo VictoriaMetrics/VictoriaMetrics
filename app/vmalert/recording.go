@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -82,12 +83,12 @@ func (rr *RecordingRule) Close() {
 var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")
 
 // Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) Exec(ctx context.Context, at *auth.Token, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
 	if !series {
 		return nil, nil
 	}
 
-	qMetrics, err := q.Query(ctx, rr.Expr)
+	qMetrics, err := q.Query(ctx, at, rr.Expr)
 
 	rr.mu.Lock()
 	defer rr.mu.Unlock()

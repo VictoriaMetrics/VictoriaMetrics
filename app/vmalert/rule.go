@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -17,7 +18,7 @@ type Rule interface {
 	// Exec executes the rule with given context
 	// and Querier. If returnSeries is true, Exec
 	// may return TimeSeries as result of execution
-	Exec(ctx context.Context, q datasource.Querier, returnSeries bool) ([]prompbmarshal.TimeSeries, error)
+	Exec(ctx context.Context, at *auth.Token, q datasource.Querier, returnSeries bool) ([]prompbmarshal.TimeSeries, error)
 	// UpdateWith performs modification of current Rule
 	// with fields of the given Rule.
 	UpdateWith(Rule) error
