@@ -139,16 +139,16 @@ func TestDerivValues(t *testing.T) {
 
 	values = append([]float64{}, testValues...)
 	derivValues(values, testTimestamps)
-	valuesExpected = []float64{-8900, 1111.111111111111, -1916.6666666666665, 2538.461538461538, -1818.1818181818182, 3611.111111111111,
-		-43500, 1882.3529411764705, -666.6666666666666, 400, 0, 0}
+	valuesExpected = []float64{-8900, 1111.111111111111, -1916.6666666666665, 2538.4615384615386, -1818.1818181818182, 3611.1111111111113,
+		-43500, 1882.3529411764705, -666.6666666666667, 400, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 
 	// remove counter resets
 	values = append([]float64{}, testValues...)
 	removeCounterResets(values)
 	derivValues(values, testTimestamps)
-	valuesExpected = []float64{3400, 1111.111111111111, 1750, 2538.461538461538, 3090.909090909091, 3611.111111111111,
-		6000, 1882.3529411764705, 1777.7777777777776, 400, 0, 0}
+	valuesExpected = []float64{3400, 1111.111111111111, 1750, 2538.4615384615386, 3090.909090909091, 3611.1111111111113,
+		6000, 1882.3529411764705, 1777.7777777777778, 400, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 
 	// duplicate timestamps
@@ -914,7 +914,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{0, -2879.310344827587, 558.0608793686592, 422.84569138276544, 0}
+		valuesExpected := []float64{0, -2879.310344827587, 558.0608793686595, 422.84569138276544, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})

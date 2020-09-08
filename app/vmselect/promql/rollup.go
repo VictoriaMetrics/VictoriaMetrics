@@ -670,7 +670,7 @@ func derivValues(values []float64, timestamps []int64) {
 			values[i] = prevDeriv
 			continue
 		}
-		dt := float64(ts-prevTs) * 1e-3
+		dt := float64(ts-prevTs) / 1e3
 		prevDeriv = (v - prevValue) / dt
 		values[i] = prevDeriv
 		prevValue = v
@@ -790,7 +790,7 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 		n = 0
 	}
 	for i, v := range values {
-		dt := float64(timestamps[i]-tFirst) * 1e-3
+		dt := float64(timestamps[i]-tFirst) / 1e3
 		vSum += v
 		tSum += dt
 		tvSum += dt * v
@@ -803,7 +803,7 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	k := (n*tvSum - tSum*vSum) / (n*ttSum - tSum*tSum)
 	v := (vSum - k*tSum) / n
 	// Adjust v to the last timestamp on the given time range.
-	v += k * (float64(timestamps[len(timestamps)-1]-tFirst) * 1e-3)
+	v += k * (float64(timestamps[len(timestamps)-1]-tFirst) / 1e3)
 	return v, k
 }
 
@@ -1055,7 +1055,7 @@ func rollupTmin(rfa *rollupFuncArg) float64 {
 			minTimestamp = timestamps[i]
 		}
 	}
-	return float64(minTimestamp) * 1e-3
+	return float64(minTimestamp) / 1e3
 }
 
 func rollupTmax(rfa *rollupFuncArg) float64 {
@@ -1074,7 +1074,7 @@ func rollupTmax(rfa *rollupFuncArg) float64 {
 			maxTimestamp = timestamps[i]
 		}
 	}
-	return float64(maxTimestamp) * 1e-3
+	return float64(maxTimestamp) / 1e3
 }
 
 func rollupSum(rfa *rollupFuncArg) float64 {
@@ -1303,7 +1303,7 @@ func rollupDerivFast(rfa *rollupFuncArg) float64 {
 	vEnd := values[len(values)-1]
 	tEnd := timestamps[len(timestamps)-1]
 	dv := vEnd - prevValue
-	dt := float64(tEnd-prevTimestamp) * 1e-3
+	dt := float64(tEnd-prevTimestamp) / 1e3
 	return dv / dt
 }
 
@@ -1329,7 +1329,7 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 			// So just return nan
 			return nan
 		}
-		return (values[0] - rfa.prevValue) / (float64(timestamps[0]-rfa.prevTimestamp) * 1e-3)
+		return (values[0] - rfa.prevValue) / (float64(timestamps[0]-rfa.prevTimestamp) / 1e3)
 	}
 	vEnd := values[len(values)-1]
 	tEnd := timestamps[len(timestamps)-1]
@@ -1353,7 +1353,7 @@ func rollupIderiv(rfa *rollupFuncArg) float64 {
 	}
 	dv := vEnd - vStart
 	dt := tEnd - tStart
-	return dv / (float64(dt) * 1e-3)
+	return dv / (float64(dt) / 1e3)
 }
 
 func rollupLifetime(rfa *rollupFuncArg) float64 {
@@ -1363,12 +1363,12 @@ func rollupLifetime(rfa *rollupFuncArg) float64 {
 		if len(timestamps) < 2 {
 			return nan
 		}
-		return float64(timestamps[len(timestamps)-1]-timestamps[0]) * 1e-3
+		return float64(timestamps[len(timestamps)-1]-timestamps[0]) / 1e3
 	}
 	if len(timestamps) == 0 {
 		return nan
 	}
-	return float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3
+	return float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) / 1e3
 }
 
 func rollupLag(rfa *rollupFuncArg) float64 {
@@ -1378,9 +1378,9 @@ func rollupLag(rfa *rollupFuncArg) float64 {
 		if math.IsNaN(rfa.prevValue) {
 			return nan
 		}
-		return float64(rfa.currTimestamp-rfa.prevTimestamp) * 1e-3
+		return float64(rfa.currTimestamp-rfa.prevTimestamp) / 1e3
 	}
-	return float64(rfa.currTimestamp-timestamps[len(timestamps)-1]) * 1e-3
+	return float64(rfa.currTimestamp-timestamps[len(timestamps)-1]) / 1e3
 }
 
 func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
@@ -1390,12 +1390,12 @@ func rollupScrapeInterval(rfa *rollupFuncArg) float64 {
 		if len(timestamps) < 2 {
 			return nan
 		}
-		return float64(timestamps[len(timestamps)-1]-timestamps[0]) * 1e-3 / float64(len(timestamps)-1)
+		return (float64(timestamps[len(timestamps)-1]-timestamps[0]) / 1e3) / float64(len(timestamps)-1)
 	}
 	if len(timestamps) == 0 {
 		return nan
 	}
-	return (float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) * 1e-3) / float64(len(timestamps))
+	return (float64(timestamps[len(timestamps)-1]-rfa.prevTimestamp) / 1e3) / float64(len(timestamps))
 }
 
 func rollupChanges(rfa *rollupFuncArg) float64 {
@@ -1709,7 +1709,7 @@ func rollupIntegrate(rfa *rollupFuncArg) float64 {
 	var sum float64
 	for i, v := range values {
 		timestamp := timestamps[i]
-		dt := float64(timestamp-prevTimestamp) * 1e-3
+		dt := float64(timestamp-prevTimestamp) / 1e3
 		sum += 0.5 * (v + prevValue) * dt
 		prevTimestamp = timestamp
 		prevValue = v
