@@ -126,7 +126,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   for the given `phi` in the range `[0..1]`.
 - `last_over_time(m[d])` - returns the last value for `m` on the time range `d`.
 - `first_over_time(m[d])` - returns the first value for `m` on the time range `d`.
-- `outliersk(N, q) by (group)` - returns up to `N` outlier time series for `q` in every `group`. Outlier time series have the highest deviation from the `median(m)`.
+- `outliersk(N, q) by (group)` - returns up to `N` outlier time series for `q` in every `group`. Outlier time series have the highest deviation from the `median(q)`.
   This aggregate function is useful to detect anomalies across groups of similar time series.
 - `ascent_over_time(m[d])` - returns the sum of positive deltas between adjancent data points in `m` over `d`. Useful for tracking height gains in GPS track.
 - `descent_over_time(m[d])` - returns the absolute sum of negative deltas between adjancent data points in `m` over `d`. Useful for tracking height loss in GPS track.
