@@ -42,7 +42,7 @@ Run `vmrestore -help` in order to see all the available options:
     	Path to file with S3 configs. Configs are loaded from default location if not set.
     	See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -configProfile string
-    	Profile name for S3 configs (default "default")
+    	Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used
   -credsFilePath string
     	Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
@@ -62,10 +62,12 @@ Run `vmrestore -help` in order to see all the available options:
     	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
-  -maxBytesPerSecond int
+  -maxBytesPerSecond value
     	The maximum download speed. There is no limit if it is set to 0
-  -memory.allowedBytes int
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -memory.allowedBytes value
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
   -skipBackupCompleteCheck

@@ -194,8 +194,12 @@ The shortlist of configuration flags is the following:
     	Supports array of values separated by comma or specified via multiple flags.
   -external.url string
     	External URL is used as alert's source for sent alerts to the notifier
+  -http.connTimeout duration
+    	Incoming http connections are closed after the configured timeout. This may help spreading incoming load among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem (default 2m0s)
   -http.disableResponseCompression
     	Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth
+  -http.idleConnTimeout duration
+    	Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
     	The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
   -http.pathPrefix string
@@ -216,8 +220,9 @@ The shortlist of configuration flags is the following:
     	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
-  -memory.allowedBytes int
+  -memory.allowedBytes value
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
@@ -293,8 +298,8 @@ The shortlist of configuration flags is the following:
     	Path to the file with alert rules. 
     	Supports patterns. Flag can be specified multiple times. 
     	Examples:
-         -rule="/path/to/file". Path to a single file with alerting rules
-         -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder, 
+    	 -rule="/path/to/file". Path to a single file with alerting rules
+    	 -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder, 
     	absolute path to all .yaml files in root.
     	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
     	Supports array of values separated by comma or specified via multiple flags.
