@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/md5"
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
@@ -24,9 +25,28 @@ type Group struct {
 	Interval    time.Duration `yaml:"interval,omitempty"`
 	Rules       []Rule        `yaml:"rules"`
 	Concurrency int           `yaml:"concurrency"`
+	// Checksum stores the hash of yaml definition for this group.
+	// May be used to detect any changes like rules re-ordering etc.
+	Checksum string
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type group Group
+	if err := unmarshal((*group)(g)); err != nil {
+		return err
+	}
+	b, err := yaml.Marshal(g)
+	if err != nil {
+		return fmt.Errorf("failed to marshal group configuration for checksum: %s", err)
+	}
+	h := md5.New()
+	h.Write(b)
+	g.Checksum = fmt.Sprintf("%x", h.Sum(nil))
+	return nil
 }
 
 // Validate check for internal Group or Rule configuration errors
@@ -101,7 +121,7 @@ func (r *Rule) Name() string {
 }
 
 // HashRule hashes significant Rule fields into
-// unique hash value
+// unique hash that supposed to define Rule uniqueness
 func HashRule(r Rule) uint64 {
 	h := fnv.New64a()
 	h.Write([]byte(r.Expr))
@@ -112,16 +132,7 @@ func HashRule(r Rule) uint64 {
 		h.Write([]byte("alerting"))
 		h.Write([]byte(r.Alert))
 	}
-	type item struct {
-		key, value string
-	}
-	var kv []item
-	for k, v := range r.Labels {
-		kv = append(kv, item{key: k, value: v})
-	}
-	sort.Slice(kv, func(i, j int) bool {
-		return kv[i].key < kv[j].key
-	})
+	kv := sortMap(r.Labels)
 	for _, i := range kv {
 		h.Write([]byte(i.key))
 		h.Write([]byte(i.value))
@@ -203,4 +214,19 @@ func checkOverflow(m map[string]interface{}, ctx string) error {
 		return fmt.Errorf("unknown fields in %s: %s", ctx, strings.Join(keys, ", "))
 	}
 	return nil
+}
+
+type item struct {
+	key, value string
+}
+
+func sortMap(m map[string]string) []item {
+	var kv []item
+	for k, v := range m {
+		kv = append(kv, item{key: k, value: v})
+	}
+	sort.Slice(kv, func(i, j int) bool {
+		return kv[i].key < kv[j].key
+	})
+	return kv
 }
