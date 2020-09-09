@@ -456,6 +456,13 @@ func registerStorageMetrics() {
 		return float64(m().SlowMetricNameLoads)
 	})
 
+	metrics.NewGauge(`vm_timestamps_blocks_merged_total`, func() float64 {
+		return float64(m().TimestampsBlocksMerged)
+	})
+	metrics.NewGauge(`vm_timestamps_bytes_saved_total`, func() float64 {
+		return float64(m().TimestampsBytesSaved)
+	})
+
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
 		return float64(tm().BigRowsCount)
 	})

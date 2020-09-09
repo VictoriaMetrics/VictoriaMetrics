@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -38,6 +39,13 @@ type blockStreamWriter struct {
 
 	metaindexData           []byte
 	compressedMetaindexData []byte
+
+	// prevTimestamps* is used as an optimization for reducing disk space usage
+	// when serially written blocks have identical timestamps.
+	// This is usually the case when adjancent blocks contain metrics scraped from the same target,
+	// since such metrics have identical timestamps.
+	prevTimestampsData        []byte
+	prevTimestampsBlockOffset uint64
 }
 
 func (bsw *blockStreamWriter) assertWriteClosers() {
@@ -66,6 +74,9 @@ func (bsw *blockStreamWriter) reset() {
 
 	bsw.metaindexData = bsw.metaindexData[:0]
 	bsw.compressedMetaindexData = bsw.compressedMetaindexData[:0]
+
+	bsw.prevTimestampsData = bsw.prevTimestampsData[:0]
+	bsw.prevTimestampsBlockOffset = 0
 }
 
 // InitFromInmemoryPart initialzes bsw from inmemory part.
@@ -177,21 +188,34 @@ func (bsw *blockStreamWriter) WriteExternalBlock(b *Block, ph *partHeader, rowsM
 	atomic.AddUint64(rowsMerged, uint64(b.rowsCount()))
 	b.deduplicateSamplesDuringMerge()
 	headerData, timestampsData, valuesData := b.MarshalData(bsw.timestampsBlockOffset, bsw.valuesBlockOffset)
-
+	usePrevTimestamps := len(bsw.prevTimestampsData) > 0 && bytes.Equal(timestampsData, bsw.prevTimestampsData)
+	if usePrevTimestamps {
+		// The current timestamps block equals to the previous timestamps block.
+		// Update headerData so it points to the previous timestamps block. This saves disk space.
+		headerData, timestampsData, valuesData = b.MarshalData(bsw.prevTimestampsBlockOffset, bsw.valuesBlockOffset)
+		atomic.AddUint64(&timestampsBlocksMerged, 1)
+		atomic.AddUint64(&timestampsBytesSaved, uint64(len(timestampsData)))
+	}
 	bsw.indexData = append(bsw.indexData, headerData...)
 	bsw.mr.RegisterBlockHeader(&b.bh)
 	if len(bsw.indexData) >= maxBlockSize {
 		bsw.flushIndexData()
 	}
-
-	fs.MustWriteData(bsw.timestampsWriter, timestampsData)
-	bsw.timestampsBlockOffset += uint64(len(timestampsData))
-
+	if !usePrevTimestamps {
+		bsw.prevTimestampsData = append(bsw.prevTimestampsData[:0], timestampsData...)
+		bsw.prevTimestampsBlockOffset = bsw.timestampsBlockOffset
+		fs.MustWriteData(bsw.timestampsWriter, timestampsData)
+		bsw.timestampsBlockOffset += uint64(len(timestampsData))
+	}
 	fs.MustWriteData(bsw.valuesWriter, valuesData)
 	bsw.valuesBlockOffset += uint64(len(valuesData))
-
 	updatePartHeader(b, ph)
 }
+
+var (
+	timestampsBlocksMerged uint64
+	timestampsBytesSaved   uint64
+)
 
 func updatePartHeader(b *Block, ph *partHeader) {
 	ph.BlocksCount++
