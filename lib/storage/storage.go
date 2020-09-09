@@ -355,6 +355,9 @@ type Metrics struct {
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
 
+	TimestampsBlocksMerged uint64
+	TimestampsBytesSaved   uint64
+
 	TSIDCacheSize       uint64
 	TSIDCacheSizeBytes  uint64
 	TSIDCacheRequests   uint64
@@ -419,6 +422,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
+
+	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
+	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
