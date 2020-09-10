@@ -1,5 +1,3 @@
-// +build !appengine
-
 /*
  *
  * Copyright 2018 gRPC authors.
@@ -18,8 +16,7 @@
  *
  */
 
-// Package internal contains credentials-internal code.
-package internal
+package credentials
 
 import (
 	"net"
