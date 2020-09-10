@@ -640,6 +640,73 @@ func GetLabelValues(at *auth.Token, labelName string, deadline Deadline) ([]stri
 	return labelValues, isPartialResult, nil
 }
 
+// GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
+//
+// It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
+func GetTagValueSuffixes(at *auth.Token, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline Deadline) ([]string, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		suffixes []string
+		err      error
+	}
+	resultsCh := make(chan nodeResult, len(storageNodes))
+	for _, sn := range storageNodes {
+		go func(sn *storageNode) {
+			sn.tagValueSuffixesRequests.Inc()
+			suffixes, err := sn.getTagValueSuffixes(at.AccountID, at.ProjectID, tr, tagKey, tagValuePrefix, delimiter, deadline)
+			if err != nil {
+				sn.tagValueSuffixesRequestErrors.Inc()
+				err = fmt.Errorf("cannot get tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c from vmstorage %s: %w",
+					tr.String(), tagKey, tagValuePrefix, delimiter, sn.connPool.Addr(), err)
+			}
+			resultsCh <- nodeResult{
+				suffixes: suffixes,
+				err:      err,
+			}
+		}(sn)
+	}
+
+	// Collect results
+	m := make(map[string]struct{})
+	var errors []error
+	for i := 0; i < len(storageNodes); i++ {
+		// There is no need in timer here, since all the goroutines executing
+		// sn.getTagValueSuffixes must be finished until the deadline.
+		nr := <-resultsCh
+		if nr.err != nil {
+			errors = append(errors, nr.err)
+			continue
+		}
+		for _, suffix := range nr.suffixes {
+			m[suffix] = struct{}{}
+		}
+	}
+	isPartialResult := false
+	if len(errors) > 0 {
+		if len(errors) == len(storageNodes) {
+			// Return only the first error, since it has no sense in returning all errors.
+			return nil, true, fmt.Errorf("error occured during fetching tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c: %w",
+				tr.String(), tagKey, tagValuePrefix, delimiter, errors[0])
+		}
+
+		// Just log errors and return partial results.
+		// This allows gracefully degrade vmselect in the case
+		// if certain storageNodes are temporarily unavailable.
+		partialLabelEntriesResults.Inc()
+		// Log only the first error, since it has no sense in returning all errors.
+		logger.Errorf("certain storageNodes are unhealthy when fetching tag value suffixes: %s", errors[0])
+		isPartialResult = true
+	}
+	suffixes := make([]string, 0, len(m))
+	for suffix := range m {
+		suffixes = append(suffixes, suffix)
+	}
+	return suffixes, isPartialResult, nil
+}
+
 // GetLabelEntries returns all the label entries for at until the given deadline.
 func GetLabelEntries(at *auth.Token, deadline Deadline) ([]storage.TagEntry, bool, error) {
 	if deadline.Exceeded() {
@@ -1048,6 +1115,12 @@ type storageNode struct {
 	// The number of errors during requests to labelEntries.
 	labelEntriesRequestErrors *metrics.Counter
 
+	// The number of requests to tagValueSuffixes.
+	tagValueSuffixesRequests *metrics.Counter
+
+	// The number of errors during requests to tagValueSuffixes.
+	tagValueSuffixesRequestErrors *metrics.Counter
+
 	// The number of requests to tsdb status.
 	tsdbStatusRequests *metrics.Counter
 
@@ -1131,6 +1204,26 @@ func (sn *storageNode) getLabelValues(accountID, projectID uint32, labelName str
 		}
 	}
 	return labelValues, nil
+}
+
+func (sn *storageNode) getTagValueSuffixes(accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline Deadline) ([]string, error) {
+	var suffixes []string
+	f := func(bc *handshake.BufferedConn) error {
+		ss, err := sn.getTagValueSuffixesOnConn(bc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter)
+		if err != nil {
+			return err
+		}
+		suffixes = ss
+		return nil
+	}
+	if err := sn.execOnConn("tagValueSuffixes_v1", f, deadline); err != nil {
+		// Try again before giving up.
+		suffixes = nil
+		if err = sn.execOnConn("tagValueSuffixes_v1", f, deadline); err != nil {
+			return nil, err
+		}
+	}
+	return suffixes, nil
 }
 
 func (sn *storageNode) getLabelEntries(accountID, projectID uint32, deadline Deadline) ([]storage.TagEntry, error) {
@@ -1325,11 +1418,8 @@ const maxLabelSize = 16 * 1024 * 1024
 
 func (sn *storageNode) getLabelsOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]string, error) {
 	// Send the request to sn.
-	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
-	}
-	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
+	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return nil, err
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
@@ -1363,11 +1453,8 @@ const maxLabelValueSize = 16 * 1024 * 1024
 
 func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, labelName string) ([]string, error) {
 	// Send the request to sn.
-	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
-	}
-	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
+	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return nil, err
 	}
 	if err := writeBytes(bc, []byte(labelName)); err != nil {
 		return nil, fmt.Errorf("cannot send labelName=%q to conn: %w", labelName, err)
@@ -1409,13 +1496,26 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 	}
 }
 
-func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]storage.TagEntry, error) {
+func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32,
+	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte) ([]string, error) {
 	// Send the request to sn.
-	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
+	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return nil, err
 	}
-	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
+	if err := writeUint64(bc, uint64(tr.MinTimestamp)); err != nil {
+		return nil, fmt.Errorf("cannot send minTimestamp=%d to conn: %w", tr.MinTimestamp, err)
+	}
+	if err := writeUint64(bc, uint64(tr.MaxTimestamp)); err != nil {
+		return nil, fmt.Errorf("cannot send maxTimestamp=%d to conn: %w", tr.MaxTimestamp, err)
+	}
+	if err := writeBytes(bc, []byte(tagKey)); err != nil {
+		return nil, fmt.Errorf("cannot send tagKey=%q to conn: %w", tagKey, err)
+	}
+	if err := writeBytes(bc, []byte(tagValuePrefix)); err != nil {
+		return nil, fmt.Errorf("cannot send tagValuePrefix=%q to conn: %w", tagValuePrefix, err)
+	}
+	if err := writeByte(bc, delimiter); err != nil {
+		return nil, fmt.Errorf("cannot send delimiter=%c to conn: %w", delimiter, err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
@@ -1430,7 +1530,42 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 		return nil, newErrRemote(buf)
 	}
 
-	// Read response
+	// Read response.
+	// The response may contain empty suffix, so it is prepended with the number of the following suffixes.
+	suffixesCount, err := readUint64(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the number of tag value suffixes: %w", err)
+	}
+	suffixes := make([]string, 0, suffixesCount)
+	for i := 0; i < int(suffixesCount); i++ {
+		buf, err = readBytes(buf[:0], bc, maxLabelValueSize)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read tag value suffix #%d: %w", i+1, err)
+		}
+		suffixes = append(suffixes, string(buf))
+	}
+	return suffixes, nil
+}
+
+func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) ([]storage.TagEntry, error) {
+	// Send the request to sn.
+	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return nil, err
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	// Read response.
 	var labelEntries []storage.TagEntry
 	for {
 		buf, err = readBytes(buf[:0], bc, maxLabelSize)
@@ -1456,11 +1591,8 @@ func (sn *storageNode) getLabelEntriesOnConn(bc *handshake.BufferedConn, account
 
 func (sn *storageNode) getTSDBStatusForDateOnConn(bc *handshake.BufferedConn, accountID, projectID uint32, date uint64, topN int) (*storage.TSDBStatus, error) {
 	// Send the request to sn.
-	if err := writeUint32(bc, accountID); err != nil {
-		return nil, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
-	}
-	if err := writeUint32(bc, projectID); err != nil {
-		return nil, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
+	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return nil, err
 	}
 	// date shouldn't exceed 32 bits, so send it as uint32.
 	if err := writeUint32(bc, uint32(date)); err != nil {
@@ -1530,11 +1662,8 @@ func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, err
 
 func (sn *storageNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountID, projectID uint32) (uint64, error) {
 	// Send the request to sn.
-	if err := writeUint32(bc, accountID); err != nil {
-		return 0, fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
-	}
-	if err := writeUint32(bc, projectID); err != nil {
-		return 0, fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
+	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
+		return 0, err
 	}
 	if err := bc.Flush(); err != nil {
 		return 0, fmt.Errorf("cannot flush seriesCount args to conn: %w", err)
@@ -1621,18 +1750,20 @@ func writeBytes(bc *handshake.BufferedConn, buf []byte) error {
 	if _, err := bc.Write(sizeBuf); err != nil {
 		return err
 	}
-	if _, err := bc.Write(buf); err != nil {
-		return err
-	}
-	return nil
+	_, err := bc.Write(buf)
+	return err
 }
 
 func writeUint32(bc *handshake.BufferedConn, n uint32) error {
 	buf := encoding.MarshalUint32(nil, n)
-	if _, err := bc.Write(buf); err != nil {
-		return err
-	}
-	return nil
+	_, err := bc.Write(buf)
+	return err
+}
+
+func writeUint64(bc *handshake.BufferedConn, n uint64) error {
+	buf := encoding.MarshalUint64(nil, n)
+	_, err := bc.Write(buf)
+	return err
 }
 
 func writeBool(bc *handshake.BufferedConn, b bool) error {
@@ -1640,8 +1771,23 @@ func writeBool(bc *handshake.BufferedConn, b bool) error {
 	if b {
 		buf[0] = 1
 	}
-	if _, err := bc.Write(buf[:]); err != nil {
-		return err
+	_, err := bc.Write(buf[:])
+	return err
+}
+
+func writeByte(bc *handshake.BufferedConn, b byte) error {
+	var buf [1]byte
+	buf[0] = b
+	_, err := bc.Write(buf[:])
+	return err
+}
+
+func sendAccountIDProjectID(bc *handshake.BufferedConn, accountID, projectID uint32) error {
+	if err := writeUint32(bc, accountID); err != nil {
+		return fmt.Errorf("cannot send accountID=%d to conn: %w", accountID, err)
+	}
+	if err := writeUint32(bc, projectID); err != nil {
+		return fmt.Errorf("cannot send projectID=%d to conn: %w", projectID, err)
 	}
 	return nil
 }
@@ -1689,22 +1835,24 @@ func InitStorageNodes(addrs []string) {
 
 			concurrentQueriesCh: make(chan struct{}, maxConcurrentQueriesPerStorageNode),
 
-			deleteSeriesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequestErrors: metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsRequestErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequestErrors:  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelEntriesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelEntriesRequestErrors: metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:        metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequestErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequestErrors:  metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequestErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			metricBlocksRead:          metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:            metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+			deleteSeriesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesRequestErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelsRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelsRequestErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesRequestErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelEntriesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelEntriesRequestErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesRequestErrors: metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequestErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountRequestErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequestErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			metricBlocksRead:              metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+			metricRowsRead:                metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 		}
 		metrics.NewGauge(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr), func() float64 {
 			return float64(len(sn.concurrentQueriesCh))

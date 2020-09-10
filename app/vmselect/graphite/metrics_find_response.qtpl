@@ -1,0 +1,110 @@
+{% import (
+	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+) %}
+
+{% stripspace %}
+
+MetricsFindResponse generates response for /metrics/find .
+See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
+{% func MetricsFindResponse(paths []string, delimiter, format string, addWildcards bool, jsonp string) %}
+	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
+	{% switch format %}
+	{% case "completer" %}
+		{%= metricsFindResponseCompleter(paths, delimiter, addWildcards) %}
+	{% case "treejson" %}
+		{%= metricsFindResponseTreeJSON(paths, delimiter, addWildcards) %}
+	{% default %}
+		{% code logger.Panicf("BUG: unexpected format=%q", format) %}
+	{% endswitch %}
+	{% if jsonp != "" %}){% endif %}
+{% endfunc %}
+
+{% func metricsFindResponseCompleter(paths []string, delimiter string, addWildcards bool) %}
+{
+	"metrics":[
+		{% for i, path := range paths %}
+		{
+			"path": {%q= path %},
+			"name": {%= metricPathName(path, delimiter) %},
+			"is_leaf": {% if strings.HasSuffix(path, delimiter) %}0{% else %}1{% endif %}
+		}
+		{% if i+1 < len(paths) %},{% endif %}
+		{% endfor %}
+		{% if addWildcards && len(paths) > 1 %}
+		,{
+			"name": "*"
+		}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) %}
+[
+	{% for i, path := range paths %}
+	{
+		{% code
+			allowChildren := "0"
+			isLeaf := "1"
+			if strings.HasSuffix(path, delimiter) {
+				allowChildren = "1"
+				isLeaf = "0"
+			}
+		%}
+		"id": {%q= path %},
+		"text": {%= metricPathName(path, delimiter) %},
+		"allowChildren": {%s= allowChildren %},
+		"expandable": {%s= allowChildren %},
+		"leaf": {%s= isLeaf %}
+	}
+	{% if i+1 < len(paths) %},{% endif %}
+	{% endfor %}
+	{% if addWildcards && len(paths) > 1 %}
+	,{
+		{% code
+			path := paths[0]
+			for strings.HasSuffix(path, delimiter) {
+				path = path[:len(path)-1]
+			}
+			id := ""
+			if n := strings.LastIndexByte(path, delimiter[0]); n >= 0 {
+				id = path[:n+1]
+			}
+			id += "*"
+
+			allowChildren := "0"
+			isLeaf := "1"
+			for _, path := range paths {
+				if strings.HasSuffix(path, delimiter) {
+					allowChildren = "1"
+					isLeaf = "0"
+					break
+				}
+			}
+		%}
+		"id": {%q= id %},
+		"text": "*",
+		"allowChildren": {%s= allowChildren %},
+		"expandable": {%s= allowChildren %},
+		"leaf": {%s= isLeaf %}
+	}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func metricPathName(path, delimiter string) %}
+	{% code
+		name := path
+		for strings.HasSuffix(name, delimiter) {
+			name = name[:len(name)-1]
+		}
+		if n := strings.LastIndexByte(name, delimiter[0]); n >= 0 {
+			name = name[n+1:]
+		}
+	%}
+	{%q= name %}
+{% endfunc %}
+
+{% endstripspace %}

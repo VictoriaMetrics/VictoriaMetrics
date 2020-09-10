@@ -24,9 +24,10 @@ import (
 )
 
 var (
-	maxTagKeysPerSearch   = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
-	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
-	maxMetricsPerSearch   = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
+	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
+	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
+	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
+	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
 
 	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -422,6 +423,30 @@ func (ctx *vmselectRequestCtx) readUint32() (uint32, error) {
 	return n, nil
 }
 
+func (ctx *vmselectRequestCtx) readUint64() (uint64, error) {
+	ctx.sizeBuf = bytesutil.Resize(ctx.sizeBuf, 8)
+	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
+		if err == io.EOF {
+			return 0, err
+		}
+		return 0, fmt.Errorf("cannot read uint64: %w", err)
+	}
+	n := encoding.UnmarshalUint64(ctx.sizeBuf)
+	return n, nil
+}
+
+func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) {
+	accountID, err := ctx.readUint32()
+	if err != nil {
+		return 0, 0, fmt.Errorf("cannot read accountID: %w", err)
+	}
+	projectID, err := ctx.readUint32()
+	if err != nil {
+		return 0, 0, fmt.Errorf("cannot read projectID: %w", err)
+	}
+	return accountID, projectID, nil
+}
+
 func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 	ctx.sizeBuf = bytesutil.Resize(ctx.sizeBuf, 8)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
@@ -454,6 +479,18 @@ func (ctx *vmselectRequestCtx) readBool() (bool, error) {
 	}
 	v := ctx.dataBuf[0] != 0
 	return v, nil
+}
+
+func (ctx *vmselectRequestCtx) readByte() (byte, error) {
+	ctx.dataBuf = bytesutil.Resize(ctx.dataBuf, 1)
+	if _, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
+		if err == io.EOF {
+			return 0, err
+		}
+		return 0, fmt.Errorf("cannot read byte: %w", err)
+	}
+	b := ctx.dataBuf[0]
+	return b, nil
 }
 
 func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
@@ -538,6 +575,8 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 		return s.processVMSelectSearchQuery(ctx)
 	case "labelValues_v2":
 		return s.processVMSelectLabelValues(ctx)
+	case "tagValueSuffixes_v1":
+		return s.processVMSelectTagValueSuffixes(ctx)
 	case "labelEntries_v2":
 		return s.processVMSelectLabelEntries(ctx)
 	case "labels_v2":
@@ -596,13 +635,9 @@ func (s *Server) processVMSelectLabels(ctx *vmselectRequestCtx) error {
 	vmselectLabelsRequests.Inc()
 
 	// Read request
-	accountID, err := ctx.readUint32()
+	accountID, projectID, err := ctx.readAccountIDProjectID()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %w", err)
-	}
-	projectID, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read projectID: %w", err)
+		return err
 	}
 
 	// Search for tag keys
@@ -640,13 +675,9 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 	vmselectLabelValuesRequests.Inc()
 
 	// Read request
-	accountID, err := ctx.readUint32()
+	accountID, projectID, err := ctx.readAccountIDProjectID()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %w", err)
-	}
-	projectID, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read projectID: %w", err)
+		return err
 	}
 	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
 		return fmt.Errorf("cannot read labelName: %w", err)
@@ -665,6 +696,63 @@ func (s *Server) processVMSelectLabelValues(ctx *vmselectRequestCtx) error {
 	}
 
 	return writeLabelValues(ctx, labelValues)
+}
+
+func (s *Server) processVMSelectTagValueSuffixes(ctx *vmselectRequestCtx) error {
+	vmselectTagValueSuffixesRequests.Inc()
+
+	// read request
+	accountID, projectID, err := ctx.readAccountIDProjectID()
+	if err != nil {
+		return err
+	}
+	minTimestamp, err := ctx.readUint64()
+	if err != nil {
+		return fmt.Errorf("cannot read minTimestamp: %w", err)
+	}
+	maxTimestamp, err := ctx.readUint64()
+	if err != nil {
+		return fmt.Errorf("cannot read maxTimestamp: %w", err)
+	}
+	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
+		return fmt.Errorf("cannot read tagKey: %w", err)
+	}
+	tagKey := append([]byte{}, ctx.dataBuf...)
+	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
+		return fmt.Errorf("cannot read tagValuePrefix: %w", err)
+	}
+	tagValuePrefix := append([]byte{}, ctx.dataBuf...)
+	delimiter, err := ctx.readByte()
+	if err != nil {
+		return fmt.Errorf("cannot read delimiter: %s", err)
+	}
+
+	// Search for tag value suffixes
+	tr := storage.TimeRange{
+		MinTimestamp: int64(minTimestamp),
+		MaxTimestamp: int64(maxTimestamp),
+	}
+	suffixes, err := s.storage.SearchTagValueSuffixes(accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, *maxTagValueSuffixesPerSearch, ctx.deadline)
+	if err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	// Send suffixes to vmselect.
+	// Suffixes may contain empty string, so prepend suffixes with suffixCount.
+	if err := ctx.writeUint64(uint64(len(suffixes))); err != nil {
+		return fmt.Errorf("cannot write suffixesCount: %w", err)
+	}
+	for i, suffix := range suffixes {
+		if err := ctx.writeString(suffix); err != nil {
+			return fmt.Errorf("cannot write suffix #%d: %w", i+1, err)
+		}
+	}
+	return nil
 }
 
 func writeLabelValues(ctx *vmselectRequestCtx, labelValues []string) error {
@@ -688,13 +776,9 @@ func (s *Server) processVMSelectLabelEntries(ctx *vmselectRequestCtx) error {
 	vmselectLabelEntriesRequests.Inc()
 
 	// Read request
-	accountID, err := ctx.readUint32()
+	accountID, projectID, err := ctx.readAccountIDProjectID()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %w", err)
-	}
-	projectID, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read projectID: %w", err)
+		return err
 	}
 
 	// Perform the request
@@ -735,13 +819,9 @@ func (s *Server) processVMSelectSeriesCount(ctx *vmselectRequestCtx) error {
 	vmselectSeriesCountRequests.Inc()
 
 	// Read request
-	accountID, err := ctx.readUint32()
+	accountID, projectID, err := ctx.readAccountIDProjectID()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %w", err)
-	}
-	projectID, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read projectID: %w", err)
+		return err
 	}
 
 	// Execute the request
@@ -766,13 +846,9 @@ func (s *Server) processVMSelectTSDBStatus(ctx *vmselectRequestCtx) error {
 	vmselectTSDBStatusRequests.Inc()
 
 	// Read request
-	accountID, err := ctx.readUint32()
+	accountID, projectID, err := ctx.readAccountIDProjectID()
 	if err != nil {
-		return fmt.Errorf("cannot read accountID: %w", err)
-	}
-	projectID, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read projectID: %w", err)
+		return err
 	}
 	date, err := ctx.readUint32()
 	if err != nil {
@@ -907,15 +983,16 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 }
 
 var (
-	vmselectDeleteMetricsRequests = metrics.NewCounter("vm_vmselect_delete_metrics_requests_total")
-	vmselectLabelsRequests        = metrics.NewCounter("vm_vmselect_labels_requests_total")
-	vmselectLabelValuesRequests   = metrics.NewCounter("vm_vmselect_label_values_requests_total")
-	vmselectLabelEntriesRequests  = metrics.NewCounter("vm_vmselect_label_entries_requests_total")
-	vmselectSeriesCountRequests   = metrics.NewCounter("vm_vmselect_series_count_requests_total")
-	vmselectTSDBStatusRequests    = metrics.NewCounter("vm_vmselect_tsdb_status_requests_total")
-	vmselectSearchQueryRequests   = metrics.NewCounter("vm_vmselect_search_query_requests_total")
-	vmselectMetricBlocksRead      = metrics.NewCounter("vm_vmselect_metric_blocks_read_total")
-	vmselectMetricRowsRead        = metrics.NewCounter("vm_vmselect_metric_rows_read_total")
+	vmselectDeleteMetricsRequests    = metrics.NewCounter("vm_vmselect_delete_metrics_requests_total")
+	vmselectLabelsRequests           = metrics.NewCounter("vm_vmselect_labels_requests_total")
+	vmselectLabelValuesRequests      = metrics.NewCounter("vm_vmselect_label_values_requests_total")
+	vmselectTagValueSuffixesRequests = metrics.NewCounter("vm_vmselect_tag_value_suffixes_requests_total")
+	vmselectLabelEntriesRequests     = metrics.NewCounter("vm_vmselect_label_entries_requests_total")
+	vmselectSeriesCountRequests      = metrics.NewCounter("vm_vmselect_series_count_requests_total")
+	vmselectTSDBStatusRequests       = metrics.NewCounter("vm_vmselect_tsdb_status_requests_total")
+	vmselectSearchQueryRequests      = metrics.NewCounter("vm_vmselect_search_query_requests_total")
+	vmselectMetricBlocksRead         = metrics.NewCounter("vm_vmselect_metric_blocks_read_total")
+	vmselectMetricRowsRead           = metrics.NewCounter("vm_vmselect_metric_rows_read_total")
 )
 
 func (ctx *vmselectRequestCtx) setupTfss() error {
