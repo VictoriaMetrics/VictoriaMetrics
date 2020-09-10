@@ -103,6 +103,8 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to import data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format)
 * [How to import CSV data](#how-to-import-csv-data)
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
+  * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
+* [Graphite Metrics API usage](#graphite-metrics-api-usage)
 * [How to build from sources](#how-to-build-from-sources)
   * [Development build](#development-build)
   * [Production build](#production-build)
@@ -392,9 +394,11 @@ The `/api/v1/export` endpoint should return the following response:
 
 ### Querying Graphite data
 
-Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read either via
-[Prometheus querying API](#prometheus-querying-api-usage)
-or via [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
+
+* [Prometheus querying API](#prometheus-querying-api-usage)
+* Metric names can be explored via [Graphite metrics API](#graphite-metrics-api-usage)
+* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml)
 
 ### How to send data from OpenTSDB-compatible agents
 
@@ -584,6 +588,21 @@ Additionally VictoriaMetrics provides the following handlers:
   so it can be slow if the database contains tens of millions of time series.
 * `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
 * `/api/v1/status/active_queries` - it returns a list of currently running queries.
+
+
+### Graphite Metrics API usage
+
+VictoriaMetrics supports the following handlers from [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api):
+
+* [/metrics/find](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find)
+* [/metrics/expand](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand)
+* [/metrics/index.json](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json)
+
+VictoriaMetrics accepts the following additional query args at `/metrics/find` and `/metrics/expand`:
+  * `label` - for selecting arbitrary label values. By default `label=__name__`, i.e. metric names are selected.
+  * `delimiter` - for using different delimiters in metric name hierachy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
+    that start with `node_`. By default `delimiter=.`.
+
 
 ### How to build from sources
 

@@ -1,0 +1,11 @@
+{% stripspace %}
+
+MetricsIndexResponse generates response for /metrics/index.json .
+See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json
+{% func MetricsIndexResponse(metricNames []string, jsonp string) %}
+	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
+	{%= metricPaths(metricNames) %}
+	{% if jsonp != "" %}){% endif %}
+{% endfunc %}
+
+{% endstripspace %}

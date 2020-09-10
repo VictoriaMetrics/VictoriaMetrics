@@ -132,6 +132,16 @@ func SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string
 	return values, err
 }
 
+// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
+//
+// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+func SearchTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	WG.Add(1)
+	suffixes, err := Storage.SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+	WG.Done()
+	return suffixes, err
+}
+
 // SearchTagEntries searches for tag entries.
 func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.TagEntry, error) {
 	WG.Add(1)

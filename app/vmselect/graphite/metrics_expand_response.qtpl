@@ -1,0 +1,38 @@
+{% stripspace %}
+
+MetricsExpandResponseByQuery generates response for /metrics/expand?groupByExpr=1 .
+See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
+{% func MetricsExpandResponseByQuery(m map[string][]string, jsonp string) %}
+	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
+	{
+		"results":{
+			{% code i := 0 %}
+			{% for query, paths := range m %}
+				{%q= query %}:{%= metricPaths(paths) %}
+				{% code i++ %}
+				{% if i < len(m) %},{% endif %}
+			{% endfor %}
+		}
+	}
+	{% if jsonp != "" %}){% endif %}
+{% endfunc %}
+
+
+MetricsExpandResponseFlat generates response for /metrics/expand?groupByExpr=0 .
+See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
+{% func MetricsExpandResponseFlat(paths []string, jsonp string) %}
+	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
+	{%= metricPaths(paths) %}
+	{% if jsonp != "" %}){% endif %}
+{% endfunc %}
+
+{% func metricPaths(paths []string) %}
+	[
+		{% for i, path := range paths %}
+			{%q= path %}
+			{% if i+1 < len(paths) %},{% endif %}
+		{% endfor %}
+	]
+{% endfunc %}
+
+{% endstripspace %}

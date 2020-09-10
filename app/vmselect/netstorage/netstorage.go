@@ -20,9 +20,10 @@ import (
 )
 
 var (
-	maxTagKeysPerSearch   = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
-	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
-	maxMetricsPerSearch   = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
+	maxTagKeysPerSearch          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels")
+	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values")
+	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
+	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
 )
 
 // Result is a single timeseries result.
@@ -499,6 +500,21 @@ func GetLabelValues(labelName string, deadline Deadline) ([]string, error) {
 	sort.Strings(labelValues)
 
 	return labelValues, nil
+}
+
+// GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
+//
+// It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
+func GetTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline Deadline) ([]string, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	suffixes, err := vmstorage.SearchTagValueSuffixes(tr, []byte(tagKey), []byte(tagValuePrefix), delimiter, *maxTagValueSuffixesPerSearch, deadline.deadline)
+	if err != nil {
+		return nil, fmt.Errorf("error during search for suffixes for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s: %w",
+			tagKey, tagValuePrefix, delimiter, tr.String(), err)
+	}
+	return suffixes, nil
 }
 
 // GetLabelEntries returns all the label entries until the given deadline.

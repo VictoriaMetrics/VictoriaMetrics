@@ -901,6 +901,152 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 	return nil
 }
 
+// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
+//
+// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+func (db *indexDB) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	// TODO: cache results?
+
+	tvss := make(map[string]struct{})
+	is := db.getIndexSearch(deadline)
+	err := is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	db.putIndexSearch(is)
+	if err != nil {
+		return nil, err
+	}
+	ok := db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(deadline)
+		err = is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+		extDB.putIndexSearch(is)
+	})
+	if ok && err != nil {
+		return nil, err
+	}
+
+	suffixes := make([]string, 0, len(tvss))
+	for suffix := range tvss {
+		// Do not skip empty suffixes, since they may represent leaf tag values.
+		suffixes = append(suffixes, suffix)
+	}
+	// Do not sort suffixes, since they must be sorted by vmselect.
+	return suffixes, nil
+}
+
+func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct{}, tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if maxDate-minDate > maxDaysForDateMetricIDs {
+		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	}
+	// Query over multiple days in parallel.
+	var wg sync.WaitGroup
+	var errGlobal error
+	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
+	for minDate <= maxDate {
+		wg.Add(1)
+		go func(date uint64) {
+			defer wg.Done()
+			tvssLocal := make(map[string]struct{})
+			isLocal := is.db.getIndexSearch(is.deadline)
+			defer is.db.putIndexSearch(isLocal)
+			err := isLocal.searchTagValueSuffixesForDate(tvssLocal, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+			mu.Lock()
+			defer mu.Unlock()
+			if errGlobal != nil {
+				return
+			}
+			if err != nil {
+				errGlobal = err
+				return
+			}
+			for k := range tvssLocal {
+				tvss[k] = struct{}{}
+			}
+		}(minDate)
+		minDate++
+	}
+	wg.Wait()
+	return errGlobal
+}
+
+func (is *indexSearch) searchTagValueSuffixesAll(tvss map[string]struct{}, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
+	kb := &is.kb
+	nsPrefix := byte(nsPrefixTagToMetricIDs)
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefix)
+	kb.B = marshalTagValue(kb.B, tagKey)
+	kb.B = marshalTagValue(kb.B, tagValuePrefix)
+	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
+	prefix := append([]byte(nil), kb.B...)
+	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, tagValuePrefix, delimiter, maxTagValueSuffixes)
+}
+
+func (is *indexSearch) searchTagValueSuffixesForDate(tvss map[string]struct{}, date uint64, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
+	nsPrefix := byte(nsPrefixDateTagToMetricIDs)
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefix)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	kb.B = marshalTagValue(kb.B, tagKey)
+	kb.B = marshalTagValue(kb.B, tagValuePrefix)
+	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
+	prefix := append([]byte(nil), kb.B...)
+	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, tagValuePrefix, delimiter, maxTagValueSuffixes)
+}
+
+func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{}, nsPrefix byte, prefix, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
+	kb := &is.kb
+	ts := &is.ts
+	mp := &is.mp
+	mp.Reset()
+	dmis := is.db.getDeletedMetricIDs()
+	loopsPaceLimiter := 0
+	ts.Seek(prefix)
+	for len(tvss) < maxTagValueSuffixes && ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			break
+		}
+		if err := mp.Init(item, nsPrefix); err != nil {
+			return err
+		}
+		if mp.IsDeletedTag(dmis) {
+			continue
+		}
+		tagValue := mp.Tag.Value
+		if !bytes.HasPrefix(tagValue, tagValuePrefix) {
+			continue
+		}
+		suffix := tagValue[len(tagValuePrefix):]
+		n := bytes.IndexByte(suffix, delimiter)
+		if n < 0 {
+			// Found leaf tag value that doesn't have delimiters after the given tagValuePrefix.
+			tvss[string(suffix)] = struct{}{}
+			continue
+		}
+		// Found non-leaf tag value. Extract suffix that end with the given delimiter.
+		suffix = suffix[:n+1]
+		tvss[string(suffix)] = struct{}{}
+		if suffix[len(suffix)-1] == 255 {
+			continue
+		}
+		// Search for the next suffix
+		suffix[len(suffix)-1]++
+		kb.B = append(kb.B[:0], prefix...)
+		kb.B = marshalTagValue(kb.B, suffix)
+		kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar
+		ts.Seek(kb.B)
+	}
+	if err := ts.Error(); err != nil {
+		return fmt.Errorf("error when searching for tag value sufixes for prefix %q: %w", prefix, err)
+	}
+	return nil
+}
+
 // GetSeriesCount returns the approximate number of unique timeseries in the db.
 //
 // It includes the deleted series too and may count the same series

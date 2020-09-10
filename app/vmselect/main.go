@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -203,6 +204,33 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/metrics/find", "/metrics/find/":
+		graphiteMetricsFindRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.MetricsFindHandler(startTime, w, r); err != nil {
+			graphiteMetricsFindErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	case "/metrics/expand", "/metrics/expand/":
+		graphiteMetricsExpandRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.MetricsExpandHandler(startTime, w, r); err != nil {
+			graphiteMetricsExpandErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	case "/metrics/index.json", "/metrics/index.json/":
+		graphiteMetricsIndexRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.MetricsIndexHandler(startTime, w, r); err != nil {
+			graphiteMetricsIndexErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -288,6 +316,15 @@ var (
 
 	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/federate"}`)
 	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/federate"}`)
+
+	graphiteMetricsFindRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/find"}`)
+	graphiteMetricsFindErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/find"}`)
+
+	graphiteMetricsExpandRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/expand"}`)
+	graphiteMetricsExpandErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/expand"}`)
+
+	graphiteMetricsIndexRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/index.json"}`)
+	graphiteMetricsIndexErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/index.json"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)

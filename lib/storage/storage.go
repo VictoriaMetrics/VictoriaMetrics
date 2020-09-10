@@ -929,6 +929,13 @@ func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int, deadline uint
 	return s.idb().SearchTagValues(tagKey, maxTagValues, deadline)
 }
 
+// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
+//
+// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+}
+
 // SearchTagEntries returns a list of (tagName -> tagValues)
 func (s *Storage) SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]TagEntry, error) {
 	idb := s.idb()
