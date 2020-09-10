@@ -267,7 +267,7 @@ func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, deli
 var (
 	metricsFindDuration   = metrics.NewSummary(`vm_request_duration_seconds{path="/select/{}/graphite/metrics/find"}`)
 	metricsExpandDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/select/{}/graphite/metrics/expand"}`)
-	metricsIndexDuration  = metrics.NewSummary(`vm_request_duration_seconds{path="/select/{}/graphite/metrics/expand"}`)
+	metricsIndexDuration  = metrics.NewSummary(`vm_request_duration_seconds{path="/select/{}/graphite/metrics/index.json"}`)
 )
 
 func isFullMatch(tagValuePrefix string, suffixes []string, delimiter byte) bool {
