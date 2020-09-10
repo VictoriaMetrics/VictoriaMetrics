@@ -198,7 +198,6 @@ func Test_parseEndpointSlicesListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_endpoint_conditions_ready": "true",
 			"__meta_kubernetes_endpointslice_name":                      "kubernetes",
 			"__meta_kubernetes_endpointslice_port":                      "6443",
-			"__meta_kubernetes_endpointslice_port_app_protocol":         "",
 			"__meta_kubernetes_endpointslice_port_name":                 "https",
 			"__meta_kubernetes_endpointslice_port_protocol":             "TCP",
 			"__meta_kubernetes_namespace":                               "default",
@@ -207,10 +206,6 @@ func Test_parseEndpointSlicesListSuccess(t *testing.T) {
 		t.Fatalf("unexpected labels,\ngot:\n%v,\nwant:\n%v", sortedLables, expectedLabels)
 	}
 
-}
-
-func pointerBool(v bool) *bool {
-	return &v
 }
 
 func TestEndpointSlice_appendTargetLabels(t *testing.T) {
@@ -244,7 +239,7 @@ func TestEndpointSlice_appendTargetLabels(t *testing.T) {
 					{Addresses: []string{"127.0.0.1"},
 						Hostname:   "node-1",
 						Topology:   map[string]string{"kubernetes.topoligy.io/zone": "gce-1"},
-						Conditions: &EndpointConditions{Ready: pointerBool(true)},
+						Conditions: EndpointConditions{Ready: true},
 						TargetRef: ObjectReference{
 							Kind:      "Pod",
 							Namespace: "default",
@@ -270,7 +265,7 @@ func TestEndpointSlice_appendTargetLabels(t *testing.T) {
 					"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                             "true",
 					"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_topoligy_io_zone":         "gce-1",
 					"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_topoligy_io_zone": "true",
-					"__meta_kubernetes_endpointslice_endpointslice_endpoint_hostname":                       "node-1",
+					"__meta_kubernetes_endpointslice_endpoint_hostname":                                     "node-1",
 					"__meta_kubernetes_endpointslice_name":                                                  "fake-esl",
 					"__meta_kubernetes_endpointslice_port":                                                  "8085",
 					"__meta_kubernetes_endpointslice_port_app_protocol":                                     "http",
@@ -347,7 +342,7 @@ func TestEndpointSlice_appendTargetLabels(t *testing.T) {
 					{Addresses: []string{"127.0.0.1"},
 						Hostname:   "node-1",
 						Topology:   map[string]string{"kubernetes.topoligy.io/zone": "gce-1"},
-						Conditions: &EndpointConditions{Ready: pointerBool(true)},
+						Conditions: EndpointConditions{Ready: true},
 						TargetRef: ObjectReference{
 							Kind:      "Pod",
 							Namespace: "monitoring",
@@ -373,7 +368,7 @@ func TestEndpointSlice_appendTargetLabels(t *testing.T) {
 					"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                             "true",
 					"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_topoligy_io_zone":         "gce-1",
 					"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_topoligy_io_zone": "true",
-					"__meta_kubernetes_endpointslice_endpointslice_endpoint_hostname":                       "node-1",
+					"__meta_kubernetes_endpointslice_endpoint_hostname":                                     "node-1",
 					"__meta_kubernetes_endpointslice_name":                                                  "custom-esl",
 					"__meta_kubernetes_endpointslice_port":                                                  "8085",
 					"__meta_kubernetes_endpointslice_port_app_protocol":                                     "http",

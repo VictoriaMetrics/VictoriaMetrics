@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getEndpointsLabels returns labels for k8s endpointSlices obtained from the given cfg.
+// getEndpointSlicesLabels returns labels for k8s endpointSlices obtained from the given cfg.
 func getEndpointSlicesLabels(cfg *apiConfig) ([]map[string]string, error) {
 	eps, err := getEndpointSlices(cfg)
 	if err != nil {
@@ -151,28 +151,26 @@ func getEndpointSliceLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, addr s
 // //getEndpointSliceLabels builds labels for given EndpointSlice
 func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp EndpointPort) map[string]string {
 
-	var status bool
-	if ea.Conditions.Ready != nil && *ea.Conditions.Ready {
-		status = true
-	}
 	addr = discoveryutils.JoinHostPort(addr, epp.Port)
 	m := map[string]string{
 		"__address__":                                               addr,
 		"__meta_kubernetes_namespace":                               eps.Metadata.Namespace,
 		"__meta_kubernetes_endpointslice_name":                      eps.Metadata.Name,
 		"__meta_kubernetes_endpointslice_address_type":              eps.AddressType,
-		"__meta_kubernetes_endpointslice_endpoint_conditions_ready": strconv.FormatBool(status),
+		"__meta_kubernetes_endpointslice_endpoint_conditions_ready": strconv.FormatBool(ea.Conditions.Ready),
 		"__meta_kubernetes_endpointslice_port_name":                 epp.Name,
 		"__meta_kubernetes_endpointslice_port_protocol":             epp.Protocol,
-		"__meta_kubernetes_endpointslice_port_app_protocol":         epp.AppProtocol,
 		"__meta_kubernetes_endpointslice_port":                      strconv.FormatUint(uint64(epp.Port), 10),
+	}
+	if epp.AppProtocol != "" {
+		m["__meta_kubernetes_endpointslice_port_app_protocol"] = epp.AppProtocol
 	}
 	if ea.TargetRef.Kind != "" {
 		m["__meta_kubernetes_endpointslice_address_target_kind"] = ea.TargetRef.Kind
 		m["__meta_kubernetes_endpointslice_address_target_name"] = ea.TargetRef.Name
 	}
 	if ea.Hostname != "" {
-		m["__meta_kubernetes_endpointslice_endpointslice_endpoint_hostname"] = ea.Hostname
+		m["__meta_kubernetes_endpointslice_endpoint_hostname"] = ea.Hostname
 	}
 	for k, v := range ea.Topology {
 		m["__meta_kubernetes_endpointslice_endpoint_topology_"+discoveryutils.SanitizeLabelName(k)] = v
@@ -201,7 +199,7 @@ type EndpointSlice struct {
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpoint-v1beta1-discovery-k8s-io
 type Endpoint struct {
 	Addresses  []string
-	Conditions *EndpointConditions
+	Conditions EndpointConditions
 	Hostname   string
 	TargetRef  ObjectReference
 	Topology   map[string]string
@@ -210,5 +208,5 @@ type Endpoint struct {
 // EndpointConditions implements kubernetes endpoint condition.
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointconditions-v1beta1-discovery-k8s-io
 type EndpointConditions struct {
-	Ready *bool
+	Ready bool
 }
