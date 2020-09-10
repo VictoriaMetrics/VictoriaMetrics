@@ -254,7 +254,7 @@ func metricsFind(tr storage.TimeRange, label, query string, delimiter byte, dead
 var (
 	metricsFindDuration   = metrics.NewSummary(`vm_request_duration_seconds{path="/metrics/find"}`)
 	metricsExpandDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/metrics/expand"}`)
-	metricsIndexDuration  = metrics.NewSummary(`vm_request_duration_seconds{path="/metrics/expand"}`)
+	metricsIndexDuration  = metrics.NewSummary(`vm_request_duration_seconds{path="/metrics/index.json"}`)
 )
 
 func isFullMatch(tagValuePrefix string, suffixes []string, delimiter byte) bool {
