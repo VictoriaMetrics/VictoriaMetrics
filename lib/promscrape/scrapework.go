@@ -351,7 +351,7 @@ func (sw *scrapeWork) updateSeriesAdded(wc *writeRequestCtx) {
 func (sw *scrapeWork) finalizeSeriesAdded(lastScrapeSize int) int {
 	seriesAdded := sw.seriesAdded
 	sw.seriesAdded = 0
-	if len(sw.seriesMap) > 2*lastScrapeSize {
+	if len(sw.seriesMap) > 4*lastScrapeSize {
 		// Reset seriesMap, since it occupies more than 4x metrics collected during the last scrape.
 		sw.seriesMap = make(map[uint64]struct{}, lastScrapeSize)
 	}
