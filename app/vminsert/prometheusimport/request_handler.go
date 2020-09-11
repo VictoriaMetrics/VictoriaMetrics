@@ -25,9 +25,13 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
+	defaultTimestamp, err := parserCommon.GetTimestamp(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		return parser.ParseStream(req.Body, isGzipped, func(rows []parser.Row) error {
+		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 			return insertRows(at, rows, extraLabels)
 		})
 	})
