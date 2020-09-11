@@ -150,7 +150,7 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(w http.ResponseWriter, matches []string, start, end int64, format string, maxRowsPerLine int, deadline netstorage.Deadline) error {
+func exportHandler(w http.ResponseWriter, matches []string, start, end int64, format string, maxRowsPerLine int, deadline searchutils.Deadline) error {
 	writeResponseFunc := WriteExportStdResponse
 	writeLineFunc := func(rs *netstorage.Result, resultsCh chan<- *quicktemplate.ByteBuffer) {
 		bb := quicktemplate.AcquireByteBuffer()
@@ -322,7 +322,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	return nil
 }
 
-func labelValuesWithMatches(labelName string, matches []string, start, end int64, deadline netstorage.Deadline) ([]string, error) {
+func labelValuesWithMatches(labelName string, matches []string, start, end int64, deadline searchutils.Deadline) ([]string, error) {
 	if len(matches) == 0 {
 		logger.Panicf("BUG: matches must be non-empty")
 	}
@@ -485,7 +485,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-func labelsWithMatches(matches []string, start, end int64, deadline netstorage.Deadline) ([]string, error) {
+func labelsWithMatches(matches []string, start, end int64, deadline searchutils.Deadline) ([]string, error) {
 	if len(matches) == 0 {
 		logger.Panicf("BUG: matches must be non-empty")
 	}

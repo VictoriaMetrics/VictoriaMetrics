@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -88,7 +89,7 @@ type EvalConfig struct {
 	// QuotedRemoteAddr contains quoted remote address.
 	QuotedRemoteAddr string
 
-	Deadline netstorage.Deadline
+	Deadline searchutils.Deadline
 
 	MayCache bool
 
