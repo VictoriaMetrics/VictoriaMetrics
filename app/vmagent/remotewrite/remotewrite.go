@@ -85,7 +85,7 @@ func Init() {
 	for i, remoteWriteURL := range *remoteWriteURLs {
 		urlLabelValue := fmt.Sprintf("secret-url-%d", i+1)
 		if *showRemoteWriteURL {
-			urlLabelValue = remoteWriteURL
+			urlLabelValue = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
 		rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, urlLabelValue)
 		rwctxs = append(rwctxs, rwctx)
@@ -192,7 +192,7 @@ type remoteWriteCtx struct {
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
 	h := xxhash.Sum64([]byte(remoteWriteURL))
-	path := fmt.Sprintf("%s/persistent-queue/%016X", *tmpDataPath, h)
+	path := fmt.Sprintf("%s/persistent-queue/%d_%016X", *tmpDataPath, argIdx+1, h)
 	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
 		return float64(fq.GetPendingBytes())
