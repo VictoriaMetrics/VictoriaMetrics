@@ -93,31 +93,53 @@ func (m *manager) update(ctx context.Context, path []string, validateTpl, valida
 		groupsRegistry[ng.ID()] = ng
 	}
 
+	type updateItem struct {
+		old *Group
+		new *Group
+	}
+	var toUpdate []updateItem
+
 	m.groupsMu.Lock()
 	for _, og := range m.groups {
 		ng, ok := groupsRegistry[og.ID()]
 		if !ok {
-			// old group is not present in new list
-			// and must be stopped and deleted
+			// old group is not present in new list,
+			// so must be stopped and deleted
 			og.close()
 			delete(m.groups, og.ID())
 			og = nil
 			continue
 		}
-		og.updateCh <- ng
 		delete(groupsRegistry, ng.ID())
+		if og.Checksum != ng.Checksum {
+			toUpdate = append(toUpdate, updateItem{old: og, new: ng})
+		}
 	}
-
 	for _, ng := range groupsRegistry {
 		m.startGroup(ctx, ng, restore)
 	}
 	m.groupsMu.Unlock()
+
+	if len(toUpdate) > 0 {
+		var wg sync.WaitGroup
+		for _, item := range toUpdate {
+			wg.Add(1)
+			go func(old *Group, new *Group) {
+				old.updateCh <- new
+				wg.Done()
+			}(item.old, item.new)
+		}
+		wg.Wait()
+	}
 	return nil
 }
 
 func (g *Group) toAPI() APIGroup {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
 	ag := APIGroup{
-		// encode as strings to avoid rounding
+		// encode as string to avoid rounding
 		ID:          fmt.Sprintf("%d", g.ID()),
 		Name:        g.Name,
 		File:        g.File,
