@@ -8,11 +8,12 @@ import (
 )
 
 func TestParseStream(t *testing.T) {
+	const defaultTimestamp = 123
 	f := func(s string, rowsExpected []Row) {
 		t.Helper()
 		bb := bytes.NewBufferString(s)
 		var result []Row
-		err := ParseStream(bb, false, func(rows []Row) error {
+		err := ParseStream(bb, defaultTimestamp, false, func(rows []Row) error {
 			result = appendRowCopies(result, rows)
 			return nil
 		})
@@ -33,7 +34,7 @@ func TestParseStream(t *testing.T) {
 			t.Fatalf("unexpected error when closing gzip writer: %s", err)
 		}
 		result = nil
-		err = ParseStream(bb, true, func(rows []Row) error {
+		err = ParseStream(bb, defaultTimestamp, true, func(rows []Row) error {
 			result = appendRowCopies(result, rows)
 			return nil
 		})
@@ -67,6 +68,11 @@ func TestParseStream(t *testing.T) {
 			Timestamp: 4,
 		},
 	})
+	f("foo 23", []Row{{
+		Metric:    "foo",
+		Value:     23,
+		Timestamp: defaultTimestamp,
+	}})
 }
 
 func appendRowCopies(dst, src []Row) []Row {

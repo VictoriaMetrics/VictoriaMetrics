@@ -551,6 +551,10 @@ It should return something like the following:
 Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
 For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
 
+If timestamp is missing in `<metric> <value> <timestamp>` Prometheus exposition format line, then the current timestamp is used during data ingestion.
+It can be overriden by passing unix timestamp in seconds via `timestamp` query arg. The value may be fractional when millisecond precision is needed.
+For example, `/api/v1/import/prometheus?timestamp=1594370496.905`.
+
 VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
 
 VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).

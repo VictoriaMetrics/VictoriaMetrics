@@ -17,7 +17,7 @@ import (
 // The callback can be called multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) error {
+func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []Row) error) error {
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -28,7 +28,7 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) e
 	}
 	ctx := getStreamContext()
 	defer putStreamContext(ctx)
-	for ctx.Read(r) {
+	for ctx.Read(r, defaultTimestamp) {
 		if err := callback(ctx.Rows.Rows); err != nil {
 			return err
 		}
@@ -36,7 +36,7 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) e
 	return ctx.Error()
 }
 
-func (ctx *streamContext) Read(r io.Reader) bool {
+func (ctx *streamContext) Read(r io.Reader, defaultTimestamp int64) bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
@@ -55,11 +55,13 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 	rows := ctx.Rows.Rows
 
 	// Fill missing timestamps with the current timestamp.
-	currentTimestamp := int64(time.Now().UnixNano() / 1e6)
+	if defaultTimestamp <= 0 {
+		defaultTimestamp = int64(time.Now().UnixNano() / 1e6)
+	}
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp == 0 {
-			r.Timestamp = currentTimestamp
+			r.Timestamp = defaultTimestamp
 		}
 	}
 	return true
