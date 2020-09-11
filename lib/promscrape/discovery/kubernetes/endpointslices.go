@@ -160,7 +160,7 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 		"__meta_kubernetes_endpointslice_endpoint_conditions_ready": strconv.FormatBool(ea.Conditions.Ready),
 		"__meta_kubernetes_endpointslice_port_name":                 epp.Name,
 		"__meta_kubernetes_endpointslice_port_protocol":             epp.Protocol,
-		"__meta_kubernetes_endpointslice_port":                      strconv.FormatUint(uint64(epp.Port), 10),
+		"__meta_kubernetes_endpointslice_port":                      strconv.Itoa(epp.Port),
 	}
 	if epp.AppProtocol != "" {
 		m["__meta_kubernetes_endpointslice_port_app_protocol"] = epp.AppProtocol
