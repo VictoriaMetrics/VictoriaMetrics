@@ -24,6 +24,7 @@ type Group struct {
 	Rules       []Rule
 	Interval    time.Duration
 	Concurrency int
+	Checksum    string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -53,6 +54,7 @@ func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string
 		File:        cfg.File,
 		Interval:    cfg.Interval,
 		Concurrency: cfg.Concurrency,
+		Checksum:    cfg.Checksum,
 		doneCh:      make(chan struct{}),
 		finishedCh:  make(chan struct{}),
 		updateCh:    make(chan *Group),
@@ -156,6 +158,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		newRules = append(newRules, nr)
 	}
 	g.Concurrency = newGroup.Concurrency
+	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil
 }
