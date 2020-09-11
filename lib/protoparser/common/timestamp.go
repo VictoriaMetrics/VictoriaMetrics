@@ -10,7 +10,7 @@ import (
 //
 // It returns 0 if there is no `timestamp` query arg.
 func GetTimestamp(req *http.Request) (int64, error) {
-	ts := req.FormValue("timestamp")
+	ts := req.URL.Query().Get("timestamp")
 	if len(ts) == 0 {
 		return 0, nil
 	}
