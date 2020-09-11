@@ -103,7 +103,7 @@ again:
 		token = s[:n]
 		goto tokenFoundLabel
 	}
-	if n := scanDuration(s, false); n > 0 {
+	if n := scanDuration(s); n > 0 {
 		token = s[:n]
 		goto tokenFoundLabel
 	}
@@ -393,7 +393,7 @@ func scanSpecialIntegerPrefix(s string) int {
 }
 
 func isPositiveDuration(s string) bool {
-	n := scanDuration(s, false)
+	n := scanDuration(s)
 	return n == len(s)
 }
 
@@ -413,33 +413,57 @@ func PositiveDurationValue(s string, step int64) (int64, error) {
 // DurationValue returns the duration in milliseconds for the given s
 // and the given step.
 //
+// Duration in s may be combined, i.e. 2h5m or 2h-5m.
+//
 // The returned duration value can be negative.
 func DurationValue(s string, step int64) (int64, error) {
-	n := scanDuration(s, true)
-	if n != len(s) {
-		return 0, fmt.Errorf("cannot parse duration %q", s)
+	if len(s) == 0 {
+		return 0, fmt.Errorf("duration cannot be empty")
 	}
+	var d int64
+	for len(s) > 0 {
+		n := scanSingleDuration(s, true)
+		if n <= 0 {
+			return 0, fmt.Errorf("cannot parse duration %q", s)
+		}
+		ds := s[:n]
+		s = s[n:]
+		dLocal, err := parseSingleDuration(ds, step)
+		if err != nil {
+			return 0, err
+		}
+		d += dLocal
+	}
+	return d, nil
+}
 
-	f, err := strconv.ParseFloat(s[:len(s)-1], 64)
+func parseSingleDuration(s string, step int64) (int64, error) {
+	numPart := s[:len(s)-1]
+	if strings.HasSuffix(numPart, "m") {
+		// Duration in ms
+		numPart = numPart[:len(numPart)-1]
+	}
+	f, err := strconv.ParseFloat(numPart, 64)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse duration %q: %s", s, err)
 	}
-
 	var mp float64
-	switch s[len(s)-1] {
-	case 's':
+	switch s[len(numPart):] {
+	case "ms":
+		mp = 1e-3
+	case "s":
 		mp = 1
-	case 'm':
+	case "m":
 		mp = 60
-	case 'h':
+	case "h":
 		mp = 60 * 60
-	case 'd':
+	case "d":
 		mp = 24 * 60 * 60
-	case 'w':
+	case "w":
 		mp = 7 * 24 * 60 * 60
-	case 'y':
+	case "y":
 		mp = 365 * 24 * 60 * 60
-	case 'i':
+	case "i":
 		mp = float64(step) / 1e3
 	default:
 		return 0, fmt.Errorf("invalid duration suffix in %q", s)
@@ -447,7 +471,29 @@ func DurationValue(s string, step int64) (int64, error) {
 	return int64(mp * f * 1e3), nil
 }
 
-func scanDuration(s string, canBeNegative bool) int {
+// scanDuration scans duration, which must start with positive num.
+//
+// I.e. 123h, 3h5m or 3.4d-35.66s
+func scanDuration(s string) int {
+	// The first part must be non-negative
+	n := scanSingleDuration(s, false)
+	if n <= 0 {
+		return -1
+	}
+	s = s[n:]
+	i := n
+	for {
+		// Other parts may be negative
+		n := scanSingleDuration(s, true)
+		if n <= 0 {
+			return i
+		}
+		s = s[n:]
+		i += n
+	}
+}
+
+func scanSingleDuration(s string, canBeNegative bool) int {
 	if len(s) == 0 {
 		return -1
 	}
@@ -472,7 +518,14 @@ func scanDuration(s string, canBeNegative bool) int {
 		}
 	}
 	switch s[i] {
-	case 's', 'm', 'h', 'd', 'w', 'y', 'i':
+	case 'm':
+		if i+1 < len(s) && s[i+1] == 's' {
+			// duration in ms
+			return i + 2
+		}
+		// duration in minutes
+		return i + 1
+	case 's', 'h', 'd', 'w', 'y', 'i':
 		return i + 1
 	default:
 		return -1

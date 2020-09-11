@@ -160,7 +160,7 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run("time() offset 100s", func(t *testing.T) {
+	t.Run("time() offset 1m40s0ms", func(t *testing.T) {
 		t.Parallel()
 		q := `time() offset 100s`
 		r := netstorage.Result{
