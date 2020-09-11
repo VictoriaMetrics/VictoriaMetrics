@@ -1030,6 +1030,12 @@ func transformSmoothExponential(tfa *transformFuncArg) ([]*timeseries, error) {
 	rvs := args[0]
 	for _, ts := range rvs {
 		values := skipLeadingNaNs(ts.Values)
+		for i, v := range values {
+			if !math.IsInf(v, 0) {
+				values = values[i:]
+				break
+			}
+		}
 		if len(values) == 0 {
 			continue
 		}
@@ -1037,7 +1043,7 @@ func transformSmoothExponential(tfa *transformFuncArg) ([]*timeseries, error) {
 		values = values[1:]
 		sfsX := sfs[len(ts.Values)-len(values):]
 		for i, v := range values {
-			if math.IsNaN(v) {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
 				continue
 			}
 			sf := sfsX[i]
