@@ -1043,7 +1043,11 @@ func transformSmoothExponential(tfa *transformFuncArg) ([]*timeseries, error) {
 		values = values[1:]
 		sfsX := sfs[len(ts.Values)-len(values):]
 		for i, v := range values {
-			if math.IsNaN(v) || math.IsInf(v, 0) {
+			if math.IsNaN(v) {
+				continue
+			}
+			if math.IsInf(v, 0) {
+				values[i] = avg
 				continue
 			}
 			sf := sfsX[i]
