@@ -207,7 +207,7 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 }
 
 // metricsFind searches for label values that match the given query.
-func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, delimiter byte, deadline netstorage.Deadline) ([]string, bool, error) {
+func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, delimiter byte, deadline searchutils.Deadline) ([]string, bool, error) {
 	expandTail := strings.HasSuffix(query, "*")
 	for strings.HasSuffix(query, "*") {
 		query = query[:len(query)-1]

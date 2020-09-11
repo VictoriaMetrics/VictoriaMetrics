@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -98,18 +98,18 @@ func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
 
 // GetDeadlineForQuery returns deadline for the given query r.
-func GetDeadlineForQuery(r *http.Request, startTime time.Time) netstorage.Deadline {
+func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxQueryDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
 }
 
 // GetDeadlineForExport returns deadline for the given request to /api/v1/export.
-func GetDeadlineForExport(r *http.Request, startTime time.Time) netstorage.Deadline {
+func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxExportDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxExportDuration")
 }
 
-func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) netstorage.Deadline {
+func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {
 	d, err := GetDuration(r, "timeout", 0)
 	if err != nil {
 		d = 0
@@ -118,7 +118,7 @@ func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64
 		d = dMax
 	}
 	timeout := time.Duration(d) * time.Millisecond
-	return netstorage.NewDeadline(startTime, timeout, flagHint)
+	return NewDeadline(startTime, timeout, flagHint)
 }
 
 // GetBool returns boolean value from the given argKey query arg.
@@ -138,4 +138,39 @@ func GetDenyPartialResponse(r *http.Request) bool {
 		return true
 	}
 	return GetBool(r, "deny_partial_response")
+}
+
+// Deadline contains deadline with the corresponding timeout for pretty error messages.
+type Deadline struct {
+	deadline uint64
+
+	timeout  time.Duration
+	flagHint string
+}
+
+// NewDeadline returns deadline for the given timeout.
+//
+// flagHint must contain a hit for command-line flag, which could be used
+// in order to increase timeout.
+func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) Deadline {
+	return Deadline{
+		deadline: uint64(startTime.Add(timeout).Unix()),
+		timeout:  timeout,
+		flagHint: flagHint,
+	}
+}
+
+// Exceeded returns true if deadline is exceeded.
+func (d *Deadline) Exceeded() bool {
+	return fasttime.UnixTimestamp() > d.deadline
+}
+
+// Deadline returns deadline in unix timestamp seconds.
+func (d *Deadline) Deadline() uint64 {
+	return d.deadline
+}
+
+// String returns human-readable string representation for d.
+func (d *Deadline) String() string {
+	return fmt.Sprintf("%.3f seconds; the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), d.flagHint)
 }
