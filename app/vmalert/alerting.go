@@ -26,6 +26,7 @@ type AlertingRule struct {
 	Labels      map[string]string
 	Annotations map[string]string
 	GroupID     uint64
+	GroupName   string
 
 	// guard status fields
 	mu sync.RWMutex
@@ -56,6 +57,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 		Labels:      cfg.Labels,
 		Annotations: cfg.Annotations,
 		GroupID:     group.ID(),
+		GroupName:   group.Name,
 		alerts:      make(map[uint64]*notifier.Alert),
 		metrics:     &alertingRuleMetrics{},
 	}
@@ -242,6 +244,9 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time) (*notifie
 		Start:   start,
 		Expr:    ar.Expr,
 	}
+	// label defined here to make override possible by
+	// time series labels.
+	a.Labels[alertGroupNameLabel] = ar.GroupName
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
 		if l.Name == "__name__" {
@@ -336,15 +341,18 @@ func (ar *AlertingRule) newAlertAPI(a notifier.Alert) *APIAlert {
 }
 
 const (
-	// AlertMetricName is the metric name for synthetic alert timeseries.
+	// alertMetricName is the metric name for synthetic alert timeseries.
 	alertMetricName = "ALERTS"
-	// AlertForStateMetricName is the metric name for 'for' state of alert.
+	// alertForStateMetricName is the metric name for 'for' state of alert.
 	alertForStateMetricName = "ALERTS_FOR_STATE"
 
-	// AlertNameLabel is the label name indicating the name of an alert.
+	// alertNameLabel is the label name indicating the name of an alert.
 	alertNameLabel = "alertname"
-	// AlertStateLabel is the label name indicating the state of an alert.
+	// alertStateLabel is the label name indicating the state of an alert.
 	alertStateLabel = "alertstate"
+
+	// alertGroupNameLabel defines the label name attached for generated time series.
+	alertGroupNameLabel = "alertgroup"
 )
 
 // alertToTimeSeries converts the given alert with the given timestamp to timeseries
