@@ -20,14 +20,15 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	RuleID      uint64
-	Name        string
-	Expr        string
-	For         time.Duration
-	Labels      map[string]string
-	Annotations map[string]string
-	GroupID     uint64
-	GroupName   string
+	RuleID         uint64
+	Name           string
+	Expr           string
+	For            time.Duration
+	Labels         map[string]string
+	Annotations    map[string]string
+	GroupID        uint64
+	GroupName      string
+	GroupAuthToken *auth.Token
 
 	// guard status fields
 	mu sync.RWMutex
@@ -51,16 +52,17 @@ type alertingRuleMetrics struct {
 
 func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
-		RuleID:      cfg.ID,
-		Name:        cfg.Alert,
-		Expr:        cfg.Expr,
-		For:         cfg.For,
-		Labels:      cfg.Labels,
-		Annotations: cfg.Annotations,
-		GroupID:     group.ID(),
-		GroupName:   group.Name,
-		alerts:      make(map[uint64]*notifier.Alert),
-		metrics:     &alertingRuleMetrics{},
+		RuleID:         cfg.ID,
+		Name:           cfg.Alert,
+		Expr:           cfg.Expr,
+		For:            cfg.For,
+		Labels:         cfg.Labels,
+		Annotations:    cfg.Annotations,
+		GroupID:        group.ID(),
+		GroupName:      group.Name,
+		GroupAuthToken: group.at,
+		alerts:         make(map[uint64]*notifier.Alert),
+		metrics:        &alertingRuleMetrics{},
 	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
@@ -248,6 +250,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time) (*notifie
 	// label defined here to make override possible by
 	// time series labels.
 	a.Labels[alertGroupNameLabel] = ar.GroupName
+	a.Labels[alertGroupAuthTokenLabel] = ar.GroupAuthToken.String()
 	for _, l := range m.Labels {
 		// drop __name__ to be consistent with Prometheus alerting
 		if l.Name == "__name__" {
@@ -354,6 +357,8 @@ const (
 
 	// alertGroupNameLabel defines the label name attached for generated time series.
 	alertGroupNameLabel = "alertgroup"
+	// alertGroupAuthTokenLabel defines the group auth token attached for generated time series.
+	alertGroupAuthTokenLabel = "alertgroupat"
 )
 
 // alertToTimeSeries converts the given alert with the given timestamp to timeseries
