@@ -20,11 +20,12 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
-	RuleID  uint64
-	Name    string
-	Expr    string
-	Labels  map[string]string
-	GroupID uint64
+	RuleID         uint64
+	Name           string
+	Expr           string
+	Labels         map[string]string
+	GroupID        uint64
+	GroupAuthToken *auth.Token
 
 	// guard status fields
 	mu sync.RWMutex
@@ -55,12 +56,13 @@ func (rr *RecordingRule) ID() uint64 {
 
 func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
-		RuleID:  cfg.ID,
-		Name:    cfg.Record,
-		Expr:    cfg.Expr,
-		Labels:  cfg.Labels,
-		GroupID: group.ID(),
-		metrics: &recordingRuleMetrics{},
+		RuleID:         cfg.ID,
+		Name:           cfg.Record,
+		Expr:           cfg.Expr,
+		Labels:         cfg.Labels,
+		GroupID:        group.ID(),
+		GroupAuthToken: group.at,
+		metrics:        &recordingRuleMetrics{},
 	}
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
 	rr.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),

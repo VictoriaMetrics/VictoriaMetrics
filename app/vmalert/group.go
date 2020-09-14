@@ -324,7 +324,7 @@ func (e *executor) exec(ctx context.Context, at *auth.Token, rule Rule, returnSe
 
 	if len(tss) > 0 && e.rw != nil {
 		for _, ts := range tss {
-			if err := e.rw.Push(ts); err != nil {
+			if err := e.rw.Push(at, ts); err != nil {
 				remoteWriteErrors.Inc()
 				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 			}
