@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -20,9 +19,8 @@ import (
 // Client is an asynchronous HTTP client for writing
 // timeseries via remote write protocol.
 type Client struct {
-	baseURL          string
-	suffix           string
-	defaultAuthToken *auth.Token
+	baseURL string
+	suffix  string
 
 	c              *http.Client
 	tswCh          chan TimeseriesWrapper
@@ -36,7 +34,7 @@ type Client struct {
 }
 
 type TimeseriesWrapper struct {
-	at *auth.Token
+	at string
 	ts prompbmarshal.TimeSeries
 }
 
@@ -46,7 +44,12 @@ type WriteRequestWrapper struct {
 }
 
 func (w *WriteRequestWrapper) AddTimeseries(tsw TimeseriesWrapper) {
-	w.m[tsw.at.String()].Timeseries = append(w.m[tsw.at.String()].Timeseries, tsw.ts)
+	tss, ok := w.m[tsw.at]
+	if !ok {
+		tss = &prompbmarshal.WriteRequest{}
+	}
+	tss.Timeseries = append(tss.Timeseries, tsw.ts)
+	w.m[tsw.at] = tss
 	w.tsCount += 1
 }
 
@@ -59,8 +62,8 @@ func (w *WriteRequestWrapper) Reset() {
 
 // Config is config for remote write.
 type Config struct {
-	// Addr of remote storage
-	Addr string
+	BaseURL string
+	Suffix  string
 
 	BasicAuthUser string
 	BasicAuthPass string
@@ -97,12 +100,8 @@ const writePath = "/api/v1/write"
 // NewClient returns asynchronous client for
 // writing timeseries via remotewrite protocol.
 func NewClient(ctx context.Context, cfg Config) (*Client, error) {
-	if cfg.Addr == "" {
+	if cfg.BaseURL == "" {
 		return nil, fmt.Errorf("config.Addr can't be empty")
-	}
-	baseURL, suffix, at, err := utils.ParseURL(cfg.Addr)
-	if err != nil {
-		return nil, err
 	}
 
 	if cfg.MaxBatchSize == 0 {
@@ -125,15 +124,15 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Timeout:   cfg.WriteTimeout,
 			Transport: cfg.Transport,
 		},
-		baseURL:          baseURL,
-		suffix:           suffix,
-		defaultAuthToken: at,
-		baUser:           cfg.BasicAuthUser,
-		baPass:           cfg.BasicAuthPass,
-		flushInterval:    cfg.FlushInterval,
-		maxBatchSize:     cfg.MaxBatchSize,
-		maxQueueSize:     cfg.MaxQueueSize,
-		doneCh:           make(chan struct{}),
+		baseURL:       BaseURL,
+		suffix:        Suffix,
+		baUser:        cfg.BasicAuthUser,
+		baPass:        cfg.BasicAuthPass,
+		flushInterval: cfg.FlushInterval,
+		maxBatchSize:  cfg.MaxBatchSize,
+		maxQueueSize:  cfg.MaxQueueSize,
+		doneCh:        make(chan struct{}),
+		tswCh:         make(chan TimeseriesWrapper, cfg.MaxQueueSize),
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {
@@ -148,13 +147,10 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 // Push adds timeseries into queue for writing into remote storage.
 // Push returns and error if client is stopped or if queue is full.
 func (c *Client) Push(at *auth.Token, s prompbmarshal.TimeSeries) error {
-	if at == nil {
-		at = c.defaultAuthToken
-	}
 	select {
 	case <-c.doneCh:
 		return fmt.Errorf("client is closed")
-	case c.tswCh <- TimeseriesWrapper{at, s}:
+	case c.tswCh <- TimeseriesWrapper{at.String(), s}:
 		return nil
 	default:
 		return fmt.Errorf("failed to push timeseries - queue is full (%d entries). "+
@@ -177,7 +173,9 @@ func (c *Client) Close() error {
 
 func (c *Client) run(ctx context.Context) {
 	ticker := time.NewTicker(c.flushInterval)
-	wrw := &WriteRequestWrapper{}
+	wrw := &WriteRequestWrapper{
+		m: make(map[string]*prompbmarshal.WriteRequest),
+	}
 	shutdown := func() {
 		for tsw := range c.tswCh {
 			wrw.AddTimeseries(tsw)

@@ -18,11 +18,13 @@ type Rule interface {
 	// Exec executes the rule with given context
 	// and Querier. If returnSeries is true, Exec
 	// may return TimeSeries as result of execution
-	Exec(ctx context.Context, at *auth.Token, q datasource.Querier, returnSeries bool) ([]prompbmarshal.TimeSeries, error)
+	Exec(ctx context.Context, q datasource.Querier, returnSeries bool) ([]prompbmarshal.TimeSeries, error)
 	// UpdateWith performs modification of current Rule
 	// with fields of the given Rule.
 	UpdateWith(Rule) error
 	// Close performs the shutdown procedures for rule
 	// such as metrics unregister
 	Close()
+	// AuthToken returns the auth token of the rule
+	AuthToken() *auth.Token
 }

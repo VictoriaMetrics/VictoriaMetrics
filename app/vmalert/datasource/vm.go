@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 type response struct {
@@ -50,27 +50,21 @@ const queryPath = "/api/v1/query?query="
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
-	c                *http.Client
-	baseURL          string
-	suffix           string
-	basicAuthUser    string
-	basicAuthPass    string
-	defaultAuthToken *auth.Token
+	c             *http.Client
+	baseURL       string
+	suffix        string
+	basicAuthUser string
+	basicAuthPass string
 }
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, c *http.Client) (*VMStorage, error) {
-	baseURL, suffix, at, err := utils.ParseURL(baseURL)
-	if err != nil {
-		return nil, err
-	}
+func NewVMStorage(baseURL, suffix, basicAuthUser, basicAuthPass string, c *http.Client) (*VMStorage, error) {
 	return &VMStorage{
-		c:                c,
-		baseURL:          baseURL,
-		suffix:           suffix,
-		basicAuthUser:    basicAuthUser,
-		basicAuthPass:    basicAuthPass,
-		defaultAuthToken: at,
+		c:             c,
+		baseURL:       baseURL,
+		suffix:        suffix,
+		basicAuthUser: basicAuthUser,
+		basicAuthPass: basicAuthPass,
 	}, nil
 }
 
@@ -79,11 +73,7 @@ func (s *VMStorage) Query(ctx context.Context, at *auth.Token, query string) ([]
 	const (
 		statusSuccess, statusError, rtVector = "success", "error", "vector"
 	)
-	if at == nil {
-		at = s.defaultAuthToken
-	}
-	queryURL := fmt.Sprintf("%v/%d:%d/%s%s%s", s.baseURL, at.AccountID, at.ProjectID, s.suffix, queryPath, url.QueryEscape(query))
-	fmt.Printf("*** queryURL: %s\n", queryURL)
+	queryURL := fmt.Sprintf("%v/%s/%s%s%s", s.baseURL, at.String(), s.suffix, queryPath, url.QueryEscape(query))
 	req, err := http.NewRequest("POST", queryURL, nil)
 	if err != nil {
 		return nil, err

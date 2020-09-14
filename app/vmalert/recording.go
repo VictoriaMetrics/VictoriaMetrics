@@ -54,6 +54,11 @@ func (rr *RecordingRule) ID() uint64 {
 	return rr.RuleID
 }
 
+// AuthToken returns the auth token of the recording rule
+func (rr *RecordingRule) AuthToken() *auth.Token {
+	return rr.GroupAuthToken
+}
+
 func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
 		RuleID:         cfg.ID,
@@ -85,13 +90,11 @@ func (rr *RecordingRule) Close() {
 var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")
 
 // Exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) Exec(ctx context.Context, at *auth.Token, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
 	if !series {
 		return nil, nil
 	}
-
-	qMetrics, err := q.Query(ctx, at, rr.Expr)
-
+	qMetrics, err := q.Query(ctx, rr.GroupAuthToken, rr.Expr)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
 

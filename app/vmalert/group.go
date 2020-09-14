@@ -66,6 +66,8 @@ func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string
 			AccountID: cfg.Tenant.AccountID,
 			ProjectID: cfg.Tenant.ProjectID,
 		}
+	} else {
+		g.at = datasource.DefaultAuthToken
 	}
 
 	g.metrics = newGroupMetrics(g.Name, g.File)
@@ -108,6 +110,8 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
+	hash.Write([]byte("\xff"))
+	hash.Write([]byte(g.at.String()))
 	return hash.Sum64()
 }
 
@@ -249,7 +253,7 @@ func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []not
 			g.metrics.iterationTotal.Inc()
 			iterationStart := time.Now()
 
-			errs := e.execConcurrently(ctx, g.at, g.Rules, g.Concurrency, g.Interval)
+			errs := e.execConcurrently(ctx, g.Rules, g.Concurrency, g.Interval)
 			for err := range errs {
 				if err != nil {
 					logger.Errorf("group %q: %s", g.Name, err)
@@ -267,7 +271,7 @@ type executor struct {
 	rw        *remotewrite.Client
 }
 
-func (e *executor) execConcurrently(ctx context.Context, at *auth.Token, rules []Rule, concurrency int, interval time.Duration) chan error {
+func (e *executor) execConcurrently(ctx context.Context, rules []Rule, concurrency int, interval time.Duration) chan error {
 	res := make(chan error, len(rules))
 	var returnSeries bool
 	if e.rw != nil {
@@ -277,7 +281,7 @@ func (e *executor) execConcurrently(ctx context.Context, at *auth.Token, rules [
 	if concurrency == 1 {
 		// fast path
 		for _, rule := range rules {
-			res <- e.exec(ctx, at, rule, returnSeries, interval)
+			res <- e.exec(ctx, rule, returnSeries, interval)
 		}
 		close(res)
 		return res
@@ -290,7 +294,7 @@ func (e *executor) execConcurrently(ctx context.Context, at *auth.Token, rules [
 			sem <- struct{}{}
 			wg.Add(1)
 			go func(r Rule) {
-				res <- e.exec(ctx, at, r, returnSeries, interval)
+				res <- e.exec(ctx, r, returnSeries, interval)
 				<-sem
 				wg.Done()
 			}(rule)
@@ -309,14 +313,14 @@ var (
 	remoteWriteErrors = metrics.NewCounter(`vmalert_remotewrite_errors_total`)
 )
 
-func (e *executor) exec(ctx context.Context, at *auth.Token, rule Rule, returnSeries bool, interval time.Duration) error {
+func (e *executor) exec(ctx context.Context, rule Rule, returnSeries bool, interval time.Duration) error {
 	execTotal.Inc()
 	execStart := time.Now()
 	defer func() {
 		execDuration.UpdateDuration(execStart)
 	}()
 
-	tss, err := rule.Exec(ctx, at, e.querier, returnSeries)
+	tss, err := rule.Exec(ctx, e.querier, returnSeries)
 	if err != nil {
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
@@ -324,7 +328,7 @@ func (e *executor) exec(ctx context.Context, at *auth.Token, rule Rule, returnSe
 
 	if len(tss) > 0 && e.rw != nil {
 		for _, ts := range tss {
-			if err := e.rw.Push(at, ts); err != nil {
+			if err := e.rw.Push(rule.AuthToken(), ts); err != nil {
 				remoteWriteErrors.Inc()
 				return fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 			}

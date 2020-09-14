@@ -120,10 +120,15 @@ func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
 }
 
+// AuthToken returns the auth token of the alerting rule
+func (ar *AlertingRule) AuthToken() *auth.Token {
+	return ar.GroupAuthToken
+}
+
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
-func (ar *AlertingRule) Exec(ctx context.Context, at *auth.Token, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
-	qMetrics, err := q.Query(ctx, at, ar.Expr)
+func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
+	qMetrics, err := q.Query(ctx, ar.GroupAuthToken, ar.Expr)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
