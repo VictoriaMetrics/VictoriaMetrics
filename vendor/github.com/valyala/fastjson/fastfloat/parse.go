@@ -140,13 +140,17 @@ func ParseBestEffort(s string) float64 {
 		break
 	}
 	if i <= j {
-		if strings.EqualFold(s[i:], "inf") {
+		s = s[i:]
+		if strings.HasPrefix(s, "+") {
+			s = s[1:]
+		}
+		if strings.EqualFold(s, "inf") {
 			if minus {
 				return -inf
 			}
 			return inf
 		}
-		if strings.EqualFold(s[i:], "nan") {
+		if strings.EqualFold(s, "nan") {
 			return nan
 		}
 		return 0
