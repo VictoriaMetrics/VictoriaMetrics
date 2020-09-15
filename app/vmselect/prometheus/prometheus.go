@@ -35,7 +35,7 @@ var (
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
 		"By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
 		"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. "+
-		"See also '-search.maxLookback' flag, which has the same meanining due to historical reasons")
+		"See also '-search.maxLookback' flag, which has the same meaning due to historical reasons")
 )
 
 // Default step used if not set.
