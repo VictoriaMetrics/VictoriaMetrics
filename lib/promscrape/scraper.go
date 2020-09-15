@@ -266,7 +266,9 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 		sw := &sws[i]
 		key := sw.key()
 		if swsMap[key] {
-			logger.Errorf("skipping duplicate scrape target with identical labels; endpoint=%s, labels=%s; make sure service discovery and relabeling is set up properly",
+			logger.Errorf("skipping duplicate scrape target with identical labels; endpoint=%s, labels=%s; "+
+				"make sure service discovery and relabeling is set up properly; "+
+				"see also https://victoriametrics.github.io/vmagent.html#troubleshooting",
 				sw.ScrapeURL, sw.LabelsString())
 			continue
 		}
