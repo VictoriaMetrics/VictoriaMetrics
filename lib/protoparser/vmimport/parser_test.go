@@ -46,12 +46,14 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"metric":{"foo":"bar"},"values":{"x":1},"timestamps":[3,4]}`)
 	f(`{"metric":{"foo":"bar"},"values":null,"timestamps":[3,4]}`)
 	f(`{"metric":{"foo":"bar"},"timestamps":[3,4]}`)
+	f(`{"metric":{"foo":"bar"},"values":["foo"],"timestamps":[3]}`)
 
 	// Invalid timestamps
 	f(`{"metric":{"foo":"bar"},"values":[1,2],"timestamps":3}`)
 	f(`{"metric":{"foo":"bar"},"values":[1,2],"timestamps":false}`)
 	f(`{"metric":{"foo":"bar"},"values":[1,2],"timestamps":{}}`)
 	f(`{"metric":{"foo":"bar"},"values":[1,2]}`)
+	f(`{"metric":{"foo":"bar"},"values":[1,2],"timestamps":[1,"foo"]}`)
 
 	// values and timestamps count mismatch
 	f(`{"metric":{"foo":"bar"},"values":[],"timestamps":[]}`)
