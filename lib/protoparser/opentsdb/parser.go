@@ -74,14 +74,21 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between timestamp and value in %q", s)
 	}
-	r.Timestamp = int64(fastfloat.ParseBestEffort(tail[:n]))
+	timestamp, err := fastfloat.Parse(tail[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse timestamp from %q: %w", tail[:n], err)
+	}
+	r.Timestamp = int64(timestamp)
 	tail = tail[n+1:]
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between value and the first tag in %q", s)
 	}
-	r.Value = fastfloat.ParseBestEffort(tail[:n])
-	var err error
+	v, err := fastfloat.Parse(tail[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse value from %q: %w", tail[:n], err)
+	}
+	r.Value = v
 	tagsStart := len(tagsPool)
 	tagsPool, err = unmarshalTags(tagsPool, tail[n+1:])
 	if err != nil {

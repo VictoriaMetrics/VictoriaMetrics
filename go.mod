@@ -14,7 +14,7 @@ require (
 	github.com/golang/snappy v0.0.1
 	github.com/klauspost/compress v1.11.0
 	github.com/lithammer/go-jump-consistent-hash v1.0.1
-	github.com/valyala/fastjson v1.6.0
+	github.com/valyala/fastjson v1.6.1
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.8.3

@@ -111,6 +111,15 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Invalid timestamp
 	f("foo bar=123 baz")
+
+	// Invalid field value
+	f("foo bar=1abci")
+	f("foo bar=-2abci")
+	f("foo bar=3abcu")
+
+	// HTTP request line
+	f("GET /foo HTTP/1.1")
+	f("GET /foo?bar=baz HTTP/1.0")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
