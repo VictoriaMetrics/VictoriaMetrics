@@ -207,10 +207,10 @@ func (upw *unpackWork) reset() {
 	}
 }
 
-func (upw *unpackWork) unpack() {
+func (upw *unpackWork) unpack(tmpBlock *storage.Block) {
 	for _, w := range upw.ws {
 		sb := getSortBlock()
-		if err := sb.unpackFrom(upw.tbf, w.addr, w.tr, upw.fetchData, upw.at); err != nil {
+		if err := sb.unpackFrom(tmpBlock, upw.tbf, w.addr, w.tr, upw.fetchData, upw.at); err != nil {
 			putSortBlock(sb)
 			upw.doneCh <- fmt.Errorf("cannot unpack block: %w", err)
 			return
@@ -244,8 +244,9 @@ func init() {
 }
 
 func unpackWorker() {
+	var tmpBlock storage.Block
 	for upw := range unpackWorkCh {
-		upw.unpack()
+		upw.unpack(&tmpBlock)
 	}
 }
 
@@ -381,30 +382,26 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap) {
 var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
 
 type sortBlock struct {
-	// b is used as a temporary storage for unpacked rows before they
-	// go to Timestamps and Values.
-	b storage.Block
-
 	Timestamps []int64
 	Values     []float64
 	NextIdx    int
 }
 
 func (sb *sortBlock) reset() {
-	sb.b.Reset()
 	sb.Timestamps = sb.Timestamps[:0]
 	sb.Values = sb.Values[:0]
 	sb.NextIdx = 0
 }
 
-func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
+func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
+	tmpBlock.Reset()
 	tbf.MustReadBlockAt(&sb.b, addr)
 	if fetchData {
-		if err := sb.b.UnmarshalData(); err != nil {
+		if err := tmpBlock.UnmarshalData(); err != nil {
 			return fmt.Errorf("cannot unmarshal block: %w", err)
 		}
 	}
-	timestamps := sb.b.Timestamps()
+	timestamps := tmpBlock.Timestamps()
 
 	// Skip timestamps smaller than tr.MinTimestamp.
 	i := 0
@@ -417,16 +414,16 @@ func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storag
 	for j > i && timestamps[j-1] > tr.MaxTimestamp {
 		j--
 	}
-	skippedRows := sb.b.RowsCount() - (j - i)
+	skippedRows := tmpBlock.RowsCount() - (j - i)
 	metricRowsSkipped.Add(skippedRows)
 
 	// Copy the remaining values.
 	if i == j {
 		return nil
 	}
-	values := sb.b.Values()
+	values := tmpBlock.Values()
 	sb.Timestamps = append(sb.Timestamps, timestamps[i:j]...)
-	sb.Values = decimal.AppendDecimalToFloat(sb.Values, values[i:j], sb.b.Scale())
+	sb.Values = decimal.AppendDecimalToFloat(sb.Values, values[i:j], tmpBlock.Scale())
 	return nil
 }
 
