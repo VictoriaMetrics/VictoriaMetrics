@@ -1009,6 +1009,8 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 }
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
+//
+// Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
