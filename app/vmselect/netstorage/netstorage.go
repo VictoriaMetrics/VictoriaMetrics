@@ -395,7 +395,7 @@ func (sb *sortBlock) reset() {
 
 func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
 	tmpBlock.Reset()
-	tbf.MustReadBlockAt(&sb.b, addr)
+	tbf.MustReadBlockAt(tmpBlock, addr)
 	if fetchData {
 		if err := tmpBlock.UnmarshalData(); err != nil {
 			return fmt.Errorf("cannot unmarshal block: %w", err)
