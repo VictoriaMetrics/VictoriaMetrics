@@ -139,13 +139,25 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 	n = nextWhitespace(s)
 	if n < 0 {
 		// There is no timestamp.
-		r.Value = fastfloat.ParseBestEffort(s)
+		v, err := fastfloat.Parse(s)
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot parse value %q: %w", s, err)
+		}
+		r.Value = v
 		return tagsPool, nil
 	}
 	// There is timestamp.
-	r.Value = fastfloat.ParseBestEffort(s[:n])
+	v, err := fastfloat.Parse(s[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
+	}
 	s = skipLeadingWhitespace(s[n+1:])
-	r.Timestamp = fastfloat.ParseInt64BestEffort(s)
+	ts, err := fastfloat.ParseInt64(s)
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+	}
+	r.Value = v
+	r.Timestamp = ts
 	return tagsPool, nil
 }
 
