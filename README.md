@@ -1104,6 +1104,8 @@ VictoriaMetrics also exposes currently running queries with their execution time
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
+* VictoriaMetrics ignores `NaN` and `Inf` values during data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/752) for details.
+
 
 ### Backfilling
 
