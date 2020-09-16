@@ -727,6 +727,11 @@ func (tb *Table) partMerger() error {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+// mergeParts merges pws.
+//
+// Merging is immediately stopped if stopCh is closed.
+//
+// All the parts inside pws must have isInMerge field set to true.
 func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterParts bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -1140,7 +1145,7 @@ func runTransactions(txnLock *sync.RWMutex, path string) error {
 }
 
 func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
-	// The transaction must be run under read lock in order to provide
+	// The transaction must run under read lock in order to provide
 	// consistent snapshots with Table.CreateSnapshot().
 	txnLock.RLock()
 	defer txnLock.RUnlock()
@@ -1335,15 +1340,15 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 	removedParts := 0
 	dst := pws[:0]
 	for _, pw := range pws {
-		if partsToRemove[pw] {
-			atomic.AddUint64(&historicalDataBlockCacheRequests, pw.p.ibCache.Requests())
-			atomic.AddUint64(&historicalDataBlockCacheMisses, pw.p.ibCache.Misses())
-			atomic.AddUint64(&historicalIndexBlockCacheRequests, pw.p.idxbCache.Requests())
-			atomic.AddUint64(&historicalIndexBlockCacheMisses, pw.p.idxbCache.Misses())
-			removedParts++
+		if !partsToRemove[pw] {
+			dst = append(dst, pw)
 			continue
 		}
-		dst = append(dst, pw)
+		atomic.AddUint64(&historicalDataBlockCacheRequests, pw.p.ibCache.Requests())
+		atomic.AddUint64(&historicalDataBlockCacheMisses, pw.p.ibCache.Misses())
+		atomic.AddUint64(&historicalIndexBlockCacheRequests, pw.p.idxbCache.Requests())
+		atomic.AddUint64(&historicalIndexBlockCacheMisses, pw.p.idxbCache.Misses())
+		removedParts++
 	}
 	return dst, removedParts
 }
