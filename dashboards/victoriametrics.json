@@ -698,12 +698,12 @@
       "renderer": "flot",
       "seriesOverrides": [],
       "spaceLength": 10,
-      "stack": false,
+      "stack": true,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) > 0 ",
-          "legendFormat": "{{type}}",
+          "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type,accountID) > 0 ",
+          "legendFormat": "{{type}} {{accountID}}",
           "refId": "A"
         }
       ],
