@@ -15,9 +15,15 @@ import (
 
 var (
 	maxExportDuration   = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
+	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution; see also -search.storageTimeout")
 	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
-		"this trades availability over consistency; see also -search.maxQueryDuration")
+		"this trades availability over consistency; see also -search.maxQueryDuration and -search.storageTimeout")
+
+	// StorageTimeout limits the duration of query execution on every vmstorage node.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+	StorageTimeout = flag.Duration("search.storageTimeout", 0, "The timeout for per-storage query processing; "+
+		"this allows returning partial responses if certain -storageNode instances slowly process the query; "+
+		"see also -search.maxQueryDuration and -search.denyPartialResponse command-line flags")
 )
 
 // GetTime returns time from the given argKey query arg.

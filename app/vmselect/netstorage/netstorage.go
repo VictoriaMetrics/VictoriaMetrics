@@ -1319,9 +1319,21 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	nowSecs := fasttime.UnixTimestamp()
 	currentTime := time.Unix(int64(nowSecs), 0)
+	storageTimeout := *searchutils.StorageTimeout
+	if storageTimeout > 0 {
+		dd := currentTime.Add(storageTimeout)
+		if dd.Sub(d) < 0 {
+			// Limit the remote deadline to storageTimeout,
+			// so slow vmstorage nodes may stop processing the request.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711 .
+			// The local deadline remains the same, so data obtained from
+			// the remaining vmstorage nodes could be processed locally.
+			d = dd
+		}
+	}
 	timeout := d.Sub(currentTime)
 	if timeout <= 0 {
-		return fmt.Errorf("request timeout reached: %s", deadline.String())
+		return fmt.Errorf("request timeout reached: %s or -search.storageTimeout=%s", deadline.String(), storageTimeout.String())
 	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
