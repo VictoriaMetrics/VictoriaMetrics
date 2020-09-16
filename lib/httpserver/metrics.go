@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -27,7 +28,7 @@ func WritePrometheusMetrics(w io.Writer) {
 	flag.VisitAll(func(f *flag.Flag) {
 		lname := strings.ToLower(f.Name)
 		value := f.Value.String()
-		if isSecretFlag(lname) {
+		if flagutil.IsSecretFlag(lname) {
 			// Do not expose passwords and keys to prometheus.
 			value = "secret"
 		}
@@ -36,23 +37,3 @@ func WritePrometheusMetrics(w io.Writer) {
 }
 
 var startTime = time.Now()
-
-// RegisterSecretFlag registers flagName as secret.
-//
-// This function must be called before starting httpserver.
-// It cannot be called from concurrent goroutines.
-//
-// Secret flags aren't exported at `/metrics` page.
-func RegisterSecretFlag(flagName string) {
-	lname := strings.ToLower(flagName)
-	secretFlags[lname] = true
-}
-
-var secretFlags = make(map[string]bool)
-
-func isSecretFlag(s string) bool {
-	if strings.Contains(s, "pass") || strings.Contains(s, "key") || strings.Contains(s, "secret") || strings.Contains(s, "token") {
-		return true
-	}
-	return secretFlags[s]
-}
