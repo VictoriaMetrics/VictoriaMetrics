@@ -587,8 +587,9 @@ See [this feature request](https://github.com/prometheus/prometheus/issues/6178)
 
 Additionally VictoriaMetrics provides the following handlers:
 
-* `/api/v1/series/count` - it returns the total number of time series in the database. Note that this handler scans all the inverted index,
-  so it can be slow if the database contains tens of millions of time series.
+* `/api/v1/series/count` - it returns the total number of time series in the database. Some notes:
+  * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
+  * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
 * `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
 * `/api/v1/status/active_queries` - it returns a list of currently running queries.
 
