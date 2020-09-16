@@ -228,6 +228,10 @@ If you have suggestions, improvements or found a bug - feel free to open an issu
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
 
+* By default `vmagent` masks `-remoteWrite.url` with `secret-url` values in logs and at `/metrics` page because
+  the url may contain sensitive information such as auth tokens or passwords.
+  Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
+
 * If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
   or they use init container.
 
