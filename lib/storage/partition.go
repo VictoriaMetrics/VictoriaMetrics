@@ -940,9 +940,6 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 	pws := getPartsToMerge(pt.bigParts, maxRows, isFinal)
 	pt.partsLock.Unlock()
 
-	if len(pws) == 0 {
-		return errNothingToMerge
-	}
 	return pt.mergeParts(pws, pt.stopCh)
 }
 
@@ -961,9 +958,6 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	pws := getPartsToMerge(pt.smallParts, maxRows, isFinal)
 	pt.partsLock.Unlock()
 
-	if len(pws) == 0 {
-		return errNothingToMerge
-	}
 	return pt.mergeParts(pws, pt.stopCh)
 }
 
