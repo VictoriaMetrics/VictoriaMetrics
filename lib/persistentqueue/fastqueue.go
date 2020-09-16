@@ -2,8 +2,10 @@ package persistentqueue
 
 import (
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -26,6 +28,11 @@ type FastQueue struct {
 
 	pendingInmemoryBytes uint64
 
+	// stopCh is used for stopping background workers such as inmemoryBlocksFlusher.
+	stopCh                    chan struct{}
+	lastInmemoryBlockReadTime uint64
+	inmemoryBlocksFlusherWG   sync.WaitGroup
+
 	mustStop bool
 }
 
@@ -43,6 +50,14 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int
 		ch: make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
 	}
 	fq.cond.L = &fq.mu
+
+	fq.stopCh = make(chan struct{})
+	fq.inmemoryBlocksFlusherWG.Add(1)
+	go func() {
+		defer fq.inmemoryBlocksFlusherWG.Done()
+		fq.inmemoryBlocksFlusher()
+	}()
+
 	logger.Infof("opened fast persistent queue at %q with maxInmemoryBlocks=%d", path, maxInmemoryBlocks)
 	return fq
 }
@@ -51,6 +66,10 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int
 //
 // It is expected no new writers during and after the call.
 func (fq *FastQueue) MustClose() {
+	// Stop background flusher.
+	close(fq.stopCh)
+	fq.inmemoryBlocksFlusherWG.Wait()
+
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
 
@@ -67,12 +86,38 @@ func (fq *FastQueue) MustClose() {
 	logger.Infof("closed fast persistent queue at %q", fq.pq.dir)
 }
 
+func (fq *FastQueue) inmemoryBlocksFlusher() {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-fq.stopCh:
+			return
+		case <-t.C:
+		}
+		fq.flushInmemoryBlocksToFileIfNeeded()
+	}
+}
+
+func (fq *FastQueue) flushInmemoryBlocksToFileIfNeeded() {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+	if len(fq.ch) == 0 {
+		return
+	}
+	if fasttime.UnixTimestamp() < fq.lastInmemoryBlockReadTime+5 {
+		return
+	}
+	fq.flushInmemoryBlocksToFileLocked()
+}
+
 func (fq *FastQueue) flushInmemoryBlocksToFileLocked() {
 	// fq.mu must be locked by the caller.
 	for len(fq.ch) > 0 {
 		bb := <-fq.ch
 		fq.pq.MustWriteBlock(bb.B)
 		fq.pendingInmemoryBytes -= uint64(len(bb.B))
+		fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
 		blockBufPool.Put(bb)
 	}
 	// Unblock all the potentially blocked readers, so they could proceed with reading file-based queue.
@@ -143,6 +188,7 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 			}
 			bb := <-fq.ch
 			fq.pendingInmemoryBytes -= uint64(len(bb.B))
+			fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
 			dst = append(dst, bb.B...)
 			blockBufPool.Put(bb)
 			return dst, true
