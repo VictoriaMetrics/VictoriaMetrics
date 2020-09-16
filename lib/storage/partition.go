@@ -963,6 +963,11 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+// mergeParts merges pws.
+//
+// Merging is immediately stopped if stopCh is closed.
+//
+// All the parts inside pws must have isInMerge field set to true.
 func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -1038,7 +1043,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	} else {
 		atomic.AddUint64(&pt.smallMergesCount, 1)
 		atomic.AddUint64(&pt.activeSmallMerges, 1)
-		// Prioritize small merges over big merges.
 	}
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, rowsMerged, rowsDeleted)
 	if isBigPart {
@@ -1167,20 +1171,20 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool, isBig 
 	removedParts := 0
 	dst := pws[:0]
 	for _, pw := range pws {
-		if partsToRemove[pw] {
-			requests := pw.p.ibCache.Requests()
-			misses := pw.p.ibCache.Misses()
-			if isBig {
-				atomic.AddUint64(&historicalBigIndexBlocksCacheRequests, requests)
-				atomic.AddUint64(&historicalBigIndexBlocksCacheMisses, misses)
-			} else {
-				atomic.AddUint64(&historicalSmallIndexBlocksCacheRequests, requests)
-				atomic.AddUint64(&historicalSmallIndexBlocksCacheMisses, misses)
-			}
-			removedParts++
+		if !partsToRemove[pw] {
+			dst = append(dst, pw)
 			continue
 		}
-		dst = append(dst, pw)
+		requests := pw.p.ibCache.Requests()
+		misses := pw.p.ibCache.Misses()
+		if isBig {
+			atomic.AddUint64(&historicalBigIndexBlocksCacheRequests, requests)
+			atomic.AddUint64(&historicalBigIndexBlocksCacheMisses, misses)
+		} else {
+			atomic.AddUint64(&historicalSmallIndexBlocksCacheRequests, requests)
+			atomic.AddUint64(&historicalSmallIndexBlocksCacheMisses, misses)
+		}
+		removedParts++
 	}
 	return dst, removedParts
 }
@@ -1470,7 +1474,7 @@ func runTransactions(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, path strin
 }
 
 func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath string) error {
-	// The transaction must be run under read lock in order to provide
+	// The transaction must run under read lock in order to provide
 	// consistent snapshots with partition.CreateSnapshot().
 	txnLock.RLock()
 	defer txnLock.RUnlock()
