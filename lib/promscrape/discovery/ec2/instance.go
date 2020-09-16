@@ -4,12 +4,19 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getInstancesLabels returns labels for ec2 instances obtained from the given cfg
 func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
+	// refresh api credentials if needed
+	if !cfg.tokenExpiration.IsZero() && time.Now().Unix() >= cfg.tokenExpiration.Unix() {
+		if err := cfg.refreshAPIConfig(); err != nil {
+			return nil, fmt.Errorf("failed to update expired aws credentials: %w", err)
+		}
+	}
 	rs, err := getReservations(cfg)
 	if err != nil {
 		return nil, err
@@ -28,8 +35,9 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	action := "DescribeInstances"
 	var rs []Reservation
 	pageToken := ""
+	apiEndpoint := buildAPIEndpoint(cfg.region, cfg.endpoint, "ec2")
 	for {
-		data, err := getAPIResponse(cfg, action, pageToken)
+		data, err := getEC2APIResponse(cfg, apiEndpoint, action, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}

@@ -12,8 +12,9 @@ func TestNewSignedRequest(t *testing.T) {
 		region := "us-east-1"
 		accessKey := "fake-access-key"
 		secretKey := "foobar"
+		token := ""
 		ct := time.Unix(0, 0).UTC()
-		req, err := newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, ct)
+		req, err := newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, token, ct)
 		if err != nil {
 			t.Fatalf("error in newSignedRequest: %s", err)
 		}
