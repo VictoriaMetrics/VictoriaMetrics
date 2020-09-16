@@ -1316,12 +1316,21 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 		<-sn.concurrentQueriesCh
 	}()
 
+	d := time.Unix(int64(deadline.Deadline()), 0)
+	nowSecs := fasttime.UnixTimestamp()
+	currentTime := time.Unix(int64(nowSecs), 0)
+	timeout := d.Sub(currentTime)
+	if timeout <= 0 {
+		return fmt.Errorf("request timeout reached: %s", deadline.String())
+	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
 		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
 	}
-	d := time.Unix(int64(deadline.Deadline()), 0)
-	if err := bc.SetDeadline(d); err != nil {
+	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
+	// without the need to break the connection.
+	connDeadline := d.Add(2 * time.Second)
+	if err := bc.SetDeadline(connDeadline); err != nil {
 		_ = bc.Close()
 		logger.Panicf("FATAL: cannot set connection deadline: %s", err)
 	}
@@ -1333,16 +1342,8 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 	}
 
 	// Send the remaining timeout instead of deadline to remote server, since it may have different time.
-	now := fasttime.UnixTimestamp()
-	timeout := uint64(0)
-	if deadline.Deadline() > now {
-		timeout = deadline.Deadline() - now
-	}
-	if timeout > (1<<32)-2 {
-		timeout = (1 << 32) - 2
-	}
-	timeout++
-	if err := writeUint32(bc, uint32(timeout)); err != nil {
+	timeoutSecs := uint32(timeout.Seconds() + 1)
+	if err := writeUint32(bc, timeoutSecs); err != nil {
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()

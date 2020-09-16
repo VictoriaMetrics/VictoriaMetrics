@@ -15,8 +15,9 @@ import (
 
 var (
 	maxExportDuration   = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for search query execution")
-	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses when some of vmstorage nodes are unavailable. This trades consistency over availability")
+	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
+	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
+		"this trades availability over consistency; see also -search.maxQueryDuration")
 )
 
 // GetTime returns time from the given argKey query arg.
