@@ -15,7 +15,7 @@ import (
 
 var (
 	maxExportDuration = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration  = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for search query execution")
+	maxQueryDuration  = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
 )
 
 // GetTime returns time from the given argKey query arg.
