@@ -47,7 +47,13 @@
 
    Commits will be squashed when they're merged.
 
-## Integration Tests
+## Testing
+
+We test code against two versions of Go, the minimum and maximum versions
+supported by our clients. To see which versions these are checkout our
+[README](README.md#supported-versions).
+
+### Integration Tests
 
 In addition to the unit tests, you may run the integration test suite. These
 directions describe setting up your environment to run integration tests for
