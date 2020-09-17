@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	retentionPeriod = flag.Int("retentionPeriod", 1, "Retention period in months")
-	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	retentionPeriod   = flag.Int("retentionPeriod", 1, "Retention period in months")
+	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -181,6 +182,11 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
+		authKey := r.FormValue("authKey")
+		if authKey != *forceMergeAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceMergeAuthKey command line flag", authKey)
+			return true
+		}
 		// Run force merge in background
 		partitionNamePrefix := r.FormValue("partition_prefix")
 		go func() {
