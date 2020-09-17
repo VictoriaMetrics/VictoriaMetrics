@@ -773,6 +773,21 @@ func testStorageAddRows(s *Storage) error {
 		return fmt.Errorf("snapshot %q must contain at least %d rows; got %d", snapshotPath, minRowsExpected, m1.TableMetrics.SmallRowsCount)
 	}
 
+	// Verify that force merge for the snapshot leaves only a single part per partition.
+	if err := s1.ForceMergePartitions(""); err != nil {
+		return fmt.Errorf("error when force merging partitions: %w", err)
+	}
+	ptws := s1.tb.GetPartitions(nil)
+	defer s1.tb.PutPartitions(ptws)
+	for _, ptw := range ptws {
+		pws := ptw.pt.GetParts(nil)
+		numParts := len(pws)
+		ptw.pt.PutParts(pws)
+		if numParts != 1 {
+			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want 1", ptw.pt.name, numParts)
+		}
+	}
+
 	s1.MustClose()
 
 	// Delete the snapshot and make sure it is no longer visible.

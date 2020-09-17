@@ -180,6 +180,21 @@ func Stop() {
 // RequestHandler is a storage request handler.
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+	if path == "/internal/force_merge" {
+		// Run force merge in background
+		partitionNamePrefix := r.FormValue("partition_prefix")
+		go func() {
+			activeForceMerges.Inc()
+			defer activeForceMerges.Dec()
+			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
+			startTime := time.Now()
+			if err := Storage.ForceMergePartitions(partitionNamePrefix); err != nil {
+				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
+			}
+			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
+		}()
+		return true
+	}
 	prometheusCompatibleResponse := false
 	if path == "/api/v1/admin/tsdb/snapshot" {
 		// Handle Prometheus API - https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot .
@@ -259,6 +274,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 }
+
+var activeForceMerges = metrics.NewCounter("vm_active_force_merges")
 
 func registerStorageMetrics() {
 	mCache := &storage.Metrics{}

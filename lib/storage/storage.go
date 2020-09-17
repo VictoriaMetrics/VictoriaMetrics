@@ -1044,6 +1044,13 @@ func (mr *MetricRow) Unmarshal(src []byte) ([]byte, error) {
 	return tail, nil
 }
 
+// ForceMergePartitions force-merges partitions in s with names starting from the given partitionNamePrefix.
+//
+// Partitions are merged sequentially in order to reduce load on the system.
+func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
+	return s.tb.ForceMergePartitions(partitionNamePrefix)
+}
+
 // AddRows adds the given mrs to s.
 func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	if len(mrs) == 0 {

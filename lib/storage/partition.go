@@ -668,7 +668,7 @@ func (pt *partition) MustClose() {
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsOptimal(pws); err != nil {
+	if err := pt.mergePartsOptimal(pws, nil); err != nil {
 		logger.Panicf("FATAL: cannot flush %d inmemory parts to files on %q: %s", len(pws), pt.smallPartsPath, err)
 	}
 	logger.Infof("%d inmemory parts have been flushed to files in %.3f seconds on %q", len(pws), time.Since(startTime).Seconds(), pt.smallPartsPath)
@@ -794,13 +794,13 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsOptimal(dstPws); err != nil {
+	if err := pt.mergePartsOptimal(dstPws, nil); err != nil {
 		return dstPws, fmt.Errorf("cannot merge %d inmemory parts: %w", len(dstPws), err)
 	}
 	return dstPws, nil
 }
 
-func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
+func (pt *partition) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
 	defer func() {
 		// Remove isInMerge flag from pws.
 		pt.partsLock.Lock()
@@ -812,7 +812,7 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
 		pt.partsLock.Unlock()
 	}()
 	for len(pws) > defaultPartsToMerge {
-		if err := pt.mergeParts(pws[:defaultPartsToMerge], nil); err != nil {
+		if err := pt.mergeParts(pws[:defaultPartsToMerge], stopCh); err != nil {
 			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
@@ -820,10 +820,51 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
 	if len(pws) == 0 {
 		return nil
 	}
-	if err := pt.mergeParts(pws, nil); err != nil {
+	if err := pt.mergeParts(pws, stopCh); err != nil {
 		return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
 	}
 	return nil
+}
+
+// ForceMergeAllParts runs merge for all the parts in pt - small and big.
+func (pt *partition) ForceMergeAllParts() error {
+	var pws []*partWrapper
+	pt.partsLock.Lock()
+	if !hasActiveMerges(pt.smallParts) && !hasActiveMerges(pt.bigParts) {
+		pws = appendAllPartsToMerge(pws, pt.smallParts)
+		pws = appendAllPartsToMerge(pws, pt.bigParts)
+	}
+	pt.partsLock.Unlock()
+
+	if len(pws) == 0 {
+		// Nothing to merge.
+		return nil
+	}
+	// If len(pws) == 1, then the merge must run anyway, so deleted time series could be removed from the part.
+	if err := pt.mergePartsOptimal(pws, pt.stopCh); err != nil {
+		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
+	}
+	return nil
+}
+
+func appendAllPartsToMerge(dst, src []*partWrapper) []*partWrapper {
+	for _, pw := range src {
+		if pw.isInMerge {
+			logger.Panicf("BUG: part %q is already in merge", pw.p.path)
+		}
+		pw.isInMerge = true
+		dst = append(dst, pw)
+	}
+	return dst
+}
+
+func hasActiveMerges(pws []*partWrapper) bool {
+	for _, pw := range pws {
+		if pw.isInMerge {
+			return true
+		}
+	}
+	return false
 }
 
 var (
