@@ -115,6 +115,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [Setting up service](#setting-up-service)
 * [How to work with snapshots](#how-to-work-with-snapshots)
 * [How to delete time series](#how-to-delete-time-series)
+* [Forced merge](#forced-merge)
 * [How to export time series](#how-to-export-time-series)
 * [How to import time series data](#how-to-import-time-series-data)
 * [Relabeling](#relabeling)
@@ -712,6 +713,8 @@ Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_s
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
 the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+Note that background merges may never occur for data from previous months, so storage space won't be freed for historical data.
+In this case [forced merge](#forced-merge) may help freeing up storage space.
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
 before actually deleting the metrics.  By default this query will only scan active series in the past 5 minutes, so you may need to
@@ -731,8 +734,25 @@ It isn't recommended using delete API for the following cases, since it brings n
   See [this article](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts) for details.
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
+  [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
 
 It is better using `-retentionPeriod` command-line flag for efficient pruning of old data.
+
+
+### Forced merge
+
+VictoriaMetrics performs [data compations in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
+This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
+Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
+In this case forced compaction may be initiated on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
+where `YYYY_MM` is per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate forced
+merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merges continues running in background.
+
+Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
+since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+when new data is ingested into it.
+
 
 ### How to export time series
 
