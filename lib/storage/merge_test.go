@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 )
@@ -364,7 +365,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	ch := make(chan struct{})
 	var rowsMerged, rowsDeleted uint64
 	close(ch)
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, nil, &rowsMerged, &rowsDeleted); err != errForciblyStopped {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, nil, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
 	if rowsMerged != 0 {

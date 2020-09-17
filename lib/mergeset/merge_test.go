@@ -1,6 +1,7 @@
 package mergeset
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -76,7 +77,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	ch := make(chan struct{})
 	var itemsMerged uint64
 	close(ch)
-	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, ch, &itemsMerged); err != errForciblyStopped {
+	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, ch, &itemsMerged); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error during merge: got %v; want %v", err, errForciblyStopped)
 	}
 	if itemsMerged != 0 {
