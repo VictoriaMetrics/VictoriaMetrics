@@ -22,12 +22,13 @@ import (
 )
 
 var (
-	httpListenAddr  = flag.String("httpListenAddr", ":8482", "Address to listen for http connections")
-	retentionPeriod = flag.Int("retentionPeriod", 1, "Retention period in months")
-	storageDataPath = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
-	vminsertAddr    = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
-	vmselectAddr    = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
-	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	httpListenAddr    = flag.String("httpListenAddr", ":8482", "Address to listen for http connections")
+	retentionPeriod   = flag.Int("retentionPeriod", 1, "Retention period in months")
+	storageDataPath   = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
+	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
+	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
@@ -114,6 +115,11 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
+		authKey := r.FormValue("authKey")
+		if authKey != *forceMergeAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceMergeAuthKey command line flag", authKey)
+			return true
+		}
 		// Run force merge in background
 		partitionNamePrefix := r.FormValue("partition_prefix")
 		go func() {
