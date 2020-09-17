@@ -40,9 +40,6 @@ func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStre
 	if err == nil {
 		return nil
 	}
-	if err == errForciblyStopped {
-		return err
-	}
 	return fmt.Errorf("cannot merge %d block streams: %s: %w", len(bsrs), bsrs, err)
 }
 

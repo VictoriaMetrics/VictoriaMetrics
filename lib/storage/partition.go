@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/bits"
@@ -584,7 +585,7 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
 	}
-	if err == errNothingToMerge || err == errForciblyStopped {
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
 		return
 	}
 	logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -800,16 +801,27 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 }
 
 func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
+	defer func() {
+		// Remove isInMerge flag from pws.
+		pt.partsLock.Lock()
+		for _, pw := range pws {
+			// Do not check for pws.isInMerge set to false,
+			// since it may be set to false in mergeParts below.
+			pw.isInMerge = false
+		}
+		pt.partsLock.Unlock()
+	}()
 	for len(pws) > defaultPartsToMerge {
 		if err := pt.mergeParts(pws[:defaultPartsToMerge], nil); err != nil {
 			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
 	}
-	if len(pws) > 0 {
-		if err := pt.mergeParts(pws, nil); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
-		}
+	if len(pws) == 0 {
+		return nil
+	}
+	if err := pt.mergeParts(pws, nil); err != nil {
+		return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
 	}
 	return nil
 }
@@ -889,11 +901,11 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 			isFinal = false
 			continue
 		}
-		if err == errForciblyStopped {
+		if errors.Is(err, errForciblyStopped) {
 			// The merger has been stopped.
 			return nil
 		}
-		if err != errNothingToMerge {
+		if !errors.Is(err, errNothingToMerge) {
 			return err
 		}
 		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
@@ -1052,9 +1064,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 	putBlockStreamWriter(bsw)
 	if err != nil {
-		if err == errForciblyStopped {
-			return err
-		}
 		return fmt.Errorf("error when merging parts to %q: %w", tmpPartPath, err)
 	}
 
