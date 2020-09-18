@@ -17,13 +17,17 @@ func TestGetRegexpForQuery(t *testing.T) {
 			t.Fatalf("unexpected regexp for query=%q, delimiter=%c; got %s; want %s", query, delimiter, reStr, reExpected)
 		}
 	}
-	f("", '.', "")
-	f("foobar", '.', "foobar")
-	f("*", '.', `[^\.]*`)
-	f("*", '_', `[^_]*`)
-	f("foo.*.bar", '.', `foo\.[^\.]*\.bar`)
-	f("fo*b{ar,aaa}[a-z]xx*.d", '.', `fo[^\.]*b(?:ar|aaa)[a-z]xx[^\.]*\.d`)
-	f("fo*b{ar,aaa}[a-z]xx*_d", '_', `fo[^_]*b(?:ar|aaa)[a-z]xx[^_]*_d`)
+	f("", '.', `^(?:\.?)$`)
+	f("foobar", '.', `^(?:foobar\.?)$`)
+	f("*", '.', `^(?:[^\.]*\.?)$`)
+	f("*", '_', `^(?:[^_]*_?)$`)
+	f("foo.*.bar", '.', `^(?:foo\.[^\.]*\.bar\.?)$`)
+	f("fo*b{ar,aaa}[a-z]xx*.d", '.', `^(?:fo[^\.]*b(?:ar|aaa)[a-z]xx[^\.]*\.d\.?)$`)
+	f("fo*b{ar,aaa}[a-z]xx*_d", '_', `^(?:fo[^_]*b(?:ar|aaa)[a-z]xx[^_]*_d_?)$`)
+	f("foo.[ab]*z", '.', `^(?:foo\.[ab][^\.]*z\.?)$`)
+	f("foo_[ab]*", '_', `^(?:foo_[ab][^_]*_?)$`)
+	f("foo_[ab]_", '_', `^(?:foo_[ab]_)$`)
+	f("foo.[ab].", '.', `^(?:foo\.[ab]\.)$`)
 }
 
 func TestSortPaths(t *testing.T) {
