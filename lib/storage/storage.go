@@ -1127,11 +1127,6 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			// doesn't know how to work with them.
 			continue
 		}
-		if math.IsInf(mr.Value, 0) {
-			// Skip Inf values, since they may break precision for already stored data.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/752
-			continue
-		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
 			if firstWarn == nil {

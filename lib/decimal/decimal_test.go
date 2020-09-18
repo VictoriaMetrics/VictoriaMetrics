@@ -69,6 +69,8 @@ func TestPositiveFloatToDecimal(t *testing.T) {
 
 	f(0.000874957, 874957, -9)
 	f(0.001130435, 1130435, -9)
+	f(vInfPos, 9223372036854775, 3)
+	f(vMax, 9223372036854775, 3)
 }
 
 func TestAppendDecimalToFloat(t *testing.T) {
@@ -87,7 +89,9 @@ func TestAppendDecimalToFloat(t *testing.T) {
 	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -11, []float64{8.74957e-6, 1.130435e-5})
 	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -12, []float64{8.74957e-7, 1.130435e-6})
 	testAppendDecimalToFloat(t, []int64{874957, 1130435}, -13, []float64{8.74957e-8, 1.130435e-7})
-	testAppendDecimalToFloat(t, []int64{vInfPos, vInfNeg, 1, 2}, 0, []float64{9.223372036854776e+18, -9.223372036854776e+18, 1, 2})
+	testAppendDecimalToFloat(t, []int64{vInfPos, vInfNeg, 1, 2}, 0, []float64{infPos, infNeg, 1, 2})
+	testAppendDecimalToFloat(t, []int64{vInfPos, vInfNeg, 1, 2}, 4, []float64{infPos, infNeg, 1e4, 2e4})
+	testAppendDecimalToFloat(t, []int64{vInfPos, vInfNeg, 1, 2}, -4, []float64{infPos, infNeg, 1e-4, 2e-4})
 }
 
 func testAppendDecimalToFloat(t *testing.T, va []int64, e int16, fExpected []float64) {
@@ -245,8 +249,7 @@ func TestAppendFloatToDecimal(t *testing.T) {
 	testAppendFloatToDecimal(t, []float64{}, nil, 0)
 	testAppendFloatToDecimal(t, []float64{0}, []int64{0}, 0)
 	testAppendFloatToDecimal(t, []float64{infPos, infNeg, 123}, []int64{vInfPos, vInfNeg, 123}, 0)
-	testAppendFloatToDecimal(t, []float64{infPos, infNeg, 123, 1e-4, 1e32}, []int64{92233, -92233, 0, 0, 1000000000000000000}, 14)
-	testAppendFloatToDecimal(t, []float64{float64(vInfPos), float64(vInfNeg), 123}, []int64{9223372036854775000, -9223372036854775000, 123}, 0)
+	testAppendFloatToDecimal(t, []float64{infPos, infNeg, 123, 1e-4, 1e32}, []int64{vInfPos, vInfNeg, 0, 0, 1000000000000000000}, 14)
 	testAppendFloatToDecimal(t, []float64{0, -0, 1, -1, 12345678, -123456789}, []int64{0, 0, 1, -1, 12345678, -123456789}, 0)
 
 	// upExp
@@ -327,6 +330,10 @@ func TestFloatToDecimal(t *testing.T) {
 
 	f(math.Inf(1), vInfPos, 0)
 	f(math.Inf(-1), vInfNeg, 0)
+	f(vInfPos, 9223372036854775, 3)
+	f(vInfNeg, -9223372036854775, 3)
+	f(vMax, 9223372036854775, 3)
+	f(vMin, -9223372036854775, 3)
 	f(1<<63-1, 9223372036854775, 3)
 	f(-1<<63, -9223372036854775, 3)
 
@@ -338,16 +345,15 @@ func TestFloatToDecimal(t *testing.T) {
 func TestFloatToDecimalRoundtrip(t *testing.T) {
 	f := func(f float64) {
 		t.Helper()
-
 		v, e := FromFloat(f)
 		fNew := ToFloat(v, e)
-		if !equalFloat(fNew, f) {
+		if !equalFloat(f, fNew) {
 			t.Fatalf("unexpected fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, f)
 		}
 
 		v, e = FromFloat(-f)
 		fNew = ToFloat(v, e)
-		if !equalFloat(fNew, -f) {
+		if !equalFloat(-f, fNew) {
 			t.Fatalf("unexepcted fNew for v=%d, e=%d; got %g; expecting %g", v, e, fNew, -f)
 		}
 	}
@@ -362,7 +368,7 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 	f(321e260)
 	f(1234567890123)
 	f(12.34567890125)
-	f(-1234567.8901256789)
+	f(1234567.8901256789)
 	f(15e18)
 	f(0.000874957)
 	f(0.001130435)
@@ -373,6 +379,8 @@ func TestFloatToDecimalRoundtrip(t *testing.T) {
 	f(float64(vInfNeg))
 	f(infPos)
 	f(infNeg)
+	f(vMax)
+	f(vMin)
 
 	for i := 0; i < 1e4; i++ {
 		v := rand.NormFloat64()
@@ -396,26 +404,12 @@ func roundFloat(f float64, exp int) float64 {
 }
 
 func equalFloat(f1, f2 float64) bool {
-	f1 = adjustInf(f1)
-	f2 = adjustInf(f2)
-	if math.IsInf(f1, 0) {
-		return math.IsInf(f1, 1) == math.IsInf(f2, 1) || math.IsInf(f1, -1) == math.IsInf(f2, -1)
+	if math.IsInf(f1, 1) {
+		return math.IsInf(f2, 1)
+	}
+	if math.IsInf(f2, -1) {
+		return math.IsInf(f2, -1)
 	}
 	eps := math.Abs(f1 - f2)
 	return eps == 0 || eps*conversionPrecision < math.Abs(f1)+math.Abs(f2)
 }
-
-func adjustInf(f float64) float64 {
-	if f == float64(vInfPos) {
-		return infPos
-	}
-	if f == float64(vInfNeg) {
-		return infNeg
-	}
-	return f
-}
-
-var (
-	infPos = math.Inf(1)
-	infNeg = math.Inf(-1)
-)
