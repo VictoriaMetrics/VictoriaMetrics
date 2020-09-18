@@ -885,9 +885,11 @@ func clientDoDeadline(req *Request, resp *Response, deadline time.Time, c client
 	// Make req and resp copies, since on timeout they no longer
 	// may be accessed.
 	reqCopy := AcquireRequest()
-	req.copyToSkipBody(reqCopy)
-	swapRequestBody(req, reqCopy)
+	req.CopyTo(reqCopy)
 	respCopy := AcquireResponse()
+	if resp != nil {
+		swapResponseBody(resp, respCopy)
+	}
 
 	// Note that the request continues execution on ErrTimeout until
 	// client-specific ReadTimeout exceeds. This helps limiting load
@@ -908,7 +910,6 @@ func clientDoDeadline(req *Request, resp *Response, deadline time.Time, c client
 			respCopy.copyToSkipBody(resp)
 			swapResponseBody(resp, respCopy)
 		}
-		swapRequestBody(reqCopy, req)
 		ReleaseResponse(respCopy)
 		ReleaseRequest(reqCopy)
 		errorChPool.Put(chv)

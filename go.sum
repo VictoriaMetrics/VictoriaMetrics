@@ -54,8 +54,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/VictoriaMetrics/fastcache v1.5.7 h1:4y6y0G8PRzszQUYIQHHssv/jgPHAb5qQuuDNdCbyAgw=
 github.com/VictoriaMetrics/fastcache v1.5.7/go.mod h1:ptDBkNMQI4RtmVo8VS/XwRY6RoTu1dAWCbrk+6WsEM8=
-github.com/VictoriaMetrics/fasthttp v1.0.5 h1:DvNn5bStvgb7cZbWUkvd7psaPY9ul+7b2gA6uoiCmHc=
-github.com/VictoriaMetrics/fasthttp v1.0.5/go.mod h1:88NVQ+fmidWtXEFT153t7lAEZNu6Q3DgK1g0l1ZyQtw=
+github.com/VictoriaMetrics/fasthttp v1.0.7 h1:9RntF8jE9z+ooyXy0tb3Pl76jan4DLaCQoCQFp/cIUE=
+github.com/VictoriaMetrics/fasthttp v1.0.7/go.mod h1:eaGv8oDDOWE8JQa6GgBgpCwjJhRxavmprtf2oWw8b3o=
 github.com/VictoriaMetrics/metrics v1.12.2 h1:SG8iAmqavDNuh7GIdHPoGHUhDL23KeKfvSZSozucNeA=
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metrics v1.12.3 h1:Fe6JHC6MSEKa+BtLhPN8WIvS+HKPzMc2evEpNeCGy7I=
@@ -154,8 +154,6 @@ github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+o
 github.com/klauspost/compress v1.10.7/go.mod h1:aoV0uJVorq1K+umq18yTdKaF57EivdYsUV+/s2qKfXs=
 github.com/klauspost/compress v1.10.10 h1:a/y8CglcM7gLGYmlbP/stPE5sR3hbhFRUjCBfd/0B3I=
 github.com/klauspost/compress v1.10.10/go.mod h1:aoV0uJVorq1K+umq18yTdKaF57EivdYsUV+/s2qKfXs=
-github.com/klauspost/compress v1.10.11 h1:K9z59aO18Aywg2b/WSgBaUX99mHy2BES18Cr5lBKZHk=
-github.com/klauspost/compress v1.10.11/go.mod h1:aoV0uJVorq1K+umq18yTdKaF57EivdYsUV+/s2qKfXs=
 github.com/klauspost/compress v1.11.0 h1:wJbzvpYMVGG9iTI9VxpnNZfd4DzMPoCWze3GgSqz8yg=
 github.com/klauspost/compress v1.11.0/go.mod h1:aoV0uJVorq1K+umq18yTdKaF57EivdYsUV+/s2qKfXs=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
