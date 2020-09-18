@@ -47,7 +47,8 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int
 	}
 	fq.cond.L = &fq.mu
 	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
-	logger.Infof("opened fast persistent queue at %q with maxInmemoryBlocks=%d", path, maxInmemoryBlocks)
+	pendingBytes := fq.GetPendingBytes()
+	logger.Infof("opened fast persistent queue at %q with maxInmemoryBlocks=%d, it contains %d pending bytes", path, maxInmemoryBlocks, pendingBytes)
 	return fq
 }
 
