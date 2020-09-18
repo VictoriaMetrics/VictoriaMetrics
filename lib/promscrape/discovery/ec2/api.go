@@ -93,12 +93,8 @@ func newAPIConfig(sdc *SDConfig, client *http.Client) (*apiConfig, error) {
 		roleARN:  sdc.RoleARN,
 	}
 	// explicitly set credentials has priority over env variables
-	if v := os.Getenv(awsAccessKeyEnv); len(v) > 0 {
-		cfg.defaultAccessKey = v
-	}
-	if v := os.Getenv(awsSecretKeyEnv); len(v) > 0 {
-		cfg.defaultSecretKey = v
-	}
+	cfg.defaultAccessKey = os.Getenv(awsAccessKeyEnv)
+	cfg.defaultSecretKey = os.Getenv(awsSecretKeyEnv)
 	if len(sdc.AccessKey) > 0 {
 		cfg.defaultAccessKey = sdc.AccessKey
 	}
@@ -106,7 +102,7 @@ func newAPIConfig(sdc *SDConfig, client *http.Client) (*apiConfig, error) {
 		cfg.defaultSecretKey = sdc.SecretKey
 	}
 
-	// fast return if credentials is set and there is no roleARN
+	// fast return if credentials are set and there is no roleARN
 	if len(cfg.defaultAccessKey) > 0 && len(cfg.defaultSecretKey) > 0 && len(sdc.RoleARN) == 0 {
 		cfg.accessKey = cfg.defaultAccessKey
 		cfg.secretKey = cfg.defaultSecretKey
@@ -161,7 +157,7 @@ func (a *apiConfig) refreshAPIConfig() error {
 	// read credentials from sts api, if role_arn is defined
 	if a.roleARN != "" {
 		if err := a.refreshRoleArnCredentials(); err != nil {
-			return fmt.Errorf("cannot crenditals from sts, bad api response: %w", err)
+			return fmt.Errorf("failed to refresh Arn credentials: %w", err)
 		}
 	}
 	if len(a.accessKey) == 0 {
