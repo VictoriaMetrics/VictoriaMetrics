@@ -19,7 +19,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.8.3
 	github.com/valyala/histogram v1.1.2
-	github.com/valyala/quicktemplate v1.6.2
+	github.com/valyala/quicktemplate v1.6.3
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sys v0.0.0-20200916084744-dbad9cb7cb7a
 	golang.org/x/tools v0.0.0-20200916195026-c9a70fc28ce3 // indirect
