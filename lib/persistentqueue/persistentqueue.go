@@ -546,7 +546,7 @@ func (q *Queue) write(buf []byte) error {
 func (q *Queue) readFull(buf []byte) error {
 	bufLen := uint64(len(buf))
 	if q.readerOffset+bufLen > q.writerFlushedOffset {
-		q.writer.MustFlush()
+		q.writer.MustFlush(false)
 		q.writerFlushedOffset = q.writerOffset
 	}
 	n, err := io.ReadFull(q.reader, buf)
@@ -567,8 +567,7 @@ func (q *Queue) flushMetainfoIfNeededLocked(flushData bool) error {
 		return nil
 	}
 	if flushData {
-		q.writer.MustFlush()
-		fs.MustSyncPath(q.writerPath)
+		q.writer.MustFlush(true)
 	}
 	if err := q.flushMetainfoLocked(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
