@@ -254,11 +254,17 @@ func (w *Writer) Write(p []byte) (int, error) {
 }
 
 // MustFlush flushes all the buffered data to file.
-func (w *Writer) MustFlush() {
+//
+// if isSync is true, then the flushed data is fsynced to the underlying storage.
+func (w *Writer) MustFlush(isSync bool) {
 	if err := w.bw.Flush(); err != nil {
 		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
 	}
-	// Do not call w.f.Sync() for performance reasons.
+	if isSync {
+		if err := w.f.Sync(); err != nil {
+			logger.Panicf("FATAL: cannot fsync data to the underlying storage for file %q: %s", w.f.Name(), err)
+		}
+	}
 }
 
 type statWriter struct {
