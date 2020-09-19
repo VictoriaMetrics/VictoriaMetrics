@@ -660,7 +660,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "How many datapoints are inserted into storage per second",
+      "description": "How many datapoints are inserted into storage per second by protocol and accountID",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -703,7 +703,7 @@
       "targets": [
         {
           "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type,accountID) > 0 ",
-          "legendFormat": "{{type}} {{accountID}}",
+          "legendFormat": "",
           "refId": "A"
         }
       ],
