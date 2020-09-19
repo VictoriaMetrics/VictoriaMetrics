@@ -35,5 +35,5 @@ func Init() (datasource.Querier, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, c), nil
+	return datasource.NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, 0, c), nil
 }
