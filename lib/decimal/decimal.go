@@ -239,6 +239,8 @@ type vaeBuf struct {
 
 var vaeBufPool sync.Pool
 
+const int64Max = int64(1<<63 - 1)
+
 func maxUpExponent(v int64) int16 {
 	if v == 0 {
 		// Any exponent allowed.
@@ -251,46 +253,42 @@ func maxUpExponent(v int64) int16 {
 		// Handle corner case for v=-1<<63
 		return 0
 	}
-
-	maxMultiplier := ((1 << 63) - 1) / uint64(v)
 	switch {
-	case maxMultiplier >= 1e19:
-		return 19
-	case maxMultiplier >= 1e18:
+	case v <= int64Max/1e18:
 		return 18
-	case maxMultiplier >= 1e17:
+	case v <= int64Max/1e17:
 		return 17
-	case maxMultiplier >= 1e16:
+	case v <= int64Max/1e16:
 		return 16
-	case maxMultiplier >= 1e15:
+	case v <= int64Max/1e15:
 		return 15
-	case maxMultiplier >= 1e14:
+	case v <= int64Max/1e14:
 		return 14
-	case maxMultiplier >= 1e13:
+	case v <= int64Max/1e13:
 		return 13
-	case maxMultiplier >= 1e12:
+	case v <= int64Max/1e12:
 		return 12
-	case maxMultiplier >= 1e11:
+	case v <= int64Max/1e11:
 		return 11
-	case maxMultiplier >= 1e10:
+	case v <= int64Max/1e10:
 		return 10
-	case maxMultiplier >= 1e9:
+	case v <= int64Max/1e9:
 		return 9
-	case maxMultiplier >= 1e8:
+	case v <= int64Max/1e8:
 		return 8
-	case maxMultiplier >= 1e7:
+	case v <= int64Max/1e7:
 		return 7
-	case maxMultiplier >= 1e6:
+	case v <= int64Max/1e6:
 		return 6
-	case maxMultiplier >= 1e5:
+	case v <= int64Max/1e5:
 		return 5
-	case maxMultiplier >= 1e4:
+	case v <= int64Max/1e4:
 		return 4
-	case maxMultiplier >= 1e3:
+	case v <= int64Max/1e3:
 		return 3
-	case maxMultiplier >= 1e2:
+	case v <= int64Max/1e2:
 		return 2
-	case maxMultiplier >= 1e1:
+	case v <= int64Max/1e1:
 		return 1
 	default:
 		return 0
