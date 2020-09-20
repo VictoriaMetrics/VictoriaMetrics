@@ -135,7 +135,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
 * `ec2_sd_configs` - for scraping targets in Amazon EC2.
   See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
-  `vmagent` doesn't support `role_arn` config param yet.
+  `vmagent` doesn't support `profile` config param and aws credentials file yet.
 * `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
   `vmagent` provides the following additional functionality for `gce_sd_config`:

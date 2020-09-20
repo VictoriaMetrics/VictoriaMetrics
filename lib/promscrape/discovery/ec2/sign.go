@@ -16,12 +16,12 @@ import (
 // newSignedRequest signed request for apiURL according to aws signature algorithm.
 //
 // See the algorithm at https://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
-func newSignedRequest(apiURL, service, region, accessKey, secretKey, token string) (*http.Request, error) {
+func newSignedRequest(apiURL, service, region string, credentials *apiCredentials) (*http.Request, error) {
 	t := time.Now().UTC()
-	return newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, token, t)
+	return newSignedRequestWithTime(apiURL, service, region, credentials, t)
 }
 
-func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, token string, t time.Time) (*http.Request, error) {
+func newSignedRequestWithTime(apiURL, service, region string, credentials *apiCredentials, t time.Time) (*http.Request, error) {
 	uri, err := url.Parse(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %q: %w", apiURL, err)
@@ -57,11 +57,11 @@ func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, tok
 	stringToSign := strings.Join(tmp, "\n")
 
 	// Calculate the signature
-	signingKey := getSignatureKey(secretKey, datestamp, region, service)
+	signingKey := getSignatureKey(credentials.SecretAccessKey, datestamp, region, service)
 	signature := hmacHex(signingKey, stringToSign)
 
 	// Calculate autheader
-	authHeader := fmt.Sprintf("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s", algorithm, accessKey, credentialScope, signedHeaders, signature)
+	authHeader := fmt.Sprintf("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s", algorithm, credentials.AccessKeyID, credentialScope, signedHeaders, signature)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -69,8 +69,8 @@ func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, tok
 	}
 	req.Header.Set("x-amz-date", amzdate)
 	req.Header.Set("Authorization", authHeader)
-	if token != "" {
-		req.Header.Set("X-Amz-Security-Token", token)
+	if credentials.Token != "" {
+		req.Header.Set("X-Amz-Security-Token", credentials.Token)
 	}
 
 	return req, nil
