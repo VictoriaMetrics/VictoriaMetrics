@@ -85,7 +85,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s with err %w. Reponse body %s", resp.StatusCode, req.URL, err, body)
+		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Reponse body %s", resp.StatusCode, req.URL, body)
 	}
 	r := &response{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
