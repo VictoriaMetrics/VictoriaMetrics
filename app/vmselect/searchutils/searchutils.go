@@ -18,11 +18,19 @@ var (
 	maxQueryDuration  = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
 )
 
+func roundToSeconds(ms int64) int64 {
+	return ms - ms%1000
+}
+
 // GetTime returns time from the given argKey query arg.
-func GetTime(r *http.Request, argKey string, defaultValue int64) (int64, error) {
+//
+// If argKey is missing in r, then defaultMs rounded to seconds is returned.
+// The rounding is needed in order to align query results in Grafana
+// executed at different times. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720
+func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 	argValue := r.FormValue(argKey)
 	if len(argValue) == 0 {
-		return defaultValue, nil
+		return roundToSeconds(defaultMs), nil
 	}
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
