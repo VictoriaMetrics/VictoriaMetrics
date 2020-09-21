@@ -2262,16 +2262,18 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, maxLoops int,
 		mp.ParseMetricIDs()
 
 		// Fast path: use the filter to skip items that don't need to be matched.
-		hasCommonMetric := false
-		for _, metricID := range mp.MetricIDs {
-			if filter.Has(metricID) {
-				hasCommonMetric = true
-				break
+		if filter != nil {
+			hasCommonMetric := false
+			for _, metricID := range mp.MetricIDs {
+				if filter.Has(metricID) {
+					hasCommonMetric = true
+					break
+				}
 			}
-		}
-		// For both complement and intersection calculations, the result and filter need to have elements in common.
-		if !hasCommonMetric {
-			continue
+			// For both complement and intersection calculations, the result and filter need to have elements in common.
+			if !hasCommonMetric {
+				continue
+			}
 		}
 
 		if prevMatch && string(suffix) == string(prevMatchingSuffix) {
