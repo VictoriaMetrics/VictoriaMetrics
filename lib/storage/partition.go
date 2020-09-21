@@ -924,8 +924,8 @@ func (pt *partition) smallPartsMerger() {
 }
 
 const (
-	minMergeSleepTime = time.Millisecond
-	maxMergeSleepTime = time.Second
+	minMergeSleepTime = 10 * time.Millisecond
+	maxMergeSleepTime = 10 * time.Second
 )
 
 func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
