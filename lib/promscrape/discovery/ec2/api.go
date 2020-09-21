@@ -322,8 +322,8 @@ func getSTSAPIResponse(region, endpoint, roleARN string, credentials *apiCredent
 }
 
 // getEC2APIResponse lists ec2 instances with given action
-func getEC2APIResponse(cfg *apiConfig, endpoint, action, nextPageToken string) ([]byte, error) {
-
+func getEC2APIResponse(cfg *apiConfig, action, nextPageToken string) ([]byte, error) {
+	endpoint := buildAPIEndpoint(cfg.region, cfg.endpoint, "ec2")
 	// refresh api credentials if needed
 	if cfg.credentialsExpired() {
 		if err := cfg.refreshAPICredentials(); err != nil {

@@ -28,9 +28,8 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	action := "DescribeInstances"
 	var rs []Reservation
 	pageToken := ""
-	apiEndpoint := buildAPIEndpoint(cfg.region, cfg.endpoint, "ec2")
 	for {
-		data, err := getEC2APIResponse(cfg, apiEndpoint, action, pageToken)
+		data, err := getEC2APIResponse(cfg, action, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}
