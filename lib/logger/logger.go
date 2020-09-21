@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
-	loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerLevel       = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
+	loggerFormat      = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
+	loggerOutput      = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 10, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
 		"are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit")
@@ -149,7 +150,10 @@ func logMessage(level, msg string, skipframes int) {
 		}
 	}
 
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	timestamp := ""
+	if !*disableTimestamps {
+		timestamp = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	}
 	levelLowercase := strings.ToLower(level)
 	_, file, line, ok := runtime.Caller(skipframes)
 	if !ok {
@@ -167,9 +171,17 @@ func logMessage(level, msg string, skipframes int) {
 	switch *loggerFormat {
 	case "json":
 		caller := fmt.Sprintf("%s:%d", file, line)
-		logMsg = fmt.Sprintf(`{"ts":%q,"level":%q,"caller":%q,"msg":%q}`+"\n", timestamp, levelLowercase, caller, msg)
+		if *disableTimestamps {
+			logMsg = fmt.Sprintf(`{"level":%q,"caller":%q,"msg":%q}`+"\n", levelLowercase, caller, msg)
+		} else {
+			logMsg = fmt.Sprintf(`{"ts":%q,"level":%q,"caller":%q,"msg":%q}`+"\n", timestamp, levelLowercase, caller, msg)
+		}
 	default:
-		logMsg = fmt.Sprintf("%s\t%s\t%s:%d\t%s\n", timestamp, levelLowercase, file, line, msg)
+		if *disableTimestamps {
+			logMsg = fmt.Sprintf("%s\t%s:%d\t%s\n", levelLowercase, file, line, msg)
+		} else {
+			logMsg = fmt.Sprintf("%s\t%s\t%s:%d\t%s\n", timestamp, levelLowercase, file, line, msg)
+		}
 	}
 
 	// Serialize writes to log.
