@@ -75,7 +75,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	)
 	q := s.queryURL + url.QueryEscape(query)
 	if s.lookBack > 0 {
-		lookBack := time.Now().UTC().Add(-s.lookBack)
+		lookBack := time.Now().Add(-s.lookBack)
 		q += fmt.Sprintf("&time=%d", lookBack.Unix())
 	}
 	req, err := http.NewRequest("POST", q, nil)
