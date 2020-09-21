@@ -104,6 +104,19 @@ func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
 
+// GetMaxQueryDuration returns the maximum duration for query from r.
+func GetMaxQueryDuration(r *http.Request) time.Duration {
+	dms, err := GetDuration(r, "timeout", 0)
+	if err != nil {
+		dms = 0
+	}
+	d := time.Duration(dms) * time.Millisecond
+	if d <= 0 || d > *maxQueryDuration {
+		d = *maxQueryDuration
+	}
+	return d
+}
+
 // GetDeadlineForQuery returns deadline for the given query r.
 func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxQueryDuration.Milliseconds()
