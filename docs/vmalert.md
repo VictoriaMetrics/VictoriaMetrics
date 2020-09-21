@@ -166,6 +166,8 @@ The shortlist of configuration flags is the following:
     	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
     	Optional basic auth username for -datasource.url
+ -datasource.lookback duration
+        Lookback defines how far to look into past when evaluating queries. For example, if datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used
   -datasource.tlsCertFile string
