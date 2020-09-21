@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -21,45 +21,35 @@ const (
 )
 
 type apiConfig struct {
-	endpoint string
-	region   string
-	roleARN  string
-	filters  string
-	port     int
-	// this keys  needed,
-	// when we are using temporary credentials
+	region  string
+	roleARN string
+	filters string
+	port    int
+
+	ec2Endpoint string
+	stsEndpoint string
+
+	// these keys are needed for obtaining creds.
 	defaultAccessKey string
 	defaultSecretKey string
-	apiCredentials   atomic.Value
+
+	// Real credentials used for accessing EC2 API.
+	creds     *apiCredentials
+	credsLock sync.Mutex
 }
 
 // apiCredentials represents aws api credentials
 type apiCredentials struct {
-	AccessKeyID     string    `json:"AccessKeyId"`
-	SecretAccessKey string    `json:"SecretAccessKey"`
-	Token           string    `json:"Token"`
-	Expiration      time.Time `json:"Expiration"`
-}
-
-// stsCredentialsResponse - represents aws sts AssumeRole response
-// https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-type stsCredentialsResponse struct {
-	AssumeRoleResult struct {
-		Credentials struct {
-			AccessKeyID     string    `xml:"AccessKeyId"`
-			SecretAccessKey string    `xml:"SecretAccessKey"`
-			SessionToken    string    `xml:"SessionToken"`
-			Expiration      time.Time `xml:"Expiration"`
-		}
-	}
+	AccessKeyID     string
+	SecretAccessKey string
+	Token           string
+	Expiration      time.Time
 }
 
 var configMap = discoveryutils.NewConfigMap()
 
 func getAPIConfig(sdc *SDConfig) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) {
-		return newAPIConfig(sdc)
-	})
+	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc) })
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +71,14 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		port = *sdc.Port
 	}
 	cfg := &apiConfig{
-		endpoint: sdc.Endpoint,
-		region:   region,
-		roleARN:  sdc.RoleARN,
-		filters:  filters,
-		port:     port,
+		region:  region,
+		roleARN: sdc.RoleARN,
+		filters: filters,
+		port:    port,
 	}
+	cfg.ec2Endpoint = buildAPIEndpoint(sdc.Endpoint, region, "ec2")
+	cfg.stsEndpoint = buildAPIEndpoint(sdc.Endpoint, region, "sts")
+
 	// explicitly set credentials has priority over env variables
 	cfg.defaultAccessKey = os.Getenv(awsAccessKeyEnv)
 	cfg.defaultSecretKey = os.Getenv(awsSecretKeyEnv)
@@ -96,20 +88,10 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	if len(sdc.SecretKey) > 0 {
 		cfg.defaultSecretKey = sdc.SecretKey
 	}
-
-	// fast return if credentials are set and there is no roleARN
-	if len(cfg.defaultAccessKey) > 0 && len(cfg.defaultSecretKey) > 0 && len(sdc.RoleARN) == 0 {
-		cfg.apiCredentials.Store(&apiCredentials{
-			AccessKeyID:     cfg.defaultAccessKey,
-			SecretAccessKey: cfg.defaultSecretKey,
-		})
-		return cfg, nil
+	cfg.creds = &apiCredentials{
+		AccessKeyID:     cfg.defaultAccessKey,
+		SecretAccessKey: cfg.defaultSecretKey,
 	}
-
-	if err := cfg.refreshAPICredentials(); err != nil {
-		return nil, err
-	}
-
 	return cfg, nil
 }
 
@@ -137,89 +119,6 @@ func getDefaultRegion() (string, error) {
 	return id.Region, nil
 }
 
-// refreshAPICredentials updates expired tokens.
-func (cfg *apiConfig) refreshAPICredentials() error {
-
-	newAPICredentials := &apiCredentials{
-		AccessKeyID:     cfg.defaultAccessKey,
-		SecretAccessKey: cfg.defaultSecretKey,
-	}
-
-	// we need instance credentials
-	// if dont have key and secret
-	if len(newAPICredentials.AccessKeyID) == 0 && len(newAPICredentials.SecretAccessKey) == 0 {
-
-		ac, err := getInstanceRoleCredentials()
-		if err != nil {
-			return err
-		}
-		newAPICredentials.Token = ac.Token
-		newAPICredentials.SecretAccessKey = ac.SecretAccessKey
-		newAPICredentials.AccessKeyID = ac.AccessKeyID
-		newAPICredentials.Expiration = ac.Expiration
-
-	}
-
-	// read credentials from sts api, if role_arn is defined
-	if cfg.roleARN != "" {
-
-		ac, err := getRoleARNCredentials(cfg.region, cfg.endpoint, cfg.roleARN, newAPICredentials)
-		if err != nil {
-			return fmt.Errorf("cannot get credentials for role_arn: %s: %w", cfg.roleARN, err)
-		}
-		if newAPICredentials.Expiration.IsZero() || ac.Expiration.Before(newAPICredentials.Expiration) {
-			newAPICredentials.Expiration = ac.Expiration
-		}
-		newAPICredentials.AccessKeyID = ac.AccessKeyID
-		newAPICredentials.SecretAccessKey = ac.SecretAccessKey
-		newAPICredentials.Token = ac.Token
-	}
-
-	if len(newAPICredentials.AccessKeyID) == 0 {
-		return fmt.Errorf("missing `access_key`, you can set it with %s env var, "+
-			"directly at `ec2_sd_config` as `access_key` or use instance iam role", awsAccessKeyEnv)
-	}
-	if len(newAPICredentials.SecretAccessKey) == 0 {
-		return fmt.Errorf("missing `secret_key`, you can set it with %s env var,"+
-			"directly at `ec2_sd_config` as `secret_key` or use instance iam role", awsSecretKeyEnv)
-	}
-
-	cfg.apiCredentials.Store(newAPICredentials)
-
-	return nil
-}
-
-// credentialsExpired - checks if tokens refresh is needed
-func (cfg *apiConfig) credentialsExpired() bool {
-	ac := cfg.credentials()
-	return !ac.Expiration.IsZero() && time.Since(ac.Expiration) > -5*time.Second
-}
-
-// credentials - returns current api credentials
-func (cfg *apiConfig) credentials() *apiCredentials {
-	return cfg.apiCredentials.Load().(*apiCredentials)
-}
-
-// getInstanceRoleCredentials makes request to local ec2 instance metadata service
-// and tries to retrieve credentials from assigned iam role.
-// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
-func getInstanceRoleCredentials() (*apiCredentials, error) {
-	instanceRoleName, err := getMetadataByPath("meta-data/iam/security-credentials/")
-	if err != nil {
-		return nil, fmt.Errorf("cannot get instanceRoleName: %w", err)
-	}
-
-	credentials, err := getMetadataByPath("meta-data/iam/security-credentials/" + string(instanceRoleName))
-	if err != nil {
-		return nil, fmt.Errorf("cannot get instanceCredentials with role %s, error: %w", instanceRoleName, err)
-	}
-	ac := &apiCredentials{}
-	if err := json.Unmarshal(credentials, ac); err != nil {
-		return nil, fmt.Errorf("cannot parse instance metadata role response : %w", err)
-	}
-	return ac, nil
-}
-
 // IdentityDocument is identity document returned from AWS metadata server.
 //
 // See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
@@ -227,9 +126,112 @@ type IdentityDocument struct {
 	Region string
 }
 
+// getFreshAPICredentials returns fresh EC2 API credentials.
+//
+// The credentials are refreshed if needed.
+func (cfg *apiConfig) getFreshAPICredentials() (*apiCredentials, error) {
+	cfg.credsLock.Lock()
+	defer cfg.credsLock.Unlock()
+
+	if len(cfg.defaultAccessKey) > 0 && len(cfg.defaultSecretKey) > 0 && len(cfg.roleARN) == 0 {
+		// There is no need in refreshing statically set api credentials if `role_arn` isn't set.
+		return cfg.creds, nil
+	}
+	if time.Until(cfg.creds.Expiration) > 10*time.Second {
+		// Credentials aren't expired yet.
+		return cfg.creds, nil
+	}
+	// Credentials have been expired. Update them.
+	ac, err := getAPICredentials(cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfg.creds = ac
+	return ac, nil
+}
+
+// getAPICredentials obtains new EC2 API credentials from instance metadata and role_arn.
+func getAPICredentials(cfg *apiConfig) (*apiCredentials, error) {
+	acNew := &apiCredentials{
+		AccessKeyID:     cfg.defaultAccessKey,
+		SecretAccessKey: cfg.defaultSecretKey,
+	}
+
+	// we need instance credentials if dont have access keys
+	if len(acNew.AccessKeyID) == 0 && len(acNew.SecretAccessKey) == 0 {
+		ac, err := getInstanceRoleCredentials()
+		if err != nil {
+			return nil, err
+		}
+		acNew = ac
+	}
+
+	// read credentials from sts api, if role_arn is defined
+	if len(cfg.roleARN) > 0 {
+		ac, err := getRoleARNCredentials(cfg.region, cfg.stsEndpoint, cfg.roleARN, acNew)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get credentials for role_arn %q: %w", cfg.roleARN, err)
+		}
+		acNew = ac
+	}
+	if len(acNew.AccessKeyID) == 0 {
+		return nil, fmt.Errorf("missing `access_key`, you can set it with %s env var, "+
+			"directly at `ec2_sd_config` as `access_key` or use instance iam role", awsAccessKeyEnv)
+	}
+	if len(acNew.SecretAccessKey) == 0 {
+		return nil, fmt.Errorf("missing `secret_key`, you can set it with %s env var,"+
+			"directly at `ec2_sd_config` as `secret_key` or use instance iam role", awsSecretKeyEnv)
+	}
+	return acNew, nil
+}
+
+// getInstanceRoleCredentials makes request to local ec2 instance metadata service
+// and tries to retrieve credentials from assigned iam role.
+//
+// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
+func getInstanceRoleCredentials() (*apiCredentials, error) {
+	instanceRoleName, err := getMetadataByPath("meta-data/iam/security-credentials/")
+	if err != nil {
+		return nil, fmt.Errorf("cannot get instanceRoleName: %w", err)
+	}
+	data, err := getMetadataByPath("meta-data/iam/security-credentials/" + string(instanceRoleName))
+	if err != nil {
+		return nil, fmt.Errorf("cannot get security credentails for instanceRoleName %q: %w", instanceRoleName, err)
+	}
+	return parseMetadataSecurityCredentials(data)
+}
+
+// parseMetadataSecurityCredentials parses apiCredentials from metadata response to http://169.254.169.254/latest/meta-data/iam/security-credentials/*
+//
+// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
+func parseMetadataSecurityCredentials(data []byte) (*apiCredentials, error) {
+	var msc MetadataSecurityCredentials
+	if err := json.Unmarshal(data, &msc); err != nil {
+		return nil, fmt.Errorf("cannot parse metadata security credentials from %q: %w", data, err)
+	}
+	return &apiCredentials{
+		AccessKeyID:     msc.AccessKeyID,
+		SecretAccessKey: msc.SecretAccessKey,
+		Token:           msc.Token,
+		Expiration:      msc.Expiration,
+	}, nil
+}
+
+// MetadataSecurityCredentials represents credentials obtained from http://169.254.169.254/latest/meta-data/iam/security-credentials/*
+//
+// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html
+type MetadataSecurityCredentials struct {
+	AccessKeyID     string    `json:"AccessKeyId"`
+	SecretAccessKey string    `json:"SecretAccessKey"`
+	Token           string    `json:"Token"`
+	Expiration      time.Time `json:"Expiration"`
+}
+
 // getMetadataByPath returns instance metadata by url path
 func getMetadataByPath(apiPath string) ([]byte, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
+
+	client := discoveryutils.GetHTTPClient()
 
 	// Obtain session token
 	sessionTokenURL := "http://169.254.169.254/latest/api/token"
@@ -238,7 +240,7 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %w", sessionTokenURL, err)
 	}
 	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "60")
-	resp, err := discoveryutils.GetHTTPClient().Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain IMDSv2 session token from %q; probably, `region` is missing in `ec2_sd_config`; error: %w", sessionTokenURL, err)
 	}
@@ -254,62 +256,81 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot create request to %q: %w", apiURL, err)
 	}
 	req.Header.Set("X-aws-ec2-metadata-token", string(token))
-	resp, err = discoveryutils.GetHTTPClient().Do(req)
+	resp, err = client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain response for %q: %w", apiURL, err)
 	}
 	return readResponseBody(resp, apiURL)
 }
 
-// getRoleARNCredentials - retrieves credentials from aws sts with role_arn
-func getRoleARNCredentials(region, endpoint, roleARN string, credentials *apiCredentials) (*apiCredentials, error) {
-
-	data, err := getSTSAPIResponse(region, endpoint, roleARN, credentials)
+// getRoleARNCredentials obtains credentials fo the given roleARN.
+func getRoleARNCredentials(region, stsEndpoint, roleARN string, creds *apiCredentials) (*apiCredentials, error) {
+	data, err := getSTSAPIResponse(region, stsEndpoint, roleARN, creds)
 	if err != nil {
 		return nil, err
 	}
-	scr := &stsCredentialsResponse{}
-	if err := xml.Unmarshal(data, scr); err != nil {
-		return nil, fmt.Errorf("cannot parse sts api response: %w", err)
-	}
-	return &apiCredentials{
-		AccessKeyID:     scr.AssumeRoleResult.Credentials.AccessKeyID,
-		SecretAccessKey: scr.AssumeRoleResult.Credentials.SecretAccessKey,
-		Token:           scr.AssumeRoleResult.Credentials.SessionToken,
-		Expiration:      scr.AssumeRoleResult.Credentials.Expiration,
-	}, nil
-
+	return parseARNCredentials(data)
 }
 
-// buildAPIEndpoint - creates endpoint for aws api access
-func buildAPIEndpoint(region, cfgEndpoint, service string) string {
-	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
-	apiEndpoint := fmt.Sprintf("https://%s.%s.amazonaws.com/", service, region)
-	if len(cfgEndpoint) > 0 {
-		apiEndpoint = cfgEndpoint
-		// endpoint may contain only hostname. Convert it to proper url then.
-		if !strings.Contains(apiEndpoint, "://") {
-			apiEndpoint = "https://" + apiEndpoint
-		}
-		if !strings.HasSuffix(apiEndpoint, "/") {
-			apiEndpoint += "/"
+// parseARNCredentials parses apiCredentials from AssumeRole response.
+//
+// See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+func parseARNCredentials(data []byte) (*apiCredentials, error) {
+	var arr AssumeRoleResponse
+	if err := xml.Unmarshal(data, &arr); err != nil {
+		return nil, fmt.Errorf("cannot parse AssumeRoleResponse response from %q: %w", data, err)
+	}
+	return &apiCredentials{
+		AccessKeyID:     arr.AssumeRoleResult.Credentials.AccessKeyID,
+		SecretAccessKey: arr.AssumeRoleResult.Credentials.SecretAccessKey,
+		Token:           arr.AssumeRoleResult.Credentials.SessionToken,
+		Expiration:      arr.AssumeRoleResult.Credentials.Expiration,
+	}, nil
+}
+
+// AssumeRoleResponse represents AssumeRole response
+//
+// See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+type AssumeRoleResponse struct {
+	AssumeRoleResult struct {
+		Credentials struct {
+			AccessKeyID     string    `xml:"AccessKeyId"`
+			SecretAccessKey string    `xml:"SecretAccessKey"`
+			SessionToken    string    `xml:"SessionToken"`
+			Expiration      time.Time `xml:"Expiration"`
 		}
 	}
-	return apiEndpoint
+}
+
+// buildAPIEndpoint creates endpoint for aws api access
+func buildAPIEndpoint(customEndpoint, region, service string) string {
+	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
+	if len(customEndpoint) == 0 {
+		return fmt.Sprintf("https://%s.%s.amazonaws.com/", service, region)
+	}
+	endpoint := customEndpoint
+	// endpoint may contain only hostname. Convert it to proper url then.
+	if !strings.Contains(endpoint, "://") {
+		endpoint = "https://" + endpoint
+	}
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint += "/"
+	}
+	return endpoint
 }
 
 // getSTSAPIResponse makes request to aws sts api with role_arn
 // and returns temporary credentials with expiration time
-// https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-func getSTSAPIResponse(region, endpoint, roleARN string, credentials *apiCredentials) ([]byte, error) {
-	endpoint = buildAPIEndpoint(region, endpoint, "sts")
+//
+// See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+func getSTSAPIResponse(region, stsEndpoint, roleARN string, creds *apiCredentials) ([]byte, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
-	apiURL := fmt.Sprintf("%s?Action=%s", endpoint, "AssumeRole")
+	apiURL := fmt.Sprintf("%s?Action=%s", stsEndpoint, "AssumeRole")
 	apiURL += "&Version=2011-06-15"
 	apiURL += fmt.Sprintf("&RoleArn=%s", roleARN)
 	// we have to provide unique session name for cloudtrail audit
 	apiURL += "&RoleSessionName=vmagent-ec2-discovery"
-	req, err := newSignedRequest(apiURL, "sts", region, credentials)
+	req, err := newSignedRequest(apiURL, "sts", region, creds)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create signed request: %w", err)
 	}
@@ -321,17 +342,13 @@ func getSTSAPIResponse(region, endpoint, roleARN string, credentials *apiCredent
 
 }
 
-// getEC2APIResponse lists ec2 instances with given action
+// getEC2APIResponse performs EC2 API request with given action.
 func getEC2APIResponse(cfg *apiConfig, action, nextPageToken string) ([]byte, error) {
-	endpoint := buildAPIEndpoint(cfg.region, cfg.endpoint, "ec2")
-	// refresh api credentials if needed
-	if cfg.credentialsExpired() {
-		if err := cfg.refreshAPICredentials(); err != nil {
-			return nil, fmt.Errorf("failed to update expired aws credentials: %w", err)
-		}
+	ac, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain fresh credentials for EC2 API: %w", err)
 	}
-
-	apiURL := fmt.Sprintf("%s?Action=%s", endpoint, url.QueryEscape(action))
+	apiURL := fmt.Sprintf("%s?Action=%s", cfg.ec2Endpoint, url.QueryEscape(action))
 	if len(cfg.filters) > 0 {
 		apiURL += "&" + cfg.filters
 	}
@@ -339,7 +356,7 @@ func getEC2APIResponse(cfg *apiConfig, action, nextPageToken string) ([]byte, er
 		apiURL += fmt.Sprintf("&NextToken=%s", url.QueryEscape(nextPageToken))
 	}
 	apiURL += "&Version=2013-10-15"
-	req, err := newSignedRequest(apiURL, "ec2", cfg.region, cfg.credentials())
+	req, err := newSignedRequest(apiURL, "ec2", cfg.region, ac)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create signed request: %w", err)
 	}
