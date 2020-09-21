@@ -21,6 +21,9 @@ var (
 		"By default system CA is used")
 	tlsServerName = flag.String("datasource.tlsServerName", "", "Optional TLS server name to use for connections to -datasource.url. "+
 		"By default the server name from -datasource.url is used")
+
+	lookBack = flag.Duration("datasource.lookback", 0, "Lookback defines how far to look into past when evaluating queries. "+
+		"For example, if datasource.lookback=5m then param \"time\" with value now()-5m will be added to every query.")
 )
 
 // Init creates a Querier from provided flag values.
@@ -34,5 +37,5 @@ func Init() (Querier, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, c), nil
+	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *lookBack, c), nil
 }
