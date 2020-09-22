@@ -29,7 +29,7 @@ func getReservations(cfg *apiConfig) ([]Reservation, error) {
 	var rs []Reservation
 	pageToken := ""
 	for {
-		data, err := getAPIResponse(cfg, action, pageToken)
+		data, err := getEC2APIResponse(cfg, action, pageToken)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain instances: %w", err)
 		}

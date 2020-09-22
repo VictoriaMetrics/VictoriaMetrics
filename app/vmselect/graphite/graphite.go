@@ -75,13 +75,14 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		MinTimestamp: from,
 		MaxTimestamp: until,
 	}
-	paths, isPartial, err := metricsFind(at, tr, label, query, delimiter[0], deadline)
+	paths, isPartial, err := metricsFind(at, tr, label, query, delimiter[0], false, deadline)
 	if err != nil {
 		return err
 	}
 	if isPartial && searchutils.GetDenyPartialResponse(r) {
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
+	paths = deduplicatePaths(paths)
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
 	}
@@ -94,6 +95,18 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	WriteMetricsFindResponse(w, paths, delimiter, format, wildcards, jsonp)
 	metricsFindDuration.UpdateDuration(startTime)
 	return nil
+}
+
+func deduplicatePaths(paths []string) []string {
+	m := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		m[path] = struct{}{}
+	}
+	dst := make([]string, 0, len(m))
+	for path := range m {
+		dst = append(dst, path)
+	}
+	return dst
 }
 
 // MetricsExpandHandler implements /metrics/expand handler.
@@ -137,7 +150,7 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	}
 	m := make(map[string][]string, len(queries))
 	for _, query := range queries {
-		paths, isPartial, err := metricsFind(at, tr, label, query, delimiter[0], deadline)
+		paths, isPartial, err := metricsFind(at, tr, label, query, delimiter[0], true, deadline)
 		if err != nil {
 			return err
 		}
@@ -207,29 +220,33 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 }
 
 // metricsFind searches for label values that match the given query.
-func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, delimiter byte, deadline searchutils.Deadline) ([]string, bool, error) {
-	expandTail := strings.HasSuffix(query, "*")
-	for strings.HasSuffix(query, "*") {
-		query = query[:len(query)-1]
-	}
-	var results []string
+func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, delimiter byte, isExpand bool, deadline searchutils.Deadline) ([]string, bool, error) {
 	n := strings.IndexAny(query, "*{[")
-	if n < 0 {
+	if n < 0 || n == len(query)-1 && strings.HasSuffix(query, "*") {
+		expandTail := n >= 0
+		if expandTail {
+			query = query[:len(query)-1]
+		}
 		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(at, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, false, err
 		}
-		if expandTail {
-			for _, suffix := range suffixes {
+		if len(suffixes) == 0 {
+			return nil, false, nil
+		}
+		if !expandTail && len(query) > 0 && query[len(query)-1] == delimiter {
+			return []string{query}, false, nil
+		}
+		results := make([]string, 0, len(suffixes))
+		for _, suffix := range suffixes {
+			if expandTail || len(suffix) == 0 || len(suffix) == 1 && suffix[0] == delimiter {
 				results = append(results, query+suffix)
 			}
-		} else if isFullMatch(query, suffixes, delimiter) {
-			results = append(results, query)
 		}
 		return results, isPartial, nil
 	}
 	subquery := query[:n] + "*"
-	paths, isPartial, err := metricsFind(at, tr, label, subquery, delimiter, deadline)
+	paths, isPartial, err := metricsFind(at, tr, label, subquery, delimiter, isExpand, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -239,27 +256,35 @@ func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, deli
 		tail = suffix[m+1:]
 		suffix = suffix[:m+1]
 	}
-	q := query[:n] + suffix
-	re, err := getRegexpForQuery(q, delimiter)
+	qPrefix := query[:n] + suffix
+	rePrefix, err := getRegexpForQuery(qPrefix, delimiter)
 	if err != nil {
-		return nil, false, fmt.Errorf("cannot convert query %q to regexp: %w", q, err)
+		return nil, false, fmt.Errorf("cannot convert query %q to regexp: %w", qPrefix, err)
 	}
-	if expandTail {
-		tail += "*"
-	}
+	results := make([]string, 0, len(paths))
 	for _, path := range paths {
-		if !re.MatchString(path) {
+		if !rePrefix.MatchString(path) {
+			continue
+		}
+		if tail == "" {
+			results = append(results, path)
 			continue
 		}
 		subquery := path + tail
-		tmp, isPartialLocal, err := metricsFind(at, tr, label, subquery, delimiter, deadline)
+		fullPaths, isPartialLocal, err := metricsFind(at, tr, label, subquery, delimiter, isExpand, deadline)
 		if err != nil {
 			return nil, false, err
 		}
 		if isPartialLocal {
 			isPartial = true
 		}
-		results = append(results, tmp...)
+		if isExpand {
+			results = append(results, fullPaths...)
+		} else {
+			for _, fullPath := range fullPaths {
+				results = append(results, qPrefix+fullPath[len(path):])
+			}
+		}
 	}
 	return results, isPartial, nil
 }
@@ -269,21 +294,6 @@ var (
 	metricsExpandDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/select/{}/graphite/metrics/expand"}`)
 	metricsIndexDuration  = metrics.NewSummary(`vm_request_duration_seconds{path="/select/{}/graphite/metrics/index.json"}`)
 )
-
-func isFullMatch(tagValuePrefix string, suffixes []string, delimiter byte) bool {
-	if len(suffixes) == 0 {
-		return false
-	}
-	if strings.LastIndexByte(tagValuePrefix, delimiter) == len(tagValuePrefix)-1 {
-		return true
-	}
-	for _, suffix := range suffixes {
-		if suffix == "" {
-			return true
-		}
-	}
-	return false
-}
 
 func addAutomaticVariants(query, delimiter string) string {
 	// See https://github.com/graphite-project/graphite-web/blob/bb9feb0e6815faa73f538af6ed35adea0fb273fd/webapp/graphite/metrics/views.py#L152
@@ -330,7 +340,8 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 		return re.re, re.err
 	}
 	a := make([]string, 0, len(query))
-	tillNextDelimiter := "[^" + regexp.QuoteMeta(string([]byte{delimiter})) + "]*"
+	quotedDelimiter := regexp.QuoteMeta(string([]byte{delimiter}))
+	tillNextDelimiter := "[^" + quotedDelimiter + "]*"
 	for i := 0; i < len(query); i++ {
 		switch query[i] {
 		case '*':
@@ -364,6 +375,10 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 		}
 	}
 	s := strings.Join(a, "")
+	if !strings.HasSuffix(s, quotedDelimiter) {
+		s += quotedDelimiter + "?"
+	}
+	s = "^(?:" + s + ")$"
 	re, err := regexp.Compile(s)
 	regexpCache[k] = &regexpCacheEntry{
 		re:  re,

@@ -206,6 +206,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
   be used on a regular basis, since it carries non-zero overhead.
 
 * `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
+  - `/internal/force_merge` - initiate [forced compactions](https://victoriametrics.github.io/#forced-merge) on the given `vmstorage` node.
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.

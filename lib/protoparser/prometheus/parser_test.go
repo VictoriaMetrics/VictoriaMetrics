@@ -129,6 +129,13 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(" aaa ")
 	f(" aaa   \n")
 	f(` aa{foo="bar"}   ` + "\n")
+
+	// Invalid value
+	f("foo bar")
+	f("foo bar 124")
+
+	// Invalid timestamp
+	f("foo 123 bar")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -51,6 +52,8 @@ type Queue struct {
 	writerOffset        uint64
 	writerLocalOffset   uint64
 	writerFlushedOffset uint64
+
+	lastMetainfoFlushTime uint64
 
 	mustStop bool
 
@@ -110,7 +113,7 @@ func (q *Queue) ResetIfEmpty() {
 	}
 	q.reader = r
 
-	if err := q.flushMetainfo(); err != nil {
+	if err := q.flushMetainfoLocked(); err != nil {
 		logger.Panicf("FATAL: cannot flush metainfo: %s", err)
 	}
 }
@@ -236,7 +239,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			logger.Panicf("BUG: cannot parse hex %q: %s", fname, err)
 		}
 		if offset%q.chunkFileSize != 0 {
-			logger.Errorf("unexpected offset for chunk file %q: %d; it must divide by %d; removing the file", filepath, offset, q.chunkFileSize)
+			logger.Errorf("unexpected offset for chunk file %q: %d; it must be multiple of %d; removing the file", filepath, offset, q.chunkFileSize)
 			fs.MustRemoveAll(filepath)
 			continue
 		}
@@ -284,10 +287,15 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			q.writerLocalOffset = mi.WriterOffset % q.chunkFileSize
 			q.writerFlushedOffset = mi.WriterOffset
 			if fileSize := fs.MustFileSize(q.writerPath); fileSize != q.writerLocalOffset {
-				logger.Errorf("chunk file %q size doesn't match writer offset; file size %d bytes; writer offset: %d bytes",
-					q.writerPath, fileSize, q.writerLocalOffset)
-				fs.MustRemoveAll(q.writerPath)
-				continue
+				if fileSize < q.writerLocalOffset {
+					logger.Errorf("%q size (%d bytes) is smaller than the writer offset (%d bytes); removing the file",
+						q.writerPath, fileSize, q.writerLocalOffset)
+					fs.MustRemoveAll(q.writerPath)
+					continue
+				}
+				logger.Warnf("%q size (%d bytes) is bigger than writer offset (%d bytes); "+
+					"this may be the case on unclean shutdown (OOM, `kill -9`, hardware reset); trying to fix it by adjusting fileSize to %d",
+					q.writerPath, fileSize, q.writerLocalOffset, q.writerLocalOffset)
 			}
 			w, err := filestream.OpenWriterAt(q.writerPath, int64(q.writerLocalOffset), false)
 			if err != nil {
@@ -331,7 +339,7 @@ func (q *Queue) MustClose() {
 	q.reader = nil
 
 	// Store metainfo
-	if err := q.flushMetainfo(); err != nil {
+	if err := q.flushMetainfoLocked(); err != nil {
 		logger.Panicf("FATAL: cannot flush chunked queue metainfo: %s", err)
 	}
 }
@@ -403,6 +411,8 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 	if q.writerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
 		// Finalize the current chunk and start new one.
 		q.writer.MustClose()
+		// There is no need to do fs.MustSyncPath(q.writerPath) here,
+		// since MustClose already does this.
 		if n := q.writerOffset % q.chunkFileSize; n > 0 {
 			q.writerOffset += (q.chunkFileSize - n)
 		}
@@ -414,9 +424,10 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 			return fmt.Errorf("cannot create chunk file %q: %w", q.writerPath, err)
 		}
 		q.writer = w
-		if err := q.flushMetainfo(); err != nil {
+		if err := q.flushMetainfoLocked(); err != nil {
 			return fmt.Errorf("cannot flush metainfo: %w", err)
 		}
+		fs.MustSyncPath(q.dir)
 	}
 
 	// Write block len.
@@ -435,7 +446,7 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 	}
 	q.blocksWritten.Inc()
 	q.bytesWritten.Add(len(block))
-	return nil
+	return q.flushMetainfoIfNeededLocked(true)
 }
 
 // MustReadBlock appends the next block from q to dst and returns the result.
@@ -462,6 +473,9 @@ func (q *Queue) MustReadBlock(dst []byte) ([]byte, bool) {
 
 	data, err := q.readBlockLocked(dst)
 	if err != nil {
+		// Skip the current chunk, since it may be broken.
+		q.readerOffset += q.chunkFileSize - q.readerOffset%q.chunkFileSize
+		_ = q.flushMetainfoLocked()
 		logger.Panicf("FATAL: %s", err)
 	}
 	return data, true
@@ -482,9 +496,10 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 			return dst, fmt.Errorf("cannot open chunk file %q: %w", q.readerPath, err)
 		}
 		q.reader = r
-		if err := q.flushMetainfo(); err != nil {
+		if err := q.flushMetainfoLocked(); err != nil {
 			return dst, fmt.Errorf("cannot flush metainfo: %w", err)
 		}
+		fs.MustSyncPath(q.dir)
 	}
 
 	// Read block len.
@@ -508,6 +523,9 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 	}
 	q.blocksRead.Inc()
 	q.bytesRead.Add(int(blockLen))
+	if err := q.flushMetainfoIfNeededLocked(false); err != nil {
+		return dst, err
+	}
 	return dst, nil
 }
 
@@ -528,7 +546,7 @@ func (q *Queue) write(buf []byte) error {
 func (q *Queue) readFull(buf []byte) error {
 	bufLen := uint64(len(buf))
 	if q.readerOffset+bufLen > q.writerFlushedOffset {
-		q.writer.MustFlush()
+		q.writer.MustFlush(false)
 		q.writerFlushedOffset = q.writerOffset
 	}
 	n, err := io.ReadFull(q.reader, buf)
@@ -543,7 +561,22 @@ func (q *Queue) readFull(buf []byte) error {
 	return nil
 }
 
-func (q *Queue) flushMetainfo() error {
+func (q *Queue) flushMetainfoIfNeededLocked(flushData bool) error {
+	t := fasttime.UnixTimestamp()
+	if t == q.lastMetainfoFlushTime {
+		return nil
+	}
+	if flushData {
+		q.writer.MustFlush(true)
+	}
+	if err := q.flushMetainfoLocked(); err != nil {
+		return fmt.Errorf("cannot flush metainfo: %w", err)
+	}
+	q.lastMetainfoFlushTime = t
+	return nil
+}
+
+func (q *Queue) flushMetainfoLocked() error {
 	mi := &metainfo{
 		Name:         q.name,
 		ReaderOffset: q.readerOffset,
@@ -577,6 +610,7 @@ func (mi *metainfo) WriteToFile(path string) error {
 	if err := ioutil.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("cannot write persistent queue metainfo to %q: %w", path, err)
 	}
+	fs.MustSyncPath(path)
 	return nil
 }
 

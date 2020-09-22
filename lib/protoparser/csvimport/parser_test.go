@@ -20,9 +20,19 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	}
 	// Invalid timestamp
 	f("1:metric:foo,2:time:rfc3339", "234,foobar")
+	f("1:metric:foo,2:time:unix_s", "234,foobar")
+	f("1:metric:foo,2:time:unix_ms", "234,foobar")
+	f("1:metric:foo,2:time:unix_ns", "234,foobar")
+	f("1:metric:foo,2:time:custom:foobar", "234,234")
+
+	// Too big timestamp in seconds.
+	f("1:metric:foo,2:time:unix_s", "1,12345678901234567")
 
 	// Missing columns
 	f("3:metric:aaa", "123,456")
+
+	// Invalid value
+	f("1:metric:foo", "12foobar")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {

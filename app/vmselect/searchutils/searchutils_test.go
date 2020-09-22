@@ -17,12 +17,12 @@ func TestGetTimeSuccess(t *testing.T) {
 		}
 
 		// Verify defaultValue
-		ts, err := GetTime(r, "foo", 123)
+		ts, err := GetTime(r, "foo", 123456)
 		if err != nil {
 			t.Fatalf("unexpected error when obtaining default time from GetTime(%q): %s", s, err)
 		}
-		if ts != 123 {
-			t.Fatalf("unexpected default value for GetTime(%q); got %d; want %d", s, ts, 123)
+		if ts != 123000 {
+			t.Fatalf("unexpected default value for GetTime(%q); got %d; want %d", s, ts, 123000)
 		}
 
 		// Verify timestampExpected
@@ -55,12 +55,12 @@ func TestGetTimeError(t *testing.T) {
 		}
 
 		// Verify defaultValue
-		ts, err := GetTime(r, "foo", 123)
+		ts, err := GetTime(r, "foo", 123456)
 		if err != nil {
 			t.Fatalf("unexpected error when obtaining default time from GetTime(%q): %s", s, err)
 		}
-		if ts != 123 {
-			t.Fatalf("unexpected default value for GetTime(%q); got %d; want %d", s, ts, 123)
+		if ts != 123000 {
+			t.Fatalf("unexpected default value for GetTime(%q); got %d; want %d", s, ts, 123000)
 		}
 
 		// Verify timestampExpected

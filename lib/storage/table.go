@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -240,6 +241,26 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 		m.PartitionsRefCount += atomic.LoadUint64(&ptw.refCount)
 	}
 	tb.ptwsLock.Unlock()
+}
+
+// ForceMergePartitions force-merges partitions in tb with names starting from the given partitionNamePrefix.
+//
+// Partitions are merged sequentially in order to reduce load on the system.
+func (tb *table) ForceMergePartitions(partitionNamePrefix string) error {
+	ptws := tb.GetPartitions(nil)
+	defer tb.PutPartitions(ptws)
+	for _, ptw := range ptws {
+		if !strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
+			continue
+		}
+		logger.Infof("starting forced merge for partition %q", ptw.pt.name)
+		startTime := time.Now()
+		if err := ptw.pt.ForceMergeAllParts(); err != nil {
+			return fmt.Errorf("cannot complete forced merge for partition %q: %w", ptw.pt.name, err)
+		}
+		logger.Infof("forced merge for partition %q has been finished in %.3f seconds", ptw.pt.name, time.Since(startTime).Seconds())
+	}
+	return nil
 }
 
 // AddRows adds the given rows to the table tb.

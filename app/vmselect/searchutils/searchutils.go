@@ -15,15 +15,30 @@ import (
 
 var (
 	maxExportDuration   = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for search query execution")
-	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses when some of vmstorage nodes are unavailable. This trades consistency over availability")
+	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution; see also -search.storageTimeout")
+	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
+		"this trades availability over consistency; see also -search.maxQueryDuration and -search.storageTimeout")
+
+	// StorageTimeout limits the duration of query execution on every vmstorage node.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+	StorageTimeout = flag.Duration("search.storageTimeout", 0, "The timeout for per-storage query processing; "+
+		"this allows returning partial responses if certain -storageNode instances slowly process the query; "+
+		"see also -search.maxQueryDuration and -search.denyPartialResponse command-line flags")
 )
 
+func roundToSeconds(ms int64) int64 {
+	return ms - ms%1000
+}
+
 // GetTime returns time from the given argKey query arg.
-func GetTime(r *http.Request, argKey string, defaultValue int64) (int64, error) {
+//
+// If argKey is missing in r, then defaultMs rounded to seconds is returned.
+// The rounding is needed in order to align query results in Grafana
+// executed at different times. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720
+func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 	argValue := r.FormValue(argKey)
 	if len(argValue) == 0 {
-		return defaultValue, nil
+		return roundToSeconds(defaultMs), nil
 	}
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
@@ -96,6 +111,22 @@ func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 }
 
 const maxDurationMsecs = 100 * 365 * 24 * 3600 * 1000
+
+// GetMaxQueryDuration returns the maximum duration for query from r.
+func GetMaxQueryDuration(r *http.Request) time.Duration {
+	dms, err := GetDuration(r, "timeout", 0)
+	if err != nil {
+		dms = 0
+	}
+	d := time.Duration(dms) * time.Millisecond
+	if d <= 0 || d > *maxQueryDuration {
+		d = *maxQueryDuration
+	}
+	if *StorageTimeout > 0 && d > *StorageTimeout {
+		d = *StorageTimeout
+	}
+	return d
+}
 
 // GetDeadlineForQuery returns deadline for the given query r.
 func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {

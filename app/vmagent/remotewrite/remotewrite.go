@@ -9,7 +9,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -24,7 +23,7 @@ var (
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored")
-	queues      = flag.Int("remoteWrite.queues", 1, "The number of concurrent queues to each -remoteWrite.url. Set more queues if a single queue "+
+	queues      = flag.Int("remoteWrite.queues", 4, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 		"isn't enough for sending high volume of collected data to remote storage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
@@ -63,7 +62,7 @@ func Init() {
 	}
 	if !*showRemoteWriteURL {
 		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
-		httpserver.RegisterSecretFlag("remoteWrite.url")
+		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
 	initLabelsGlobal()
 	rcs, err := loadRelabelConfigs()
@@ -83,11 +82,11 @@ func Init() {
 		maxInmemoryBlocks = 2
 	}
 	for i, remoteWriteURL := range *remoteWriteURLs {
-		urlLabelValue := fmt.Sprintf("secret-url-%d", i+1)
+		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if *showRemoteWriteURL {
-			urlLabelValue = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
+			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
-		rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, urlLabelValue)
+		rwctx := newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 		rwctxs = append(rwctxs, rwctx)
 	}
 
@@ -190,17 +189,17 @@ type remoteWriteCtx struct {
 	relabelMetricsDropped *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int, urlLabelValue string) *remoteWriteCtx {
+func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
 	h := xxhash.Sum64([]byte(remoteWriteURL))
 	path := fmt.Sprintf("%s/persistent-queue/%d_%016X", *tmpDataPath, argIdx+1, h)
-	fq := persistentqueue.MustOpenFastQueue(path, remoteWriteURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
+	fq := persistentqueue.MustOpenFastQueue(path, sanitizedURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, path, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
-	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, path, urlLabelValue), func() float64 {
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, path, sanitizedURL), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
-	c := newClient(argIdx, remoteWriteURL, urlLabelValue, fq, *queues)
+	c := newClient(argIdx, remoteWriteURL, sanitizedURL, fq, *queues)
 	pss := make([]*pendingSeries, *queues)
 	for i := range pss {
 		pss[i] = newPendingSeries(fq.MustWriteBlock)
@@ -211,7 +210,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int,
 		c:   c,
 		pss: pss,
 
-		relabelMetricsDropped: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, path, urlLabelValue)),
+		relabelMetricsDropped: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, path, sanitizedURL)),
 	}
 }
 

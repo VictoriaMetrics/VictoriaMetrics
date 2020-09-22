@@ -97,7 +97,16 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		req.Header.Set("Authorization", c.authHeader)
 	}
 	resp := fasthttp.AcquireResponse()
+	swapResponseBodies := len(dst) == 0
+	if swapResponseBodies {
+		// An optimization: write response directly to dst.
+		// This should reduce memory uage when scraping big targets.
+		dst = resp.SwapBody(dst)
+	}
 	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
+	if swapResponseBodies {
+		dst = resp.SwapBody(dst)
+	}
 	statusCode := resp.StatusCode()
 	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
 		// Allow a single redirect.
@@ -125,14 +134,21 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	dstLen := len(dst)
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
 		var err error
-		dst, err = fasthttp.AppendGunzipBytes(dst, resp.Body())
+		var src []byte
+		if swapResponseBodies {
+			src = append(src, dst...)
+			dst = dst[:0]
+		} else {
+			src = resp.Body()
+		}
+		dst, err = fasthttp.AppendGunzipBytes(dst, src)
 		if err != nil {
 			fasthttp.ReleaseResponse(resp)
 			scrapesGunzipFailed.Inc()
 			return dst, fmt.Errorf("cannot ungzip response from %q: %w", c.scrapeURL, err)
 		}
 		scrapesGunzipped.Inc()
-	} else {
+	} else if !swapResponseBodies {
 		dst = append(dst, resp.Body()...)
 	}
 	if statusCode != fasthttp.StatusOK {

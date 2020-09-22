@@ -207,10 +207,10 @@ func (upw *unpackWork) reset() {
 	}
 }
 
-func (upw *unpackWork) unpack() {
+func (upw *unpackWork) unpack(tmpBlock *storage.Block) {
 	for _, w := range upw.ws {
 		sb := getSortBlock()
-		if err := sb.unpackFrom(upw.tbf, w.addr, w.tr, upw.fetchData, upw.at); err != nil {
+		if err := sb.unpackFrom(tmpBlock, upw.tbf, w.addr, w.tr, upw.fetchData, upw.at); err != nil {
 			putSortBlock(sb)
 			upw.doneCh <- fmt.Errorf("cannot unpack block: %w", err)
 			return
@@ -244,8 +244,9 @@ func init() {
 }
 
 func unpackWorker() {
+	var tmpBlock storage.Block
 	for upw := range unpackWorkCh {
-		upw.unpack()
+		upw.unpack(&tmpBlock)
 	}
 }
 
@@ -381,30 +382,26 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap) {
 var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
 
 type sortBlock struct {
-	// b is used as a temporary storage for unpacked rows before they
-	// go to Timestamps and Values.
-	b storage.Block
-
 	Timestamps []int64
 	Values     []float64
 	NextIdx    int
 }
 
 func (sb *sortBlock) reset() {
-	sb.b.Reset()
 	sb.Timestamps = sb.Timestamps[:0]
 	sb.Values = sb.Values[:0]
 	sb.NextIdx = 0
 }
 
-func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
-	tbf.MustReadBlockAt(&sb.b, addr)
+func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, tbf *tmpBlocksFile, addr tmpBlockAddr, tr storage.TimeRange, fetchData bool, at *auth.Token) error {
+	tmpBlock.Reset()
+	tbf.MustReadBlockAt(tmpBlock, addr)
 	if fetchData {
-		if err := sb.b.UnmarshalData(); err != nil {
+		if err := tmpBlock.UnmarshalData(); err != nil {
 			return fmt.Errorf("cannot unmarshal block: %w", err)
 		}
 	}
-	timestamps := sb.b.Timestamps()
+	timestamps := tmpBlock.Timestamps()
 
 	// Skip timestamps smaller than tr.MinTimestamp.
 	i := 0
@@ -417,16 +414,16 @@ func (sb *sortBlock) unpackFrom(tbf *tmpBlocksFile, addr tmpBlockAddr, tr storag
 	for j > i && timestamps[j-1] > tr.MaxTimestamp {
 		j--
 	}
-	skippedRows := sb.b.RowsCount() - (j - i)
+	skippedRows := tmpBlock.RowsCount() - (j - i)
 	metricRowsSkipped.Add(skippedRows)
 
 	// Copy the remaining values.
 	if i == j {
 		return nil
 	}
-	values := sb.b.Values()
+	values := tmpBlock.Values()
 	sb.Timestamps = append(sb.Timestamps, timestamps[i:j]...)
-	sb.Values = decimal.AppendDecimalToFloat(sb.Values, values[i:j], sb.b.Scale())
+	sb.Values = decimal.AppendDecimalToFloat(sb.Values, values[i:j], tmpBlock.Scale())
 	return nil
 }
 
@@ -1009,6 +1006,8 @@ func (tbfw *tmpBlocksFileWrapper) WriteBlock(mb *storage.MetricBlock) error {
 }
 
 // ProcessSearchQuery performs sq on storage nodes until the given deadline.
+//
+// Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
@@ -1317,12 +1316,33 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 		<-sn.concurrentQueriesCh
 	}()
 
+	d := time.Unix(int64(deadline.Deadline()), 0)
+	nowSecs := fasttime.UnixTimestamp()
+	currentTime := time.Unix(int64(nowSecs), 0)
+	storageTimeout := *searchutils.StorageTimeout
+	if storageTimeout > 0 {
+		dd := currentTime.Add(storageTimeout)
+		if dd.Sub(d) < 0 {
+			// Limit the remote deadline to storageTimeout,
+			// so slow vmstorage nodes may stop processing the request.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711 .
+			// The local deadline remains the same, so data obtained from
+			// the remaining vmstorage nodes could be processed locally.
+			d = dd
+		}
+	}
+	timeout := d.Sub(currentTime)
+	if timeout <= 0 {
+		return fmt.Errorf("request timeout reached: %s or -search.storageTimeout=%s", deadline.String(), storageTimeout.String())
+	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
 		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
 	}
-	d := time.Unix(int64(deadline.Deadline()), 0)
-	if err := bc.SetDeadline(d); err != nil {
+	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
+	// without the need to break the connection.
+	connDeadline := d.Add(2 * time.Second)
+	if err := bc.SetDeadline(connDeadline); err != nil {
 		_ = bc.Close()
 		logger.Panicf("FATAL: cannot set connection deadline: %s", err)
 	}
@@ -1334,16 +1354,8 @@ func (sn *storageNode) execOnConn(rpcName string, f func(bc *handshake.BufferedC
 	}
 
 	// Send the remaining timeout instead of deadline to remote server, since it may have different time.
-	now := fasttime.UnixTimestamp()
-	timeout := uint64(0)
-	if deadline.Deadline() > now {
-		timeout = deadline.Deadline() - now
-	}
-	if timeout > (1<<32)-2 {
-		timeout = (1 << 32) - 2
-	}
-	timeout++
-	if err := writeUint32(bc, uint32(timeout)); err != nil {
+	timeoutSecs := uint32(timeout.Seconds() + 1)
+	if err := writeUint32(bc, timeoutSecs); err != nil {
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
 		_ = bc.Close()

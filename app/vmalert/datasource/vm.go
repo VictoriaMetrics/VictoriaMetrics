@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
@@ -46,8 +47,6 @@ func (r response) metrics() ([]Metric, error) {
 	return ms, nil
 }
 
-const queryPath = "/api/v1/query?query="
-
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
 	c             *http.Client
@@ -55,17 +54,21 @@ type VMStorage struct {
 	suffix        string
 	basicAuthUser string
 	basicAuthPass string
+	lookBack      time.Duration
 }
 
+const queryPath = "/api/v1/query?query="
+
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL, suffix, basicAuthUser, basicAuthPass string, c *http.Client) (*VMStorage, error) {
+func NewVMStorage(baseURL, suffix, basicAuthUser, basicAuthPass string, lookBack time.Duration, c *http.Client) *VMStorage {
 	return &VMStorage{
 		c:             c,
 		baseURL:       baseURL,
 		suffix:        suffix,
 		basicAuthUser: basicAuthUser,
 		basicAuthPass: basicAuthPass,
-	}, nil
+		lookBack:      lookBack,
+	}
 }
 
 // Query reads metrics from datasource by given query
@@ -74,6 +77,10 @@ func (s *VMStorage) Query(ctx context.Context, at *auth.Token, query string) ([]
 		statusSuccess, statusError, rtVector = "success", "error", "vector"
 	)
 	queryURL := fmt.Sprintf("%v/%s/%s%s%s", s.baseURL, at.String(), s.suffix, queryPath, url.QueryEscape(query))
+	if s.lookBack > 0 {
+		lookBack := time.Now().Add(-s.lookBack)
+		queryURL += fmt.Sprintf("&time=%d", lookBack.Unix())
+	}
 	req, err := http.NewRequest("POST", queryURL, nil)
 	if err != nil {
 		return nil, err
@@ -89,7 +96,7 @@ func (s *VMStorage) Query(ctx context.Context, at *auth.Token, query string) ([]
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s with err %w. Reponse body %s", resp.StatusCode, req.URL, err, body)
+		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Reponse body %s", resp.StatusCode, req.URL, body)
 	}
 	r := &response{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {

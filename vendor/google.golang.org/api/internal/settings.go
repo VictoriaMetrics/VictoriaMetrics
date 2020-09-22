@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/internal/impersonate"
 	"google.golang.org/grpc"
 )
 
@@ -39,6 +40,7 @@ type DialSettings struct {
 	ClientCertSource    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	CustomClaims        map[string]interface{}
 	SkipValidation      bool
+	ImpersonationConfig *impersonate.Config
 
 	// Google API system parameters. For more information please read:
 	// https://cloud.google.com/apis/docs/system-parameters
@@ -105,6 +107,8 @@ func (ds *DialSettings) Validate() error {
 	if ds.ClientCertSource != nil && (ds.GRPCConn != nil || ds.GRPCConnPool != nil || ds.GRPCConnPoolSize != 0 || ds.GRPCDialOpts != nil) {
 		return errors.New("WithClientCertSource is currently only supported for HTTP. gRPC settings are incompatible")
 	}
-
+	if ds.ImpersonationConfig != nil && len(ds.ImpersonationConfig.Scopes) == 0 && len(ds.Scopes) == 0 {
+		return errors.New("WithImpersonatedCredentials requires scopes being provided")
+	}
 	return nil
 }
