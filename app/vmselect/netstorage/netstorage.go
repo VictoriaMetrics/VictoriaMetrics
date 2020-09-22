@@ -264,7 +264,8 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 	}
 
 	// Feed workers with work
-	upws := make([]*unpackWork, 0, 1+len(pts.addrs)/unpackBatchSize)
+	addrsLen := len(pts.addrs)
+	upws := make([]*unpackWork, 0, 1+addrsLen/unpackBatchSize)
 	upw := getUnpackWork()
 	upw.tbf = tbf
 	upw.fetchData = fetchData
@@ -288,7 +289,7 @@ func (pts *packedTimeseries) Unpack(tbf *tmpBlocksFile, dst *Result, tr storage.
 	pts.addrs = pts.addrs[:0]
 
 	// Wait until work is complete
-	sbs := make([]*sortBlock, 0, len(pts.addrs))
+	sbs := make([]*sortBlock, 0, addrsLen)
 	var firstErr error
 	for _, upw := range upws {
 		if err := <-upw.doneCh; err != nil && firstErr == nil {
