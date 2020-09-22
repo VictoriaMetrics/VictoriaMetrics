@@ -616,6 +616,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	for sr.NextMetricBlock() {
 		blocksRead++
 		if deadline.Exceeded() {
+			putStorageSearch(sr)
 			return nil, fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
 		}
 		metricName := sr.MetricBlockRef.MetricName
@@ -632,6 +633,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 		}
 	}
 	if err := sr.Error(); err != nil {
+		putStorageSearch(sr)
 		if errors.Is(err, storage.ErrDeadlineExceeded) {
 			return nil, fmt.Errorf("timeout exceeded during the query: %s", deadline.String())
 		}
