@@ -259,7 +259,8 @@ func (pts *packedTimeseries) Unpack(dst *Result, tr storage.TimeRange, fetchData
 	}
 
 	// Feed workers with work
-	upws := make([]*unpackWork, 0, 1+len(pts.brs)/unpackBatchSize)
+	brsLen := len(pts.brs)
+	upws := make([]*unpackWork, 0, 1+brsLen/unpackBatchSize)
 	upw := getUnpackWork()
 	upw.fetchData = fetchData
 	for _, br := range pts.brs {
@@ -279,7 +280,7 @@ func (pts *packedTimeseries) Unpack(dst *Result, tr storage.TimeRange, fetchData
 	pts.brs = pts.brs[:0]
 
 	// Wait until work is complete
-	sbs := make([]*sortBlock, 0, len(pts.brs))
+	sbs := make([]*sortBlock, 0, brsLen)
 	var firstErr error
 	for _, upw := range upws {
 		if err := <-upw.doneCh; err != nil && firstErr == nil {
