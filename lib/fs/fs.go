@@ -338,6 +338,6 @@ func mustGetFreeSpace(path string) uint64 {
 	if err := unix.Fstatfs(int(fd), &stat); err != nil {
 		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
 	}
-	freeSpace := uint64(stat.Bavail) * uint64(stat.Bsize)
-	return freeSpace
+
+	return freeSpace(stat)
 }
