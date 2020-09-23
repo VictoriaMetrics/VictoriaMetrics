@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -86,6 +87,9 @@ func InitWithoutMetrics() {
 	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
 	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
 		*DataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
+
+	retentionMsecs := (int64(*retentionPeriod) * 3600 * 24 * 30) * 1000
+	promdb.Init(retentionMsecs)
 }
 
 // Storage is a storage.
@@ -172,6 +176,7 @@ func Stop() {
 	logger.Infof("gracefully closing the storage at %s", *DataPath)
 	startTime := time.Now()
 	WG.WaitAndBlock()
+	promdb.MustClose()
 	Storage.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 

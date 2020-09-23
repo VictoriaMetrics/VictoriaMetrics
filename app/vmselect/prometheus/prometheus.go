@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -285,6 +286,10 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
+	promTR := storage.TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: startTime.UnixNano() / 1e6,
+	}
 	var labelValues []string
 	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 		var err error
@@ -314,7 +319,16 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		if err != nil {
 			return fmt.Errorf("cannot obtain label values for %q, match[]=%q, start=%d, end=%d: %w", labelName, matches, start, end, err)
 		}
+		promTR.MinTimestamp = start
+		promTR.MaxTimestamp = end
 	}
+
+	// Merge label values obtained from Prometheus storage.
+	promLabelValues, err := promdb.GetLabelValues(promTR, labelName, deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain label values for %q from Prometheus storage: %s", labelName, err)
+	}
+	labelValues = mergeAndSortStrings(labelValues, promLabelValues)
 
 	w.Header().Set("Content-Type", "application/json")
 	WriteLabelValuesResponse(w, labelValues)
@@ -450,6 +464,10 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
+	promTR := storage.TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: startTime.UnixNano() / 1e6,
+	}
 	var labels []string
 	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 		var err error
@@ -477,12 +495,43 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels for match[]=%q, start=%d, end=%d: %w", matches, start, end, err)
 		}
+		promTR.MinTimestamp = start
+		promTR.MaxTimestamp = end
 	}
+
+	// Merge labels obtained from Prometheus storage.
+	promLabels, err := promdb.GetLabelNames(promTR, deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain labels from Prometheus storage: %s", err)
+	}
+	labels = mergeAndSortStrings(labels, promLabels)
 
 	w.Header().Set("Content-Type", "application/json")
 	WriteLabelsResponse(w, labels)
 	labelsDuration.UpdateDuration(startTime)
 	return nil
+}
+
+func mergeAndSortStrings(a, b []string) []string {
+	if len(a) == 0 {
+		return b
+	}
+	if len(b) == 0 {
+		return a
+	}
+	m := make(map[string]struct{}, len(a)+len(b))
+	for _, s := range a {
+		m[s] = struct{}{}
+	}
+	for _, s := range b {
+		m[s] = struct{}{}
+	}
+	result := make([]string, 0, len(m))
+	for s := range m {
+		result = append(result, s)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func labelsWithMatches(matches []string, start, end int64, deadline searchutils.Deadline) ([]string, error) {

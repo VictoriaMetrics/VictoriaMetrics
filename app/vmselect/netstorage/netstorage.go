@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -167,6 +168,12 @@ var gomaxprocs = runtime.GOMAXPROCS(-1)
 type packedTimeseries struct {
 	metricName string
 	brs        []storage.BlockRef
+	pd         *promData
+}
+
+type promData struct {
+	values     []float64
+	timestamps []int64
 }
 
 var unpackWorkCh = make(chan *unpackWork, gomaxprocs*128)
@@ -299,8 +306,43 @@ func (pts *packedTimeseries) Unpack(dst *Result, tr storage.TimeRange, fetchData
 	if firstErr != nil {
 		return firstErr
 	}
+	if pts.pd != nil {
+		// Add data from Prometheus to dst.
+		// It usually has smaller timestamps than the data from sbs, so put it first.
+		//
+		// There is no need in check for fetchData, since this is already checked when initializing pts.pd.
+		dst.Values = append(dst.Values, pts.pd.values...)
+		dst.Timestamps = append(dst.Timestamps, pts.pd.timestamps...)
+	}
 	mergeSortBlocks(dst, sbs)
+	if pts.pd != nil {
+		if !sort.IsSorted(dst) {
+			sort.Sort(dst)
+		}
+		pts.pd = nil
+	}
 	return nil
+}
+
+// sort.Interface implementation for Result
+
+// Len implements sort.Interface
+func (r *Result) Len() int {
+	return len(r.Timestamps)
+}
+
+// Less implements sort.Interface
+func (r *Result) Less(i, j int) bool {
+	timestamps := r.Timestamps
+	return timestamps[i] < timestamps[j]
+}
+
+// Swap implements sort.Interface
+func (r *Result) Swap(i, j int) {
+	timestamps := r.Timestamps
+	values := r.Values
+	timestamps[i], timestamps[j] = timestamps[j], timestamps[i]
+	values[i], values[j] = values[j], values[i]
 }
 
 func getSortBlock() *sortBlock {
@@ -641,6 +683,25 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 		return nil, fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
 	}
 
+	// Fetch data from promdb.
+	pm := make(map[string]*promData)
+	err = promdb.VisitSeries(sq, fetchData, deadline, func(metricName []byte, values []float64, timestamps []int64) {
+		pd := pm[string(metricName)]
+		if pd == nil {
+			if _, ok := m[string(metricName)]; !ok {
+				orderedMetricNames = append(orderedMetricNames, string(metricName))
+			}
+			pd = &promData{}
+			pm[string(metricName)] = pd
+		}
+		pd.values = append(pd.values, values...)
+		pd.timestamps = append(pd.timestamps, timestamps...)
+	})
+	if err != nil {
+		putStorageSearch(sr)
+		return nil, fmt.Errorf("error when searching in Prometheus data: %w", err)
+	}
+
 	var rss Results
 	rss.tr = tr
 	rss.fetchData = fetchData
@@ -650,6 +711,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 		pts[i] = packedTimeseries{
 			metricName: metricName,
 			brs:        m[metricName],
+			pd:         pm[metricName],
 		}
 	}
 	rss.packedTimeseries = pts

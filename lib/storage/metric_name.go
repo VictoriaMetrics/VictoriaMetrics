@@ -348,6 +348,12 @@ func (mn *MetricName) String() string {
 	return fmt.Sprintf("MetricGroup=%q, tags=[%s]", mn.MetricGroup, tagsStr)
 }
 
+// SortAndMarshal sorts mn tags and then marshals them to dst.
+func (mn *MetricName) SortAndMarshal(dst []byte) []byte {
+	mn.sortTags()
+	return mn.Marshal(dst)
+}
+
 // Marshal appends marshaled mn to dst and returns the result.
 //
 // Tags must be sorted before calling this function.
