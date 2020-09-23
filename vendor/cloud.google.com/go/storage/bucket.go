@@ -1130,8 +1130,9 @@ func toUniformBucketLevelAccess(b *raw.BucketIamConfiguration) UniformBucketLeve
 	}
 }
 
-// Objects returns an iterator over the objects in the bucket that match the Query q.
-// If q is nil, no filtering is done.
+// Objects returns an iterator over the objects in the bucket that match the
+// Query q. If q is nil, no filtering is done. Objects will be iterated over
+// lexicographically by name.
 //
 // Note: The returned iterator is not safe for concurrent operations without explicit synchronization.
 func (b *BucketHandle) Objects(ctx context.Context, q *Query) *ObjectIterator {
@@ -1169,6 +1170,13 @@ func (it *ObjectIterator) PageInfo() *iterator.PageInfo { return it.pageInfo }
 // Next returns the next result. Its second return value is iterator.Done if
 // there are no more results. Once Next returns iterator.Done, all subsequent
 // calls will return iterator.Done.
+//
+// In addition, if Next returns an error other than iterator.Done, all
+// subsequent calls will return the same error. To continue iteration, a new
+// `ObjectIterator` must be created. Since objects are ordered lexicographically
+// by name, `Query.StartOffset` can be used to create a new iterator which will
+// start at the desired place. See
+// https://pkg.go.dev/cloud.google.com/go/storage?tab=doc#hdr-Listing_objects.
 //
 // If Query.Delimiter is non-empty, some of the ObjectAttrs returned by Next will
 // have a non-empty Prefix field, and a zero value for all other fields. These

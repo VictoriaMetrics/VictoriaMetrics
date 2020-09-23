@@ -1,5 +1,12 @@
 # Changes
 
+## v1.12.0
+- V4 signed URL fixes:
+  - Fix encoding of spaces in query parameters.
+  - Add fields that were missing from PostPolicyV4 policy conditions.
+- Fix Query to correctly list prefixes as well as objects when SetAttrSelection
+  is used.
+
 ## v1.11.0
 - Add support for CustomTime and NoncurrentTime object lifecycle management
   features.

@@ -6,7 +6,7 @@ cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
 cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
-# cloud.google.com/go/storage v1.11.0
+# cloud.google.com/go/storage v1.12.0
 cloud.google.com/go/storage
 # github.com/VictoriaMetrics/fastcache v1.5.7
 github.com/VictoriaMetrics/fastcache
@@ -19,7 +19,7 @@ github.com/VictoriaMetrics/metrics
 # github.com/VictoriaMetrics/metricsql v0.6.0
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
-# github.com/aws/aws-sdk-go v1.34.28
+# github.com/aws/aws-sdk-go v1.34.29
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
 github.com/aws/aws-sdk-go/aws/awserr
@@ -159,7 +159,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20200921210052-fa0125251cc4
+# golang.org/x/tools v0.0.0-20200923053713-ba800b16d873
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
