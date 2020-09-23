@@ -114,7 +114,7 @@ func TestParseARNCredentialsSuccess(t *testing.T) {
 func mustParseRFC3339(s string) time.Time {
 	expTime, err := time.Parse(time.RFC3339, s)
 	if err != nil {
-		panic(fmt.Errorf("unexpected error when parsing time from %q: %s", s, err))
+		panic(fmt.Errorf("unexpected error when parsing time from %q: %w", s, err))
 	}
 	return expTime
 }

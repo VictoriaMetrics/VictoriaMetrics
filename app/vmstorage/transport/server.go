@@ -724,7 +724,7 @@ func (s *Server) processVMSelectTagValueSuffixes(ctx *vmselectRequestCtx) error 
 	tagValuePrefix := append([]byte{}, ctx.dataBuf...)
 	delimiter, err := ctx.readByte()
 	if err != nil {
-		return fmt.Errorf("cannot read delimiter: %s", err)
+		return fmt.Errorf("cannot read delimiter: %w", err)
 	}
 
 	// Search for tag value suffixes
