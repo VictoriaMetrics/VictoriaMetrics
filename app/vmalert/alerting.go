@@ -60,7 +60,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 		Annotations:    cfg.Annotations,
 		GroupID:        group.ID(),
 		GroupName:      group.Name,
-		GroupAuthToken: group.at,
+		GroupAuthToken: group.AuthToken,
 		alerts:         make(map[uint64]*notifier.Alert),
 		metrics:        &alertingRuleMetrics{},
 	}

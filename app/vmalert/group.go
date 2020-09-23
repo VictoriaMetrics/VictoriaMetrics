@@ -25,7 +25,7 @@ type Group struct {
 	Rules       []Rule
 	Interval    time.Duration
 	Concurrency int
-	at          *auth.Token
+	AuthToken   *auth.Token
 	Checksum    string
 
 	doneCh     chan struct{}
@@ -62,12 +62,12 @@ func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string
 		updateCh:    make(chan *Group),
 	}
 	if cfg.Tenant != nil {
-		g.at = &auth.Token{
+		g.AuthToken = &auth.Token{
 			AccountID: cfg.Tenant.AccountID,
 			ProjectID: cfg.Tenant.ProjectID,
 		}
 	} else {
-		g.at = datasource.DefaultAuthToken
+		g.AuthToken = datasource.DefaultAuthToken
 	}
 
 	g.metrics = newGroupMetrics(g.Name, g.File)
@@ -111,7 +111,7 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
 	hash.Write([]byte("\xff"))
-	hash.Write([]byte(g.at.String()))
+	hash.Write([]byte(g.AuthToken.String()))
 	return hash.Sum64()
 }
 
@@ -125,7 +125,7 @@ func (g *Group) Restore(ctx context.Context, q datasource.Querier, lookback time
 		if rr.For < 1 {
 			continue
 		}
-		if err := rr.Restore(ctx, g.at, q, lookback, labels); err != nil {
+		if err := rr.Restore(ctx, g.AuthToken, q, lookback, labels); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
@@ -171,7 +171,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		newRules = append(newRules, nr)
 	}
 	g.Concurrency = newGroup.Concurrency
-	g.at = newGroup.at
+	g.AuthToken = newGroup.AuthToken
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil

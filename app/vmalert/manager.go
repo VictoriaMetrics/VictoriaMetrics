@@ -147,10 +147,10 @@ func (g *Group) toAPI() APIGroup {
 		Concurrency: g.Concurrency,
 	}
 	ag.AuthToken = nil
-	if g.at != nil {
+	if g.AuthToken != nil {
 		ag.AuthToken = &APIAuthToken{
-			AccountID: g.at.AccountID,
-			ProjectID: g.at.ProjectID,
+			AccountID: g.AuthToken.AccountID,
+			ProjectID: g.AuthToken.ProjectID,
 		}
 	}
 	for _, r := range g.Rules {

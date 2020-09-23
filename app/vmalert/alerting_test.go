@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -55,6 +56,20 @@ func TestAlertingRule_ToTimeSeries(t *testing.T) {
 					"__name__":      alertMetricName,
 					alertStateLabel: notifier.StateFiring.String(),
 					alertNameLabel:  "instant labels override",
+				}, timestamp),
+			},
+		},
+		{
+			newTestAlertingRuleWithAuthToken("instant with auth token", 0, &auth.Token{42, 12}),
+			&notifier.Alert{State: notifier.StateFiring, Labels: map[string]string{
+				alertGroupAuthTokenLabel: "12:42",
+			}},
+			[]prompbmarshal.TimeSeries{
+				newTimeSeries(1, map[string]string{
+					"__name__":               alertMetricName,
+					alertStateLabel:          notifier.StateFiring.String(),
+					alertNameLabel:           "instant with auth token",
+					alertGroupAuthTokenLabel: "12:42",
 				}, timestamp),
 			},
 		},
@@ -419,7 +434,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 			fq := &fakeQuerier{}
 			tc.rule.GroupID = fakeGroup.ID()
 			fq.add(tc.metrics...)
-			if err := tc.rule.Restore(context.TODO(), fq, time.Hour, nil); err != nil {
+			if err := tc.rule.Restore(context.TODO(), &auth.Token{}, fq, time.Hour, nil); err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 			if len(tc.rule.alerts) != len(tc.expAlerts) {
@@ -452,4 +467,8 @@ func newTestRuleWithLabels(name string, labels ...string) *AlertingRule {
 
 func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 	return &AlertingRule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor}
+}
+
+func newTestAlertingRuleWithAuthToken(name string, waitFor time.Duration, at *auth.Token) *AlertingRule {
+	return &AlertingRule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor, GroupAuthToken: at}
 }

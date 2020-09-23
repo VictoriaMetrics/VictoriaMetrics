@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -38,7 +39,7 @@ func (fq *fakeQuerier) add(metrics ...datasource.Metric) {
 	fq.Unlock()
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ *auth.Token, _ string) ([]datasource.Metric, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {

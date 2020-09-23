@@ -66,7 +66,7 @@ func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 		Expr:           cfg.Expr,
 		Labels:         cfg.Labels,
 		GroupID:        group.ID(),
-		GroupAuthToken: group.at,
+		GroupAuthToken: group.AuthToken,
 		metrics:        &recordingRuleMetrics{},
 	}
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
