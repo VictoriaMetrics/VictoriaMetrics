@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 var (
@@ -30,38 +29,28 @@ var (
 		"By default the server name from -remoteWrite.url is used")
 )
 
-var (
-	Suffix           string
-	BaseURL          string
-	DefaultAuthToken *auth.Token
-)
-
 // Init creates Client object from given flags.
 // Returns nil if addr flag wasn't set.
 func Init(ctx context.Context) (*Client, error) {
 	if *addr == "" {
 		return nil, nil
 	}
-	var err error
-	BaseURL, Suffix, DefaultAuthToken, err = utils.ParseURL(*addr)
-	if err != nil {
-		return nil, fmt.Errorf("wrong format of datasource.url: %v", *addr)
-	}
 
-	t, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 
 	return NewClient(ctx, Config{
-		BaseURL:       BaseURL,
-		Suffix:        Suffix,
+		URL:           *addr,
+		BaseURL:       "",
+		Suffix:        "",
 		Concurrency:   *concurrency,
 		MaxQueueSize:  *maxQueueSize,
 		MaxBatchSize:  *maxBatchSize,
 		FlushInterval: *flushInterval,
 		BasicAuthUser: *basicAuthUsername,
 		BasicAuthPass: *basicAuthPassword,
-		Transport:     t,
+		Transport:     tr,
 	})
 }

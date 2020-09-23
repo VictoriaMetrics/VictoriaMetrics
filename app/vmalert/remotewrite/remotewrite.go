@@ -19,6 +19,7 @@ import (
 // Client is an asynchronous HTTP client for writing
 // timeseries via remote write protocol.
 type Client struct {
+	URL     string
 	baseURL string
 	suffix  string
 
@@ -62,6 +63,7 @@ func (w *WriteRequestWrapper) Reset() {
 
 // Config is config for remote write.
 type Config struct {
+	URL     string
 	BaseURL string
 	Suffix  string
 
@@ -100,7 +102,7 @@ const writePath = "/api/v1/write"
 // NewClient returns asynchronous client for
 // writing timeseries via remotewrite protocol.
 func NewClient(ctx context.Context, cfg Config) (*Client, error) {
-	if cfg.BaseURL == "" {
+	if cfg.BaseURL == "" && cfg.URL == "" {
 		return nil, fmt.Errorf("config.Addr can't be empty")
 	}
 
@@ -124,8 +126,8 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Timeout:   cfg.WriteTimeout,
 			Transport: cfg.Transport,
 		},
-		baseURL:       BaseURL,
-		suffix:        Suffix,
+		baseURL:       cfg.BaseURL,
+		suffix:        cfg.Suffix,
 		baUser:        cfg.BasicAuthUser,
 		baPass:        cfg.BasicAuthPass,
 		flushInterval: cfg.FlushInterval,
@@ -133,6 +135,9 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		maxQueueSize:  cfg.MaxQueueSize,
 		doneCh:        make(chan struct{}),
 		tswCh:         make(chan TimeseriesWrapper, cfg.MaxQueueSize),
+	}
+	if cfg.URL != "" {
+		c.URL = cfg.URL
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {
@@ -259,7 +264,13 @@ func (c *Client) flush(ctx context.Context, wrw *WriteRequestWrapper) {
 
 func (c *Client) send(ctx context.Context, at string, data []byte) error {
 	r := bytes.NewReader(data)
-	addr := fmt.Sprintf("%v/%s/%s%s", c.baseURL, at, c.suffix, writePath)
+	var addr string
+	if c.URL == "" {
+		addr = fmt.Sprintf("%v/%s/%s%s", c.baseURL, at, c.suffix, writePath)
+	} else {
+		addr = fmt.Sprintf("%v%s", c.URL, writePath)
+	}
+
 	req, err := http.NewRequest("POST", addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)

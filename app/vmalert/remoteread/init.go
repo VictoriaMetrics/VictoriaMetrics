@@ -7,7 +7,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 var (
@@ -25,12 +24,6 @@ var (
 		"By default the server name from -remoteRead.url is used")
 )
 
-var (
-	Suffix           string
-	BaseURL          string
-	DefaultAuthToken *auth.Token
-)
-
 // Init creates a Querier from provided flag values.
 // Returns nil if addr flag wasn't set.
 func Init() (datasource.Querier, error) {
@@ -38,16 +31,10 @@ func Init() (datasource.Querier, error) {
 		return nil, nil
 	}
 
-	var err error
-	BaseURL, Suffix, DefaultAuthToken, err = utils.ParseURL(*addr)
-	if err != nil {
-		return nil, fmt.Errorf("wrong format of datasource.url: %v", *addr)
-	}
-
 	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(BaseURL, Suffix, *basicAuthUsername, *basicAuthPassword, 0, c), nil
+	return datasource.NewVMStorage(*addr, "", *basicAuthUsername, *basicAuthPassword, 0, c), nil
 }

@@ -76,7 +76,12 @@ func (s *VMStorage) Query(ctx context.Context, at *auth.Token, query string) ([]
 	const (
 		statusSuccess, statusError, rtVector = "success", "error", "vector"
 	)
-	queryURL := fmt.Sprintf("%v/%s/%s%s%s", s.baseURL, at.String(), s.suffix, queryPath, url.QueryEscape(query))
+	var queryURL string
+	if at.String() != "" {
+		queryURL = fmt.Sprintf("%v/%s/%s%s%s", s.baseURL, at.String(), s.suffix, queryPath, url.QueryEscape(query))
+	} else {
+		queryURL = fmt.Sprintf("%v/%s%s", s.baseURL, queryPath, url.QueryEscape(query))
+	}
 	if s.lookBack > 0 {
 		lookBack := time.Now().Add(-s.lookBack)
 		queryURL += fmt.Sprintf("&time=%d", lookBack.Unix())
