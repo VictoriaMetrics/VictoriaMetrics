@@ -650,12 +650,6 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	if len(query) > maxQueryLen.N {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
-	queryOffset := getLatencyOffsetMilliseconds()
-	if !searchutils.GetBool(r, "nocache") && ct-start < queryOffset {
-		// Adjust start time only if `nocache` arg isn't set.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
-		start = ct - queryOffset
-	}
 	if childQuery, windowStr, offsetStr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
 		window, err := parsePositiveDuration(windowStr, step)
 		if err != nil {
@@ -700,6 +694,16 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		return nil
 	}
 
+	queryOffset := getLatencyOffsetMilliseconds()
+	if !searchutils.GetBool(r, "nocache") && ct-start < queryOffset && start-ct < queryOffset {
+		// Adjust start time only if `nocache` arg isn't set.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
+		startPrev := start
+		start = ct - queryOffset
+		queryOffset = startPrev - start
+	} else {
+		queryOffset = 0
+	}
 	ec := promql.EvalConfig{
 		Start:            start,
 		End:              start,
@@ -711,6 +715,15 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	result, err := promql.Exec(&ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
+	}
+	if queryOffset > 0 {
+		for i := range result {
+			rs := &result[i]
+			timestamps := rs.Timestamps
+			for j := range timestamps {
+				timestamps[j] += queryOffset
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
