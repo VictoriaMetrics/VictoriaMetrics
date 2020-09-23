@@ -60,12 +60,12 @@ func MustClose() {
 
 var promDB *tsdb.DB
 
-// GetLabelNames returns label names on the given time range tr.
-func GetLabelNames(tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+// GetLabelNames returns label names.
+func GetLabelNames(deadline searchutils.Deadline) ([]string, error) {
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
-	q, err := promDB.Querier(ctx, tr.MinTimestamp, tr.MaxTimestamp)
+	q, err := promDB.Querier(ctx, 0, d.UnixNano()/1e6)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +77,12 @@ func GetLabelNames(tr storage.TimeRange, deadline searchutils.Deadline) ([]strin
 	return names, err
 }
 
-// GetLabelValues returns values for the given labelName on the given tr.
-func GetLabelValues(tr storage.TimeRange, labelName string, deadline searchutils.Deadline) ([]string, error) {
+// GetLabelValues returns values for the given labelName.
+func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, error) {
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
-	q, err := promDB.Querier(ctx, tr.MinTimestamp, tr.MaxTimestamp)
+	q, err := promDB.Querier(ctx, 0, d.UnixNano()/1e6)
 	if err != nil {
 		return nil, err
 	}

@@ -514,10 +514,38 @@ func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 		}
 	}
 
+	// Merge labels obtained from Prometheus storage.
+	promLabels, err := promdb.GetLabelNames(deadline)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain labels from Prometheus storage: %w", err)
+	}
+	labels = mergeStrings(labels, promLabels)
+
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
 
 	return labels, nil
+}
+
+func mergeStrings(a, b []string) []string {
+	if len(a) == 0 {
+		return b
+	}
+	if len(b) == 0 {
+		return a
+	}
+	m := make(map[string]struct{}, len(a)+len(b))
+	for _, s := range a {
+		m[s] = struct{}{}
+	}
+	for _, s := range b {
+		m[s] = struct{}{}
+	}
+	result := make([]string, 0, len(m))
+	for s := range m {
+		result = append(result, s)
+	}
+	return result
 }
 
 // GetLabelValues returns label values for the given labelName
@@ -535,6 +563,13 @@ func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, 
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search for labelName=%q: %w", labelName, err)
 	}
+
+	// Merge label values obtained from Prometheus storage.
+	promLabelValues, err := promdb.GetLabelValues(labelName, deadline)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain label values for %q from Prometheus storage: %w", labelName, err)
+	}
+	labelValues = mergeStrings(labelValues, promLabelValues)
 
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
