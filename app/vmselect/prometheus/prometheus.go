@@ -718,8 +718,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 	}
 	if queryOffset > 0 {
 		for i := range result {
-			rs := &result[i]
-			timestamps := rs.Timestamps
+			timestamps := result[i].Timestamps
 			for j := range timestamps {
 				timestamps[j] += queryOffset
 			}
