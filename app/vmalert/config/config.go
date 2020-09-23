@@ -41,7 +41,7 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	b, err := yaml.Marshal(g)
 	if err != nil {
-		return fmt.Errorf("failed to marshal group configuration for checksum: %s", err)
+		return fmt.Errorf("failed to marshal group configuration for checksum: %w", err)
 	}
 	h := md5.New()
 	h.Write(b)
