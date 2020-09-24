@@ -92,8 +92,8 @@ func initTestMetaindexRow(mr *metaindexRow) {
 	if mr.BlockHeadersCount == 0 {
 		mr.BlockHeadersCount = 1
 	}
-	if mr.IndexBlockSize > 2*8*maxBlockSize {
-		mr.IndexBlockSize = 2 * 8 * maxBlockSize
+	if mr.IndexBlockSize > 2*maxBlockSize {
+		mr.IndexBlockSize = 2 * maxBlockSize
 	}
 }
 

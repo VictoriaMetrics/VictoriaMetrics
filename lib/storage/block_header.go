@@ -150,26 +150,33 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 	bh.PrecisionBits = uint8(src[0])
 	src = src[1:]
 
-	if bh.RowsCount == 0 {
-		return src, fmt.Errorf("RowsCount in block header cannot be zero")
-	}
-	if err = encoding.CheckMarshalType(bh.TimestampsMarshalType); err != nil {
-		return src, fmt.Errorf("unsupported TimestampsMarshalType: %w", err)
-	}
-	if err = encoding.CheckMarshalType(bh.ValuesMarshalType); err != nil {
-		return src, fmt.Errorf("unsupported ValuesMarshalType: %w", err)
-	}
-	if err = encoding.CheckPrecisionBits(bh.PrecisionBits); err != nil {
-		return src, err
-	}
-	if bh.TimestampsBlockSize > 2*8*maxBlockSize {
-		return src, fmt.Errorf("too big TimestampsBlockSize; got %d; cannot exceed %d", bh.TimestampsBlockSize, 2*8*maxBlockSize)
-	}
-	if bh.ValuesBlockSize > 2*8*maxBlockSize {
-		return src, fmt.Errorf("too big ValuesBlockSize; got %d; cannot exceed %d", bh.ValuesBlockSize, 2*8*maxBlockSize)
-	}
+	err = bh.validate()
+	return src, err
+}
 
-	return src, nil
+func (bh *blockHeader) validate() error {
+	if bh.RowsCount == 0 {
+		return fmt.Errorf("RowsCount in block header cannot be zero")
+	}
+	if bh.RowsCount > 2*maxRowsPerBlock {
+		return fmt.Errorf("too big RowsCount; got %d; cannot exceed %d", bh.RowsCount, 2*maxRowsPerBlock)
+	}
+	if err := encoding.CheckMarshalType(bh.TimestampsMarshalType); err != nil {
+		return fmt.Errorf("unsupported TimestampsMarshalType: %w", err)
+	}
+	if err := encoding.CheckMarshalType(bh.ValuesMarshalType); err != nil {
+		return fmt.Errorf("unsupported ValuesMarshalType: %w", err)
+	}
+	if err := encoding.CheckPrecisionBits(bh.PrecisionBits); err != nil {
+		return err
+	}
+	if bh.TimestampsBlockSize > 2*maxBlockSize {
+		return fmt.Errorf("too big TimestampsBlockSize; got %d; cannot exceed %d", bh.TimestampsBlockSize, 2*maxBlockSize)
+	}
+	if bh.ValuesBlockSize > 2*maxBlockSize {
+		return fmt.Errorf("too big ValuesBlockSize; got %d; cannot exceed %d", bh.ValuesBlockSize, 2*maxBlockSize)
+	}
+	return nil
 }
 
 // unmarshalBlockHeaders unmarshals all the block headers from src,
