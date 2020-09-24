@@ -386,7 +386,7 @@ func (sb *sortBlock) reset() {
 
 func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, br storage.BlockRef, tr storage.TimeRange) error {
 	tmpBlock.Reset()
-	br.MustReadBlock(tmpBlock, true)
+	br.MustReadBlock(tmpBlock)
 	if err := tmpBlock.UnmarshalData(); err != nil {
 		return fmt.Errorf("cannot unmarshal block: %w", err)
 	}

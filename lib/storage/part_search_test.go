@@ -1251,7 +1251,7 @@ func testPartSearchSerial(p *part, tsids []TSID, tr TimeRange, expectedRawBlocks
 	var bs []Block
 	for ps.NextBlock() {
 		var b Block
-		ps.BlockRef.MustReadBlock(&b, true)
+		ps.BlockRef.MustReadBlock(&b)
 		bs = append(bs, b)
 	}
 	if err := ps.Error(); err != nil {
