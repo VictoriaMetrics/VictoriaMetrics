@@ -31,14 +31,9 @@ func (br *BlockRef) init(p *part, bh *blockHeader) {
 }
 
 // MustReadBlock reads block from br to dst.
-//
-// if fetchData is false, then only block header is read, otherwise all the data is read.
-func (br *BlockRef) MustReadBlock(dst *Block, fetchData bool) {
+func (br *BlockRef) MustReadBlock(dst *Block) {
 	dst.Reset()
 	dst.bh = br.bh
-	if !fetchData {
-		return
-	}
 
 	dst.timestampsData = bytesutil.Resize(dst.timestampsData[:0], int(br.bh.TimestampsBlockSize))
 	br.p.timestampsFile.MustReadAt(dst.timestampsData, int64(br.bh.TimestampsBlockOffset))

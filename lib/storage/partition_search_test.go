@@ -243,7 +243,7 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 	pts.Init(pt, tsids, tr)
 	for pts.NextBlock() {
 		var b Block
-		pts.BlockRef.MustReadBlock(&b, true)
+		pts.BlockRef.MustReadBlock(&b)
 		bs = append(bs, b)
 	}
 	if err := pts.Error(); err != nil {
