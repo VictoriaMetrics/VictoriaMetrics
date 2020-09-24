@@ -120,8 +120,8 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 	if mr.BlockHeadersCount <= 0 {
 		return src, fmt.Errorf("BlockHeadersCount must be greater than 0")
 	}
-	if mr.IndexBlockSize > 2*8*maxBlockSize {
-		return src, fmt.Errorf("too big IndexBlockSize; got %d; cannot exceed %d", mr.IndexBlockSize, 2*8*maxBlockSize)
+	if mr.IndexBlockSize > 2*maxBlockSize {
+		return src, fmt.Errorf("too big IndexBlockSize; got %d; cannot exceed %d", mr.IndexBlockSize, 2*maxBlockSize)
 	}
 
 	return src, nil
