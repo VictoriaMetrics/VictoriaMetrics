@@ -222,7 +222,7 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 		var mbs []metricBlock
 		for s.NextMetricBlock() {
 			var b Block
-			s.MetricBlockRef.BlockRef.MustReadBlock(&b)
+			s.MetricBlockRef.BlockRef.MustReadBlock(&b, true)
 
 			var mb metricBlock
 			mb.MetricName = append(mb.MetricName, s.MetricBlockRef.MetricName...)
