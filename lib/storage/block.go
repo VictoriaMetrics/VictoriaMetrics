@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -9,11 +10,11 @@ import (
 )
 
 const (
-	// The maximum size of values in the block.
-	maxBlockSize = 64 * 1024
-
 	// The maximum number of rows per block.
 	maxRowsPerBlock = 8 * 1024
+
+	// The maximum size of values in the block.
+	maxBlockSize = 8 * maxRowsPerBlock
 )
 
 // Block represents a block of time series values for a single TSID.
@@ -259,7 +260,7 @@ func (b *Block) UnmarshalData() error {
 	}
 
 	if b.bh.RowsCount <= 0 {
-		logger.Panicf("BUG: RowsCount must be greater than 0; got %d", b.bh.RowsCount)
+		return fmt.Errorf("RowsCount must be greater than 0; got %d", b.bh.RowsCount)
 	}
 
 	var err error
@@ -281,7 +282,7 @@ func (b *Block) UnmarshalData() error {
 	b.valuesData = b.valuesData[:0]
 
 	if len(b.timestamps) != len(b.values) {
-		logger.Panicf("BUG: timestamps and values count mismatch; got %d vs %d", len(b.timestamps), len(b.values))
+		return fmt.Errorf("timestamps and values count mismatch; got %d vs %d", len(b.timestamps), len(b.values))
 	}
 
 	b.nextIdx = 0
