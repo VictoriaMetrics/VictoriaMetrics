@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type response struct {
@@ -45,23 +46,25 @@ func (r response) metrics() ([]Metric, error) {
 	return ms, nil
 }
 
-const queryPath = "/api/v1/query?query="
-
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
 	c             *http.Client
 	queryURL      string
 	basicAuthUser string
 	basicAuthPass string
+	lookBack      time.Duration
 }
 
+const queryPath = "/api/v1/query?query="
+
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, c *http.Client) *VMStorage {
 	return &VMStorage{
 		c:             c,
 		basicAuthUser: basicAuthUser,
 		basicAuthPass: basicAuthPass,
 		queryURL:      strings.TrimSuffix(baseURL, "/") + queryPath,
+		lookBack:      lookBack,
 	}
 }
 
@@ -70,7 +73,12 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	const (
 		statusSuccess, statusError, rtVector = "success", "error", "vector"
 	)
-	req, err := http.NewRequest("POST", s.queryURL+url.QueryEscape(query), nil)
+	q := s.queryURL + url.QueryEscape(query)
+	if s.lookBack > 0 {
+		lookBack := time.Now().Add(-s.lookBack)
+		q += fmt.Sprintf("&time=%d", lookBack.Unix())
+	}
+	req, err := http.NewRequest("POST", q, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +93,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s with err %w. Reponse body %s", resp.StatusCode, req.URL, err, body)
+		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Reponse body %s", resp.StatusCode, req.URL, body)
 	}
 	r := &response{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {

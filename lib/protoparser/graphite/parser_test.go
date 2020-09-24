@@ -34,6 +34,16 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// missing tag value
 	f("aa;bb 23 34")
+
+	// unexpected space in tag value
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/99
+	f("s;tag1=aaa1;tag2=bb b2;tag3=ccc3 1")
+
+	// invalid value
+	f("aa bb")
+
+	// invalid timestamp
+	f("aa 123 bar")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {

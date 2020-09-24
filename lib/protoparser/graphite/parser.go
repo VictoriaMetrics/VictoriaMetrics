@@ -35,7 +35,7 @@ func (rs *Rows) Reset() {
 //
 // See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0])
 }
@@ -87,11 +87,23 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		// There is no timestamp. Use default timestamp instead.
-		r.Value = fastfloat.ParseBestEffort(tail)
+		v, err := fastfloat.Parse(tail)
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail, err)
+		}
+		r.Value = v
 		return tagsPool, nil
 	}
-	r.Value = fastfloat.ParseBestEffort(tail[:n])
-	r.Timestamp = fastfloat.ParseInt64BestEffort(tail[n+1:])
+	v, err := fastfloat.Parse(tail[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail[:n], err)
+	}
+	ts, err := fastfloat.ParseInt64(tail[n+1:])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail[n+1:], err)
+	}
+	r.Value = v
+	r.Timestamp = ts
 	return tagsPool, nil
 }
 

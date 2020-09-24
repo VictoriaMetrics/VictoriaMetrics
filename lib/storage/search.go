@@ -65,6 +65,12 @@ type Search struct {
 
 	ts tableSearch
 
+	// tr contains time range used in the serach.
+	tr TimeRange
+
+	// tfss contains tag filters used in the search.
+	tfss []*TagFilters
+
 	// deadline in unix timestamp seconds for the current search.
 	deadline uint64
 
@@ -81,6 +87,8 @@ func (s *Search) reset() {
 
 	s.storage = nil
 	s.ts.reset()
+	s.tr = TimeRange{}
+	s.tfss = nil
 	s.deadline = 0
 	s.err = nil
 	s.needClosing = false
@@ -98,6 +106,8 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMet
 	}
 
 	s.reset()
+	s.tr = tr
+	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
@@ -130,10 +140,10 @@ func (s *Search) MustClose() {
 
 // Error returns the last error from s.
 func (s *Search) Error() error {
-	if s.err == io.EOF {
+	if s.err == io.EOF || s.err == nil {
 		return nil
 	}
-	return s.err
+	return fmt.Errorf("error when searching for tagFilters=%s on the time range %s: %w", s.tfss, s.tr.String(), s.err)
 }
 
 // NextMetricBlock proceeds to the next MetricBlockRef.
@@ -335,7 +345,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 
 func checkSearchDeadlineAndPace(deadline uint64) error {
 	if fasttime.UnixTimestamp() > deadline {
-		return errDeadlineExceeded
+		return ErrDeadlineExceeded
 	}
 	storagepacelimiter.Search.WaitIfNeeded()
 	return nil

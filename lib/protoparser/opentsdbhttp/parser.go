@@ -35,7 +35,7 @@ func (rs *Rows) Reset() {
 //
 // See http://opentsdb.net/docs/build/html/api_http/put.html
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(av *fastjson.Value) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], av, rs.tagsPool[:0])
 }
@@ -112,9 +112,9 @@ func getFloat64(v *fastjson.Value) (float64, error) {
 		return v.Float64()
 	case fastjson.TypeString:
 		vStr, _ := v.StringBytes()
-		vFloat := fastfloat.ParseBestEffort(bytesutil.ToUnsafeString(vStr))
-		if vFloat == 0 && string(vStr) != "0" && string(vStr) != "0.0" {
-			return 0, fmt.Errorf("invalid float64 value: %q", vStr)
+		vFloat, err := fastfloat.Parse(bytesutil.ToUnsafeString(vStr))
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse value %q: %w", vStr, err)
 		}
 		return vFloat, nil
 	default:

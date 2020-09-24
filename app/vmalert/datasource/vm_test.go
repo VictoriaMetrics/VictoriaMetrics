@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 )
 
 var (
@@ -31,6 +33,13 @@ func TestVMSelectQuery(t *testing.T) {
 		if r.URL.Query().Get("query") != query {
 			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))
 		}
+		timeParam := r.URL.Query().Get("time")
+		if timeParam == "" {
+			t.Errorf("expected 'time' in query param, got nil instead")
+		}
+		if _, err := strconv.ParseInt(timeParam, 10, 64); err != nil {
+			t.Errorf("failed to parse 'time' query param: %s", err)
+		}
 		switch c {
 		case 0:
 			conn, _, _ := w.(http.Hijacker).Hijack()
@@ -52,7 +61,7 @@ func TestVMSelectQuery(t *testing.T) {
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, srv.Client())
+	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, srv.Client())
 	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
@@ -89,5 +98,4 @@ func TestVMSelectQuery(t *testing.T) {
 		m[0].Labels[0].Name != expected.Labels[0].Name {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
-
 }

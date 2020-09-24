@@ -3,10 +3,12 @@ package remotewrite
 import (
 	"flag"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -17,7 +19,7 @@ var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
 		"Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage. "+
 		"Minimum supported interval is 1 second")
-	maxUnpackedBlockSize = flag.Int("remoteWrite.maxBlockSize", 32*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
+	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 32*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
 		"It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics")
 )
 
@@ -68,7 +70,7 @@ func (ps *pendingSeries) periodicFlusher() {
 		case <-ps.stopCh:
 			mustStop = true
 		case <-ticker.C:
-			if fasttime.UnixTimestamp()-ps.wr.lastFlushTime < uint64(flushSeconds) {
+			if fasttime.UnixTimestamp()-atomic.LoadUint64(&ps.wr.lastFlushTime) < uint64(flushSeconds) {
 				continue
 			}
 		}
@@ -79,9 +81,11 @@ func (ps *pendingSeries) periodicFlusher() {
 }
 
 type writeRequest struct {
-	wr            prompbmarshal.WriteRequest
-	pushBlock     func(block []byte)
+	// Move lastFlushTime to the top of the struct in order to guarantee atomic access on 32-bit architectures.
 	lastFlushTime uint64
+
+	wr        prompbmarshal.WriteRequest
+	pushBlock func(block []byte)
 
 	tss []prompbmarshal.TimeSeries
 
@@ -113,7 +117,7 @@ func (wr *writeRequest) reset() {
 
 func (wr *writeRequest) flush() {
 	wr.wr.Timeseries = wr.tss
-	wr.lastFlushTime = fasttime.UnixTimestamp()
+	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
 	pushWriteRequest(&wr.wr, wr.pushBlock)
 	wr.reset()
 }
@@ -122,9 +126,9 @@ func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
 	tssDst := wr.tss
 	for i := range src {
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
-		dst := &tssDst[len(tssDst)-1]
-		wr.copyTimeSeries(dst, &src[i])
-		if len(wr.tss) >= maxRowsPerBlock {
+		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
+		if len(tssDst) >= maxRowsPerBlock {
+			wr.tss = tssDst
 			wr.flush()
 			tssDst = wr.tss
 		}
@@ -164,7 +168,7 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 	}
 	bb := writeRequestBufPool.Get()
 	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
-	if len(bb.B) <= *maxUnpackedBlockSize {
+	if len(bb.B) <= maxUnpackedBlockSize.N {
 		zb := snappyBufPool.Get()
 		zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
 		writeRequestBufPool.Put(bb)

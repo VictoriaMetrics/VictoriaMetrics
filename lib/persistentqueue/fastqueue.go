@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -26,6 +27,8 @@ type FastQueue struct {
 
 	pendingInmemoryBytes uint64
 
+	lastInmemoryBlockReadTime uint64
+
 	mustStop bool
 }
 
@@ -43,7 +46,9 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int
 		ch: make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
 	}
 	fq.cond.L = &fq.mu
-	logger.Infof("opened fast persistent queue at %q with maxInmemoryBlocks=%d", path, maxInmemoryBlocks)
+	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
+	pendingBytes := fq.GetPendingBytes()
+	logger.Infof("opened fast persistent queue at %q with maxInmemoryBlocks=%d, it contains %d pending bytes", path, maxInmemoryBlocks, pendingBytes)
 	return fq
 }
 
@@ -67,12 +72,23 @@ func (fq *FastQueue) MustClose() {
 	logger.Infof("closed fast persistent queue at %q", fq.pq.dir)
 }
 
+func (fq *FastQueue) flushInmemoryBlocksToFileIfNeededLocked() {
+	if len(fq.ch) == 0 {
+		return
+	}
+	if fasttime.UnixTimestamp() < fq.lastInmemoryBlockReadTime+5 {
+		return
+	}
+	fq.flushInmemoryBlocksToFileLocked()
+}
+
 func (fq *FastQueue) flushInmemoryBlocksToFileLocked() {
 	// fq.mu must be locked by the caller.
 	for len(fq.ch) > 0 {
 		bb := <-fq.ch
 		fq.pq.MustWriteBlock(bb.B)
 		fq.pendingInmemoryBytes -= uint64(len(bb.B))
+		fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
 		blockBufPool.Put(bb)
 	}
 	// Unblock all the potentially blocked readers, so they could proceed with reading file-based queue.
@@ -102,6 +118,7 @@ func (fq *FastQueue) MustWriteBlock(block []byte) {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
 
+	fq.flushInmemoryBlocksToFileIfNeededLocked()
 	if n := fq.pq.GetPendingBytes(); n > 0 {
 		// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
 		// So put the block to file-based queue.
@@ -143,6 +160,7 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 			}
 			bb := <-fq.ch
 			fq.pendingInmemoryBytes -= uint64(len(bb.B))
+			fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
 			dst = append(dst, bb.B...)
 			blockBufPool.Put(bb)
 			return dst, true

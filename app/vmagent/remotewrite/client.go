@@ -44,7 +44,7 @@ var (
 )
 
 type client struct {
-	urlLabelValue  string
+	sanitizedURL   string
 	remoteWriteURL string
 	authHeader     string
 	fq             *persistentqueue.FastQueue
@@ -59,7 +59,7 @@ type client struct {
 	stopCh chan struct{}
 }
 
-func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentqueue.FastQueue, concurrency int) *client {
+func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	tlsCfg, err := getTLSConfig(argIdx)
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize TLS config: %s", err)
@@ -101,7 +101,7 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 		authHeader = "Bearer " + token
 	}
 	c := &client{
-		urlLabelValue:  urlLabelValue,
+		sanitizedURL:   sanitizedURL,
 		remoteWriteURL: remoteWriteURL,
 		authHeader:     authHeader,
 		fq:             fq,
@@ -111,10 +111,10 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 		},
 		stopCh: make(chan struct{}),
 	}
-	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.urlLabelValue))
-	c.requestsOKCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.urlLabelValue))
-	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.urlLabelValue))
-	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.urlLabelValue))
+	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.sanitizedURL))
+	c.requestsOKCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.sanitizedURL))
+	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
+	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
 	for i := 0; i < concurrency; i++ {
 		c.wg.Add(1)
 		go func() {
@@ -122,14 +122,14 @@ func newClient(argIdx int, remoteWriteURL, urlLabelValue string, fq *persistentq
 			c.runWorker()
 		}()
 	}
-	logger.Infof("initialized client for -remoteWrite.url=%q", c.remoteWriteURL)
+	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
 	return c
 }
 
 func (c *client) MustStop() {
 	close(c.stopCh)
 	c.wg.Wait()
-	logger.Infof("stopped client for -remoteWrite.url=%q", c.remoteWriteURL)
+	logger.Infof("stopped client for -remoteWrite.url=%q", c.sanitizedURL)
 }
 
 func getTLSConfig(argIdx int) (*tls.Config, error) {
@@ -176,7 +176,7 @@ func (c *client) runWorker() {
 				// The block has been sent successfully.
 			case <-time.After(graceDuration):
 				logger.Errorf("couldn't sent block with size %d bytes to %q in %.3f seconds during shutdown; dropping it",
-					len(block), c.remoteWriteURL, graceDuration.Seconds())
+					len(block), c.sanitizedURL, graceDuration.Seconds())
 			}
 			return
 		}
@@ -185,11 +185,12 @@ func (c *client) runWorker() {
 
 func (c *client) sendBlock(block []byte) {
 	retryDuration := time.Second
+	retriesCount := 0
 
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
-		logger.Panicf("BUG: unexected error from http.NewRequest(%q): %s", c.remoteWriteURL, err)
+		logger.Panicf("BUG: unexected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
@@ -210,7 +211,7 @@ again:
 			retryDuration = time.Minute
 		}
 		logger.Errorf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
-			len(block), c.remoteWriteURL, err, retryDuration.Seconds())
+			len(block), c.sanitizedURL, err, retryDuration.Seconds())
 		t := time.NewTimer(retryDuration)
 		select {
 		case <-c.stopCh:
@@ -229,7 +230,8 @@ again:
 	}
 
 	// Unexpected status code returned
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.urlLabelValue, statusCode)).Inc()
+	retriesCount++
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
 	retryDuration *= 2
 	if retryDuration > time.Minute {
 		retryDuration = time.Minute
@@ -237,10 +239,10 @@ again:
 	body, err := ioutil.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		logger.Errorf("cannot read response body from %q: %s", c.remoteWriteURL, err)
+		logger.Errorf("cannot read response body from %q during retry #%d: %s", c.sanitizedURL, retriesCount, err)
 	} else {
-		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q: %d; response body=%q; re-sending the block in %.3f seconds",
-			len(block), c.remoteWriteURL, statusCode, body, retryDuration.Seconds())
+		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
+			"re-sending the block in %.3f seconds", len(block), c.sanitizedURL, retriesCount, statusCode, body, retryDuration.Seconds())
 	}
 	t := time.NewTimer(retryDuration)
 	select {

@@ -51,6 +51,9 @@ type blockStreamReader struct {
 	valuesBlockOffset     uint64
 	indexBlockOffset      uint64
 
+	prevTimestampsBlockOffset uint64
+	prevTimestampsData        []byte
+
 	indexData           []byte
 	compressedIndexData []byte
 
@@ -86,6 +89,9 @@ func (bsr *blockStreamReader) reset() {
 	bsr.timestampsBlockOffset = 0
 	bsr.valuesBlockOffset = 0
 	bsr.indexBlockOffset = 0
+
+	bsr.prevTimestampsBlockOffset = 0
+	bsr.prevTimestampsData = bsr.prevTimestampsData[:0]
 
 	bsr.indexData = bsr.indexData[:0]
 	bsr.compressedIndexData = bsr.compressedIndexData[:0]
@@ -275,7 +281,13 @@ func (bsr *blockStreamReader) readBlock() error {
 		return fmt.Errorf("invalid MaxTimestamp at block header at offset %d; got %d; cannot be bigger than %d",
 			bsr.prevIndexBlockOffset(), bsr.Block.bh.MaxTimestamp, bsr.ph.MaxTimestamp)
 	}
-	if bsr.Block.bh.TimestampsBlockOffset != bsr.timestampsBlockOffset {
+	usePrevTimestamps := len(bsr.prevTimestampsData) > 0 && bsr.Block.bh.TimestampsBlockOffset == bsr.prevTimestampsBlockOffset
+	if usePrevTimestamps {
+		if int(bsr.Block.bh.TimestampsBlockSize) != len(bsr.prevTimestampsData) {
+			return fmt.Errorf("invalid TimestampsBlockSize at block header at offset %d; got %d; want %d",
+				bsr.prevIndexBlockOffset(), bsr.Block.bh.TimestampsBlockSize, len(bsr.prevTimestampsData))
+		}
+	} else if bsr.Block.bh.TimestampsBlockOffset != bsr.timestampsBlockOffset {
 		return fmt.Errorf("invalid TimestampsBlockOffset at block header at offset %d; got %d; want %d",
 			bsr.prevIndexBlockOffset(), bsr.Block.bh.TimestampsBlockOffset, bsr.timestampsBlockOffset)
 	}
@@ -285,9 +297,15 @@ func (bsr *blockStreamReader) readBlock() error {
 	}
 
 	// Read timestamps data.
-	bsr.Block.timestampsData = bytesutil.Resize(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
-	if err := fs.ReadFullData(bsr.timestampsReader, bsr.Block.timestampsData); err != nil {
-		return fmt.Errorf("cannot read timestamps block at offset %d: %w", bsr.timestampsBlockOffset, err)
+	if usePrevTimestamps {
+		bsr.Block.timestampsData = append(bsr.Block.timestampsData[:0], bsr.prevTimestampsData...)
+	} else {
+		bsr.Block.timestampsData = bytesutil.Resize(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
+		if err := fs.ReadFullData(bsr.timestampsReader, bsr.Block.timestampsData); err != nil {
+			return fmt.Errorf("cannot read timestamps block at offset %d: %w", bsr.timestampsBlockOffset, err)
+		}
+		bsr.prevTimestampsBlockOffset = bsr.timestampsBlockOffset
+		bsr.prevTimestampsData = append(bsr.prevTimestampsData[:0], bsr.Block.timestampsData...)
 	}
 
 	// Read values data.
@@ -297,7 +315,9 @@ func (bsr *blockStreamReader) readBlock() error {
 	}
 
 	// Update offsets.
-	bsr.timestampsBlockOffset += uint64(bsr.Block.bh.TimestampsBlockSize)
+	if !usePrevTimestamps {
+		bsr.timestampsBlockOffset += uint64(bsr.Block.bh.TimestampsBlockSize)
+	}
 	bsr.valuesBlockOffset += uint64(bsr.Block.bh.ValuesBlockSize)
 	bsr.indexBlockHeadersCount++
 

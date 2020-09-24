@@ -39,7 +39,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	timestamp := int64(123)
-	if err := sw.scrapeInternal(timestamp); err == nil {
+	if err := sw.scrapeInternal(timestamp, timestamp); err == nil {
 		t.Fatalf("expecting non-nil error")
 	}
 	if pushDataErr != nil {
@@ -72,14 +72,21 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		pushDataCalls := 0
 		var pushDataErr error
 		sw.PushData = func(wr *prompbmarshal.WriteRequest) {
-			if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
-				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
-			}
 			pushDataCalls++
+			if len(wr.Timeseries) > len(timeseriesExpected) {
+				pushDataErr = fmt.Errorf("too many time series obtained; got %d; want %d", len(wr.Timeseries), len(timeseriesExpected))
+				return
+			}
+			tsExpected := timeseriesExpected[:len(wr.Timeseries)]
+			timeseriesExpected = timeseriesExpected[len(tsExpected):]
+			if err := expectEqualTimeseries(wr.Timeseries, tsExpected); err != nil {
+				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%v\nwant\n%v", err, wr.Timeseries, tsExpected)
+				return
+			}
 		}
 
 		timestamp := int64(123)
-		if err := sw.scrapeInternal(timestamp); err != nil {
+		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if pushDataErr != nil {
@@ -88,8 +95,8 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		if readDataCalls != 1 {
 			t.Fatalf("unexpected number of readData calls; got %d; want %d", readDataCalls, 1)
 		}
-		if pushDataCalls != 1 {
-			t.Fatalf("unexpected number of pushData calls; got %d; want %d", pushDataCalls, 1)
+		if pushDataCalls == 0 {
+			t.Fatalf("missing pushData calls")
 		}
 	}
 
@@ -359,7 +366,7 @@ func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
 	for k, tsExpected := range mExpected {
 		ts := m[k]
 		if ts != tsExpected {
-			return fmt.Errorf("unexpected timeseries %q; got\n%s\nwant\n%s", k, ts, tsExpected)
+			return fmt.Errorf("unexpected timeseries %q;\ngot\n%s\nwant\n%s", k, ts, tsExpected)
 		}
 	}
 	return nil

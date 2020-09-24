@@ -65,12 +65,23 @@ func getAggrFunc(s string) aggrFunc {
 
 func newAggrFunc(afe func(tss []*timeseries) []*timeseries) aggrFunc {
 	return func(afa *aggrFuncArg) ([]*timeseries, error) {
-		args := afa.args
-		if err := expectTransformArgsNum(args, 1); err != nil {
+		tss, err := getAggrTimeseries(afa.args)
+		if err != nil {
 			return nil, err
 		}
-		return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
+		return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, false)
 	}
+}
+
+func getAggrTimeseries(args [][]*timeseries) ([]*timeseries, error) {
+	if len(args) == 0 {
+		return nil, fmt.Errorf("expecting at least one arg")
+	}
+	tss := args[0]
+	for _, arg := range args[1:] {
+		tss = append(tss, arg...)
+	}
+	return tss, nil
 }
 
 func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.ModifierExpr) {
@@ -126,8 +137,8 @@ func aggrFuncExt(afe func(tss []*timeseries) []*timeseries, argOrig []*timeserie
 }
 
 func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
 		return nil, err
 	}
 	afe := func(tss []*timeseries) []*timeseries {
@@ -138,7 +149,7 @@ func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
 		// Only a single time series per group must be returned
 		limit = 1
 	}
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, limit, true)
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, limit, true)
 }
 
 func aggrFuncGroup(tss []*timeseries) []*timeseries {
@@ -434,8 +445,8 @@ func aggrFuncMode(tss []*timeseries) []*timeseries {
 }
 
 func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
 		return nil, err
 	}
 	afe := func(tss []*timeseries) []*timeseries {
@@ -476,7 +487,7 @@ func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 		return tss
 	}
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, true)
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, true)
 }
 
 // modeNoNaNs returns mode for a.
@@ -811,13 +822,13 @@ func aggrFuncQuantile(afa *aggrFuncArg) ([]*timeseries, error) {
 }
 
 func aggrFuncMedian(afa *aggrFuncArg) ([]*timeseries, error) {
-	args := afa.args
-	if err := expectTransformArgsNum(args, 1); err != nil {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
 		return nil, err
 	}
 	phis := evalNumber(afa.ec, 0.5)[0].Values
 	afe := newAggrQuantileFunc(phis)
-	return aggrFuncExt(afe, args[0], &afa.ae.Modifier, afa.ae.Limit, false)
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, false)
 }
 
 func newAggrQuantileFunc(phis []float64) func(tss []*timeseries) []*timeseries {

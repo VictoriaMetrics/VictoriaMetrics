@@ -8609,8 +8609,10 @@ func (c *S3) PutObjectAclRequest(input *PutObjectAclInput) (req *request.Request
 // PutObjectAcl API operation for Amazon Simple Storage Service.
 //
 // Uses the acl subresource to set the access control list (ACL) permissions
-// for an object that already exists in a bucket. You must have WRITE_ACP permission
-// to set the ACL of an object.
+// for an object that already exists in an S3 bucket. You must have WRITE_ACP
+// permission to set the ACL of an object. For more information, see What permissions
+// can I grant? (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions)
+// in the Amazon Simple Storage Service Developer Guide.
 //
 // Depending on your application needs, you can choose to set the ACL on an
 // object using either the request body or the headers. For example, if you
@@ -9497,7 +9499,7 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 	output = &SelectObjectContentOutput{}
 	req = c.newRequest(op, input, output)
 
-	es := newSelectObjectContentEventStream()
+	es := NewSelectObjectContentEventStream()
 	req.Handlers.Unmarshal.PushBack(es.setStreamCloser)
 	output.EventStream = es
 
@@ -9628,6 +9630,10 @@ func (c *S3) SelectObjectContentWithContext(ctx aws.Context, input *SelectObject
 var _ awserr.Error
 
 // SelectObjectContentEventStream provides the event stream handling for the SelectObjectContent.
+//
+// For testing and mocking the event stream this type should be initialized via
+// the NewSelectObjectContentEventStream constructor function. Using the functional options
+// to pass in nested mock behavior.
 type SelectObjectContentEventStream struct {
 
 	// Reader is the EventStream reader for the SelectObjectContentEventStream
@@ -9650,11 +9656,31 @@ type SelectObjectContentEventStream struct {
 	err       *eventstreamapi.OnceError
 }
 
-func newSelectObjectContentEventStream() *SelectObjectContentEventStream {
-	return &SelectObjectContentEventStream{
+// NewSelectObjectContentEventStream initializes an SelectObjectContentEventStream.
+// This function should only be used for testing and mocking the SelectObjectContentEventStream
+// stream within your application.
+//
+// The Reader member must be set before reading events from the stream.
+//
+// The StreamCloser member should be set to the underlying io.Closer,
+// (e.g. http.Response.Body), that will be closed when the stream Close method
+// is called.
+//
+//   es := NewSelectObjectContentEventStream(func(o *SelectObjectContentEventStream{
+//       es.Reader = myMockStreamReader
+//       es.StreamCloser = myMockStreamCloser
+//   })
+func NewSelectObjectContentEventStream(opts ...func(*SelectObjectContentEventStream)) *SelectObjectContentEventStream {
+	es := &SelectObjectContentEventStream{
 		done: make(chan struct{}),
 		err:  eventstreamapi.NewOnceError(),
 	}
+
+	for _, fn := range opts {
+		fn(es)
+	}
+
+	return es
 }
 
 func (es *SelectObjectContentEventStream) setStreamCloser(r *request.Request) {
@@ -10131,6 +10157,11 @@ type AbortMultipartUploadInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Key of the object for which the multipart upload was initiated.
 	//
 	// Key is a required field
@@ -10195,6 +10226,12 @@ func (s *AbortMultipartUploadInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *AbortMultipartUploadInput) SetExpectedBucketOwner(v string) *AbortMultipartUploadInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -11237,6 +11274,11 @@ type CompleteMultipartUploadInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Object key for which the multipart upload was initiated.
 	//
 	// Key is a required field
@@ -11304,6 +11346,12 @@ func (s *CompleteMultipartUploadInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *CompleteMultipartUploadInput) SetExpectedBucketOwner(v string) *CompleteMultipartUploadInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -11624,8 +11672,30 @@ type CopyObjectInput struct {
 	// A standard MIME type describing the format of the object data.
 	ContentType *string `location:"header" locationName:"Content-Type" type:"string"`
 
-	// The name of the source bucket and key name of the source object, separated
-	// by a slash (/). Must be URL-encoded.
+	// Specifies the source object for the copy operation. You specify the value
+	// in one of two formats, depending on whether you want to access the source
+	// object through an access point (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-points.html):
+	//
+	//    * For objects not accessed through an access point, specify the name of
+	//    the source bucket and the key of the source object, separated by a slash
+	//    (/). For example, to copy the object reports/january.pdf from the bucket
+	//    awsexamplebucket, use awsexamplebucket/reports/january.pdf. The value
+	//    must be URL encoded.
+	//
+	//    * For objects accessed through access points, specify the Amazon Resource
+	//    Name (ARN) of the object as accessed through the access point, in the
+	//    format arn:aws:s3:<Region>:<account-id>:accesspoint/<access-point-name>/object/<key>.
+	//    For example, to copy the object reports/january.pdf through access point
+	//    my-access-point owned by account 123456789012 in Region us-west-2, use
+	//    the URL encoding of arn:aws:s3:us-west-2:123456789012:accesspoint/my-access-point/object/reports/january.pdf.
+	//    The value must be URL encoded. Amazon S3 supports copy operations using
+	//    access points only when the source and destination buckets are in the
+	//    same AWS Region.
+	//
+	// To copy a specific version of an object, append ?versionId=<version-id> to
+	// the value (for example, awsexamplebucket/reports/january.pdf?versionId=QUpfdndhfd8438MNFDN93jdnJFkdmqnh893).
+	// If you don't specify a version ID, Amazon S3 copies the latest version of
+	// the source object.
 	//
 	// CopySource is a required field
 	CopySource *string `location:"header" locationName:"x-amz-copy-source" type:"string" required:"true"`
@@ -11656,6 +11726,16 @@ type CopyObjectInput struct {
 	// Amazon S3 uses this header for a message integrity check to ensure that the
 	// encryption key was transmitted without error.
 	CopySourceSSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-copy-source-server-side-encryption-customer-key-MD5" type:"string"`
+
+	// The account id of the expected destination bucket owner. If the destination
+	// bucket is owned by a different account, the request will fail with an HTTP
+	// 403 (Access Denied) error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
+	// The account id of the expected source bucket owner. If the source bucket
+	// is owned by a different account, the request will fail with an HTTP 403 (Access
+	// Denied) error.
+	ExpectedSourceBucketOwner *string `location:"header" locationName:"x-amz-source-expected-bucket-owner" type:"string"`
 
 	// The date and time at which the object is no longer cacheable.
 	Expires *time.Time `location:"header" locationName:"Expires" type:"timestamp"`
@@ -11887,6 +11967,18 @@ func (s *CopyObjectInput) getCopySourceSSECustomerKey() (v string) {
 // SetCopySourceSSECustomerKeyMD5 sets the CopySourceSSECustomerKeyMD5 field's value.
 func (s *CopyObjectInput) SetCopySourceSSECustomerKeyMD5(v string) *CopyObjectInput {
 	s.CopySourceSSECustomerKeyMD5 = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *CopyObjectInput) SetExpectedBucketOwner(v string) *CopyObjectInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
+// SetExpectedSourceBucketOwner sets the ExpectedSourceBucketOwner field's value.
+func (s *CopyObjectInput) SetExpectedSourceBucketOwner(v string) *CopyObjectInput {
+	s.ExpectedSourceBucketOwner = &v
 	return s
 }
 
@@ -12424,6 +12516,11 @@ type CreateMultipartUploadInput struct {
 	// A standard MIME type describing the format of the object data.
 	ContentType *string `location:"header" locationName:"Content-Type" type:"string"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The date and time at which the object is no longer cacheable.
 	Expires *time.Time `location:"header" locationName:"Expires" type:"timestamp"`
 
@@ -12586,6 +12683,12 @@ func (s *CreateMultipartUploadInput) SetContentLanguage(v string) *CreateMultipa
 // SetContentType sets the ContentType field's value.
 func (s *CreateMultipartUploadInput) SetContentType(v string) *CreateMultipartUploadInput {
 	s.ContentType = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *CreateMultipartUploadInput) SetExpectedBucketOwner(v string) *CreateMultipartUploadInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -12988,6 +13091,11 @@ type DeleteBucketAnalyticsConfigurationInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The ID that identifies the analytics configuration.
 	//
 	// Id is a required field
@@ -13036,6 +13144,12 @@ func (s *DeleteBucketAnalyticsConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketAnalyticsConfigurationInput) SetExpectedBucketOwner(v string) *DeleteBucketAnalyticsConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetId sets the Id field's value.
 func (s *DeleteBucketAnalyticsConfigurationInput) SetId(v string) *DeleteBucketAnalyticsConfigurationInput {
 	s.Id = &v
@@ -13077,6 +13191,11 @@ type DeleteBucketCorsInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13118,6 +13237,12 @@ func (s *DeleteBucketCorsInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketCorsInput) SetExpectedBucketOwner(v string) *DeleteBucketCorsInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketCorsInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13154,6 +13279,11 @@ type DeleteBucketEncryptionInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13195,6 +13325,12 @@ func (s *DeleteBucketEncryptionInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketEncryptionInput) SetExpectedBucketOwner(v string) *DeleteBucketEncryptionInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketEncryptionInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13230,6 +13366,11 @@ type DeleteBucketInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13271,6 +13412,12 @@ func (s *DeleteBucketInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketInput) SetExpectedBucketOwner(v string) *DeleteBucketInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13292,6 +13439,11 @@ type DeleteBucketInventoryConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The ID used to identify the inventory configuration.
 	//
@@ -13341,6 +13493,12 @@ func (s *DeleteBucketInventoryConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketInventoryConfigurationInput) SetExpectedBucketOwner(v string) *DeleteBucketInventoryConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetId sets the Id field's value.
 func (s *DeleteBucketInventoryConfigurationInput) SetId(v string) *DeleteBucketInventoryConfigurationInput {
 	s.Id = &v
@@ -13382,6 +13540,11 @@ type DeleteBucketLifecycleInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13423,6 +13586,12 @@ func (s *DeleteBucketLifecycleInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketLifecycleInput) SetExpectedBucketOwner(v string) *DeleteBucketLifecycleInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketLifecycleInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13458,6 +13627,11 @@ type DeleteBucketMetricsConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The ID used to identify the metrics configuration.
 	//
@@ -13505,6 +13679,12 @@ func (s *DeleteBucketMetricsConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketMetricsConfigurationInput) SetExpectedBucketOwner(v string) *DeleteBucketMetricsConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetId sets the Id field's value.
@@ -13562,6 +13742,11 @@ type DeleteBucketPolicyInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13603,6 +13788,12 @@ func (s *DeleteBucketPolicyInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketPolicyInput) SetExpectedBucketOwner(v string) *DeleteBucketPolicyInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketPolicyInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13638,6 +13829,11 @@ type DeleteBucketReplicationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13679,6 +13875,12 @@ func (s *DeleteBucketReplicationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketReplicationInput) SetExpectedBucketOwner(v string) *DeleteBucketReplicationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketReplicationInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13714,6 +13916,11 @@ type DeleteBucketTaggingInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13755,6 +13962,12 @@ func (s *DeleteBucketTaggingInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketTaggingInput) SetExpectedBucketOwner(v string) *DeleteBucketTaggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *DeleteBucketTaggingInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -13790,6 +14003,11 @@ type DeleteBucketWebsiteInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -13829,6 +14047,12 @@ func (s *DeleteBucketWebsiteInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteBucketWebsiteInput) SetExpectedBucketOwner(v string) *DeleteBucketWebsiteInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *DeleteBucketWebsiteInput) getEndpointARN() (arn.Resource, error) {
@@ -13976,6 +14200,11 @@ type DeleteObjectInput struct {
 	// to process this operation.
 	BypassGovernanceRetention *bool `location:"header" locationName:"x-amz-bypass-governance-retention" type:"boolean"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Key name of the object to delete.
 	//
 	// Key is a required field
@@ -14046,6 +14275,12 @@ func (s *DeleteObjectInput) getBucket() (v string) {
 // SetBypassGovernanceRetention sets the BypassGovernanceRetention field's value.
 func (s *DeleteObjectInput) SetBypassGovernanceRetention(v bool) *DeleteObjectInput {
 	s.BypassGovernanceRetention = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteObjectInput) SetExpectedBucketOwner(v string) *DeleteObjectInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -14146,6 +14381,11 @@ type DeleteObjectTaggingInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Name of the object key.
 	//
 	// Key is a required field
@@ -14198,6 +14438,12 @@ func (s *DeleteObjectTaggingInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteObjectTaggingInput) SetExpectedBucketOwner(v string) *DeleteObjectTaggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -14274,6 +14520,11 @@ type DeleteObjectsInput struct {
 	// Delete is a required field
 	Delete *Delete `locationName:"Delete" type:"structure" required:"true" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The concatenation of the authentication device's serial number, a space,
 	// and the value that is displayed on your authentication device. Required to
 	// permanently delete a versioned object if versioning is configured with MFA
@@ -14344,6 +14595,12 @@ func (s *DeleteObjectsInput) SetBypassGovernanceRetention(v bool) *DeleteObjects
 // SetDelete sets the Delete field's value.
 func (s *DeleteObjectsInput) SetDelete(v *Delete) *DeleteObjectsInput {
 	s.Delete = v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeleteObjectsInput) SetExpectedBucketOwner(v string) *DeleteObjectsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -14424,6 +14681,11 @@ type DeletePublicAccessBlockInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -14463,6 +14725,12 @@ func (s *DeletePublicAccessBlockInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *DeletePublicAccessBlockInput) SetExpectedBucketOwner(v string) *DeletePublicAccessBlockInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *DeletePublicAccessBlockInput) getEndpointARN() (arn.Resource, error) {
@@ -15346,6 +15614,11 @@ type GetBucketAccelerateConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -15385,6 +15658,12 @@ func (s *GetBucketAccelerateConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketAccelerateConfigurationInput) SetExpectedBucketOwner(v string) *GetBucketAccelerateConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketAccelerateConfigurationInput) getEndpointARN() (arn.Resource, error) {
@@ -15431,6 +15710,11 @@ type GetBucketAclInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -15470,6 +15754,12 @@ func (s *GetBucketAclInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketAclInput) SetExpectedBucketOwner(v string) *GetBucketAclInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketAclInput) getEndpointARN() (arn.Resource, error) {
@@ -15526,6 +15816,11 @@ type GetBucketAnalyticsConfigurationInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The ID that identifies the analytics configuration.
 	//
 	// Id is a required field
@@ -15572,6 +15867,12 @@ func (s *GetBucketAnalyticsConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketAnalyticsConfigurationInput) SetExpectedBucketOwner(v string) *GetBucketAnalyticsConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetId sets the Id field's value.
@@ -15624,6 +15925,11 @@ type GetBucketCorsInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -15663,6 +15969,12 @@ func (s *GetBucketCorsInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketCorsInput) SetExpectedBucketOwner(v string) *GetBucketCorsInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketCorsInput) getEndpointARN() (arn.Resource, error) {
@@ -15711,6 +16023,11 @@ type GetBucketEncryptionInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -15750,6 +16067,12 @@ func (s *GetBucketEncryptionInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketEncryptionInput) SetExpectedBucketOwner(v string) *GetBucketEncryptionInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketEncryptionInput) getEndpointARN() (arn.Resource, error) {
@@ -15797,6 +16120,11 @@ type GetBucketInventoryConfigurationInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The ID used to identify the inventory configuration.
 	//
 	// Id is a required field
@@ -15843,6 +16171,12 @@ func (s *GetBucketInventoryConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketInventoryConfigurationInput) SetExpectedBucketOwner(v string) *GetBucketInventoryConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetId sets the Id field's value.
@@ -15895,6 +16229,11 @@ type GetBucketLifecycleConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -15934,6 +16273,12 @@ func (s *GetBucketLifecycleConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketLifecycleConfigurationInput) SetExpectedBucketOwner(v string) *GetBucketLifecycleConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketLifecycleConfigurationInput) getEndpointARN() (arn.Resource, error) {
@@ -15980,6 +16325,11 @@ type GetBucketLifecycleInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16019,6 +16369,12 @@ func (s *GetBucketLifecycleInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketLifecycleInput) SetExpectedBucketOwner(v string) *GetBucketLifecycleInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketLifecycleInput) getEndpointARN() (arn.Resource, error) {
@@ -16065,6 +16421,11 @@ type GetBucketLocationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16104,6 +16465,12 @@ func (s *GetBucketLocationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketLocationInput) SetExpectedBucketOwner(v string) *GetBucketLocationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketLocationInput) getEndpointARN() (arn.Resource, error) {
@@ -16152,6 +16519,11 @@ type GetBucketLoggingInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16191,6 +16563,12 @@ func (s *GetBucketLoggingInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketLoggingInput) SetExpectedBucketOwner(v string) *GetBucketLoggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketLoggingInput) getEndpointARN() (arn.Resource, error) {
@@ -16241,6 +16619,11 @@ type GetBucketMetricsConfigurationInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The ID used to identify the metrics configuration.
 	//
 	// Id is a required field
@@ -16287,6 +16670,12 @@ func (s *GetBucketMetricsConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketMetricsConfigurationInput) SetExpectedBucketOwner(v string) *GetBucketMetricsConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetId sets the Id field's value.
@@ -16339,6 +16728,11 @@ type GetBucketNotificationConfigurationRequest struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16380,6 +16774,12 @@ func (s *GetBucketNotificationConfigurationRequest) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketNotificationConfigurationRequest) SetExpectedBucketOwner(v string) *GetBucketNotificationConfigurationRequest {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *GetBucketNotificationConfigurationRequest) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -16401,6 +16801,11 @@ type GetBucketPolicyInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16440,6 +16845,12 @@ func (s *GetBucketPolicyInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketPolicyInput) SetExpectedBucketOwner(v string) *GetBucketPolicyInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketPolicyInput) getEndpointARN() (arn.Resource, error) {
@@ -16486,6 +16897,11 @@ type GetBucketPolicyStatusInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16525,6 +16941,12 @@ func (s *GetBucketPolicyStatusInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketPolicyStatusInput) SetExpectedBucketOwner(v string) *GetBucketPolicyStatusInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketPolicyStatusInput) getEndpointARN() (arn.Resource, error) {
@@ -16571,6 +16993,11 @@ type GetBucketReplicationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16610,6 +17037,12 @@ func (s *GetBucketReplicationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketReplicationInput) SetExpectedBucketOwner(v string) *GetBucketReplicationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketReplicationInput) getEndpointARN() (arn.Resource, error) {
@@ -16657,6 +17090,11 @@ type GetBucketRequestPaymentInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16696,6 +17134,12 @@ func (s *GetBucketRequestPaymentInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketRequestPaymentInput) SetExpectedBucketOwner(v string) *GetBucketRequestPaymentInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketRequestPaymentInput) getEndpointARN() (arn.Resource, error) {
@@ -16742,6 +17186,11 @@ type GetBucketTaggingInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16781,6 +17230,12 @@ func (s *GetBucketTaggingInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketTaggingInput) SetExpectedBucketOwner(v string) *GetBucketTaggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketTaggingInput) getEndpointARN() (arn.Resource, error) {
@@ -16829,6 +17284,11 @@ type GetBucketVersioningInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16868,6 +17328,12 @@ func (s *GetBucketVersioningInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketVersioningInput) SetExpectedBucketOwner(v string) *GetBucketVersioningInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketVersioningInput) getEndpointARN() (arn.Resource, error) {
@@ -16925,6 +17391,11 @@ type GetBucketWebsiteInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -16964,6 +17435,12 @@ func (s *GetBucketWebsiteInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetBucketWebsiteInput) SetExpectedBucketOwner(v string) *GetBucketWebsiteInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetBucketWebsiteInput) getEndpointARN() (arn.Resource, error) {
@@ -17046,6 +17523,11 @@ type GetObjectAclInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The key of the object for which to get the ACL information.
 	//
 	// Key is a required field
@@ -17105,6 +17587,12 @@ func (s *GetObjectAclInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectAclInput) SetExpectedBucketOwner(v string) *GetObjectAclInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -17195,6 +17683,11 @@ type GetObjectInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Return the object only if its entity tag (ETag) is the same as the one specified,
 	// otherwise return a 412 (precondition failed).
@@ -17317,6 +17810,12 @@ func (s *GetObjectInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectInput) SetExpectedBucketOwner(v string) *GetObjectInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetIfMatch sets the IfMatch field's value.
@@ -17464,6 +17963,11 @@ type GetObjectLegalHoldInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The key name for the object whose Legal Hold status you want to retrieve.
 	//
 	// Key is a required field
@@ -17523,6 +18027,12 @@ func (s *GetObjectLegalHoldInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectLegalHoldInput) SetExpectedBucketOwner(v string) *GetObjectLegalHoldInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -17587,6 +18097,11 @@ type GetObjectLockConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -17626,6 +18141,12 @@ func (s *GetObjectLockConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectLockConfigurationInput) SetExpectedBucketOwner(v string) *GetObjectLockConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetObjectLockConfigurationInput) getEndpointARN() (arn.Resource, error) {
@@ -18002,6 +18523,11 @@ type GetObjectRetentionInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The key name for the object whose retention settings you want to retrieve.
 	//
 	// Key is a required field
@@ -18061,6 +18587,12 @@ func (s *GetObjectRetentionInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectRetentionInput) SetExpectedBucketOwner(v string) *GetObjectRetentionInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -18133,6 +18665,11 @@ type GetObjectTaggingInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Object key for which to get the tagging information.
 	//
 	// Key is a required field
@@ -18185,6 +18722,12 @@ func (s *GetObjectTaggingInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectTaggingInput) SetExpectedBucketOwner(v string) *GetObjectTaggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -18256,6 +18799,11 @@ type GetObjectTorrentInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The object key for which to get the information.
 	//
 	// Key is a required field
@@ -18312,6 +18860,12 @@ func (s *GetObjectTorrentInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetObjectTorrentInput) SetExpectedBucketOwner(v string) *GetObjectTorrentInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -18381,6 +18935,11 @@ type GetPublicAccessBlockInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -18420,6 +18979,12 @@ func (s *GetPublicAccessBlockInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *GetPublicAccessBlockInput) SetExpectedBucketOwner(v string) *GetPublicAccessBlockInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 func (s *GetPublicAccessBlockInput) getEndpointARN() (arn.Resource, error) {
@@ -18652,6 +19217,11 @@ type HeadBucketInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -18693,6 +19263,12 @@ func (s *HeadBucketInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *HeadBucketInput) SetExpectedBucketOwner(v string) *HeadBucketInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *HeadBucketInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -18728,6 +19304,11 @@ type HeadObjectInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Return the object only if its entity tag (ETag) is the same as the one specified,
 	// otherwise return a 412 (precondition failed).
@@ -18832,6 +19413,12 @@ func (s *HeadObjectInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *HeadObjectInput) SetExpectedBucketOwner(v string) *HeadObjectInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetIfMatch sets the IfMatch field's value.
@@ -20315,6 +20902,11 @@ type ListBucketAnalyticsConfigurationsInput struct {
 	// The ContinuationToken that represents a placeholder from where this request
 	// should begin.
 	ContinuationToken *string `location:"querystring" locationName:"continuation-token" type:"string"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -20359,6 +20951,12 @@ func (s *ListBucketAnalyticsConfigurationsInput) getBucket() (v string) {
 // SetContinuationToken sets the ContinuationToken field's value.
 func (s *ListBucketAnalyticsConfigurationsInput) SetContinuationToken(v string) *ListBucketAnalyticsConfigurationsInput {
 	s.ContinuationToken = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListBucketAnalyticsConfigurationsInput) SetExpectedBucketOwner(v string) *ListBucketAnalyticsConfigurationsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -20444,6 +21042,11 @@ type ListBucketInventoryConfigurationsInput struct {
 	// response to continue the listing. The continuation token is an opaque value
 	// that Amazon S3 understands.
 	ContinuationToken *string `location:"querystring" locationName:"continuation-token" type:"string"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -20488,6 +21091,12 @@ func (s *ListBucketInventoryConfigurationsInput) getBucket() (v string) {
 // SetContinuationToken sets the ContinuationToken field's value.
 func (s *ListBucketInventoryConfigurationsInput) SetContinuationToken(v string) *ListBucketInventoryConfigurationsInput {
 	s.ContinuationToken = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListBucketInventoryConfigurationsInput) SetExpectedBucketOwner(v string) *ListBucketInventoryConfigurationsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -20573,6 +21182,11 @@ type ListBucketMetricsConfigurationsInput struct {
 	// list response to continue the listing. The continuation token is an opaque
 	// value that Amazon S3 understands.
 	ContinuationToken *string `location:"querystring" locationName:"continuation-token" type:"string"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -20617,6 +21231,12 @@ func (s *ListBucketMetricsConfigurationsInput) getBucket() (v string) {
 // SetContinuationToken sets the ContinuationToken field's value.
 func (s *ListBucketMetricsConfigurationsInput) SetContinuationToken(v string) *ListBucketMetricsConfigurationsInput {
 	s.ContinuationToken = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListBucketMetricsConfigurationsInput) SetExpectedBucketOwner(v string) *ListBucketMetricsConfigurationsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -20769,6 +21389,11 @@ type ListMultipartUploadsInput struct {
 	// keys in the response.
 	EncodingType *string `location:"querystring" locationName:"encoding-type" type:"string" enum:"EncodingType"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Together with upload-id-marker, this parameter specifies the multipart upload
 	// after which listing should begin.
 	//
@@ -20847,6 +21472,12 @@ func (s *ListMultipartUploadsInput) SetDelimiter(v string) *ListMultipartUploads
 // SetEncodingType sets the EncodingType field's value.
 func (s *ListMultipartUploadsInput) SetEncodingType(v string) *ListMultipartUploadsInput {
 	s.EncodingType = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListMultipartUploadsInput) SetExpectedBucketOwner(v string) *ListMultipartUploadsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -21064,6 +21695,11 @@ type ListObjectVersionsInput struct {
 	// keys in the response.
 	EncodingType *string `location:"querystring" locationName:"encoding-type" type:"string" enum:"EncodingType"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Specifies the key to start with when listing objects in a bucket.
 	KeyMarker *string `location:"querystring" locationName:"key-marker" type:"string"`
 
@@ -21134,6 +21770,12 @@ func (s *ListObjectVersionsInput) SetDelimiter(v string) *ListObjectVersionsInpu
 // SetEncodingType sets the EncodingType field's value.
 func (s *ListObjectVersionsInput) SetEncodingType(v string) *ListObjectVersionsInput {
 	s.EncodingType = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListObjectVersionsInput) SetExpectedBucketOwner(v string) *ListObjectVersionsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -21346,6 +21988,11 @@ type ListObjectsInput struct {
 	// keys in the response.
 	EncodingType *string `location:"querystring" locationName:"encoding-type" type:"string" enum:"EncodingType"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Specifies the key to start with when listing objects in a bucket.
 	Marker *string `location:"querystring" locationName:"marker" type:"string"`
 
@@ -21411,6 +22058,12 @@ func (s *ListObjectsInput) SetDelimiter(v string) *ListObjectsInput {
 // SetEncodingType sets the EncodingType field's value.
 func (s *ListObjectsInput) SetEncodingType(v string) *ListObjectsInput {
 	s.EncodingType = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListObjectsInput) SetExpectedBucketOwner(v string) *ListObjectsInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -21608,6 +22261,11 @@ type ListObjectsV2Input struct {
 	// Encoding type used by Amazon S3 to encode object keys in the response.
 	EncodingType *string `location:"querystring" locationName:"encoding-type" type:"string" enum:"EncodingType"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The owner field is not present in listV2 by default, if you want to return
 	// owner field with each key in the result then set the fetch owner field to
 	// true.
@@ -21685,6 +22343,12 @@ func (s *ListObjectsV2Input) SetDelimiter(v string) *ListObjectsV2Input {
 // SetEncodingType sets the EncodingType field's value.
 func (s *ListObjectsV2Input) SetEncodingType(v string) *ListObjectsV2Input {
 	s.EncodingType = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListObjectsV2Input) SetExpectedBucketOwner(v string) *ListObjectsV2Input {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -21909,6 +22573,11 @@ type ListPartsInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Object key for which the multipart upload was initiated.
 	//
 	// Key is a required field
@@ -21980,6 +22649,12 @@ func (s *ListPartsInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *ListPartsInput) SetExpectedBucketOwner(v string) *ListPartsInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -23704,6 +24379,11 @@ type PutBucketAccelerateConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -23754,6 +24434,12 @@ func (s *PutBucketAccelerateConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketAccelerateConfigurationInput) SetExpectedBucketOwner(v string) *PutBucketAccelerateConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *PutBucketAccelerateConfigurationInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -23795,6 +24481,11 @@ type PutBucketAclInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Allows grantee the read, write, read ACP, and write ACP permissions on the
 	// bucket.
@@ -23869,6 +24560,12 @@ func (s *PutBucketAclInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketAclInput) SetExpectedBucketOwner(v string) *PutBucketAclInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetGrantFullControl sets the GrantFullControl field's value.
 func (s *PutBucketAclInput) SetGrantFullControl(v string) *PutBucketAclInput {
 	s.GrantFullControl = &v
@@ -23940,6 +24637,11 @@ type PutBucketAnalyticsConfigurationInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The ID that identifies the analytics configuration.
 	//
 	// Id is a required field
@@ -24002,6 +24704,12 @@ func (s *PutBucketAnalyticsConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketAnalyticsConfigurationInput) SetExpectedBucketOwner(v string) *PutBucketAnalyticsConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetId sets the Id field's value.
 func (s *PutBucketAnalyticsConfigurationInput) SetId(v string) *PutBucketAnalyticsConfigurationInput {
 	s.Id = &v
@@ -24051,6 +24759,11 @@ type PutBucketCorsInput struct {
 	//
 	// CORSConfiguration is a required field
 	CORSConfiguration *CORSConfiguration `locationName:"CORSConfiguration" type:"structure" required:"true" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -24106,6 +24819,12 @@ func (s *PutBucketCorsInput) SetCORSConfiguration(v *CORSConfiguration) *PutBuck
 	return s
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketCorsInput) SetExpectedBucketOwner(v string) *PutBucketCorsInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *PutBucketCorsInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -24145,6 +24864,11 @@ type PutBucketEncryptionInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Specifies the default server-side-encryption configuration.
 	//
@@ -24199,6 +24923,12 @@ func (s *PutBucketEncryptionInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketEncryptionInput) SetExpectedBucketOwner(v string) *PutBucketEncryptionInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetServerSideEncryptionConfiguration sets the ServerSideEncryptionConfiguration field's value.
 func (s *PutBucketEncryptionInput) SetServerSideEncryptionConfiguration(v *ServerSideEncryptionConfiguration) *PutBucketEncryptionInput {
 	s.ServerSideEncryptionConfiguration = v
@@ -24240,6 +24970,11 @@ type PutBucketInventoryConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The ID used to identify the inventory configuration.
 	//
@@ -24302,6 +25037,12 @@ func (s *PutBucketInventoryConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketInventoryConfigurationInput) SetExpectedBucketOwner(v string) *PutBucketInventoryConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetId sets the Id field's value.
 func (s *PutBucketInventoryConfigurationInput) SetId(v string) *PutBucketInventoryConfigurationInput {
 	s.Id = &v
@@ -24349,6 +25090,11 @@ type PutBucketLifecycleConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Container for lifecycle rules. You can add as many as 1,000 rules.
 	LifecycleConfiguration *BucketLifecycleConfiguration `locationName:"LifecycleConfiguration" type:"structure" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
@@ -24398,6 +25144,12 @@ func (s *PutBucketLifecycleConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketLifecycleConfigurationInput) SetExpectedBucketOwner(v string) *PutBucketLifecycleConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetLifecycleConfiguration sets the LifecycleConfiguration field's value.
 func (s *PutBucketLifecycleConfigurationInput) SetLifecycleConfiguration(v *BucketLifecycleConfiguration) *PutBucketLifecycleConfigurationInput {
 	s.LifecycleConfiguration = v
@@ -24437,6 +25189,11 @@ type PutBucketLifecycleInput struct {
 
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Container for lifecycle rules. You can add as many as 1000 rules.
 	LifecycleConfiguration *LifecycleConfiguration `locationName:"LifecycleConfiguration" type:"structure" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
@@ -24486,6 +25243,12 @@ func (s *PutBucketLifecycleInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketLifecycleInput) SetExpectedBucketOwner(v string) *PutBucketLifecycleInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetLifecycleConfiguration sets the LifecycleConfiguration field's value.
 func (s *PutBucketLifecycleInput) SetLifecycleConfiguration(v *LifecycleConfiguration) *PutBucketLifecycleInput {
 	s.LifecycleConfiguration = v
@@ -24532,6 +25295,11 @@ type PutBucketLoggingInput struct {
 	//
 	// BucketLoggingStatus is a required field
 	BucketLoggingStatus *BucketLoggingStatus `locationName:"BucketLoggingStatus" type:"structure" required:"true" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 }
 
 // String returns the string representation
@@ -24587,6 +25355,12 @@ func (s *PutBucketLoggingInput) SetBucketLoggingStatus(v *BucketLoggingStatus) *
 	return s
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketLoggingInput) SetExpectedBucketOwner(v string) *PutBucketLoggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 func (s *PutBucketLoggingInput) getEndpointARN() (arn.Resource, error) {
 	if s.Bucket == nil {
 		return nil, fmt.Errorf("member Bucket is nil")
@@ -24622,6 +25396,11 @@ type PutBucketMetricsConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The ID used to identify the metrics configuration.
 	//
@@ -24684,6 +25463,12 @@ func (s *PutBucketMetricsConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketMetricsConfigurationInput) SetExpectedBucketOwner(v string) *PutBucketMetricsConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetId sets the Id field's value.
 func (s *PutBucketMetricsConfigurationInput) SetId(v string) *PutBucketMetricsConfigurationInput {
 	s.Id = &v
@@ -24731,6 +25516,11 @@ type PutBucketNotificationConfigurationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// A container for specifying the notification configuration of the bucket.
 	// If this element is empty, notifications are turned off for the bucket.
@@ -24786,6 +25576,12 @@ func (s *PutBucketNotificationConfigurationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketNotificationConfigurationInput) SetExpectedBucketOwner(v string) *PutBucketNotificationConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetNotificationConfiguration sets the NotificationConfiguration field's value.
 func (s *PutBucketNotificationConfigurationInput) SetNotificationConfiguration(v *NotificationConfiguration) *PutBucketNotificationConfigurationInput {
 	s.NotificationConfiguration = v
@@ -24827,6 +25623,11 @@ type PutBucketNotificationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The container for the configuration.
 	//
@@ -24876,6 +25677,12 @@ func (s *PutBucketNotificationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketNotificationInput) SetExpectedBucketOwner(v string) *PutBucketNotificationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetNotificationConfiguration sets the NotificationConfiguration field's value.
 func (s *PutBucketNotificationInput) SetNotificationConfiguration(v *NotificationConfigurationDeprecated) *PutBucketNotificationInput {
 	s.NotificationConfiguration = v
@@ -24921,6 +25728,11 @@ type PutBucketPolicyInput struct {
 	// Set this parameter to true to confirm that you want to remove your permissions
 	// to change this bucket policy in the future.
 	ConfirmRemoveSelfBucketAccess *bool `location:"header" locationName:"x-amz-confirm-remove-self-bucket-access" type:"boolean"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The bucket policy as a JSON document.
 	//
@@ -24976,6 +25788,12 @@ func (s *PutBucketPolicyInput) SetConfirmRemoveSelfBucketAccess(v bool) *PutBuck
 	return s
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketPolicyInput) SetExpectedBucketOwner(v string) *PutBucketPolicyInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetPolicy sets the Policy field's value.
 func (s *PutBucketPolicyInput) SetPolicy(v string) *PutBucketPolicyInput {
 	s.Policy = &v
@@ -25017,6 +25835,11 @@ type PutBucketReplicationInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// A container for replication rules. You can add up to 1,000 rules. The maximum
 	// size of a replication configuration is 2 MB.
@@ -25074,6 +25897,12 @@ func (s *PutBucketReplicationInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketReplicationInput) SetExpectedBucketOwner(v string) *PutBucketReplicationInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetReplicationConfiguration sets the ReplicationConfiguration field's value.
 func (s *PutBucketReplicationInput) SetReplicationConfiguration(v *ReplicationConfiguration) *PutBucketReplicationInput {
 	s.ReplicationConfiguration = v
@@ -25121,6 +25950,11 @@ type PutBucketRequestPaymentInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Container for Payer.
 	//
@@ -25175,6 +26009,12 @@ func (s *PutBucketRequestPaymentInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketRequestPaymentInput) SetExpectedBucketOwner(v string) *PutBucketRequestPaymentInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetRequestPaymentConfiguration sets the RequestPaymentConfiguration field's value.
 func (s *PutBucketRequestPaymentInput) SetRequestPaymentConfiguration(v *RequestPaymentConfiguration) *PutBucketRequestPaymentInput {
 	s.RequestPaymentConfiguration = v
@@ -25216,6 +26056,11 @@ type PutBucketTaggingInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Container for the TagSet and Tag elements.
 	//
@@ -25270,6 +26115,12 @@ func (s *PutBucketTaggingInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketTaggingInput) SetExpectedBucketOwner(v string) *PutBucketTaggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetTagging sets the Tagging field's value.
 func (s *PutBucketTaggingInput) SetTagging(v *Tagging) *PutBucketTaggingInput {
 	s.Tagging = v
@@ -25311,6 +26162,11 @@ type PutBucketVersioningInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The concatenation of the authentication device's serial number, a space,
 	// and the value that is displayed on your authentication device.
@@ -25364,6 +26220,12 @@ func (s *PutBucketVersioningInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketVersioningInput) SetExpectedBucketOwner(v string) *PutBucketVersioningInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetMFA sets the MFA field's value.
 func (s *PutBucketVersioningInput) SetMFA(v string) *PutBucketVersioningInput {
 	s.MFA = &v
@@ -25411,6 +26273,11 @@ type PutBucketWebsiteInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Container for the request.
 	//
@@ -25463,6 +26330,12 @@ func (s *PutBucketWebsiteInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutBucketWebsiteInput) SetExpectedBucketOwner(v string) *PutBucketWebsiteInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetWebsiteConfiguration sets the WebsiteConfiguration field's value.
@@ -25521,6 +26394,11 @@ type PutObjectAclInput struct {
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// Allows grantee the read, write, read ACP, and write ACP permissions on the
 	// bucket.
@@ -25614,6 +26492,12 @@ func (s *PutObjectAclInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutObjectAclInput) SetExpectedBucketOwner(v string) *PutObjectAclInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetGrantFullControl sets the GrantFullControl field's value.
@@ -25758,6 +26642,11 @@ type PutObjectInput struct {
 	// A standard MIME type describing the format of the contents. For more information,
 	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17).
 	ContentType *string `location:"header" locationName:"Content-Type" type:"string"`
+
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The date and time at which the object is no longer cacheable. For more information,
 	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21).
@@ -25965,6 +26854,12 @@ func (s *PutObjectInput) SetContentType(v string) *PutObjectInput {
 	return s
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutObjectInput) SetExpectedBucketOwner(v string) *PutObjectInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetExpires sets the Expires field's value.
 func (s *PutObjectInput) SetExpires(v time.Time) *PutObjectInput {
 	s.Expires = &v
@@ -26122,6 +27017,11 @@ type PutObjectLegalHoldInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The key name for the object that you want to place a Legal Hold on.
 	//
 	// Key is a required field
@@ -26185,6 +27085,12 @@ func (s *PutObjectLegalHoldInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutObjectLegalHoldInput) SetExpectedBucketOwner(v string) *PutObjectLegalHoldInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -26257,6 +27163,11 @@ type PutObjectLockConfigurationInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The Object Lock configuration that you want to apply to the specified bucket.
 	ObjectLockConfiguration *ObjectLockConfiguration `locationName:"ObjectLockConfiguration" type:"structure" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
 
@@ -26308,6 +27219,12 @@ func (s *PutObjectLockConfigurationInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutObjectLockConfigurationInput) SetExpectedBucketOwner(v string) *PutObjectLockConfigurationInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetObjectLockConfiguration sets the ObjectLockConfiguration field's value.
@@ -26497,6 +27414,11 @@ type PutObjectRetentionInput struct {
 	// Indicates whether this operation should bypass Governance-mode restrictions.
 	BypassGovernanceRetention *bool `location:"header" locationName:"x-amz-bypass-governance-retention" type:"boolean"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The key name for the object that you want to apply this Object Retention
 	// configuration to.
 	//
@@ -26566,6 +27488,12 @@ func (s *PutObjectRetentionInput) getBucket() (v string) {
 // SetBypassGovernanceRetention sets the BypassGovernanceRetention field's value.
 func (s *PutObjectRetentionInput) SetBypassGovernanceRetention(v bool) *PutObjectRetentionInput {
 	s.BypassGovernanceRetention = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutObjectRetentionInput) SetExpectedBucketOwner(v string) *PutObjectRetentionInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -26646,6 +27574,11 @@ type PutObjectTaggingInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Name of the object key.
 	//
 	// Key is a required field
@@ -26713,6 +27646,12 @@ func (s *PutObjectTaggingInput) getBucket() (v string) {
 	return *s.Bucket
 }
 
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutObjectTaggingInput) SetExpectedBucketOwner(v string) *PutObjectTaggingInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
 // SetKey sets the Key field's value.
 func (s *PutObjectTaggingInput) SetKey(v string) *PutObjectTaggingInput {
 	s.Key = &v
@@ -26777,6 +27716,11 @@ type PutPublicAccessBlockInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The PublicAccessBlock configuration that you want to apply to this Amazon
 	// S3 bucket. You can enable the configuration options in any combination. For
 	// more information about when Amazon S3 considers a bucket or object public,
@@ -26827,6 +27771,12 @@ func (s *PutPublicAccessBlockInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *PutPublicAccessBlockInput) SetExpectedBucketOwner(v string) *PutPublicAccessBlockInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetPublicAccessBlockConfiguration sets the PublicAccessBlockConfiguration field's value.
@@ -27705,6 +28655,11 @@ type RestoreObjectInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Object key for which the operation was initiated.
 	//
 	// Key is a required field
@@ -27772,6 +28727,12 @@ func (s *RestoreObjectInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *RestoreObjectInput) SetExpectedBucketOwner(v string) *RestoreObjectInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetKey sets the Key field's value.
@@ -28417,6 +29378,11 @@ type SelectObjectContentInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The expression that is used to query the object.
 	//
 	// Expression is a required field
@@ -28531,6 +29497,12 @@ func (s *SelectObjectContentInput) getBucket() (v string) {
 		return v
 	}
 	return *s.Bucket
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *SelectObjectContentInput) SetExpectedBucketOwner(v string) *SelectObjectContentInput {
+	s.ExpectedBucketOwner = &v
+	return s
 }
 
 // SetExpression sets the Expression field's value.
@@ -29512,8 +30484,29 @@ type UploadPartCopyInput struct {
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
-	// The name of the source bucket and key name of the source object, separated
-	// by a slash (/). Must be URL-encoded.
+	// Specifies the source object for the copy operation. You specify the value
+	// in one of two formats, depending on whether you want to access the source
+	// object through an access point (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-points.html):
+	//
+	//    * For objects not accessed through an access point, specify the name of
+	//    the source bucket and key of the source object, separated by a slash (/).
+	//    For example, to copy the object reports/january.pdf from the bucket awsexamplebucket,
+	//    use awsexamplebucket/reports/january.pdf. The value must be URL encoded.
+	//
+	//    * For objects accessed through access points, specify the Amazon Resource
+	//    Name (ARN) of the object as accessed through the access point, in the
+	//    format arn:aws:s3:<Region>:<account-id>:accesspoint/<access-point-name>/object/<key>.
+	//    For example, to copy the object reports/january.pdf through the access
+	//    point my-access-point owned by account 123456789012 in Region us-west-2,
+	//    use the URL encoding of arn:aws:s3:us-west-2:123456789012:accesspoint/my-access-point/object/reports/january.pdf.
+	//    The value must be URL encoded. Amazon S3 supports copy operations using
+	//    access points only when the source and destination buckets are in the
+	//    same AWS Region.
+	//
+	// To copy a specific version of an object, append ?versionId=<version-id> to
+	// the value (for example, awsexamplebucket/reports/january.pdf?versionId=QUpfdndhfd8438MNFDN93jdnJFkdmqnh893).
+	// If you don't specify a version ID, Amazon S3 copies the latest version of
+	// the source object.
 	//
 	// CopySource is a required field
 	CopySource *string `location:"header" locationName:"x-amz-copy-source" type:"string" required:"true"`
@@ -29551,6 +30544,16 @@ type UploadPartCopyInput struct {
 	// Amazon S3 uses this header for a message integrity check to ensure that the
 	// encryption key was transmitted without error.
 	CopySourceSSECustomerKeyMD5 *string `location:"header" locationName:"x-amz-copy-source-server-side-encryption-customer-key-MD5" type:"string"`
+
+	// The account id of the expected destination bucket owner. If the destination
+	// bucket is owned by a different account, the request will fail with an HTTP
+	// 403 (Access Denied) error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
+	// The account id of the expected source bucket owner. If the source bucket
+	// is owned by a different account, the request will fail with an HTTP 403 (Access
+	// Denied) error.
+	ExpectedSourceBucketOwner *string `location:"header" locationName:"x-amz-source-expected-bucket-owner" type:"string"`
 
 	// Object key for which the multipart upload was initiated.
 	//
@@ -29705,6 +30708,18 @@ func (s *UploadPartCopyInput) getCopySourceSSECustomerKey() (v string) {
 // SetCopySourceSSECustomerKeyMD5 sets the CopySourceSSECustomerKeyMD5 field's value.
 func (s *UploadPartCopyInput) SetCopySourceSSECustomerKeyMD5(v string) *UploadPartCopyInput {
 	s.CopySourceSSECustomerKeyMD5 = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *UploadPartCopyInput) SetExpectedBucketOwner(v string) *UploadPartCopyInput {
+	s.ExpectedBucketOwner = &v
+	return s
+}
+
+// SetExpectedSourceBucketOwner sets the ExpectedSourceBucketOwner field's value.
+func (s *UploadPartCopyInput) SetExpectedSourceBucketOwner(v string) *UploadPartCopyInput {
+	s.ExpectedSourceBucketOwner = &v
 	return s
 }
 
@@ -29877,6 +30892,11 @@ type UploadPartInput struct {
 	// if object lock parameters are specified.
 	ContentMD5 *string `location:"header" locationName:"Content-MD5" type:"string"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// Object key for which the multipart upload was initiated.
 	//
 	// Key is a required field
@@ -29984,6 +31004,12 @@ func (s *UploadPartInput) SetContentLength(v int64) *UploadPartInput {
 // SetContentMD5 sets the ContentMD5 field's value.
 func (s *UploadPartInput) SetContentMD5(v string) *UploadPartInput {
 	s.ContentMD5 = &v
+	return s
+}
+
+// SetExpectedBucketOwner sets the ExpectedBucketOwner field's value.
+func (s *UploadPartInput) SetExpectedBucketOwner(v string) *UploadPartInput {
+	s.ExpectedBucketOwner = &v
 	return s
 }
 
@@ -30255,6 +31281,13 @@ const (
 	AnalyticsS3ExportFileFormatCsv = "CSV"
 )
 
+// AnalyticsS3ExportFileFormat_Values returns all elements of the AnalyticsS3ExportFileFormat enum
+func AnalyticsS3ExportFileFormat_Values() []string {
+	return []string{
+		AnalyticsS3ExportFileFormatCsv,
+	}
+}
+
 const (
 	// BucketAccelerateStatusEnabled is a BucketAccelerateStatus enum value
 	BucketAccelerateStatusEnabled = "Enabled"
@@ -30262,6 +31295,14 @@ const (
 	// BucketAccelerateStatusSuspended is a BucketAccelerateStatus enum value
 	BucketAccelerateStatusSuspended = "Suspended"
 )
+
+// BucketAccelerateStatus_Values returns all elements of the BucketAccelerateStatus enum
+func BucketAccelerateStatus_Values() []string {
+	return []string{
+		BucketAccelerateStatusEnabled,
+		BucketAccelerateStatusSuspended,
+	}
+}
 
 const (
 	// BucketCannedACLPrivate is a BucketCannedACL enum value
@@ -30277,18 +31318,31 @@ const (
 	BucketCannedACLAuthenticatedRead = "authenticated-read"
 )
 
+// BucketCannedACL_Values returns all elements of the BucketCannedACL enum
+func BucketCannedACL_Values() []string {
+	return []string{
+		BucketCannedACLPrivate,
+		BucketCannedACLPublicRead,
+		BucketCannedACLPublicReadWrite,
+		BucketCannedACLAuthenticatedRead,
+	}
+}
+
 const (
-	// BucketLocationConstraintEu is a BucketLocationConstraint enum value
-	BucketLocationConstraintEu = "EU"
+	// BucketLocationConstraintAfSouth1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintAfSouth1 = "af-south-1"
 
-	// BucketLocationConstraintEuWest1 is a BucketLocationConstraint enum value
-	BucketLocationConstraintEuWest1 = "eu-west-1"
+	// BucketLocationConstraintApEast1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintApEast1 = "ap-east-1"
 
-	// BucketLocationConstraintUsWest1 is a BucketLocationConstraint enum value
-	BucketLocationConstraintUsWest1 = "us-west-1"
+	// BucketLocationConstraintApNortheast1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintApNortheast1 = "ap-northeast-1"
 
-	// BucketLocationConstraintUsWest2 is a BucketLocationConstraint enum value
-	BucketLocationConstraintUsWest2 = "us-west-2"
+	// BucketLocationConstraintApNortheast2 is a BucketLocationConstraint enum value
+	BucketLocationConstraintApNortheast2 = "ap-northeast-2"
+
+	// BucketLocationConstraintApNortheast3 is a BucketLocationConstraint enum value
+	BucketLocationConstraintApNortheast3 = "ap-northeast-3"
 
 	// BucketLocationConstraintApSouth1 is a BucketLocationConstraint enum value
 	BucketLocationConstraintApSouth1 = "ap-south-1"
@@ -30299,18 +31353,88 @@ const (
 	// BucketLocationConstraintApSoutheast2 is a BucketLocationConstraint enum value
 	BucketLocationConstraintApSoutheast2 = "ap-southeast-2"
 
-	// BucketLocationConstraintApNortheast1 is a BucketLocationConstraint enum value
-	BucketLocationConstraintApNortheast1 = "ap-northeast-1"
-
-	// BucketLocationConstraintSaEast1 is a BucketLocationConstraint enum value
-	BucketLocationConstraintSaEast1 = "sa-east-1"
+	// BucketLocationConstraintCaCentral1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintCaCentral1 = "ca-central-1"
 
 	// BucketLocationConstraintCnNorth1 is a BucketLocationConstraint enum value
 	BucketLocationConstraintCnNorth1 = "cn-north-1"
 
+	// BucketLocationConstraintCnNorthwest1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintCnNorthwest1 = "cn-northwest-1"
+
+	// BucketLocationConstraintEu is a BucketLocationConstraint enum value
+	BucketLocationConstraintEu = "EU"
+
 	// BucketLocationConstraintEuCentral1 is a BucketLocationConstraint enum value
 	BucketLocationConstraintEuCentral1 = "eu-central-1"
+
+	// BucketLocationConstraintEuNorth1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintEuNorth1 = "eu-north-1"
+
+	// BucketLocationConstraintEuSouth1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintEuSouth1 = "eu-south-1"
+
+	// BucketLocationConstraintEuWest1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintEuWest1 = "eu-west-1"
+
+	// BucketLocationConstraintEuWest2 is a BucketLocationConstraint enum value
+	BucketLocationConstraintEuWest2 = "eu-west-2"
+
+	// BucketLocationConstraintEuWest3 is a BucketLocationConstraint enum value
+	BucketLocationConstraintEuWest3 = "eu-west-3"
+
+	// BucketLocationConstraintMeSouth1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintMeSouth1 = "me-south-1"
+
+	// BucketLocationConstraintSaEast1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintSaEast1 = "sa-east-1"
+
+	// BucketLocationConstraintUsEast2 is a BucketLocationConstraint enum value
+	BucketLocationConstraintUsEast2 = "us-east-2"
+
+	// BucketLocationConstraintUsGovEast1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintUsGovEast1 = "us-gov-east-1"
+
+	// BucketLocationConstraintUsGovWest1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintUsGovWest1 = "us-gov-west-1"
+
+	// BucketLocationConstraintUsWest1 is a BucketLocationConstraint enum value
+	BucketLocationConstraintUsWest1 = "us-west-1"
+
+	// BucketLocationConstraintUsWest2 is a BucketLocationConstraint enum value
+	BucketLocationConstraintUsWest2 = "us-west-2"
 )
+
+// BucketLocationConstraint_Values returns all elements of the BucketLocationConstraint enum
+func BucketLocationConstraint_Values() []string {
+	return []string{
+		BucketLocationConstraintAfSouth1,
+		BucketLocationConstraintApEast1,
+		BucketLocationConstraintApNortheast1,
+		BucketLocationConstraintApNortheast2,
+		BucketLocationConstraintApNortheast3,
+		BucketLocationConstraintApSouth1,
+		BucketLocationConstraintApSoutheast1,
+		BucketLocationConstraintApSoutheast2,
+		BucketLocationConstraintCaCentral1,
+		BucketLocationConstraintCnNorth1,
+		BucketLocationConstraintCnNorthwest1,
+		BucketLocationConstraintEu,
+		BucketLocationConstraintEuCentral1,
+		BucketLocationConstraintEuNorth1,
+		BucketLocationConstraintEuSouth1,
+		BucketLocationConstraintEuWest1,
+		BucketLocationConstraintEuWest2,
+		BucketLocationConstraintEuWest3,
+		BucketLocationConstraintMeSouth1,
+		BucketLocationConstraintSaEast1,
+		BucketLocationConstraintUsEast2,
+		BucketLocationConstraintUsGovEast1,
+		BucketLocationConstraintUsGovWest1,
+		BucketLocationConstraintUsWest1,
+		BucketLocationConstraintUsWest2,
+	}
+}
 
 const (
 	// BucketLogsPermissionFullControl is a BucketLogsPermission enum value
@@ -30323,6 +31447,15 @@ const (
 	BucketLogsPermissionWrite = "WRITE"
 )
 
+// BucketLogsPermission_Values returns all elements of the BucketLogsPermission enum
+func BucketLogsPermission_Values() []string {
+	return []string{
+		BucketLogsPermissionFullControl,
+		BucketLogsPermissionRead,
+		BucketLogsPermissionWrite,
+	}
+}
+
 const (
 	// BucketVersioningStatusEnabled is a BucketVersioningStatus enum value
 	BucketVersioningStatusEnabled = "Enabled"
@@ -30330,6 +31463,14 @@ const (
 	// BucketVersioningStatusSuspended is a BucketVersioningStatus enum value
 	BucketVersioningStatusSuspended = "Suspended"
 )
+
+// BucketVersioningStatus_Values returns all elements of the BucketVersioningStatus enum
+func BucketVersioningStatus_Values() []string {
+	return []string{
+		BucketVersioningStatusEnabled,
+		BucketVersioningStatusSuspended,
+	}
+}
 
 const (
 	// CompressionTypeNone is a CompressionType enum value
@@ -30342,6 +31483,15 @@ const (
 	CompressionTypeBzip2 = "BZIP2"
 )
 
+// CompressionType_Values returns all elements of the CompressionType enum
+func CompressionType_Values() []string {
+	return []string{
+		CompressionTypeNone,
+		CompressionTypeGzip,
+		CompressionTypeBzip2,
+	}
+}
+
 const (
 	// DeleteMarkerReplicationStatusEnabled is a DeleteMarkerReplicationStatus enum value
 	DeleteMarkerReplicationStatusEnabled = "Enabled"
@@ -30349,6 +31499,14 @@ const (
 	// DeleteMarkerReplicationStatusDisabled is a DeleteMarkerReplicationStatus enum value
 	DeleteMarkerReplicationStatusDisabled = "Disabled"
 )
+
+// DeleteMarkerReplicationStatus_Values returns all elements of the DeleteMarkerReplicationStatus enum
+func DeleteMarkerReplicationStatus_Values() []string {
+	return []string{
+		DeleteMarkerReplicationStatusEnabled,
+		DeleteMarkerReplicationStatusDisabled,
+	}
+}
 
 // Requests Amazon S3 to encode the object keys in the response and specifies
 // the encoding method to use. An object key may contain any Unicode character;
@@ -30360,6 +31518,13 @@ const (
 	// EncodingTypeUrl is a EncodingType enum value
 	EncodingTypeUrl = "url"
 )
+
+// EncodingType_Values returns all elements of the EncodingType enum
+func EncodingType_Values() []string {
+	return []string{
+		EncodingTypeUrl,
+	}
+}
 
 // The bucket event for which to send notifications.
 const (
@@ -30415,6 +31580,29 @@ const (
 	EventS3ReplicationOperationReplicatedAfterThreshold = "s3:Replication:OperationReplicatedAfterThreshold"
 )
 
+// Event_Values returns all elements of the Event enum
+func Event_Values() []string {
+	return []string{
+		EventS3ReducedRedundancyLostObject,
+		EventS3ObjectCreated,
+		EventS3ObjectCreatedPut,
+		EventS3ObjectCreatedPost,
+		EventS3ObjectCreatedCopy,
+		EventS3ObjectCreatedCompleteMultipartUpload,
+		EventS3ObjectRemoved,
+		EventS3ObjectRemovedDelete,
+		EventS3ObjectRemovedDeleteMarkerCreated,
+		EventS3ObjectRestore,
+		EventS3ObjectRestorePost,
+		EventS3ObjectRestoreCompleted,
+		EventS3Replication,
+		EventS3ReplicationOperationFailedReplication,
+		EventS3ReplicationOperationNotTracked,
+		EventS3ReplicationOperationMissedThreshold,
+		EventS3ReplicationOperationReplicatedAfterThreshold,
+	}
+}
+
 const (
 	// ExistingObjectReplicationStatusEnabled is a ExistingObjectReplicationStatus enum value
 	ExistingObjectReplicationStatusEnabled = "Enabled"
@@ -30422,6 +31610,14 @@ const (
 	// ExistingObjectReplicationStatusDisabled is a ExistingObjectReplicationStatus enum value
 	ExistingObjectReplicationStatusDisabled = "Disabled"
 )
+
+// ExistingObjectReplicationStatus_Values returns all elements of the ExistingObjectReplicationStatus enum
+func ExistingObjectReplicationStatus_Values() []string {
+	return []string{
+		ExistingObjectReplicationStatusEnabled,
+		ExistingObjectReplicationStatusDisabled,
+	}
+}
 
 const (
 	// ExpirationStatusEnabled is a ExpirationStatus enum value
@@ -30431,10 +31627,25 @@ const (
 	ExpirationStatusDisabled = "Disabled"
 )
 
+// ExpirationStatus_Values returns all elements of the ExpirationStatus enum
+func ExpirationStatus_Values() []string {
+	return []string{
+		ExpirationStatusEnabled,
+		ExpirationStatusDisabled,
+	}
+}
+
 const (
 	// ExpressionTypeSql is a ExpressionType enum value
 	ExpressionTypeSql = "SQL"
 )
+
+// ExpressionType_Values returns all elements of the ExpressionType enum
+func ExpressionType_Values() []string {
+	return []string{
+		ExpressionTypeSql,
+	}
+}
 
 const (
 	// FileHeaderInfoUse is a FileHeaderInfo enum value
@@ -30447,6 +31658,15 @@ const (
 	FileHeaderInfoNone = "NONE"
 )
 
+// FileHeaderInfo_Values returns all elements of the FileHeaderInfo enum
+func FileHeaderInfo_Values() []string {
+	return []string{
+		FileHeaderInfoUse,
+		FileHeaderInfoIgnore,
+		FileHeaderInfoNone,
+	}
+}
+
 const (
 	// FilterRuleNamePrefix is a FilterRuleName enum value
 	FilterRuleNamePrefix = "prefix"
@@ -30454,6 +31674,14 @@ const (
 	// FilterRuleNameSuffix is a FilterRuleName enum value
 	FilterRuleNameSuffix = "suffix"
 )
+
+// FilterRuleName_Values returns all elements of the FilterRuleName enum
+func FilterRuleName_Values() []string {
+	return []string{
+		FilterRuleNamePrefix,
+		FilterRuleNameSuffix,
+	}
+}
 
 const (
 	// InventoryFormatCsv is a InventoryFormat enum value
@@ -30466,6 +31694,15 @@ const (
 	InventoryFormatParquet = "Parquet"
 )
 
+// InventoryFormat_Values returns all elements of the InventoryFormat enum
+func InventoryFormat_Values() []string {
+	return []string{
+		InventoryFormatCsv,
+		InventoryFormatOrc,
+		InventoryFormatParquet,
+	}
+}
+
 const (
 	// InventoryFrequencyDaily is a InventoryFrequency enum value
 	InventoryFrequencyDaily = "Daily"
@@ -30474,6 +31711,14 @@ const (
 	InventoryFrequencyWeekly = "Weekly"
 )
 
+// InventoryFrequency_Values returns all elements of the InventoryFrequency enum
+func InventoryFrequency_Values() []string {
+	return []string{
+		InventoryFrequencyDaily,
+		InventoryFrequencyWeekly,
+	}
+}
+
 const (
 	// InventoryIncludedObjectVersionsAll is a InventoryIncludedObjectVersions enum value
 	InventoryIncludedObjectVersionsAll = "All"
@@ -30481,6 +31726,14 @@ const (
 	// InventoryIncludedObjectVersionsCurrent is a InventoryIncludedObjectVersions enum value
 	InventoryIncludedObjectVersionsCurrent = "Current"
 )
+
+// InventoryIncludedObjectVersions_Values returns all elements of the InventoryIncludedObjectVersions enum
+func InventoryIncludedObjectVersions_Values() []string {
+	return []string{
+		InventoryIncludedObjectVersionsAll,
+		InventoryIncludedObjectVersionsCurrent,
+	}
+}
 
 const (
 	// InventoryOptionalFieldSize is a InventoryOptionalField enum value
@@ -30517,6 +31770,23 @@ const (
 	InventoryOptionalFieldIntelligentTieringAccessTier = "IntelligentTieringAccessTier"
 )
 
+// InventoryOptionalField_Values returns all elements of the InventoryOptionalField enum
+func InventoryOptionalField_Values() []string {
+	return []string{
+		InventoryOptionalFieldSize,
+		InventoryOptionalFieldLastModifiedDate,
+		InventoryOptionalFieldStorageClass,
+		InventoryOptionalFieldEtag,
+		InventoryOptionalFieldIsMultipartUploaded,
+		InventoryOptionalFieldReplicationStatus,
+		InventoryOptionalFieldEncryptionStatus,
+		InventoryOptionalFieldObjectLockRetainUntilDate,
+		InventoryOptionalFieldObjectLockMode,
+		InventoryOptionalFieldObjectLockLegalHoldStatus,
+		InventoryOptionalFieldIntelligentTieringAccessTier,
+	}
+}
+
 const (
 	// JSONTypeDocument is a JSONType enum value
 	JSONTypeDocument = "DOCUMENT"
@@ -30524,6 +31794,14 @@ const (
 	// JSONTypeLines is a JSONType enum value
 	JSONTypeLines = "LINES"
 )
+
+// JSONType_Values returns all elements of the JSONType enum
+func JSONType_Values() []string {
+	return []string{
+		JSONTypeDocument,
+		JSONTypeLines,
+	}
+}
 
 const (
 	// MFADeleteEnabled is a MFADelete enum value
@@ -30533,6 +31811,14 @@ const (
 	MFADeleteDisabled = "Disabled"
 )
 
+// MFADelete_Values returns all elements of the MFADelete enum
+func MFADelete_Values() []string {
+	return []string{
+		MFADeleteEnabled,
+		MFADeleteDisabled,
+	}
+}
+
 const (
 	// MFADeleteStatusEnabled is a MFADeleteStatus enum value
 	MFADeleteStatusEnabled = "Enabled"
@@ -30540,6 +31826,14 @@ const (
 	// MFADeleteStatusDisabled is a MFADeleteStatus enum value
 	MFADeleteStatusDisabled = "Disabled"
 )
+
+// MFADeleteStatus_Values returns all elements of the MFADeleteStatus enum
+func MFADeleteStatus_Values() []string {
+	return []string{
+		MFADeleteStatusEnabled,
+		MFADeleteStatusDisabled,
+	}
+}
 
 const (
 	// MetadataDirectiveCopy is a MetadataDirective enum value
@@ -30549,6 +31843,14 @@ const (
 	MetadataDirectiveReplace = "REPLACE"
 )
 
+// MetadataDirective_Values returns all elements of the MetadataDirective enum
+func MetadataDirective_Values() []string {
+	return []string{
+		MetadataDirectiveCopy,
+		MetadataDirectiveReplace,
+	}
+}
+
 const (
 	// MetricsStatusEnabled is a MetricsStatus enum value
 	MetricsStatusEnabled = "Enabled"
@@ -30556,6 +31858,14 @@ const (
 	// MetricsStatusDisabled is a MetricsStatus enum value
 	MetricsStatusDisabled = "Disabled"
 )
+
+// MetricsStatus_Values returns all elements of the MetricsStatus enum
+func MetricsStatus_Values() []string {
+	return []string{
+		MetricsStatusEnabled,
+		MetricsStatusDisabled,
+	}
+}
 
 const (
 	// ObjectCannedACLPrivate is a ObjectCannedACL enum value
@@ -30580,10 +31890,30 @@ const (
 	ObjectCannedACLBucketOwnerFullControl = "bucket-owner-full-control"
 )
 
+// ObjectCannedACL_Values returns all elements of the ObjectCannedACL enum
+func ObjectCannedACL_Values() []string {
+	return []string{
+		ObjectCannedACLPrivate,
+		ObjectCannedACLPublicRead,
+		ObjectCannedACLPublicReadWrite,
+		ObjectCannedACLAuthenticatedRead,
+		ObjectCannedACLAwsExecRead,
+		ObjectCannedACLBucketOwnerRead,
+		ObjectCannedACLBucketOwnerFullControl,
+	}
+}
+
 const (
 	// ObjectLockEnabledEnabled is a ObjectLockEnabled enum value
 	ObjectLockEnabledEnabled = "Enabled"
 )
+
+// ObjectLockEnabled_Values returns all elements of the ObjectLockEnabled enum
+func ObjectLockEnabled_Values() []string {
+	return []string{
+		ObjectLockEnabledEnabled,
+	}
+}
 
 const (
 	// ObjectLockLegalHoldStatusOn is a ObjectLockLegalHoldStatus enum value
@@ -30593,6 +31923,14 @@ const (
 	ObjectLockLegalHoldStatusOff = "OFF"
 )
 
+// ObjectLockLegalHoldStatus_Values returns all elements of the ObjectLockLegalHoldStatus enum
+func ObjectLockLegalHoldStatus_Values() []string {
+	return []string{
+		ObjectLockLegalHoldStatusOn,
+		ObjectLockLegalHoldStatusOff,
+	}
+}
+
 const (
 	// ObjectLockModeGovernance is a ObjectLockMode enum value
 	ObjectLockModeGovernance = "GOVERNANCE"
@@ -30601,6 +31939,14 @@ const (
 	ObjectLockModeCompliance = "COMPLIANCE"
 )
 
+// ObjectLockMode_Values returns all elements of the ObjectLockMode enum
+func ObjectLockMode_Values() []string {
+	return []string{
+		ObjectLockModeGovernance,
+		ObjectLockModeCompliance,
+	}
+}
+
 const (
 	// ObjectLockRetentionModeGovernance is a ObjectLockRetentionMode enum value
 	ObjectLockRetentionModeGovernance = "GOVERNANCE"
@@ -30608,6 +31954,14 @@ const (
 	// ObjectLockRetentionModeCompliance is a ObjectLockRetentionMode enum value
 	ObjectLockRetentionModeCompliance = "COMPLIANCE"
 )
+
+// ObjectLockRetentionMode_Values returns all elements of the ObjectLockRetentionMode enum
+func ObjectLockRetentionMode_Values() []string {
+	return []string{
+		ObjectLockRetentionModeGovernance,
+		ObjectLockRetentionModeCompliance,
+	}
+}
 
 const (
 	// ObjectStorageClassStandard is a ObjectStorageClass enum value
@@ -30632,15 +31986,42 @@ const (
 	ObjectStorageClassDeepArchive = "DEEP_ARCHIVE"
 )
 
+// ObjectStorageClass_Values returns all elements of the ObjectStorageClass enum
+func ObjectStorageClass_Values() []string {
+	return []string{
+		ObjectStorageClassStandard,
+		ObjectStorageClassReducedRedundancy,
+		ObjectStorageClassGlacier,
+		ObjectStorageClassStandardIa,
+		ObjectStorageClassOnezoneIa,
+		ObjectStorageClassIntelligentTiering,
+		ObjectStorageClassDeepArchive,
+	}
+}
+
 const (
 	// ObjectVersionStorageClassStandard is a ObjectVersionStorageClass enum value
 	ObjectVersionStorageClassStandard = "STANDARD"
 )
 
+// ObjectVersionStorageClass_Values returns all elements of the ObjectVersionStorageClass enum
+func ObjectVersionStorageClass_Values() []string {
+	return []string{
+		ObjectVersionStorageClassStandard,
+	}
+}
+
 const (
 	// OwnerOverrideDestination is a OwnerOverride enum value
 	OwnerOverrideDestination = "Destination"
 )
+
+// OwnerOverride_Values returns all elements of the OwnerOverride enum
+func OwnerOverride_Values() []string {
+	return []string{
+		OwnerOverrideDestination,
+	}
+}
 
 const (
 	// PayerRequester is a Payer enum value
@@ -30649,6 +32030,14 @@ const (
 	// PayerBucketOwner is a Payer enum value
 	PayerBucketOwner = "BucketOwner"
 )
+
+// Payer_Values returns all elements of the Payer enum
+func Payer_Values() []string {
+	return []string{
+		PayerRequester,
+		PayerBucketOwner,
+	}
+}
 
 const (
 	// PermissionFullControl is a Permission enum value
@@ -30667,6 +32056,17 @@ const (
 	PermissionReadAcp = "READ_ACP"
 )
 
+// Permission_Values returns all elements of the Permission enum
+func Permission_Values() []string {
+	return []string{
+		PermissionFullControl,
+		PermissionWrite,
+		PermissionWriteAcp,
+		PermissionRead,
+		PermissionReadAcp,
+	}
+}
+
 const (
 	// ProtocolHttp is a Protocol enum value
 	ProtocolHttp = "http"
@@ -30674,6 +32074,14 @@ const (
 	// ProtocolHttps is a Protocol enum value
 	ProtocolHttps = "https"
 )
+
+// Protocol_Values returns all elements of the Protocol enum
+func Protocol_Values() []string {
+	return []string{
+		ProtocolHttp,
+		ProtocolHttps,
+	}
+}
 
 const (
 	// QuoteFieldsAlways is a QuoteFields enum value
@@ -30683,6 +32091,14 @@ const (
 	QuoteFieldsAsneeded = "ASNEEDED"
 )
 
+// QuoteFields_Values returns all elements of the QuoteFields enum
+func QuoteFields_Values() []string {
+	return []string{
+		QuoteFieldsAlways,
+		QuoteFieldsAsneeded,
+	}
+}
+
 const (
 	// ReplicationRuleStatusEnabled is a ReplicationRuleStatus enum value
 	ReplicationRuleStatusEnabled = "Enabled"
@@ -30690,6 +32106,14 @@ const (
 	// ReplicationRuleStatusDisabled is a ReplicationRuleStatus enum value
 	ReplicationRuleStatusDisabled = "Disabled"
 )
+
+// ReplicationRuleStatus_Values returns all elements of the ReplicationRuleStatus enum
+func ReplicationRuleStatus_Values() []string {
+	return []string{
+		ReplicationRuleStatusEnabled,
+		ReplicationRuleStatusDisabled,
+	}
+}
 
 const (
 	// ReplicationStatusComplete is a ReplicationStatus enum value
@@ -30705,6 +32129,16 @@ const (
 	ReplicationStatusReplica = "REPLICA"
 )
 
+// ReplicationStatus_Values returns all elements of the ReplicationStatus enum
+func ReplicationStatus_Values() []string {
+	return []string{
+		ReplicationStatusComplete,
+		ReplicationStatusPending,
+		ReplicationStatusFailed,
+		ReplicationStatusReplica,
+	}
+}
+
 const (
 	// ReplicationTimeStatusEnabled is a ReplicationTimeStatus enum value
 	ReplicationTimeStatusEnabled = "Enabled"
@@ -30713,12 +32147,27 @@ const (
 	ReplicationTimeStatusDisabled = "Disabled"
 )
 
+// ReplicationTimeStatus_Values returns all elements of the ReplicationTimeStatus enum
+func ReplicationTimeStatus_Values() []string {
+	return []string{
+		ReplicationTimeStatusEnabled,
+		ReplicationTimeStatusDisabled,
+	}
+}
+
 // If present, indicates that the requester was successfully charged for the
 // request.
 const (
 	// RequestChargedRequester is a RequestCharged enum value
 	RequestChargedRequester = "requester"
 )
+
+// RequestCharged_Values returns all elements of the RequestCharged enum
+func RequestCharged_Values() []string {
+	return []string{
+		RequestChargedRequester,
+	}
+}
 
 // Confirms that the requester knows that they will be charged for the request.
 // Bucket owners need not specify this parameter in their requests. For information
@@ -30730,10 +32179,24 @@ const (
 	RequestPayerRequester = "requester"
 )
 
+// RequestPayer_Values returns all elements of the RequestPayer enum
+func RequestPayer_Values() []string {
+	return []string{
+		RequestPayerRequester,
+	}
+}
+
 const (
 	// RestoreRequestTypeSelect is a RestoreRequestType enum value
 	RestoreRequestTypeSelect = "SELECT"
 )
+
+// RestoreRequestType_Values returns all elements of the RestoreRequestType enum
+func RestoreRequestType_Values() []string {
+	return []string{
+		RestoreRequestTypeSelect,
+	}
+}
 
 const (
 	// ServerSideEncryptionAes256 is a ServerSideEncryption enum value
@@ -30743,6 +32206,14 @@ const (
 	ServerSideEncryptionAwsKms = "aws:kms"
 )
 
+// ServerSideEncryption_Values returns all elements of the ServerSideEncryption enum
+func ServerSideEncryption_Values() []string {
+	return []string{
+		ServerSideEncryptionAes256,
+		ServerSideEncryptionAwsKms,
+	}
+}
+
 const (
 	// SseKmsEncryptedObjectsStatusEnabled is a SseKmsEncryptedObjectsStatus enum value
 	SseKmsEncryptedObjectsStatusEnabled = "Enabled"
@@ -30750,6 +32221,14 @@ const (
 	// SseKmsEncryptedObjectsStatusDisabled is a SseKmsEncryptedObjectsStatus enum value
 	SseKmsEncryptedObjectsStatusDisabled = "Disabled"
 )
+
+// SseKmsEncryptedObjectsStatus_Values returns all elements of the SseKmsEncryptedObjectsStatus enum
+func SseKmsEncryptedObjectsStatus_Values() []string {
+	return []string{
+		SseKmsEncryptedObjectsStatusEnabled,
+		SseKmsEncryptedObjectsStatusDisabled,
+	}
+}
 
 const (
 	// StorageClassStandard is a StorageClass enum value
@@ -30774,10 +32253,30 @@ const (
 	StorageClassDeepArchive = "DEEP_ARCHIVE"
 )
 
+// StorageClass_Values returns all elements of the StorageClass enum
+func StorageClass_Values() []string {
+	return []string{
+		StorageClassStandard,
+		StorageClassReducedRedundancy,
+		StorageClassStandardIa,
+		StorageClassOnezoneIa,
+		StorageClassIntelligentTiering,
+		StorageClassGlacier,
+		StorageClassDeepArchive,
+	}
+}
+
 const (
 	// StorageClassAnalysisSchemaVersionV1 is a StorageClassAnalysisSchemaVersion enum value
 	StorageClassAnalysisSchemaVersionV1 = "V_1"
 )
+
+// StorageClassAnalysisSchemaVersion_Values returns all elements of the StorageClassAnalysisSchemaVersion enum
+func StorageClassAnalysisSchemaVersion_Values() []string {
+	return []string{
+		StorageClassAnalysisSchemaVersionV1,
+	}
+}
 
 const (
 	// TaggingDirectiveCopy is a TaggingDirective enum value
@@ -30786,6 +32285,14 @@ const (
 	// TaggingDirectiveReplace is a TaggingDirective enum value
 	TaggingDirectiveReplace = "REPLACE"
 )
+
+// TaggingDirective_Values returns all elements of the TaggingDirective enum
+func TaggingDirective_Values() []string {
+	return []string{
+		TaggingDirectiveCopy,
+		TaggingDirectiveReplace,
+	}
+}
 
 const (
 	// TierStandard is a Tier enum value
@@ -30797,6 +32304,15 @@ const (
 	// TierExpedited is a Tier enum value
 	TierExpedited = "Expedited"
 )
+
+// Tier_Values returns all elements of the Tier enum
+func Tier_Values() []string {
+	return []string{
+		TierStandard,
+		TierBulk,
+		TierExpedited,
+	}
+}
 
 const (
 	// TransitionStorageClassGlacier is a TransitionStorageClass enum value
@@ -30815,6 +32331,17 @@ const (
 	TransitionStorageClassDeepArchive = "DEEP_ARCHIVE"
 )
 
+// TransitionStorageClass_Values returns all elements of the TransitionStorageClass enum
+func TransitionStorageClass_Values() []string {
+	return []string{
+		TransitionStorageClassGlacier,
+		TransitionStorageClassStandardIa,
+		TransitionStorageClassOnezoneIa,
+		TransitionStorageClassIntelligentTiering,
+		TransitionStorageClassDeepArchive,
+	}
+}
+
 const (
 	// TypeCanonicalUser is a Type enum value
 	TypeCanonicalUser = "CanonicalUser"
@@ -30825,3 +32352,12 @@ const (
 	// TypeGroup is a Type enum value
 	TypeGroup = "Group"
 )
+
+// Type_Values returns all elements of the Type enum
+func Type_Values() []string {
+	return []string{
+		TypeCanonicalUser,
+		TypeAmazonCustomerByEmail,
+		TypeGroup,
+	}
+}

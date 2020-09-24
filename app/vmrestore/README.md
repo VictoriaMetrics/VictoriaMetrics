@@ -42,7 +42,7 @@ Run `vmrestore -help` in order to see all the available options:
     	Path to file with S3 configs. Configs are loaded from default location if not set.
     	See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
   -configProfile string
-    	Profile name for S3 configs (default "default")
+    	Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used
   -credsFilePath string
     	Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
     	See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
@@ -53,24 +53,30 @@ Run `vmrestore -help` in order to see all the available options:
   -envflag.prefix string
     	Prefix for environment variables if -envflag.enable is set
   -fs.disableMmap
-    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot data files bigger than 2^32 bytes in memory
+    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -loggerErrorsPerSecondLimit int
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit (default 10)
   -loggerFormat string
     	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
     	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
-  -maxBytesPerSecond int
+  -maxBytesPerSecond value
     	The maximum download speed. There is no limit if it is set to 0
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -memory.allowedBytes value
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
   -skipBackupCompleteCheck
     	Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
     	Source path with backup on the remote storage. Example: gcs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -storageDataPath string
     	Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
- -version
+  -version
     	Show VictoriaMetrics version
 ```
 

@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	retentionPeriod = flag.Int("retentionPeriod", 1, "Retention period in months")
-	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	retentionPeriod   = flag.Int("retentionPeriod", 1, "Retention period in months")
+	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -132,6 +133,16 @@ func SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string
 	return values, err
 }
 
+// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
+//
+// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+func SearchTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	WG.Add(1)
+	suffixes, err := Storage.SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+	WG.Done()
+	return suffixes, err
+}
+
 // SearchTagEntries searches for tag entries.
 func SearchTagEntries(maxTagKeys, maxTagValues int, deadline uint64) ([]storage.TagEntry, error) {
 	WG.Add(1)
@@ -170,6 +181,26 @@ func Stop() {
 // RequestHandler is a storage request handler.
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+	if path == "/internal/force_merge" {
+		authKey := r.FormValue("authKey")
+		if authKey != *forceMergeAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceMergeAuthKey command line flag", authKey)
+			return true
+		}
+		// Run force merge in background
+		partitionNamePrefix := r.FormValue("partition_prefix")
+		go func() {
+			activeForceMerges.Inc()
+			defer activeForceMerges.Dec()
+			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
+			startTime := time.Now()
+			if err := Storage.ForceMergePartitions(partitionNamePrefix); err != nil {
+				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
+			}
+			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
+		}()
+		return true
+	}
 	prometheusCompatibleResponse := false
 	if path == "/api/v1/admin/tsdb/snapshot" {
 		// Handle Prometheus API - https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot .
@@ -249,6 +280,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 }
+
+var activeForceMerges = metrics.NewCounter("vm_active_force_merges")
 
 func registerStorageMetrics() {
 	mCache := &storage.Metrics{}
@@ -454,6 +487,13 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_slow_metric_name_loads_total`, func() float64 {
 		return float64(m().SlowMetricNameLoads)
+	})
+
+	metrics.NewGauge(`vm_timestamps_blocks_merged_total`, func() float64 {
+		return float64(m().TimestampsBlocksMerged)
+	})
+	metrics.NewGauge(`vm_timestamps_bytes_saved_total`, func() float64 {
+		return float64(m().TimestampsBytesSaved)
 	})
 
 	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {

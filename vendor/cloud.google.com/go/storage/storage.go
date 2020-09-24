@@ -97,7 +97,11 @@ type Client struct {
 }
 
 // NewClient creates a new Google Cloud Storage client.
-// The default scope is ScopeFullControl. To use a different scope, like ScopeReadOnly, use option.WithScopes.
+// The default scope is ScopeFullControl. To use a different scope, like
+// ScopeReadOnly, use option.WithScopes.
+//
+// Clients should be reused instead of created as needed. The methods of Client
+// are safe for concurrent use by multiple goroutines.
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
 	var host, readHost, scheme string
 
@@ -349,7 +353,7 @@ var (
 )
 
 // v2SanitizeHeaders applies the specifications for canonical extension headers at
-// https://cloud.google.com/storage/docs/access-control/signed-urls#about-canonical-extension-headers.
+// https://cloud.google.com/storage/docs/access-control/signed-urls-v2#about-canonical-extension-headers
 func v2SanitizeHeaders(hdrs []string) []string {
 	headerMap := map[string][]string{}
 	for _, hdr := range hdrs {
@@ -397,7 +401,7 @@ func v2SanitizeHeaders(hdrs []string) []string {
 }
 
 // v4SanitizeHeaders applies the specifications for canonical extension headers
-// at https://cloud.google.com/storage/docs/access-control/signed-urls#about-canonical-extension-headers.
+// at https://cloud.google.com/storage/docs/authentication/canonical-requests#about-headers.
 //
 // V4 does a couple things differently from V2:
 // - Headers get sorted by key, instead of by key:value. We do this in
@@ -583,8 +587,10 @@ func signedURLV4(bucket, name string, opts *SignedURLOptions, now time.Time) (st
 	for k, v := range opts.QueryParameters {
 		canonicalQueryString[k] = append(canonicalQueryString[k], v...)
 	}
-
-	fmt.Fprintf(buf, "%s\n", canonicalQueryString.Encode())
+	// url.Values.Encode escaping is correct, except that a space must be replaced
+	// by `%20` rather than `+`.
+	escapedQuery := strings.Replace(canonicalQueryString.Encode(), "+", "%20", -1)
+	fmt.Fprintf(buf, "%s\n", escapedQuery)
 
 	// Fill in the hostname based on the desired URL style.
 	u.Host = opts.Style.host(bucket)
@@ -868,6 +874,10 @@ func (o *ObjectHandle) Update(ctx context.Context, uattrs ObjectAttrsToUpdate) (
 		attrs.TemporaryHold = optional.ToBool(uattrs.TemporaryHold)
 		forceSendFields = append(forceSendFields, "TemporaryHold")
 	}
+	if !uattrs.CustomTime.IsZero() {
+		attrs.CustomTime = uattrs.CustomTime
+		forceSendFields = append(forceSendFields, "CustomTime")
+	}
 	if uattrs.Metadata != nil {
 		attrs.Metadata = uattrs.Metadata
 		if len(attrs.Metadata) == 0 {
@@ -940,6 +950,7 @@ type ObjectAttrsToUpdate struct {
 	ContentEncoding    optional.String
 	ContentDisposition optional.String
 	CacheControl       optional.String
+	CustomTime         time.Time
 	Metadata           map[string]string // set to map[string]string{} to delete
 	ACL                []ACLRule
 
@@ -1047,6 +1058,10 @@ func (o *ObjectAttrs) toRawObject(bucket string) *raw.Object {
 	if !o.RetentionExpirationTime.IsZero() {
 		ret = o.RetentionExpirationTime.Format(time.RFC3339)
 	}
+	var ct string
+	if !o.CustomTime.IsZero() {
+		ct = o.CustomTime.Format(time.RFC3339)
+	}
 	return &raw.Object{
 		Bucket:                  bucket,
 		Name:                    o.Name,
@@ -1061,6 +1076,7 @@ func (o *ObjectAttrs) toRawObject(bucket string) *raw.Object {
 		StorageClass:            o.StorageClass,
 		Acl:                     toRawObjectACL(o.ACL),
 		Metadata:                o.Metadata,
+		CustomTime:              ct,
 	}
 }
 
@@ -1199,6 +1215,14 @@ type ObjectAttrs struct {
 	// Etag is the HTTP/1.1 Entity tag for the object.
 	// This field is read-only.
 	Etag string
+
+	// A user-specified timestamp which can be applied to an object. This is
+	// typically set in order to use the CustomTimeBefore and DaysSinceCustomTime
+	// LifecycleConditions to manage object lifecycles.
+	//
+	// CustomTime cannot be removed once set on an object. It can be updated to a
+	// later value but not to an earlier one.
+	CustomTime time.Time
 }
 
 // convertTime converts a time in RFC3339 format to time.Time.
@@ -1252,6 +1276,7 @@ func newObject(o *raw.Object) *ObjectAttrs {
 		Deleted:                 convertTime(o.TimeDeleted),
 		Updated:                 convertTime(o.Updated),
 		Etag:                    o.Etag,
+		CustomTime:              convertTime(o.CustomTime),
 	}
 }
 
@@ -1297,6 +1322,17 @@ type Query struct {
 	// the query. It's used internally and is populated for the user by
 	// calling Query.SetAttrSelection
 	fieldSelection string
+
+	// StartOffset is used to filter results to objects whose names are
+	// lexicographically equal to or after startOffset. If endOffset is also set,
+	// the objects listed will have names between startOffset (inclusive) and
+	// endOffset (exclusive).
+	StartOffset string
+
+	// EndOffset is used to filter results to objects whose names are
+	// lexicographically before endOffset. If startOffset is also set, the objects
+	// listed will have names between startOffset (inclusive) and endOffset (exclusive).
+	EndOffset string
 }
 
 // attrToFieldMap maps the field names of ObjectAttrs to the underlying field
@@ -1329,6 +1365,7 @@ var attrToFieldMap = map[string]string{
 	"Deleted":                 "timeDeleted",
 	"Updated":                 "updated",
 	"Etag":                    "etag",
+	"CustomTime":              "customTime",
 }
 
 // SetAttrSelection makes the query populate only specific attributes of
@@ -1351,7 +1388,7 @@ func (q *Query) SetAttrSelection(attrs []string) error {
 
 	if len(fieldSet) > 0 {
 		var b bytes.Buffer
-		b.WriteString("items(")
+		b.WriteString("prefixes,items(")
 		first := true
 		for field := range fieldSet {
 			if !first {

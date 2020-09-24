@@ -109,7 +109,10 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 				// The given field is ignored.
 				continue
 			}
-			value := fastfloat.ParseBestEffort(sc.Column)
+			value, err := fastfloat.Parse(sc.Column)
+			if err != nil {
+				sc.Error = fmt.Errorf("cannot parse metric value for %q from %q: %w", metricName, sc.Column, err)
+			}
 			metrics = append(metrics, metric{
 				Name:  metricName,
 				Value: value,

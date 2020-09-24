@@ -50,6 +50,8 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 		return getPodsLabels(cfg)
 	case "endpoints":
 		return getEndpointsLabels(cfg)
+	case "endpointslices":
+		return getEndpointSlicesLabels(cfg)
 	case "ingress":
 		return getIngressesLabels(cfg)
 	default:

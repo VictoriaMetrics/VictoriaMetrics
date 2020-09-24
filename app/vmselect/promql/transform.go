@@ -1030,6 +1030,12 @@ func transformSmoothExponential(tfa *transformFuncArg) ([]*timeseries, error) {
 	rvs := args[0]
 	for _, ts := range rvs {
 		values := skipLeadingNaNs(ts.Values)
+		for i, v := range values {
+			if !math.IsInf(v, 0) {
+				values = values[i:]
+				break
+			}
+		}
 		if len(values) == 0 {
 			continue
 		}
@@ -1038,6 +1044,10 @@ func transformSmoothExponential(tfa *transformFuncArg) ([]*timeseries, error) {
 		sfsX := sfs[len(ts.Values)-len(values):]
 		for i, v := range values {
 			if math.IsNaN(v) {
+				continue
+			}
+			if math.IsInf(v, 0) {
+				values[i] = avg
 				continue
 			}
 			sf := sfsX[i]
@@ -1674,15 +1684,15 @@ func newTransformFuncZeroArgs(f func(tfa *transformFuncArg) float64) transformFu
 }
 
 func transformStep(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.Step) * 1e-3
+	return float64(tfa.ec.Step) / 1e3
 }
 
 func transformStart(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.Start) * 1e-3
+	return float64(tfa.ec.Start) / 1e3
 }
 
 func transformEnd(tfa *transformFuncArg) float64 {
-	return float64(tfa.ec.End) * 1e-3
+	return float64(tfa.ec.End) / 1e3
 }
 
 // copyTimeseriesMetricNames returns a copy of tss with real copy of MetricNames,

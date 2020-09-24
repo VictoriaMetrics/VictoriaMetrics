@@ -139,16 +139,16 @@ func TestDerivValues(t *testing.T) {
 
 	values = append([]float64{}, testValues...)
 	derivValues(values, testTimestamps)
-	valuesExpected = []float64{-8900, 1111.111111111111, -1916.6666666666665, 2538.461538461538, -1818.1818181818182, 3611.111111111111,
-		-43500, 1882.3529411764705, -666.6666666666666, 400, 0, 0}
+	valuesExpected = []float64{-8900, 1111.111111111111, -1916.6666666666665, 2538.4615384615386, -1818.1818181818182, 3611.1111111111113,
+		-43500, 1882.3529411764705, -666.6666666666667, 400, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 
 	// remove counter resets
 	values = append([]float64{}, testValues...)
 	removeCounterResets(values)
 	derivValues(values, testTimestamps)
-	valuesExpected = []float64{3400, 1111.111111111111, 1750, 2538.461538461538, 3090.909090909091, 3611.111111111111,
-		6000, 1882.3529411764705, 1777.7777777777776, 400, 0, 0}
+	valuesExpected = []float64{3400, 1111.111111111111, 1750, 2538.4615384615386, 3090.909090909091, 3611.1111111111113,
+		6000, 1882.3529411764705, 1777.7777777777778, 400, 0, 0}
 	testRowsEqual(t, values, testTimestamps, valuesExpected, testTimestamps)
 
 	// duplicate timestamps
@@ -235,6 +235,52 @@ func TestRollupShareGTOverTime(t *testing.T) {
 	f(30, 0.8333333333333334)
 	f(50, 0.25)
 	f(100, 0.08333333333333333)
+	f(123, 0)
+	f(1000, 0)
+}
+
+func TestRollupCountLEOverTime(t *testing.T) {
+	f := func(le, vExpected float64) {
+		t.Helper()
+		les := []*timeseries{{
+			Values:     []float64{le},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, les}
+		testRollupFunc(t, "count_le_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 0)
+	f(0, 0)
+	f(10, 0)
+	f(12, 1)
+	f(30, 2)
+	f(50, 9)
+	f(100, 11)
+	f(123, 12)
+	f(1000, 12)
+}
+
+func TestRollupCountGTOverTime(t *testing.T) {
+	f := func(gt, vExpected float64) {
+		t.Helper()
+		gts := []*timeseries{{
+			Values:     []float64{gt},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, gts}
+		testRollupFunc(t, "count_gt_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 12)
+	f(0, 12)
+	f(10, 12)
+	f(12, 11)
+	f(30, 10)
+	f(50, 3)
+	f(100, 1)
 	f(123, 0)
 	f(1000, 0)
 }
@@ -385,7 +431,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("stdvar_over_time", 945.7430555555555)
 	f("first_over_time", 123)
 	f("last_over_time", 34)
-	f("integrate", 5.4705)
+	f("integrate", 0.817)
 	f("distinct_over_time", 8)
 	f("ideriv", 0)
 	f("decreases_over_time", 5)
@@ -599,7 +645,7 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{99, nan, 44, nan, 32, 34, nan}
+		valuesExpected := []float64{12, nan, nan, nan, 34, 34, nan}
 		timestampsExpected := []int64{80, 90, 100, 110, 120, 130, 140}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -868,7 +914,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{0, -2879.310344827587, 558.0608793686592, 422.84569138276544, 0}
+		valuesExpected := []float64{0, -2879.310344827587, 558.0608793686595, 422.84569138276544, 0}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
@@ -924,7 +970,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{nan, 1.526, 2.2795, 1.325, 0.34}
+		valuesExpected := []float64{nan, 2.148, 1.593, 1.156, 1.36}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})

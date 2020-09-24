@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 func logAllFlags() {
@@ -13,7 +14,7 @@ func logAllFlags() {
 	flag.VisitAll(func(f *flag.Flag) {
 		lname := strings.ToLower(f.Name)
 		value := f.Value.String()
-		if strings.Contains(lname, "pass") || strings.Contains(lname, "key") || strings.Contains(lname, "secret") {
+		if flagutil.IsSecretFlag(lname) {
 			// Do not expose passwords and keys to prometheus.
 			value = "secret"
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,8 +123,10 @@ func getAAddrLabels(ctx context.Context, sdc *SDConfig, lookupType string) ([]ma
 func appendAddrLabels(ms []map[string]string, name, target string, port int) []map[string]string {
 	addr := discoveryutils.JoinHostPort(target, port)
 	m := map[string]string{
-		"__address__":     addr,
-		"__meta_dns_name": name,
+		"__address__":                  addr,
+		"__meta_dns_name":              name,
+		"__meta_dns_srv_record_target": target,
+		"__meta_dns_srv_record_port":   strconv.Itoa(port),
 	}
 	return append(ms, m)
 }

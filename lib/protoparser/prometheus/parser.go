@@ -36,7 +36,7 @@ func (rs *Rows) Reset() {
 //
 // See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified while rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.UnmarshalWithErrLogger(s, stdErrLogger)
 }
@@ -48,6 +48,8 @@ func stdErrLogger(s string) {
 // UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
 //
 // It calls errLogger for logging parsing errors.
+//
+// s shouldn't be modified while rs is in use.
 func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
 	noEscapes := strings.IndexByte(s, '\\') < 0
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
@@ -137,13 +139,25 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 	n = nextWhitespace(s)
 	if n < 0 {
 		// There is no timestamp.
-		r.Value = fastfloat.ParseBestEffort(s)
+		v, err := fastfloat.Parse(s)
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot parse value %q: %w", s, err)
+		}
+		r.Value = v
 		return tagsPool, nil
 	}
 	// There is timestamp.
-	r.Value = fastfloat.ParseBestEffort(s[:n])
+	v, err := fastfloat.Parse(s[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
+	}
 	s = skipLeadingWhitespace(s[n+1:])
-	r.Timestamp = fastfloat.ParseInt64BestEffort(s)
+	ts, err := fastfloat.ParseInt64(s)
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+	}
+	r.Value = v
+	r.Timestamp = ts
 	return tagsPool, nil
 }
 

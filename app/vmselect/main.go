@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -22,7 +24,8 @@ var (
 	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
-	maxQueueDuration  = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached")
+	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
+		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 )
 
@@ -76,7 +79,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		t := timerpool.Get(*maxQueueDuration)
+		d := searchutils.GetMaxQueryDuration(r)
+		if d > *maxQueueDuration {
+			d = *maxQueueDuration
+		}
+		t := timerpool.Get(d)
 		select {
 		case concurrencyCh <- struct{}{}:
 			timerpool.Put(t)
@@ -86,8 +93,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			concurrencyLimitTimeout.Inc()
 			err := &httpserver.ErrorWithStatusCode{
 				Err: fmt.Errorf("cannot handle more than %d concurrent search requests during %s; possible solutions: "+
-					"increase `-search.maxQueueDuration`, increase `-search.maxConcurrentRequests`, increase server capacity",
-					*maxConcurrentRequests, *maxQueueDuration),
+					"increase `-search.maxQueueDuration`; increase `-search.maxQueryDuration`; increase `-search.maxConcurrentRequests`; "+
+					"increase server capacity",
+					*maxConcurrentRequests, d),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
@@ -203,6 +211,33 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/metrics/find", "/metrics/find/":
+		graphiteMetricsFindRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.MetricsFindHandler(startTime, w, r); err != nil {
+			graphiteMetricsFindErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	case "/metrics/expand", "/metrics/expand/":
+		graphiteMetricsExpandRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.MetricsExpandHandler(startTime, w, r); err != nil {
+			graphiteMetricsExpandErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	case "/metrics/index.json", "/metrics/index.json/":
+		graphiteMetricsIndexRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.MetricsIndexHandler(startTime, w, r); err != nil {
+			graphiteMetricsIndexErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -288,6 +323,15 @@ var (
 
 	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/federate"}`)
 	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/federate"}`)
+
+	graphiteMetricsFindRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/find"}`)
+	graphiteMetricsFindErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/find"}`)
+
+	graphiteMetricsExpandRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/expand"}`)
+	graphiteMetricsExpandErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/expand"}`)
+
+	graphiteMetricsIndexRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/index.json"}`)
+	graphiteMetricsIndexErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/index.json"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)

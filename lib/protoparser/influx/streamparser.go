@@ -38,7 +38,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 	switch precision {
 	case "ns":
 		tsMultiplier = 1e6
-	case "u":
+	case "u", "us", "µ":
 		tsMultiplier = 1e3
 	case "ms":
 		tsMultiplier = 1

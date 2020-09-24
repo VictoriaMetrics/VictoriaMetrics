@@ -16,12 +16,12 @@ import (
 // newSignedRequest signed request for apiURL according to aws signature algorithm.
 //
 // See the algorithm at https://docs.aws.amazon.com/general/latest/gr/sigv4-signed-request-examples.html
-func newSignedRequest(apiURL, service, region, accessKey, secretKey string) (*http.Request, error) {
+func newSignedRequest(apiURL, service, region string, creds *apiCredentials) (*http.Request, error) {
 	t := time.Now().UTC()
-	return newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey, t)
+	return newSignedRequestWithTime(apiURL, service, region, creds, t)
 }
 
-func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey string, t time.Time) (*http.Request, error) {
+func newSignedRequestWithTime(apiURL, service, region string, creds *apiCredentials, t time.Time) (*http.Request, error) {
 	uri, err := url.Parse(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %q: %w", apiURL, err)
@@ -57,11 +57,11 @@ func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey stri
 	stringToSign := strings.Join(tmp, "\n")
 
 	// Calculate the signature
-	signingKey := getSignatureKey(secretKey, datestamp, region, service)
+	signingKey := getSignatureKey(creds.SecretAccessKey, datestamp, region, service)
 	signature := hmacHex(signingKey, stringToSign)
 
 	// Calculate autheader
-	authHeader := fmt.Sprintf("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s", algorithm, accessKey, credentialScope, signedHeaders, signature)
+	authHeader := fmt.Sprintf("%s Credential=%s/%s, SignedHeaders=%s, Signature=%s", algorithm, creds.AccessKeyID, credentialScope, signedHeaders, signature)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -69,6 +69,9 @@ func newSignedRequestWithTime(apiURL, service, region, accessKey, secretKey stri
 	}
 	req.Header.Set("x-amz-date", amzdate)
 	req.Header.Set("Authorization", authHeader)
+	if creds.Token != "" {
+		req.Header.Set("X-Amz-Security-Token", creds.Token)
+	}
 	return req, nil
 }
 

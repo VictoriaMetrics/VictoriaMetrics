@@ -18,10 +18,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/klauspost/compress/gzip"
+	"github.com/valyala/fastrand"
 )
 
 var (
@@ -42,6 +44,9 @@ var (
 		"Highly loaded server may require increased value for graceful shutdown")
 	shutdownDelay = flag.Duration("http.shutdownDelay", 0, "Optional delay before http server shutdown. During this dealy the servier returns non-OK responses "+
 		"from /health page, so load balancers can route new requests to other servers")
+	idleConnTimeout = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
+	connTimeout     = flag.Duration("http.connTimeout", 2*time.Minute, "Incoming http connections are closed after the configured timeout. This may help spreading incoming load "+
+		"among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem")
 )
 
 var (
@@ -104,12 +109,22 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 
 		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       time.Minute,
+		IdleTimeout:       *idleConnTimeout,
 
 		// Do not set ReadTimeout and WriteTimeout here,
 		// since these timeouts must be controlled by request handlers.
 
 		ErrorLog: logger.StdErrorLogger(),
+
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			timeoutSec := connTimeout.Seconds()
+			// Add a jitter for connection timeout in order to prevent Thundering herd problem
+			// when all the connections are established at the same time.
+			// See https://en.wikipedia.org/wiki/Thundering_herd_problem
+			jitterSec := fastrand.Uint32n(uint32(timeoutSec / 10))
+			deadline := fasttime.UnixTimestamp() + uint64(timeoutSec) + uint64(jitterSec)
+			return context.WithValue(ctx, connDeadlineTimeKey, &deadline)
+		},
 	}
 	serversLock.Lock()
 	servers[addr] = &s
@@ -122,6 +137,15 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 		logger.Panicf("FATAL: cannot serve http at %s: %s", addr, err)
 	}
 }
+
+func whetherToCloseConn(r *http.Request) bool {
+	ctx := r.Context()
+	v := ctx.Value(connDeadlineTimeKey)
+	deadline, ok := v.(*uint64)
+	return ok && fasttime.UnixTimestamp() > *deadline
+}
+
+var connDeadlineTimeKey = interface{}("connDeadlineSecs")
 
 // Stop stops the http server on the given addr, which has been started
 // via Serve func.
@@ -167,9 +191,14 @@ func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 }
 
 var metricsHandlerDuration = metrics.NewHistogram(`vm_http_request_duration_seconds{path="/metrics"}`)
+var connTimeoutClosedConns = metrics.NewCounter(`vm_http_conn_timeout_closed_conns_total`)
 
 func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	requestsTotal.Inc()
+	if whetherToCloseConn(r) {
+		connTimeoutClosedConns.Inc()
+		w.Header().Set("Connection", "close")
+	}
 	path, err := getCanonicalPath(r.URL.Path)
 	if err != nil {
 		Errorf(w, r, "cannot get canonical path: %s", err)

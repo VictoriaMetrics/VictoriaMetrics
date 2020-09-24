@@ -19,6 +19,8 @@ const defaultBlockSize = 64 * 1024
 // Trailing chars after the last newline are put into tailBuf.
 //
 // Returns (dstBuf, tailBuf).
+//
+// It is expected that read timeout on r exceeds 1 second.
 func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error) {
 	return ReadLinesBlockExt(r, dstBuf, tailBuf, maxLineSize)
 }
@@ -30,6 +32,8 @@ func ReadLinesBlock(r io.Reader, dstBuf, tailBuf []byte) ([]byte, []byte, error)
 // Returns (dstBuf, tailBuf).
 //
 // maxLineLen limits the maximum length of a single line.
+//
+// It is expected that read timeout on r exceeds 1 second.
 func ReadLinesBlockExt(r io.Reader, dstBuf, tailBuf []byte, maxLineLen int) ([]byte, []byte, error) {
 	if cap(dstBuf) < defaultBlockSize {
 		dstBuf = bytesutil.Resize(dstBuf, defaultBlockSize)

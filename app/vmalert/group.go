@@ -24,6 +24,7 @@ type Group struct {
 	Rules       []Rule
 	Interval    time.Duration
 	Concurrency int
+	Checksum    string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -53,6 +54,7 @@ func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string
 		File:        cfg.File,
 		Interval:    cfg.Interval,
 		Concurrency: cfg.Concurrency,
+		Checksum:    cfg.Checksum,
 		doneCh:      make(chan struct{}),
 		finishedCh:  make(chan struct{}),
 		updateCh:    make(chan *Group),
@@ -156,6 +158,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		newRules = append(newRules, nr)
 	}
 	g.Concurrency = newGroup.Concurrency
+	g.Checksum = newGroup.Checksum
 	g.Rules = newRules
 	return nil
 }
@@ -180,8 +183,31 @@ func (g *Group) close() {
 	}
 }
 
+var skipRandSleepOnGroupStart bool
+
 func (g *Group) start(ctx context.Context, querier datasource.Querier, nts []notifier.Notifier, rw *remotewrite.Client) {
 	defer func() { close(g.finishedCh) }()
+
+	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	if !skipRandSleepOnGroupStart {
+		randSleep := uint64(float64(g.Interval) * (float64(uint32(g.ID())) / (1 << 32)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(g.Interval)
+		}
+		randSleep -= sleepOffset
+		sleepTimer := time.NewTimer(time.Duration(randSleep))
+		select {
+		case <-ctx.Done():
+			sleepTimer.Stop()
+			return
+		case <-g.doneCh:
+			sleepTimer.Stop()
+			return
+		case <-sleepTimer.C:
+		}
+	}
+
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 	e := &executor{querier, nts, rw}
 	t := time.NewTicker(g.Interval)

@@ -42,7 +42,7 @@ func (rs *Rows) Reset() {
 //
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.Rows, rs.tagsPool, rs.fieldsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], rs.fieldsPool[:0])
 }
@@ -103,15 +103,23 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 	}
 	fieldsPool, err = unmarshalInfluxFields(fieldsPool, s[:n], noEscapeChars, hasQuotedFields)
 	if err != nil {
+		if strings.HasPrefix(s[n+1:], "HTTP/") {
+			return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
+				"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
+		}
 		return tagsPool, fieldsPool, err
 	}
 	r.Fields = fieldsPool[fieldsStart:]
 	s = s[n+1:]
 
 	// Parse timestamp
-	timestamp := fastfloat.ParseInt64BestEffort(s)
-	if timestamp == 0 && s != "0" {
-		return tagsPool, fieldsPool, fmt.Errorf("cannot parse timestamp %q", s)
+	timestamp, err := fastfloat.ParseInt64(s)
+	if err != nil {
+		if strings.HasPrefix(s, "HTTP/") {
+			return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
+				"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
+		}
+		return tagsPool, fieldsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 	}
 	r.Timestamp = timestamp
 	return tagsPool, fieldsPool, nil
@@ -313,13 +321,19 @@ func parseFieldValue(s string, hasQuotedFields bool) (float64, error) {
 	if ch == 'i' {
 		// Integer value
 		ss := s[:len(s)-1]
-		n := fastfloat.ParseInt64BestEffort(ss)
+		n, err := fastfloat.ParseInt64(ss)
+		if err != nil {
+			return 0, err
+		}
 		return float64(n), nil
 	}
 	if ch == 'u' {
 		// Unsigned integer value
 		ss := s[:len(s)-1]
-		n := fastfloat.ParseUint64BestEffort(ss)
+		n, err := fastfloat.ParseUint64(ss)
+		if err != nil {
+			return 0, err
+		}
 		return float64(n), nil
 	}
 	if s == "t" || s == "T" || s == "true" || s == "True" || s == "TRUE" {

@@ -35,12 +35,14 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Invalid timestamp
 	f("put aaa timestamp")
+	f("put foobar 3df4 -123456 a=b")
 
 	// Missing first tag
 	f("put aaa 123 43")
 
 	// Invalid value
 	f("put aaa 123 invalid-value")
+	f("put foobar 789 -123foo456 a=b")
 
 	// Invalid multiline
 	f("put aaa\nbbb 123 34")

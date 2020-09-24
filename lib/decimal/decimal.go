@@ -76,11 +76,20 @@ func ExtendInt64sCapacity(dst []int64, additionalItems int) []int64 {
 	return dst[:dstLen]
 }
 
+func extendInt16sCapacity(dst []int16, additionalItems int) []int16 {
+	dstLen := len(dst)
+	if n := dstLen + additionalItems - cap(dst); n > 0 {
+		dst = append(dst[:cap(dst)], make([]int16, n)...)
+	}
+	return dst[:dstLen]
+}
+
 // AppendDecimalToFloat converts each item in va to f=v*10^e, appends it
 // to dst and returns the resulting dst.
 func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 	// Extend dst capacity in order to eliminate memory allocations below.
 	dst = ExtendFloat64sCapacity(dst, len(va))
+	a := dst[len(dst) : len(dst)+len(va)]
 
 	if fastnum.IsInt64Zeros(va) {
 		return fastnum.AppendFloat64Zeros(dst, len(va))
@@ -89,35 +98,53 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 		if fastnum.IsInt64Ones(va) {
 			return fastnum.AppendFloat64Ones(dst, len(va))
 		}
-		for _, v := range va {
+		_ = a[len(va)-1]
+		for i, v := range va {
 			f := float64(v)
-			dst = append(dst, f)
+			if v == vInfPos {
+				f = infPos
+			} else if v == vInfNeg {
+				f = infNeg
+			}
+			a[i] = f
 		}
-		return dst
+		return dst[:len(dst)+len(va)]
 	}
 
 	// increase conversion precision for negative exponents by dividing by e10
 	if e < 0 {
 		e10 := math.Pow10(int(-e))
-		for _, v := range va {
+		_ = a[len(va)-1]
+		for i, v := range va {
 			f := float64(v) / e10
-			dst = append(dst, f)
+			if v == vInfPos {
+				f = infPos
+			} else if v == vInfNeg {
+				f = infNeg
+			}
+			a[i] = f
 		}
-		return dst
+		return dst[:len(dst)+len(va)]
 	}
 	e10 := math.Pow10(int(e))
-	for _, v := range va {
+	_ = a[len(va)-1]
+	for i, v := range va {
 		f := float64(v) * e10
-		dst = append(dst, f)
+		if v == vInfPos {
+			f = infPos
+		} else if v == vInfNeg {
+			f = infNeg
+		}
+		a[i] = f
 	}
-	return dst
+	return dst[:len(dst)+len(va)]
 }
 
 // AppendFloatToDecimal converts each item in src to v*10^e and appends
 // each v to dst returning it as va.
 //
 // It tries minimizing each item in dst.
-func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
+func AppendFloatToDecimal(dst []int64, src []float64) ([]int64, int16) {
 	if len(src) == 0 {
 		return dst, 0
 	}
@@ -130,9 +157,6 @@ func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 		return dst, 0
 	}
 
-	// Extend dst capacity in order to eliminate memory allocations below.
-	dst = ExtendInt64sCapacity(dst, len(src))
-
 	vaev := vaeBufPool.Get()
 	if vaev == nil {
 		vaev = &vaeBuf{
@@ -141,19 +165,20 @@ func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 		}
 	}
 	vae := vaev.(*vaeBuf)
-	vae.va = vae.va[:0]
-	vae.ea = vae.ea[:0]
+	va := vae.va[:0]
+	ea := vae.ea[:0]
+	va = ExtendInt64sCapacity(va, len(src))
+	va = va[:len(src)]
+	ea = extendInt16sCapacity(ea, len(src))
+	ea = ea[:len(src)]
 
 	// Determine the minimum exponent across all src items.
-	v, exp := FromFloat(src[0])
-	vae.va = append(vae.va, v)
-	vae.ea = append(vae.ea, exp)
-	minExp := exp
-	for _, f := range src[1:] {
+	minExp := int16(1<<15 - 1)
+	for i, f := range src {
 		v, exp := FromFloat(f)
-		vae.va = append(vae.va, v)
-		vae.ea = append(vae.ea, exp)
-		if exp < minExp {
+		va[i] = v
+		ea[i] = exp
+		if exp < minExp && v != vInfPos && v != vInfNeg {
 			minExp = exp
 		}
 	}
@@ -161,8 +186,12 @@ func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 	// Determine whether all the src items may be upscaled to minExp.
 	// If not, adjust minExp accordingly.
 	downExp := int16(0)
-	for i, v := range vae.va {
-		exp := vae.ea[i]
+	_ = ea[len(va)-1]
+	for i, v := range va {
+		if v == vInfPos || v == vInfNeg {
+			continue
+		}
+		exp := ea[i]
 		upExp := exp - minExp
 		maxUpExp := maxUpExponent(v)
 		if upExp-maxUpExp > downExp {
@@ -171,9 +200,19 @@ func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 	}
 	minExp += downExp
 
+	// Extend dst capacity in order to eliminate memory allocations below.
+	dst = ExtendInt64sCapacity(dst, len(src))
+	a := dst[len(dst) : len(dst)+len(src)]
+
 	// Scale each item in src to minExp and append it to dst.
-	for i, v := range vae.va {
-		exp := vae.ea[i]
+	_ = a[len(va)-1]
+	_ = ea[len(va)-1]
+	for i, v := range va {
+		if v == vInfPos || v == vInfNeg {
+			a[i] = v
+			continue
+		}
+		exp := ea[i]
 		adjExp := exp - minExp
 		for adjExp > 0 {
 			v *= 10
@@ -183,12 +222,14 @@ func AppendFloatToDecimal(dst []int64, src []float64) (va []int64, e int16) {
 			v /= 10
 			adjExp++
 		}
-		dst = append(dst, v)
+		a[i] = v
 	}
 
+	vae.va = va
+	vae.ea = ea
 	vaeBufPool.Put(vae)
 
-	return dst, minExp
+	return dst[:len(dst)+len(va)], minExp
 }
 
 type vaeBuf struct {
@@ -197,6 +238,8 @@ type vaeBuf struct {
 }
 
 var vaeBufPool sync.Pool
+
+const int64Max = int64(1<<63 - 1)
 
 func maxUpExponent(v int64) int16 {
 	if v == 0 {
@@ -210,53 +253,49 @@ func maxUpExponent(v int64) int16 {
 		// Handle corner case for v=-1<<63
 		return 0
 	}
-
-	maxMultiplier := ((1 << 63) - 1) / uint64(v)
 	switch {
-	case maxMultiplier >= 1e19:
-		return 19
-	case maxMultiplier >= 1e18:
+	case v <= int64Max/1e18:
 		return 18
-	case maxMultiplier >= 1e17:
+	case v <= int64Max/1e17:
 		return 17
-	case maxMultiplier >= 1e16:
+	case v <= int64Max/1e16:
 		return 16
-	case maxMultiplier >= 1e15:
+	case v <= int64Max/1e15:
 		return 15
-	case maxMultiplier >= 1e14:
+	case v <= int64Max/1e14:
 		return 14
-	case maxMultiplier >= 1e13:
+	case v <= int64Max/1e13:
 		return 13
-	case maxMultiplier >= 1e12:
+	case v <= int64Max/1e12:
 		return 12
-	case maxMultiplier >= 1e11:
+	case v <= int64Max/1e11:
 		return 11
-	case maxMultiplier >= 1e10:
+	case v <= int64Max/1e10:
 		return 10
-	case maxMultiplier >= 1e9:
+	case v <= int64Max/1e9:
 		return 9
-	case maxMultiplier >= 1e8:
+	case v <= int64Max/1e8:
 		return 8
-	case maxMultiplier >= 1e7:
+	case v <= int64Max/1e7:
 		return 7
-	case maxMultiplier >= 1e6:
+	case v <= int64Max/1e6:
 		return 6
-	case maxMultiplier >= 1e5:
+	case v <= int64Max/1e5:
 		return 5
-	case maxMultiplier >= 1e4:
+	case v <= int64Max/1e4:
 		return 4
-	case maxMultiplier >= 1e3:
+	case v <= int64Max/1e3:
 		return 3
-	case maxMultiplier >= 1e2:
+	case v <= int64Max/1e2:
 		return 2
-	case maxMultiplier >= 1e1:
+	case v <= int64Max/1e1:
 		return 1
 	default:
 		return 0
 	}
 }
 
-// Round f to value with the given number of significant decimal digits.
+// Round f to value with the given number of significant figures.
 func Round(f float64, digits int) float64 {
 	if digits <= 0 || digits >= 18 {
 		return f
@@ -290,6 +329,12 @@ func Round(f float64, digits int) float64 {
 
 // ToFloat returns f=v*10^e.
 func ToFloat(v int64, e int16) float64 {
+	if v == vInfPos {
+		return infPos
+	}
+	if v == vInfNeg {
+		return infNeg
+	}
 	f := float64(v)
 	// increase conversion precision for negative exponents by dividing by e10
 	if e < 0 {
@@ -297,6 +342,11 @@ func ToFloat(v int64, e int16) float64 {
 	}
 	return f * math.Pow10(int(e))
 }
+
+var (
+	infPos = math.Inf(1)
+	infNeg = math.Inf(-1)
+)
 
 const (
 	vInfPos = 1<<63 - 1

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
@@ -50,10 +51,6 @@ func TestParseBad(t *testing.T) {
 		{
 			[]string{"testdata/dir/rules4-bad.rules"},
 			"either `record` or `alert` must be set",
-		},
-		{
-			[]string{"testdata/*.yaml"},
-			"no groups found",
 		},
 	}
 	for _, tc := range testCases {
@@ -322,5 +319,38 @@ func TestHashRule(t *testing.T) {
 		if tc.equal != (aID == bID) {
 			t.Fatalf("missmatch for rule %d", i)
 		}
+	}
+}
+
+func TestGroupChecksum(t *testing.T) {
+	data := `
+name: TestGroup
+rules:
+  - alert: ExampleAlertAlwaysFiring
+    expr: sum by(job) (up == 1)
+  - record: handler:requests:rate5m
+    expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
+`
+	var g Group
+	if err := yaml.Unmarshal([]byte(data), &g); err != nil {
+		t.Fatalf("failed to unmarshal: %s", err)
+	}
+	if g.Checksum == "" {
+		t.Fatalf("expected to get non-empty checksum")
+	}
+	newData := `
+name: TestGroup
+rules:
+  - record: handler:requests:rate5m
+    expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
+  - alert: ExampleAlertAlwaysFiring
+    expr: sum by(job) (up == 1)
+`
+	var ng Group
+	if err := yaml.Unmarshal([]byte(newData), &g); err != nil {
+		t.Fatalf("failed to unmarshal: %s", err)
+	}
+	if g.Checksum == ng.Checksum {
+		t.Fatalf("expected to get different checksums")
 	}
 }

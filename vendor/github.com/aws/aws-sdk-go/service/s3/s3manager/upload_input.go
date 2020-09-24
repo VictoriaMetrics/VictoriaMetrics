@@ -63,6 +63,11 @@ type UploadInput struct {
 	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17).
 	ContentType *string `location:"header" locationName:"Content-Type" type:"string"`
 
+	// The account id of the expected bucket owner. If the bucket is owned by a
+	// different account, the request will fail with an HTTP 403 (Access Denied)
+	// error.
+	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
+
 	// The date and time at which the object is no longer cacheable. For more information,
 	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21).
 	Expires *time.Time `location:"header" locationName:"Expires" type:"timestamp"`

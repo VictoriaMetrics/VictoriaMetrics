@@ -89,7 +89,7 @@ func unmarshalMetaindexRows(dst []metaindexRow, r io.Reader) ([]metaindexRow, er
 	}
 	data, err := encoding.DecompressZSTD(nil, compressedData)
 	if err != nil {
-		return dst, fmt.Errorf("cannot decompress metaindex data with size %d bytes: %w", len(compressedData), err)
+		return dst, fmt.Errorf("cannot decompress metaindex data: %w", err)
 	}
 
 	dstLen := len(dst)

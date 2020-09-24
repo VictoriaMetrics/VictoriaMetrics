@@ -897,8 +897,7 @@ func (v *Value) Float64() (float64, error) {
 	if v.Type() != TypeNumber {
 		return 0, fmt.Errorf("value doesn't contain number; it contains %s", v.Type())
 	}
-	f := fastfloat.ParseBestEffort(v.s)
-	return f, nil
+	return fastfloat.Parse(v.s)
 }
 
 // Int returns the underlying JSON int for the v.
@@ -908,9 +907,9 @@ func (v *Value) Int() (int, error) {
 	if v.Type() != TypeNumber {
 		return 0, fmt.Errorf("value doesn't contain number; it contains %s", v.Type())
 	}
-	n := fastfloat.ParseInt64BestEffort(v.s)
-	if n == 0 && v.s != "0" {
-		return 0, fmt.Errorf("cannot parse int %q", v.s)
+	n, err := fastfloat.ParseInt64(v.s)
+	if err != nil {
+		return 0, err
 	}
 	nn := int(n)
 	if int64(nn) != n {
@@ -926,9 +925,9 @@ func (v *Value) Uint() (uint, error) {
 	if v.Type() != TypeNumber {
 		return 0, fmt.Errorf("value doesn't contain number; it contains %s", v.Type())
 	}
-	n := fastfloat.ParseUint64BestEffort(v.s)
-	if n == 0 && v.s != "0" {
-		return 0, fmt.Errorf("cannot parse uint %q", v.s)
+	n, err := fastfloat.ParseUint64(v.s)
+	if err != nil {
+		return 0, err
 	}
 	nn := uint(n)
 	if uint64(nn) != n {
@@ -944,11 +943,7 @@ func (v *Value) Int64() (int64, error) {
 	if v.Type() != TypeNumber {
 		return 0, fmt.Errorf("value doesn't contain number; it contains %s", v.Type())
 	}
-	n := fastfloat.ParseInt64BestEffort(v.s)
-	if n == 0 && v.s != "0" {
-		return 0, fmt.Errorf("cannot parse int64 %q", v.s)
-	}
-	return n, nil
+	return fastfloat.ParseInt64(v.s)
 }
 
 // Uint64 returns the underlying JSON uint64 for the v.
@@ -958,11 +953,7 @@ func (v *Value) Uint64() (uint64, error) {
 	if v.Type() != TypeNumber {
 		return 0, fmt.Errorf("value doesn't contain number; it contains %s", v.Type())
 	}
-	n := fastfloat.ParseUint64BestEffort(v.s)
-	if n == 0 && v.s != "0" {
-		return 0, fmt.Errorf("cannot parse uint64 %q", v.s)
-	}
-	return n, nil
+	return fastfloat.ParseUint64(v.s)
 }
 
 // Bool returns the underlying JSON bool for the v.

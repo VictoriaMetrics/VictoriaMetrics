@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/bits"
@@ -584,7 +585,7 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
 	}
-	if err == errNothingToMerge || err == errForciblyStopped {
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
 		return
 	}
 	logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -667,7 +668,7 @@ func (pt *partition) MustClose() {
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsOptimal(pws); err != nil {
+	if err := pt.mergePartsOptimal(pws, nil); err != nil {
 		logger.Panicf("FATAL: cannot flush %d inmemory parts to files on %q: %s", len(pws), pt.smallPartsPath, err)
 	}
 	logger.Infof("%d inmemory parts have been flushed to files in %.3f seconds on %q", len(pws), time.Since(startTime).Seconds(), pt.smallPartsPath)
@@ -793,25 +794,77 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsOptimal(dstPws); err != nil {
+	if err := pt.mergePartsOptimal(dstPws, nil); err != nil {
 		return dstPws, fmt.Errorf("cannot merge %d inmemory parts: %w", len(dstPws), err)
 	}
 	return dstPws, nil
 }
 
-func (pt *partition) mergePartsOptimal(pws []*partWrapper) error {
+func (pt *partition) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
+	defer func() {
+		// Remove isInMerge flag from pws.
+		pt.partsLock.Lock()
+		for _, pw := range pws {
+			// Do not check for pws.isInMerge set to false,
+			// since it may be set to false in mergeParts below.
+			pw.isInMerge = false
+		}
+		pt.partsLock.Unlock()
+	}()
 	for len(pws) > defaultPartsToMerge {
-		if err := pt.mergeParts(pws[:defaultPartsToMerge], nil); err != nil {
+		if err := pt.mergeParts(pws[:defaultPartsToMerge], stopCh); err != nil {
 			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
 	}
-	if len(pws) > 0 {
-		if err := pt.mergeParts(pws, nil); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
-		}
+	if len(pws) == 0 {
+		return nil
+	}
+	if err := pt.mergeParts(pws, stopCh); err != nil {
+		return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
 	}
 	return nil
+}
+
+// ForceMergeAllParts runs merge for all the parts in pt - small and big.
+func (pt *partition) ForceMergeAllParts() error {
+	var pws []*partWrapper
+	pt.partsLock.Lock()
+	if !hasActiveMerges(pt.smallParts) && !hasActiveMerges(pt.bigParts) {
+		pws = appendAllPartsToMerge(pws, pt.smallParts)
+		pws = appendAllPartsToMerge(pws, pt.bigParts)
+	}
+	pt.partsLock.Unlock()
+
+	if len(pws) == 0 {
+		// Nothing to merge.
+		return nil
+	}
+	// If len(pws) == 1, then the merge must run anyway, so deleted time series could be removed from the part.
+	if err := pt.mergePartsOptimal(pws, pt.stopCh); err != nil {
+		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
+	}
+	return nil
+}
+
+func appendAllPartsToMerge(dst, src []*partWrapper) []*partWrapper {
+	for _, pw := range src {
+		if pw.isInMerge {
+			logger.Panicf("BUG: part %q is already in merge", pw.p.path)
+		}
+		pw.isInMerge = true
+		dst = append(dst, pw)
+	}
+	return dst
+}
+
+func hasActiveMerges(pws []*partWrapper) bool {
+	for _, pw := range pws {
+		if pw.isInMerge {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -871,8 +924,8 @@ func (pt *partition) smallPartsMerger() {
 }
 
 const (
-	minMergeSleepTime = time.Millisecond
-	maxMergeSleepTime = time.Second
+	minMergeSleepTime = 10 * time.Millisecond
+	maxMergeSleepTime = 10 * time.Second
 )
 
 func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
@@ -889,11 +942,11 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 			isFinal = false
 			continue
 		}
-		if err == errForciblyStopped {
+		if errors.Is(err, errForciblyStopped) {
 			// The merger has been stopped.
 			return nil
 		}
-		if err != errNothingToMerge {
+		if !errors.Is(err, errNothingToMerge) {
 			return err
 		}
 		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
@@ -940,9 +993,6 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 	pws := getPartsToMerge(pt.bigParts, maxRows, isFinal)
 	pt.partsLock.Unlock()
 
-	if len(pws) == 0 {
-		return errNothingToMerge
-	}
 	return pt.mergeParts(pws, pt.stopCh)
 }
 
@@ -961,14 +1011,16 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	pws := getPartsToMerge(pt.smallParts, maxRows, isFinal)
 	pt.partsLock.Unlock()
 
-	if len(pws) == 0 {
-		return errNothingToMerge
-	}
 	return pt.mergeParts(pws, pt.stopCh)
 }
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+// mergeParts merges pws.
+//
+// Merging is immediately stopped if stopCh is closed.
+//
+// All the parts inside pws must have isInMerge field set to true.
 func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -1044,7 +1096,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	} else {
 		atomic.AddUint64(&pt.smallMergesCount, 1)
 		atomic.AddUint64(&pt.activeSmallMerges, 1)
-		// Prioritize small merges over big merges.
 	}
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, rowsMerged, rowsDeleted)
 	if isBigPart {
@@ -1054,9 +1105,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 	putBlockStreamWriter(bsw)
 	if err != nil {
-		if err == errForciblyStopped {
-			return err
-		}
 		return fmt.Errorf("error when merging parts to %q: %w", tmpPartPath, err)
 	}
 
@@ -1173,20 +1221,20 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool, isBig 
 	removedParts := 0
 	dst := pws[:0]
 	for _, pw := range pws {
-		if partsToRemove[pw] {
-			requests := pw.p.ibCache.Requests()
-			misses := pw.p.ibCache.Misses()
-			if isBig {
-				atomic.AddUint64(&historicalBigIndexBlocksCacheRequests, requests)
-				atomic.AddUint64(&historicalBigIndexBlocksCacheMisses, misses)
-			} else {
-				atomic.AddUint64(&historicalSmallIndexBlocksCacheRequests, requests)
-				atomic.AddUint64(&historicalSmallIndexBlocksCacheMisses, misses)
-			}
-			removedParts++
+		if !partsToRemove[pw] {
+			dst = append(dst, pw)
 			continue
 		}
-		dst = append(dst, pw)
+		requests := pw.p.ibCache.Requests()
+		misses := pw.p.ibCache.Misses()
+		if isBig {
+			atomic.AddUint64(&historicalBigIndexBlocksCacheRequests, requests)
+			atomic.AddUint64(&historicalBigIndexBlocksCacheMisses, misses)
+		} else {
+			atomic.AddUint64(&historicalSmallIndexBlocksCacheRequests, requests)
+			atomic.AddUint64(&historicalSmallIndexBlocksCacheMisses, misses)
+		}
+		removedParts++
 	}
 	return dst, removedParts
 }
@@ -1476,7 +1524,7 @@ func runTransactions(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, path strin
 }
 
 func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath string) error {
-	// The transaction must be run under read lock in order to provide
+	// The transaction must run under read lock in order to provide
 	// consistent snapshots with partition.CreateSnapshot().
 	txnLock.RLock()
 	defer txnLock.RUnlock()

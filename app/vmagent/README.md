@@ -41,7 +41,7 @@ Just download `vmutils-*` archive from [releases page](https://github.com/Victor
 and pass the following flags to `vmagent` binary in order to start scraping Prometheus targets:
 
 * `-promscrape.config` with the path to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`)
-* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics. The `-remoteWrite.url` argument can be specified multiple times in order to replicate data concurrently to an arbitrary amount of remote storage systems.
+* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics. The `-remoteWrite.url` argument can be specified multiple times in order to replicate data concurrently to an arbitrary number of remote storage systems.
 
 Example command line:
 
@@ -135,7 +135,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
 * `ec2_sd_configs` - for scraping targets in Amazon EC2.
   See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
-  `vmagent` doesn't support `role_arn` config param yet.
+  `vmagent` doesn't support `profile` config param and aws credentials file yet.
 * `gce_sd_configs` - for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
   `vmagent` provides the following additional functionality for `gce_sd_config`:
@@ -160,6 +160,8 @@ File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/
 Note that `vmagent` doesn't support `refresh_interval` option these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
 entries to 60s. Run `vmagent -help` in order to see default values for `-promscrape.*CheckInterval` flags.
+
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 
 ### Adding labels to metrics
@@ -208,18 +210,27 @@ If you have suggestions, improvements or found a bug - feel free to open an issu
 
 ### Troubleshooting
 
+* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor `vmagent` state.
+
 * It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping big number of targets,
   since `vmagent` establishes at least a single TCP connection per each target.
 
 * When `vmagent` scrapes many unreliable targets, it can flood error log with scrape errors. These errors can be suppressed
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
 
-* It is recommended to increase `-remoteWrite.queues` if `vmagent` collects more than 100K samples per second
-  and `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
+* It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
+
+* If you see gaps on the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set, then try increasing `-remoteWrite.queues`.
+  Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage, so it starts dropping the buffered data
+  if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
 
 * `vmagent` buffers scraped data at `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
   If you don't want to send all the data from the directory to remote storage, simply stop `vmagent` and delete the directory.
+
+* By default `vmagent` masks `-remoteWrite.url` with `secret-url` values in logs and at `/metrics` page because
+  the url may contain sensitive information such as auth tokens or passwords.
+  Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
 
 * If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
   or they use init container.

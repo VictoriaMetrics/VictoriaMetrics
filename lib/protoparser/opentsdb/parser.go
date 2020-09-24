@@ -35,7 +35,7 @@ func (rs *Rows) Reset() {
 //
 // See http://opentsdb.net/docs/build/html/api_telnet/put.html
 //
-// s must be unchanged until rs is in use.
+// s shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(s string) {
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0])
 }
@@ -74,14 +74,21 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between timestamp and value in %q", s)
 	}
-	r.Timestamp = int64(fastfloat.ParseBestEffort(tail[:n]))
+	timestamp, err := fastfloat.Parse(tail[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse timestamp from %q: %w", tail[:n], err)
+	}
+	r.Timestamp = int64(timestamp)
 	tail = tail[n+1:]
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find whitespace between value and the first tag in %q", s)
 	}
-	r.Value = fastfloat.ParseBestEffort(tail[:n])
-	var err error
+	v, err := fastfloat.Parse(tail[:n])
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot parse value from %q: %w", tail[:n], err)
+	}
+	r.Value = v
 	tagsStart := len(tagsPool)
 	tagsPool, err = unmarshalTags(tagsPool, tail[n+1:])
 	if err != nil {

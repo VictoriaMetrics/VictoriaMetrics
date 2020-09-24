@@ -9,6 +9,6 @@
   "query": ["/api/v1/query?query=min%20by%20(item)%20(min_over_time(forms_daily_count[10m:1m]))&time={TIME_S-1m}"],
   "result_query": {
     "status":"success",
-    "data":{"resultType":"vector","result":[{"metric":{"item":"x"},"value":["{TIME_S-1m}","1"]},{"metric":{"item":"y"},"value":["{TIME_S-1m}","3"]}]}
+    "data":{"resultType":"vector","result":[{"metric":{"item":"x"},"value":["{TIME_S-1m}","2"]},{"metric":{"item":"y"},"value":["{TIME_S-1m}","4"]}]}
   }
 }

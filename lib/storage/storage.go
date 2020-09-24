@@ -340,6 +340,9 @@ type Metrics struct {
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
 
+	TimestampsBlocksMerged uint64
+	TimestampsBytesSaved   uint64
+
 	TSIDCacheSize       uint64
 	TSIDCacheSizeBytes  uint64
 	TSIDCacheRequests   uint64
@@ -404,6 +407,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
+
+	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
+	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
 
 	var cs fastcache.Stats
 	s.tsidCache.UpdateStats(&cs)
@@ -821,7 +827,7 @@ func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, 
 	tsids, err := s.idb().searchTSIDs(tfss, tr, maxMetrics, deadline)
 	<-searchTSIDsConcurrencyCh
 	if err != nil {
-		return nil, fmt.Errorf("error when searching tsids for tfss %q: %w", tfss, err)
+		return nil, fmt.Errorf("error when searching tsids: %w", err)
 	}
 	return tsids, nil
 }
@@ -887,7 +893,8 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	return nil
 }
 
-var errDeadlineExceeded = fmt.Errorf("deadline exceeded")
+// ErrDeadlineExceeded is returned when the request times out.
+var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
 // DeleteMetrics deletes all the metrics matching the given tfss.
 //
@@ -920,6 +927,13 @@ func (s *Storage) SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, erro
 // SearchTagValues searches for tag values for the given tagKey
 func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
 	return s.idb().SearchTagValues(tagKey, maxTagValues, deadline)
+}
+
+// SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
+//
+// This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
 
 // SearchTagEntries returns a list of (tagName -> tagValues)
@@ -1028,6 +1042,13 @@ func (mr *MetricRow) Unmarshal(src []byte) ([]byte, error) {
 	tail = tail[8:]
 
 	return tail, nil
+}
+
+// ForceMergePartitions force-merges partitions in s with names starting from the given partitionNamePrefix.
+//
+// Partitions are merged sequentially in order to reduce load on the system.
+func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
+	return s.tb.ForceMergePartitions(partitionNamePrefix)
 }
 
 // AddRows adds the given mrs to s.

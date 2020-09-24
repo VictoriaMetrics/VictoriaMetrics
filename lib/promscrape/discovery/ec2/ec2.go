@@ -12,9 +12,9 @@ type SDConfig struct {
 	Endpoint  string `yaml:"endpoint"`
 	AccessKey string `yaml:"access_key"`
 	SecretKey string `yaml:"secret_key"`
-	Profile   string `yaml:"profile"`
-	// TODO: add support for RoleARN
-	// RoleARN   string `yaml:"role_arn"`
+	// TODO add support for Profile, not working atm
+	Profile string `yaml:"profile"`
+	RoleARN string `yaml:"role_arn"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
 	Port    *int     `yaml:"port"`

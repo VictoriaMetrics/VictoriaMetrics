@@ -1,6 +1,7 @@
 package mergeset
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -480,16 +481,27 @@ func (tb *Table) convertToV1280() {
 }
 
 func (tb *Table) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
+	defer func() {
+		// Remove isInMerge flag from pws.
+		tb.partsLock.Lock()
+		for _, pw := range pws {
+			// Do not check for pws.isInMerge set to false,
+			// since it may be set to false in mergeParts below.
+			pw.isInMerge = false
+		}
+		tb.partsLock.Unlock()
+	}()
 	for len(pws) > defaultPartsToMerge {
 		if err := tb.mergeParts(pws[:defaultPartsToMerge], stopCh, false); err != nil {
 			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
 		pws = pws[defaultPartsToMerge:]
 	}
-	if len(pws) > 0 {
-		if err := tb.mergeParts(pws, stopCh, false); err != nil {
-			return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
-		}
+	if len(pws) == 0 {
+		return nil
+	}
+	if err := tb.mergeParts(pws, stopCh, false); err != nil {
+		return fmt.Errorf("cannot merge %d parts: %w", len(pws), err)
 	}
 	return nil
 }
@@ -576,7 +588,7 @@ func (tb *Table) mergeRawItemsBlocks(blocksToMerge []*inmemoryBlock) {
 			atomic.AddUint64(&tb.assistedMerges, 1)
 			continue
 		}
-		if err == errNothingToMerge || err == errForciblyStopped {
+		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
 			return
 		}
 		logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -696,11 +708,11 @@ func (tb *Table) partMerger() error {
 			isFinal = false
 			continue
 		}
-		if err == errForciblyStopped {
+		if errors.Is(err, errForciblyStopped) {
 			// The merger has been stopped.
 			return nil
 		}
-		if err != errNothingToMerge {
+		if !errors.Is(err, errNothingToMerge) {
 			return err
 		}
 		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
@@ -727,6 +739,11 @@ func (tb *Table) partMerger() error {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+// mergeParts merges pws.
+//
+// Merging is immediately stopped if stopCh is closed.
+//
+// All the parts inside pws must have isInMerge field set to true.
 func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterParts bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
@@ -800,9 +817,6 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	err := mergeBlockStreams(&ph, bsw, bsrs, tb.prepareBlock, stopCh, &tb.itemsMerged)
 	putBlockStreamWriter(bsw)
 	if err != nil {
-		if err == errForciblyStopped {
-			return err
-		}
 		return fmt.Errorf("error when merging parts to %q: %w", tmpPartPath, err)
 	}
 	if err := ph.WriteMetadata(tmpPartPath); err != nil {
@@ -1140,7 +1154,7 @@ func runTransactions(txnLock *sync.RWMutex, path string) error {
 }
 
 func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
-	// The transaction must be run under read lock in order to provide
+	// The transaction must run under read lock in order to provide
 	// consistent snapshots with Table.CreateSnapshot().
 	txnLock.RLock()
 	defer txnLock.RUnlock()
@@ -1335,15 +1349,15 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 	removedParts := 0
 	dst := pws[:0]
 	for _, pw := range pws {
-		if partsToRemove[pw] {
-			atomic.AddUint64(&historicalDataBlockCacheRequests, pw.p.ibCache.Requests())
-			atomic.AddUint64(&historicalDataBlockCacheMisses, pw.p.ibCache.Misses())
-			atomic.AddUint64(&historicalIndexBlockCacheRequests, pw.p.idxbCache.Requests())
-			atomic.AddUint64(&historicalIndexBlockCacheMisses, pw.p.idxbCache.Misses())
-			removedParts++
+		if !partsToRemove[pw] {
+			dst = append(dst, pw)
 			continue
 		}
-		dst = append(dst, pw)
+		atomic.AddUint64(&historicalDataBlockCacheRequests, pw.p.ibCache.Requests())
+		atomic.AddUint64(&historicalDataBlockCacheMisses, pw.p.ibCache.Misses())
+		atomic.AddUint64(&historicalIndexBlockCacheRequests, pw.p.idxbCache.Requests())
+		atomic.AddUint64(&historicalIndexBlockCacheMisses, pw.p.idxbCache.Misses())
+		removedParts++
 	}
 	return dst, removedParts
 }
