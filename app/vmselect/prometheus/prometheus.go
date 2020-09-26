@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"math"
@@ -14,6 +15,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -40,6 +43,11 @@ var (
 
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
+
+// Buffer size for big responses (i.e. /federate and /api/v1/export/* )
+// By default net/http.Server uses 4KB buffers, which are flushed to client with chunked responses.
+// These buffers may result in visible overhead for responses exceeding tens of megabytes.
+const bigResponseBufferSize = 128 * 1024
 
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
 func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
@@ -97,10 +105,12 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	}()
 
 	w.Header().Set("Content-Type", "text/plain")
+	bw := bufio.NewWriterSize(w, bigResponseBufferSize)
 	for bb := range resultsCh {
-		w.Write(bb.B)
+		bw.Write(bb.B)
 		quicktemplate.ReleaseByteBuffer(bb)
 	}
+	_ = bw.Flush()
 
 	err = <-doneCh
 	if err != nil {
@@ -111,6 +121,85 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 }
 
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
+
+// ExportNativeHandler exports data in native format from /api/v1/export/native.
+func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	ct := startTime.UnixNano() / 1e6
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse request form values: %w", err)
+	}
+	matches := r.Form["match[]"]
+	if len(matches) == 0 {
+		// Maintain backwards compatibility
+		match := r.FormValue("match")
+		if len(match) == 0 {
+			return fmt.Errorf("missing `match[]` arg")
+		}
+		matches = []string{match}
+	}
+	start, err := searchutils.GetTime(r, "start", 0)
+	if err != nil {
+		return err
+	}
+	end, err := searchutils.GetTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
+	deadline := searchutils.GetDeadlineForExport(r, startTime)
+	tagFilterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return err
+	}
+	sq := &storage.SearchQuery{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+		TagFilterss:  tagFilterss,
+	}
+	w.Header().Set("Content-Type", "VictoriaMetrics/native")
+	bw := bufio.NewWriterSize(w, bigResponseBufferSize)
+
+	// Marshal tr
+	trBuf := make([]byte, 0, 16)
+	trBuf = encoding.MarshalInt64(trBuf, start)
+	trBuf = encoding.MarshalInt64(trBuf, end)
+	bw.Write(trBuf)
+
+	var bwLock sync.Mutex
+	err = netstorage.ExportBlocks(sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+		dstBuf := bbPool.Get()
+		tmpBuf := bbPool.Get()
+		dst := dstBuf.B
+		tmp := tmpBuf.B
+
+		// Marshal mn
+		tmp = mn.Marshal(tmp[:0])
+		dst = encoding.MarshalUint32(dst, uint32(len(tmp)))
+		dst = append(dst, tmp...)
+
+		// Marshal b
+		tmp = b.MarshalPortable(tmp[:0])
+		dst = encoding.MarshalUint32(dst, uint32(len(tmp)))
+		dst = append(dst, tmp...)
+
+		tmpBuf.B = tmp
+		bbPool.Put(tmpBuf)
+
+		bwLock.Lock()
+		_, err := bw.Write(dst)
+		bwLock.Unlock()
+		if err != nil {
+			return fmt.Errorf("cannot write data to client: %w", err)
+		}
+
+		dstBuf.B = dst
+		bbPool.Put(dstBuf)
+		return nil
+	})
+	_ = bw.Flush()
+	return err
+}
+
+var bbPool bytesutil.ByteBufferPool
 
 // ExportHandler exports data in raw format from /api/v1/export.
 func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
@@ -137,11 +226,12 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	}
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
+	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
 	deadline := searchutils.GetDeadlineForExport(r, startTime)
 	if start >= end {
 		end = start + defaultStep
 	}
-	if err := exportHandler(w, matches, start, end, format, maxRowsPerLine, deadline); err != nil {
+	if err := exportHandler(w, matches, start, end, format, maxRowsPerLine, reduceMemUsage, deadline); err != nil {
 		return fmt.Errorf("error when exporting data for queries=%q on the time range (start=%d, end=%d): %w", matches, start, end, err)
 	}
 	exportDuration.UpdateDuration(startTime)
@@ -150,17 +240,34 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(w http.ResponseWriter, matches []string, start, end int64, format string, maxRowsPerLine int, deadline searchutils.Deadline) error {
+func exportHandler(w http.ResponseWriter, matches []string, start, end int64, format string, maxRowsPerLine int, reduceMemUsage bool, deadline searchutils.Deadline) error {
 	writeResponseFunc := WriteExportStdResponse
-	writeLineFunc := func(rs *netstorage.Result, resultsCh chan<- *quicktemplate.ByteBuffer) {
+	writeLineFunc := func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
 		bb := quicktemplate.AcquireByteBuffer()
-		WriteExportJSONLine(bb, rs)
+		WriteExportJSONLine(bb, xb)
 		resultsCh <- bb
 	}
+	contentType := "application/stream+json"
+	if format == "prometheus" {
+		contentType = "text/plain"
+		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
+			bb := quicktemplate.AcquireByteBuffer()
+			WriteExportPrometheusLine(bb, xb)
+			resultsCh <- bb
+		}
+	} else if format == "promapi" {
+		writeResponseFunc = WriteExportPromAPIResponse
+		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
+			bb := quicktemplate.AcquireByteBuffer()
+			WriteExportPromAPILine(bb, xb)
+			resultsCh <- bb
+		}
+	}
 	if maxRowsPerLine > 0 {
-		writeLineFunc = func(rs *netstorage.Result, resultsCh chan<- *quicktemplate.ByteBuffer) {
-			valuesOrig := rs.Values
-			timestampsOrig := rs.Timestamps
+		writeLineFuncOrig := writeLineFunc
+		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
+			valuesOrig := xb.values
+			timestampsOrig := xb.timestamps
 			values := valuesOrig
 			timestamps := timestampsOrig
 			for len(values) > 0 {
@@ -177,30 +284,12 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 					values = nil
 					timestamps = nil
 				}
-				rs.Values = valuesChunk
-				rs.Timestamps = timestampsChunk
-				bb := quicktemplate.AcquireByteBuffer()
-				WriteExportJSONLine(bb, rs)
-				resultsCh <- bb
+				xb.values = valuesChunk
+				xb.timestamps = timestampsChunk
+				writeLineFuncOrig(xb, resultsCh)
 			}
-			rs.Values = valuesOrig
-			rs.Timestamps = timestampsOrig
-		}
-	}
-	contentType := "application/stream+json"
-	if format == "prometheus" {
-		contentType = "text/plain"
-		writeLineFunc = func(rs *netstorage.Result, resultsCh chan<- *quicktemplate.ByteBuffer) {
-			bb := quicktemplate.AcquireByteBuffer()
-			WriteExportPrometheusLine(bb, rs)
-			resultsCh <- bb
-		}
-	} else if format == "promapi" {
-		writeResponseFunc = WriteExportPromAPIResponse
-		writeLineFunc = func(rs *netstorage.Result, resultsCh chan<- *quicktemplate.ByteBuffer) {
-			bb := quicktemplate.AcquireByteBuffer()
-			WriteExportPromAPILine(bb, rs)
-			resultsCh <- bb
+			xb.values = valuesOrig
+			xb.timestamps = timestampsOrig
 		}
 	}
 
@@ -213,23 +302,52 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
-	if err != nil {
-		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
 	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
 	doneCh := make(chan error)
-	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
-			writeLineFunc(rs, resultsCh)
-		})
-		close(resultsCh)
-		doneCh <- err
-	}()
+
+	if !reduceMemUsage {
+		rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		go func() {
+			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+				xb := exportBlockPool.Get().(*exportBlock)
+				xb.mn = &rs.MetricName
+				xb.timestamps = rs.Timestamps
+				xb.values = rs.Values
+				writeLineFunc(xb, resultsCh)
+				xb.reset()
+				exportBlockPool.Put(xb)
+			})
+			close(resultsCh)
+			doneCh <- err
+		}()
+	} else {
+		go func() {
+			err := netstorage.ExportBlocks(sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+				if err := b.UnmarshalData(); err != nil {
+					return fmt.Errorf("cannot unmarshal block during export: %s", err)
+				}
+				xb := exportBlockPool.Get().(*exportBlock)
+				xb.mn = mn
+				xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
+				if len(xb.timestamps) > 0 {
+					writeLineFunc(xb, resultsCh)
+				}
+				xb.reset()
+				exportBlockPool.Put(xb)
+				return nil
+			})
+			close(resultsCh)
+			doneCh <- err
+		}()
+	}
 
 	w.Header().Set("Content-Type", contentType)
-	writeResponseFunc(w, resultsCh)
+	bw := bufio.NewWriterSize(w, bigResponseBufferSize)
+	writeResponseFunc(bw, resultsCh)
+	_ = bw.Flush()
 
 	// Consume all the data from resultsCh in the event writeResponseFunc
 	// fails to consume all the data.
@@ -241,6 +359,24 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 		return fmt.Errorf("error during data fetching: %w", err)
 	}
 	return nil
+}
+
+type exportBlock struct {
+	mn         *storage.MetricName
+	timestamps []int64
+	values     []float64
+}
+
+func (xb *exportBlock) reset() {
+	xb.mn = nil
+	xb.timestamps = xb.timestamps[:0]
+	xb.values = xb.values[:0]
+}
+
+var exportBlockPool = &sync.Pool{
+	New: func() interface{} {
+		return &exportBlock{}
+	},
 }
 
 // DeleteHandler processes /api/v1/admin/tsdb/delete_series prometheus API request.
@@ -662,7 +798,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		start -= offset
 		end := start
 		start = end - window
-		if err := exportHandler(w, []string{childQuery}, start, end, "promapi", 0, deadline); err != nil {
+		if err := exportHandler(w, []string{childQuery}, start, end, "promapi", 0, false, deadline); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
