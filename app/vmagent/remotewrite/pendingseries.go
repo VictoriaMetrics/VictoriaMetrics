@@ -19,7 +19,7 @@ var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
 		"Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage. "+
 		"Minimum supported interval is 1 second")
-	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 32*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
+	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
 		"It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics")
 )
 
@@ -127,7 +127,7 @@ func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
 	for i := range src {
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
 		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
-		if len(tssDst) >= maxRowsPerBlock {
+		if len(wr.samples) >= maxRowsPerBlock {
 			wr.tss = tssDst
 			wr.flush()
 			tssDst = wr.tss
