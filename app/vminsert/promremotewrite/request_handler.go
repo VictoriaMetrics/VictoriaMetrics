@@ -51,8 +51,9 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 		}
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
-		for i := range ts.Samples {
-			r := &ts.Samples[i]
+		samples := ts.Samples
+		for i := range samples {
+			r := &samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
 			}
@@ -60,7 +61,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries) error {
 				return err
 			}
 		}
-		rowsTotal += len(ts.Samples)
+		rowsTotal += len(samples)
 	}
 	rowsInserted.Get(at).Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
