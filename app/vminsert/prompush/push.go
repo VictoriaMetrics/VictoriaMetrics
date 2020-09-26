@@ -22,10 +22,19 @@ func Push(wr *prompbmarshal.WriteRequest) {
 	tss := wr.Timeseries
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce maxmimum memory usage
+		samplesCount := 0
+		i := 0
+		for i < len(tss) {
+			samplesCount += len(tss[i].Samples)
+			i++
+			if samplesCount > maxRowsPerBlock {
+				break
+			}
+		}
 		tssBlock := tss
-		if len(tssBlock) > maxRowsPerBlock {
-			tssBlock = tss[:maxRowsPerBlock]
-			tss = tss[maxRowsPerBlock:]
+		if i < len(tss) {
+			tssBlock = tss[:i]
+			tss = tss[i:]
 		} else {
 			tss = nil
 		}

@@ -50,14 +50,15 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 		}
 		var metricNameRaw []byte
 		var err error
-		for i := range ts.Samples {
-			r := &ts.Samples[i]
+		samples := ts.Samples
+		for i := range samples {
+			r := &samples[i]
 			metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, r.Timestamp, r.Value)
 			if err != nil {
 				return err
 			}
 		}
-		rowsTotal += len(ts.Samples)
+		rowsTotal += len(samples)
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
