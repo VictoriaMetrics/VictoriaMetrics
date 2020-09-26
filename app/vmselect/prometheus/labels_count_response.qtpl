@@ -1,7 +1,7 @@
 {% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage" %}
 
 {% stripspace %}
-LabelsCountResponse generates response for /api/v1/label_entries .
+LabelsCountResponse generates response for /api/v1/labels/count .
 {% func LabelsCountResponse(labelEntries []storage.TagEntry) %}
 {
 	"status":"success",

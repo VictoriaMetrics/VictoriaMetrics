@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/prometheusimport"
@@ -171,6 +172,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "/api/v1/import/native":
+		nativeimportRequests.Inc()
+		if err := native.InsertHandler(r); err != nil {
+			nativeimportErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	case "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(r); err != nil {
@@ -212,6 +222,9 @@ var (
 
 	prometheusimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
 	prometheusimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
+
+	nativeimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
+	nativeimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 
 	influxWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/write", protocol="influx"}`)
 	influxWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/write", protocol="influx"}`)

@@ -69,6 +69,10 @@ func testTmpBlocksFile() error {
 		_, _, _ = b.MarshalData(0, 0)
 		return &b
 	}
+	tr := storage.TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: 1<<63 - 1,
+	}
 	for _, size := range []int{1024, 16 * 1024, maxInmemoryTmpBlocksFile() / 2, 2 * maxInmemoryTmpBlocksFile()} {
 		err := func() error {
 			tbf := getTmpBlocksFile()
@@ -118,11 +122,13 @@ func testTmpBlocksFile() error {
 							if b1.RowsCount() != b.RowsCount() {
 								return fmt.Errorf("unexpected number of rows in tbf block; got %d; want %d", b1.RowsCount(), b.RowsCount())
 							}
-							if !reflect.DeepEqual(b1.Timestamps(), b.Timestamps()) {
-								return fmt.Errorf("unexpected timestamps; got\n%v\nwant\n%v", b1.Timestamps(), b.Timestamps())
+							timestamps1, values1 := b1.AppendRowsWithTimeRangeFilter(nil, nil, tr)
+							timestamps, values := b.AppendRowsWithTimeRangeFilter(nil, nil, tr)
+							if !reflect.DeepEqual(timestamps1, timestamps) {
+								return fmt.Errorf("unexpected timestamps; got\n%v\nwant\n%v", timestamps1, timestamps)
 							}
-							if !reflect.DeepEqual(b1.Values(), b.Values()) {
-								return fmt.Errorf("unexpected values; got\n%v\nwant\n%v", b1.Values(), b.Values())
+							if !reflect.DeepEqual(values1, values) {
+								return fmt.Errorf("unexpected values; got\n%v\nwant\n%v", values1, values)
 							}
 						}
 						return nil

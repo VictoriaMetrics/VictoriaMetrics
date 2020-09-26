@@ -1,1 +1,1 @@
-`vminsert` routes the ingested data to `vmstorage` nodes.
+`vminsert` routes the ingested data to `vmstorage`.

@@ -7,7 +7,7 @@ package prometheus
 //line app/vmselect/prometheus/labels_count_response.qtpl:1
 import "github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 
-// LabelsCountResponse generates response for /api/v1/label_entries .
+// LabelsCountResponse generates response for /api/v1/labels/count .
 
 //line app/vmselect/prometheus/labels_count_response.qtpl:5
 import (
