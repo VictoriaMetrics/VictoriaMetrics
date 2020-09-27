@@ -77,10 +77,11 @@ func (rss *Results) mustClose() {
 var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs*16)
 
 type timeseriesWork struct {
-	rss    *Results
-	pts    *packedTimeseries
-	f      func(rs *Result, workerID uint)
-	doneCh chan error
+	mustStop uint64
+	rss      *Results
+	pts      *packedTimeseries
+	f        func(rs *Result, workerID uint) error
+	doneCh   chan error
 
 	rowsProcessed int
 }
@@ -100,12 +101,19 @@ func timeseriesWorker(workerID uint) {
 			tsw.doneCh <- fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 			continue
 		}
+		if atomic.LoadUint64(&tsw.mustStop) != 0 {
+			tsw.doneCh <- nil
+			continue
+		}
 		if err := tsw.pts.Unpack(&rs, rss.tr, rss.fetchData); err != nil {
 			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %w", err)
 			continue
 		}
 		if len(rs.Timestamps) > 0 || !rss.fetchData {
-			tsw.f(&rs, workerID)
+			if err := tsw.f(&rs, workerID); err != nil {
+				tsw.doneCh <- err
+				continue
+			}
 		}
 		tsw.rowsProcessed = len(rs.Values)
 		tsw.doneCh <- nil
@@ -122,9 +130,10 @@ func timeseriesWorker(workerID uint) {
 //
 // f shouldn't hold references to rs after returning.
 // workerID is the id of the worker goroutine that calls f.
+// Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
+func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 	defer rss.mustClose()
 
 	// Feed workers with work.
@@ -150,6 +159,10 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 			// Return just the first error, since other errors
 			// are likely duplicate the first error.
 			firstErr = err
+			// Notify all the the tsws that they shouldn't be executed.
+			for _, tsw := range tsws {
+				atomic.StoreUint64(&tsw.mustStop, 1)
+			}
 		}
 		rowsProcessedTotal += tsw.rowsProcessed
 	}
@@ -564,7 +577,7 @@ var ssPool sync.Pool
 // ExportBlocks searches for time series matching sq and calls f for each found block.
 //
 // f is called in parallel from multiple goroutines.
-// the process is stopped if f return non-nil error.
+// Data processing is immediately stopped if f returns non-nil error.
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
 func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
