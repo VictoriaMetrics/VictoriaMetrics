@@ -176,7 +176,7 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		tmp := tmpBuf.B
 
 		// Marshal mn
-		tmp = mn.Marshal(tmp[:0])
+		tmp = mn.MarshalNoAccountIDProjectID(tmp[:0])
 		dst = encoding.MarshalUint32(dst, uint32(len(tmp)))
 		dst = append(dst, tmp...)
 

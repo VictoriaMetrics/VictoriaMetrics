@@ -408,6 +408,53 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 	return nil
 }
 
+// MarshalNoAccountIDProjectID appends marshaled mn without AccountID and ProjectID
+// to dst and returns the result.
+//
+// The result must be unmarshaled with UnmarshalNoAccountIDProjectID
+func (mn *MetricName) MarshalNoAccountIDProjectID(dst []byte) []byte {
+	// Calculate the required size and pre-allocate space in dst
+	dstLen := len(dst)
+	requiredSize := len(mn.MetricGroup) + 1
+	for i := range mn.Tags {
+		tag := &mn.Tags[i]
+		requiredSize += len(tag.Key) + len(tag.Value) + 2
+	}
+	dst = bytesutil.Resize(dst, requiredSize)
+	dst = dst[:dstLen]
+
+	dst = marshalTagValue(dst, mn.MetricGroup)
+	dst = marshalTags(dst, mn.Tags)
+	return dst
+}
+
+// UnmarshalNoAccountIDProjectID unmarshals mn, which has been marshaled with MarshalNoAccountIDProjectID
+func (mn *MetricName) UnmarshalNoAccountIDProjectID(src []byte) error {
+	mn.AccountID = 0
+	mn.ProjectID = 0
+
+	// Unmarshal MetricGroup.
+	var err error
+	src, mn.MetricGroup, err = unmarshalTagValue(mn.MetricGroup[:0], src)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal MetricGroup: %w", err)
+	}
+
+	mn.Tags = mn.Tags[:0]
+	for len(src) > 0 {
+		tag := mn.addNextTag()
+		var err error
+		src, err = tag.Unmarshal(src)
+		if err != nil {
+			return fmt.Errorf("cannot unmarshal tag: %w", err)
+		}
+	}
+
+	// There is no need in verifying for identical tag keys,
+	// since they must be handled by the caller (/api/v1/import/native)
+	return nil
+}
+
 // The maximum length of label name.
 //
 // Longer names are truncated.

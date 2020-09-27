@@ -166,7 +166,7 @@ func (uw *unmarshalWork) reset() {
 
 func (uw *unmarshalWork) unmarshal(tmpBlock *storage.Block, tr storage.TimeRange) error {
 	block := &uw.block
-	if err := block.MetricName.Unmarshal(uw.metricNameBuf); err != nil {
+	if err := block.MetricName.UnmarshalNoAccountIDProjectID(uw.metricNameBuf); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName from %d bytes: %w", len(uw.metricNameBuf), err)
 	}
 	tail, err := tmpBlock.UnmarshalPortable(uw.blockBuf)
