@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -25,10 +26,10 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, callback func(rows []Row) error) error {
-	ctx := getStreamContext()
+	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
 
-	for ctx.Read(r) {
+	for ctx.Read() {
 		if err := callback(ctx.Rows.Rows); err != nil {
 			return err
 		}
@@ -36,12 +37,12 @@ func ParseStream(r io.Reader, callback func(rows []Row) error) error {
 	return ctx.Error()
 }
 
-func (ctx *streamContext) Read(r io.Reader) bool {
+func (ctx *streamContext) Read() bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -81,6 +82,7 @@ func (ctx *streamContext) Read(r io.Reader) bool {
 
 type streamContext struct {
 	Rows    Rows
+	br      *bufio.Reader
 	reqBuf  []byte
 	tailBuf []byte
 	err     error
@@ -95,6 +97,7 @@ func (ctx *streamContext) Error() error {
 
 func (ctx *streamContext) reset() {
 	ctx.Rows.Reset()
+	ctx.br.Reset(nil)
 	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
 	ctx.err = nil
@@ -106,15 +109,20 @@ var (
 	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="graphite"}`)
 )
 
-func getStreamContext() *streamContext {
+func getStreamContext(r io.Reader) *streamContext {
 	select {
 	case ctx := <-streamContextPoolCh:
+		ctx.br.Reset(r)
 		return ctx
 	default:
 		if v := streamContextPool.Get(); v != nil {
-			return v.(*streamContext)
+			ctx := v.(*streamContext)
+			ctx.br.Reset(r)
+			return ctx
 		}
-		return &streamContext{}
+		return &streamContext{
+			br: bufio.NewReaderSize(r, 64*1024),
+		}
 	}
 }
 

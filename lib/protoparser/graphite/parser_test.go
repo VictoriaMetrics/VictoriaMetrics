@@ -184,8 +184,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 func Test_streamContext_Read(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
-		ctx := &streamContext{}
-		ctx.Read(strings.NewReader(s))
+		ctx := getStreamContext(strings.NewReader(s))
+		ctx.Read()
 		if len(ctx.Rows.Rows) != len(rowsExpected.Rows) {
 			t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows, rowsExpected.Rows)
 		}

@@ -1,6 +1,7 @@
 package opentsdbhttp
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -40,11 +41,11 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		r = zr
 	}
 
-	ctx := getStreamContext()
+	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
 
 	// Read the request in ctx.reqBuf
-	lr := io.LimitReader(r, int64(maxInsertRequestSize.N)+1)
+	lr := io.LimitReader(ctx.br, int64(maxInsertRequestSize.N)+1)
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
@@ -102,11 +103,13 @@ const secondMask int64 = 0x7FFFFFFF00000000
 
 type streamContext struct {
 	Rows   Rows
+	br     *bufio.Reader
 	reqBuf bytesutil.ByteBuffer
 }
 
 func (ctx *streamContext) reset() {
 	ctx.Rows.Reset()
+	ctx.br.Reset(nil)
 	ctx.reqBuf.Reset()
 }
 
@@ -117,15 +120,20 @@ var (
 	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="opentsdbhttp"}`)
 )
 
-func getStreamContext() *streamContext {
+func getStreamContext(r io.Reader) *streamContext {
 	select {
 	case ctx := <-streamContextPoolCh:
+		ctx.br.Reset(r)
 		return ctx
 	default:
 		if v := streamContextPool.Get(); v != nil {
-			return v.(*streamContext)
+			ctx := v.(*streamContext)
+			ctx.br.Reset(r)
+			return ctx
 		}
-		return &streamContext{}
+		return &streamContext{
+			br: bufio.NewReaderSize(r, 64*1024),
+		}
 	}
 }
 

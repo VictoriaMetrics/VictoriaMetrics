@@ -32,9 +32,8 @@ func ParseStream(req *http.Request, callback func(block *Block) error) error {
 		defer common.PutGzipReader(zr)
 		r = zr
 	}
-	// By default req.Body uses 4Kb buffer. This size is too small for typical request to /api/v1/import/native,
-	// so use slightly bigger buffer in order to reduce read syscall overhead.
-	br := bufio.NewReaderSize(r, 1024*1024)
+	br := getBufferedReader(r)
+	defer putBufferedReader(br)
 
 	// Read time range (tr)
 	trBuf := make([]byte, 16)
@@ -195,3 +194,20 @@ func putUnmarshalWork(uw *unmarshalWork) {
 }
 
 var unmarshalWorkPool sync.Pool
+
+func getBufferedReader(r io.Reader) *bufio.Reader {
+	v := bufferedReaderPool.Get()
+	if v == nil {
+		return bufio.NewReaderSize(r, 64*1024)
+	}
+	br := v.(*bufio.Reader)
+	br.Reset(r)
+	return br
+}
+
+func putBufferedReader(br *bufio.Reader) {
+	br.Reset(nil)
+	bufferedReaderPool.Put(br)
+}
+
+var bufferedReaderPool sync.Pool

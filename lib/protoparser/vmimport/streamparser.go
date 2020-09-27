@@ -34,9 +34,6 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		defer common.PutGzipReader(zr)
 		r = zr
 	}
-	// By default req.Body uses 4Kb buffer. This size is too small for typical request to /api/v1/import,
-	// so use slightly bigger buffer in order to reduce read syscall overhead.
-	br := bufio.NewReaderSize(r, 1024*1024)
 
 	// Start gomaxprocs workers for processing the parsed data in parallel.
 	gomaxprocs := runtime.GOMAXPROCS(-1)
@@ -67,9 +64,9 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		}()
 	}
 
-	ctx := getStreamContext()
+	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
-	for ctx.Read(br) {
+	for ctx.Read() {
 		uw := getUnmarshalWork()
 		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
 		workCh <- uw
@@ -77,12 +74,12 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	return ctx.Error()
 }
 
-func (ctx *streamContext) Read(r io.Reader) bool {
+func (ctx *streamContext) Read() bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(r, ctx.reqBuf, ctx.tailBuf, maxLineLen.N)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineLen.N)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -100,6 +97,7 @@ var (
 )
 
 type streamContext struct {
+	br      *bufio.Reader
 	reqBuf  []byte
 	tailBuf []byte
 	err     error
@@ -113,20 +111,26 @@ func (ctx *streamContext) Error() error {
 }
 
 func (ctx *streamContext) reset() {
+	ctx.br.Reset(nil)
 	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
 	ctx.err = nil
 }
 
-func getStreamContext() *streamContext {
+func getStreamContext(r io.Reader) *streamContext {
 	select {
 	case ctx := <-streamContextPoolCh:
+		ctx.br.Reset(r)
 		return ctx
 	default:
 		if v := streamContextPool.Get(); v != nil {
-			return v.(*streamContext)
+			ctx := v.(*streamContext)
+			ctx.br.Reset(r)
+			return ctx
 		}
-		return &streamContext{}
+		return &streamContext{
+			br: bufio.NewReaderSize(r, 64*1024),
+		}
 	}
 }
 

@@ -1,6 +1,7 @@
 package promremotewrite
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,9 +21,9 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 //
 // callback shouldn't hold timeseries after returning.
 func ParseStream(req *http.Request, callback func(timeseries []prompb.TimeSeries) error) error {
-	ctx := getPushCtx()
+	ctx := getPushCtx(req.Body)
 	defer putPushCtx(ctx)
-	if err := ctx.Read(req); err != nil {
+	if err := ctx.Read(); err != nil {
 		return err
 	}
 	return callback(ctx.wr.Timeseries)
@@ -30,18 +31,21 @@ func ParseStream(req *http.Request, callback func(timeseries []prompb.TimeSeries
 
 type pushCtx struct {
 	wr     prompb.WriteRequest
+	br     *bufio.Reader
 	reqBuf []byte
 }
 
 func (ctx *pushCtx) reset() {
 	ctx.wr.Reset()
+	ctx.br.Reset(nil)
 	ctx.reqBuf = ctx.reqBuf[:0]
 }
 
-func (ctx *pushCtx) Read(r *http.Request) error {
+func (ctx *pushCtx) Read() error {
 	readCalls.Inc()
 	var err error
-	ctx.reqBuf, err = readSnappy(ctx.reqBuf[:0], r.Body)
+
+	ctx.reqBuf, err = readSnappy(ctx.reqBuf[:0], ctx.br)
 	if err != nil {
 		readErrors.Inc()
 		return fmt.Errorf("cannot read prompb.WriteRequest: %w", err)
@@ -68,15 +72,20 @@ var (
 	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="promremotewrite"}`)
 )
 
-func getPushCtx() *pushCtx {
+func getPushCtx(r io.Reader) *pushCtx {
 	select {
 	case ctx := <-pushCtxPoolCh:
+		ctx.br.Reset(r)
 		return ctx
 	default:
 		if v := pushCtxPool.Get(); v != nil {
-			return v.(*pushCtx)
+			ctx := v.(*pushCtx)
+			ctx.br.Reset(r)
+			return ctx
 		}
-		return &pushCtx{}
+		return &pushCtx{
+			br: bufio.NewReaderSize(r, 64*1024),
+		}
 	}
 }
 
