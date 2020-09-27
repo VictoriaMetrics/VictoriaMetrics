@@ -755,7 +755,7 @@ func getRollupMemoryLimiter() *memoryLimiter {
 
 func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
-	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
 		defer putTimeseries(ts)
@@ -775,6 +775,7 @@ func evalRollupWithIncrementalAggregate(name string, iafc *incrementalAggrFuncCo
 			ts.Timestamps = nil
 			ts.denyReuse = false
 		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -787,7 +788,7 @@ func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs 
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, removeMetricGroup bool) ([]*timeseries, error) {
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	var tssLock sync.Mutex
-	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+	err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
 			if tsm := newTimeseriesMap(name, sharedTimestamps, &rs.MetricName); tsm != nil {
@@ -803,6 +804,7 @@ func evalRollupNoIncrementalAggregate(name string, rss *netstorage.Results, rcs 
 			tss = append(tss, &ts)
 			tssLock.Unlock()
 		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

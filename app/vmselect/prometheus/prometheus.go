@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"math"
@@ -12,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
@@ -45,11 +45,6 @@ var (
 
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
-
-// Buffer size for big responses (i.e. /federate and /api/v1/export/* )
-// By default net/http.Server uses 4KB buffers, which are flushed to client with chunked responses.
-// These buffers may result in visible overhead for responses exceeding tens of megabytes.
-const bigResponseBufferSize = 128 * 1024
 
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
 func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
@@ -100,29 +95,24 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
-	resultsCh := make(chan *quicktemplate.ByteBuffer)
-	doneCh := make(chan error)
-	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
-			bb := quicktemplate.AcquireByteBuffer()
-			WriteFederate(bb, rs)
-			resultsCh <- bb
-		})
-		close(resultsCh)
-		doneCh <- err
-	}()
-
 	w.Header().Set("Content-Type", "text/plain")
-	bw := bufio.NewWriterSize(w, bigResponseBufferSize)
-	for bb := range resultsCh {
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+		if err := bw.Error(); err != nil {
+			return err
+		}
+		bb := quicktemplate.AcquireByteBuffer()
+		WriteFederate(bb, rs)
 		bw.Write(bb.B)
 		quicktemplate.ReleaseByteBuffer(bb)
-	}
-	_ = bw.Flush()
-
-	err = <-doneCh
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("error during data fetching: %w", err)
+	}
+	if err := bw.Flush(); err != nil {
+		return err
 	}
 	federateDuration.UpdateDuration(startTime)
 	return nil
@@ -166,7 +156,8 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		TagFilterss:  tagFilterss,
 	}
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
-	bw := bufio.NewWriterSize(w, bigResponseBufferSize)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
 
 	// Marshal tr
 	trBuf := make([]byte, 0, 16)
@@ -174,8 +165,11 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	trBuf = encoding.MarshalInt64(trBuf, end)
 	bw.Write(trBuf)
 
-	var bwLock sync.Mutex
+	// Marshal native blocks.
 	isPartial, err := netstorage.ExportBlocks(at, sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+		if err := bw.Error(); err != nil {
+			return err
+		}
 		dstBuf := bbPool.Get()
 		tmpBuf := bbPool.Get()
 		dst := dstBuf.B
@@ -194,23 +188,26 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		tmpBuf.B = tmp
 		bbPool.Put(tmpBuf)
 
-		bwLock.Lock()
-		_, err := bw.Write(dst)
-		bwLock.Unlock()
-		if err != nil {
-			return fmt.Errorf("cannot write data to client: %w", err)
-		}
+		bw.Write(dst)
 
 		dstBuf.B = dst
 		bbPool.Put(dstBuf)
 		return nil
 	})
-	_ = bw.Flush()
 	if err == nil && isPartial && searchutils.GetDenyPartialResponse(r) {
 		err = fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	exportNativeDuration.UpdateDuration(startTime)
+	return nil
 }
+
+var exportNativeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/native"}`)
 
 var bbPool bytesutil.ByteBufferPool
 
@@ -318,6 +315,10 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
+	w.Header().Set("Content-Type", contentType)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+
 	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
 	doneCh := make(chan error)
 	if !reduceMemUsage {
@@ -330,7 +331,10 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 			return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 		}
 		go func() {
-			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+				if err := bw.Error(); err != nil {
+					return err
+				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = &rs.MetricName
 				xb.timestamps = rs.Timestamps
@@ -338,6 +342,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 				writeLineFunc(xb, resultsCh)
 				xb.reset()
 				exportBlockPool.Put(xb)
+				return nil
 			})
 			close(resultsCh)
 			doneCh <- err
@@ -345,6 +350,9 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 	} else {
 		go func() {
 			isPartial, err := netstorage.ExportBlocks(at, sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+				if err := bw.Error(); err != nil {
+					return err
+				}
 				if err := b.UnmarshalData(); err != nil {
 					return fmt.Errorf("cannot unmarshal block during export: %s", err)
 				}
@@ -366,15 +374,10 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 		}()
 	}
 
-	w.Header().Set("Content-Type", contentType)
-	bw := bufio.NewWriterSize(w, bigResponseBufferSize)
+	// writeResponseFunc must consume all the data from resultsCh.
 	writeResponseFunc(bw, resultsCh)
-	_ = bw.Flush()
-
-	// Consume all the data from resultsCh in the event writeResponseFunc
-	// fails to consume all the data.
-	for bb := range resultsCh {
-		quicktemplate.ReleaseByteBuffer(bb)
+	if err := bw.Flush(); err != nil {
+		return err
 	}
 	err = <-doneCh
 	if err != nil {
@@ -517,7 +520,12 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	WriteLabelValuesResponse(w, labelValues)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteLabelValuesResponse(bw, labelValues)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	labelValuesDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -560,14 +568,15 @@ func labelValuesWithMatches(at *auth.Token, labelName string, matches []string, 
 
 	m := make(map[string]struct{})
 	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
 		labelValue := rs.MetricName.GetTagValue(labelName)
 		if len(labelValue) == 0 {
-			return
+			return nil
 		}
 		mLock.Lock()
 		m[string(labelValue)] = struct{}{}
 		mLock.Unlock()
+		return nil
 	})
 	if err != nil {
 		return nil, false, fmt.Errorf("error when data fetching: %w", err)
@@ -594,7 +603,12 @@ func LabelsCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 	w.Header().Set("Content-Type", "application/json")
-	WriteLabelsCountResponse(w, labelEntries)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteLabelsCountResponse(bw, labelEntries)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	labelsCountDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -643,7 +657,12 @@ func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 	w.Header().Set("Content-Type", "application/json")
-	WriteTSDBStatusResponse(w, status)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteTSDBStatusResponse(bw, status)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	tsdbStatusDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -692,7 +711,12 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	WriteLabelsResponse(w, labels)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteLabelsResponse(bw, labels)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	labelsDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -722,7 +746,7 @@ func labelsWithMatches(at *auth.Token, matches []string, start, end int64, deadl
 
 	m := make(map[string]struct{})
 	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
 		mLock.Lock()
 		tags := rs.MetricName.Tags
 		for i := range tags {
@@ -731,6 +755,7 @@ func labelsWithMatches(at *auth.Token, matches []string, start, end int64, deadl
 		}
 		m["__name__"] = struct{}{}
 		mLock.Unlock()
+		return nil
 	})
 	if err != nil {
 		return nil, false, fmt.Errorf("error when data fetching: %w", err)
@@ -758,7 +783,12 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	WriteSeriesCountResponse(w, n)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteSeriesCountResponse(bw, n)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	seriesCountDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -815,25 +845,28 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
 	doneCh := make(chan error)
 	go func() {
-		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) {
+		err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			if err := bw.Error(); err != nil {
+				return err
+			}
 			bb := quicktemplate.AcquireByteBuffer()
 			writemetricNameObject(bb, &rs.MetricName)
 			resultsCh <- bb
+			return nil
 		})
 		close(resultsCh)
 		doneCh <- err
 	}()
-
-	w.Header().Set("Content-Type", "application/json")
-	WriteSeriesResponse(w, resultsCh)
-
-	// Consume all the data from resultsCh in the event WriteSeriesResponse
-	// fails to consume all the data.
-	for bb := range resultsCh {
-		quicktemplate.ReleaseByteBuffer(bb)
+	// WriteSeriesResponse must consume all the data from resultsCh.
+	WriteSeriesResponse(bw, resultsCh)
+	if err := bw.Flush(); err != nil {
+		return err
 	}
 	err = <-doneCh
 	if err != nil {
@@ -953,7 +986,12 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	WriteQueryResponse(w, result)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteQueryResponse(bw, result)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	queryDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -1050,7 +1088,12 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	result = removeEmptyValuesAndTimeseries(result)
 
 	w.Header().Set("Content-Type", "application/json")
-	WriteQueryRangeResponse(w, result)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteQueryRangeResponse(bw, result)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -92,7 +93,12 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		contentType = "text/javascript"
 	}
 	w.Header().Set("Content-Type", contentType)
-	WriteMetricsFindResponse(w, paths, delimiter, format, wildcards, jsonp)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetricsFindResponse(bw, paths, delimiter, format, wildcards, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	metricsFindDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -188,7 +194,12 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		}
 	}
 	sortPaths(paths, delimiter)
-	WriteMetricsExpandResponseFlat(w, paths, jsonp)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetricsExpandResponseFlat(bw, paths, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	metricsExpandDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -214,7 +225,12 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		contentType = "text/javascript"
 	}
 	w.Header().Set("Content-Type", contentType)
-	WriteMetricsIndexResponse(w, metricNames, jsonp)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetricsIndexResponse(bw, metricNames, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	metricsIndexDuration.UpdateDuration(startTime)
 	return nil
 }
