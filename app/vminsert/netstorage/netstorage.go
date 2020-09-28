@@ -199,10 +199,15 @@ func (sn *storageNode) checkHealth() {
 	}
 	bc, err := sn.dial()
 	if err != nil {
-		logger.Warnf("cannot dial storageNode %q: %s", sn.dialer.Addr(), err)
+		if sn.lastDialErr == nil {
+			// Log the error only once.
+			sn.lastDialErr = err
+			logger.Warnf("cannot dial storageNode %q: %s", sn.dialer.Addr(), err)
+		}
 		return
 	}
 	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
+	sn.lastDialErr = nil
 	sn.bc = bc
 	atomic.StoreUint32(&sn.broken, 0)
 }
@@ -370,6 +375,9 @@ type storageNode struct {
 	bc *handshake.BufferedConn
 
 	dialer *netutil.TCPDialer
+
+	// last error during dial.
+	lastDialErr error
 
 	// The number of dial errors to vmstorage node.
 	dialErrors *metrics.Counter
