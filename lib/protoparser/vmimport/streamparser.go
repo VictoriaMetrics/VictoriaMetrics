@@ -34,42 +34,13 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		defer common.PutGzipReader(zr)
 		r = zr
 	}
-
-	// Start gomaxprocs workers for processing the parsed data in parallel.
-	gomaxprocs := runtime.GOMAXPROCS(-1)
-	workCh := make(chan *unmarshalWork, 8*gomaxprocs)
-	var wg sync.WaitGroup
-	defer func() {
-		close(workCh)
-		wg.Wait()
-	}()
-	wg.Add(gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go func() {
-			defer wg.Done()
-			for uw := range workCh {
-				uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
-				rows := uw.rows.Rows
-				for i := range rows {
-					row := &rows[i]
-					rowsRead.Add(len(row.Timestamps))
-				}
-				if err := callback(rows); err != nil {
-					logger.Errorf("error when processing imported data: %s", err)
-					putUnmarshalWork(uw)
-					continue
-				}
-				putUnmarshalWork(uw)
-			}
-		}()
-	}
-
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
+		uw.callback = callback
 		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
-		workCh <- uw
+		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()
 }
@@ -147,13 +118,31 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
 
 type unmarshalWork struct {
-	rows   Rows
-	reqBuf []byte
+	rows     Rows
+	callback func(rows []Row) error
+	reqBuf   []byte
 }
 
 func (uw *unmarshalWork) reset() {
 	uw.rows.Reset()
+	uw.callback = nil
 	uw.reqBuf = uw.reqBuf[:0]
+}
+
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
+	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+	rows := uw.rows.Rows
+	for i := range rows {
+		row := &rows[i]
+		rowsRead.Add(len(row.Timestamps))
+	}
+	if err := uw.callback(rows); err != nil {
+		logger.Errorf("error when processing imported data: %s", err)
+		putUnmarshalWork(uw)
+		return
+	}
+	putUnmarshalWork(uw)
 }
 
 func getUnmarshalWork() *unmarshalWork {

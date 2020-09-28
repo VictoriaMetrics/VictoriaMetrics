@@ -33,6 +33,7 @@ import (
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -76,7 +77,7 @@ func main() {
 
 	relabel.Init()
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
-
+	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, func(r io.Reader) error {
@@ -126,6 +127,7 @@ func main() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer.MustStop()
 	}
+	common.StopUnmarshalWorkers()
 
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()

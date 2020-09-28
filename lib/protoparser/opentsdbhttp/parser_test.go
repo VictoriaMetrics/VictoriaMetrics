@@ -9,8 +9,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		p := GetParser()
-		defer PutParser(p)
+		p := getJSONParser()
+		defer putJSONParser(p)
 		v, err := p.Parse(s)
 		if err != nil {
 			// Expected JSON parser error
@@ -84,8 +84,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 		var rows Rows
 
-		p := GetParser()
-		defer PutParser(p)
+		p := getJSONParser()
+		defer putJSONParser(p)
 		v, err := p.Parse(s)
 		if err != nil {
 			t.Fatalf("cannot parse json %s: %s", s, err)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -30,9 +31,10 @@ func ParseStream(r io.Reader, callback func(rows []Row) error) error {
 	defer putStreamContext(ctx)
 
 	for ctx.Read() {
-		if err := callback(ctx.Rows.Rows); err != nil {
-			return err
-		}
+		uw := getUnmarshalWork()
+		uw.callback = callback
+		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
+		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()
 }
@@ -50,38 +52,10 @@ func (ctx *streamContext) Read() bool {
 		}
 		return false
 	}
-	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
-	rowsRead.Add(len(ctx.Rows.Rows))
-
-	rows := ctx.Rows.Rows
-
-	// Fill missing timestamps with the current timestamp rounded to seconds.
-	currentTimestamp := int64(fasttime.UnixTimestamp())
-	for i := range rows {
-		r := &rows[i]
-		if r.Timestamp == 0 || r.Timestamp == -1 {
-			r.Timestamp = currentTimestamp
-		}
-	}
-
-	// Convert timestamps from seconds to milliseconds.
-	for i := range rows {
-		rows[i].Timestamp *= 1e3
-	}
-
-	// Trim timestamps if required.
-	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1000 {
-		for i := range rows {
-			row := &rows[i]
-			row.Timestamp -= row.Timestamp % tsTrim
-		}
-	}
-
 	return true
 }
 
 type streamContext struct {
-	Rows    Rows
 	br      *bufio.Reader
 	reqBuf  []byte
 	tailBuf []byte
@@ -96,7 +70,6 @@ func (ctx *streamContext) Error() error {
 }
 
 func (ctx *streamContext) reset() {
-	ctx.Rows.Reset()
 	ctx.br.Reset(nil)
 	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
@@ -137,3 +110,66 @@ func putStreamContext(ctx *streamContext) {
 
 var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
+
+type unmarshalWork struct {
+	rows     Rows
+	callback func(rows []Row) error
+	reqBuf   []byte
+}
+
+func (uw *unmarshalWork) reset() {
+	uw.rows.Reset()
+	uw.callback = nil
+	uw.reqBuf = uw.reqBuf[:0]
+}
+
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
+	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+	rows := uw.rows.Rows
+	rowsRead.Add(len(rows))
+
+	// Fill missing timestamps with the current timestamp rounded to seconds.
+	currentTimestamp := int64(fasttime.UnixTimestamp())
+	for i := range rows {
+		r := &rows[i]
+		if r.Timestamp == 0 || r.Timestamp == -1 {
+			r.Timestamp = currentTimestamp
+		}
+	}
+
+	// Convert timestamps from seconds to milliseconds.
+	for i := range rows {
+		rows[i].Timestamp *= 1e3
+	}
+
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1000 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
+	if err := uw.callback(rows); err != nil {
+		logger.Errorf("error when processing imported data: %s", err)
+		putUnmarshalWork(uw)
+		return
+	}
+	putUnmarshalWork(uw)
+}
+
+func getUnmarshalWork() *unmarshalWork {
+	v := unmarshalWorkPool.Get()
+	if v == nil {
+		return &unmarshalWork{}
+	}
+	return v.(*unmarshalWork)
+}
+
+func putUnmarshalWork(uw *unmarshalWork) {
+	uw.reset()
+	unmarshalWorkPool.Put(uw)
+}
+
+var unmarshalWorkPool sync.Pool
