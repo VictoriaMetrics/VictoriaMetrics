@@ -37,6 +37,9 @@ jobs:
             GOOS=freebsd go build -mod=vendor ./app/vminsert
             GOOS=freebsd go build -mod=vendor ./app/vmselect
             GOOS=freebsd go build -mod=vendor ./app/vmstorage
+            GOOS=openbsd go build -mod=vendor ./app/vminsert
+            GOOS=openbsd go build -mod=vendor ./app/vmselect
+            GOOS=openbsd go build -mod=vendor ./app/vmstorage
             GOOS=darwin go build -mod=vendor ./app/vminsert
             GOOS=darwin go build -mod=vendor ./app/vmselect
             GOOS=darwin go build -mod=vendor ./app/vmstorage
