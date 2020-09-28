@@ -59,7 +59,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 		uw.callback = callback
 		uw.db = db
 		uw.tsMultiplier = tsMultiplier
-		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
+		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()
