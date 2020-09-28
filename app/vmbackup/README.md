@@ -9,9 +9,9 @@ Supported storage systems for backups:
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/docs/mimic/radosgw/s3/) or [Swift](https://www.swiftstack.com/docs/admin/middleware/s3_middleware.html). See `-customS3Endpoint` command-line flag.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`
 
-Incremental backups and full backups are supported. Incremental backups are created automatically if the destination path already contains data from the previous backup.
+Incremental backups and full backups supported. Incremental backups created automatically if the destination path already contains data from the previous backup.
 Full backups can be sped up with `-origin` pointing to already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
-data between the existing backup and new backup. This saves time and costs on data transfer.
+data between the existing backup and new backup. It saves time and costs on data transfer.
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 
@@ -35,8 +35,8 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
   There is no need to stop VictoriaMetrics for creating backups, since they are performed from immutable [instant snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
-* `<local-snapshot>` is the snapshot to backup. See [how to create instant snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
-* `<bucket>` is already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
+* `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
+* `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
 
@@ -49,13 +49,13 @@ with the following command:
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gcs://<bucket>/<path/to/new/backup> -origin=gcs://<bucket>/<path/to/existing/backup>
 ```
 
-This saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
+It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
 
 
 #### Incremental backups
 
-Incremental backups are performed if `-dst` points to already existing backup. In this case only new data is uploaded to remote storage.
-This saves time and network bandwidth costs when working with big backups:
+Incremental backups performed if `-dst` points to an already existing backup. In this case only new data uploaded to remote storage.
+It saves time and network bandwidth costs when working with big backups:
 
 ```
 vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-snapshot> -dst=gcs://<bucket>/<path/to/existing/backup>
@@ -100,27 +100,27 @@ The backup algorithm is the following:
 2. Determine files in `-dst`, which are missing in `-snapshotName`, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
 3. Determine files from `-snapshotName`, which are missing in `-dst`. These are usually small new files and bigger merged files.
 4. Determine files from step 3, which exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
-   This are usually the biggest and the oldest files, which are shared between backups.
-5. Upload the remaining files from setp 3 from `-snapshotName` to `-dst`.
+   It is usually the biggest, and the oldest files, which are shared between backups.
+5. Upload the remaining files from step 3 from `-snapshotName` to `-dst`.
 
-The algorithm splits source files into 100MB chunks in the backup. Each chunk is stored as a separate file in the backup.
+The algorithm splits source files into 100 MB chunks in the backup. Each chunk stored as a separate file in the backup.
 Such splitting minimizes the amounts of data to re-transfer after temporary errors.
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:
 
 - All the files in the snapshot are immutable.
-- Old files are periodically merged into new files.
+- Old files periodically merged into new files.
 - Smaller files have higher probability to be merged.
 - Consecutive snapshots share many identical files.
 
 These properties allow performing fast and cheap incremental backups and server-side copying from `-origin` paths.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
-`vmbackup` can work improperly or slowly when these properties are violated.
+`vmbackup` can work improperly or slowly when these properties violated.
 
 
 ### Troubleshooting
 
-* If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
+* If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to back up storage.
 * If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
 * Backups created from [single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md) cannot be restored
@@ -129,7 +129,46 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ### Advanced usage
 
-Run `vmbackup -help` in order to see all the available options:
+
+* Obtaining credentials from a file.
+  
+  Add flag `-credsFilePath=/etc/credentials` with following content:
+
+    for s3 (aws, minio or other s3 compatible storages)
+    
+     ```bash
+     [default]
+     aws_access_key_id=theaccesskey
+     aws_secret_access_key=thesecretaccesskeyvalue
+    ```
+    for gce cloud storage:
+    
+    ```json
+     {
+           "type": "service_account",
+           "project_id": "project-id",
+           "private_key_id": "key-id",
+           "private_key": "-----BEGIN PRIVATE KEY-----\nprivate-key\n-----END PRIVATE KEY-----\n",
+           "client_email": "service-account-email",
+           "client_id": "client-id",
+           "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+           "token_uri": "https://accounts.google.com/o/oauth2/token",
+           "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+           "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
+         }
+    ```
+* Usage with s3 custom url endpoint.  It is possible to use `vmbackup` with s3 api compatible storages, like  minio, cloudian and other. 
+  You have to add custom url endpoint with a flag: 
+```
+  # for minio:  
+  -customS3Endpoint=http://localhost:9000
+
+  # for aws gov region 
+  -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
+
+```
+
+* Run `vmbackup -help` in order to see all the available options:
 
 ```
   -concurrency int
@@ -205,9 +244,9 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 Run `make package-vmbackup`. It builds `victoriametrics/vmbackup:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
-The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
+The `<PKG_TAG>` maybe manually set via `PKG_TAG=foobar make package-vmbackup`.
 
-By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
+By default, the image builds on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
