@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -45,46 +44,18 @@ func ParseStream(req *http.Request, callback func(block *Block) error) error {
 	tr.MinTimestamp = encoding.UnmarshalInt64(trBuf)
 	tr.MaxTimestamp = encoding.UnmarshalInt64(trBuf[8:])
 
-	// Start GOMAXPROC workers in order to process ingested data in parallel.
-	gomaxprocs := runtime.GOMAXPROCS(-1)
-	workCh := make(chan *unmarshalWork, 8*gomaxprocs)
-	var wg sync.WaitGroup
-	defer func() {
-		close(workCh)
-		wg.Wait()
-	}()
-	wg.Add(gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go func() {
-			defer wg.Done()
-			var tmpBlock storage.Block
-			for uw := range workCh {
-				if err := uw.unmarshal(&tmpBlock, tr); err != nil {
-					parseErrors.Inc()
-					logger.Errorf("error when unmarshaling native block: %s", err)
-					putUnmarshalWork(uw)
-					continue
-				}
-				if err := callback(&uw.block); err != nil {
-					processErrors.Inc()
-					logger.Errorf("error when processing native block: %s", err)
-					putUnmarshalWork(uw)
-					continue
-				}
-				putUnmarshalWork(uw)
-			}
-		}()
-	}
-
 	// Read native blocks and feed workers with work.
 	sizeBuf := make([]byte, 4)
 	for {
 		uw := getUnmarshalWork()
+		uw.tr = tr
+		uw.callback = callback
 
 		// Read uw.metricNameBuf
 		if _, err := io.ReadFull(br, sizeBuf); err != nil {
 			if err == io.EOF {
 				// End of stream
+				putUnmarshalWork(uw)
 				return nil
 			}
 			readErrors.Inc()
@@ -122,8 +93,7 @@ func ParseStream(req *http.Request, callback func(block *Block) error) error {
 		readCalls.Inc()
 		blocksRead.Inc()
 
-		// Feed workers with work.
-		workCh <- uw
+		common.ScheduleUnmarshalWork(uw)
 	}
 }
 
@@ -152,22 +122,43 @@ var (
 
 type unmarshalWork struct {
 	tr            storage.TimeRange
+	callback      func(block *Block) error
 	metricNameBuf []byte
 	blockBuf      []byte
 	block         Block
 }
 
 func (uw *unmarshalWork) reset() {
+	uw.callback = nil
 	uw.metricNameBuf = uw.metricNameBuf[:0]
 	uw.blockBuf = uw.blockBuf[:0]
 	uw.block.reset()
 }
 
-func (uw *unmarshalWork) unmarshal(tmpBlock *storage.Block, tr storage.TimeRange) error {
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
+	if err := uw.unmarshal(); err != nil {
+		parseErrors.Inc()
+		logger.Errorf("error when unmarshaling native block: %s", err)
+		putUnmarshalWork(uw)
+		return
+	}
+	if err := uw.callback(&uw.block); err != nil {
+		processErrors.Inc()
+		logger.Errorf("error when processing native block: %s", err)
+		putUnmarshalWork(uw)
+		return
+	}
+	putUnmarshalWork(uw)
+}
+
+func (uw *unmarshalWork) unmarshal() error {
 	block := &uw.block
 	if err := block.MetricName.Unmarshal(uw.metricNameBuf); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName from %d bytes: %w", len(uw.metricNameBuf), err)
 	}
+	tmpBlock := blockPool.Get().(*storage.Block)
+	defer blockPool.Put(tmpBlock)
 	tail, err := tmpBlock.UnmarshalPortable(uw.blockBuf)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal native block from %d bytes: %w", len(uw.blockBuf), err)
@@ -175,9 +166,15 @@ func (uw *unmarshalWork) unmarshal(tmpBlock *storage.Block, tr storage.TimeRange
 	if len(tail) > 0 {
 		return fmt.Errorf("unexpected non-empty tail left after unmarshaling native block from %d bytes; len(tail)=%d bytes", len(uw.blockBuf), len(tail))
 	}
-	block.Timestamps, block.Values = tmpBlock.AppendRowsWithTimeRangeFilter(block.Timestamps[:0], block.Values[:0], tr)
+	block.Timestamps, block.Values = tmpBlock.AppendRowsWithTimeRangeFilter(block.Timestamps[:0], block.Values[:0], uw.tr)
 	rowsRead.Add(len(block.Timestamps))
 	return nil
+}
+
+var blockPool = &sync.Pool{
+	New: func() interface{} {
+		return &storage.Block{}
+	},
 }
 
 func getUnmarshalWork() *unmarshalWork {

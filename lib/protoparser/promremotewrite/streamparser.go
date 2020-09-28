@@ -10,7 +10,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
@@ -19,49 +21,42 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 
 // ParseStream parses Prometheus remote_write message req and calls callback for the parsed timeseries.
 //
-// callback shouldn't hold timeseries after returning.
-func ParseStream(req *http.Request, callback func(timeseries []prompb.TimeSeries) error) error {
+// callback shouldn't hold tss after returning.
+func ParseStream(req *http.Request, callback func(tss []prompb.TimeSeries) error) error {
 	ctx := getPushCtx(req.Body)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
 		return err
 	}
-	return callback(ctx.wr.Timeseries)
+	uw := getUnmarshalWork()
+	uw.callback = callback
+	uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf.B...)
+	common.ScheduleUnmarshalWork(uw)
+	return nil
 }
 
 type pushCtx struct {
-	wr     prompb.WriteRequest
 	br     *bufio.Reader
-	reqBuf []byte
+	reqBuf bytesutil.ByteBuffer
 }
 
 func (ctx *pushCtx) reset() {
-	ctx.wr.Reset()
 	ctx.br.Reset(nil)
-	ctx.reqBuf = ctx.reqBuf[:0]
+	ctx.reqBuf.Reset()
 }
 
 func (ctx *pushCtx) Read() error {
 	readCalls.Inc()
-	var err error
-
-	ctx.reqBuf, err = readSnappy(ctx.reqBuf[:0], ctx.br)
+	lr := io.LimitReader(ctx.br, int64(maxInsertRequestSize.N)+1)
+	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
-		return fmt.Errorf("cannot read prompb.WriteRequest: %w", err)
+		return fmt.Errorf("cannot read compressed request: %w", err)
 	}
-	if err = ctx.wr.Unmarshal(ctx.reqBuf); err != nil {
-		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(ctx.reqBuf), err)
+	if reqLen > int64(maxInsertRequestSize.N) {
+		readErrors.Inc()
+		return fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
 	}
-
-	rows := 0
-	tss := ctx.wr.Timeseries
-	for i := range tss {
-		rows += len(tss[i].Samples)
-	}
-	rowsRead.Add(rows)
-
 	return nil
 }
 
@@ -101,34 +96,66 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))
 
-func readSnappy(dst []byte, r io.Reader) ([]byte, error) {
-	lr := io.LimitReader(r, int64(maxInsertRequestSize.N)+1)
+type unmarshalWork struct {
+	wr       prompb.WriteRequest
+	callback func(tss []prompb.TimeSeries) error
+	reqBuf   []byte
+}
+
+func (uw *unmarshalWork) reset() {
+	uw.wr.Reset()
+	uw.callback = nil
+	uw.reqBuf = uw.reqBuf[:0]
+}
+
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
 	bb := bodyBufferPool.Get()
-	reqLen, err := bb.ReadFrom(lr)
+	defer bodyBufferPool.Put(bb)
+	var err error
+	bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], uw.reqBuf)
 	if err != nil {
-		bodyBufferPool.Put(bb)
-		return dst, fmt.Errorf("cannot read compressed request: %w", err)
+		logger.Errorf("cannot decompress request with length %d: %s", len(uw.reqBuf), err)
+		return
 	}
-	if reqLen > int64(maxInsertRequestSize.N) {
-		return dst, fmt.Errorf("too big packed request; mustn't exceed `-maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
+	if len(bb.B) > maxInsertRequestSize.N {
+		logger.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
+		return
+	}
+	if err := uw.wr.Unmarshal(bb.B); err != nil {
+		unmarshalErrors.Inc()
+		logger.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %s", len(bb.B), err)
+		return
 	}
 
-	buf := dst[len(dst):cap(dst)]
-	buf, err = snappy.Decode(buf, bb.B)
-	bodyBufferPool.Put(bb)
-	if err != nil {
-		err = fmt.Errorf("cannot decompress request with length %d: %w", reqLen, err)
-		return dst, err
+	rows := 0
+	tss := uw.wr.Timeseries
+	for i := range tss {
+		rows += len(tss[i].Samples)
 	}
-	if len(buf) > maxInsertRequestSize.N {
-		return dst, fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(buf))
+	rowsRead.Add(rows)
+
+	if err := uw.callback(tss); err != nil {
+		logger.Errorf("error when processing imported data: %s", err)
+		putUnmarshalWork(uw)
+		return
 	}
-	if len(buf) > 0 && len(dst) < cap(dst) && &buf[0] == &dst[len(dst):cap(dst)][0] {
-		dst = dst[:len(dst)+len(buf)]
-	} else {
-		dst = append(dst, buf...)
-	}
-	return dst, nil
+	putUnmarshalWork(uw)
 }
 
 var bodyBufferPool bytesutil.ByteBufferPool
+
+func getUnmarshalWork() *unmarshalWork {
+	v := unmarshalWorkPool.Get()
+	if v == nil {
+		return &unmarshalWork{}
+	}
+	return v.(*unmarshalWork)
+}
+
+func putUnmarshalWork(uw *unmarshalWork) {
+	uw.reset()
+	unmarshalWorkPool.Put(uw)
+}
+
+var unmarshalWorkPool sync.Pool

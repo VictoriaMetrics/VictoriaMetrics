@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -53,15 +54,18 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
-	for ctx.Read(tsMultiplier) {
-		if err := callback(db, ctx.Rows.Rows); err != nil {
-			return err
-		}
+	for ctx.Read() {
+		uw := getUnmarshalWork()
+		uw.callback = callback
+		uw.db = db
+		uw.tsMultiplier = tsMultiplier
+		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
+		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()
 }
 
-func (ctx *streamContext) Read(tsMultiplier int64) bool {
+func (ctx *streamContext) Read() bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
@@ -74,43 +78,6 @@ func (ctx *streamContext) Read(tsMultiplier int64) bool {
 		}
 		return false
 	}
-	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
-	rowsRead.Add(len(ctx.Rows.Rows))
-
-	rows := ctx.Rows.Rows
-
-	// Adjust timestamps according to tsMultiplier
-	currentTs := time.Now().UnixNano() / 1e6
-	if tsMultiplier >= 1 {
-		for i := range rows {
-			row := &rows[i]
-			if row.Timestamp == 0 {
-				row.Timestamp = currentTs
-			} else {
-				row.Timestamp /= tsMultiplier
-			}
-		}
-	} else if tsMultiplier < 0 {
-		tsMultiplier = -tsMultiplier
-		currentTs -= currentTs % tsMultiplier
-		for i := range rows {
-			row := &rows[i]
-			if row.Timestamp == 0 {
-				row.Timestamp = currentTs
-			} else {
-				row.Timestamp *= tsMultiplier
-			}
-		}
-	}
-
-	// Trim timestamps if required.
-	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
-		for i := range rows {
-			row := &rows[i]
-			row.Timestamp -= row.Timestamp % tsTrim
-		}
-	}
-
 	return true
 }
 
@@ -121,7 +88,6 @@ var (
 )
 
 type streamContext struct {
-	Rows    Rows
 	br      *bufio.Reader
 	reqBuf  []byte
 	tailBuf []byte
@@ -136,7 +102,6 @@ func (ctx *streamContext) Error() error {
 }
 
 func (ctx *streamContext) reset() {
-	ctx.Rows.Reset()
 	ctx.br.Reset(nil)
 	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
@@ -171,3 +136,81 @@ func putStreamContext(ctx *streamContext) {
 
 var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
+
+type unmarshalWork struct {
+	rows         Rows
+	callback     func(db string, rows []Row) error
+	db           string
+	tsMultiplier int64
+	reqBuf       []byte
+}
+
+func (uw *unmarshalWork) reset() {
+	uw.rows.Reset()
+	uw.callback = nil
+	uw.db = ""
+	uw.tsMultiplier = 0
+	uw.reqBuf = uw.reqBuf[:0]
+}
+
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
+	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+	rows := uw.rows.Rows
+	rowsRead.Add(len(rows))
+
+	// Adjust timestamps according to uw.tsMultiplier
+	currentTs := time.Now().UnixNano() / 1e6
+	tsMultiplier := uw.tsMultiplier
+	if tsMultiplier >= 1 {
+		for i := range rows {
+			row := &rows[i]
+			if row.Timestamp == 0 {
+				row.Timestamp = currentTs
+			} else {
+				row.Timestamp /= tsMultiplier
+			}
+		}
+	} else if tsMultiplier < 0 {
+		tsMultiplier = -tsMultiplier
+		currentTs -= currentTs % tsMultiplier
+		for i := range rows {
+			row := &rows[i]
+			if row.Timestamp == 0 {
+				row.Timestamp = currentTs
+			} else {
+				row.Timestamp *= tsMultiplier
+			}
+		}
+	}
+
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
+	if err := uw.callback(uw.db, rows); err != nil {
+		logger.Errorf("error when processing imported data: %s", err)
+		putUnmarshalWork(uw)
+		return
+	}
+	putUnmarshalWork(uw)
+}
+
+func getUnmarshalWork() *unmarshalWork {
+	v := unmarshalWorkPool.Get()
+	if v == nil {
+		return &unmarshalWork{}
+	}
+	return v.(*unmarshalWork)
+}
+
+func putUnmarshalWork(uw *unmarshalWork) {
+	uw.reset()
+	unmarshalWorkPool.Put(uw)
+}
+
+var unmarshalWorkPool sync.Pool

@@ -185,12 +185,25 @@ func Test_streamContext_Read(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		ctx := getStreamContext(strings.NewReader(s))
-		ctx.Read()
-		if len(ctx.Rows.Rows) != len(rowsExpected.Rows) {
-			t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows, rowsExpected.Rows)
+		if !ctx.Read() {
+			t.Fatalf("expecting successful read")
 		}
-		if !reflect.DeepEqual(ctx.Rows.Rows, rowsExpected.Rows) {
-			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", ctx.Rows.Rows, rowsExpected.Rows)
+		uw := getUnmarshalWork()
+		callbackCalls := 0
+		uw.callback = func(rows []Row) error {
+			callbackCalls++
+			if len(rows) != len(rowsExpected.Rows) {
+				t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", rows, rowsExpected.Rows)
+			}
+			if !reflect.DeepEqual(rows, rowsExpected.Rows) {
+				t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows, rowsExpected.Rows)
+			}
+			return nil
+		}
+		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
+		uw.Unmarshal()
+		if callbackCalls != 1 {
+			t.Fatalf("unexpected number of callback calls; got %d; want 1", callbackCalls)
 		}
 	}
 

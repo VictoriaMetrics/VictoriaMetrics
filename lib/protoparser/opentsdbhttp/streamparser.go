@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -56,59 +57,21 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		return fmt.Errorf("too big HTTP OpenTSDB request; mustn't exceed `-opentsdbhttp.maxInsertRequestSize=%d` bytes", maxInsertRequestSize.N)
 	}
 
-	// Unmarshal the request to ctx.Rows
-	p := GetParser()
-	defer PutParser(p)
-	v, err := p.ParseBytes(ctx.reqBuf.B)
-	if err != nil {
-		unmarshalErrors.Inc()
-		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %w", err)
-	}
-	ctx.Rows.Unmarshal(v)
-	rowsRead.Add(len(ctx.Rows.Rows))
-
-	rows := ctx.Rows.Rows
-
-	// Fill in missing timestamps
-	currentTimestamp := int64(fasttime.UnixTimestamp())
-	for i := range rows {
-		r := &rows[i]
-		if r.Timestamp == 0 {
-			r.Timestamp = currentTimestamp
-		}
-	}
-
-	// Convert timestamps in seconds to milliseconds if needed.
-	// See http://opentsdb.net/docs/javadoc/net/opentsdb/core/Const.html#SECOND_MASK
-	for i := range rows {
-		r := &rows[i]
-		if r.Timestamp&secondMask == 0 {
-			r.Timestamp *= 1e3
-		}
-	}
-
-	// Trim timestamps if required.
-	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
-		for i := range rows {
-			row := &rows[i]
-			row.Timestamp -= row.Timestamp % tsTrim
-		}
-	}
-
-	// Insert ctx.Rows to db.
-	return callback(rows)
+	uw := getUnmarshalWork()
+	uw.callback = callback
+	uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf.B...)
+	common.ScheduleUnmarshalWork(uw)
+	return nil
 }
 
 const secondMask int64 = 0x7FFFFFFF00000000
 
 type streamContext struct {
-	Rows   Rows
 	br     *bufio.Reader
 	reqBuf bytesutil.ByteBuffer
 }
 
 func (ctx *streamContext) reset() {
-	ctx.Rows.Reset()
 	ctx.br.Reset(nil)
 	ctx.reqBuf.Reset()
 }
@@ -148,3 +111,78 @@ func putStreamContext(ctx *streamContext) {
 
 var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
+
+type unmarshalWork struct {
+	rows     Rows
+	callback func(rows []Row) error
+	reqBuf   []byte
+}
+
+func (uw *unmarshalWork) reset() {
+	uw.rows.Reset()
+	uw.callback = nil
+	uw.reqBuf = uw.reqBuf[:0]
+}
+
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
+	p := getJSONParser()
+	defer putJSONParser(p)
+	v, err := p.ParseBytes(uw.reqBuf)
+	if err != nil {
+		unmarshalErrors.Inc()
+		logger.Errorf("cannot parse HTTP OpenTSDB json: %s", err)
+		return
+	}
+	uw.rows.Unmarshal(v)
+	rows := uw.rows.Rows
+	rowsRead.Add(len(rows))
+
+	// Fill in missing timestamps
+	currentTimestamp := int64(fasttime.UnixTimestamp())
+	for i := range rows {
+		r := &rows[i]
+		if r.Timestamp == 0 {
+			r.Timestamp = currentTimestamp
+		}
+	}
+
+	// Convert timestamps in seconds to milliseconds if needed.
+	// See http://opentsdb.net/docs/javadoc/net/opentsdb/core/Const.html#SECOND_MASK
+	for i := range rows {
+		r := &rows[i]
+		if r.Timestamp&secondMask == 0 {
+			r.Timestamp *= 1e3
+		}
+	}
+
+	// Trim timestamps if required.
+	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1 {
+		for i := range rows {
+			row := &rows[i]
+			row.Timestamp -= row.Timestamp % tsTrim
+		}
+	}
+
+	if err := uw.callback(rows); err != nil {
+		logger.Errorf("error when processing imported data: %s", err)
+		putUnmarshalWork(uw)
+		return
+	}
+	putUnmarshalWork(uw)
+}
+
+func getUnmarshalWork() *unmarshalWork {
+	v := unmarshalWorkPool.Get()
+	if v == nil {
+		return &unmarshalWork{}
+	}
+	return v.(*unmarshalWork)
+}
+
+func putUnmarshalWork(uw *unmarshalWork) {
+	uw.reset()
+	unmarshalWorkPool.Put(uw)
+}
+
+var unmarshalWorkPool sync.Pool
