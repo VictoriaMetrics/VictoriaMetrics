@@ -34,7 +34,7 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 		uw := getUnmarshalWork()
 		uw.callback = callback
 		uw.defaultTimestamp = defaultTimestamp
-		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
+		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()

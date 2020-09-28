@@ -48,7 +48,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		uw := getUnmarshalWork()
 		uw.callback = callback
 		uw.cds = cds
-		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
+		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()
