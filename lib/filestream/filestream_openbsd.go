@@ -20,8 +20,8 @@ func (st *streamTracker) adviseDontNeed(n int, fdatasync bool) error {
 			return fmt.Errorf("unix.Fsync error: %w", err)
 		}
 	}
+	st.offset += blockSize
 	st.length -= blockSize
-
 	return nil
 }
 
