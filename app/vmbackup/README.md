@@ -132,7 +132,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 * Obtaining credentials from a file.
   
-  Add flag `-credsFilePath=/etc/credentials` with following content:
+  Add flag `-credsFilePath=/etc/credentials` with the following content:
 
     for s3 (aws, minio or other s3 compatible storages)
     
@@ -157,15 +157,14 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
          }
     ```
-* Usage with s3 custom url endpoint.  It is possible to use `vmbackup` with s3 api compatible storages, like  minio, cloudian and other. 
-  You have to add custom url endpoint with a flag: 
+* Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc. 
+  You have to add a custom url endpoint via flag: 
 ```
   # for minio:  
   -customS3Endpoint=http://localhost:9000
 
   # for aws gov region 
   -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
-
 ```
 
 * Run `vmbackup -help` in order to see all the available options:
@@ -246,7 +245,7 @@ Run `make package-vmbackup`. It builds `victoriametrics/vmbackup:<PKG_TAG>` dock
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` maybe manually set via `PKG_TAG=foobar make package-vmbackup`.
 
-By default, the image builds on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
