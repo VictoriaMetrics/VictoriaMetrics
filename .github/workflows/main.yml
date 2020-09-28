@@ -37,9 +37,21 @@ jobs:
             GOOS=freebsd go build -mod=vendor ./app/vminsert
             GOOS=freebsd go build -mod=vendor ./app/vmselect
             GOOS=freebsd go build -mod=vendor ./app/vmstorage
+            GOOS=freebsd go build -mod=vendor ./app/vmagent
+            GOOS=freebsd go build -mod=vendor ./app/vmalert
+            GOOS=freebsd go build -mod=vendor ./app/vmbackup
+            GOOS=freebsd go build -mod=vendor ./app/vmrestore
             GOOS=openbsd go build -mod=vendor ./app/vminsert
             GOOS=openbsd go build -mod=vendor ./app/vmselect
             GOOS=openbsd go build -mod=vendor ./app/vmstorage
+            GOOS=openbsd go build -mod=vendor ./app/vmagent
+            GOOS=openbsd go build -mod=vendor ./app/vmalert
+            GOOS=openbsd go build -mod=vendor ./app/vmbackup
+            GOOS=openbsd go build -mod=vendor ./app/vmrestore
             GOOS=darwin go build -mod=vendor ./app/vminsert
             GOOS=darwin go build -mod=vendor ./app/vmselect
             GOOS=darwin go build -mod=vendor ./app/vmstorage
+            GOOS=darwin go build -mod=vendor ./app/vmagent
+            GOOS=darwin go build -mod=vendor ./app/vmalert
+            GOOS=darwin go build -mod=vendor ./app/vmbackup
+            GOOS=darwin go build -mod=vendor ./app/vmrestore
