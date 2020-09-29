@@ -83,10 +83,10 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	if isPartial && searchutils.GetDenyPartialResponse(r) {
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
-	paths = deduplicatePaths(paths)
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
 	}
+	paths = deduplicatePaths(paths, delimiter)
 	sortPaths(paths, delimiter)
 	contentType := "application/json"
 	if jsonp != "" {
@@ -103,13 +103,38 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	return nil
 }
 
-func deduplicatePaths(paths []string) []string {
-	m := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		m[path] = struct{}{}
+func deduplicatePaths(paths []string, delimiter string) []string {
+	if len(paths) == 0 {
+		return nil
 	}
-	dst := make([]string, 0, len(m))
-	for path := range m {
+
+	sort.Strings(paths)
+
+	// remove duplicates
+	dst := paths[:1]
+	for _, path := range paths[1:] {
+		prevPath := dst[len(dst)-1]
+		if path == prevPath {
+			// Skip duplicate path.
+			continue
+		}
+		dst = append(dst, path)
+	}
+	paths = dst
+
+	// substitute `path` and `path<delimiter>` with `path<delimiter><delimiter>` like carbonapi does.
+	// Such path is treated specially during rendering - see metrics_find_response.qtpl for details.
+	dst = paths[:1]
+	for _, path := range paths[1:] {
+		prevPath := dst[len(dst)-1]
+		if len(path) == len(prevPath)+1 && strings.HasSuffix(path, delimiter) && strings.HasPrefix(path, prevPath) {
+			// The path is equivalent to <prevPath> + <delimiter>
+			// Overwrite the prevPath with <path> + <delimiter> as carbonapi does.
+			// I.e. the resulting path ends with double delimiter.
+			// Such path is treated specially during rendering - see metrics_find_response.qtpl for details.
+			dst[len(dst)-1] = path + delimiter
+			continue
+		}
 		dst = append(dst, path)
 	}
 	return dst
