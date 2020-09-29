@@ -140,9 +140,9 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 Run `make package-vmrestore`. It builds `victoriametrics/vmrestore:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
-The `<PKG_TAG>` maybe manually set via `PKG_TAG=foobar make package-vmrestore`.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmrestore`.
 
-By default, the image builds on top of [alpine](https://hub.docker.com/_/alpine) image. It is possible to build the package on top of any other base image
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
