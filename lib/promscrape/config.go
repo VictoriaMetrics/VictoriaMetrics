@@ -82,9 +82,9 @@ type ScrapeConfig struct {
 	SampleLimit          int                         `yaml:"sample_limit"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression bool `yaml:"disable_compression"`
-	DisableKeepAlive   bool `yaml:"disable_keepalive"`
-	StreamParse        bool `yaml:"stream_parse"`
+	DisableCompression bool `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive   bool `yaml:"disable_keepalive,omitempty"`
+	StreamParse        bool `yaml:"stream_parse,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
