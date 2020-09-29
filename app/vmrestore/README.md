@@ -34,18 +34,17 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 ### Advanced usage
 
 * Obtaining credentials from a file.
-  
+
   Add flag `-credsFilePath=/etc/credentials` with following content:
 
-    for s3 (aws, minio or other s3 compatible storages)
-    
+    for s3 (aws, minio or other s3 compatible storages):
      ```bash
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
     ```
+
     for gce cloud storage:
-    
     ```json
      {
            "type": "service_account",
@@ -60,15 +59,15 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
          }
     ```
-* Usage with s3 custom url endpoint.  It is possible to use `vmrestore` with s3 api compatible storages, like  minio, cloudian and other. 
-  You have to add custom url endpoint with a flag: 
+
+* Usage with s3 custom url endpoint.  It is possible to use `vmrestore` with s3 api compatible storages, like  minio, cloudian and other.
+  You have to add custom url endpoint with a flag:
 ```
-  # for minio:  
+  # for minio:
   -customS3Endpoint=http://localhost:9000
 
-  # for aws gov region 
+  # for aws gov region
   -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
-
 ```
 
 *  Run `vmrestore -help` in order to see all the available options:

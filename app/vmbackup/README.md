@@ -131,18 +131,17 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 
 * Obtaining credentials from a file.
-  
+
   Add flag `-credsFilePath=/etc/credentials` with the following content:
 
-    for s3 (aws, minio or other s3 compatible storages)
-    
+    for s3 (aws, minio or other s3 compatible storages):
      ```bash
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
     ```
+
     for gce cloud storage:
-    
     ```json
      {
            "type": "service_account",
@@ -157,13 +156,14 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
          }
     ```
-* Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc. 
-  You have to add a custom url endpoint via flag: 
+
+* Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
+  You have to add a custom url endpoint via flag:
 ```
-  # for minio:  
+  # for minio
   -customS3Endpoint=http://localhost:9000
 
-  # for aws gov region 
+  # for aws gov region
   -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
 ```
 

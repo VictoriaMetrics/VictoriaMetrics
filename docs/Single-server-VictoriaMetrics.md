@@ -580,8 +580,8 @@ Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
-By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image for improved debuggability.
-It is possible to build the package on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
@@ -896,6 +896,15 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+Example contents for `-relabelConfig` file:
+```yml
+# relabel_config.yml
+- target_label: cluster
+  replacement: dev
+- action: drop
+  source_labels: [__meta_kubernetes_pod_container_init]
+  regex: true
+```
 
 VictoriaMetrics provides the following extra actions for relabeling rules:
 
