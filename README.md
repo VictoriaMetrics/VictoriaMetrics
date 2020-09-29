@@ -896,6 +896,14 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+```yml 
+# relabel_config.yml
+- target_label: cluster
+  replacement: dev
+- action: drop
+  source_labels: [__meta_kubernetes_pod_container_init]
+  regex: true
+```
 
 VictoriaMetrics provides the following extra actions for relabeling rules:
 
