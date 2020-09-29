@@ -661,7 +661,7 @@ It is better using `-retentionPeriod` command-line flag for efficient pruning of
 
 ### Forced merge
 
-VictoriaMetrics performs [data compations in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+VictoriaMetrics performs [data compactions in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
 This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
 Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
