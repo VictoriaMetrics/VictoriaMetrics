@@ -123,6 +123,9 @@ type partition struct {
 
 	smallAssistedMerges uint64
 
+	smallMergeNeedFreeDiskSpace uint64
+	bigMergeNeedFreeDiskSpace   uint64
+
 	mergeIdx uint64
 
 	smallPartsPath string
@@ -392,8 +395,8 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 
 	m.SmallAssistedMerges += atomic.LoadUint64(&pt.smallAssistedMerges)
 
-	m.SmallMergeNeedFreeDiskSpace = atomic.LoadUint64(&smallMergeNeedFreeDiskSpace)
-	m.BigMergeNeedFreeDiskSpace = atomic.LoadUint64(&bigMergeNeedFreeDiskSpace)
+	m.SmallMergeNeedFreeDiskSpace += atomic.LoadUint64(&pt.smallMergeNeedFreeDiskSpace)
+	m.BigMergeNeedFreeDiskSpace += atomic.LoadUint64(&pt.bigMergeNeedFreeDiskSpace)
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -999,7 +1002,7 @@ func (pt *partition) mergeBigParts(isFinal bool) error {
 	pws, needFreeSpace := getPartsToMerge(pt.bigParts, maxRows, isFinal)
 	pt.partsLock.Unlock()
 
-	atomicSetBool(&bigMergeNeedFreeDiskSpace, needFreeSpace)
+	atomicSetBool(&pt.bigMergeNeedFreeDiskSpace, needFreeSpace)
 	return pt.mergeParts(pws, pt.stopCh)
 }
 
@@ -1018,7 +1021,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	pws, needFreeSpace := getPartsToMerge(pt.smallParts, maxRows, isFinal)
 	pt.partsLock.Unlock()
 
-	atomicSetBool(&smallMergeNeedFreeDiskSpace, needFreeSpace)
+	atomicSetBool(&pt.smallMergeNeedFreeDiskSpace, needFreeSpace)
 	return pt.mergeParts(pws, pt.stopCh)
 }
 
@@ -1031,11 +1034,6 @@ func atomicSetBool(p *uint64, b bool) {
 	}
 	atomic.StoreUint64(p, v)
 }
-
-var (
-	smallMergeNeedFreeDiskSpace uint64
-	bigMergeNeedFreeDiskSpace   uint64
-)
 
 // mergeParts merges pws.
 //
