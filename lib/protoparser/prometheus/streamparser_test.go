@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -39,6 +40,7 @@ func TestParseStream(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatalf("timeout")
 		}
+		sortRows(result)
 		if !reflect.DeepEqual(result, rowsExpected) {
 			t.Fatalf("unexpected rows parsed; got\n%v\nwant\n%v", result, rowsExpected)
 		}
@@ -71,6 +73,7 @@ func TestParseStream(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatalf("timeout on compressed stream")
 		}
+		sortRows(result)
 		if !reflect.DeepEqual(result, rowsExpected) {
 			t.Fatalf("unexpected compressed rows parsed; got\n%v\nwant\n%v", result, rowsExpected)
 		}
@@ -83,6 +86,11 @@ func TestParseStream(t *testing.T) {
 	}})
 	f(`foo{bar="baz"} 1 2`+"\n"+`aaa{} 3 4`, []Row{
 		{
+			Metric:    "aaa",
+			Value:     3,
+			Timestamp: 4,
+		},
+		{
 			Metric: "foo",
 			Tags: []Tag{{
 				Key:   "bar",
@@ -91,17 +99,19 @@ func TestParseStream(t *testing.T) {
 			Value:     1,
 			Timestamp: 2,
 		},
-		{
-			Metric:    "aaa",
-			Value:     3,
-			Timestamp: 4,
-		},
 	})
 	f("foo 23", []Row{{
 		Metric:    "foo",
 		Value:     23,
 		Timestamp: defaultTimestamp,
 	}})
+}
+
+func sortRows(rows []Row) {
+	sort.Slice(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
+		return a.Metric < b.Metric
+	})
 }
 
 func appendRowCopies(dst, src []Row) []Row {
