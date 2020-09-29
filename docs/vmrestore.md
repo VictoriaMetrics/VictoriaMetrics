@@ -46,7 +46,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 
     for gce cloud storage:
     ```json
-     {
+    {
            "type": "service_account",
            "project_id": "project-id",
            "private_key_id": "key-id",
@@ -57,7 +57,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
            "token_uri": "https://accounts.google.com/o/oauth2/token",
            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
-         }
+    }
     ```
 
 * Usage with s3 custom url endpoint.  It is possible to use `vmrestore` with s3 api compatible storages, like  minio, cloudian and other.
