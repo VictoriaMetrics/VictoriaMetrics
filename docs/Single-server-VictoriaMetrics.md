@@ -1175,6 +1175,7 @@ VictoriaMetrics also exposes currently running queries with their execution time
   has at least 20% of free space comparing to disk size. The remaining amount of free space
   can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
   stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
+  See also `vm_merge_need_free_disk_space` metrics, which are set to 1 if background merge cannot be initiated due to free disk space shortage.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. This will recover VictoriaMetrics at the cost
