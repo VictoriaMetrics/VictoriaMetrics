@@ -148,6 +148,9 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
 * `dns_sd_configs` - for scraping targets discovered from DNS records (SRV, A and AAAA).
   See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
+* `openstack_sd_configs` - for scrapping target in Openstack.
+  See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details.
+  `vmagent` supports only v3 version of openstack identity api.
 
 File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
