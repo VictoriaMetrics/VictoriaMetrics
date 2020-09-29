@@ -107,7 +107,7 @@ func getRandValues(rowsCount int) []int64 {
 
 func getRandTimestamps(rowsCount int) []int64 {
 	a := make([]int64, rowsCount)
-	ts := int64(rand.Intn(1e12))
+	ts := int64(rand.Intn(1e9))
 	for i := 0; i < rowsCount; i++ {
 		a[i] = ts
 		ts += int64(rand.Intn(1e5))
