@@ -104,9 +104,9 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		}
 		bb := quicktemplate.AcquireByteBuffer()
 		WriteFederate(bb, rs)
-		bw.Write(bb.B)
+		_, err := bw.Write(bb.B)
 		quicktemplate.ReleaseByteBuffer(bb)
-		return nil
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("error during data fetching: %w", err)
@@ -163,7 +163,7 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	trBuf := make([]byte, 0, 16)
 	trBuf = encoding.MarshalInt64(trBuf, start)
 	trBuf = encoding.MarshalInt64(trBuf, end)
-	bw.Write(trBuf)
+	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
 	isPartial, err := netstorage.ExportBlocks(at, sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
@@ -188,11 +188,11 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		tmpBuf.B = tmp
 		bbPool.Put(tmpBuf)
 
-		bw.Write(dst)
+		_, err := bw.Write(dst)
 
 		dstBuf.B = dst
 		bbPool.Put(dstBuf)
-		return nil
+		return err
 	})
 	if err == nil && isPartial && searchutils.GetDenyPartialResponse(r) {
 		err = fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
