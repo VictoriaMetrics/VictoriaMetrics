@@ -398,6 +398,14 @@ func registerStorageMetrics() {
 		return float64(idbm().AssistedMerges)
 	})
 
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/686
+	metrics.NewGauge(`vm_small_merge_need_free_disk_space`, func() float64 {
+		return float64(tm().SmallMergeNeedFreeDiskSpace)
+	})
+	metrics.NewGauge(`vm_big_merge_need_free_disk_space`, func() float64 {
+		return float64(tm().BigMergeNeedFreeDiskSpace)
+	})
+
 	metrics.NewGauge(`vm_pending_rows{type="storage"}`, func() float64 {
 		return float64(tm().PendingRows)
 	})
