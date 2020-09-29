@@ -96,9 +96,9 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		}
 		bb := quicktemplate.AcquireByteBuffer()
 		WriteFederate(bb, rs)
-		bw.Write(bb.B)
+		_, err := bw.Write(bb.B)
 		quicktemplate.ReleaseByteBuffer(bb)
-		return nil
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("error during data fetching: %w", err)
@@ -153,7 +153,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	trBuf := make([]byte, 0, 16)
 	trBuf = encoding.MarshalInt64(trBuf, start)
 	trBuf = encoding.MarshalInt64(trBuf, end)
-	bw.Write(trBuf)
+	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
 	err = netstorage.ExportBlocks(sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
@@ -178,11 +178,11 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		tmpBuf.B = tmp
 		bbPool.Put(tmpBuf)
 
-		bw.Write(dst)
+		_, err := bw.Write(dst)
 
 		dstBuf.B = dst
 		bbPool.Put(dstBuf)
-		return nil
+		return err
 	})
 	if err != nil {
 		return err
