@@ -15,7 +15,6 @@ func logAllFlags() {
 		lname := strings.ToLower(f.Name)
 		value := f.Value.String()
 		if flagutil.IsSecretFlag(lname) {
-			// Do not expose passwords and keys to prometheus.
 			value = "secret"
 		}
 		Infof("flag %q = %q", f.Name, value)

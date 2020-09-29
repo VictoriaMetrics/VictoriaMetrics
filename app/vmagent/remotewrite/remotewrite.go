@@ -45,6 +45,14 @@ var allRelabelConfigs atomic.Value
 // since it may lead to high memory usage due to big number of buffers.
 var maxQueues = runtime.GOMAXPROCS(-1) * 4
 
+// InitSecretFlags must be called after flag.Parse and before any logging.
+func InitSecretFlags() {
+	if !*showRemoteWriteURL {
+		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
+		flagutil.RegisterSecretFlag("remoteWrite.url")
+	}
+}
+
 // Init initializes remotewrite.
 //
 // It must be called after flag.Parse().
@@ -59,10 +67,6 @@ func Init() {
 	}
 	if *queues <= 0 {
 		*queues = 1
-	}
-	if !*showRemoteWriteURL {
-		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
-		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
 	initLabelsGlobal()
 	rcs, err := loadRelabelConfigs()
