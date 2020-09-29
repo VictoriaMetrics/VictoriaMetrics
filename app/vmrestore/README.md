@@ -9,7 +9,7 @@ when restarting `vmrestore` with the same args.
 
 ### Usage
 
-VictoriaMetrics must be stopped during restore process.
+VictoriaMetrics must be stopped during the restore process.
 
 ```
 vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore>
@@ -17,9 +17,9 @@ vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/r
 ```
 
 * `<bucket>` is [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets) name.
-* `<path/to/backup>` is the path to back up made with [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md) on GCS bucket.
+* `<path/to/backup>` is the path to backup made with [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md) on GCS bucket.
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed
-  to VictoriaMetrics in `-storageDataPath` command-line flag after restore process is complete.
+  to VictoriaMetrics in `-storageDataPath` command-line flag after the restore process is complete.
 
 The original `-storageDataPath` directory may contain old files. They will be substituted by the files from backup,
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
@@ -28,7 +28,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 ### Troubleshooting
 
 * If `vmrestore` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
-* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume restore process.
+* If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 
 ### Advanced usage

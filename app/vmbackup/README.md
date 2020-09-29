@@ -9,7 +9,7 @@ Supported storage systems for backups:
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/docs/mimic/radosgw/s3/) or [Swift](https://www.swiftstack.com/docs/admin/middleware/s3_middleware.html). See `-customS3Endpoint` command-line flag.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`
 
-Incremental backups and full backups supported. Incremental backups created automatically if the destination path already contains data from the previous backup.
+`vmbackup` supports incremental and full backups. Incremental backups created automatically if the destination path already contains data from the previous backup.
 Full backups can be sped up with `-origin` pointing to already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
@@ -100,7 +100,7 @@ The backup algorithm is the following:
 2. Determine files in `-dst`, which are missing in `-snapshotName`, and delete them. These are usually small files, which are already merged into bigger files in the snapshot.
 3. Determine files from `-snapshotName`, which are missing in `-dst`. These are usually small new files and bigger merged files.
 4. Determine files from step 3, which exist in the `-origin`, and perform server-side copy of these files from `-origin` to `-dst`.
-   It is usually the biggest, and the oldest files, which are shared between backups.
+   These are usually the biggest and the oldest files, which are shared between backups.
 5. Upload the remaining files from step 3 from `-snapshotName` to `-dst`.
 
 The algorithm splits source files into 100 MB chunks in the backup. Each chunk stored as a separate file in the backup.
@@ -115,12 +115,12 @@ Such splitting minimizes the amounts of data to re-transfer after temporary erro
 
 These properties allow performing fast and cheap incremental backups and server-side copying from `-origin` paths.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
-`vmbackup` can work improperly or slowly when these properties violated.
+`vmbackup` can work improperly or slowly when these properties are violated.
 
 
 ### Troubleshooting
 
-* If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to back up storage.
+* If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
 * Backups created from [single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md) cannot be restored
@@ -243,7 +243,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 Run `make package-vmbackup`. It builds `victoriametrics/vmbackup:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
-The `<PKG_TAG>` maybe manually set via `PKG_TAG=foobar make package-vmbackup`.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
 
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
