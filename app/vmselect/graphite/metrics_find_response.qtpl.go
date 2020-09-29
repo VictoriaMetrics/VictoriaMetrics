@@ -170,48 +170,54 @@ func streammetricsFindResponseTreeJSON(qw422016 *qt422016.Writer, paths []string
 //line app/vmselect/graphite/metrics_find_response.qtpl:46
 		qw422016.N().S(`{`)
 //line app/vmselect/graphite/metrics_find_response.qtpl:49
+		id := path
 		allowChildren := "0"
 		isLeaf := "1"
-		if strings.HasSuffix(path, delimiter) {
+		if strings.HasSuffix(id, delimiter) {
+			if strings.HasSuffix(id[:len(id)-1], delimiter) {
+				// Special case when id ends with double delimiter.
+				// See deduplicatePaths() code for details.
+				id = id[:len(id)-2]
+			}
 			allowChildren = "1"
 			isLeaf = "0"
 		}
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:55
+//line app/vmselect/graphite/metrics_find_response.qtpl:61
 		qw422016.N().S(`"id":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:56
-		qw422016.N().Q(path)
-//line app/vmselect/graphite/metrics_find_response.qtpl:56
+//line app/vmselect/graphite/metrics_find_response.qtpl:62
+		qw422016.N().Q(id)
+//line app/vmselect/graphite/metrics_find_response.qtpl:62
 		qw422016.N().S(`,"text":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:57
-		streammetricPathName(qw422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:57
-		qw422016.N().S(`,"allowChildren":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:58
-		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:58
-		qw422016.N().S(`,"expandable":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:59
-		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:59
-		qw422016.N().S(`,"leaf":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:60
-		qw422016.N().S(isLeaf)
-//line app/vmselect/graphite/metrics_find_response.qtpl:60
-		qw422016.N().S(`}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:62
-		if i+1 < len(paths) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:62
-			qw422016.N().S(`,`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:62
-		}
 //line app/vmselect/graphite/metrics_find_response.qtpl:63
+		streammetricPathName(qw422016, path, delimiter)
+//line app/vmselect/graphite/metrics_find_response.qtpl:63
+		qw422016.N().S(`,"allowChildren":`)
+//line app/vmselect/graphite/metrics_find_response.qtpl:64
+		qw422016.N().S(allowChildren)
+//line app/vmselect/graphite/metrics_find_response.qtpl:64
+		qw422016.N().S(`,"expandable":`)
+//line app/vmselect/graphite/metrics_find_response.qtpl:65
+		qw422016.N().S(allowChildren)
+//line app/vmselect/graphite/metrics_find_response.qtpl:65
+		qw422016.N().S(`,"leaf":`)
+//line app/vmselect/graphite/metrics_find_response.qtpl:66
+		qw422016.N().S(isLeaf)
+//line app/vmselect/graphite/metrics_find_response.qtpl:66
+		qw422016.N().S(`}`)
+//line app/vmselect/graphite/metrics_find_response.qtpl:68
+		if i+1 < len(paths) {
+//line app/vmselect/graphite/metrics_find_response.qtpl:68
+			qw422016.N().S(`,`)
+//line app/vmselect/graphite/metrics_find_response.qtpl:68
+		}
+//line app/vmselect/graphite/metrics_find_response.qtpl:69
 	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:64
+//line app/vmselect/graphite/metrics_find_response.qtpl:70
 	if addWildcards && len(paths) > 1 {
-//line app/vmselect/graphite/metrics_find_response.qtpl:64
+//line app/vmselect/graphite/metrics_find_response.qtpl:70
 		qw422016.N().S(`,{`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:67
+//line app/vmselect/graphite/metrics_find_response.qtpl:73
 		path := paths[0]
 		for strings.HasSuffix(path, delimiter) {
 			path = path[:len(path)-1]
@@ -232,60 +238,60 @@ func streammetricsFindResponseTreeJSON(qw422016 *qt422016.Writer, paths []string
 			}
 		}
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:86
+//line app/vmselect/graphite/metrics_find_response.qtpl:92
 		qw422016.N().S(`"id":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:87
+//line app/vmselect/graphite/metrics_find_response.qtpl:93
 		qw422016.N().Q(id)
-//line app/vmselect/graphite/metrics_find_response.qtpl:87
+//line app/vmselect/graphite/metrics_find_response.qtpl:93
 		qw422016.N().S(`,"text": "*","allowChildren":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:89
+//line app/vmselect/graphite/metrics_find_response.qtpl:95
 		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:89
+//line app/vmselect/graphite/metrics_find_response.qtpl:95
 		qw422016.N().S(`,"expandable":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:90
+//line app/vmselect/graphite/metrics_find_response.qtpl:96
 		qw422016.N().S(allowChildren)
-//line app/vmselect/graphite/metrics_find_response.qtpl:90
+//line app/vmselect/graphite/metrics_find_response.qtpl:96
 		qw422016.N().S(`,"leaf":`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:91
-		qw422016.N().S(isLeaf)
-//line app/vmselect/graphite/metrics_find_response.qtpl:91
-		qw422016.N().S(`}`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:93
-	}
-//line app/vmselect/graphite/metrics_find_response.qtpl:93
-	qw422016.N().S(`]`)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-func writemetricsFindResponseTreeJSON(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	streammetricsFindResponseTreeJSON(qw422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-}
-
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) string {
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	writemetricsFindResponseTreeJSON(qb422016, paths, delimiter, addWildcards)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	qs422016 := string(qb422016.B)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-	return qs422016
-//line app/vmselect/graphite/metrics_find_response.qtpl:95
-}
-
 //line app/vmselect/graphite/metrics_find_response.qtpl:97
-func streammetricPathName(qw422016 *qt422016.Writer, path, delimiter string) {
+		qw422016.N().S(isLeaf)
+//line app/vmselect/graphite/metrics_find_response.qtpl:97
+		qw422016.N().S(`}`)
 //line app/vmselect/graphite/metrics_find_response.qtpl:99
+	}
+//line app/vmselect/graphite/metrics_find_response.qtpl:99
+	qw422016.N().S(`]`)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+}
+
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+func writemetricsFindResponseTreeJSON(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	streammetricsFindResponseTreeJSON(qw422016, paths, delimiter, addWildcards)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+}
+
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) string {
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	writemetricsFindResponseTreeJSON(qb422016, paths, delimiter, addWildcards)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	qs422016 := string(qb422016.B)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+	return qs422016
+//line app/vmselect/graphite/metrics_find_response.qtpl:101
+}
+
+//line app/vmselect/graphite/metrics_find_response.qtpl:103
+func streammetricPathName(qw422016 *qt422016.Writer, path, delimiter string) {
+//line app/vmselect/graphite/metrics_find_response.qtpl:105
 	name := path
 	for strings.HasSuffix(name, delimiter) {
 		name = name[:len(name)-1]
@@ -294,33 +300,33 @@ func streammetricPathName(qw422016 *qt422016.Writer, path, delimiter string) {
 		name = name[n+1:]
 	}
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:107
+//line app/vmselect/graphite/metrics_find_response.qtpl:113
 	qw422016.N().Q(name)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 func writemetricPathName(qq422016 qtio422016.Writer, path, delimiter string) {
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	streammetricPathName(qw422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 }
 
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 func metricPathName(path, delimiter string) string {
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	writemetricPathName(qb422016, path, delimiter)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	qs422016 := string(qb422016.B)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 	return qs422016
-//line app/vmselect/graphite/metrics_find_response.qtpl:108
+//line app/vmselect/graphite/metrics_find_response.qtpl:114
 }
