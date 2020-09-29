@@ -1047,22 +1047,6 @@ func ExportBlocks(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 	return isPartialResult, nil
 }
 
-type exportWork struct {
-	mn storage.MetricName
-	b  storage.Block
-}
-
-func (xw *exportWork) reset() {
-	xw.mn.Reset()
-	xw.b.Reset()
-}
-
-var exportWorkPool = &sync.Pool{
-	New: func() interface{} {
-		return &exportWork{}
-	},
-}
-
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
