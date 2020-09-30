@@ -166,8 +166,10 @@ The shortlist of configuration flags is the following:
     	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
     	Optional basic auth username for -datasource.url
- -datasource.lookback duration
+  -datasource.lookback duration
         Lookback defines how far to look into past when evaluating queries. For example, if datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+  -datasource.maxIdleConnections int
+        Defines the number of idle (keep-alive connections) to configured datasource.Consider to set this value equal to the value: groups_total * group.concurrency. Too low value may result into high number of sockets in TIME_WAIT state. (default 100)
   -datasource.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used
   -datasource.tlsCertFile string
