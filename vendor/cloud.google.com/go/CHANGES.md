@@ -1,5 +1,24 @@
 # Changes
 
+## [0.67.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.66.0...v0.67.0) (2020-09-29)
+
+
+### Features
+
+* **all:** auto-regenerate gapics , refs [#2933](https://www.github.com/googleapis/google-cloud-go/issues/2933) [#2919](https://www.github.com/googleapis/google-cloud-go/issues/2919) [#2913](https://www.github.com/googleapis/google-cloud-go/issues/2913) [#2910](https://www.github.com/googleapis/google-cloud-go/issues/2910) [#2899](https://www.github.com/googleapis/google-cloud-go/issues/2899) [#2897](https://www.github.com/googleapis/google-cloud-go/issues/2897) [#2886](https://www.github.com/googleapis/google-cloud-go/issues/2886) [#2877](https://www.github.com/googleapis/google-cloud-go/issues/2877) [#2869](https://www.github.com/googleapis/google-cloud-go/issues/2869) [#2864](https://www.github.com/googleapis/google-cloud-go/issues/2864)
+* **assuredworkloads:** start generating apiv1beta1 ([#2866](https://www.github.com/googleapis/google-cloud-go/issues/2866)) ([7598c4d](https://www.github.com/googleapis/google-cloud-go/commit/7598c4dd2462e8270a2c7b1f496af58ca81ff568))
+* **dialogflow/cx:** start generating apiv3beta1 ([#2875](https://www.github.com/googleapis/google-cloud-go/issues/2875)) ([37ca93a](https://www.github.com/googleapis/google-cloud-go/commit/37ca93ad69eda363d956f0174d444ed5914f5a72))
+* **docfx:** add support for examples ([#2884](https://www.github.com/googleapis/google-cloud-go/issues/2884)) ([0cc0de3](https://www.github.com/googleapis/google-cloud-go/commit/0cc0de300d58be6d3b7eeb2f1baebfa6df076830))
+* **godocfx:** include README in output ([#2927](https://www.github.com/googleapis/google-cloud-go/issues/2927)) ([f084690](https://www.github.com/googleapis/google-cloud-go/commit/f084690a2ea08ce73bafaaced95ad271fd01e11e))
+* **talent:** start generating apiv4 ([#2871](https://www.github.com/googleapis/google-cloud-go/issues/2871)) ([5c98071](https://www.github.com/googleapis/google-cloud-go/commit/5c98071b03822c58862d1fa5442ff36d627f1a61))
+
+
+### Bug Fixes
+
+* **godocfx:** filter out other modules, sort pkgs ([#2894](https://www.github.com/googleapis/google-cloud-go/issues/2894)) ([868db45](https://www.github.com/googleapis/google-cloud-go/commit/868db45e2e6f4e9ad48432be86c849f335e1083d))
+* **godocfx:** shorten function names ([#2880](https://www.github.com/googleapis/google-cloud-go/issues/2880)) ([48a0217](https://www.github.com/googleapis/google-cloud-go/commit/48a0217930750c1f4327f2622b0f2a3ec8afc0b7))
+* **translate:** properly name examples ([#2892](https://www.github.com/googleapis/google-cloud-go/issues/2892)) ([c19e141](https://www.github.com/googleapis/google-cloud-go/commit/c19e1415e6fa76b7ea66a7fc67ad3ba22670a2ba)), refs [#2883](https://www.github.com/googleapis/google-cloud-go/issues/2883)
+
 ## [0.66.0](https://www.github.com/googleapis/google-cloud-go/compare/v0.65.0...v0.66.0) (2020-09-15)
 
 
