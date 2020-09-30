@@ -1,6 +1,8 @@
 # tip
 
 
+# [v1.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
+
 * FEATURE: use all the available CPU cores when accepting data via a single TCP connection
   for [all the supported protocols](https://victoriametrics.github.io/#how-to-import-time-series-data).
   Previously data ingested via a single TCP connection could use only a single CPU core. This could limit data ingestion performance.
@@ -29,6 +31,6 @@
   In this case only the node must be returned with stripped dot in the end of id as carbonapi does.
 
 
-# Previous versions
+# Previous releases
 
 See [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
