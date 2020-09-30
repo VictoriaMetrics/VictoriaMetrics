@@ -254,7 +254,7 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 	ts.Init(tb, tsids, tr)
 	for ts.NextBlock() {
 		var b Block
-		ts.BlockRef.MustReadBlock(&b)
+		ts.BlockRef.MustReadBlock(&b, true)
 		bs = append(bs, b)
 	}
 	if err := ts.Error(); err != nil {

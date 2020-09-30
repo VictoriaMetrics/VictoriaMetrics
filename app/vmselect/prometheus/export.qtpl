@@ -1,30 +1,29 @@
 {% import (
 	"github.com/valyala/quicktemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
 
 {% stripspace %}
 
-{% func ExportPrometheusLine(rs *netstorage.Result) %}
-	{% if len(rs.Timestamps) == 0 %}{% return %}{% endif %}
+{% func ExportPrometheusLine(xb *exportBlock) %}
+	{% if len(xb.timestamps) == 0 %}{% return %}{% endif %}
 	{% code bb := quicktemplate.AcquireByteBuffer() %}
-	{% code writeprometheusMetricName(bb, &rs.MetricName) %}
-	{% for i, ts := range rs.Timestamps %}
+	{% code writeprometheusMetricName(bb, xb.mn) %}
+	{% for i, ts := range xb.timestamps %}
 		{%z= bb.B %}{% space %}
-		{%f= rs.Values[i] %}{% space %}
+		{%f= xb.values[i] %}{% space %}
 		{%dl= ts %}{% newline %}
 	{% endfor %}
 	{% code quicktemplate.ReleaseByteBuffer(bb) %}
 {% endfunc %}
 
-{% func ExportJSONLine(rs *netstorage.Result) %}
-	{% if len(rs.Timestamps) == 0 %}{% return %}{% endif %}
+{% func ExportJSONLine(xb *exportBlock) %}
+	{% if len(xb.timestamps) == 0 %}{% return %}{% endif %}
 	{
-		"metric":{%= metricNameObject(&rs.MetricName) %},
+		"metric":{%= metricNameObject(xb.mn) %},
 		"values":[
-			{% if len(rs.Values) > 0 %}
-				{% code values := rs.Values %}
+			{% if len(xb.values) > 0 %}
+				{% code values := xb.values %}
 				{%f= values[0] %}
 				{% code values = values[1:] %}
 				{% for _, v := range values %}
@@ -33,8 +32,8 @@
 			{% endif %}
 		],
 		"timestamps":[
-			{% if len(rs.Timestamps) > 0 %}
-				{% code timestamps := rs.Timestamps %}
+			{% if len(xb.timestamps) > 0 %}
+				{% code timestamps := xb.timestamps %}
 				{%dl= timestamps[0] %}
 				{% code timestamps = timestamps[1:] %}
 				{% for _, ts := range timestamps %}
@@ -45,10 +44,10 @@
 	}{% newline %}
 {% endfunc %}
 
-{% func ExportPromAPILine(rs *netstorage.Result) %}
+{% func ExportPromAPILine(xb *exportBlock) %}
 {
-	"metric": {%= metricNameObject(&rs.MetricName) %},
-	"values": {%= valuesWithTimestamps(rs.Values, rs.Timestamps) %}
+	"metric": {%= metricNameObject(xb.mn) %},
+	"values": {%= valuesWithTimestamps(xb.values, xb.timestamps) %}
 }
 {% endfunc %}
 

@@ -65,9 +65,7 @@ func getOnlineCPUCount() float64 {
 	if n <= 0 {
 		return -1
 	}
-	// Add a half of CPU core, since it looks like actual cores is usually bigger than online cores.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
-	return n + 0.5
+	return n
 }
 
 func countCPUs(data string) int {

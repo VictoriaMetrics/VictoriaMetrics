@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -78,28 +79,38 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
-	paths = deduplicatePaths(paths)
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
 	}
+	paths = deduplicatePaths(paths, delimiter)
 	sortPaths(paths, delimiter)
 	contentType := "application/json"
 	if jsonp != "" {
 		contentType = "text/javascript"
 	}
 	w.Header().Set("Content-Type", contentType)
-	WriteMetricsFindResponse(w, paths, delimiter, format, wildcards, jsonp)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetricsFindResponse(bw, paths, delimiter, format, wildcards, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	metricsFindDuration.UpdateDuration(startTime)
 	return nil
 }
 
-func deduplicatePaths(paths []string) []string {
-	m := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		m[path] = struct{}{}
+func deduplicatePaths(paths []string, delimiter string) []string {
+	if len(paths) == 0 {
+		return nil
 	}
-	dst := make([]string, 0, len(m))
-	for path := range m {
+	sort.Strings(paths)
+	dst := paths[:1]
+	for _, path := range paths[1:] {
+		prevPath := dst[len(dst)-1]
+		if path == prevPath {
+			// Skip duplicate path.
+			continue
+		}
 		dst = append(dst, path)
 	}
 	return dst
@@ -181,7 +192,12 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 		}
 	}
 	sortPaths(paths, delimiter)
-	WriteMetricsExpandResponseFlat(w, paths, jsonp)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetricsExpandResponseFlat(bw, paths, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	metricsExpandDuration.UpdateDuration(startTime)
 	return nil
 }
@@ -204,7 +220,12 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		contentType = "text/javascript"
 	}
 	w.Header().Set("Content-Type", contentType)
-	WriteMetricsIndexResponse(w, metricNames, jsonp)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetricsIndexResponse(bw, metricNames, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
 	metricsIndexDuration.UpdateDuration(startTime)
 	return nil
 }

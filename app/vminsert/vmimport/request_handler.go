@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
@@ -68,7 +69,9 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		values := r.Values
 		timestamps := r.Timestamps
-		_ = timestamps[len(values)-1]
+		if len(timestamps) != len(values) {
+			logger.Panicf("BUG: len(timestamps)=%d must match len(values)=%d", len(timestamps), len(values))
+		}
 		for j, value := range values {
 			timestamp := timestamps[j]
 			if err := ic.WriteDataPoint(ctx.metricNameBuf, nil, timestamp, value); err != nil {

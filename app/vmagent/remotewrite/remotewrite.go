@@ -45,6 +45,14 @@ var allRelabelConfigs atomic.Value
 // since it may lead to high memory usage due to big number of buffers.
 var maxQueues = runtime.GOMAXPROCS(-1) * 4
 
+// InitSecretFlags must be called after flag.Parse and before any logging.
+func InitSecretFlags() {
+	if !*showRemoteWriteURL {
+		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
+		flagutil.RegisterSecretFlag("remoteWrite.url")
+	}
+}
+
 // Init initializes remotewrite.
 //
 // It must be called after flag.Parse().
@@ -59,10 +67,6 @@ func Init() {
 	}
 	if *queues <= 0 {
 		*queues = 1
-	}
-	if !*showRemoteWriteURL {
-		// remoteWrite.url can contain authentication codes, so hide it at `/metrics` output.
-		flagutil.RegisterSecretFlag("remoteWrite.url")
 	}
 	initLabelsGlobal()
 	rcs, err := loadRelabelConfigs()
@@ -153,10 +157,19 @@ func Push(wr *prompbmarshal.WriteRequest) {
 	tss := wr.Timeseries
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
+		samplesCount := 0
+		i := 0
+		for i < len(tss) {
+			samplesCount += len(tss[i].Samples)
+			i++
+			if samplesCount > maxRowsPerBlock {
+				break
+			}
+		}
 		tssBlock := tss
-		if len(tssBlock) > maxRowsPerBlock {
-			tssBlock = tss[:maxRowsPerBlock]
-			tss = tss[maxRowsPerBlock:]
+		if i < len(tss) {
+			tssBlock = tss[:i]
+			tss = tss[i:]
 		} else {
 			tss = nil
 		}

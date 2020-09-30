@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/prometheusimport"
@@ -28,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -59,6 +61,7 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	remotewrite.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
@@ -80,6 +83,7 @@ func main() {
 	logger.Infof("starting vmagent at %q...", *httpListenAddr)
 	startTime := time.Now()
 	remotewrite.Init()
+	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
@@ -127,6 +131,7 @@ func main() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer.MustStop()
 	}
+	common.StopUnmarshalWorkers()
 	remotewrite.Stop()
 
 	logger.Infof("successfully stopped vmagent in %.3f seconds", time.Since(startTime).Seconds())
@@ -166,6 +171,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(r); err != nil {
 			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "/api/v1/import/native":
+		nativeimportRequests.Inc()
+		if err := native.InsertHandler(r); err != nil {
+			nativeimportErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
@@ -212,6 +226,9 @@ var (
 
 	prometheusimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
 	prometheusimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
+
+	nativeimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
+	nativeimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 
 	influxWriteRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/write", protocol="influx"}`)
 	influxWriteErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/write", protocol="influx"}`)

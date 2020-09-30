@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
@@ -24,6 +25,7 @@ import (
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -51,7 +53,7 @@ var (
 func Init() {
 	relabel.Init()
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
-
+	common.StartUnmarshalWorkers()
 	writeconcurrencylimiter.Init()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
@@ -83,6 +85,7 @@ func Stop() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer.MustStop()
 	}
+	common.StopUnmarshalWorkers()
 }
 
 // RequestHandler is a handler for Prometheus remote storage write API
@@ -120,6 +123,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(r); err != nil {
 			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "/api/v1/import/native":
+		nativeimportRequests.Inc()
+		if err := native.InsertHandler(r); err != nil {
+			nativeimportErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
@@ -168,6 +180,9 @@ var (
 
 	prometheusimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
 	prometheusimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
+
+	nativeimportRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
+	nativeimportErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 
 	influxWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/write", protocol="influx"}`)
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/write", protocol="influx"}`)

@@ -8,12 +8,12 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -78,10 +78,11 @@ func (rss *Results) mustClose() {
 var timeseriesWorkCh = make(chan *timeseriesWork, gomaxprocs*16)
 
 type timeseriesWork struct {
-	rss    *Results
-	pts    *packedTimeseries
-	f      func(rs *Result, workerID uint)
-	doneCh chan error
+	mustStop uint64
+	rss      *Results
+	pts      *packedTimeseries
+	f        func(rs *Result, workerID uint) error
+	doneCh   chan error
 
 	rowsProcessed int
 }
@@ -101,12 +102,19 @@ func timeseriesWorker(workerID uint) {
 			tsw.doneCh <- fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 			continue
 		}
+		if atomic.LoadUint64(&tsw.mustStop) != 0 {
+			tsw.doneCh <- nil
+			continue
+		}
 		if err := tsw.pts.Unpack(&rs, rss.tr, rss.fetchData); err != nil {
 			tsw.doneCh <- fmt.Errorf("error during time series unpacking: %w", err)
 			continue
 		}
 		if len(rs.Timestamps) > 0 || !rss.fetchData {
-			tsw.f(&rs, workerID)
+			if err := tsw.f(&rs, workerID); err != nil {
+				tsw.doneCh <- err
+				continue
+			}
 		}
 		tsw.rowsProcessed = len(rs.Values)
 		tsw.doneCh <- nil
@@ -123,9 +131,10 @@ func timeseriesWorker(workerID uint) {
 //
 // f shouldn't hold references to rs after returning.
 // workerID is the id of the worker goroutine that calls f.
+// Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
+func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 	defer rss.mustClose()
 
 	// Feed workers with work.
@@ -151,6 +160,10 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint)) error {
 			// Return just the first error, since other errors
 			// are likely duplicate the first error.
 			firstErr = err
+			// Notify all the the tsws that they shouldn't be executed.
+			for _, tsw := range tsws {
+				atomic.StoreUint64(&tsw.mustStop, 1)
+			}
 		}
 		rowsProcessedTotal += tsw.rowsProcessed
 	}
@@ -428,33 +441,13 @@ func (sb *sortBlock) reset() {
 
 func (sb *sortBlock) unpackFrom(tmpBlock *storage.Block, br storage.BlockRef, tr storage.TimeRange) error {
 	tmpBlock.Reset()
-	br.MustReadBlock(tmpBlock)
+	br.MustReadBlock(tmpBlock, true)
 	if err := tmpBlock.UnmarshalData(); err != nil {
 		return fmt.Errorf("cannot unmarshal block: %w", err)
 	}
-	timestamps := tmpBlock.Timestamps()
-
-	// Skip timestamps smaller than tr.MinTimestamp.
-	i := 0
-	for i < len(timestamps) && timestamps[i] < tr.MinTimestamp {
-		i++
-	}
-
-	// Skip timestamps bigger than tr.MaxTimestamp.
-	j := len(timestamps)
-	for j > i && timestamps[j-1] > tr.MaxTimestamp {
-		j--
-	}
-	skippedRows := tmpBlock.RowsCount() - (j - i)
+	sb.Timestamps, sb.Values = tmpBlock.AppendRowsWithTimeRangeFilter(sb.Timestamps[:0], sb.Values[:0], tr)
+	skippedRows := tmpBlock.RowsCount() - len(sb.Timestamps)
 	metricRowsSkipped.Add(skippedRows)
-
-	// Copy the remaining values.
-	if i == j {
-		return nil
-	}
-	values := tmpBlock.Values()
-	sb.Timestamps = append(sb.Timestamps, timestamps[i:j]...)
-	sb.Values = decimal.AppendDecimalToFloat(sb.Values, values[i:j], tmpBlock.Scale())
 	return nil
 }
 
@@ -658,7 +651,116 @@ func putStorageSearch(sr *storage.Search) {
 
 var ssPool sync.Pool
 
-// ProcessSearchQuery performs sq on storage nodes until the given deadline.
+// ExportBlocks searches for time series matching sq and calls f for each found block.
+//
+// f is called in parallel from multiple goroutines.
+// Data processing is immediately stopped if f returns non-nil error.
+// It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
+// It is the responsibility of f to filter blocks according to the given tr.
+func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
+	if deadline.Exceeded() {
+		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
+	}
+	tfss, err := setupTfss(sq.TagFilterss)
+	if err != nil {
+		return err
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return err
+	}
+
+	vmstorage.WG.Add(1)
+	defer vmstorage.WG.Done()
+
+	sr := getStorageSearch()
+	defer putStorageSearch(sr)
+	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+
+	// Start workers that call f in parallel on available CPU cores.
+	gomaxprocs := runtime.GOMAXPROCS(-1)
+	workCh := make(chan *exportWork, gomaxprocs*8)
+	var (
+		errGlobal     error
+		errGlobalLock sync.Mutex
+		mustStop      uint32
+	)
+	var wg sync.WaitGroup
+	wg.Add(gomaxprocs)
+	for i := 0; i < gomaxprocs; i++ {
+		go func() {
+			defer wg.Done()
+			for xw := range workCh {
+				if err := f(&xw.mn, &xw.b, tr); err != nil {
+					errGlobalLock.Lock()
+					if errGlobal != nil {
+						errGlobal = err
+						atomic.StoreUint32(&mustStop, 1)
+					}
+					errGlobalLock.Unlock()
+				}
+				xw.reset()
+				exportWorkPool.Put(xw)
+			}
+		}()
+	}
+
+	// Feed workers with work
+	blocksRead := 0
+	for sr.NextMetricBlock() {
+		blocksRead++
+		if deadline.Exceeded() {
+			return fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
+		}
+		if atomic.LoadUint32(&mustStop) != 0 {
+			break
+		}
+		xw := exportWorkPool.Get().(*exportWork)
+		if err := xw.mn.Unmarshal(sr.MetricBlockRef.MetricName); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName for block #%d: %w", blocksRead, err)
+		}
+		sr.MetricBlockRef.BlockRef.MustReadBlock(&xw.b, true)
+		workCh <- xw
+	}
+	close(workCh)
+
+	// Wait for workers to finish.
+	wg.Wait()
+
+	// Check errors.
+	err = sr.Error()
+	if err == nil {
+		err = errGlobal
+	}
+	if err != nil {
+		if errors.Is(err, storage.ErrDeadlineExceeded) {
+			return fmt.Errorf("timeout exceeded during the query: %s", deadline.String())
+		}
+		return fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
+	}
+	return nil
+}
+
+type exportWork struct {
+	mn storage.MetricName
+	b  storage.Block
+}
+
+func (xw *exportWork) reset() {
+	xw.mn.Reset()
+	xw.b.Reset()
+}
+
+var exportWorkPool = &sync.Pool{
+	New: func() interface{} {
+		return &exportWork{}
+	},
+}
+
+// ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, error) {

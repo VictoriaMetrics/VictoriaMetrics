@@ -77,7 +77,8 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
     if `-graphiteListenAddr` is set.
   * [OpenTSDB put message](#sending-data-via-telnet-put-protocol) if `-opentsdbListenAddr` is set.
   * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests) if `-opentsdbHTTPListenAddr` is set.
-  * [/api/v1/import](#how-to-import-time-series-data).
+  * [JSON line format](#how-to-import-data-in-json-line-format).
+  * [Native binary format](#how-to-import-data-in-native-format).
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
@@ -100,8 +101,6 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to send data from Graphite-compatible agents such as StatsD](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [Querying Graphite data](#querying-graphite-data)
 * [How to send data from OpenTSDB-compatible agents](#how-to-send-data-from-opentsdb-compatible-agents)
-* [How to import data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format)
-* [How to import CSV data](#how-to-import-csv-data)
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
   * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
 * [Graphite Metrics API usage](#graphite-metrics-api-usage)
@@ -117,7 +116,13 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to delete time series](#how-to-delete-time-series)
 * [Forced merge](#forced-merge)
 * [How to export time series](#how-to-export-time-series)
+  * [How to export data in native format](#how-to-export-data-in-native-format)
+  * [How to export data in JSON line format](#how-to-export-data-in-json-line-format)
 * [How to import time series data](#how-to-import-time-series-data)
+  * [How to import data in native format](#how-to-import-data-in-native-format)
+  * [How to import data in json line format](#how-to-import-data-in-json-line-format)
+  * [How to import CSV data](#how-to-import-csv-data)
+  * [How to import data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format)
 * [Relabeling](#relabeling)
 * [Federation](#federation)
 * [Capacity planning](#capacity-planning)
@@ -345,7 +350,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 ```
 
 An arbitrary number of lines delimited by '\n' (aka newline char) may be sent in a single request.
-After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
@@ -381,7 +386,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 
 VictoriaMetrics sets the current time if the timestamp is omitted.
 An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
@@ -425,7 +430,7 @@ echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 
 ```
 
 An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
-After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
@@ -460,7 +465,7 @@ Example for writing multiple data points in a single request:
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
-After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
+After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
@@ -473,91 +478,6 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"bar"},"values":[43],"timestamps":[1566464846000]}
 {"metric":{"__name__":"x.y.z","t1":"v1","t2":"v2"},"values":[45.34],"timestamps":[1566464763000]}
 ```
-
-
-### How to import CSV data
-
-Arbitrary CSV data can be imported via `/api/v1/import/csv`. The CSV data is imported according to the provided `format` query arg.
-The `format` query arg must contain comma-separated list of parsing rules for CSV fields. Each rule consists of three parts delimited by a colon:
-
-```
-<column_pos>:<type>:<context>
-```
-
-* `<column_pos>` is the position of the CSV column (field). Column numbering starts from 1. The order of parsing rules may be arbitrary.
-* `<type>` describes the column type. Supported types are:
-  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value, which must be integer or floating-point number.
-    The metric name is read from the `<context>`. CSV line must have at least a single metric field. Multiple metric fields per CSV line is OK.
-  * `label` - the corresponding CSV column at `<column_pos>` contains label value. The label name is read from the `<context>`.
-    CSV line may have arbitrary number of label fields. All these labels are attached to all the configured metrics.
-  * `time` - the corresponding CSV column at `<column_pos>` contains metric time. CSV line may contain either one or zero columns with time.
-    If CSV line has no time, then the current time is used. The time is applied to all the configured metrics.
-    The format of the time is configured via `<context>`. Supported time formats are:
-    * `unix_s` - unix timestamp in seconds.
-    * `unix_ms` - unix timestamp in milliseconds.
-    * `unix_ns` - unix timestamp in nanoseconds. Note that VictoriaMetrics rounds the timestamp to milliseconds.
-    * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
-    * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
-
-Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
-
-Example for importing CSV data via `/api/v1/import/csv`:
-
-```bash
-curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
-curl -d "MSFT,3.21,1.67,NASDAQ" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
-```
-
-After that the data may be read via [/api/v1/export](#how-to-export-time-series) endpoint:
-
-```bash
-curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
-```
-
-The following response should be returned:
-```bash
-{"metric":{"__name__":"bid","market":"NASDAQ","ticker":"MSFT"},"values":[1.67],"timestamps":[1583865146520]}
-{"metric":{"__name__":"bid","market":"NYSE","ticker":"GOOG"},"values":[4.56],"timestamps":[1583865146495]}
-{"metric":{"__name__":"ask","market":"NASDAQ","ticker":"MSFT"},"values":[3.21],"timestamps":[1583865146520]}
-{"metric":{"__name__":"ask","market":"NYSE","ticker":"GOOG"},"values":[1.23],"timestamps":[1583865146495]}
-```
-
-Extra labels may be added to all the imported lines by passing `extra_label=name=value` query args.
-For example, `/api/v1/import/csv?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported lines.
-
-Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
-
-
-### How to import data in Prometheus exposition format
-
-VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-via `/api/v1/import/prometheus` path. For example, the following line imports a single line in Prometheus exposition format into VictoriaMetrics:
-
-```bash
-curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
-```
-
-The following command may be used for verifying the imported data:
-
-```bash
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
-```
-
-It should return something like the following:
-
-```
-{"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
-```
-
-Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
-For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
-
-If timestamp is missing in `<metric> <value> <timestamp>` Prometheus exposition format line, then the current timestamp is used during data ingestion.
-It can be overriden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
-
-VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
-
-VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
 
 ### Prometheus querying API usage
@@ -660,8 +580,8 @@ Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
-By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image for improved debuggability.
-It is possible to build the package on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
@@ -741,13 +661,13 @@ It is better using `-retentionPeriod` command-line flag for efficient pruning of
 
 ### Forced merge
 
-VictoriaMetrics performs [data compations in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+VictoriaMetrics performs [data compactions in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
 This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
 Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
 In this case forced compaction may be initiated on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
 where `YYYY_MM` is per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate forced
-merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merges continues running in background.
+merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
 
 Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
 since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
@@ -756,11 +676,35 @@ when new data is ingested into it.
 
 ### How to export time series
 
-Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
+VictoriaMetrics provides the following handlers for exporting data:
+
+* `/api/v1/export/native` for exporting data in native binary format. This is the most efficient format for data export.
+  See [these docs](#how-to-export-data-in-native-format) for details.
+* `/api/v1/export` for exporing data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
+
+
+#### How to export data in native format
+
+Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=<timeseries_selector_for_export>`,
+where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
+for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
+
+Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
+unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+
+The exported data can be imported to VictoriaMetrics via [/api/v1/import/native](#how-to-import-data-in-native-format).
+
+
+#### How to export data in JSON line format
+
+Consider [exporting data in native format](#how-to-export-data-in-native-format) if big amounts of data must be migrated between VictoriaMetrics instances,
+since exporting in native format usually consumes lower amounts of CPU and memory resources, while the resulting exported data occupies lower amounts of disk space.
+
+In order to export data in JSON line format, send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
 The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
-Each JSON line would contain data for a single time series. An example output:
+Each JSON line contains samples for a single time series. An example output:
 
 ```jsonl
 {"metric":{"__name__":"up","job":"node_exporter","instance":"localhost:9100"},"values":[0,0,0],"timestamps":[1549891472010,1549891487724,1549891503438]}
@@ -770,8 +714,9 @@ Each JSON line would contain data for a single time series. An example output:
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
 
-Optional `max_rows_per_line` arg may be added to the request in order to limit the maximum number of rows exported per each JSON line.
-By default each JSON line contains all the rows for a single time series.
+Optional `max_rows_per_line` arg may be added to the request for limiting the maximum number of rows exported per each JSON line.
+Optional `reduce_mem_usage=1` arg may be added to the request for reducing memory usage when exporting big number of time series.
+In this case the output may contain multiple lines with distinct samples for the same time series.
 
 Pass `Accept-Encoding: gzip` HTTP header in the request to `/api/v1/export` in order to reduce network bandwidth during exporing big amounts
 of time series data. This enables gzip compression for the exported data. Example for exporting gzipped data:
@@ -782,22 +727,58 @@ curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]=
 
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
-Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-time-series-data).
+Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
+
 
 ### How to import time series data
 
 Time series data can be imported via any supported ingestion protocol:
 
-* [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
-* [Influx line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
-* [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
-* [OpenTSDB telnet put protocol](#sending-data-via-telnet-put-protocol)
-* [OpenTSDB http /api/put](#sending-opentsdb-data-via-http-apiput-requests)
-* `/api/v1/import` http POST handler, which accepts data from [/api/v1/export](#how-to-export-time-series).
-* `/api/v1/import/csv` http POST handler, which accepts CSV data. See [these docs](#how-to-import-csv-data) for details.
-* `/api/v1/import/prometheus` http POST handler, which accepts data in Prometheus exposition format. See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
+* [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+* Influx line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
+* Graphite plaintext protocol. See[these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
+* OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
+* OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
+* `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
+  See [these docs](##how-to-import-data-in-json-line-format) for details.
+* `/api/v1/import/native` for importing data obtained from [/api/v1/export/native](#how-to-export-data-in-native-format).
+  See [these docs](#how-to-import-data-in-native-format) for details.
+* `/api/v1/import/csv` for importing arbitrary CSV data. See [these docs](#how-to-import-csv-data) for details.
+* `/api/v1/import/prometheus` for importing data in Prometheus exposition format. See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
-The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import`. Example for importing data obtained via `/api/v1/export`:
+
+#### How to import data in native format
+
+The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import/native`.
+Example for importing data obtained via [/api/v1/export/native](#how-to-export-data-in-native-format):
+
+```bash
+# Export the data from <source-victoriametrics>:
+curl http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin
+
+# Import the data to <destination-victoriametrics>:
+curl -X POST http://destination-victoriametrics:8428/api/v1/import/native -T exported_data.bin
+```
+
+Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/native` for importing gzipped data:
+
+```bash
+# Export gzipped data from <source-victoriametrics>:
+curl -H 'Accept-Encoding: gzip' http://source-victoriametrics:8428/api/v1/export/native -d 'match={__name__!=""}' > exported_data.bin.gz
+
+# Import gzipped data to <destination-victoriametrics>:
+curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428/api/v1/import/native -T exported_data.bin.gz
+```
+
+Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
+For example, `/api/v1/import/native?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported time series.
+
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
+
+
+#### How to import data in JSON line format
+
+Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 
 ```bash
 # Export the data from <source-victoriametrics>:
@@ -822,14 +803,108 @@ For example, `/api/v1/import?extra_label=foo=bar` would add `"foo":"bar"` label 
 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
-Each request to `/api/v1/import` can load up to a single vCPU core on VictoriaMetrics. Import speed can be improved by splitting the original file into smaller parts
-and importing them concurrently. Note that the original file must be split on newlines.
+
+#### How to import CSV data
+
+Arbitrary CSV data can be imported via `/api/v1/import/csv`. The CSV data is imported according to the provided `format` query arg.
+The `format` query arg must contain comma-separated list of parsing rules for CSV fields. Each rule consists of three parts delimited by a colon:
+
+```
+<column_pos>:<type>:<context>
+```
+
+* `<column_pos>` is the position of the CSV column (field). Column numbering starts from 1. The order of parsing rules may be arbitrary.
+* `<type>` describes the column type. Supported types are:
+  * `metric` - the corresponding CSV column at `<column_pos>` contains metric value, which must be integer or floating-point number.
+    The metric name is read from the `<context>`. CSV line must have at least a single metric field. Multiple metric fields per CSV line is OK.
+  * `label` - the corresponding CSV column at `<column_pos>` contains label value. The label name is read from the `<context>`.
+    CSV line may have arbitrary number of label fields. All these labels are attached to all the configured metrics.
+  * `time` - the corresponding CSV column at `<column_pos>` contains metric time. CSV line may contain either one or zero columns with time.
+    If CSV line has no time, then the current time is used. The time is applied to all the configured metrics.
+    The format of the time is configured via `<context>`. Supported time formats are:
+    * `unix_s` - unix timestamp in seconds.
+    * `unix_ms` - unix timestamp in milliseconds.
+    * `unix_ns` - unix timestamp in nanoseconds. Note that VictoriaMetrics rounds the timestamp to milliseconds.
+    * `rfc3339` - timestamp in [RFC3339](https://tools.ietf.org/html/rfc3339) format, i.e. `2006-01-02T15:04:05Z`.
+    * `custom:<layout>` - custom layout for the timestamp. The `<layout>` may contain arbitrary time layout according to [time.Parse rules in Go](https://golang.org/pkg/time/#Parse).
+
+Each request to `/api/v1/import/csv` may contain arbitrary number of CSV lines.
+
+Example for importing CSV data via `/api/v1/import/csv`:
+
+```bash
+curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+curl -d "MSFT,3.21,1.67,NASDAQ" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+```
+
+After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
+
+```bash
+curl -G 'http://localhost:8428/api/v1/export' -d 'match[]={ticker!=""}'
+```
+
+The following response should be returned:
+```bash
+{"metric":{"__name__":"bid","market":"NASDAQ","ticker":"MSFT"},"values":[1.67],"timestamps":[1583865146520]}
+{"metric":{"__name__":"bid","market":"NYSE","ticker":"GOOG"},"values":[4.56],"timestamps":[1583865146495]}
+{"metric":{"__name__":"ask","market":"NASDAQ","ticker":"MSFT"},"values":[3.21],"timestamps":[1583865146520]}
+{"metric":{"__name__":"ask","market":"NYSE","ticker":"GOOG"},"values":[1.23],"timestamps":[1583865146495]}
+```
+
+Extra labels may be added to all the imported lines by passing `extra_label=name=value` query args.
+For example, `/api/v1/import/csv?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported lines.
+
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
+
+
+#### How to import data in Prometheus exposition format
+
+VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
+via `/api/v1/import/prometheus` path. For example, the following line imports a single line in Prometheus exposition format into VictoriaMetrics:
+
+```bash
+curl -d 'foo{bar="baz"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus'
+```
+
+The following command may be used for verifying the imported data:
+
+```bash
+curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"foo"}'
+```
+
+It should return something like the following:
+
+```
+{"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
+```
+
+Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
+For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
+
+If timestamp is missing in `<metric> <value> <timestamp>` Prometheus exposition format line, then the current timestamp is used during data ingestion.
+It can be overriden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
+
+VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v1/import/prometheus`, i.e. it supports data streaming.
+
+Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
+
+VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+
 
 
 ### Relabeling
 
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+Example contents for `-relabelConfig` file:
+```yml
+# relabel_config.yml
+- target_label: cluster
+  replacement: dev
+- action: drop
+  source_labels: [__meta_kubernetes_pod_container_init]
+  regex: true
+```
 
 VictoriaMetrics provides the following extra actions for relabeling rules:
 
@@ -1100,6 +1175,7 @@ VictoriaMetrics also exposes currently running queries with their execution time
   has at least 20% of free space comparing to disk size. The remaining amount of free space
   can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
   stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
+  See also `vm_merge_need_free_disk_space` metrics, which are set to 1 if background merge cannot be initiated due to free disk space shortage.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. This will recover VictoriaMetrics at the cost

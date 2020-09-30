@@ -1,6 +1,7 @@
 package influx
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -50,22 +52,25 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 		tsMultiplier = -1e3 * 3600
 	}
 
-	ctx := getStreamContext()
+	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
-	for ctx.Read(r, tsMultiplier) {
-		if err := callback(db, ctx.Rows.Rows); err != nil {
-			return err
-		}
+	for ctx.Read() {
+		uw := getUnmarshalWork()
+		uw.callback = callback
+		uw.db = db
+		uw.tsMultiplier = tsMultiplier
+		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		common.ScheduleUnmarshalWork(uw)
 	}
 	return ctx.Error()
 }
 
-func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
+func (ctx *streamContext) Read() bool {
 	readCalls.Inc()
 	if ctx.err != nil {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(r, ctx.reqBuf, ctx.tailBuf)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -73,13 +78,90 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 		}
 		return false
 	}
-	ctx.Rows.Unmarshal(bytesutil.ToUnsafeString(ctx.reqBuf))
-	rowsRead.Add(len(ctx.Rows.Rows))
+	return true
+}
 
-	rows := ctx.Rows.Rows
+var (
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="influx"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="influx"}`)
+)
 
-	// Adjust timestamps according to tsMultiplier
+type streamContext struct {
+	br      *bufio.Reader
+	reqBuf  []byte
+	tailBuf []byte
+	err     error
+}
+
+func (ctx *streamContext) Error() error {
+	if ctx.err == io.EOF {
+		return nil
+	}
+	return ctx.err
+}
+
+func (ctx *streamContext) reset() {
+	ctx.br.Reset(nil)
+	ctx.reqBuf = ctx.reqBuf[:0]
+	ctx.tailBuf = ctx.tailBuf[:0]
+	ctx.err = nil
+}
+
+func getStreamContext(r io.Reader) *streamContext {
+	select {
+	case ctx := <-streamContextPoolCh:
+		ctx.br.Reset(r)
+		return ctx
+	default:
+		if v := streamContextPool.Get(); v != nil {
+			ctx := v.(*streamContext)
+			ctx.br.Reset(r)
+			return ctx
+		}
+		return &streamContext{
+			br: bufio.NewReaderSize(r, 64*1024),
+		}
+	}
+}
+
+func putStreamContext(ctx *streamContext) {
+	ctx.reset()
+	select {
+	case streamContextPoolCh <- ctx:
+	default:
+		streamContextPool.Put(ctx)
+	}
+}
+
+var streamContextPool sync.Pool
+var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
+
+type unmarshalWork struct {
+	rows         Rows
+	callback     func(db string, rows []Row) error
+	db           string
+	tsMultiplier int64
+	reqBuf       []byte
+}
+
+func (uw *unmarshalWork) reset() {
+	uw.rows.Reset()
+	uw.callback = nil
+	uw.db = ""
+	uw.tsMultiplier = 0
+	uw.reqBuf = uw.reqBuf[:0]
+}
+
+// Unmarshal implements common.UnmarshalWork
+func (uw *unmarshalWork) Unmarshal() {
+	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+	rows := uw.rows.Rows
+	rowsRead.Add(len(rows))
+
+	// Adjust timestamps according to uw.tsMultiplier
 	currentTs := time.Now().UnixNano() / 1e6
+	tsMultiplier := uw.tsMultiplier
 	if tsMultiplier >= 1 {
 		for i := range rows {
 			row := &rows[i]
@@ -110,56 +192,25 @@ func (ctx *streamContext) Read(r io.Reader, tsMultiplier int64) bool {
 		}
 	}
 
-	return true
-}
-
-var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="influx"}`)
-	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="influx"}`)
-)
-
-type streamContext struct {
-	Rows    Rows
-	reqBuf  []byte
-	tailBuf []byte
-	err     error
-}
-
-func (ctx *streamContext) Error() error {
-	if ctx.err == io.EOF {
-		return nil
+	if err := uw.callback(uw.db, rows); err != nil {
+		logger.Errorf("error when processing imported data: %s", err)
+		putUnmarshalWork(uw)
+		return
 	}
-	return ctx.err
+	putUnmarshalWork(uw)
 }
 
-func (ctx *streamContext) reset() {
-	ctx.Rows.Reset()
-	ctx.reqBuf = ctx.reqBuf[:0]
-	ctx.tailBuf = ctx.tailBuf[:0]
-	ctx.err = nil
-}
-
-func getStreamContext() *streamContext {
-	select {
-	case ctx := <-streamContextPoolCh:
-		return ctx
-	default:
-		if v := streamContextPool.Get(); v != nil {
-			return v.(*streamContext)
-		}
-		return &streamContext{}
+func getUnmarshalWork() *unmarshalWork {
+	v := unmarshalWorkPool.Get()
+	if v == nil {
+		return &unmarshalWork{}
 	}
+	return v.(*unmarshalWork)
 }
 
-func putStreamContext(ctx *streamContext) {
-	ctx.reset()
-	select {
-	case streamContextPoolCh <- ctx:
-	default:
-		streamContextPool.Put(ctx)
-	}
+func putUnmarshalWork(uw *unmarshalWork) {
+	uw.reset()
+	unmarshalWorkPool.Put(uw)
 }
 
-var streamContextPool sync.Pool
-var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
+var unmarshalWorkPool sync.Pool

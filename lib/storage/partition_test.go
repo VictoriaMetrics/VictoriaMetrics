@@ -49,7 +49,7 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 	iterationsCount := 0
 	rowsMerged := uint64(0)
 	for {
-		pms := appendPartsToMerge(nil, pws, defaultPartsToMerge, maxOutPartRows)
+		pms, _ := appendPartsToMerge(nil, pws, defaultPartsToMerge, maxOutPartRows)
 		if len(pms) == 0 {
 			break
 		}
@@ -99,7 +99,7 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 	pws := newTestPartWrappersForRowsCount(initialRowsCount)
 
 	// Verify appending to nil.
-	pms := appendPartsToMerge(nil, pws, maxPartsToMerge, 1e9)
+	pms, _ := appendPartsToMerge(nil, pws, maxPartsToMerge, 1e9)
 	rowsCount := newTestRowsCountFromPartWrappers(pms)
 	if !reflect.DeepEqual(rowsCount, expectedRowsCount) {
 		t.Fatalf("unexpected rowsCount for maxPartsToMerge=%d, initialRowsCount=%d; got\n%d; want\n%d",
@@ -118,7 +118,7 @@ func testAppendPartsToMerge(t *testing.T, maxPartsToMerge int, initialRowsCount,
 		{},
 		{},
 	}
-	pms = appendPartsToMerge(prefix, pws, maxPartsToMerge, 1e9)
+	pms, _ = appendPartsToMerge(prefix, pws, maxPartsToMerge, 1e9)
 	if !reflect.DeepEqual(pms[:len(prefix)], prefix) {
 		t.Fatalf("unexpected prefix for maxPartsToMerge=%d, initialRowsCount=%d; got\n%+v; want\n%+v",
 			maxPartsToMerge, initialRowsCount, pms[:len(prefix)], prefix)

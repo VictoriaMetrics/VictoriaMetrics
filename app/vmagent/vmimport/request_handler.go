@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
@@ -54,7 +55,9 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 		labels = append(labels, extraLabels...)
 		values := r.Values
 		timestamps := r.Timestamps
-		_ = timestamps[len(values)-1]
+		if len(timestamps) != len(values) {
+			logger.Panicf("BUG: len(timestamps)=%d must match len(values)=%d", len(timestamps), len(values))
+		}
 		samplesLen := len(samples)
 		for j, value := range values {
 			samples = append(samples, prompbmarshal.Sample{
