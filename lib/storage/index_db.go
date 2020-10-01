@@ -15,7 +15,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -85,12 +84,6 @@ type indexDB struct {
 	// High rate for this value means corrupted indexDB.
 	missingTSIDsForMetricID uint64
 
-	// The number of calls to search for metric ids for recent hours.
-	recentHourMetricIDsSearchCalls uint64
-
-	// The number of cache hits during search for metric ids in recent hours.
-	recentHourMetricIDsSearchHits uint64
-
 	// The number of searches for metric ids by days.
 	dateMetricIDsSearchCalls uint64
 
@@ -149,16 +142,10 @@ type indexDB struct {
 	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
-
-	// Global lists of metric ids for the current and the previous hours.
-	// They are used for fast lookups on small time ranges covering
-	// up to two last hours.
-	currHourMetricIDs *atomic.Value
-	prevHourMetricIDs *atomic.Value
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, currHourMetricIDs, prevHourMetricIDs *atomic.Value) (*indexDB, error) {
+func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache) (*indexDB, error) {
 	if metricIDCache == nil {
 		logger.Panicf("BUG: metricIDCache must be non-nil")
 	}
@@ -167,12 +154,6 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 	}
 	if tsidCache == nil {
 		logger.Panicf("BUG: tsidCache must be nin-nil")
-	}
-	if currHourMetricIDs == nil {
-		logger.Panicf("BUG: currHourMetricIDs must be non-nil")
-	}
-	if prevHourMetricIDs == nil {
-		logger.Panicf("BUG: prevHourMetricIDs must be non-nil")
 	}
 
 	tb, err := mergeset.OpenTable(path, invalidateTagCache, mergeTagToMetricIDsRows)
@@ -196,9 +177,6 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		tsidCache:                      tsidCache,
 		uselessTagFiltersCache:         workingsetcache.New(mem/128, time.Hour),
 		metricIDsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
-
-		currHourMetricIDs: currHourMetricIDs,
-		prevHourMetricIDs: prevHourMetricIDs,
 	}
 
 	is := db.getIndexSearch(0, 0, noDeadline)
@@ -284,8 +262,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.IndexDBRefCount += atomic.LoadUint64(&db.refCount)
 	m.NewTimeseriesCreated += atomic.LoadUint64(&db.newTimeseriesCreated)
 	m.MissingTSIDsForMetricID += atomic.LoadUint64(&db.missingTSIDsForMetricID)
-	m.RecentHourMetricIDsSearchCalls += atomic.LoadUint64(&db.recentHourMetricIDsSearchCalls)
-	m.RecentHourMetricIDsSearchHits += atomic.LoadUint64(&db.recentHourMetricIDsSearchHits)
 	m.DateMetricIDsSearchCalls += atomic.LoadUint64(&db.dateMetricIDsSearchCalls)
 	m.DateMetricIDsSearchHits += atomic.LoadUint64(&db.dateMetricIDsSearchHits)
 
@@ -465,7 +441,6 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	// Round start and end times to per-day granularity according to per-day inverted index.
 	startDate := uint64(tr.MinTimestamp) / msecPerDay
 	endDate := uint64(tr.MaxTimestamp) / msecPerDay
-	dst = append(dst, tagFiltersKeyVersion)
 	dst = encoding.MarshalUint64(dst, prefix)
 	dst = encoding.MarshalUint64(dst, startDate)
 	dst = encoding.MarshalUint64(dst, endDate)
@@ -482,10 +457,6 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	}
 	return dst
 }
-
-// The version for tagCache key.
-// Update it every time key generation scheme changes at marshalTagFiltersKey.
-const tagFiltersKeyVersion = 1
 
 func invalidateTagCache() {
 	// This function must be fast, since it is called each
@@ -1459,7 +1430,7 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 }
 
 func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
-	minDate := fasttime.UnixDate()
+	minDate := uint64(0)
 	kb := &is.kb
 	ts := &is.ts
 	kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
@@ -1493,7 +1464,6 @@ func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
 	if err := ts.Error(); err != nil {
 		return 0, err
 	}
-	// There are no (date,tag)->metricIDs entries in the database yet.
 	return minDate, nil
 }
 
@@ -1823,9 +1793,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 }
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilters, tr TimeRange, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
-	// Try fast path with the minimized number of maxMetrics.
-	maxMetricsAdjusted := is.adjustMaxMetricsAdaptive(tr, maxMetrics)
-	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetricsAdjusted)
+	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
 	if err == nil {
 		return minTf, minMetricIDs, nil
 	}
@@ -1873,29 +1841,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	}
 	return nil, nil, fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
 		maxMetrics, tr.String())
-}
-
-const maxDaysForDateMetricIDs = 40
-
-func (is *indexSearch) adjustMaxMetricsAdaptive(tr TimeRange, maxMetrics int) int {
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate-minDate > maxDaysForDateMetricIDs {
-		// Cannot reduce maxMetrics for the given time range,
-		// since it is expensive extracting metricIDs for the given tr.
-		return maxMetrics
-	}
-	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
-	if !hmPrev.isFull {
-		return maxMetrics
-	}
-	hourMetrics := hmPrev.m.Len()
-	if maxMetrics > hourMetrics {
-		// It is cheaper to filter on the hour or day metrics if the minimum
-		// number of matching metrics across tfs exceeds hourMetrics.
-		return hourMetrics
-	}
-	return maxMetrics
 }
 
 func (is *indexSearch) getTagFilterWithMinMetricIDsCountAdaptive(tfs *TagFilters, maxMetrics int) (*tagFilter, *uint64set.Set, error) {
@@ -2049,6 +1994,11 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 				}
 				return false, nil
 			}
+			continue
+		}
+		if bytes.Equal(tf.key, graphiteReverseTagKey) {
+			// Skip artificial tag filter for Graphite-like metric names with dots,
+			// since mn doesn't contain the corresponding tag.
 			continue
 		}
 
@@ -2523,16 +2473,6 @@ var errFallbackToMetricNameMatch = errors.New("fall back to updateMetricIDsByMet
 var errMissingMetricIDsForDate = errors.New("missing metricIDs for date")
 
 func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
-	atomic.AddUint64(&is.db.recentHourMetricIDsSearchCalls, 1)
-	metricIDs, ok := is.getMetricIDsForRecentHours(tr, maxMetrics)
-	if ok {
-		// Fast path: tr covers the current and / or the previous hour.
-		// Return the full list of metric ids for this time range.
-		atomic.AddUint64(&is.db.recentHourMetricIDsSearchHits, 1)
-		return metricIDs, nil
-	}
-
-	// Slow path: collect the metric ids for all the days covering the given tr.
 	atomic.AddUint64(&is.db.dateMetricIDsSearchCalls, 1)
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
@@ -2551,7 +2491,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*
 	}
 
 	// Slower path - query over multiple days in parallel.
-	metricIDs = &uint64set.Set{}
+	metricIDs := &uint64set.Set{}
 	var wg sync.WaitGroup
 	var errGlobal error
 	var mu sync.Mutex // protects metricIDs + errGlobal from concurrent access below.
@@ -2584,6 +2524,8 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*
 	atomic.AddUint64(&is.db.dateMetricIDsSearchHits, 1)
 	return metricIDs, nil
 }
+
+const maxDaysForDateMetricIDs = 40
 
 func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	atomic.AddUint64(&is.db.dateRangeSearchCalls, 1)
@@ -2728,6 +2670,10 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		}
 		metricIDs = m
 	}
+	if metricIDs.Len() == 0 {
+		// There is no sense in inspecting tfsRemainingWithCount, since the result will be empty.
+		return nil, nil
+	}
 
 	// Intersect metricIDs with the rest of filters.
 	for i := range tfsRemainingWithCount {
@@ -2775,52 +2721,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		return &m, nil
 	}
 	return metricIDs, nil
-}
-
-func (is *indexSearch) getMetricIDsForRecentHours(tr TimeRange, maxMetrics int) (*uint64set.Set, bool) {
-	// Return all the metricIDs for all the (AccountID, ProjectID) entries.
-	// The caller is responsible for proper filtering later.
-	k := accountProjectKey{
-		AccountID: is.accountID,
-		ProjectID: is.projectID,
-	}
-	minHour := uint64(tr.MinTimestamp) / msecPerHour
-	maxHour := uint64(tr.MaxTimestamp) / msecPerHour
-
-	hmCurr := is.db.currHourMetricIDs.Load().(*hourMetricIDs)
-	if maxHour == hmCurr.hour && minHour == maxHour && hmCurr.isFull {
-		// The tr fits the current hour.
-		// Return a copy of hmCurr.m, because the caller may modify
-		// the returned map.
-		m := hmCurr.byTenant[k]
-		if m.Len() > maxMetrics {
-			return nil, false
-		}
-		return m.Clone(), true
-	}
-	hmPrev := is.db.prevHourMetricIDs.Load().(*hourMetricIDs)
-	if maxHour == hmPrev.hour && minHour == maxHour && hmPrev.isFull {
-		// The tr fits the previous hour.
-		// Return a copy of hmPrev.m, because the caller may modify
-		// the returned map.
-		m := hmPrev.byTenant[k]
-		if m.Len() > maxMetrics {
-			return nil, false
-		}
-		return m.Clone(), true
-	}
-	if maxHour == hmCurr.hour && minHour == hmPrev.hour && hmCurr.isFull && hmPrev.isFull {
-		// The tr spans the previous and the current hours.
-		mCurr := hmCurr.byTenant[k]
-		mPrev := hmPrev.byTenant[k]
-		if mCurr.Len()+mPrev.Len() > maxMetrics {
-			return nil, false
-		}
-		metricIDs := mCurr.Clone()
-		metricIDs.Union(mPrev)
-		return metricIDs, true
-	}
-	return nil, false
 }
 
 func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
