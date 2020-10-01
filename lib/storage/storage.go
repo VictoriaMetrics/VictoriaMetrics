@@ -169,7 +169,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
-	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache, &s.currHourMetricIDs, &s.prevHourMetricIDs)
+	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
 	}
@@ -534,7 +534,7 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache, &s.currHourMetricIDs, &s.prevHourMetricIDs)
+	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -1664,8 +1664,7 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache,
-	currHourMetricIDs, prevHourMetricIDs *atomic.Value) (curr, prev *indexDB, err error) {
+func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
@@ -1724,12 +1723,12 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *w
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache, currHourMetricIDs, prevHourMetricIDs)
+	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache, currHourMetricIDs, prevHourMetricIDs)
+	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
