@@ -462,12 +462,13 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	if versioned {
 		prefix = atomic.LoadUint64(&tagFiltersKeyGen)
 	}
-	const cacheGranularityMs = 1000 * 10
-	startTime := (uint64(tr.MinTimestamp) / cacheGranularityMs) * cacheGranularityMs
-	endTime := (uint64(tr.MaxTimestamp) / cacheGranularityMs) * cacheGranularityMs
+	// Round start and end times to per-day granularity according to per-day inverted index.
+	startDate := uint64(tr.MinTimestamp) / msecPerDay
+	endDate := uint64(tr.MaxTimestamp) / msecPerDay
+	dst = append(dst, tagFiltersKeyVersion)
 	dst = encoding.MarshalUint64(dst, prefix)
-	dst = encoding.MarshalUint64(dst, startTime)
-	dst = encoding.MarshalUint64(dst, endTime)
+	dst = encoding.MarshalUint64(dst, startDate)
+	dst = encoding.MarshalUint64(dst, endDate)
 	if len(tfss) == 0 {
 		return dst
 	}
@@ -481,6 +482,18 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	}
 	return dst
 }
+
+// The version for tagCache key.
+// Update it every time key generation scheme changes at marshalTagFiltersKey.
+const tagFiltersKeyVersion = 1
+
+func invalidateTagCache() {
+	// This function must be fast, since it is called each
+	// time new timeseries is added.
+	atomic.AddUint64(&tagFiltersKeyGen, 1)
+}
+
+var tagFiltersKeyGen uint64
 
 func marshalTSIDs(dst []byte, tsids []TSID) []byte {
 	dst = encoding.MarshalUint64(dst, uint64(len(tsids)))
@@ -513,14 +526,6 @@ func unmarshalTSIDs(dst []TSID, src []byte) ([]TSID, error) {
 	}
 	return dst, nil
 }
-
-func invalidateTagCache() {
-	// This function must be fast, since it is called each
-	// time new timeseries is added.
-	atomic.AddUint64(&tagFiltersKeyGen, 1)
-}
-
-var tagFiltersKeyGen uint64
 
 // getTSIDByNameNoCreate fills the dst with TSID for the given metricName.
 //
