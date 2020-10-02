@@ -912,10 +912,9 @@ func newTransformFuncRunning(rf func(a, b float64, idx int) float64) transformFu
 			prevValue := values[0]
 			values = values[1:]
 			for i, v := range values {
-				if math.IsNaN(v) {
-					continue
+				if !math.IsNaN(v) {
+					prevValue = rf(prevValue, v, i+1)
 				}
-				prevValue = rf(prevValue, v, i+1)
 				values[i] = prevValue
 			}
 		}
