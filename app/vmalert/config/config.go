@@ -11,11 +11,17 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metricsql"
 	"gopkg.in/yaml.v2"
 )
+
+// Global contains setting that can apply to the entire config file
+type Global struct {
+	Tenant string `yaml:"tenant"`
+}
 
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
@@ -25,6 +31,7 @@ type Group struct {
 	Interval    time.Duration `yaml:"interval,omitempty"`
 	Rules       []Rule        `yaml:"rules"`
 	Concurrency int           `yaml:"concurrency"`
+	Tenant      string        `yaml:"tenant"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
 	Checksum string
@@ -57,6 +64,11 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 	if len(g.Rules) == 0 {
 		return fmt.Errorf("group %q can't contain no rules", g.Name)
 	}
+	// validate tenancy setting
+	if _, err := auth.NewToken(g.Tenant); err != nil {
+		return err
+	}
+
 	uniqueRules := map[uint64]struct{}{}
 	for _, r := range g.Rules {
 		ruleName := r.Record
@@ -194,6 +206,7 @@ func parseFile(path string) ([]Group, error) {
 	}
 	data = envtemplate.Replace(data)
 	g := struct {
+		Global *Global `yaml:"global"`
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.
 		XXX map[string]interface{} `yaml:",inline"`
@@ -202,7 +215,25 @@ func parseFile(path string) ([]Group, error) {
 	if err != nil {
 		return nil, err
 	}
+	g.Groups = applyGlobal(g.Groups, g.Global)
 	return g.Groups, checkOverflow(g.XXX, "config")
+}
+
+// applyGlobal apply all the global settings into groups
+// the global setting will get overwritten by group setting
+func applyGlobal(groups []Group, global *Global) []Group {
+	// fast path: no global settings
+	if global == nil {
+		return groups
+	}
+
+	for _, g := range groups {
+		if g.Tenant == "" {
+			g.Tenant = global.Tenant
+		}
+	}
+
+	return groups
 }
 
 func checkOverflow(m map[string]interface{}, ctx string) error {

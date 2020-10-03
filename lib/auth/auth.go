@@ -33,3 +33,10 @@ func NewToken(authToken string) (*Token, error) {
 	}
 	return &at, nil
 }
+
+func (t *Token) String() string {
+	if t == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d:%d", t.AccountID, t.ProjectID)
+}
