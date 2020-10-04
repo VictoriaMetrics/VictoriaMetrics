@@ -5,7 +5,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -50,13 +49,8 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	defer metricNameCache.Stop()
 	defer tsidCache.Stop()
 
-	var hmCurr atomic.Value
-	hmCurr.Store(&hourMetricIDs{})
-	var hmPrev atomic.Value
-	hmPrev.Store(&hourMetricIDs{})
-
 	const dbName = "bench-index-db-add-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -120,13 +114,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	defer metricNameCache.Stop()
 	defer tsidCache.Stop()
 
-	var hmCurr atomic.Value
-	hmCurr.Store(&hourMetricIDs{})
-	var hmPrev atomic.Value
-	hmPrev.Store(&hourMetricIDs{})
-
 	const dbName = "bench-head-posting-for-matchers"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -304,13 +293,8 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	defer metricNameCache.Stop()
 	defer tsidCache.Stop()
 
-	var hmCurr atomic.Value
-	hmCurr.Store(&hourMetricIDs{})
-	var hmPrev atomic.Value
-	hmPrev.Store(&hourMetricIDs{})
-
 	const dbName = "bench-index-db-get-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}

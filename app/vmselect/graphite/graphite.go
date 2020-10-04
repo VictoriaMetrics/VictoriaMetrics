@@ -79,10 +79,10 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return err
 	}
-	paths = deduplicatePaths(paths)
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
 	}
+	paths = deduplicatePaths(paths, delimiter)
 	sortPaths(paths, delimiter)
 	contentType := "application/json"
 	if jsonp != "" {
@@ -99,13 +99,18 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func deduplicatePaths(paths []string) []string {
-	m := make(map[string]struct{}, len(paths))
-	for _, path := range paths {
-		m[path] = struct{}{}
+func deduplicatePaths(paths []string, delimiter string) []string {
+	if len(paths) == 0 {
+		return nil
 	}
-	dst := make([]string, 0, len(m))
-	for path := range m {
+	sort.Strings(paths)
+	dst := paths[:1]
+	for _, path := range paths[1:] {
+		prevPath := dst[len(dst)-1]
+		if path == prevPath {
+			// Skip duplicate path.
+			continue
+		}
 		dst = append(dst, path)
 	}
 	return dst

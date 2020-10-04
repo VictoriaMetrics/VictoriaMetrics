@@ -43,7 +43,20 @@ jobs:
           make victoria-metrics-arm64
           make vmutils
           GOOS=freebsd go build -mod=vendor ./app/victoria-metrics
+          GOOS=freebsd go build -mod=vendor ./app/vmagent
+          GOOS=freebsd go build -mod=vendor ./app/vmalert
+          GOOS=freebsd go build -mod=vendor ./app/vmbackup
+          GOOS=freebsd go build -mod=vendor ./app/vmrestore
+          GOOS=openbsd go build -mod=vendor ./app/victoria-metrics
+          GOOS=openbsd go build -mod=vendor ./app/vmagent
+          GOOS=openbsd go build -mod=vendor ./app/vmalert
+          GOOS=openbsd go build -mod=vendor ./app/vmbackup
+          GOOS=openbsd go build -mod=vendor ./app/vmrestore
           GOOS=darwin go build -mod=vendor ./app/victoria-metrics
+          GOOS=darwin go build -mod=vendor ./app/vmagent
+          GOOS=darwin go build -mod=vendor ./app/vmalert
+          GOOS=darwin go build -mod=vendor ./app/vmbackup
+          GOOS=darwin go build -mod=vendor ./app/vmrestore
       - name: Publish coverage
         uses: codecov/codecov-action@v1.0.6
         with:

@@ -372,12 +372,6 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_missing_tsids_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingTSIDsForMetricID)
 	})
-	metrics.NewGauge(`vm_recent_hour_metric_ids_search_calls_total`, func() float64 {
-		return float64(idbm().RecentHourMetricIDsSearchCalls)
-	})
-	metrics.NewGauge(`vm_recent_hour_metric_ids_search_hits_total`, func() float64 {
-		return float64(idbm().RecentHourMetricIDsSearchHits)
-	})
 	metrics.NewGauge(`vm_date_metric_ids_search_calls_total`, func() float64 {
 		return float64(idbm().DateMetricIDsSearchCalls)
 	})
@@ -396,6 +390,14 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_assisted_merges_total{type="indexdb"}`, func() float64 {
 		return float64(idbm().AssistedMerges)
+	})
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/686
+	metrics.NewGauge(`vm_merge_need_free_disk_space{type="storage/small"}`, func() float64 {
+		return float64(tm().SmallMergeNeedFreeDiskSpace)
+	})
+	metrics.NewGauge(`vm_merge_need_free_disk_space{type="storage/big"}`, func() float64 {
+		return float64(tm().BigMergeNeedFreeDiskSpace)
 	})
 
 	metrics.NewGauge(`vm_pending_rows{type="storage"}`, func() float64 {

@@ -55,6 +55,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/asset/apiv1p5beta1",
     "release_level": "beta"
   },
+  "cloud.google.com/go/assuredworkloads/apiv1beta1": {
+    "distribution_name": "cloud.google.com/go/assuredworkloads/apiv1beta1",
+    "description": "",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/assuredworkloads/apiv1beta1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/automl/apiv1": {
     "distribution_name": "cloud.google.com/go/automl/apiv1",
     "description": "Cloud AutoML API",
@@ -286,6 +294,14 @@
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2",
     "release_level": "ga"
+  },
+  "cloud.google.com/go/dialogflow/cx/apiv3beta1": {
+    "distribution_name": "cloud.google.com/go/dialogflow/cx/apiv3beta1",
+    "description": "Dialogflow API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/dialogflow/cx/apiv3beta1",
+    "release_level": "beta"
   },
   "cloud.google.com/go/dlp/apiv2": {
     "distribution_name": "cloud.google.com/go/dlp/apiv2",
@@ -750,6 +766,14 @@
     "client_library_type": "manual",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/storage",
     "release_level": "ga"
+  },
+  "cloud.google.com/go/talent/apiv4": {
+    "distribution_name": "cloud.google.com/go/talent/apiv4",
+    "description": "",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/talent/apiv4",
+    "release_level": "beta"
   },
   "cloud.google.com/go/talent/apiv4beta1": {
     "distribution_name": "cloud.google.com/go/talent/apiv4beta1",

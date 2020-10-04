@@ -1,4 +1,5 @@
 {% import (
+	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -43,17 +44,44 @@ See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 
 {% func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) %}
 [
+{% code
+	if len(paths) > 1 {
+		sort.Strings(paths)
+		// Substitute `path` and `path<delimiter>` with `path<delimiter><delimiter>`.
+		// Such path is treated specially during rendering - see code below for details.
+		dst := paths[:1]
+		for _, path := range paths[1:] {
+			prevPath := dst[len(dst)-1]
+			if len(path) == len(prevPath)+1 && strings.HasSuffix(path, delimiter) && strings.HasPrefix(path, prevPath) {
+				// The path is equivalent to <prevPath> + <delimiter>
+				// Overwrite the prevPath with <path> + <delimiter> as carbonapi does.
+				// I.e. the resulting path ends with double delimiter.
+				// Such path is treated specially during rendering - see metrics_find_response.qtpl for details.
+				dst[len(dst)-1] = path + delimiter
+				continue
+			}
+			dst = append(dst, path)
+		}
+		paths = dst
+	}
+%}
 	{% for i, path := range paths %}
 	{
 		{% code
+			id := path
 			allowChildren := "0"
 			isLeaf := "1"
-			if strings.HasSuffix(path, delimiter) {
+			if strings.HasSuffix(id, delimiter) {
+				if strings.HasSuffix(id[:len(id)-1], delimiter) {
+					// Special case when id ends with double delimiter.
+					// See the code above for details.
+					id = id[:len(id)-2]
+				}
 				allowChildren = "1"
 				isLeaf = "0"
 			}
 		%}
-		"id": {%q= path %},
+		"id": {%q= id %},
 		"text": {%= metricPathName(path, delimiter) %},
 		"allowChildren": {%s= allowChildren %},
 		"expandable": {%s= allowChildren %},

@@ -8,13 +8,11 @@ import (
 	"os"
 	"reflect"
 	"regexp"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
@@ -455,13 +453,8 @@ func TestIndexDBOpenClose(t *testing.T) {
 	defer metricNameCache.Stop()
 	defer tsidCache.Stop()
 
-	var hmCurr atomic.Value
-	hmCurr.Store(&hourMetricIDs{})
-	var hmPrev atomic.Value
-	hmPrev.Store(&hourMetricIDs{})
-
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -483,13 +476,8 @@ func TestIndexDB(t *testing.T) {
 		defer metricNameCache.Stop()
 		defer tsidCache.Stop()
 
-		var hmCurr atomic.Value
-		hmCurr.Store(&hourMetricIDs{})
-		var hmPrev atomic.Value
-		hmPrev.Store(&hourMetricIDs{})
-
 		dbName := "test-index-db-serial"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -519,7 +507,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -542,13 +530,8 @@ func TestIndexDB(t *testing.T) {
 		defer metricNameCache.Stop()
 		defer tsidCache.Stop()
 
-		var hmCurr atomic.Value
-		hmCurr.Store(&hourMetricIDs{})
-		var hmPrev atomic.Value
-		hmPrev.Store(&hourMetricIDs{})
-
 		dbName := "test-index-db-concurrent"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -821,6 +804,11 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 	}
 
 	// Try tag filters.
+	currentTime := timestampFromTime(time.Now())
+	tr := TimeRange{
+		MinTimestamp: currentTime - msecPerDay,
+		MaxTimestamp: currentTime + msecPerDay,
+	}
 	for i := range mns {
 		mn := &mns[i]
 		tsid := &tsids[i]
@@ -842,7 +830,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, true, false); err != nil {
 			return fmt.Errorf("cannot add no-op negative filter: %w", err)
 		}
-		tsidsFound, err := db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
@@ -851,7 +839,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Verify tag cache.
-		tsidsCached, err := db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsCached, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
@@ -863,7 +851,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, true, false); err != nil {
 			return fmt.Errorf("cannot add negative filter for zeroing search results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter with full negative: %w", err)
 		}
@@ -884,7 +872,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if tfsNew := tfs.Finalize(); len(tfsNew) > 0 {
 			return fmt.Errorf("unexpected non-empty tag filters returned by TagFilters.Finalize: %v", tfsNew)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter for Graphite wildcard: %w", err)
 		}
@@ -912,7 +900,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, true, true); err != nil {
 			return fmt.Errorf("cannot add no-op negative filter with regexp: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter: %w", err)
 		}
@@ -922,7 +910,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, true, true); err != nil {
 			return fmt.Errorf("cannot add negative filter for zeroing search results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter with full negative: %w", err)
 		}
@@ -938,7 +926,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, false, true); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup matching zero results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search by non-existing tag filter: %w", err)
 		}
@@ -954,7 +942,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 
 		// Search with empty filter. It should match all the results.
 		tfs.Reset()
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for common prefix: %w", err)
 		}
@@ -967,7 +955,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for empty metricGroup: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for empty metricGroup: %w", err)
 		}
@@ -984,7 +972,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs2.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs1, tfs2}, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs([]*TagFilters{tfs1, tfs2}, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for empty metricGroup: %w", err)
 		}
@@ -993,7 +981,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Verify empty tfss
-		tsidsFound, err = db.searchTSIDs(nil, TimeRange{}, 1e5, noDeadline)
+		tsidsFound, err = db.searchTSIDs(nil, tr, 1e5, noDeadline)
 		if err != nil {
 			return fmt.Errorf("cannot search for nil tfss: %w", err)
 		}
@@ -1474,23 +1462,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	defer metricNameCache.Stop()
 	defer tsidCache.Stop()
 
-	currMetricIDs := &hourMetricIDs{
-		isFull: true,
-		m:      &uint64set.Set{},
-	}
-
-	var hmCurr atomic.Value
-	hmCurr.Store(currMetricIDs)
-
-	prevMetricIDs := &hourMetricIDs{
-		isFull: true,
-		m:      &uint64set.Set{},
-	}
-	var hmPrev atomic.Value
-	hmPrev.Store(prevMetricIDs)
-
 	dbName := "test-index-db-ts-range"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, &hmCurr, &hmPrev)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -1509,8 +1482,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	const metricsPerDay = 1000
 	theDay := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC)
 	now := uint64(timestampFromTime(theDay))
-	currMetricIDs.hour = now / msecPerHour
-	prevMetricIDs.hour = (now - msecPerHour) / msecPerHour
 	baseDate := now / msecPerDay
 	var metricNameBuf []byte
 	for day := 0; day < days; day++ {
@@ -1541,19 +1512,11 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		}
 
 		// Add the metrics to the per-day stores
-		date := baseDate - uint64(day*msecPerDay)
+		date := baseDate - uint64(day)
 		for i := range tsids {
 			tsid := &tsids[i]
 			if err := is.storeDateMetricID(date, tsid.MetricID); err != nil {
 				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
-			}
-		}
-
-		// Add the the hour metrics caches
-		if day == 0 {
-			for i := 0; i < 256; i++ {
-				prevMetricIDs.m.Add(tsids[i].MetricID)
-				currMetricIDs.m.Add(tsids[i].MetricID)
 			}
 		}
 	}
@@ -1567,32 +1530,18 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("cannot add filter: %s", err)
 	}
 
-	// Perform a search that can be fulfilled out of the hour metrics cache.
-	// This should return the metrics in the hourly cache
+	// Perform a search within a day.
+	// This should return the metrics for the day
 	tr := TimeRange{
-		MinTimestamp: int64(now - msecPerHour + 1),
+		MinTimestamp: int64(now - 2*msecPerHour - 1),
 		MaxTimestamp: int64(now),
 	}
 	matchedTSIDs, err := db.searchTSIDs([]*TagFilters{tfs}, tr, 10000, noDeadline)
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
-	if len(matchedTSIDs) != 256 {
-		t.Fatal("Expected time series for current hour, got", len(matchedTSIDs))
-	}
-
-	// Perform a search within a day that falls out out of the hour metrics cache.
-	// This should return the metrics for the day
-	tr = TimeRange{
-		MinTimestamp: int64(now - 2*msecPerHour - 1),
-		MaxTimestamp: int64(now),
-	}
-	matchedTSIDs, err = db.searchTSIDs([]*TagFilters{tfs}, tr, 10000, noDeadline)
-	if err != nil {
-		t.Fatalf("error searching tsids: %v", err)
-	}
 	if len(matchedTSIDs) != metricsPerDay {
-		t.Fatal("Expected time series for current day, got", len(matchedTSIDs))
+		t.Fatalf("expected %d time series for current day, got %d time series", metricsPerDay, len(matchedTSIDs))
 	}
 
 	// Perform a search across all the days, should match all metrics
@@ -1606,7 +1555,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("error searching tsids: %v", err)
 	}
 	if len(matchedTSIDs) != metricsPerDay*days {
-		t.Fatal("Expected time series for all days, got", len(matchedTSIDs))
+		t.Fatalf("expected %d time series for all days, got %d time series", metricsPerDay*days, len(matchedTSIDs))
 	}
 
 	// Check GetTSDBStatusForDate

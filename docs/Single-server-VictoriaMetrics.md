@@ -580,8 +580,8 @@ Run `make package-victoria-metrics`. It builds `victoriametrics/victoria-metrics
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-metrics`.
 
-By default the image is built on top of [alpine](https://hub.docker.com/_/alpine) image for improved debuggability.
-It is possible to build the package on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```bash
@@ -661,13 +661,13 @@ It is better using `-retentionPeriod` command-line flag for efficient pruning of
 
 ### Forced merge
 
-VictoriaMetrics performs [data compations in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
+VictoriaMetrics performs [data compactions in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 in order to keep good performance characteristics when accepting new data. These compactions (merges) are performed independently on per-month partitions.
 This means that compactions are stopped for per-month partitions if no new data is ingested into these partitions.
 Sometimes it is necessary to trigger compactions for old partitions. For instance, in order to free up disk space occupied by [deleted time series](#how-to-delete-time-series).
 In this case forced compaction may be initiated on the specified per-month partition by sending request to `/internal/force_merge?partition_prefix=YYYY_MM`,
 where `YYYY_MM` is per-month partition name. For example, `http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08` would initiate forced
-merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merges continues running in background.
+merge for August 2020 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
 
 Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
 since VictoriaMetrics automatically performs [optimal merges in background](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
@@ -896,6 +896,15 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 VictoriaMetrics supports Prometheus-compatible relabeling for all the ingested metrics if `-relabelConfig` command-line flag points
 to a file containing a list of [relabel_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) entries.
+Example contents for `-relabelConfig` file:
+```yml
+# relabel_config.yml
+- target_label: cluster
+  replacement: dev
+- action: drop
+  source_labels: [__meta_kubernetes_pod_container_init]
+  regex: true
+```
 
 VictoriaMetrics provides the following extra actions for relabeling rules:
 
@@ -1166,6 +1175,9 @@ VictoriaMetrics also exposes currently running queries with their execution time
   has at least 20% of free space comparing to disk size. The remaining amount of free space
   can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
   stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
+  See also `vm_merge_need_free_disk_space` metrics, which are set to values higher than 0
+  if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
+  which would start background merge if they had more free disk space.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. This will recover VictoriaMetrics at the cost

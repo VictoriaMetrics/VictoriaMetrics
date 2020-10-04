@@ -348,7 +348,7 @@ func (b *Block) UnmarshalPortable(src []byte) ([]byte, error) {
 		return src, fmt.Errorf("cannot unmarshal rowsCount: %w", err)
 	}
 	if rowsCount > math.MaxUint32 {
-		return src, fmt.Errorf("got too big rowsCount=%d; it mustn't exceed %d", rowsCount, math.MaxUint32)
+		return src, fmt.Errorf("got too big rowsCount=%d; it mustn't exceed %d", rowsCount, uint32(math.MaxUint32))
 	}
 	b.bh.RowsCount = uint32(rowsCount)
 	src, scale, err := encoding.UnmarshalVarInt64(src)
