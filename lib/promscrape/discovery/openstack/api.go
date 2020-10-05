@@ -12,9 +12,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
