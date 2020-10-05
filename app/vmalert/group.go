@@ -61,9 +61,7 @@ func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string
 		finishedCh:  make(chan struct{}),
 		updateCh:    make(chan *Group),
 	}
-	// error format of auth token is filter at rule file Parse
-	token, _ := auth.NewToken(cfg.Tenant)
-	g.AuthToken = token
+	g.AuthToken = cfg.AuthToken
 	g.metrics = newGroupMetrics(g.Name, g.File)
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
@@ -105,7 +103,11 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
 	hash.Write([]byte("\xff"))
-	hash.Write([]byte(g.AuthToken.String()))
+	token := &auth.Token{}
+	if g.AuthToken != nil {
+		token = g.AuthToken
+	}
+	hash.Write([]byte(token.String()))
 	return hash.Sum64()
 }
 

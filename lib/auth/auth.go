@@ -12,13 +12,21 @@ type Token struct {
 	AccountID uint32
 }
 
+func (t *Token) String() string {
+	return fmt.Sprintf("%d:%d", t.AccountID, t.ProjectID)
+}
+
 // NewToken returns new Token for the given authToken
 func NewToken(authToken string) (*Token, error) {
+	var at Token
+	// fast path for empty character
+	if authToken == "" {
+		return &at, nil
+	}
 	tmp := strings.Split(authToken, ":")
 	if len(tmp) > 2 {
 		return nil, fmt.Errorf("unexpected number of items in authToken %q; got %d; want 1 or 2", authToken, len(tmp))
 	}
-	var at Token
 	accountID, err := strconv.Atoi(tmp[0])
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse accountID from %q: %w", tmp[0], err)
@@ -32,11 +40,4 @@ func NewToken(authToken string) (*Token, error) {
 		at.ProjectID = uint32(projectID)
 	}
 	return &at, nil
-}
-
-func (t *Token) String() string {
-	if t == nil {
-		return ""
-	}
-	return fmt.Sprintf("%d:%d", t.AccountID, t.ProjectID)
 }

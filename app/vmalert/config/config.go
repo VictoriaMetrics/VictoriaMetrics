@@ -31,10 +31,12 @@ type Group struct {
 	Interval    time.Duration `yaml:"interval,omitempty"`
 	Rules       []Rule        `yaml:"rules"`
 	Concurrency int           `yaml:"concurrency"`
-	Tenant      string        `yaml:"tenant"`
+	Tenant      string        `yaml:"tenant,omitempty"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
 	Checksum string
+	// AuthToken is parsed from Tenant
+	AuthToken *auth.Token
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -64,11 +66,6 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 	if len(g.Rules) == 0 {
 		return fmt.Errorf("group %q can't contain no rules", g.Name)
 	}
-	// validate tenancy setting
-	if _, err := auth.NewToken(g.Tenant); err != nil {
-		return err
-	}
-
 	uniqueRules := map[uint64]struct{}{}
 	for _, r := range g.Rules {
 		ruleName := r.Record
@@ -177,7 +174,7 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 	var groups []Group
 	for _, file := range fp {
 		uniqueGroups := map[string]struct{}{}
-		gr, err := parseFile(file)
+		gr, global, err := parseFile(file)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse file %q: %w", file, err)
 		}
@@ -189,6 +186,15 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 				return nil, fmt.Errorf("group name %q duplicate in file %q", g.Name, file)
 			}
 			uniqueGroups[g.Name] = struct{}{}
+			tenant := g.Tenant
+			if tenant == "" {
+				tenant = global.Tenant
+			}
+			at, err := auth.NewToken(tenant)
+			if err != nil {
+				return nil, fmt.Errorf("invalid tenant format: %q", err)
+			}
+			g.AuthToken = at
 			g.File = file
 			groups = append(groups, g)
 		}
@@ -199,41 +205,24 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 	return groups, nil
 }
 
-func parseFile(path string) ([]Group, error) {
+func parseFile(path string) ([]Group, Global, error) {
+	var global Global
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading alert rule file: %w", err)
+		return nil, global, fmt.Errorf("error reading alert rule file: %w", err)
 	}
 	data = envtemplate.Replace(data)
 	g := struct {
-		Global *Global `yaml:"global"`
+		Global Global  `yaml:"global"`
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.
 		XXX map[string]interface{} `yaml:",inline"`
 	}{}
 	err = yaml.Unmarshal(data, &g)
 	if err != nil {
-		return nil, err
+		return nil, global, err
 	}
-	g.Groups = applyGlobal(g.Groups, g.Global)
-	return g.Groups, checkOverflow(g.XXX, "config")
-}
-
-// applyGlobal apply all the global settings into groups
-// the global setting will get overwritten by group setting
-func applyGlobal(groups []Group, global *Global) []Group {
-	// fast path: no global settings
-	if global == nil {
-		return groups
-	}
-
-	for _, g := range groups {
-		if g.Tenant == "" {
-			g.Tenant = global.Tenant
-		}
-	}
-
-	return groups
+	return g.Groups, g.Global, checkOverflow(g.XXX, "config")
 }
 
 func checkOverflow(m map[string]interface{}, ctx string) error {
