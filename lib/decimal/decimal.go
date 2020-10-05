@@ -36,6 +36,9 @@ func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
 	}
 	upExp -= downExp
 	for i, v := range a {
+		if v == vInfPos || v == vInfNeg {
+			continue
+		}
 		adjExp := upExp
 		for adjExp > 0 {
 			v *= 10
@@ -45,6 +48,9 @@ func CalibrateScale(a []int64, ae int16, b []int64, be int16) (e int16) {
 	}
 	if downExp > 0 {
 		for i, v := range b {
+			if v == vInfPos || v == vInfNeg {
+				continue
+			}
 			adjExp := downExp
 			for adjExp > 0 {
 				v /= 10
@@ -188,9 +194,6 @@ func AppendFloatToDecimal(dst []int64, src []float64) ([]int64, int16) {
 	downExp := int16(0)
 	_ = ea[len(va)-1]
 	for i, v := range va {
-		if v == vInfPos || v == vInfNeg {
-			continue
-		}
 		exp := ea[i]
 		upExp := exp - minExp
 		maxUpExp := maxUpExponent(v)
@@ -242,7 +245,7 @@ var vaeBufPool sync.Pool
 const int64Max = int64(1<<63 - 1)
 
 func maxUpExponent(v int64) int16 {
-	if v == 0 {
+	if v == 0 || v == vInfPos || v == vInfNeg {
 		// Any exponent allowed.
 		return 1024
 	}
