@@ -575,6 +575,10 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Name:  "foo",
 				Value: "yyy",
 			},
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
 		})
 	})
 	t.Run("labelmap_all", func(t *testing.T) {
