@@ -19,13 +19,13 @@ func Test_addInstanceLabels(t *testing.T) {
 		want [][]prompbmarshal.Label
 	}{
 		{
-			name: "empty response",
+			name: "empty_response",
 			args: args{
 				port: 9100,
 			},
 		},
 		{
-			name: "1 server",
+			name: "one_server",
 			args: args{
 				port: 9100,
 				servers: []server{
@@ -70,7 +70,7 @@ func Test_addInstanceLabels(t *testing.T) {
 			},
 		},
 		{
-			name: "with public ip",
+			name: "with_public_ip",
 			args: args{
 				port: 9100,
 				servers: []server{
@@ -114,6 +114,17 @@ func Test_addInstanceLabels(t *testing.T) {
 			},
 			want: [][]prompbmarshal.Label{
 				discoveryutils.GetSortedLabels(map[string]string{
+					"__address__":                      "10.10.0.1:9100",
+					"__meta_openstack_address_pool":    "internal",
+					"__meta_openstack_instance_flavor": "5",
+					"__meta_openstack_instance_id":     "10",
+					"__meta_openstack_instance_name":   "server-2",
+					"__meta_openstack_instance_status": "enabled",
+					"__meta_openstack_private_ip":      "10.10.0.1",
+					"__meta_openstack_project_id":      "some-tenant-id",
+					"__meta_openstack_user_id":         "some-user-id",
+				}),
+				discoveryutils.GetSortedLabels(map[string]string{
 					"__address__":                      "192.168.0.1:9100",
 					"__meta_openstack_address_pool":    "test",
 					"__meta_openstack_instance_flavor": "5",
@@ -125,24 +136,12 @@ func Test_addInstanceLabels(t *testing.T) {
 					"__meta_openstack_project_id":      "some-tenant-id",
 					"__meta_openstack_user_id":         "some-user-id",
 				}),
-				discoveryutils.GetSortedLabels(map[string]string{
-					"__address__":                      "10.10.0.1:9100",
-					"__meta_openstack_address_pool":    "internal",
-					"__meta_openstack_instance_flavor": "5",
-					"__meta_openstack_instance_id":     "10",
-					"__meta_openstack_instance_name":   "server-2",
-					"__meta_openstack_instance_status": "enabled",
-					"__meta_openstack_private_ip":      "10.10.0.1",
-					"__meta_openstack_project_id":      "some-tenant-id",
-					"__meta_openstack_user_id":         "some-user-id",
-				}),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addInstanceLabels(tt.args.servers, tt.args.port)
-
 			var sortedLabelss [][]prompbmarshal.Label
 			for _, labels := range got {
 				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))

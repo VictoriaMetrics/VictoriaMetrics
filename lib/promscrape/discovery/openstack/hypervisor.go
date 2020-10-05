@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// https://docs.openstack.org/api-ref/compute/?expanded=list-servers-detailed-detail#list-hypervisors-details
+// See https://docs.openstack.org/api-ref/compute/#list-hypervisors-details
 type hypervisorDetail struct {
 	Hypervisors []hypervisor `json:"hypervisors"`
 	Links       []struct {
@@ -32,12 +32,15 @@ func parseHypervisorDetail(data []byte) (*hypervisorDetail, error) {
 	if err := json.Unmarshal(data, &hvsd); err != nil {
 		return nil, fmt.Errorf("cannot parse hypervisorDetail: %w", err)
 	}
-
 	return &hvsd, nil
 }
 
 func (cfg *apiConfig) getHypervisors() ([]hypervisor, error) {
-	computeURL := *cfg.creds.computeURL
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		return nil, err
+	}
+	computeURL := *creds.computeURL
 	computeURL.Path = path.Join(computeURL.Path, "os-hypervisors", "detail")
 	nextLink := computeURL.String()
 	var hvs []hypervisor
@@ -46,19 +49,15 @@ func (cfg *apiConfig) getHypervisors() ([]hypervisor, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		detail, err := parseHypervisorDetail(resp)
 		if err != nil {
 			return nil, err
 		}
 		hvs = append(hvs, detail.Hypervisors...)
-
-		if len(detail.Links) > 0 {
-			nextLink = detail.Links[0].HREF
-			continue
+		if len(detail.Links) == 0 {
+			return hvs, nil
 		}
-
-		return hvs, nil
+		nextLink = detail.Links[0].HREF
 	}
 }
 
@@ -77,7 +76,6 @@ func addHypervisorLabels(hvs []hypervisor, port int) []map[string]string {
 		}
 		ms = append(ms, m)
 	}
-
 	return ms
 }
 
@@ -86,6 +84,5 @@ func getHypervisorLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get hypervisors: %w", err)
 	}
-
 	return addHypervisorLabels(hvs, cfg.port), nil
 }
