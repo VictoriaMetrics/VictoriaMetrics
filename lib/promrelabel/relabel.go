@@ -206,8 +206,9 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 			}
 			value := relabelBufPool.Get()
 			value.B = prc.Regex.ExpandString(value.B[:0], prc.Replacement, label.Name, match)
-			label.Name = string(value.B)
+			labelName := string(value.B)
 			relabelBufPool.Put(value)
+			labels = setLabelValue(labels, labelsOffset, labelName, label.Value)
 		}
 		return labels
 	case "labelmap_all":

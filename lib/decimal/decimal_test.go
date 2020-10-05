@@ -131,14 +131,22 @@ func TestCalibrateScale(t *testing.T) {
 
 	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{500, 100}, 0, 0, []int64{vInfPos, 1200}, []int64{500, 100}, 0)
 	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{500, 100}, 0, 2, []int64{vInfPos, 1200}, []int64{500e2, 100e2}, 0)
-	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{500, 100}, 0, -2, []int64{vInfPos, 1200}, []int64{5, 1}, 0)
-	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{3500, 100}, 0, -3, []int64{vInfPos, 1200}, []int64{3, 0}, 0)
-	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 0, 40, []int64{0, 0}, []int64{35e17, 1e17}, 23)
-	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 40, 0, []int64{vInfPos, 1200}, []int64{0, 0}, 40)
-	testCalibrateScale(t, []int64{vInfNeg, 1200}, []int64{35, 1}, 35, -5, []int64{vInfNeg, 1200}, []int64{0, 0}, 35)
+	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{500, 100}, 0, -2, []int64{vInfPos, 12e4}, []int64{500, 100}, -2)
+	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{3500, 100}, 0, -3, []int64{vInfPos, 12e5}, []int64{3500, 100}, -3)
+	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 0, 40, []int64{vInfPos, 0}, []int64{35e17, 1e17}, 23)
+	testCalibrateScale(t, []int64{vInfPos, 1200}, []int64{35, 1}, 40, 0, []int64{vInfPos, 12e17}, []int64{0, 0}, 25)
+	testCalibrateScale(t, []int64{vInfNeg, 1200}, []int64{35, 1}, 35, -5, []int64{vInfNeg, 12e17}, []int64{0, 0}, 20)
 	testCalibrateScale(t, []int64{vMax, vMin, 123}, []int64{100}, 0, 3, []int64{vMax, vMin, 123}, []int64{100e3}, 0)
 	testCalibrateScale(t, []int64{vMax, vMin, 123}, []int64{100}, 3, 0, []int64{vMax, vMin, 123}, []int64{0}, 3)
 	testCalibrateScale(t, []int64{vMax, vMin, 123}, []int64{100}, 0, 30, []int64{92233, -92233, 0}, []int64{100e16}, 14)
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805
+	testCalibrateScale(t, []int64{123}, []int64{vInfPos}, 0, 0, []int64{123}, []int64{vInfPos}, 0)
+	testCalibrateScale(t, []int64{123, vInfPos}, []int64{vInfNeg}, 0, 0, []int64{123, vInfPos}, []int64{vInfNeg}, 0)
+	testCalibrateScale(t, []int64{123, vInfPos, vInfNeg}, []int64{456}, 0, 0, []int64{123, vInfPos, vInfNeg}, []int64{456}, 0)
+	testCalibrateScale(t, []int64{123, vInfPos, vInfNeg, 456}, []int64{}, 0, 0, []int64{123, vInfPos, vInfNeg, 456}, []int64{}, 0)
+	testCalibrateScale(t, []int64{123, vInfPos}, []int64{vInfNeg, 456}, 0, 0, []int64{123, vInfPos}, []int64{vInfNeg, 456}, 0)
+	testCalibrateScale(t, []int64{123, vInfPos}, []int64{vInfNeg, 456}, 0, 10, []int64{123, vInfPos}, []int64{vInfNeg, 456e10}, 0)
 }
 
 func testCalibrateScale(t *testing.T, a, b []int64, ae, be int16, aExpected, bExpected []int64, eExpected int16) {
@@ -175,7 +183,7 @@ func testCalibrateScale(t *testing.T, a, b []int64, ae, be int16, aExpected, bEx
 	bCopy = append([]int64{}, b...)
 	e = CalibrateScale(bCopy, be, aCopy, ae)
 	if e != eExpected {
-		t.Fatalf("revers: unexpected e for a=%d, b=%d, ae=%d, be=%d; got %d; expecting %d", a, b, ae, be, e, eExpected)
+		t.Fatalf("reverse: unexpected e for a=%d, b=%d, ae=%d, be=%d; got %d; expecting %d", a, b, ae, be, e, eExpected)
 	}
 	if !reflect.DeepEqual(aCopy, aExpected) {
 		t.Fatalf("reverse: unexpected a for b=%d, ae=%d, be=%d; got\n%d; expecting\n%d", b, ae, be, aCopy, aExpected)
@@ -188,23 +196,17 @@ func testCalibrateScale(t *testing.T, a, b []int64, ae, be int16, aExpected, bEx
 func TestMaxUpExponent(t *testing.T) {
 	f := func(v int64, eExpected int16) {
 		t.Helper()
-
 		e := maxUpExponent(v)
 		if e != eExpected {
 			t.Fatalf("unexpected e for v=%d; got %d; expecting %d", v, e, eExpected)
 		}
-		e = maxUpExponent(-v)
-		if e != eExpected {
-			t.Fatalf("unexpected e for v=%d; got %d; expecting %d", -v, e, eExpected)
-		}
 	}
 
-	f(vInfPos, 0)
-	f(vInfNeg, 0)
+	f(vInfPos, 1024)
+	f(vInfNeg, 1024)
+	f(vMin, 0)
+	f(vMax, 0)
 	f(0, 1024)
-	f(-1<<63, 0)
-	f((-1<<63)+1, 0)
-	f((1<<63)-1, 0)
 	f(1, 18)
 	f(12, 17)
 	f(123, 16)
@@ -242,6 +244,44 @@ func TestMaxUpExponent(t *testing.T) {
 	f(923, 15)
 	f(92, 17)
 	f(9, 18)
+
+	f(-1, 18)
+	f(-12, 17)
+	f(-123, 16)
+	f(-1234, 15)
+	f(-12345, 14)
+	f(-123456, 13)
+	f(-1234567, 12)
+	f(-12345678, 11)
+	f(-123456789, 10)
+	f(-1234567890, 9)
+	f(-12345678901, 8)
+	f(-123456789012, 7)
+	f(-1234567890123, 6)
+	f(-12345678901234, 5)
+	f(-123456789012345, 4)
+	f(-1234567890123456, 3)
+	f(-12345678901234567, 2)
+	f(-123456789012345678, 1)
+	f(-1234567890123456789, 0)
+	f(-923456789012345678, 0)
+	f(-92345678901234567, 1)
+	f(-9234567890123456, 2)
+	f(-923456789012345, 3)
+	f(-92345678901234, 4)
+	f(-9234567890123, 5)
+	f(-923456789012, 6)
+	f(-92345678901, 7)
+	f(-9234567890, 8)
+	f(-923456789, 9)
+	f(-92345678, 10)
+	f(-9234567, 11)
+	f(-923456, 12)
+	f(-92345, 13)
+	f(-9234, 14)
+	f(-923, 15)
+	f(-92, 17)
+	f(-9, 18)
 }
 
 func TestAppendFloatToDecimal(t *testing.T) {

@@ -920,6 +920,10 @@ scrape_configs:
 					Name:  "prefix:url",
 					Value: "http://foo.bar:1234/metrics",
 				},
+				{
+					Name:  "url",
+					Value: "http://foo.bar:1234/metrics",
+				},
 			},
 			AuthConfig:      &promauth.Config{},
 			jobNameOriginal: "foo",
