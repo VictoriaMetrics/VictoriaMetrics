@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"sort"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// https://docs.openstack.org/api-ref/compute/?expanded=list-servers-detailed-detail#list-servers
+// See https://docs.openstack.org/api-ref/compute/#list-servers
 type serversDetail struct {
 	Servers []server `json:"servers"`
 	Links   []struct {
@@ -40,7 +41,6 @@ func parseServersDetail(data []byte) (*serversDetail, error) {
 	if err := json.Unmarshal(data, &srvd); err != nil {
 		return nil, fmt.Errorf("cannot parse serversDetail: %w", err)
 	}
-
 	return &srvd, nil
 }
 
@@ -55,13 +55,20 @@ func addInstanceLabels(servers []server, port int) []map[string]string {
 			"__meta_openstack_user_id":         server.UserID,
 			"__meta_openstack_instance_flavor": server.Flavor.ID,
 		}
-
 		for k, v := range server.Metadata {
 			m["__meta_openstack_tag_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
-		for pool, addresses := range server.Addresses {
+		// Traverse server.Addresses in alphabetical order of pool name
+		// in order to return targets in deterministic order.
+		sortedPools := make([]string, 0, len(server.Addresses))
+		for pool := range server.Addresses {
+			sortedPools = append(sortedPools, pool)
+		}
+		sort.Strings(sortedPools)
+		for _, pool := range sortedPools {
+			addresses := server.Addresses[pool]
 			if len(addresses) == 0 {
-				// pool with zero addresses skip it
+				// skip pool with zero addresses
 				continue
 			}
 			var publicIP string
@@ -90,7 +97,6 @@ func addInstanceLabels(servers []server, port int) []map[string]string {
 				}
 				lbls["__address__"] = discoveryutils.JoinHostPort(ip.Address, port)
 				ms = append(ms, lbls)
-
 			}
 		}
 	}
@@ -98,7 +104,11 @@ func addInstanceLabels(servers []server, port int) []map[string]string {
 }
 
 func (cfg *apiConfig) getServers() ([]server, error) {
-	computeURL := *cfg.creds.computeURL
+	creds, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		return nil, err
+	}
+	computeURL := *creds.computeURL
 	computeURL.Path = path.Join(computeURL.Path, "servers", "detail")
 	// by default, query fetches data from all tenants
 	if !cfg.allTenants {
@@ -106,28 +116,22 @@ func (cfg *apiConfig) getServers() ([]server, error) {
 		q.Set("all_tenants", "false")
 		computeURL.RawQuery = q.Encode()
 	}
-
 	nextLink := computeURL.String()
-
 	var servers []server
 	for {
 		resp, err := getAPIResponse(nextLink, cfg)
 		if err != nil {
 			return nil, err
 		}
-
 		serversDetail, err := parseServersDetail(resp)
 		if err != nil {
 			return nil, err
 		}
 		servers = append(servers, serversDetail.Servers...)
-
-		if len(serversDetail.Links) > 0 {
-			nextLink = serversDetail.Links[0].HREF
-			continue
+		if len(serversDetail.Links) == 0 {
+			return servers, nil
 		}
-
-		return servers, nil
+		nextLink = serversDetail.Links[0].HREF
 	}
 }
 
@@ -137,5 +141,4 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 		return nil, err
 	}
 	return addInstanceLabels(srv, cfg.port), nil
-
 }

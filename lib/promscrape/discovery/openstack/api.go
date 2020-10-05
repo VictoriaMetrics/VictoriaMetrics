@@ -16,27 +16,22 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-const authHeaderName = "X-Auth-Token" // for making requests to openstack api
-
 var configMap = discoveryutils.NewConfigMap()
 
 // apiCredentials can be refreshed
 type apiCredentials struct {
-	// computeURL obtained from auth response and maybe changed
 	computeURL *url.URL
-	// value of authHeaderName
 	token      string
 	expiration time.Time
 }
 
 type apiConfig struct {
-	// client may use tls
 	client *http.Client
 	port   int
-	// tokenLock - guards creds refresh
+	// tokenLock guards creds refresh
 	tokenLock sync.Mutex
 	creds     *apiCredentials
-	// authTokenReq - request for apiCredentials
+	// authTokenReq contins request body for apiCredentials
 	authTokenReq []byte
 	// keystone endpoint
 	endpoint   *url.URL
@@ -50,19 +45,17 @@ func (cfg *apiConfig) getFreshAPICredentials() (*apiCredentials, error) {
 	cfg.tokenLock.Lock()
 	defer cfg.tokenLock.Unlock()
 
-	if time.Until(cfg.creds.expiration) > 10*time.Second {
-
+	if cfg.creds != nil && time.Until(cfg.creds.expiration) > 10*time.Second {
 		// Credentials aren't expired yet.
 		return cfg.creds, nil
 	}
 	newCreds, err := getCreds(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed token refresh: %w", err)
+		return nil, fmt.Errorf("cannot refresh OpenStack api token: %w", err)
 	}
-	logger.Infof("refreshed, next : %v", cfg.creds.expiration.String())
 	cfg.creds = newCreds
-
-	return cfg.creds, nil
+	logger.Infof("successfully refreshed OpenStack api token; next expiration: %s", newCreds.expiration)
+	return newCreds, nil
 }
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
@@ -75,22 +68,20 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
-		client:       discoveryutils.GetHTTPClient(),
+		client:       &http.Client{},
 		availability: sdc.Availability,
 		region:       sdc.Region,
 		allTenants:   sdc.AllTenants,
 		port:         sdc.Port,
 	}
-
 	if sdc.TLSConfig != nil {
 		config, err := promauth.NewConfig(baseDir, nil, "", "", sdc.TLSConfig)
 		if err != nil {
 			return nil, err
 		}
-		tr := &http.Transport{
+		cfg.client.Transport = &http.Transport{
 			TLSClientConfig: config.NewTLSConfig(),
 		}
-		cfg.client.Transport = tr
 	}
 	// use public compute endpoint by default
 	if len(cfg.availability) == 0 {
@@ -100,7 +91,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	// create new variable to prevent side effects
 	sdcAuth := *sdc
 	// special case if identity_endpoint is not defined
-	if len(sdc.IdentityEndpoint) == 0 {
+	if len(sdcAuth.IdentityEndpoint) == 0 {
 		// override sdc
 		sdcAuth = readCredentialsFromEnv()
 	}
@@ -115,19 +106,15 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, err
 	}
 	cfg.authTokenReq = tokenReq
-	token, err := getCreds(cfg)
-	if err != nil {
-		return nil, err
-	}
-	cfg.creds = token
+	// cfg.creds is populated at getFreshAPICredentials
 
 	return cfg, nil
 }
 
-// getCreds - make call to openstack keystone api and retrieves token and computeURL
-// https://docs.openstack.org/api-ref/identity/v3/
+// getCreds makes a call to openstack keystone api and retrieves token and computeURL
+//
+// See https://docs.openstack.org/api-ref/identity/v3/
 func getCreds(cfg *apiConfig) (*apiCredentials, error) {
-
 	apiURL := *cfg.endpoint
 	apiURL.Path = path.Join(apiURL.Path, "auth", "tokens")
 
@@ -143,23 +130,19 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 	if resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("auth failed, bad status code: %d, want: 201", resp.StatusCode)
 	}
-
 	at := resp.Header.Get("X-Subject-Token")
 	if len(at) == 0 {
 		return nil, fmt.Errorf("auth failed, response without X-Subject-Token")
 	}
-
 	var ar authResponse
 	if err := json.Unmarshal(r, &ar); err != nil {
 		return nil, fmt.Errorf("cannot parse auth credentials response: %w", err)
 	}
-
 	computeURL, err := getComputeEndpointURL(ar.Token.Catalog, cfg.availability, cfg.region)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get computeEndpoint, account doesn't have enough permissions,"+
-			" availability: %s, region: %s", cfg.availability, cfg.region)
+		return nil, fmt.Errorf("cannot get computeEndpoint, account doesn't have enough permissions, "+
+			"availability: %s, region: %s; error: %w", cfg.availability, cfg.region, err)
 	}
-
 	return &apiCredentials{
 		token:      at,
 		expiration: ar.Token.ExpiresAt,
@@ -167,7 +150,7 @@ func getCreds(cfg *apiConfig) (*apiCredentials, error) {
 	}, nil
 }
 
-// readResponseBody - reads body from http.Response.
+// readResponseBody reads body from http.Response.
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 	data, err := ioutil.ReadAll(resp.Body)
 	_ = resp.Body.Close()
@@ -178,26 +161,24 @@ func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected status code for %q; got %d; want %d; response body: %q",
 			apiURL, resp.StatusCode, http.StatusOK, data)
 	}
-
 	return data, nil
 }
 
-// getAPIResponse - makes api call to openstack and returns response body
-func getAPIResponse(href string, cfg *apiConfig) ([]byte, error) {
-	token, err := cfg.getFreshAPICredentials()
+// getAPIResponse calls openstack apiURL and returns response body.
+func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
+	creds, err := cfg.getFreshAPICredentials()
 	if err != nil {
-		return nil, fmt.Errorf("failed refresh api credentials: %w", err)
+		return nil, err
 	}
-	req, err := http.NewRequest("GET", href, nil)
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create new request for openstack api href: %s, err: %w", href, err)
+		return nil, fmt.Errorf("cannot create new request for openstack api url %s: %w", apiURL, err)
 	}
-	req.Header.Set(authHeaderName, token.token)
+	req.Header.Set("X-Auth-Token", creds.token)
 	resp, err := cfg.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed query openstack api, href: %s, err : %w", href, err)
+		return nil, fmt.Errorf("cannot query openstack api url %s: %w", apiURL, err)
 	}
-
-	return readResponseBody(resp, href)
+	return readResponseBody(resp, apiURL)
 
 }
