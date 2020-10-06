@@ -127,6 +127,10 @@ var (
 )
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.RequestURI == "/" {
+		fmt.Fprintf(w, "vmselect - a component of VictoriaMetrics cluster. See docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html")
+		return true
+	}
 	startTime := time.Now()
 	// Limit the number of concurrent queries.
 	select {

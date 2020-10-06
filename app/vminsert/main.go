@@ -140,6 +140,10 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.RequestURI == "/" {
+		fmt.Fprintf(w, "vminsert - a component of VictoriaMetrics cluster. See docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html")
+		return true
+	}
 	p, err := httpserver.ParsePath(r.URL.Path)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", r.URL.Path, err)
