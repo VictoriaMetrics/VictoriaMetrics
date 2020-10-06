@@ -26,6 +26,7 @@
 * [Billy: how VictoriaMetrics deals with more than 500 billion rows](https://medium.com/@valyala/billy-how-victoriametrics-deals-with-more-than-500-billion-rows-e82ff8f725da)
 * [How to migrate data from Prometheus to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043)
 * [Filtering and modifying time series during import to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-filtering-and-modifying-time-series-6d40cea4bf21)
+* [Anomaly Detection in VictoriaMetrics](https://medium.com/@VictoriaMetrics/anomaly-detection-in-victoriametrics-9528538786a7)
 
 
 ## Third-party articles and slides
