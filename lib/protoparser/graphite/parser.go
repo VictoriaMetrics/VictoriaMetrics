@@ -98,12 +98,12 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail[:n], err)
 	}
-	ts, err := fastfloat.ParseInt64(tail[n+1:])
+	ts, err := fastfloat.Parse(tail[n+1:])
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail[n+1:], err)
 	}
 	r.Value = v
-	r.Timestamp = ts
+	r.Timestamp = int64(ts)
 	return tagsPool, nil
 }
 
