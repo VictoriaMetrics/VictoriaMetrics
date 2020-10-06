@@ -54,7 +54,7 @@ func (cfg *apiConfig) getFreshAPICredentials() (*apiCredentials, error) {
 		return nil, fmt.Errorf("cannot refresh OpenStack api token: %w", err)
 	}
 	cfg.creds = newCreds
-	logger.Infof("successfully refreshed OpenStack api token; next expiration: %s", newCreds.expiration)
+	logger.Infof("successfully refreshed OpenStack api token; expiration: %.3f seconds", time.Until(newCreds.expiration).Seconds())
 	return newCreds, nil
 }
 
