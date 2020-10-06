@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -66,6 +67,10 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.RequestURI == "/" {
+		fmt.Fprintf(w, "Single-node VictoriaMetrics. See docs at https://victoriametrics.github.io/")
+		return true
+	}
 	if vminsert.RequestHandler(w, r) {
 		return true
 	}
