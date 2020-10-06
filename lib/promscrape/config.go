@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
@@ -72,6 +73,7 @@ type ScrapeConfig struct {
 	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
 	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs"`
 	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs"`
+	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs"`
 	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs"`
 	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
 	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
@@ -225,6 +227,34 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
 			logger.Errorf("there were errors when discovering openstack targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	var dst []ScrapeWork
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.DockerSwarmConfigs {
+			sdc := &sc.DockerSwarmConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendDockerSwarmScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering dockerswarm targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
@@ -481,6 +511,15 @@ func appendOpenstackScrapeWork(dst []ScrapeWork, sdc *openstack.SDConfig, baseDi
 		return dst, false
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "openstack_sd_config"), true
+}
+
+func appendDockerSwarmScrapeWork(dst []ScrapeWork, sdc *dockerswarm.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+	targetLabels, err := dockerswarm.GetLabels(sdc, baseDir)
+	if err != nil {
+		logger.Errorf("error when discovering dockerswarm targets for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst, false
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dockerswarm_sd_config"), true
 }
 
 func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
