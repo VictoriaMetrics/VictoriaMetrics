@@ -1,5 +1,8 @@
 # tip
 
+
+# [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
+
 * FEATURE: reduce CPU usage for repeated queries over sliding time window when no new time series are added to the database.
   Typical use cases: repeated evaluation of alerting rules in [vmalert](https://victoriametrics.github.io/vmalert.html) or dashboard auto-refresh in Grafana.
 * FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config).
