@@ -138,6 +138,10 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	if r.RequestURI == "/" {
+		fmt.Fprintf(w, "vmagent - see docs at https://victoriametrics.github.io/vmagent.html")
+		return true
+	}
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	switch path {
 	case "/api/v1/write":

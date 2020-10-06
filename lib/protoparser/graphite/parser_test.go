@@ -113,6 +113,16 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
+	// Floating-point timestamp
+	// See https://github.com/graphite-project/carbon/blob/b0ba62a62d40a37950fed47a8f6ae6d0f02e6af5/lib/carbon/protocols.py#L197
+	f("aaa 1123 4294.943", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: 4294,
+		}},
+	})
+
 	// Tags
 	f("foo;bar=baz 1 2", &Rows{
 		Rows: []Row{{
