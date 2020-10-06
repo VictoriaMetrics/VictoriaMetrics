@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Go
-        uses: actions/setup-go@master
+        uses: actions/setup-go@main
         with:
           go-version: 1.15
         id: go
