@@ -1,0 +1,34 @@
+groups:
+  - name: tenantFormatErr-1
+    tenant: "42:12:13"
+    rules:
+      - alert: tenantFormatErr-1-alert
+        for: 10s
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"
+  - name: tenantFormatErr-2
+    tenant: "ab:12"
+    rules:
+      - alert: tenantFormatErr-2-alert
+        for: 10s
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"
+  - name: tenantFormatErr-3
+    tenant: "42:ab"
+    rules:
+      - alert: tenantFormatErr-3-alert
+        for: 10s
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"

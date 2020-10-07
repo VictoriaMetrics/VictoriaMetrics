@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -24,6 +25,7 @@ type Group struct {
 	Rules       []Rule
 	Interval    time.Duration
 	Concurrency int
+	AuthToken   *auth.Token
 	Checksum    string
 
 	doneCh     chan struct{}
@@ -59,6 +61,7 @@ func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string
 		finishedCh:  make(chan struct{}),
 		updateCh:    make(chan *Group),
 	}
+	g.AuthToken = cfg.AuthToken
 	g.metrics = newGroupMetrics(g.Name, g.File)
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
@@ -99,6 +102,12 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
+	hash.Write([]byte("\xff"))
+	token := &auth.Token{}
+	if g.AuthToken != nil {
+		token = g.AuthToken
+	}
+	hash.Write([]byte(token.String()))
 	return hash.Sum64()
 }
 
@@ -159,6 +168,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	g.Concurrency = newGroup.Concurrency
 	g.Checksum = newGroup.Checksum
+	g.AuthToken = newGroup.AuthToken
 	g.Rules = newRules
 	return nil
 }
