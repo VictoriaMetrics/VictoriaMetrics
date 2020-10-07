@@ -1,5 +1,8 @@
 # tip
 
+* FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
+  The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
+
 
 # [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
 
