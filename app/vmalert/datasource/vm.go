@@ -93,7 +93,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Reponse body %s", resp.StatusCode, req.URL, body)
+		return nil, fmt.Errorf("datasource returns unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL, body)
 	}
 	r := &response{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
@@ -106,7 +106,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 		return nil, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
 	}
 	if r.Data.ResultType != rtVector {
-		return nil, fmt.Errorf("unknown restul type:%s. Expected vector", r.Data.ResultType)
+		return nil, fmt.Errorf("unknown result type:%s. Expected vector", r.Data.ResultType)
 	}
 	return r.metrics()
 }

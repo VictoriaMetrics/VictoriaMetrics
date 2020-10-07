@@ -1,5 +1,14 @@
 # tip
 
+* FEATURE: automatically add missing label filters to binary operands as described at https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization .
+  This should improve performance for queries with missing label filters in binary operands. For example, the following query should work faster now, because it shouldn't
+  fetch and discard time series for `node_filesystem_files_free` metric without matching labels for the left side of the expression:
+  ```
+     node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
+  ```
+* FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
+  The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
+
 
 # [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
 
