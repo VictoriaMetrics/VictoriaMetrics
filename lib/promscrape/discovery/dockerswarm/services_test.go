@@ -130,12 +130,12 @@ func Test_parseServicesResponse(t *testing.T) {
 						},
 					},
 					Endpoint: struct {
-						Ports      []PortConfig
+						Ports      []portConfig
 						VirtualIPs []struct {
 							NetworkID string
 							Addr      string
 						}
-					}{Ports: []PortConfig{
+					}{Ports: []portConfig{
 						{
 							Protocol:      "tcp",
 							PublishMode:   "ingress",
@@ -235,12 +235,12 @@ func Test_addServicesLabels(t *testing.T) {
 							},
 						},
 						Endpoint: struct {
-							Ports      []PortConfig
+							Ports      []portConfig
 							VirtualIPs []struct {
 								NetworkID string
 								Addr      string
 							}
-						}{Ports: []PortConfig{
+						}{Ports: []portConfig{
 							{
 								Protocol:    "tcp",
 								Name:        "redis",

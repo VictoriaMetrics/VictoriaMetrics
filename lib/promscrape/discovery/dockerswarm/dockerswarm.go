@@ -6,6 +6,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
+// SDConfig represents docker swarm service discovery configuration
+//
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config
 type SDConfig struct {
 	Host            string                    `yaml:"host"`
 	Role            string                    `yaml:"role"`
@@ -42,7 +45,6 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 		return getServicesLabels(cfg)
 	case "nodes":
 		return getNodesLabels(cfg)
-
 	default:
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `tasks`, `services` or `nodes`; skipping it", sdc.Role)
 	}

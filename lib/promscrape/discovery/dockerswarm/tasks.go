@@ -30,7 +30,7 @@ type task struct {
 			ContainerID string
 		}
 		PortStatus struct {
-			Ports []PortConfig
+			Ports []portConfig
 		}
 	}
 	Slot int
@@ -88,7 +88,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels, networksLabels []
 		for k, v := range task.Labels {
 			m["__meta_dockerswarm_task_label_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
-		var svcPorts []PortConfig
+		var svcPorts []portConfig
 		for i, v := range services {
 			if v.ID == task.ServiceID {
 				svcPorts = services[i].Endpoint.Ports

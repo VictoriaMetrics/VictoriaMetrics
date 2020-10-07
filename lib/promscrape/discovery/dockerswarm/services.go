@@ -31,7 +31,7 @@ type service struct {
 		State string
 	}
 	Endpoint struct {
-		Ports      []PortConfig
+		Ports      []portConfig
 		VirtualIPs []struct {
 			NetworkID string
 			Addr      string
@@ -39,7 +39,7 @@ type service struct {
 	}
 }
 
-type PortConfig struct {
+type portConfig struct {
 	Protocol      string
 	Name          string
 	PublishMode   string

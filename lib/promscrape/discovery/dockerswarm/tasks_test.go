@@ -74,13 +74,13 @@ func Test_parseTasks(t *testing.T) {
 					Status: struct {
 						State           string
 						ContainerStatus *struct{ ContainerID string }
-						PortStatus      struct{ Ports []PortConfig }
+						PortStatus      struct{ Ports []portConfig }
 					}{
 						State: "running",
 						ContainerStatus: &struct{ ContainerID string }{
 							ContainerID: "33034b69f6fa5f808098208752fd1fe4e0e1ca86311988cea6a73b998cdc62e8",
 						},
-						PortStatus: struct{ Ports []PortConfig }{}},
+						PortStatus: struct{ Ports []portConfig }{}},
 				},
 			},
 		},
@@ -128,14 +128,14 @@ func Test_addTasksLabels(t *testing.T) {
 						Status: struct {
 							State           string
 							ContainerStatus *struct{ ContainerID string }
-							PortStatus      struct{ Ports []PortConfig }
+							PortStatus      struct{ Ports []portConfig }
 						}{
 							State: "running",
 							ContainerStatus: &struct{ ContainerID string }{
 								ContainerID: "33034b69f6fa5f808098208752fd1fe4e0e1ca86311988cea6a73b998cdc62e8",
 							},
-							PortStatus: struct{ Ports []PortConfig }{
-								Ports: []PortConfig{
+							PortStatus: struct{ Ports []portConfig }{
+								Ports: []portConfig{
 									{
 										PublishMode:   "ingress",
 										Name:          "redis",
@@ -209,13 +209,13 @@ func Test_addTasksLabels(t *testing.T) {
 						Status: struct {
 							State           string
 							ContainerStatus *struct{ ContainerID string }
-							PortStatus      struct{ Ports []PortConfig }
+							PortStatus      struct{ Ports []portConfig }
 						}{
 							State: "running",
 							ContainerStatus: &struct{ ContainerID string }{
 								ContainerID: "33034b69f6fa5f808098208752fd1fe4e0e1ca86311988cea6a73b998cdc62e8",
 							},
-							PortStatus: struct{ Ports []PortConfig }{}},
+							PortStatus: struct{ Ports []portConfig }{}},
 					},
 				},
 				networksLabels: []map[string]string{
@@ -283,12 +283,12 @@ func Test_addTasksLabels(t *testing.T) {
 							},
 						},
 						Endpoint: struct {
-							Ports      []PortConfig
+							Ports      []portConfig
 							VirtualIPs []struct {
 								NetworkID string
 								Addr      string
 							}
-						}{Ports: []PortConfig{
+						}{Ports: []portConfig{
 							{
 								Protocol:    "tcp",
 								Name:        "redis",
