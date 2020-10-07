@@ -75,7 +75,7 @@ func TestVMSelectQuery(t *testing.T) {
 		t.Fatalf("expected error status got nil")
 	}
 	if _, err := am.Query(ctx, query); err == nil {
-		t.Fatalf("expected unkown status got nil")
+		t.Fatalf("expected unknown status got nil")
 	}
 	if _, err := am.Query(ctx, query); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
