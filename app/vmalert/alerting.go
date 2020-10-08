@@ -53,7 +53,7 @@ func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 		RuleID:      cfg.ID,
 		Name:        cfg.Alert,
 		Expr:        cfg.Expr,
-		For:         cfg.For,
+		For:         cfg.For.Duration(),
 		Labels:      cfg.Labels,
 		Annotations: cfg.Annotations,
 		GroupID:     group.ID(),
