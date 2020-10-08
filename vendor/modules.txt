@@ -16,7 +16,7 @@ github.com/VictoriaMetrics/fasthttp/fasthttputil
 github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.12.3
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.7.0
+# github.com/VictoriaMetrics/metricsql v0.7.1
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/aws/aws-sdk-go v1.35.3
