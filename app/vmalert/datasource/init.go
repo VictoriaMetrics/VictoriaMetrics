@@ -31,7 +31,6 @@ var (
 // Init creates a Querier from provided flag values.
 func Init() (Querier, error) {
 	if *addr == "" {
-		flag.PrintDefaults()
 		return nil, fmt.Errorf("datasource.url is empty")
 	}
 	tr, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)

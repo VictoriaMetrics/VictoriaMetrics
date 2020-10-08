@@ -47,6 +47,11 @@ type ScrapeWork struct {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 	HonorTimestamps bool
 
+	// OriginalLabels contains original labels before relabeling.
+	//
+	// These labels are needed for relabeling troubleshooting at /targets page.
+	OriginalLabels []prompbmarshal.Label
+
 	// Labels to add to the scraped metrics.
 	//
 	// The list contains at least the following labels according to https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
@@ -85,6 +90,7 @@ type ScrapeWork struct {
 //
 // it can be used for comparing for equality two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
+	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
 		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
@@ -107,11 +113,16 @@ func (sw *ScrapeWork) Job() string {
 
 // LabelsString returns labels in Prometheus format for the given sw.
 func (sw *ScrapeWork) LabelsString() string {
-	labels := make([]string, 0, len(sw.Labels))
-	for _, label := range promrelabel.FinalizeLabels(nil, sw.Labels) {
-		labels = append(labels, fmt.Sprintf("%s=%q", label.Name, label.Value))
+	labelsFinalized := promrelabel.FinalizeLabels(nil, sw.Labels)
+	return promLabelsString(labelsFinalized)
+}
+
+func promLabelsString(labels []prompbmarshal.Label) string {
+	a := make([]string, 0, len(labels))
+	for _, label := range labels {
+		a = append(a, fmt.Sprintf("%s=%q", label.Name, label.Value))
 	}
-	return "{" + strings.Join(labels, ", ") + "}"
+	return "{" + strings.Join(a, ", ") + "}"
 }
 
 type scrapeWork struct {
