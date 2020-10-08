@@ -15,7 +15,7 @@ func Optimize(e Expr) Expr {
 		switch t.Op {
 		case "+", "-", "*", "/", "%", "^",
 			"==", "!=", ">", "<", ">=", "<=",
-			"if", "ifnot", "default":
+			"and", "if", "ifnot", "default":
 			// The optimization can be applied only to these operations.
 		default:
 			return optimizeBinaryOpArgs(t)
