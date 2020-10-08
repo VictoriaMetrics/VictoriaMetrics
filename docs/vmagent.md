@@ -239,8 +239,8 @@ before applying relabeling. This information may be useful for debugging target 
   Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
 
 * If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
-  or they use init container. These errors can be either suppressed with `-promscrape.suppressDuplicateScrapeTargetErrors` or fixed. If you prefer fixing these
-  errors, then see available options below:
+  or they use init container. These errors can be either fixed or suppressed with `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag.
+  See available options below if you prefer fixing the root cause of the error:
 
   The following `relabel_configs` section may help determining `__meta_*` labels resulting in duplicate targets:
   ```yml
