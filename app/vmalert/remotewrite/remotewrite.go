@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -19,13 +20,15 @@ import (
 // Client is an asynchronous HTTP client for writing
 // timeseries via remote write protocol.
 type Client struct {
-	addr           string
-	c              *http.Client
-	input          chan prompbmarshal.TimeSeries
-	baUser, baPass string
-	flushInterval  time.Duration
-	maxBatchSize   int
-	maxQueueSize   int
+	addr             string
+	tenancy          bool
+	defaultAuthToken *auth.Token
+	c                *http.Client
+	input            chan prompbmarshal.TimeSeries
+	baUser, baPass   string
+	flushInterval    time.Duration
+	maxBatchSize     int
+	maxQueueSize     int
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
@@ -35,6 +38,8 @@ type Client struct {
 type Config struct {
 	// Addr of remote storage
 	Addr string
+	// Tenancy enabled
+	Tenancy bool
 
 	BasicAuthUser string
 	BasicAuthPass string
@@ -94,7 +99,8 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Timeout:   cfg.WriteTimeout,
 			Transport: cfg.Transport,
 		},
-		addr:          strings.TrimSuffix(cfg.Addr, "/") + writePath,
+		addr:          strings.TrimSuffix(cfg.Addr, "/"),
+		tenancy:       cfg.Tenancy,
 		baUser:        cfg.BasicAuthUser,
 		baPass:        cfg.BasicAuthPass,
 		flushInterval: cfg.FlushInterval,
@@ -102,6 +108,14 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		maxQueueSize:  cfg.MaxQueueSize,
 		doneCh:        make(chan struct{}),
 		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
+	}
+	if c.tenancy {
+		token, formatter, err := auth.FindToken(c.addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid url addr format: %q", err)
+		}
+		c.defaultAuthToken = token
+		c.addr = formatter
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {
@@ -224,6 +238,10 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 
 func (c *Client) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
+	addr := c.addr + writePath
+	if c.tenancy {
+		addr = fmt.Sprintf(addr, c.defaultAuthToken.String())
+	}
 	req, err := http.NewRequest("POST", c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)

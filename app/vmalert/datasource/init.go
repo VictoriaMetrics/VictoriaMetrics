@@ -14,6 +14,8 @@ var (
 	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
 	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 
+	tenancy = flag.Bool("datasource.tenancy", false, "Whether to enable tenancy for -datasource.url")
+
 	tlsInsecureSkipVerify = flag.Bool("datasource.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -datasource.url")
 	tlsCertFile           = flag.String("datasource.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -datasource.url")
 	tlsKeyFile            = flag.String("datasource.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -datasource.url")
@@ -40,5 +42,5 @@ func Init() (Querier, error) {
 	}
 	tr.MaxIdleConns = *maxIdleConnections
 	c := &http.Client{Transport: tr}
-	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *lookBack, c), nil
+	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *tenancy, *lookBack, c)
 }

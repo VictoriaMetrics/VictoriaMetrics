@@ -2,9 +2,29 @@ package auth
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var tokenRegex = compileTokenRegex()
+
+func compileTokenRegex() *regexp.Regexp {
+	return regexp.MustCompile(`/\d+(:{0,1}\d+){0,1}/`)
+}
+
+func FindToken(s string) (*Token, string, error) {
+	t := tokenRegex.FindString(s)
+	if len(t) == 0 {
+		return nil, "", fmt.Errorf("can't find any token format")
+	}
+	token, err := NewToken(t[1 : len(t)-1])
+	if err != nil {
+		return nil, "", fmt.Errorf("can't new token: %q", err)
+	}
+
+	return token, tokenRegex.ReplaceAllString(s, "/%s/"), nil
+}
 
 // Token contains settings for request processing
 type Token struct {
