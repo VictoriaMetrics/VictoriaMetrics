@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
@@ -19,14 +20,15 @@ import (
 
 // AlertingRule is basic alert entity
 type AlertingRule struct {
-	RuleID      uint64
-	Name        string
-	Expr        string
-	For         time.Duration
-	Labels      map[string]string
-	Annotations map[string]string
-	GroupID     uint64
-	GroupName   string
+	RuleID         uint64
+	Name           string
+	Expr           string
+	For            time.Duration
+	Labels         map[string]string
+	Annotations    map[string]string
+	GroupID        uint64
+	GroupName      string
+	GroupAuthToken *auth.Token
 
 	// guard status fields
 	mu sync.RWMutex
@@ -50,16 +52,17 @@ type alertingRuleMetrics struct {
 
 func newAlertingRule(group *Group, cfg config.Rule) *AlertingRule {
 	ar := &AlertingRule{
-		RuleID:      cfg.ID,
-		Name:        cfg.Alert,
-		Expr:        cfg.Expr,
-		For:         cfg.For,
-		Labels:      cfg.Labels,
-		Annotations: cfg.Annotations,
-		GroupID:     group.ID(),
-		GroupName:   group.Name,
-		alerts:      make(map[uint64]*notifier.Alert),
-		metrics:     &alertingRuleMetrics{},
+		RuleID:         cfg.ID,
+		Name:           cfg.Alert,
+		Expr:           cfg.Expr,
+		For:            cfg.For,
+		Labels:         cfg.Labels,
+		Annotations:    cfg.Annotations,
+		GroupID:        group.ID(),
+		GroupName:      group.Name,
+		GroupAuthToken: group.AuthToken,
+		alerts:         make(map[uint64]*notifier.Alert),
+		metrics:        &alertingRuleMetrics{},
 	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
@@ -120,7 +123,7 @@ func (ar *AlertingRule) ID() uint64 {
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
-	qMetrics, err := q.Query(ctx, ar.Expr)
+	qMetrics, err := q.Query(ctx, ar.GroupAuthToken, ar.Expr)
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
 
@@ -408,7 +411,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, err := q.Query(ctx, expr)
+	qMetrics, err := q.Query(ctx, ar.GroupAuthToken, expr)
 	if err != nil {
 		return err
 	}

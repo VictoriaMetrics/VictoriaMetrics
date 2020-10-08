@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -19,11 +20,12 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
-	RuleID  uint64
-	Name    string
-	Expr    string
-	Labels  map[string]string
-	GroupID uint64
+	RuleID         uint64
+	Name           string
+	Expr           string
+	Labels         map[string]string
+	GroupID        uint64
+	GroupAuthToken *auth.Token
 
 	// guard status fields
 	mu sync.RWMutex
@@ -54,12 +56,13 @@ func (rr *RecordingRule) ID() uint64 {
 
 func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
-		RuleID:  cfg.ID,
-		Name:    cfg.Record,
-		Expr:    cfg.Expr,
-		Labels:  cfg.Labels,
-		GroupID: group.ID(),
-		metrics: &recordingRuleMetrics{},
+		RuleID:         cfg.ID,
+		Name:           cfg.Record,
+		Expr:           cfg.Expr,
+		Labels:         cfg.Labels,
+		GroupID:        group.ID(),
+		GroupAuthToken: group.AuthToken,
+		metrics:        &recordingRuleMetrics{},
 	}
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
 	rr.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
@@ -87,7 +90,7 @@ func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series 
 		return nil, nil
 	}
 
-	qMetrics, err := q.Query(ctx, rr.Expr)
+	qMetrics, err := q.Query(ctx, rr.GroupAuthToken, rr.Expr)
 
 	rr.mu.Lock()
 	defer rr.mu.Unlock()

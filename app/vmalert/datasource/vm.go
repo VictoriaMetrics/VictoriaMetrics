@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
 type response struct {
@@ -82,13 +83,16 @@ func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, tenancy bool, lo
 }
 
 // Query reads metrics from datasource by given query
-func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
+func (s *VMStorage) Query(ctx context.Context, at *auth.Token, query string) ([]Metric, error) {
 	const (
 		statusSuccess, statusError, rtVector = "success", "error", "vector"
 	)
 	q := s.url
 	if s.tenancy {
-		q = fmt.Sprintf(q, s.defaultAuthToken.String())
+		if at == nil {
+			at = s.defaultAuthToken
+		}
+		q = fmt.Sprintf(q, at.String())
 	}
 	q = q + queryPath + url.QueryEscape(query)
 	if s.lookBack > 0 {
