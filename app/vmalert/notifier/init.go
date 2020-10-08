@@ -26,7 +26,6 @@ var (
 // Init creates a Notifier object based on provided flags.
 func Init(gen AlertURLGenerator) ([]Notifier, error) {
 	if len(*addrs) == 0 {
-		flag.PrintDefaults()
 		return nil, fmt.Errorf("at least one `-notifier.url` must be set")
 	}
 
