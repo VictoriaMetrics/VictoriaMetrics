@@ -988,7 +988,7 @@ const (
 )
 
 const (
-	PERF_FLAG_FD_CLOEXEF_TYPE_HARDWARE    = 0x0
+	PERF_TYPE_HARDWARE                    = 0x0
 	PERF_TYPE_SOFTWARE                    = 0x1
 	PERF_TYPE_TRACEPOINT                  = 0x2
 	PERF_TYPE_HW_CACHE                    = 0x3
