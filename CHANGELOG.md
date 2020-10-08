@@ -6,6 +6,12 @@
   ```
      node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
   ```
+* FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651 and https://victoriametrics.github.io/vmagent.html#troubleshooting .
+* FEATURE: vmagent: show original labels before relabeling is applied on `duplicate scrape target` errors. This should simplify debugging for incorrect relabeling.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
+* FEATURE: vmagent: `/targets` page now accepts optional `show_original_labels=1` query arg for displaying original labels for each target before relabeling is applied.
+  This should simplify debugging for target relabeling configs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
 * FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
   The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
 
