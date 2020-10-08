@@ -210,6 +210,8 @@ Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) f
 If you have suggestions, improvements or found a bug - feel free to open an issue on github or add review to the dashboard.
 
 `vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format.
+`/targets` handler accepts optional `show_original_labels=1` query arg, which shows the original labels per each target
+before applying relabeling. This information may be useful for debugging target relabeling.
 
 
 ### Troubleshooting
@@ -237,7 +239,8 @@ If you have suggestions, improvements or found a bug - feel free to open an issu
   Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
 
 * If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
-  or they use init container.
+  or they use init container. These errors can be either suppressed with `-promscrape.suppressDuplicateScrapeTargetErrors` or fixed. If you prefer fixing these
+  errors, then see available options below:
 
   The following `relabel_configs` section may help determining `__meta_*` labels resulting in duplicate targets:
   ```yml
