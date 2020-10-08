@@ -665,7 +665,7 @@
           /
         sum(rate(kube_state_metrics_list_total{job="kube-state-metrics"}[5m])))
         > 0.01
-      for: 15m
+      for: 1d
       labels:
         severity: critical
     - alert: KubeStateMetricsWatchErrors
