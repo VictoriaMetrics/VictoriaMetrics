@@ -146,6 +146,9 @@ func (g *Group) toAPI() APIGroup {
 		Interval:    g.Interval.String(),
 		Concurrency: g.Concurrency,
 	}
+	if g.AuthToken != nil {
+		ag.Tenant = g.AuthToken.String()
+	}
 	for _, r := range g.Rules {
 		switch v := r.(type) {
 		case *AlertingRule:
