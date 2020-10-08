@@ -71,45 +71,47 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 
 	logger.Infof("starting backup from %s to %s using origin %s", src, dst, origin)
 
-	logger.Infof("obtaining list of parts at %s", src)
 	srcParts, err := src.ListParts()
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
 	}
-	logger.Infof("obtaining list of parts at %s", dst)
+	logger.Infof("obtained %d parts from src %s", len(srcParts), src)
+
 	dstParts, err := dst.ListParts()
 	if err != nil {
 		return fmt.Errorf("cannot list dst parts: %w", err)
 	}
-	logger.Infof("obtaining list of parts at %s", origin)
+	logger.Infof("obtained %d parts from dst %s", len(dstParts), dst)
+
 	originParts, err := origin.ListParts()
 	if err != nil {
 		return fmt.Errorf("cannot list origin parts: %w", err)
 	}
+	logger.Infof("obtained %d parts from origin %s", len(originParts), origin)
 
 	backupSize := getPartsSize(srcParts)
 
 	partsToDelete := common.PartsDifference(dstParts, srcParts)
 	deleteSize := getPartsSize(partsToDelete)
 	if len(partsToDelete) > 0 {
-		logger.Infof("deleting %d parts from %s", len(partsToDelete), dst)
+		logger.Infof("deleting %d parts from dst %s", len(partsToDelete), dst)
 		deletedParts := uint64(0)
 		err = runParallel(concurrency, partsToDelete, func(p common.Part) error {
-			logger.Infof("deleting %s from %s", &p, dst)
+			logger.Infof("deleting %s from dst %s", &p, dst)
 			if err := dst.DeletePart(p); err != nil {
-				return fmt.Errorf("cannot delete %s from %s: %w", &p, dst, err)
+				return fmt.Errorf("cannot delete %s from dst %s: %w", &p, dst, err)
 			}
 			atomic.AddUint64(&deletedParts, 1)
 			return nil
 		}, func(elapsed time.Duration) {
 			n := atomic.LoadUint64(&deletedParts)
-			logger.Infof("deleted %d out of %d parts from %s in %s", n, len(partsToDelete), dst, elapsed)
+			logger.Infof("deleted %d out of %d parts from dst %s in %s", n, len(partsToDelete), dst, elapsed)
 		})
 		if err != nil {
 			return err
 		}
 		if err := dst.RemoveEmptyDirs(); err != nil {
-			return fmt.Errorf("cannot remove empty directories at %s: %w", dst, err)
+			return fmt.Errorf("cannot remove empty directories at dst %s: %w", dst, err)
 		}
 	}
 
@@ -117,18 +119,18 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 	originCopyParts := common.PartsIntersect(originParts, partsToCopy)
 	copySize := getPartsSize(originCopyParts)
 	if len(originCopyParts) > 0 {
-		logger.Infof("server-side copying %d parts from %s to %s", len(originCopyParts), origin, dst)
+		logger.Infof("server-side copying %d parts from origin %s to dst %s", len(originCopyParts), origin, dst)
 		copiedParts := uint64(0)
 		err = runParallel(concurrency, originCopyParts, func(p common.Part) error {
-			logger.Infof("server-side copying %s from %s to %s", &p, origin, dst)
+			logger.Infof("server-side copying %s from origin %s to dst %s", &p, origin, dst)
 			if err := dst.CopyPart(origin, p); err != nil {
-				return fmt.Errorf("cannot copy %s from %s to %s: %w", &p, origin, dst, err)
+				return fmt.Errorf("cannot copy %s from origin %s to dst %s: %w", &p, origin, dst, err)
 			}
 			atomic.AddUint64(&copiedParts, 1)
 			return nil
 		}, func(elapsed time.Duration) {
 			n := atomic.LoadUint64(&copiedParts)
-			logger.Infof("server-side copied %d out of %d parts from %s to %s in %s", n, len(originCopyParts), origin, dst, elapsed)
+			logger.Infof("server-side copied %d out of %d parts from origin %s to dst %s in %s", n, len(originCopyParts), origin, dst, elapsed)
 		})
 		if err != nil {
 			return err
@@ -138,36 +140,36 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 	srcCopyParts := common.PartsDifference(partsToCopy, originParts)
 	uploadSize := getPartsSize(srcCopyParts)
 	if len(srcCopyParts) > 0 {
-		logger.Infof("uploading %d parts from %s to %s", len(srcCopyParts), src, dst)
+		logger.Infof("uploading %d parts from src %s to dst %s", len(srcCopyParts), src, dst)
 		bytesUploaded := uint64(0)
 		err = runParallel(concurrency, srcCopyParts, func(p common.Part) error {
-			logger.Infof("uploading %s from %s to %s", &p, src, dst)
+			logger.Infof("uploading %s from src %s to dst %s", &p, src, dst)
 			rc, err := src.NewReadCloser(p)
 			if err != nil {
-				return fmt.Errorf("cannot create reader for %s from %s: %w", &p, src, err)
+				return fmt.Errorf("cannot create reader for %s from src %s: %w", &p, src, err)
 			}
 			sr := &statReader{
 				r:         rc,
 				bytesRead: &bytesUploaded,
 			}
 			if err := dst.UploadPart(p, sr); err != nil {
-				return fmt.Errorf("cannot upload %s to %s: %w", &p, dst, err)
+				return fmt.Errorf("cannot upload %s to dst %s: %w", &p, dst, err)
 			}
 			if err = rc.Close(); err != nil {
-				return fmt.Errorf("cannot close reader for %s from %s: %w", &p, src, err)
+				return fmt.Errorf("cannot close reader for %s from src %s: %w", &p, src, err)
 			}
 			return nil
 		}, func(elapsed time.Duration) {
 			n := atomic.LoadUint64(&bytesUploaded)
-			logger.Infof("uploaded %d out of %d bytes from %s to %s in %s", n, uploadSize, src, dst, elapsed)
+			logger.Infof("uploaded %d out of %d bytes from src %s to dst %s in %s", n, uploadSize, src, dst, elapsed)
 		})
 		if err != nil {
 			return err
 		}
 	}
 
-	logger.Infof("backed up %d bytes in %.3f seconds; deleted %d bytes; server-side copied %d bytes; uploaded %d bytes",
-		backupSize, time.Since(startTime).Seconds(), deleteSize, copySize, uploadSize)
+	logger.Infof("backup from src %s to dst %s with origin %s is complete; backed up %d bytes in %.3f seconds; deleted %d bytes; server-side copied %d bytes; uploaded %d bytes",
+		src, dst, origin, backupSize, time.Since(startTime).Seconds(), deleteSize, copySize, uploadSize)
 
 	return nil
 }
