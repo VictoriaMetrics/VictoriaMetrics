@@ -333,6 +333,7 @@ func (s *Storage) idb() *indexDB {
 
 // Metrics contains essential metrics for the Storage.
 type Metrics struct {
+	RowsAddedTotal    uint64
 	DedupsDuringMerge uint64
 
 	TooSmallTimestampRows uint64
@@ -401,6 +402,7 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
+	m.RowsAddedTotal = atomic.LoadUint64(&rowsAddedTotal)
 	m.DedupsDuringMerge = atomic.LoadUint64(&dedupsDuringMerge)
 
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
@@ -1127,11 +1129,14 @@ func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
 	return s.tb.ForceMergePartitions(partitionNamePrefix)
 }
 
+var rowsAddedTotal uint64
+
 // AddRows adds the given mrs to s.
 func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	if len(mrs) == 0 {
 		return nil
 	}
+	atomic.AddUint64(&rowsAddedTotal, uint64(len(mrs)))
 
 	// Limit the number of concurrent goroutines that may add rows to the storage.
 	// This should prevent from out of memory errors and CPU trashing when too many
