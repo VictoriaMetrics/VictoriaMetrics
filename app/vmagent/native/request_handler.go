@@ -38,6 +38,12 @@ func insertRows(block *parser.Block, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
+	// Update rowsInserted and rowsPerInsert before actual inserting,
+	// since relabeling can prevent from inserting the rows.
+	rowsLen := len(block.Values)
+	rowsInserted.Add(rowsLen)
+	rowsPerInsert.Update(float64(rowsLen))
+
 	tssDst := ctx.WriteRequest.Timeseries[:0]
 	labels := ctx.Labels[:0]
 	samples := ctx.Samples[:0]
@@ -71,12 +77,9 @@ func insertRows(block *parser.Block, extraLabels []prompbmarshal.Label) error {
 		Labels:  labels[labelsLen:],
 		Samples: samples[samplesLen:],
 	})
-	rowsTotal := len(values)
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels
 	ctx.Samples = samples
 	remotewrite.Push(&ctx.WriteRequest)
-	rowsInserted.Add(rowsTotal)
-	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }

@@ -45,6 +45,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
+		rowsTotal += len(r.Values)
 		ctx.Labels = ctx.Labels[:0]
 		for j := range r.Tags {
 			tag := &r.Tags[j]
@@ -74,7 +75,6 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 				return err
 			}
 		}
-		rowsTotal += len(values)
 	}
 	rowsInserted.Get(at).Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))

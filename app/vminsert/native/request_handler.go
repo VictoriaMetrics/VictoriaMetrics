@@ -38,6 +38,12 @@ func insertRows(at *auth.Token, block *parser.Block, extraLabels []prompbmarshal
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
+	// Update rowsInserted and rowsPerInsert before actual inserting,
+	// since relabeling can prevent from inserting the rows.
+	rowsLen := len(block.Values)
+	rowsInserted.Get(at).Add(rowsLen)
+	rowsPerInsert.Update(float64(rowsLen))
+
 	ctx.Reset() // This line is required for initializing ctx internals.
 	hasRelabeling := relabel.HasRelabeling()
 	mn := &block.MetricName
@@ -71,8 +77,5 @@ func insertRows(at *auth.Token, block *parser.Block, extraLabels []prompbmarshal
 			return err
 		}
 	}
-	rowsTotal := len(values)
-	rowsInserted.Get(at).Add(rowsTotal)
-	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }

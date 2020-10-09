@@ -69,6 +69,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
+		rowsTotal += len(r.Fields)
 		ic.Labels = ic.Labels[:0]
 		hasDBKey := false
 		for j := range r.Tags {
@@ -149,7 +150,6 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 				}
 			}
 		}
-		rowsTotal += len(r.Fields)
 	}
 	rowsInserted.Get(&atCopy).Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
