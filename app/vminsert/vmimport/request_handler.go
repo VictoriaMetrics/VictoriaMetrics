@@ -50,6 +50,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
+		rowsTotal += len(r.Values)
 		ic.Labels = ic.Labels[:0]
 		for j := range r.Tags {
 			tag := &r.Tags[j]
@@ -78,7 +79,6 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 				return err
 			}
 		}
-		rowsTotal += len(values)
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))

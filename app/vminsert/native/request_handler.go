@@ -38,7 +38,12 @@ func insertRows(block *parser.Block, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
+	// Update rowsInserted and rowsPerInsert before actual inserting,
+	// since relabeling can prevent from inserting the rows.
 	rowsLen := len(block.Values)
+	rowsInserted.Add(rowsLen)
+	rowsPerInsert.Update(float64(rowsLen))
+
 	ic := &ctx.Common
 	ic.Reset(rowsLen)
 	hasRelabeling := relabel.HasRelabeling()
@@ -72,9 +77,6 @@ func insertRows(block *parser.Block, extraLabels []prompbmarshal.Label) error {
 			return err
 		}
 	}
-	rowsTotal := len(values)
-	rowsInserted.Add(rowsTotal)
-	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }
 
