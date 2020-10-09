@@ -14,6 +14,11 @@
   This should simplify debugging for target relabeling configs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
 * FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
   The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
+* FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
+  The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
+  due to [relabeling](https://victoriametrics.github.io/#relabeling).
+
+* BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
 
 
 # [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
