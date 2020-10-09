@@ -22,6 +22,11 @@ type FS struct {
 	Dir string
 }
 
+// MustStop stops fs.
+func (fs *FS) MustStop() {
+	// Nothing to do
+}
+
 // String returns human-readable string representation for fs.
 func (fs *FS) String() string {
 	return fmt.Sprintf("fsremote %q", fs.Dir)
