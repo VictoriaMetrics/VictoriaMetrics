@@ -270,7 +270,7 @@ func TestHashRule(t *testing.T) {
 			true,
 		},
 		{
-			Rule{Alert: "alert", Expr: "up == 1", For: time.Minute},
+			Rule{Alert: "alert", Expr: "up == 1", For: NewPromDuration(time.Minute)},
 			Rule{Alert: "alert", Expr: "up == 1"},
 			true,
 		},
