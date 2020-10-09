@@ -90,6 +90,7 @@ func main() {
 	if err := a.Run(); err != nil {
 		logger.Fatalf("cannot create backup: %s", err)
 	}
+	srcFS.MustStop()
 }
 
 func usage() {
