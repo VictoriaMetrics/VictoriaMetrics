@@ -441,6 +441,9 @@ func registerStorageMetrics() {
 		return float64(idbm().SizeBytes)
 	})
 
+	metrics.NewGauge(`vm_rows_added_to_storage_total`, func() float64 {
+		return float64(m().RowsAddedTotal)
+	})
 	metrics.NewGauge(`vm_deduplicated_samples_total{type="merge"}`, func() float64 {
 		return float64(m().DedupsDuringMerge)
 	})
