@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"bytes"
+	"regexp"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -303,6 +305,214 @@ func BenchmarkTagFilterMatchSuffix(b *testing.B) {
 				if !ok {
 					logger.Panicf("BUG: unexpected mismatch")
 				}
+			}
+		})
+	})
+}
+
+// Run the following command to get the execution cost of all matches
+//
+// go test -run=none -bench=BenchmarkOptimizedReMatchCost -count 20 | tee cost.txt
+// benchstat ./cost.txt
+//
+// Calculate the multiplier of default for each match overhead.
+
+func BenchmarkOptimizedReMatchCost(b *testing.B) {
+	b.Run("default", func(b *testing.B) {
+		reMatch := func(b []byte) bool {
+			return len(b) == 0
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run("literal match", func(b *testing.B) {
+		s := "foo1.bar.baz.sss.ddd"
+		reMatch := func(b []byte) bool {
+			return string(b) == s
+		}
+		suffix := []byte(s)
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run("foo|bar|baz", func(b *testing.B) {
+		s := []string{"foo", "bar", "baz"}
+		reMatch := func(b []byte) bool {
+			for _, v := range s {
+				if string(b) == v {
+					return true
+				}
+			}
+			return false
+		}
+		suffix := []byte("ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".*", func(b *testing.B) {
+		reMatch := func(b []byte) bool {
+			return true
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".+", func(b *testing.B) {
+		reMatch := func(b []byte) bool {
+			return len(b) > 0
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run("prefix.*", func(b *testing.B) {
+		s := []byte("foo1.bar")
+		reMatch := func(b []byte) bool {
+			return bytes.HasPrefix(b, s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run("prefix.+", func(b *testing.B) {
+		s := []byte("foo1.bar")
+		reMatch := func(b []byte) bool {
+			return len(b) > len(s) && bytes.HasPrefix(b, s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".*suffix", func(b *testing.B) {
+		s := []byte("sss.ddd")
+		reMatch := func(b []byte) bool {
+			return bytes.HasSuffix(b, s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".+suffix", func(b *testing.B) {
+		s := []byte("sss.ddd")
+		reMatch := func(b []byte) bool {
+			return len(b) > len(s) && bytes.HasSuffix(b[1:], s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".*middle.*", func(b *testing.B) {
+		s := []byte("bar.baz")
+		reMatch := func(b []byte) bool {
+			return bytes.Contains(b, s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".*middle.+", func(b *testing.B) {
+		s := []byte("bar.baz")
+		reMatch := func(b []byte) bool {
+			return len(b) > len(s) && bytes.Contains(b[:len(b)-1], s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".+middle.*", func(b *testing.B) {
+		s := []byte("bar.baz")
+		reMatch := func(b []byte) bool {
+			return len(b) > len(s) && bytes.Contains(b[1:], s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run(".+middle.+", func(b *testing.B) {
+		s := []byte("bar.baz")
+		reMatch := func(b []byte) bool {
+			return len(b) > len(s)+1 && bytes.Contains(b[1:len(b)-1], s)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
+			}
+		})
+	})
+	b.Run("default", func(b *testing.B) {
+		re := regexp.MustCompile(`foo[^.]*?\.bar\.baz\.[^.]*?\.ddd`)
+		reMatch := func(b []byte) bool {
+			return re.Match(b)
+		}
+		suffix := []byte("foo1.bar.baz.sss.ddd")
+		b.ReportAllocs()
+		b.SetBytes(int64(1))
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				reMatch(suffix)
 			}
 		})
 	})

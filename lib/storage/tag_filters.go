@@ -153,6 +153,7 @@ type tagFilter struct {
 	value      []byte
 	isNegative bool
 	isRegexp   bool
+	matchCost  uint64
 
 	// Prefix always contains {nsPrefixTagToMetricIDs, key}.
 	// Additionally it contains:
@@ -267,6 +268,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		// during the search for matching metricIDs.
 		tf.orSuffixes = append(tf.orSuffixes[:0], "")
 		tf.isEmptyMatch = len(prefix) == 0
+		tf.matchCost = defaultCost
 		return nil
 	}
 	rcv, err := getRegexpFromCache(expr)
@@ -275,6 +277,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	}
 	tf.orSuffixes = append(tf.orSuffixes[:0], rcv.orValues...)
 	tf.reSuffixMatch = rcv.reMatch
+	tf.matchCost = rcv.reCost
 	tf.isEmptyMatch = len(prefix) == 0 && tf.reSuffixMatch(nil)
 	if !tf.isNegative && len(key) == 0 && strings.IndexByte(rcv.literalSuffix, '.') >= 0 {
 		// Reverse suffix is needed only for non-negative regexp filters on __name__ that contains dots.
@@ -339,6 +342,7 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	sExpr := string(expr)
 	orValues := getOrValues(sExpr)
 	var reMatch func(b []byte) bool
+	var reCost uint64
 	var literalSuffix string
 	if len(orValues) > 0 {
 		if len(orValues) == 1 {
@@ -346,6 +350,7 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 			reMatch = func(b []byte) bool {
 				return string(b) == v
 			}
+			reCost = defaultLiteralCost
 		} else {
 			reMatch = func(b []byte) bool {
 				for _, v := range orValues {
@@ -355,14 +360,16 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 				}
 				return false
 			}
+			reCost = uint64(len(orValues)) * defaultLiteralCost
 		}
 	} else {
-		reMatch, literalSuffix = getOptimizedReMatchFunc(re.Match, sExpr)
+		reMatch, literalSuffix, reCost = getOptimizedReMatchFunc(re.Match, sExpr)
 	}
 
 	// Put the reMatch in the cache.
 	rcv.orValues = orValues
 	rcv.reMatch = reMatch
+	rcv.reCost = reCost
 	rcv.literalSuffix = literalSuffix
 
 	regexpCacheLock.Lock()
@@ -397,32 +404,40 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 // It returns reMatch if it cannot find optimized function.
 //
 // It also returns literal suffix from the expr.
-func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b []byte) bool, string) {
+func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b []byte) bool, string, uint64) {
 	sre, err := syntax.Parse(expr, syntax.Perl)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing verified expr=%q: %s", expr, err)
 	}
-	if matchFunc, literalSuffix := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
+	if matchFunc, literalSuffix, reCost := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
 		// Found optimized function for matching the expr.
 		suffixUnescaped := tagCharsReverseRegexpEscaper.Replace(literalSuffix)
-		return matchFunc, suffixUnescaped
+		return matchFunc, suffixUnescaped, reCost
 	}
 	// Fall back to un-optimized reMatch.
-	return reMatch, ""
+	return reMatch, "", defaultReCost
 }
 
-func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string) {
+// The following & default cost values are returned from BenchmarkOptimizedReMatchCost
+
+var (
+	defaultCost        uint64 = 1
+	defaultLiteralCost uint64 = 3
+	defaultReCost      uint64 = 140
+)
+
+func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
 	if isDotStar(sre) {
 		// '.*'
 		return func(b []byte) bool {
 			return true
-		}, ""
+		}, "", 1
 	}
 	if isDotPlus(sre) {
 		// '.+'
 		return func(b []byte) bool {
 			return len(b) > 0
-		}, ""
+		}, "", 1
 	}
 	switch sre.Op {
 	case syntax.OpCapture:
@@ -430,13 +445,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 		return getOptimizedReMatchFuncExt(reMatch, sre.Sub[0])
 	case syntax.OpLiteral:
 		if !isLiteral(sre) {
-			return nil, ""
+			return nil, "", 0
 		}
 		s := string(sre.Rune)
 		// Literal match
 		return func(b []byte) bool {
 			return string(b) == s
-		}, s
+		}, s, defaultLiteralCost
 	case syntax.OpConcat:
 		if len(sre.Sub) == 2 {
 			if isLiteral(sre.Sub[0]) {
@@ -445,13 +460,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// 'prefix.*'
 					return func(b []byte) bool {
 						return bytes.HasPrefix(b, prefix)
-					}, ""
+					}, "", 2
 				}
 				if isDotPlus(sre.Sub[1]) {
 					// 'prefix.+'
 					return func(b []byte) bool {
 						return len(b) > len(prefix) && bytes.HasPrefix(b, prefix)
-					}, ""
+					}, "", 2
 				}
 			}
 			if isLiteral(sre.Sub[1]) {
@@ -460,13 +475,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.*suffix'
 					return func(b []byte) bool {
 						return bytes.HasSuffix(b, suffix)
-					}, string(suffix)
+					}, string(suffix), 3
 				}
 				if isDotPlus(sre.Sub[0]) {
 					// '.+suffix'
 					return func(b []byte) bool {
 						return len(b) > len(suffix) && bytes.HasSuffix(b[1:], suffix)
-					}, string(suffix)
+					}, string(suffix), 3
 				}
 			}
 		}
@@ -477,13 +492,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.*middle.*'
 					return func(b []byte) bool {
 						return bytes.Contains(b, middle)
-					}, ""
+					}, "", 5
 				}
 				if isDotPlus(sre.Sub[2]) {
 					// '.*middle.+'
 					return func(b []byte) bool {
 						return len(b) > len(middle) && bytes.Contains(b[:len(b)-1], middle)
-					}, ""
+					}, "", 5
 				}
 			}
 			if isDotPlus(sre.Sub[0]) {
@@ -491,13 +506,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.+middle.*'
 					return func(b []byte) bool {
 						return len(b) > len(middle) && bytes.Contains(b[1:], middle)
-					}, ""
+					}, "", 5
 				}
 				if isDotPlus(sre.Sub[2]) {
 					// '.+middle.+'
 					return func(b []byte) bool {
 						return len(b) > len(middle)+1 && bytes.Contains(b[1:len(b)-1], middle)
-					}, ""
+					}, "", 5
 				}
 			}
 		}
@@ -531,9 +546,9 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 			}
 			// Fall back to slow path.
 			return reMatch(bOrig)
-		}, string(suffix)
+		}, string(suffix), defaultReCost
 	default:
-		return nil, ""
+		return nil, "", 0
 	}
 }
 
@@ -720,6 +735,7 @@ var (
 type regexpCacheValue struct {
 	orValues      []string
 	reMatch       func(b []byte) bool
+	reCost        uint64
 	literalSuffix string
 }
 

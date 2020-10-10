@@ -2563,6 +2563,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	// This way we limit the amount of work below by applying more specific filters at first.
 	type tagFilterWithCount struct {
 		tf    *tagFilter
+		cost  uint64
 		count uint64
 	}
 	tfsWithCount := make([]tagFilterWithCount, len(tfs.tfs))
@@ -2578,13 +2579,14 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		}
 		tfsWithCount[i] = tagFilterWithCount{
 			tf:    tf,
+			cost:  count * tf.matchCost,
 			count: count,
 		}
 	}
 	sort.Slice(tfsWithCount, func(i, j int) bool {
 		a, b := &tfsWithCount[i], &tfsWithCount[j]
-		if a.count != b.count {
-			return a.count < b.count
+		if a.cost != b.cost {
+			return a.cost < b.cost
 		}
 		return a.tf.Less(b.tf)
 	})
