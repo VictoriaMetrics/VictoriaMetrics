@@ -2153,7 +2153,7 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, filter *uint64set
 	}
 	metricIDs := &uint64set.Set{}
 	if len(tf.orSuffixes) > 0 {
-		// Fast path for orSuffixes - seek for rows for each value from orSuffxies.
+		// Fast path for orSuffixes - seek for rows for each value from orSuffixes.
 		if err := is.updateMetricIDsForOrSuffixesNoFilter(tf, maxMetrics, metricIDs); err != nil {
 			if err == errFallbackToMetricNameMatch {
 				return nil, err
