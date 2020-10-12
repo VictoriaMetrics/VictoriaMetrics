@@ -16,7 +16,37 @@
   The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
 * FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
   The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
-  due to [relabeling](https://victoriametrics.github.io/#relabeling).
+  due to [relabeling](https://victoriametrics.github.io/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
+  than `sum(rate(vm_rows_inserted_total))` if [replication](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
+* FEATURE: keep metric name after applying [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) functions, which don't change time series meaning.
+  The list of such functions:
+   * `keep_last_value`
+   * `keep_next_value`
+   * `interpolate`
+   * `running_min`
+   * `running_max`
+   * `running_avg`
+   * `range_min`
+   * `range_max`
+   * `range_avg`
+   * `range_first`
+   * `range_last`
+   * `range_quantile`
+   * `smooth_exponential`
+   * `ceil`
+   * `floor`
+   * `round`
+   * `clamp_min`
+   * `clamp_max`
+   * `max_over_time`
+   * `min_over_time`
+   * `avg_over_time`
+   * `quantile_over_time`
+   * `mode_over_time`
+   * `geomean_over_time`
+   * `holt_winters`
+   * `predict_linear`
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674
 
 * BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
 
