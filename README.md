@@ -118,6 +118,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to export time series](#how-to-export-time-series)
   * [How to export data in native format](#how-to-export-data-in-native-format)
   * [How to export data in JSON line format](#how-to-export-data-in-json-line-format)
+  * [How to export CSV data](#how-to-export-csv-data)
 * [How to import time series data](#how-to-import-time-series-data)
   * [How to import data in native format](#how-to-import-data-in-native-format)
   * [How to import data in json line format](#how-to-import-data-in-json-line-format)
@@ -683,6 +684,7 @@ VictoriaMetrics provides the following handlers for exporting data:
 * `/api/v1/export/native` for exporting data in native binary format. This is the most efficient format for data export.
   See [these docs](#how-to-export-data-in-native-format) for details.
 * `/api/v1/export` for exporing data in JSON line format. See [these docs](#how-to-export-data-in-json-line-format) for details.
+* `/api/v1/export/csv` for exporting data in CSV. See [these docs](#how-to-export-csv-data) for details.
 
 
 #### How to export data in native format
@@ -730,6 +732,30 @@ curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]=
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
+
+
+#### How to export CSV data
+
+Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/csv?format=<format>&match=<timeseries_selector_for_export>`,
+where:
+
+* `<format>` must contain comma-delimited label names for the exported CSV. The following special label names are supported:
+  * `__name__` - metric name
+  * `__value__` - sample value
+  * `__timestamp__:<ts_format>` - sample timestamp. `<ts_format>` can have the following values:
+    * `unix_s` - unix seconds
+    * `unix_ms` - unix milliseconds
+    * `unix_ns` - unix nanoseconds
+    * `rfc3339` - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) time
+    * `custom:<layout>` - custom layout for time that is supported by [time.Format](https://golang.org/pkg/time/#Time.Format) function from Go.
+
+* `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
+for metrics to export.
+
+Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
+unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+
+The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv](#how-to-import-csv-data).
 
 
 ### How to import time series data
