@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -155,7 +156,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
 		w.Header().Set("Content-Type", "text/plain")
-		promscrape.WriteHumanReadableTargetsStatus(w)
+		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
+		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
 		return true
 	case "/-/reload":
 		promscrapeConfigReloadRequests.Inc()

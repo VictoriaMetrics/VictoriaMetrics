@@ -175,6 +175,7 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 	if pcv == nil {
 		e, err := metricsql.Parse(q)
 		if err == nil {
+			e = metricsql.Optimize(e)
 			e = adjustCmpOps(e)
 		}
 		pcv = &parseCacheValue{

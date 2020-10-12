@@ -65,6 +65,7 @@ func insertRows(db string, rows []parser.Row) error {
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
+		rowsTotal += len(r.Fields)
 		ic.Labels = ic.Labels[:0]
 		hasDBKey := false
 		for j := range r.Tags {
@@ -125,7 +126,6 @@ func insertRows(db string, rows []parser.Row) error {
 				}
 			}
 		}
-		rowsTotal += len(r.Fields)
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))

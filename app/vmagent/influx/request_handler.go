@@ -62,6 +62,7 @@ func insertRows(db string, rows []parser.Row) error {
 	buf := ctx.buf[:0]
 	for i := range rows {
 		r := &rows[i]
+		rowsTotal += len(r.Fields)
 		commonLabels = commonLabels[:0]
 		hasDBKey := false
 		for j := range r.Tags {
@@ -111,7 +112,6 @@ func insertRows(db string, rows []parser.Row) error {
 				Samples: samples[len(samples)-1:],
 			})
 		}
-		rowsTotal += len(r.Fields)
 	}
 	ctx.buf = buf
 	ctx.ctx.WriteRequest.Timeseries = tssDst

@@ -45,6 +45,8 @@ type FS struct {
 }
 
 // Init initializes fs.
+//
+// The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
 	if fs.s3 != nil {
 		logger.Panicf("BUG: Init is already called")
@@ -94,6 +96,12 @@ func (fs *FS) Init() error {
 		u.Concurrency = 1
 	})
 	return nil
+}
+
+// MustStop stops fs.
+func (fs *FS) MustStop() {
+	fs.s3 = nil
+	fs.uploader = nil
 }
 
 // String returns human-readable description for fs.

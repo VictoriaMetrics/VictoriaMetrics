@@ -35,6 +35,7 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 	samples := ctx.Samples[:0]
 	for i := range timeseries {
 		ts := &timeseries[i]
+		rowsTotal += len(ts.Samples)
 		labelsLen := len(labels)
 		for i := range ts.Labels {
 			label := &ts.Labels[i]
@@ -55,7 +56,6 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})
-		rowsTotal += len(ts.Samples)
 	}
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels

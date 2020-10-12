@@ -36,11 +36,13 @@ var (
 	gceSDCheckInterval = flag.Duration("promscrape.gceSDCheckInterval", time.Minute, "Interval for checking for changes in gce. "+
 		"This works only if `gce_sd_configs` is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details")
-	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
-		"See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 	dockerswarmSDCheckInterval = flag.Duration("promscrape.dockerswarmSDCheckInterval", 30*time.Second, "Interval for checking for changes in dockerswarm. "+
 		"This works only if `dockerswarm_sd_configs` is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details")
+	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
+		"See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
+	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress `duplicate scrape target` errors; "+
+		"see https://victoriametrics.github.io/vmagent.html#troubleshooting for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.
@@ -269,18 +271,22 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 
 	additionsCount := 0
 	deletionsCount := 0
-	swsMap := make(map[string]bool, len(sws))
+	swsMap := make(map[string][]prompbmarshal.Label, len(sws))
 	for i := range sws {
 		sw := &sws[i]
 		key := sw.key()
-		if swsMap[key] {
-			logger.Errorf("skipping duplicate scrape target with identical labels; endpoint=%s, labels=%s; "+
-				"make sure service discovery and relabeling is set up properly; "+
-				"see also https://victoriametrics.github.io/vmagent.html#troubleshooting",
-				sw.ScrapeURL, sw.LabelsString())
+		originalLabels := swsMap[key]
+		if originalLabels != nil {
+			if !*suppressDuplicateScrapeTargetErrors {
+				logger.Errorf("skipping duplicate scrape target with identical labels; endpoint=%s, labels=%s; "+
+					"make sure service discovery and relabeling is set up properly; "+
+					"see also https://victoriametrics.github.io/vmagent.html#troubleshooting; "+
+					"original labels for target1: %s; original labels for target2: %s",
+					sw.ScrapeURL, sw.LabelsString(), promLabelsString(originalLabels), promLabelsString(sw.OriginalLabels))
+			}
 			continue
 		}
-		swsMap[key] = true
+		swsMap[key] = sw.OriginalLabels
 		if sg.m[key] != nil {
 			// The scraper for the given key already exists.
 			continue
@@ -301,7 +307,7 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 
 	// Stop deleted scrapers, which are missing in sws.
 	for key, sc := range sg.m {
-		if !swsMap[key] {
+		if swsMap[key] == nil {
 			close(sc.stopCh)
 			delete(sg.m, key)
 			deletionsCount++

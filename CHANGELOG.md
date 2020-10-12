@@ -1,5 +1,74 @@
 # tip
 
+* FEATURE: automatically add missing label filters to binary operands as described at https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization .
+  This should improve performance for queries with missing label filters in binary operands. For example, the following query should work faster now, because it shouldn't
+  fetch and discard time series for `node_filesystem_files_free` metric without matching labels for the left side of the expression:
+  ```
+     node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
+  ```
+* FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651 and https://victoriametrics.github.io/vmagent.html#troubleshooting .
+* FEATURE: vmagent: show original labels before relabeling is applied on `duplicate scrape target` errors. This should simplify debugging for incorrect relabeling.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
+* FEATURE: vmagent: `/targets` page now accepts optional `show_original_labels=1` query arg for displaying original labels for each target before relabeling is applied.
+  This should simplify debugging for target relabeling configs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
+* FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
+  The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
+* FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
+  The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
+  due to [relabeling](https://victoriametrics.github.io/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
+  than `sum(rate(vm_rows_inserted_total))` if [replication](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
+* FEATURE: keep metric name after applying [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) functions, which don't change time series meaning.
+  The list of such functions:
+   * `keep_last_value`
+   * `keep_next_value`
+   * `interpolate`
+   * `running_min`
+   * `running_max`
+   * `running_avg`
+   * `range_min`
+   * `range_max`
+   * `range_avg`
+   * `range_first`
+   * `range_last`
+   * `range_quantile`
+   * `smooth_exponential`
+   * `ceil`
+   * `floor`
+   * `round`
+   * `clamp_min`
+   * `clamp_max`
+   * `max_over_time`
+   * `min_over_time`
+   * `avg_over_time`
+   * `quantile_over_time`
+   * `mode_over_time`
+   * `geomean_over_time`
+   * `holt_winters`
+   * `predict_linear`
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674
+
+* BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
+
+
+# [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
+
+* FEATURE: reduce CPU usage for repeated queries over sliding time window when no new time series are added to the database.
+  Typical use cases: repeated evaluation of alerting rules in [vmalert](https://victoriametrics.github.io/vmalert.html) or dashboard auto-refresh in Grafana.
+* FEATURE: vmagent: add OpenStack service discovery aka [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config).
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728 .
+* FEATURE: vmalert: make `-maxIdleConnections` configurable for datasource HTTP client. This option can be used for minimizing connection churn.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/795 .
+* FEATURE: add `-influx.maxLineSize` command-line flag for configuring the maximum size for a single Influx line during parsing.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807
+
+* BUGFIX: properly handle `inf` values during [background merge of LSM parts](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+  Previously `Inf` values could result in `NaN` values for adjancent samples in time series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805 .
+* BUGFIX: fill gaps on graphs for `range_*` and `running_*` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/806 .
+* BUGFIX: make a copy of label with new name during relabeling with `action: labelmap` in the same way as Prometheus does.
+  Previously the original label name has been replaced. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/812 .
+* BUGFIX: support parsing floating-point timestamp like Graphite Carbon does. Such timestmaps are truncated to seconds.
+
 
 # [v1.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
 

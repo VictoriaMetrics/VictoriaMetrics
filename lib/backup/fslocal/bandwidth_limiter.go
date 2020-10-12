@@ -15,6 +15,9 @@ type bandwidthLimiter struct {
 
 	// quota for the current second
 	quota int
+
+	stopCh chan struct{}
+	wg     sync.WaitGroup
 }
 
 func newBandwidthLimiter(perSecondLimit int) *bandwidthLimiter {
@@ -25,8 +28,18 @@ func newBandwidthLimiter(perSecondLimit int) *bandwidthLimiter {
 	bl.perSecondLimit = perSecondLimit
 	var mu sync.Mutex
 	bl.c = sync.NewCond(&mu)
-	go bl.perSecondUpdater()
+	bl.stopCh = make(chan struct{})
+	bl.wg.Add(1)
+	go func() {
+		defer bl.wg.Done()
+		bl.perSecondUpdater()
+	}()
 	return &bl
+}
+
+func (bl *bandwidthLimiter) MustStop() {
+	close(bl.stopCh)
+	bl.wg.Wait()
 }
 
 func (bl *bandwidthLimiter) NewReadCloser(rc io.ReadCloser) *bandwidthLimitedReader {
@@ -83,7 +96,12 @@ func (blw *bandwidthLimitedWriter) Close() error {
 func (bl *bandwidthLimiter) perSecondUpdater() {
 	tc := time.NewTicker(time.Second)
 	c := bl.c
-	for range tc.C {
+	for {
+		select {
+		case <-tc.C:
+		case <-bl.stopCh:
+			return
+		}
 		c.L.Lock()
 		bl.quota = bl.perSecondLimit
 		c.Signal()

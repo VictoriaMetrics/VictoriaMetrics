@@ -11,8 +11,8 @@ import (
 var tsmGlobal = newTargetStatusMap()
 
 // WriteHumanReadableTargetsStatus writes human-readable status for all the scrape targets to w.
-func WriteHumanReadableTargetsStatus(w io.Writer) {
-	tsmGlobal.WriteHumanReadable(w)
+func WriteHumanReadableTargetsStatus(w io.Writer, showOriginalLabels bool) {
+	tsmGlobal.WriteHumanReadable(w, showOriginalLabels)
 }
 
 type targetStatusMap struct {
@@ -73,7 +73,7 @@ func (tsm *targetStatusMap) StatusByGroup(group string, up bool) int {
 	return count
 }
 
-func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
+func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer, showOriginalLabels bool) {
 	byJob := make(map[string][]targetStatus)
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
@@ -111,6 +111,9 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer) {
 				state = "down"
 			}
 			labelsStr := st.sw.LabelsString()
+			if showOriginalLabels {
+				labelsStr += ", originalLabels=" + promLabelsString(st.sw.OriginalLabels)
+			}
 			lastScrape := st.getDurationFromLastScrape()
 			errMsg := ""
 			if st.err != nil {

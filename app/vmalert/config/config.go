@@ -94,12 +94,43 @@ type Rule struct {
 	Record      string            `yaml:"record,omitempty"`
 	Alert       string            `yaml:"alert,omitempty"`
 	Expr        string            `yaml:"expr"`
-	For         time.Duration     `yaml:"for,omitempty"`
+	For         PromDuration      `yaml:"for,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
+}
+
+// PromDuration is Prometheus duration.
+type PromDuration struct {
+	milliseconds int64
+}
+
+// NewPromDuration returns PromDuration for given d.
+func NewPromDuration(d time.Duration) PromDuration {
+	return PromDuration{
+		milliseconds: d.Milliseconds(),
+	}
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler interface.
+func (pd *PromDuration) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	ms, err := metricsql.DurationValue(s, 0)
+	if err != nil {
+		return err
+	}
+	pd.milliseconds = ms
+	return nil
+}
+
+// Duration returns duration for pd.
+func (pd *PromDuration) Duration() time.Duration {
+	return time.Duration(pd.milliseconds) * time.Millisecond
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.

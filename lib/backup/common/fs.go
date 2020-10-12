@@ -9,6 +9,9 @@ import (
 // This filesystem is used for performing server-side file copies
 // instead of uploading data from local filesystem.
 type OriginFS interface {
+	// MustStop must be called when the RemoteFS is no longer needed.
+	MustStop()
+
 	// String must return human-readable representation of OriginFS.
 	String() string
 
@@ -18,6 +21,9 @@ type OriginFS interface {
 
 // RemoteFS is a filesystem where backups are stored.
 type RemoteFS interface {
+	// MustStop must be called when the RemoteFS is no longer needed.
+	MustStop()
+
 	// String must return human-readable representation of RemoteFS.
 	String() string
 

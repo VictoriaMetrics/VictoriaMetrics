@@ -93,7 +93,7 @@ scrape_configs:
 		t.Fatalf("cannot parase data: %s", err)
 	}
 	sws := cfg.getStaticScrapeWork()
-	resetScrapeWorkIDs(sws)
+	resetNonEssentialFields(sws)
 	swsExpected := []ScrapeWork{{
 		ScrapeURL:      "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
 		ScrapeInterval: defaultScrapeInterval,
@@ -440,9 +440,10 @@ scrape_configs:
 `)
 }
 
-func resetScrapeWorkIDs(sws []ScrapeWork) {
+func resetNonEssentialFields(sws []ScrapeWork) {
 	for i := range sws {
 		sws[i].ID = 0
+		sws[i].OriginalLabels = nil
 	}
 }
 
@@ -453,7 +454,7 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		resetScrapeWorkIDs(sws)
+		resetNonEssentialFields(sws)
 
 		// Remove `__vm_filepath` label, since its value depends on the current working dir.
 		for i := range sws {
@@ -609,7 +610,7 @@ func TestGetStaticScrapeWorkSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		resetScrapeWorkIDs(sws)
+		resetNonEssentialFields(sws)
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
 		}

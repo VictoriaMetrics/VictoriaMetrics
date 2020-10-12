@@ -51,6 +51,7 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 	rowsTotal := 0
 	for i := range tss {
 		ts := &tss[i]
+		rowsTotal += len(ts.Samples)
 		ctx.Labels = ctx.Labels[:0]
 		for j := range ts.Labels {
 			label := &ts.Labels[j]
@@ -71,7 +72,6 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 				return
 			}
 		}
-		rowsTotal += len(ts.Samples)
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))

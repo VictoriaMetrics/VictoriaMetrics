@@ -636,6 +636,8 @@ func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfi
 
 func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
+	originalLabels := append([]prompbmarshal.Label{}, labels...)
+	promrelabel.SortLabels(originalLabels)
 	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	if len(labels) == 0 {
@@ -687,6 +689,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		ScrapeTimeout:        swc.scrapeTimeout,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
+		OriginalLabels:       originalLabels,
 		Labels:               labels,
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
