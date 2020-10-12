@@ -2,6 +2,7 @@ package dockerswarm
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -45,9 +46,15 @@ func Test_addNetworkLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := addNetworkLabels(tt.args.networks)
+			got := getNetworkLabelsByNetworkID(tt.args.networks)
+			var networkIDs []string
+			for networkID := range got {
+				networkIDs = append(networkIDs, networkID)
+			}
+			sort.Strings(networkIDs)
 			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
+			for _, networkID := range networkIDs {
+				labels := got[networkID]
 				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
 			}
 			if !reflect.DeepEqual(sortedLabelss, tt.want) {

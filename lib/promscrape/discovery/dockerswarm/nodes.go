@@ -30,7 +30,7 @@ type node struct {
 		Message string
 		Addr    string
 	}
-	ManagerStatus *struct {
+	ManagerStatus struct {
 		Leader       bool
 		Reachability string
 		Addr         string
@@ -66,20 +66,18 @@ func addNodeLabels(nodes []node, port int) []map[string]string {
 	for _, node := range nodes {
 		m := map[string]string{
 			"__address__":                                   discoveryutils.JoinHostPort(node.Status.Addr, port),
-			"__meta_dockerswarm_node_id":                    node.ID,
 			"__meta_dockerswarm_node_address":               node.Status.Addr,
 			"__meta_dockerswarm_node_availability":          node.Spec.Availability,
 			"__meta_dockerswarm_node_engine_version":        node.Description.Engine.EngineVersion,
 			"__meta_dockerswarm_node_hostname":              node.Description.Hostname,
+			"__meta_dockerswarm_node_id":                    node.ID,
+			"__meta_dockerswarm_node_manager_address":       node.ManagerStatus.Addr,
+			"__meta_dockerswarm_node_manager_leader":        fmt.Sprintf("%t", node.ManagerStatus.Leader),
+			"__meta_dockerswarm_node_manager_reachability":  node.ManagerStatus.Reachability,
 			"__meta_dockerswarm_node_platform_architecture": node.Description.Platform.Architecture,
 			"__meta_dockerswarm_node_platform_os":           node.Description.Platform.OS,
 			"__meta_dockerswarm_node_role":                  node.Spec.Role,
 			"__meta_dockerswarm_node_status":                node.Status.State,
-		}
-		if node.ManagerStatus != nil {
-			m["__meta_dockerswarm_node_manager_address"] = node.ManagerStatus.Addr
-			m["__meta_dockerswarm_node_manager_manager_reachability"] = node.ManagerStatus.Reachability
-			m["__meta_dockerswarm_node_manager_leader"] = fmt.Sprintf("%t", node.ManagerStatus.Leader)
 		}
 		for k, v := range node.Spec.Labels {
 			m["__meta_dockerswarm_node_label_"+discoveryutils.SanitizeLabelName(k)] = v

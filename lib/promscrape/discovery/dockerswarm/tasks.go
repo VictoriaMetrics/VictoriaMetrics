@@ -26,7 +26,7 @@ type task struct {
 	}
 	Status struct {
 		State           string
-		ContainerStatus *struct {
+		ContainerStatus struct {
 			ContainerID string
 		}
 		PortStatus struct {
@@ -45,7 +45,7 @@ func getTasksLabels(cfg *apiConfig) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	networkLabels, err := getNetworksLabels(cfg)
+	networkLabels, err := getNetworksLabelsByNetworkID(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -73,20 +73,18 @@ func parseTasks(data []byte) ([]task, error) {
 	return tasks, nil
 }
 
-func addTasksLabels(tasks []task, nodesLabels, servicesLabels, networksLabels []map[string]string, services []service, port int) []map[string]string {
+func addTasksLabels(tasks []task, nodesLabels, servicesLabels []map[string]string, networksLabels map[string]map[string]string, services []service, port int) []map[string]string {
 	var ms []map[string]string
 	for _, task := range tasks {
-		m := map[string]string{
+		commonLabels := map[string]string{
 			"__meta_dockerswarm_task_id":            task.ID,
+			"__meta_dockerswarm_task_container_id":  task.Status.ContainerStatus.ContainerID,
 			"__meta_dockerswarm_task_desired_state": task.DesiredState,
-			"__meta_dockerswarm_task_state":         task.Status.State,
 			"__meta_dockerswarm_task_slot":          strconv.Itoa(task.Slot),
-		}
-		if task.Status.ContainerStatus != nil {
-			m["__meta_dockerswarm_task_container_id"] = task.Status.ContainerStatus.ContainerID
+			"__meta_dockerswarm_task_state":         task.Status.State,
 		}
 		for k, v := range task.Labels {
-			m["__meta_dockerswarm_task_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			commonLabels["__meta_dockerswarm_task_label_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
 		var svcPorts []portConfig
 		for i, v := range services {
@@ -95,20 +93,21 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels, networksLabels []
 				break
 			}
 		}
-		m = joinLabels(servicesLabels, m, "__meta_dockerswarm_service_id", task.ServiceID)
-		m = joinLabels(nodesLabels, m, "__meta_dockerswarm_node_id", task.NodeID)
+		addLabels(commonLabels, servicesLabels, "__meta_dockerswarm_service_id", task.ServiceID)
+		addLabels(commonLabels, nodesLabels, "__meta_dockerswarm_node_id", task.NodeID)
 
 		for _, port := range task.Status.PortStatus.Ports {
 			if port.Protocol != "tcp" {
 				continue
 			}
-			lbls := make(map[string]string, len(m))
-			lbls["__meta_dockerswarm_task_port_publish_mode"] = port.PublishMode
-			lbls["__address__"] = discoveryutils.JoinHostPort(m["__meta_dockerswarm_node_address"], port.PublishedPort)
-			for k, v := range m {
-				lbls[k] = v
+			m := map[string]string{
+				"__address__": discoveryutils.JoinHostPort(commonLabels["__meta_dockerswarm_node_address"], port.PublishedPort),
+				"__meta_dockerswarm_task_port_publish_mode": port.PublishMode,
 			}
-			ms = append(ms, lbls)
+			for k, v := range commonLabels {
+				m[k] = v
+			}
+			ms = append(ms, m)
 		}
 		for _, na := range task.NetworksAttachments {
 			for _, address := range na.Addresses {
@@ -117,33 +116,51 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels, networksLabels []
 					logger.Errorf("cannot parse task network attachments address: %s as net CIDR: %v", address, err)
 					continue
 				}
-				var added bool
-				for _, v := range svcPorts {
-					if v.Protocol != "tcp" {
+				added := false
+				for _, ep := range svcPorts {
+					if ep.Protocol != "tcp" {
 						continue
 					}
-					lbls := make(map[string]string, len(m))
-					for k, v := range m {
-						lbls[k] = v
+					m := map[string]string{
+						"__address": discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort),
+						"__meta_dockerswarm_task_port_publish_mode": ep.PublishMode,
 					}
-					lbls = joinLabels(networksLabels, lbls, "__meta_dockerswarm_network_id", na.Network.ID)
-					lbls["__address"] = discoveryutils.JoinHostPort(ip.String(), v.PublishedPort)
-					lbls["__meta_dockerswarm_task_port_publish_mode"] = v.PublishMode
-					ms = append(ms, lbls)
+					for k, v := range commonLabels {
+						m[k] = v
+					}
+					for k, v := range networksLabels[na.Network.ID] {
+						m[k] = v
+					}
+					ms = append(ms, m)
 					added = true
 				}
-
 				if !added {
-					lbls := make(map[string]string, len(m))
-					for k, v := range m {
-						lbls[k] = v
+					m := map[string]string{
+						"__address__": discoveryutils.JoinHostPort(ip.String(), port),
 					}
-					lbls = joinLabels(networksLabels, lbls, "__meta_dockerswarm_network_id", na.Network.ID)
-					lbls["__address__"] = discoveryutils.JoinHostPort(ip.String(), port)
-					ms = append(ms, lbls)
+					for k, v := range commonLabels {
+						m[k] = v
+					}
+					for k, v := range networksLabels[na.Network.ID] {
+						m[k] = v
+					}
+					ms = append(ms, m)
 				}
 			}
 		}
 	}
 	return ms
+}
+
+// addLabels adds lables from src to dst if they contain the given `key: value` pair.
+func addLabels(dst map[string]string, src []map[string]string, key, value string) {
+	for _, m := range src {
+		if m[key] != value {
+			continue
+		}
+		for k, v := range m {
+			dst[k] = v
+		}
+		return
+	}
 }
