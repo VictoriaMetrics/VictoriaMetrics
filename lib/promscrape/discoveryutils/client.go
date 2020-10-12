@@ -41,11 +41,23 @@ type Client struct {
 
 // NewClient returns new Client for the given apiServer and the given ac.
 func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
-	var u fasthttp.URI
+	var (
+		dialFunc fasthttp.DialFunc
+		tlsCfg   *tls.Config
+		u        fasthttp.URI
+	)
 	u.Update(apiServer)
+
+	// special case for unix socket connection
+	if string(u.Scheme()) == "unix" {
+		dialAddr := string(u.Path())
+		apiServer = "http://"
+		dialFunc = func(_ string) (net.Conn, error) {
+			return net.Dial("unix", dialAddr)
+		}
+	}
 	hostPort := string(u.Host())
 	isTLS := string(u.Scheme()) == "https"
-	var tlsCfg *tls.Config
 	if isTLS && ac != nil {
 		tlsCfg = ac.NewTLSConfig()
 	}
@@ -66,6 +78,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		WriteTimeout:        10 * time.Second,
 		MaxResponseBodySize: 300 * 1024 * 1024,
 		MaxConns:            2 * *maxConcurrency,
+		Dial:                dialFunc,
 	}
 	return &Client{
 		hc:        hc,
