@@ -25,6 +25,7 @@ type APIGroup struct {
 	File           string             `json:"file"`
 	Interval       string             `json:"interval"`
 	Concurrency    int                `json:"concurrency"`
+	Tenant         string             `json:"tenant"`
 	AlertingRules  []APIAlertingRule  `json:"alerting_rules"`
 	RecordingRules []APIRecordingRule `json:"recording_rules"`
 }
