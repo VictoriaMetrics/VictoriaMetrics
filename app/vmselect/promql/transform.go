@@ -18,8 +18,11 @@ import (
 )
 
 var transformFuncsKeepMetricGroup = map[string]bool{
+	"ceil":      true,
 	"clamp_max": true,
 	"clamp_min": true,
+	"floor":     true,
+	"round":     true,
 }
 
 var transformFuncs = map[string]transformFunc{
