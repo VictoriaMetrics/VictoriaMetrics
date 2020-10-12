@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -119,6 +120,95 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 }
 
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
+
+// ExportCSVHandler exports data in CSV format from /api/v1/export/csv
+func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+	ct := startTime.UnixNano() / 1e6
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse request form values: %w", err)
+	}
+	format := r.FormValue("format")
+	if len(format) == 0 {
+		return fmt.Errorf("missing `format` arg; see https://victoriametrics.github.io/#how-to-export-csv-data")
+	}
+	fieldNames := strings.Split(format, ",")
+	matches := r.Form["match[]"]
+	if len(matches) == 0 {
+		// Maintain backwards compatibility
+		match := r.FormValue("match")
+		if len(match) == 0 {
+			return fmt.Errorf("missing `match[]` arg")
+		}
+		matches = []string{match}
+	}
+	start, err := searchutils.GetTime(r, "start", 0)
+	if err != nil {
+		return err
+	}
+	end, err := searchutils.GetTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
+	deadline := searchutils.GetDeadlineForExport(r, startTime)
+	tagFilterss, err := getTagFilterssFromMatches(matches)
+	if err != nil {
+		return err
+	}
+	sq := &storage.SearchQuery{
+		AccountID:    at.AccountID,
+		ProjectID:    at.ProjectID,
+		MinTimestamp: start,
+		MaxTimestamp: end,
+		TagFilterss:  tagFilterss,
+	}
+	w.Header().Set("Content-Type", "text/csv")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+
+	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
+	doneCh := make(chan error)
+	go func() {
+		isPartial, err := netstorage.ExportBlocks(at, sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			if err := bw.Error(); err != nil {
+				return err
+			}
+			if err := b.UnmarshalData(); err != nil {
+				return fmt.Errorf("cannot unmarshal block during export: %s", err)
+			}
+			xb := exportBlockPool.Get().(*exportBlock)
+			xb.mn = mn
+			xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
+			if len(xb.timestamps) > 0 {
+				bb := quicktemplate.AcquireByteBuffer()
+				WriteExportCSVLine(bb, xb, fieldNames)
+				resultsCh <- bb
+			}
+			xb.reset()
+			exportBlockPool.Put(xb)
+			return nil
+		})
+		if err == nil && isPartial && searchutils.GetDenyPartialResponse(r) {
+			err = fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
+		}
+		close(resultsCh)
+		doneCh <- err
+	}()
+	for bb := range resultsCh {
+		bw.Write(bb.B)
+		quicktemplate.ReleaseByteBuffer(bb)
+	}
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	err = <-doneCh
+	if err != nil {
+		return fmt.Errorf("error during exporting data to csv: %w", err)
+	}
+	exportCSVDuration.UpdateDuration(startTime)
+	return nil
+}
+
+var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/csv"}`)
 
 // ExportNativeHandler exports data in native format from /api/v1/export/native.
 func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
