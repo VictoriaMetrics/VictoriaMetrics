@@ -18,11 +18,24 @@ import (
 )
 
 var transformFuncsKeepMetricGroup = map[string]bool{
-	"ceil":      true,
-	"clamp_max": true,
-	"clamp_min": true,
-	"floor":     true,
-	"round":     true,
+	"ceil":               true,
+	"clamp_max":          true,
+	"clamp_min":          true,
+	"floor":              true,
+	"round":              true,
+	"keep_last_value":    true,
+	"keep_next_value":    true,
+	"interpolate":        true,
+	"running_min":        true,
+	"running_max":        true,
+	"running_avg":        true,
+	"range_min":          true,
+	"range_max":          true,
+	"range_avg":          true,
+	"range_first":        true,
+	"range_last":         true,
+	"range_quantile":     true,
+	"smooth_exponential": true,
 }
 
 var transformFuncs = map[string]transformFunc{
