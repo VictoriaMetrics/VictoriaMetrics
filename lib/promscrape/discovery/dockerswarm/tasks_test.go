@@ -27,7 +27,9 @@ func Test_parseTasks(t *testing.T) {
     "Version": {
       "Index": 23
     },
-    "Labels": {},
+    "Labels": {
+	    "label1": "value1"
+    },
     "Spec": {
       "ContainerSpec": {
         "Image": "redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842",
@@ -65,19 +67,21 @@ func Test_parseTasks(t *testing.T) {
 			},
 			want: []task{
 				{
-					ID:           "t4rdm7j2y9yctbrksiwvsgpu5",
-					ServiceID:    "t91nf284wzle1ya09lqvyjgnq",
-					NodeID:       "qauwmifceyvqs0sipvzu8oslu",
-					Labels:       map[string]string{},
+					ID:        "t4rdm7j2y9yctbrksiwvsgpu5",
+					ServiceID: "t91nf284wzle1ya09lqvyjgnq",
+					NodeID:    "qauwmifceyvqs0sipvzu8oslu",
+					Labels: map[string]string{
+						"label1": "value1",
+					},
 					DesiredState: "running",
 					Slot:         1,
 					Status: struct {
 						State           string
-						ContainerStatus *struct{ ContainerID string }
+						ContainerStatus struct{ ContainerID string }
 						PortStatus      struct{ Ports []portConfig }
 					}{
 						State: "running",
-						ContainerStatus: &struct{ ContainerID string }{
+						ContainerStatus: struct{ ContainerID string }{
 							ContainerID: "33034b69f6fa5f808098208752fd1fe4e0e1ca86311988cea6a73b998cdc62e8",
 						},
 						PortStatus: struct{ Ports []portConfig }{}},
@@ -104,7 +108,7 @@ func Test_addTasksLabels(t *testing.T) {
 		tasks          []task
 		nodesLabels    []map[string]string
 		servicesLabels []map[string]string
-		networksLabels []map[string]string
+		networksLabels map[string]map[string]string
 		services       []service
 		port           int
 	}
@@ -127,11 +131,11 @@ func Test_addTasksLabels(t *testing.T) {
 						Slot:         1,
 						Status: struct {
 							State           string
-							ContainerStatus *struct{ ContainerID string }
+							ContainerStatus struct{ ContainerID string }
 							PortStatus      struct{ Ports []portConfig }
 						}{
 							State: "running",
-							ContainerStatus: &struct{ ContainerID string }{
+							ContainerStatus: struct{ ContainerID string }{
 								ContainerID: "33034b69f6fa5f808098208752fd1fe4e0e1ca86311988cea6a73b998cdc62e8",
 							},
 							PortStatus: struct{ Ports []portConfig }{
@@ -208,18 +212,18 @@ func Test_addTasksLabels(t *testing.T) {
 						},
 						Status: struct {
 							State           string
-							ContainerStatus *struct{ ContainerID string }
+							ContainerStatus struct{ ContainerID string }
 							PortStatus      struct{ Ports []portConfig }
 						}{
 							State: "running",
-							ContainerStatus: &struct{ ContainerID string }{
+							ContainerStatus: struct{ ContainerID string }{
 								ContainerID: "33034b69f6fa5f808098208752fd1fe4e0e1ca86311988cea6a73b998cdc62e8",
 							},
 							PortStatus: struct{ Ports []portConfig }{}},
 					},
 				},
-				networksLabels: []map[string]string{
-					{
+				networksLabels: map[string]map[string]string{
+					"qs0hog6ldlei9ct11pr3c77v1": {
 						"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 						"__meta_dockerswarm_network_ingress":    "true",
 						"__meta_dockerswarm_network_internal":   "false",
@@ -288,21 +292,22 @@ func Test_addTasksLabels(t *testing.T) {
 								NetworkID string
 								Addr      string
 							}
-						}{Ports: []portConfig{
-							{
-								Protocol:    "tcp",
-								Name:        "redis",
-								PublishMode: "ingress",
-							},
-						}, VirtualIPs: []struct {
-							NetworkID string
-							Addr      string
 						}{
-							{
-								NetworkID: "qs0hog6ldlei9ct11pr3c77v1",
-								Addr:      "10.0.0.3/24",
+							Ports: []portConfig{
+								{
+									Protocol:    "tcp",
+									Name:        "redis",
+									PublishMode: "ingress",
+								},
+							}, VirtualIPs: []struct {
+								NetworkID string
+								Addr      string
+							}{
+								{
+									NetworkID: "qs0hog6ldlei9ct11pr3c77v1",
+									Addr:      "10.0.0.3/24",
+								},
 							},
-						},
 						},
 					},
 				},

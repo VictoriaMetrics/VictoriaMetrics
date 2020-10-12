@@ -26,11 +26,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
 		port: sdc.Port,
 	}
-	config, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
+	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
 	if err != nil {
 		return nil, err
 	}
-	client, err := discoveryutils.NewClient(sdc.Host, config)
+	client, err := discoveryutils.NewClient(sdc.Host, ac)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", sdc.Host, err)
 	}

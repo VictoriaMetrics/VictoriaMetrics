@@ -172,7 +172,7 @@ func Test_parseServicesResponse(t *testing.T) {
 func Test_addServicesLabels(t *testing.T) {
 	type args struct {
 		services       []service
-		networksLabels []map[string]string
+		networksLabels map[string]map[string]string
 		port           int
 	}
 	tests := []struct {
@@ -184,8 +184,8 @@ func Test_addServicesLabels(t *testing.T) {
 			name: "add 2 services with network labels join",
 			args: args{
 				port: 9100,
-				networksLabels: []map[string]string{
-					{
+				networksLabels: map[string]map[string]string{
+					"qs0hog6ldlei9ct11pr3c77v1": {
 						"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 						"__meta_dockerswarm_network_ingress":    "true",
 						"__meta_dockerswarm_network_internal":   "false",
@@ -275,6 +275,7 @@ func Test_addServicesLabels(t *testing.T) {
 					"__meta_dockerswarm_service_name":                       "redis2",
 					"__meta_dockerswarm_service_task_container_hostname":    "node1",
 					"__meta_dockerswarm_service_task_container_image":       "redis:3.0.6@sha256:6a692a76c2081888b589e26e6ec835743119fe453d67ecf03df7de5b73d69842",
+					"__meta_dockerswarm_service_updating_status":            "",
 				})},
 		},
 	}

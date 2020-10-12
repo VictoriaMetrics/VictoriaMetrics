@@ -151,6 +151,8 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `openstack_sd_configs` - for scraping OpenStack targets.
   See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details.
   [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
+* `dockerswarm_sd_configs` - for scraping Docker Swarm targets.
+  See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config) for details.
 
 File feature requests at [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
