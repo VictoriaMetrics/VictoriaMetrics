@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -48,24 +49,36 @@ func (r response) metrics() ([]Metric, error) {
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
-	c             *http.Client
-	queryURL      string
-	basicAuthUser string
-	basicAuthPass string
-	lookBack      time.Duration
+	c                *http.Client
+	url              string
+	basicAuthUser    string
+	basicAuthPass    string
+	lookBack         time.Duration
+	tenancy          bool
+	defaultAuthToken *auth.Token
 }
 
 const queryPath = "/api/v1/query?query="
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, c *http.Client) *VMStorage {
-	return &VMStorage{
+func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, tenancy bool, lookBack time.Duration, c *http.Client) (*VMStorage, error) {
+	storage := VMStorage{
 		c:             c,
+		url:           strings.TrimSuffix(baseURL, "/"),
 		basicAuthUser: basicAuthUser,
 		basicAuthPass: basicAuthPass,
-		queryURL:      strings.TrimSuffix(baseURL, "/") + queryPath,
 		lookBack:      lookBack,
 	}
+	if tenancy {
+		token, formatter, err := auth.FindToken(storage.url)
+		if err != nil {
+			return nil, fmt.Errorf("invalid url addr format: %q", err)
+		}
+		storage.tenancy = true
+		storage.defaultAuthToken = token
+		storage.url = formatter
+	}
+	return &storage, nil
 }
 
 // Query reads metrics from datasource by given query
@@ -73,7 +86,11 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	const (
 		statusSuccess, statusError, rtVector = "success", "error", "vector"
 	)
-	q := s.queryURL + url.QueryEscape(query)
+	q := s.url
+	if s.tenancy {
+		q = fmt.Sprintf(q, s.defaultAuthToken.String())
+	}
+	q = q + queryPath + url.QueryEscape(query)
 	if s.lookBack > 0 {
 		lookBack := time.Now().Add(-s.lookBack)
 		q += fmt.Sprintf("&time=%d", lookBack.Unix())

@@ -15,6 +15,8 @@ var (
 	basicAuthUsername = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
 	basicAuthPassword = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 
+	tenancy = flag.Bool("remoteWrite.tenancy", false, "Whether to enable tenancy for -remoteWrite.url")
+
 	maxQueueSize  = flag.Int("remoteWrite.maxQueueSize", 1e5, "Defines the max number of pending datapoints to remote write endpoint")
 	maxBatchSize  = flag.Int("remoteWrite.maxBatchSize", 1e3, "Defines defines max number of timeseries to be flushed at once")
 	concurrency   = flag.Int("remoteWrite.concurrency", 1, "Defines number of writers for concurrent writing into remote querier")
@@ -43,6 +45,7 @@ func Init(ctx context.Context) (*Client, error) {
 
 	return NewClient(ctx, Config{
 		Addr:          *addr,
+		Tenancy:       *tenancy,
 		Concurrency:   *concurrency,
 		MaxQueueSize:  *maxQueueSize,
 		MaxBatchSize:  *maxBatchSize,

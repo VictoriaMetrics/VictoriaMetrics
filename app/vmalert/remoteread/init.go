@@ -13,8 +13,11 @@ var (
 	addr = flag.String("remoteRead.url", "", "Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts"+
 		" state. This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state."+
 		" E.g. http://127.0.0.1:8428")
-	basicAuthUsername     = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
-	basicAuthPassword     = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
+	basicAuthUsername = flag.String("remoteRead.basicAuth.username", "", "Optional basic auth username for -remoteRead.url")
+	basicAuthPassword = flag.String("remoteRead.basicAuth.password", "", "Optional basic auth password for -remoteRead.url")
+
+	tenancy = flag.Bool("remoteRead.tenancy", false, "Whether to enable tenancy for -remoteRead.url")
+
 	tlsInsecureSkipVerify = flag.Bool("remoteRead.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteRead.url")
 	tlsCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
 	tlsKeyFile            = flag.String("remoteRead.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url")
@@ -35,5 +38,5 @@ func Init() (datasource.Querier, error) {
 		return nil, fmt.Errorf("failed to create transport: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, 0, c), nil
+	return datasource.NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *tenancy, 0, c)
 }
