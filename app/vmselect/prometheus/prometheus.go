@@ -193,8 +193,10 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		close(resultsCh)
 		doneCh <- err
 	}()
+	// Consume all the data from resultsCh.
 	for bb := range resultsCh {
-		bw.Write(bb.B)
+		// Do not check for error in bw.Write, since this error is checked inside netstorage.ExportBlocks above.
+		_, _ = bw.Write(bb.B)
 		quicktemplate.ReleaseByteBuffer(bb)
 	}
 	if err := bw.Flush(); err != nil {
