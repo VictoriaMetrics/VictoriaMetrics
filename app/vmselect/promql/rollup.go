@@ -500,6 +500,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	j := 0
 	ni := 0
 	nj := 0
+	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -516,9 +517,17 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			rfa.prevValue = values[i-1]
 			rfa.prevTimestamp = timestamps[i-1]
 		}
-
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		if j == len(timestamps) && i < j && tEnd-timestamps[j-1] > stalenessInterval {
+			// Do not take into account the last data point in time series if the distance between this data point
+			// and tEnd exceeds stalenessInterval.
+			// This should prevent from double counting when a label changes in time series (for instance,
+			// during new deployment in K8S). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
+			rfa.prevValue = nan
+			rfa.values = nil
+			rfa.timestamps = nil
+		}
 		rfa.currTimestamp = tEnd
 		value := rc.Func(rfa)
 		rfa.idx++
