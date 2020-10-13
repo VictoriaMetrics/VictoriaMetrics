@@ -53,6 +53,7 @@
 
 * BUGFIX: properly handle stale time series after K8S deployment. Previously such time series could be double-counted.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
+* BUGFIX: return a single time series at max from `absent()` function like Prometheus does.
 * BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
 * BUGFIX: fix `mode_over_time(m[d])` calculations. Previously the function could return incorrect results.
 

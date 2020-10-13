@@ -167,23 +167,24 @@ func transformAbsent(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 1); err != nil {
 		return nil, err
 	}
-	arg := args[0]
-	if len(arg) == 0 {
-		rvs := getAbsentTimeseries(tfa.ec, tfa.fe.Args[0])
+	tss := args[0]
+	rvs := getAbsentTimeseries(tfa.ec, tfa.fe.Args[0])
+	if len(tss) == 0 {
 		return rvs, nil
 	}
-	for _, ts := range arg {
-		ts.MetricName.ResetMetricGroup()
-		for i, v := range ts.Values {
-			if !math.IsNaN(v) {
-				v = nan
-			} else {
-				v = 1
+	for i := range tss[0].Values {
+		isAbsent := true
+		for _, ts := range tss {
+			if !math.IsNaN(ts.Values[i]) {
+				isAbsent = false
+				break
 			}
-			ts.Values[i] = v
+		}
+		if !isAbsent {
+			rvs[0].Values[i] = nan
 		}
 	}
-	return arg, nil
+	return rvs, nil
 }
 
 func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
