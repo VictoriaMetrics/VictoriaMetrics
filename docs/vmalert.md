@@ -11,6 +11,7 @@ rules against configured address.
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
+* Keeps the alerts [state on restarts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmalert#alerts-state-on-restarts);
 * Lightweight without extra dependencies.
 
 ### Limitations:
@@ -121,14 +122,6 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ``` 
 
-`vmalert` has no local storage and alerts state is stored in process memory. Hence, after reloading of `vmalert` process
-alerts state will be lost. To avoid this situation, `vmalert` may be configured via following flags:
-* `-remoteWrite.url` - URL to Victoria Metrics or VMInsert. `vmalert` will persist alerts state into the configured
-address in form of timeseries with name `ALERTS` via remote-write protocol.
-* `-remoteRead.url` - URL to Victoria Metrics or VMSelect. `vmalert` will try to restore alerts state from configured
-address by querying `ALERTS` timeseries.
-
-
 ##### Recording rules
 
 The syntax for recording rules is following:
@@ -145,6 +138,22 @@ labels:
 ```
 
 For recording rules to work `-remoteWrite.url` must specified.
+
+
+#### Alerts state on restarts
+
+`vmalert` has no local storage, so alerts state is stored in the process memory. Hence, after reloading of `vmalert` 
+the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
+* `-remoteWrite.url` - URL to VictoriaMetrics (Single) or VMInsert (Cluster). `vmalert` will persist alerts state 
+into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol. 
+These are regular time series and may be queried from VM just as any other time series. 
+The state stored to the configured address on every rule evaluation.
+* `-remoteRead.url` - URL to VictoriaMetrics (Single) or VMSelect (Cluster). `vmalert` will try to restore alerts state 
+from configured address by querying time series with name `ALERTS_FOR_STATE`.
+
+Both flags are required for the proper state restoring. Restore process may fail if time series are missing
+in configured `-remoteRead.url`, weren't updated in the last `1h` or received state doesn't match current `vmalert` 
+rules configuration.
 
 
 #### WEB
