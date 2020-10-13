@@ -1,5 +1,8 @@
 # tip
 
+
+# [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
+
 * FEATURE: automatically add missing label filters to binary operands as described at https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization .
   This should improve performance for queries with missing label filters in binary operands. For example, the following query should work faster now, because it shouldn't
   fetch and discard time series for `node_filesystem_files_free` metric without matching labels for the left side of the expression:
