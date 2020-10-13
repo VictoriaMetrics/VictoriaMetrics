@@ -15,6 +15,8 @@ The following functionality is implemented differently in MetricsQL comparing to
 * MetricsQL removes all the `NaN` values from the output, so some queries like `(-1)^0.5` return empty results in VictoriaMetrics, while returning
   a series of `NaN` values in Prometheus. Note that Grafana doesn't draw any lines or dots for `NaN` values, so usually the end result looks the same for both
   VictoriaMetrics and Prometheus.
+* MetricsQL keeps metric names after applying functions, which don't change the meaining of the original time series. For example, `min_over_time(foo)` or `round(foo)`
+  leave `foo` metric name in the result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674) for details.
 
 Other PromQL functionality should work the same in MetricsQL. [File an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 if you notice discrepancies between PromQL and MetricsQL results other than mentioned above.

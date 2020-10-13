@@ -17,6 +17,27 @@ import (
 	"github.com/valyala/histogram"
 )
 
+var transformFuncsKeepMetricGroup = map[string]bool{
+	"ceil":               true,
+	"clamp_max":          true,
+	"clamp_min":          true,
+	"floor":              true,
+	"round":              true,
+	"keep_last_value":    true,
+	"keep_next_value":    true,
+	"interpolate":        true,
+	"running_min":        true,
+	"running_max":        true,
+	"running_avg":        true,
+	"range_min":          true,
+	"range_max":          true,
+	"range_avg":          true,
+	"range_first":        true,
+	"range_last":         true,
+	"range_quantile":     true,
+	"smooth_exponential": true,
+}
+
 var transformFuncs = map[string]transformFunc{
 	// Standard promql funcs
 	// See funcs accepting instant-vector on https://prometheus.io/docs/prometheus/latest/querying/functions/ .
@@ -125,8 +146,12 @@ func newTransformFuncOneArg(tf func(v float64) float64) transformFunc {
 }
 
 func doTransformValues(arg []*timeseries, tf func(values []float64), fe *metricsql.FuncExpr) ([]*timeseries, error) {
+	name := strings.ToLower(fe.Name)
+	keepMetricGroup := transformFuncsKeepMetricGroup[name]
 	for _, ts := range arg {
-		ts.MetricName.ResetMetricGroup()
+		if !keepMetricGroup {
+			ts.MetricName.ResetMetricGroup()
+		}
 		tf(ts.Values)
 	}
 	return arg, nil
@@ -142,23 +167,24 @@ func transformAbsent(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 1); err != nil {
 		return nil, err
 	}
-	arg := args[0]
-	if len(arg) == 0 {
-		rvs := getAbsentTimeseries(tfa.ec, tfa.fe.Args[0])
+	tss := args[0]
+	rvs := getAbsentTimeseries(tfa.ec, tfa.fe.Args[0])
+	if len(tss) == 0 {
 		return rvs, nil
 	}
-	for _, ts := range arg {
-		ts.MetricName.ResetMetricGroup()
-		for i, v := range ts.Values {
-			if !math.IsNaN(v) {
-				v = nan
-			} else {
-				v = 1
+	for i := range tss[0].Values {
+		isAbsent := true
+		for _, ts := range tss {
+			if !math.IsNaN(ts.Values[i]) {
+				isAbsent = false
+				break
 			}
-			ts.Values[i] = v
+		}
+		if !isAbsent {
+			rvs[0].Values[i] = nan
 		}
 	}
-	return arg, nil
+	return rvs, nil
 }
 
 func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {

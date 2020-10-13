@@ -169,12 +169,20 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 }
 
 var rollupFuncsKeepMetricGroup = map[string]bool{
+	"holt_winters":          true,
+	"predict_linear":        true,
 	"default_rollup":        true,
+	"avg_over_time":         true,
+	"min_over_time":         true,
+	"max_over_time":         true,
+	"quantile_over_time":    true,
 	"rollup":                true,
+	"geomean_over_time":     true,
 	"hoeffding_bound_lower": true,
 	"hoeffding_bound_upper": true,
 	"first_over_time":       true,
 	"last_over_time":        true,
+	"mode_over_time":        true,
 }
 
 func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
@@ -492,6 +500,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	j := 0
 	ni := 0
 	nj := 0
+	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -508,9 +517,17 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			rfa.prevValue = values[i-1]
 			rfa.prevTimestamp = timestamps[i-1]
 		}
-
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		if j == len(timestamps) && i < j && tEnd-timestamps[j-1] > stalenessInterval {
+			// Do not take into account the last data point in time series if the distance between this data point
+			// and tEnd exceeds stalenessInterval.
+			// This should prevent from double counting when a label changes in time series (for instance,
+			// during new deployment in K8S). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
+			rfa.prevValue = nan
+			rfa.values = nil
+			rfa.timestamps = nil
+		}
 		rfa.currTimestamp = tEnd
 		value := rc.Func(rfa)
 		rfa.idx++
@@ -1579,7 +1596,23 @@ func rollupTimestamp(rfa *rollupFuncArg) float64 {
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	return modeNoNaNs(rfa.prevValue, rfa.values)
+
+	// Copy rfa.values to a.A, since modeNoNaNs modifies a.A contents.
+	a := float64sPool.Get().(*float64s)
+	a.A = append(a.A[:0], rfa.values...)
+	result := modeNoNaNs(rfa.prevValue, a.A)
+	float64sPool.Put(a)
+	return result
+}
+
+var float64sPool = &sync.Pool{
+	New: func() interface{} {
+		return &float64s{}
+	},
+}
+
+type float64s struct {
+	A []float64
 }
 
 func rollupAscentOverTime(rfa *rollupFuncArg) float64 {

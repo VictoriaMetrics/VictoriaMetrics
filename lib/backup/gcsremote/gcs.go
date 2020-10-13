@@ -33,6 +33,8 @@ type FS struct {
 }
 
 // Init initializes fs.
+//
+// The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
 	if fs.bkt != nil {
 		logger.Panicf("BUG: fs.Init has been already called")
@@ -61,6 +63,11 @@ func (fs *FS) Init() error {
 	}
 	fs.bkt = client.Bucket(fs.Bucket)
 	return nil
+}
+
+// MustStop stops fs.
+func (fs *FS) MustStop() {
+	fs.bkt = nil
 }
 
 // String returns human-readable description for fs.

@@ -44,6 +44,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	samples := ctx.Samples[:0]
 	for i := range rows {
 		r := &rows[i]
+		rowsTotal += len(r.Values)
 		labelsLen := len(labels)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
@@ -69,7 +70,6 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})
-		rowsTotal += len(values)
 	}
 	ctx.WriteRequest.Timeseries = tssDst
 	ctx.Labels = labels

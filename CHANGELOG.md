@@ -1,11 +1,17 @@
 # tip
 
+
+# [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
+
 * FEATURE: automatically add missing label filters to binary operands as described at https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization .
   This should improve performance for queries with missing label filters in binary operands. For example, the following query should work faster now, because it shouldn't
   fetch and discard time series for `node_filesystem_files_free` metric without matching labels for the left side of the expression:
   ```
      node_filesystem_files{ host="$host", mountpoint="/" } - node_filesystem_files_free
   ```
+* FEATURE: vmagent: add Docker Swarm service discovery (aka [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)).
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/656
+* FEATURE: add ability to export data in CSV format. See [these docs](https://victoriametrics.github.io/#how-to-export-csv-data) for details.
 * FEATURE: vmagent: add `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag for suppressing `duplicate scrape target` errors.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651 and https://victoriametrics.github.io/vmagent.html#troubleshooting .
 * FEATURE: vmagent: show original labels before relabeling is applied on `duplicate scrape target` errors. This should simplify debugging for incorrect relabeling.
@@ -14,6 +20,45 @@
   This should simplify debugging for target relabeling configs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/651
 * FEATURE: add `-finalMergeDelay` command-line flag for configuring the delay before final merge for per-month partitions.
   The final merge is started after no new data is ingested into per-month partition during `-finalMergeDelay`.
+* FEATURE: add `vm_rows_added_to_storage_total` metric, which shows the total number of rows added to storage since app start.
+  The `sum(rate(vm_rows_added_to_storage_total))` can be smaller than `sum(rate(vm_rows_inserted_total))` if certain metrics are dropped
+  due to [relabeling](https://victoriametrics.github.io/#relabeling). The `sum(rate(vm_rows_added_to_storage_total))` can be bigger
+  than `sum(rate(vm_rows_inserted_total))` if [replication](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#replication-and-data-safety) is enabled.
+* FEATURE: keep metric name after applying [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) functions, which don't change time series meaning.
+  The list of such functions:
+   * `keep_last_value`
+   * `keep_next_value`
+   * `interpolate`
+   * `running_min`
+   * `running_max`
+   * `running_avg`
+   * `range_min`
+   * `range_max`
+   * `range_avg`
+   * `range_first`
+   * `range_last`
+   * `range_quantile`
+   * `smooth_exponential`
+   * `ceil`
+   * `floor`
+   * `round`
+   * `clamp_min`
+   * `clamp_max`
+   * `max_over_time`
+   * `min_over_time`
+   * `avg_over_time`
+   * `quantile_over_time`
+   * `mode_over_time`
+   * `geomean_over_time`
+   * `holt_winters`
+   * `predict_linear`
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674
+
+* BUGFIX: properly handle stale time series after K8S deployment. Previously such time series could be double-counted.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
+* BUGFIX: return a single time series at max from `absent()` function like Prometheus does.
+* BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
+* BUGFIX: fix `mode_over_time(m[d])` calculations. Previously the function could return incorrect results.
 
 
 # [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)

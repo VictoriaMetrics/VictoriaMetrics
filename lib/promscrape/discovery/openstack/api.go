@@ -75,12 +75,12 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		port:         sdc.Port,
 	}
 	if sdc.TLSConfig != nil {
-		config, err := promauth.NewConfig(baseDir, nil, "", "", sdc.TLSConfig)
+		ac, err := promauth.NewConfig(baseDir, nil, "", "", sdc.TLSConfig)
 		if err != nil {
 			return nil, err
 		}
 		cfg.client.Transport = &http.Transport{
-			TLSClientConfig: config.NewTLSConfig(),
+			TLSClientConfig: ac.NewTLSConfig(),
 		}
 	}
 	// use public compute endpoint by default

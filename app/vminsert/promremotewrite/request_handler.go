@@ -36,6 +36,7 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range timeseries {
 		ts := &timeseries[i]
+		rowsTotal += len(ts.Samples)
 		ctx.Labels = ctx.Labels[:0]
 		srcLabels := ts.Labels
 		for _, srcLabel := range srcLabels {
@@ -58,7 +59,6 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 				return err
 			}
 		}
-		rowsTotal += len(samples)
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))

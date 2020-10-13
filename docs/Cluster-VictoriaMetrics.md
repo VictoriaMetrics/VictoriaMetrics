@@ -192,6 +192,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
     - `federate` - returns [federated metrics](https://prometheus.io/docs/prometheus/latest/federation/).
     - `api/v1/export` - exports raw data in JSON line format. See [this article](https://medium.com/@valyala/analyzing-prometheus-data-with-external-tools-5f3e5e147639) for details.
     - `api/v1/export/native` - exports raw data in native binary format. It may be imported into another VictoriaMetrics via `api/v1/import/native` (see above).
+    - `api/v1/export/csv` - exports data in CSV. It may be imported into another VictoriaMetrics via `api/v1/import/csv` (see above).
     - `api/v1/status/tsdb` - for time series stats. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
@@ -279,6 +280,12 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 * The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
 * The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = active_time_series * 1KB`.
   Time series is active if it received at least a single data point during the last hour or if it has been queried during the last hour.
+  The required RAM per each `vmstorage` should be multiplied by `-replicationFactor` if [replication](#replication-and-data-safety) is enabled.
+  Additional RAM can be required for query processing.
+  Calculated RAM requrements may differ from actual RAM requirements due to various factors:
+  * The average number of labels per time series. More labels require more RAM.
+  * The average length of label names and label values. Longer labels require more RAM.
+  * The type of queries. Heavy queries that scan big number of time series over long time ranges require more RAM.
 * The recommended total amount of storage space for all the `vmstorage` instances can be calculated
   from the ingestion rate and retention: `storage_space = ingestion_rate * retention_seconds`.
 

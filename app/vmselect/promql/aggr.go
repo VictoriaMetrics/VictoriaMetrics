@@ -494,6 +494,8 @@ func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
 //
 // It is expected that a doesn't contain NaNs.
 //
+// The function modifies contents for a, so the caller must prepare it accordingly.
+//
 // See https://en.wikipedia.org/wiki/Mode_(statistics)
 func modeNoNaNs(prevValue float64, a []float64) float64 {
 	if len(a) == 0 {

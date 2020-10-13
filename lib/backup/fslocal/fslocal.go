@@ -27,12 +27,23 @@ type FS struct {
 	bl *bandwidthLimiter
 }
 
-// Init initializes fs
+// Init initializes fs.
+//
+// The returned fs must be stopped when no long needed with MustStop call.
 func (fs *FS) Init() error {
 	if fs.MaxBytesPerSecond > 0 {
 		fs.bl = newBandwidthLimiter(fs.MaxBytesPerSecond)
 	}
 	return nil
+}
+
+// MustStop stops fs.
+func (fs *FS) MustStop() {
+	if fs.bl == nil {
+		return
+	}
+	fs.bl.MustStop()
+	fs.bl = nil
 }
 
 // String returns user-readable representation for the fs.

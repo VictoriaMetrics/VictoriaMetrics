@@ -7,6 +7,11 @@ import (
 // FS represents nil remote filesystem.
 type FS struct{}
 
+// MustStop stops fs.
+func (fs *FS) MustStop() {
+	// Nothing to do
+}
+
 // String returns human-readable string representation for fs.
 func (fs *FS) String() string {
 	return "fsnil"

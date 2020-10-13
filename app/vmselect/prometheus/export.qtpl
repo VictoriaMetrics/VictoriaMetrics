@@ -1,9 +1,82 @@
 {% import (
+	"bytes"
+	"strings"
+	"time"
+
 	"github.com/valyala/quicktemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
 
 {% stripspace %}
+
+{% func ExportCSVLine(xb *exportBlock, fieldNames []string) %}
+	{% if len(xb.timestamps) == 0 || len(fieldNames) == 0 %}{% return %}{% endif %}
+	{% for i, timestamp := range xb.timestamps %}
+		{% code value := xb.values[i] %}
+		{%= exportCSVField(xb.mn, fieldNames[0], timestamp, value) %}
+		{% for _, fieldName := range fieldNames[1:] %}
+			,
+			{%= exportCSVField(xb.mn, fieldName, timestamp, value) %}
+		{% endfor %}
+		{% newline %}
+	{% endfor %}
+{% endfunc %}
+
+{% func exportCSVField(mn *storage.MetricName, fieldName string, timestamp int64, value float64) %}
+	{% if fieldName == "__value__" %}
+		{%f= value %}
+		{% return %}
+	{% endif %}
+	{% if fieldName == "__timestamp__" %}
+		{%dl timestamp %}
+		{% return %}
+	{% endif %}
+	{% if strings.HasPrefix(fieldName, "__timestamp__:") %}
+		{% code timeFormat := fieldName[len("__timestamp__:"):] %}
+		{% switch timeFormat %}
+		{% case "unix_s" %}
+			{%dl= timestamp/1000 %}
+		{% case "unix_ms" %}
+			{%dl= timestamp %}
+		{% case "unix_ns" %}
+			{%dl= timestamp*1e6 %}
+		{% case "rfc3339" %}
+			{% code
+				bb := quicktemplate.AcquireByteBuffer()
+				bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], time.RFC3339)
+			%}
+			{%z= bb.B %}
+			{% code
+				quicktemplate.ReleaseByteBuffer(bb)
+			%}
+		{% default %}
+			{% if strings.HasPrefix(timeFormat, "custom:") %}
+				{% code
+					layout := timeFormat[len("custom:"):]
+					bb := quicktemplate.AcquireByteBuffer()
+					bb.B = time.Unix(timestamp/1000, (timestamp%1000)*1e6).AppendFormat(bb.B[:0], layout)
+				%}
+				{% if bytes.ContainsAny(bb.B, `"`+",\n") %}
+					{%qz bb.B %}
+				{% else %}
+					{%z= bb.B %}
+				{% endif %}
+				{% code
+					quicktemplate.ReleaseByteBuffer(bb)
+				%}
+			{% else %}
+				Unsupported timeFormat={%s= timeFormat %}
+			{% endif %}
+		{% endswitch %}
+		{% return %}
+	{% endif %}
+	{% code v := mn.GetTagValue(fieldName) %}
+	{% if bytes.ContainsAny(v, `"`+",\n") %}
+		{%qz= v %}
+	{% else %}
+		{%z= v %}
+	{% endif %}
+{% endfunc %}
 
 {% func ExportPrometheusLine(xb *exportBlock) %}
 	{% if len(xb.timestamps) == 0 %}{% return %}{% endif %}

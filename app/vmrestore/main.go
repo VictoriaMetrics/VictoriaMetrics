@@ -52,6 +52,8 @@ func main() {
 	if err := a.Run(); err != nil {
 		logger.Fatalf("cannot restore from backup: %s", err)
 	}
+	srcFS.MustStop()
+	dstFS.MustStop()
 }
 
 func usage() {
