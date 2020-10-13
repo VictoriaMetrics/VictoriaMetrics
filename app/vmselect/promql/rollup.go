@@ -1587,7 +1587,23 @@ func rollupTimestamp(rfa *rollupFuncArg) float64 {
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
-	return modeNoNaNs(rfa.prevValue, rfa.values)
+
+	// Copy rfa.values to a.A, since modeNoNaNs modifies a.A contents.
+	a := float64sPool.Get().(*float64s)
+	a.A = append(a.A[:0], rfa.values...)
+	result := modeNoNaNs(rfa.prevValue, a.A)
+	float64sPool.Put(a)
+	return result
+}
+
+var float64sPool = &sync.Pool{
+	New: func() interface{} {
+		return &float64s{}
+	},
+}
+
+type float64s struct {
+	A []float64
 }
 
 func rollupAscentOverTime(rfa *rollupFuncArg) float64 {

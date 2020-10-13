@@ -52,6 +52,7 @@
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674
 
 * BUGFIX: vmalert: accept days, weeks and years in `for: ` part of config like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/817
+* BUGFIX: fix `mode_over_time(m[d])` calculations. Previously the function could return incorrect results.
 
 
 # [v1.43.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.43.0)
