@@ -280,6 +280,12 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 * The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
 * The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = active_time_series * 1KB`.
   Time series is active if it received at least a single data point during the last hour or if it has been queried during the last hour.
+  The required RAM per each `vmstorage` should be multiplied by `-replicationFactor` if [replication](#replication-and-data-safety) is enabled.
+  Additional RAM can be required for query processing.
+  Calculated RAM requrements may differ from actual RAM requirements due to various factors:
+  * The average number of labels per time series. More labels require more RAM.
+  * The average length of label names and label values. Longer labels require more RAM.
+  * The type of queries. Heavy queries that scan big number of time series over long time ranges require more RAM.
 * The recommended total amount of storage space for all the `vmstorage` instances can be calculated
   from the ingestion rate and retention: `storage_space = ingestion_rate * retention_seconds`.
 
