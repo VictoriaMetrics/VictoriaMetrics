@@ -582,10 +582,6 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1, 1, 1, 1, 1, 1},
 			Timestamps: timestampsExpected,
 		}
-		r.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("yy"),
-			Value: []byte("foo"),
-		}}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
