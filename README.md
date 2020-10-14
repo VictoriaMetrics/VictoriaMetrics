@@ -155,31 +155,33 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
     * [Color Palette](#color-palette)
   * [We kindly ask](#we-kindly-ask)
 
+
 ### How to start VictoriaMetrics
 
-Just start VictoriaMetrics [executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+Start VictoriaMetrics [executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 or [docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) with the desired command-line flags.
 
 The following command-line flags are used the most:
 
-* `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in current working directory.
-* `-retentionPeriod` - retention period in months for the data. Older data is automatically deleted. Default period is 1 month.
+* `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
+* `-retentionPeriod` - retention period in months for stored data. Older data is automatically deleted. Default period is 1 month.
 
-Other flags have good enough default values, so set them only if you really need this.
+Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see all the available flags with description and default values.
+
+See how to [ingest data to VictoriaMetrics](#how-to-import-time-series-data) and how to [query VictoriaMetrics](#grafana-setup).
 VictoriaMetrics accepts [Prometheus querying API requests](#prometheus-querying-api-usage) on port `8428` by default.
-
-Pass `-help` to see all the available flags with description and default values.
 
 It is recommended setting up [monitoring](#monitoring) for VictoriaMetrics.
 
 #### Environment variables
 
-Each flag values can be set thru environment variables by following these rules:
+Each flag value can be set via environment variables according to these rules:
 
 * The `-envflag.enable` flag must be set
-* Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
-* For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
+* Each `.` char in flag name must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
+* For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 * It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+
 
 ### Prometheus setup
 
@@ -192,15 +194,15 @@ remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
 ```
 
-Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
-Then apply the new config via the following command:
+Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
+Then apply new config via the following command:
 
 ```bash
 kill -HUP `pidof prometheus`
 ```
 
 Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
-This means the data remains available in local storage for `--storage.tsdb.retention.time` duration
+This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
 even if remote storage is unavailable.
 
 If you plan to send data to VictoriaMetrics from multiple Prometheus instances, then add the following lines into `global` section
@@ -213,11 +215,10 @@ global:
 ```
 
 This instructs Prometheus to add `datacenter=dc-123` label to each time series sent to remote storage.
-The label name may be arbitrary - `datacenter` is just an example. The label value must be unique
+The label name can be arbitrary - `datacenter` is just an example. The label value must be unique
 across Prometheus instances, so those time series may be filtered and grouped by this label.
 
-For highly loaded Prometheus instances (400k+ samples per second)
-the following tuning may be applied:
+For highly loaded Prometheus instances (400k+ samples per second) the following tuning may be applied:
 
 ```yaml
 remote_write:
@@ -228,14 +229,11 @@ remote_write:
       max_shards: 30
 ```
 
-Using remote write increases memory usage for Prometheus up to ~25%
-and depends on the shape of data. If you are experiencing issues with
-too high memory consumption try to lower `max_samples_per_send`
-and `capacity` params (keep in mind that these two params are tightly connected).
+Using remote write increases memory usage for Prometheus up to ~25% and depends on the shape of data. If you are experiencing issues with
+too high memory consumption try to lower `max_samples_per_send` and `capacity` params (keep in mind that these two params are tightly connected).
 Read more about tuning remote write for Prometheus [here](https://prometheus.io/docs/practices/remote_write).
 
-It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer,
-since the previous versions may have issues with `remote_write`.
+It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, since previous versions may have issues with `remote_write`.
 
 Take a look also at [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md),
 which can be used as faster and less resource-hungry alternative to Prometheus in certain cases.
@@ -243,7 +241,7 @@ which can be used as faster and less resource-hungry alternative to Prometheus i
 
 ### Grafana setup
 
-Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following Url:
+Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following url:
 
 ```url
 http://<victoriametrics-addr>:8428
@@ -251,8 +249,10 @@ http://<victoriametrics-addr>:8428
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
-Then build graphs with the created datasource using [Prometheus query language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
-VictoriaMetrics supports native PromQL and [extends it with useful features](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL).
+Then build graphs with the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
+or [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL). VictoriaMetrics supports [Prometheus querying API](#prometheus-querying-api-usage),
+which is used by Grafana.
+
 
 ### How to upgrade VictoriaMetrics
 
@@ -264,23 +264,25 @@ It is also safe downgrading to the previous version unless [release notes](https
 
 The following steps must be performed during the upgrade / downgrade:
 
-1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
-2) Wait until the process stops. This can take a few seconds.
-3) Start the upgraded VictoriaMetrics.
+* Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
+* Wait until the process stops. This can take a few seconds.
+* Start the upgraded VictoriaMetrics.
 
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
+
 
 ### How to apply new config to VictoriaMetrics
 
-VictoriaMetrics must be restarted for applying new config:
+VictoriaMetrics is configured via command-line flags, so it must be restarted when new command-line flags should be applied:
 
-1) Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
-2) Wait until the process stops. This can take a few seconds.
-3) Start VictoriaMetrics with the new config.
+* Send `SIGINT` signal to VictoriaMetrics process in order to gracefully stop it.
+* Wait until the process stops. This can take a few seconds.
+* Start VictoriaMetrics with the new command-line flags.
 
 Prometheus doesn't drop data during VictoriaMetrics restart.
 See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details.
+
 
 ### How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
@@ -298,7 +300,7 @@ Currently the following [scrape_config](https://prometheus.io/docs/prometheus/la
 * [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config)
 * [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config)
 
-In the future other `*_sd_config` types will be supported.
+Other `*_sd_config` types will be supported in the future.
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
@@ -306,17 +308,16 @@ VictoriaMetrics also supports [importing data in Prometheus exposition format](#
 
 See also [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md), which can be used as drop-in replacement for Prometheus.
 
+
 ### How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
-Just use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
+Use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
 For instance, put the following lines into `Telegraf` config, so it sends data to VictoriaMetrics instead of InfluxDB:
 
 ```toml
 [[outputs.influxdb]]
   urls = ["http://<victoriametrics-addr>:8428"]
 ```
-
-Do not forget substituting `<victoriametrics-addr>` with the real address where VictoriaMetrics runs.
 
 Another option is to enable TCP and UDP receiver for Influx line protocol via `-influxListenAddr` command-line flag
 and stream plain Influx line protocol data to the configured TCP and/or UDP addresses.
@@ -352,7 +353,7 @@ to local VictoriaMetrics using `curl`:
 curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
 ```
 
-An arbitrary number of lines delimited by '\n' (aka newline char) may be sent in a single request.
+An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
@@ -369,16 +370,17 @@ The `/api/v1/export` endpoint should return the following response:
 Note that Influx line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
 while VictoriaMetrics stores them with *milliseconds* precision.
 
+
 ### How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
-1) Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
+Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
 the following command will enable Graphite receiver in VictoriaMetrics on TCP and UDP port `2003`:
 
 ```bash
 /path/to/victoria-metrics-prod -graphiteListenAddr=:2003
 ```
 
-2) Use the configured address in Graphite-compatible agents. For instance, set `graphiteHost`
+Use the configured address in Graphite-compatible agents. For instance, set `graphiteHost`
 to the VictoriaMetrics host in `StatsD` configs.
 
 Example for writing data with Graphite plaintext protocol to local VictoriaMetrics using `nc`:
@@ -388,7 +390,7 @@ echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N localhost 2003
 ```
 
 VictoriaMetrics sets the current time if the timestamp is omitted.
-An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
@@ -417,14 +419,14 @@ The same protocol is used for [ingesting data in KairosDB](https://kairosdb.gith
 
 #### Sending data via `telnet put` protocol
 
-1) Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
+Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command line flag. For instance,
 the following command enables OpenTSDB receiver in VictoriaMetrics on TCP and UDP port `4242`:
 
 ```bash
 /path/to/victoria-metrics-prod -opentsdbListenAddr=:4242
 ```
 
-2) Send data to the given address from OpenTSDB-compatible agents.
+Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `nc`:
 
@@ -432,7 +434,7 @@ Example for writing data with OpenTSDB protocol to local VictoriaMetrics using `
 echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 4242
 ```
 
-An arbitrary number of lines delimited by `\n` (aka newline char) may be sent in one go.
+An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 After that the data may be read via [/api/v1/export](#how-to-export-data-in-json-line-format) endpoint:
 
 ```bash
@@ -447,14 +449,14 @@ The `/api/v1/export` endpoint should return the following response:
 
 #### Sending OpenTSDB data via HTTP `/api/put` requests
 
-1) Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
+Enable HTTP server for OpenTSDB `/api/put` requests by setting `-opentsdbHTTPListenAddr` command line flag. For instance,
 the following command enables OpenTSDB HTTP server on port `4242`:
 
 ```bash
 /path/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:4242
 ```
 
-2) Send data to the given address from OpenTSDB-compatible agents.
+Send data to the given address from OpenTSDB-compatible agents.
 
 Example for writing a single data point:
 
@@ -762,7 +764,7 @@ The exported CSV data can be imported to VictoriaMetrics via [/api/v1/import/csv
 
 Time series data can be imported via any supported ingestion protocol:
 
-* [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+* [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). See [these docs](#prometheus-setup) for details.
 * Influx line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
@@ -997,8 +999,8 @@ The required resources for query path:
 
 ### High availability
 
-1) Install multiple VictoriaMetrics instances in distinct datacenters (availability zones).
-2) Pass addresses of these instances to [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) via `-remoteWrite.url` command-line flag:
+* Install multiple VictoriaMetrics instances in distinct datacenters (availability zones).
+* Pass addresses of these instances to [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) via `-remoteWrite.url` command-line flag:
 
 ```bash
 /path/to/vmagent -remoteWrite.url=http://<victoriametrics-addr-1>:8428/api/v1/write -remoteWrite.url=http://<victoriametrics-addr-2>:8428/api/v1/write
@@ -1017,7 +1019,7 @@ remote_write:
       max_samples_per_send: 10000
 ```
 
-3) Apply the updated config:
+* Apply the updated config:
 
 ```bash
 kill -HUP `pidof prometheus`
@@ -1025,9 +1027,9 @@ kill -HUP `pidof prometheus`
 
 It is recommended to use [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) instead of Prometheus for highly loaded setups.
 
-4) Now Prometheus should write data into all the configured `remote_write` urls in parallel.
-5) Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
-6) Set up Prometheus datasource in Grafana that points to Promxy.
+* Now Prometheus should write data into all the configured `remote_write` urls in parallel.
+* Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
+* Set up Prometheus datasource in Grafana that points to Promxy.
 
 If you have Prometheus HA pairs with replicas `r1` and `r2` in each pair, then configure each `r1`
 to write data to `victoriametrics-addr-1`, while each `r2` should write data to `victoriametrics-addr-2`.
