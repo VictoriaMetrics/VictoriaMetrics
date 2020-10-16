@@ -103,7 +103,7 @@ Next, ensure the following APIs are enabled in the general project:
 - Google Compute Engine Instance Group Updater API
 - Google Compute Engine Instance Groups API
 - Kubernetes Engine API
-- Stackdriver Error Reporting API
+- Cloud Error Reporting API
 
 Next, create a Datastore database in the general project, and a Firestore
 database in the Firestore project.
@@ -150,7 +150,7 @@ $ gcloud auth login
 $ gcloud datastore indexes create datastore/testdata/index.yaml
 
 # Creates a Google Cloud storage bucket with the same name as your test project,
-# and with the Stackdriver Logging service account as owner, for the sink
+# and with the Cloud Logging service account as owner, for the sink
 # integration tests in logging.
 $ gsutil mb gs://$GCLOUD_TESTS_GOLANG_PROJECT_ID
 $ gsutil acl ch -g cloud-logs@google.com:O gs://$GCLOUD_TESTS_GOLANG_PROJECT_ID
