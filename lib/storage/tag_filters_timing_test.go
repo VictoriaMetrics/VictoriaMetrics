@@ -312,13 +312,13 @@ func BenchmarkTagFilterMatchSuffix(b *testing.B) {
 
 // Run the following command to get the execution cost of all matches
 //
-// go test -run=none -bench=BenchmarkOptimizedReMatchCost -count 20 | tee cost.txt
+// go test -run=none -bench=BenchmarkOptimizedReMatchCost -count 20 github.com/VictoriaMetrics/VictoriaMetrics/lib/storage | tee cost.txt
 // benchstat ./cost.txt
 //
 // Calculate the multiplier of default for each match overhead.
 
 func BenchmarkOptimizedReMatchCost(b *testing.B) {
-	b.Run("default", func(b *testing.B) {
+	b.Run("fullMatchCost", func(b *testing.B) {
 		reMatch := func(b []byte) bool {
 			return len(b) == 0
 		}
@@ -331,7 +331,7 @@ func BenchmarkOptimizedReMatchCost(b *testing.B) {
 			}
 		})
 	})
-	b.Run("literal match", func(b *testing.B) {
+	b.Run("literalMatchCost", func(b *testing.B) {
 		s := "foo1.bar.baz.sss.ddd"
 		reMatch := func(b []byte) bool {
 			return string(b) == s
@@ -345,7 +345,7 @@ func BenchmarkOptimizedReMatchCost(b *testing.B) {
 			}
 		})
 	})
-	b.Run("foo|bar|baz", func(b *testing.B) {
+	b.Run("threeLiteralsMatchCost", func(b *testing.B) {
 		s := []string{"foo", "bar", "baz"}
 		reMatch := func(b []byte) bool {
 			for _, v := range s {
@@ -502,7 +502,7 @@ func BenchmarkOptimizedReMatchCost(b *testing.B) {
 			}
 		})
 	})
-	b.Run("default", func(b *testing.B) {
+	b.Run("reMatchCost", func(b *testing.B) {
 		re := regexp.MustCompile(`foo[^.]*?\.bar\.baz\.[^.]*?\.ddd`)
 		reMatch := func(b []byte) bool {
 			return re.Match(b)
