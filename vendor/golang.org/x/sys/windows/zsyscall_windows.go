@@ -180,11 +180,9 @@ var (
 	procRegEnumKeyExW                                        = modadvapi32.NewProc("RegEnumKeyExW")
 	procRegQueryValueExW                                     = modadvapi32.NewProc("RegQueryValueExW")
 	procGetCurrentProcessId                                  = modkernel32.NewProc("GetCurrentProcessId")
-	procProcessIdToSessionId                                 = modkernel32.NewProc("ProcessIdToSessionId")
 	procGetConsoleMode                                       = modkernel32.NewProc("GetConsoleMode")
 	procSetConsoleMode                                       = modkernel32.NewProc("SetConsoleMode")
 	procGetConsoleScreenBufferInfo                           = modkernel32.NewProc("GetConsoleScreenBufferInfo")
-	procSetConsoleCursorPosition                             = modkernel32.NewProc("SetConsoleCursorPosition")
 	procWriteConsoleW                                        = modkernel32.NewProc("WriteConsoleW")
 	procReadConsoleW                                         = modkernel32.NewProc("ReadConsoleW")
 	procCreateToolhelp32Snapshot                             = modkernel32.NewProc("CreateToolhelp32Snapshot")
@@ -763,6 +761,8 @@ func IsWow64Process(handle Handle, isWow64 *bool) (err error) {
 	var _p0 uint32
 	if *isWow64 {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procIsWow64Process.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(&_p0)), 0)
 	*isWow64 = _p0 != 0
@@ -825,6 +825,8 @@ func GetOverlappedResult(handle Handle, overlapped *Overlapped, done *uint32, wa
 	var _p0 uint32
 	if wait {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procGetOverlappedResult.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(done)), uintptr(_p0), 0, 0)
 	if r1 == 0 {
@@ -1181,6 +1183,8 @@ func CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityA
 	var _p0 uint32
 	if inheritHandles {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall12(procCreateProcessW.Addr(), 10, uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0, 0)
 	if r1 == 0 {
@@ -1197,6 +1201,8 @@ func OpenProcess(desiredAccess uint32, inheritHandle bool, processId uint32) (ha
 	var _p0 uint32
 	if inheritHandle {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, e1 := syscall.Syscall(procOpenProcess.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(processId))
 	handle = Handle(r0)
@@ -1282,6 +1288,8 @@ func DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetP
 	var _p0 uint32
 	if bInheritHandle {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall9(procDuplicateHandle.Addr(), 7, uintptr(hSourceProcessHandle), uintptr(hSourceHandle), uintptr(hTargetProcessHandle), uintptr(unsafe.Pointer(lpTargetHandle)), uintptr(dwDesiredAccess), uintptr(_p0), uintptr(dwOptions), 0, 0)
 	if r1 == 0 {
@@ -1311,6 +1319,8 @@ func waitForMultipleObjects(count uint32, handles uintptr, waitAll bool, waitMil
 	var _p0 uint32
 	if waitAll {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, e1 := syscall.Syscall6(procWaitForMultipleObjects.Addr(), 4, uintptr(count), uintptr(handles), uintptr(_p0), uintptr(waitMilliseconds), 0, 0)
 	event = uint32(r0)
@@ -1452,6 +1462,8 @@ func CreateEnvironmentBlock(block **uint16, token Token, inheritExisting bool) (
 	var _p0 uint32
 	if inheritExisting {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procCreateEnvironmentBlock.Addr(), 3, uintptr(unsafe.Pointer(block)), uintptr(token), uintptr(_p0))
 	if r1 == 0 {
@@ -1753,6 +1765,8 @@ func ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree 
 	var _p0 uint32
 	if watchSubTree {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall9(procReadDirectoryChangesW.Addr(), 8, uintptr(handle), uintptr(unsafe.Pointer(buf)), uintptr(buflen), uintptr(_p0), uintptr(mask), uintptr(unsafe.Pointer(retlen)), uintptr(unsafe.Pointer(overlapped)), uintptr(completionRoutine), 0)
 	if r1 == 0 {
@@ -1928,18 +1942,6 @@ func GetCurrentProcessId() (pid uint32) {
 	return
 }
 
-func ProcessIdToSessionId(pid uint32, sessionid *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procProcessIdToSessionId.Addr(), 2, uintptr(pid), uintptr(unsafe.Pointer(sessionid)), 0)
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
-}
-
 func GetConsoleMode(console Handle, mode *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetConsoleMode.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(mode)), 0)
 	if r1 == 0 {
@@ -1966,18 +1968,6 @@ func SetConsoleMode(console Handle, mode uint32) (err error) {
 
 func GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetConsoleScreenBufferInfo.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(info)), 0)
-	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
-}
-
-func SetConsoleCursorPosition(console Handle, position Coord) (err error) {
-	r1, _, e1 := syscall.Syscall(procSetConsoleCursorPosition.Addr(), 2, uintptr(console), uintptr(*((*uint32)(unsafe.Pointer(&position)))), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -2145,6 +2135,8 @@ func OpenEvent(desiredAccess uint32, inheritHandle bool, name *uint16) (handle H
 	var _p0 uint32
 	if inheritHandle {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, e1 := syscall.Syscall(procOpenEventW.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(unsafe.Pointer(name)))
 	handle = Handle(r0)
@@ -2198,6 +2190,8 @@ func CreateMutex(mutexAttrs *SecurityAttributes, initialOwner bool, name *uint16
 	var _p0 uint32
 	if initialOwner {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, e1 := syscall.Syscall(procCreateMutexW.Addr(), 3, uintptr(unsafe.Pointer(mutexAttrs)), uintptr(_p0), uintptr(unsafe.Pointer(name)))
 	handle = Handle(r0)
@@ -2228,6 +2222,8 @@ func OpenMutex(desiredAccess uint32, inheritHandle bool, name *uint16) (handle H
 	var _p0 uint32
 	if inheritHandle {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, e1 := syscall.Syscall(procOpenMutexW.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(unsafe.Pointer(name)))
 	handle = Handle(r0)
@@ -2257,6 +2253,8 @@ func SleepEx(milliseconds uint32, alertable bool) (ret uint32) {
 	var _p0 uint32
 	if alertable {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, _ := syscall.Syscall(procSleepEx.Addr(), 2, uintptr(milliseconds), uintptr(_p0), 0)
 	ret = uint32(r0)
@@ -2398,6 +2396,8 @@ func OpenThread(desiredAccess uint32, inheritHandle bool, threadId uint32) (hand
 	var _p0 uint32
 	if inheritHandle {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r0, _, e1 := syscall.Syscall(procOpenThread.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(threadId))
 	handle = Handle(r0)
@@ -2415,6 +2415,8 @@ func SetProcessPriorityBoost(process Handle, disable bool) (err error) {
 	var _p0 uint32
 	if disable {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procSetProcessPriorityBoost.Addr(), 2, uintptr(process), uintptr(_p0), 0)
 	if r1 == 0 {
@@ -2712,10 +2714,14 @@ func InitiateSystemShutdownEx(machineName *uint16, message *uint16, timeout uint
 	var _p0 uint32
 	if forceAppsClosed {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	var _p1 uint32
 	if rebootAfterShutdown {
 		_p1 = 1
+	} else {
+		_p1 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procInitiateSystemShutdownExW.Addr(), 6, uintptr(unsafe.Pointer(machineName)), uintptr(unsafe.Pointer(message)), uintptr(timeout), uintptr(_p0), uintptr(_p1), uintptr(reason))
 	if r1 == 0 {
@@ -3507,6 +3513,8 @@ func OpenThreadToken(thread Handle, access uint32, openAsSelf bool, token *Token
 	var _p0 uint32
 	if openAsSelf {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procOpenThreadToken.Addr(), 4, uintptr(thread), uintptr(access), uintptr(_p0), uintptr(unsafe.Pointer(token)), 0, 0)
 	if r1 == 0 {
@@ -3571,6 +3579,8 @@ func AdjustTokenPrivileges(token Token, disableAllPrivileges bool, newstate *Tok
 	var _p0 uint32
 	if disableAllPrivileges {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procAdjustTokenPrivileges.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(newstate)), uintptr(buflen), uintptr(unsafe.Pointer(prevstate)), uintptr(unsafe.Pointer(returnlen)))
 	if r1 == 0 {
@@ -3587,6 +3597,8 @@ func AdjustTokenGroups(token Token, resetToDefault bool, newstate *Tokengroups, 
 	var _p0 uint32
 	if resetToDefault {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procAdjustTokenGroups.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(newstate)), uintptr(buflen), uintptr(unsafe.Pointer(prevstate)), uintptr(unsafe.Pointer(returnlen)))
 	if r1 == 0 {
@@ -3798,10 +3810,14 @@ func getSecurityDescriptorDacl(sd *SECURITY_DESCRIPTOR, daclPresent *bool, dacl 
 	var _p0 uint32
 	if *daclPresent {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	var _p1 uint32
 	if *daclDefaulted {
 		_p1 = 1
+	} else {
+		_p1 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procGetSecurityDescriptorDacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(&_p0)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(&_p1)), 0, 0)
 	*daclPresent = _p0 != 0
@@ -3820,10 +3836,14 @@ func getSecurityDescriptorSacl(sd *SECURITY_DESCRIPTOR, saclPresent *bool, sacl 
 	var _p0 uint32
 	if *saclPresent {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	var _p1 uint32
 	if *saclDefaulted {
 		_p1 = 1
+	} else {
+		_p1 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procGetSecurityDescriptorSacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(&_p0)), uintptr(unsafe.Pointer(sacl)), uintptr(unsafe.Pointer(&_p1)), 0, 0)
 	*saclPresent = _p0 != 0
@@ -3842,6 +3862,8 @@ func getSecurityDescriptorOwner(sd *SECURITY_DESCRIPTOR, owner **SID, ownerDefau
 	var _p0 uint32
 	if *ownerDefaulted {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procGetSecurityDescriptorOwner.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(&_p0)))
 	*ownerDefaulted = _p0 != 0
@@ -3859,6 +3881,8 @@ func getSecurityDescriptorGroup(sd *SECURITY_DESCRIPTOR, group **SID, groupDefau
 	var _p0 uint32
 	if *groupDefaulted {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procGetSecurityDescriptorGroup.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(&_p0)))
 	*groupDefaulted = _p0 != 0
@@ -3908,10 +3932,14 @@ func setSecurityDescriptorDacl(sd *SECURITY_DESCRIPTOR, daclPresent bool, dacl *
 	var _p0 uint32
 	if daclPresent {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	var _p1 uint32
 	if daclDefaulted {
 		_p1 = 1
+	} else {
+		_p1 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procSetSecurityDescriptorDacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(_p0), uintptr(unsafe.Pointer(dacl)), uintptr(_p1), 0, 0)
 	if r1 == 0 {
@@ -3928,10 +3956,14 @@ func setSecurityDescriptorSacl(sd *SECURITY_DESCRIPTOR, saclPresent bool, sacl *
 	var _p0 uint32
 	if saclPresent {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	var _p1 uint32
 	if saclDefaulted {
 		_p1 = 1
+	} else {
+		_p1 = 0
 	}
 	r1, _, e1 := syscall.Syscall6(procSetSecurityDescriptorSacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(_p0), uintptr(unsafe.Pointer(sacl)), uintptr(_p1), 0, 0)
 	if r1 == 0 {
@@ -3948,6 +3980,8 @@ func setSecurityDescriptorOwner(sd *SECURITY_DESCRIPTOR, owner *SID, ownerDefaul
 	var _p0 uint32
 	if ownerDefaulted {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procSetSecurityDescriptorOwner.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(owner)), uintptr(_p0))
 	if r1 == 0 {
@@ -3964,6 +3998,8 @@ func setSecurityDescriptorGroup(sd *SECURITY_DESCRIPTOR, group *SID, groupDefaul
 	var _p0 uint32
 	if groupDefaulted {
 		_p0 = 1
+	} else {
+		_p0 = 0
 	}
 	r1, _, e1 := syscall.Syscall(procSetSecurityDescriptorGroup.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(group)), uintptr(_p0))
 	if r1 == 0 {

@@ -8,8 +8,8 @@ env:
 
 matrix:
   include:
-  - go: oldstable
-  - go: stable
+  - go: 1.12.x
+  - go: 1.13.x
     env: LINT=1
 
 cache:

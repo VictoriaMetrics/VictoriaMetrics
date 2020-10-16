@@ -3,7 +3,7 @@
 Below are approved public case studies and talks from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
 and feel free asking for references, reviews and additional case studies from real VictoriaMetrics users there.
 
-See also [articles about VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles).
+See also [articles about VictoriaMetrics from our users](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles#third-party-articles-and-slides).
 
 
 ## Adidas
@@ -74,12 +74,12 @@ See [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d
 Numbers:
 
 * The number of active time series per VictoriaMetrics instance is 40M.
-* The total number of time series per VictoriaMetrics instance is 400M+.
+* The total number of time series per VictoriaMetrics instance is 5000M+.
 * Ingestion rate per VictoriaMetrics instance is 1M data points per second.
-* The total number of datapoints per VictoriaMetrics instance is 8 trillions.
-* The average time series churn rate is ~3M per day.
+* The total number of datapoints per VictoriaMetrics instance is 8.5 trillions.
+* The average time series churn rate is ~80M per day.
 * The average query rate is ~100 per second (mostly alert queries).
-* Query duration: median is ~70ms, 99th percentile is ~1.5sec.
+* Query duration: median is ~20ms, 99th percentile is ~1.5sec.
 * Retention: 3 months.
 
 > Alternatives that we’ve played with before choosing VictoriaMetrics are: federated Prometheus, Cortex, IronDB and Thanos.
