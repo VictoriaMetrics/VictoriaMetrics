@@ -286,7 +286,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		// during the search for matching metricIDs.
 		tf.orSuffixes = append(tf.orSuffixes[:0], "")
 		tf.isEmptyMatch = len(prefix) == 0
-		tf.matchCost = defaultCost
+		tf.matchCost = fullMatchCost
 		return nil
 	}
 	rcv, err := getRegexpFromCache(expr)
@@ -368,7 +368,6 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 			reMatch = func(b []byte) bool {
 				return string(b) == v
 			}
-			reCost = defaultLiteralCost
 		} else {
 			reMatch = func(b []byte) bool {
 				for _, v := range orValues {
@@ -378,8 +377,8 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 				}
 				return false
 			}
-			reCost = uint64(len(orValues)) * defaultLiteralCost
 		}
+		reCost = uint64(len(orValues)) * literalMatchCost
 	} else {
 		reMatch, literalSuffix, reCost = getOptimizedReMatchFunc(re.Match, sExpr)
 	}
@@ -433,15 +432,17 @@ func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b [
 		return matchFunc, suffixUnescaped, reCost
 	}
 	// Fall back to un-optimized reMatch.
-	return reMatch, "", defaultReCost
+	return reMatch, "", reMatchCost
 }
 
 // The following & default cost values are returned from BenchmarkOptimizedReMatchCost
-
-var (
-	defaultCost        uint64 = 1
-	defaultLiteralCost uint64 = 3
-	defaultReCost      uint64 = 140
+const (
+	fullMatchCost    = 1
+	prefixMatchCost  = 2
+	literalMatchCost = 3
+	suffixMatchCost  = 4
+	middleMatchCost  = 6
+	reMatchCost      = 100
 )
 
 func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
@@ -449,13 +450,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 		// '.*'
 		return func(b []byte) bool {
 			return true
-		}, "", 1
+		}, "", fullMatchCost
 	}
 	if isDotPlus(sre) {
 		// '.+'
 		return func(b []byte) bool {
 			return len(b) > 0
-		}, "", 1
+		}, "", fullMatchCost
 	}
 	switch sre.Op {
 	case syntax.OpCapture:
@@ -469,7 +470,7 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 		// Literal match
 		return func(b []byte) bool {
 			return string(b) == s
-		}, s, defaultLiteralCost
+		}, s, literalMatchCost
 	case syntax.OpConcat:
 		if len(sre.Sub) == 2 {
 			if isLiteral(sre.Sub[0]) {
@@ -478,13 +479,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// 'prefix.*'
 					return func(b []byte) bool {
 						return bytes.HasPrefix(b, prefix)
-					}, "", 2
+					}, "", prefixMatchCost
 				}
 				if isDotPlus(sre.Sub[1]) {
 					// 'prefix.+'
 					return func(b []byte) bool {
 						return len(b) > len(prefix) && bytes.HasPrefix(b, prefix)
-					}, "", 2
+					}, "", prefixMatchCost
 				}
 			}
 			if isLiteral(sre.Sub[1]) {
@@ -493,13 +494,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.*suffix'
 					return func(b []byte) bool {
 						return bytes.HasSuffix(b, suffix)
-					}, string(suffix), 3
+					}, string(suffix), suffixMatchCost
 				}
 				if isDotPlus(sre.Sub[0]) {
 					// '.+suffix'
 					return func(b []byte) bool {
 						return len(b) > len(suffix) && bytes.HasSuffix(b[1:], suffix)
-					}, string(suffix), 3
+					}, string(suffix), suffixMatchCost
 				}
 			}
 		}
@@ -510,13 +511,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.*middle.*'
 					return func(b []byte) bool {
 						return bytes.Contains(b, middle)
-					}, "", 5
+					}, "", middleMatchCost
 				}
 				if isDotPlus(sre.Sub[2]) {
 					// '.*middle.+'
 					return func(b []byte) bool {
 						return len(b) > len(middle) && bytes.Contains(b[:len(b)-1], middle)
-					}, "", 5
+					}, "", middleMatchCost
 				}
 			}
 			if isDotPlus(sre.Sub[0]) {
@@ -524,13 +525,13 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 					// '.+middle.*'
 					return func(b []byte) bool {
 						return len(b) > len(middle) && bytes.Contains(b[1:], middle)
-					}, "", 5
+					}, "", middleMatchCost
 				}
 				if isDotPlus(sre.Sub[2]) {
 					// '.+middle.+'
 					return func(b []byte) bool {
 						return len(b) > len(middle)+1 && bytes.Contains(b[1:len(b)-1], middle)
-					}, "", 5
+					}, "", middleMatchCost
 				}
 			}
 		}
@@ -564,7 +565,7 @@ func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp)
 			}
 			// Fall back to slow path.
 			return reMatch(bOrig)
-		}, string(suffix), defaultReCost
+		}, string(suffix), reMatchCost
 	default:
 		return nil, "", 0
 	}
