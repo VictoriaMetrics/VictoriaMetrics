@@ -193,24 +193,31 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		}
 		fp = append(fp, matches...)
 	}
+	var errs []string
 	var groups []Group
 	for _, file := range fp {
 		uniqueGroups := map[string]struct{}{}
 		gr, err := parseFile(file)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse file %q: %w", file, err)
+			errs = append(errs, fmt.Sprintf("failed to parse file %q: %s", file, err))
+			continue
 		}
 		for _, g := range gr {
 			if err := g.Validate(validateAnnotations, validateExpressions); err != nil {
-				return nil, fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err)
+				errs = append(errs, fmt.Sprintf("invalid group %q in file %q: %s", g.Name, file, err))
+				continue
 			}
 			if _, ok := uniqueGroups[g.Name]; ok {
-				return nil, fmt.Errorf("group name %q duplicate in file %q", g.Name, file)
+				errs = append(errs, fmt.Sprintf("group name %q duplicate in file %q", g.Name, file))
+				continue
 			}
 			uniqueGroups[g.Name] = struct{}{}
 			g.File = file
 			groups = append(groups, g)
 		}
+	}
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("config parsing errors:\n%s", strings.Join(errs, "\n"))
 	}
 	if len(groups) < 1 {
 		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))

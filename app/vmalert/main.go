@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
@@ -47,6 +48,8 @@ eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+
+	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The `-rule` flag must be specified.")
 )
 
 func main() {
@@ -58,6 +61,10 @@ func main() {
 	logger.Init()
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
+	if *dryRun {
+		checkConfigs()
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	manager, err := newManager(ctx)
 	if err != nil {
@@ -196,6 +203,17 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		}
 		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
 	}, nil
+}
+
+func checkConfigs() {
+	u, _ := url.Parse("https://victoriametrics.com/")
+	notifier.InitTemplateFunc(u)
+	if len(*rulePath) == 0 {
+		logger.Fatalf("No rules for validation. Please specify path to file(s) with alerting and/or recording rules using `-rule` flag")
+	}
+	if _, err := config.Parse(*rulePath, true, true); err != nil {
+		logger.Fatalf(err.Error())
+	}
 }
 
 func usage() {
