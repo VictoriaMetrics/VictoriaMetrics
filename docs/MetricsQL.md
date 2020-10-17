@@ -71,7 +71,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `ideriv(m)` - for calculating `instant` derivative for `m`.
 - `deriv_fast(m[d])` - for calculating `fast` derivative for `m` based on the first and the last points from duration `d`.
 - `running_` functions - `running_sum`, `running_min`, `running_max`, `running_avg` - for calculating [running values](https://en.wikipedia.org/wiki/Running_total) on the selected time range.
-- `range_` functions - `range_sum`, `range_min`, `range_max`, `range_avg`, `range_first`, `range_last`, `range_median`, `range_quantile` - for calculating global value over the selected time range.
+- `range_` functions - `range_sum`, `range_min`, `range_max`, `range_avg`, `range_first`, `range_last`, `range_median`, `range_quantile` - for calculating global value over the selected time range. Note that global value is based on calculated datapoints for the inner query. The calculated datapoints can differ from raw datapoints stored in the database. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness) for details.
 - `smooth_exponential(q, sf)` - smooths `q` using [exponential moving average](https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average) with the given smooth factor `sf`.
 - `remove_resets(q)` - removes counter resets from `q`.
 - `lag(q[d])` - returns lag between the current timestamp and the timestamp from the previous data point in `q` over `d`.
@@ -101,8 +101,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `histogram_over_time(m[d])` - calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) for `m` over `d`.
   For example, the following query calculates median temperature by country over the last 24 hours:
   `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmbucket, country))`.
-- `histogram_share(le, buckets)` - returns share (in the range 0..1) for `buckets`. Useful for calculating SLI and SLO.
-  For instance, the following query returns the share of requests which are performed under 1.5 seconds: `histogram_share(1.5, sum(request_duration_seconds_bucket) by (le))`.
+- `histogram_share(le, buckets)` - returns share (in the range 0..1) for `buckets` that fall below `le`. Useful for calculating SLI and SLO.
+  For instance, the following query returns the share of requests which are performed under 1.5 seconds during the last 5 minutes: `histogram_share(1.5, sum(rate(request_duration_seconds_bucket[5m])) by (le))`.
 - `topk_*` and `bottomk_*` aggregate functions, which return up to K time series. Note that the standard `topk` function may return more than K time series -
    see [this article](https://www.robustperception.io/graph-top-n-time-series-in-grafana) for details.
    - `topk_min(k, q)` - returns top K time series with the max minimums on the given time range

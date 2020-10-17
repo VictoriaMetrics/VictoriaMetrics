@@ -3,11 +3,13 @@ package openstack
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -95,6 +97,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		// override sdc
 		sdcAuth = readCredentialsFromEnv()
 	}
+	if strings.HasSuffix(sdcAuth.IdentityEndpoint, "v2.0") {
+		return nil, errors.New("identity_endpoint v2.0 is not supported")
+	}
+	// trim .0 from v3.0 for prometheus cfg compatibility
+	sdcAuth.IdentityEndpoint = strings.TrimSuffix(sdcAuth.IdentityEndpoint, ".0")
 
 	parsedURL, err := url.Parse(sdcAuth.IdentityEndpoint)
 	if err != nil {
