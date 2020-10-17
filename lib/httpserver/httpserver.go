@@ -276,6 +276,9 @@ func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.Respon
 	if *disableResponseCompression {
 		return w
 	}
+	if r.Header.Get("Connection") == "Upgrade" {
+		return w
+	}
 	ae := r.Header.Get("Accept-Encoding")
 	if ae == "" {
 		return w
