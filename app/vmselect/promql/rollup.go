@@ -519,9 +519,10 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if j == len(timestamps) && i < j && tEnd-timestamps[j-1] > stalenessInterval {
-			// Do not take into account the last data point in time series if the distance between this data point
-			// and tEnd exceeds stalenessInterval.
+		if j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) {
+			// Drop trailing data points in the following cases:
+			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
+			// - if time series contains only a single raw sample
 			// This should prevent from double counting when a label changes in time series (for instance,
 			// during new deployment in K8S). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
 			rfa.prevValue = nan
