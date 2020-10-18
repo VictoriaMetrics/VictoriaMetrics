@@ -62,7 +62,15 @@ func main() {
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	if *dryRun {
-		checkConfigs()
+		u, _ := url.Parse("https://victoriametrics.com/")
+		notifier.InitTemplateFunc(u)
+		groups, err := config.Parse(*rulePath, true, true)
+		if err != nil {
+			logger.Fatalf(err.Error())
+		}
+		if len(groups) == 0 {
+			logger.Fatalf("No rules for validation. Please specify path to file(s) with alerting and/or recording rules using `-rule` flag")
+		}
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -203,17 +211,6 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		}
 		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
 	}, nil
-}
-
-func checkConfigs() {
-	u, _ := url.Parse("https://victoriametrics.com/")
-	notifier.InitTemplateFunc(u)
-	if len(*rulePath) == 0 {
-		logger.Fatalf("No rules for validation. Please specify path to file(s) with alerting and/or recording rules using `-rule` flag")
-	}
-	if _, err := config.Parse(*rulePath, true, true); err != nil {
-		logger.Fatalf(err.Error())
-	}
 }
 
 func usage() {
