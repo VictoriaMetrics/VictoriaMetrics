@@ -203,6 +203,10 @@ func (mn *MetricName) CopyFrom(src *MetricName) {
 
 // AddTag adds new tag to mn with the given key and value.
 func (mn *MetricName) AddTag(key, value string) {
+	if key == string(metricGroupTagKey) {
+		mn.MetricGroup = append(mn.MetricGroup, value...)
+		return
+	}
 	tag := mn.addNextTag()
 	tag.Key = append(tag.Key[:0], key...)
 	tag.Value = append(tag.Value[:0], value...)
@@ -210,6 +214,10 @@ func (mn *MetricName) AddTag(key, value string) {
 
 // AddTagBytes adds new tag to mn with the given key and value.
 func (mn *MetricName) AddTagBytes(key, value []byte) {
+	if string(key) == string(metricGroupTagKey) {
+		mn.MetricGroup = append(mn.MetricGroup, value...)
+		return
+	}
 	tag := mn.addNextTag()
 	tag.Key = append(tag.Key[:0], key...)
 	tag.Value = append(tag.Value[:0], value...)
