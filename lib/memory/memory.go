@@ -35,12 +35,12 @@ func initOnce() {
 	mem := sysTotalMemory()
 	if allowedBytes.N <= 0 {
 		if *allowedPercent < 1 || *allowedPercent > 200 {
-			logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %f", *allowedPercent)
+			logger.Panicf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %g", *allowedPercent)
 		}
 		percent := *allowedPercent / 100
 		allowedMemory = int(float64(mem) * percent)
 		remainingMemory = mem - allowedMemory
-		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%f", allowedMemory, remainingMemory, *allowedPercent)
+		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g", allowedMemory, remainingMemory, *allowedPercent)
 	} else {
 		allowedMemory = allowedBytes.N
 		remainingMemory = mem - allowedMemory
