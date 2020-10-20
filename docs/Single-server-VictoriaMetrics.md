@@ -164,7 +164,7 @@ or [docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) wi
 The following command-line flags are used the most:
 
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
-* `-retentionPeriod` - retention period in months for stored data. Older data is automatically deleted. Default period is 1 month.
+* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [these docs](#retention) for more details.
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see all the available flags with description and default values.
 
@@ -1048,6 +1048,7 @@ The de-duplication reduces disk space usage if multiple identically configured P
 write data to the same VictoriaMetrics instance. Note that these Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series.
 
+
 ### Retention
 
 Retention is configured with `-retentionPeriod` command-line flag. For instance, `-retentionPeriod=3` means
@@ -1058,6 +1059,10 @@ In order to keep data according to `-retentionPeriod` max disk space usage is go
 For example if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
 It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to lower
 value than before then data outside the configured period will be eventually deleted.
+
+VictoriaMetrics supports retention smaller than 1 month. For example, `-retentionPeriod=5d` would set data retention for 5 days.
+Older data is eventually deleted during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+
 
 ### Multiple retentions
 

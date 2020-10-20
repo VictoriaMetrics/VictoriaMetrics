@@ -1,6 +1,8 @@
 # tip
 
 
+* FEATURE: allow setting `-retentionPeriod` smaller than one month. I.e. `-retentionPeriod=3d`, `-retentionPeriod=2w`, etc. is supported now.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/173
 * FEATURE: optimize more cases according to https://utcc.utoronto.ca/~cks/space/blog/sysadmin/PrometheusLabelNonOptimization . Now the following cases are optimized too:
   * `rollup_func(foo{filters}[d]) op bar` -> `rollup_func(foo{filters}[d]) op bar{filters}`
   * `transform_func(foo{filters}) op bar` -> `transform_func(foo{filters}) op bar{filters}`
