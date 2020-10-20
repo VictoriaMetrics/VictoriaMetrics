@@ -211,9 +211,13 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 If you have suggestions, improvements or found a bug - feel free to open an issue on github or add review to the dashboard.
 
-`vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format.
-`/targets` handler accepts optional `show_original_labels=1` query arg, which shows the original labels per each target
-before applying relabeling. This information may be useful for debugging target relabeling.
+`vmagent` also exports target statuses at the following handlers:
+
+* `http://vmagent-host:8429/targets`. This handler returns human-readable plaintext status for every active target.
+This page is convenient to query from command line with `wget`, `curl` or similar tools.
+It accepts optional `show_original_labels=1` query arg, which shows the original labels per each target before applying relabeling.
+This information may be useful for debugging target relabeling.
+* `http://vmagent-host:8429/api/v1/targets`. This handler returns data compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
 
 
 ### Troubleshooting
@@ -224,7 +228,8 @@ before applying relabeling. This information may be useful for debugging target 
   since `vmagent` establishes at least a single TCP connection per each target.
 
 * When `vmagent` scrapes many unreliable targets, it can flood error log with scrape errors. These errors can be suppressed
-  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
+  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
+  and `http://vmagent-host:8429/api/v1/targets`.
 
 * It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 

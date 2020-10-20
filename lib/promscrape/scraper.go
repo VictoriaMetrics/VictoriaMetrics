@@ -284,6 +284,7 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 					"original labels for target1: %s; original labels for target2: %s",
 					sw.ScrapeURL, sw.LabelsString(), promLabelsString(originalLabels), promLabelsString(sw.OriginalLabels))
 			}
+			droppedTargetsMap.Register(sw.OriginalLabels)
 			continue
 		}
 		swsMap[key] = sw.OriginalLabels

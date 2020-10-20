@@ -642,6 +642,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	if len(labels) == 0 {
 		// Drop target without labels.
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
@@ -652,10 +653,12 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
 	if len(addressRelabeled) == 0 {
 		// Drop target without scrape address.
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	if strings.Contains(addressRelabeled, "/") {
 		// Drop target with '/'
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
