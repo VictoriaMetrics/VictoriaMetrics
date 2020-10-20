@@ -8,7 +8,7 @@
    and their default values. Default flag values should fit the majoirty of cases. The minimum required flags to configure are:
 
    * `-storageDataPath` - path to directory where VictoriaMetrics stores all the data.
-   * `-retentionPeriod` - data retention in months.
+   * `-retentionPeriod` - data retention.
 
    For instance:
 

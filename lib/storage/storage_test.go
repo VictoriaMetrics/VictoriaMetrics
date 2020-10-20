@@ -353,8 +353,8 @@ func TestStorageOpenMultipleTimes(t *testing.T) {
 
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
-	retentionMonths := 60
-	s, err := OpenStorage(path, retentionMonths)
+	retentionMsecs := int64(60 * msecsPerMonth)
+	s, err := OpenStorage(path, retentionMsecs)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -364,7 +364,7 @@ func TestStorageRandTimestamps(t *testing.T) {
 				t.Fatal(err)
 			}
 			s.MustClose()
-			s, err = OpenStorage(path, retentionMonths)
+			s, err = OpenStorage(path, retentionMsecs)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {

@@ -27,7 +27,10 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 )
 
-const maxRetentionMonths = 12 * 100
+const (
+	msecsPerMonth     = 31 * 24 * 3600 * 1000
+	maxRetentionMsecs = 100 * 12 * msecsPerMonth
+)
 
 // Storage represents TSDB storage.
 type Storage struct {
@@ -106,23 +109,20 @@ type Storage struct {
 	snapshotLock sync.Mutex
 }
 
-// OpenStorage opens storage on the given path with the given number of retention months.
-func OpenStorage(path string, retentionMonths int) (*Storage, error) {
-	if retentionMonths > maxRetentionMonths {
-		return nil, fmt.Errorf("too big retentionMonths=%d; cannot exceed %d", retentionMonths, maxRetentionMonths)
-	}
-	if retentionMonths <= 0 {
-		retentionMonths = maxRetentionMonths
-	}
+// OpenStorage opens storage on the given path with the given retentionMsecs.
+func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
 	}
-
+	if retentionMsecs <= 0 {
+		retentionMsecs = maxRetentionMsecs
+	}
+	retentionMonths := (retentionMsecs + (msecsPerMonth - 1)) / msecsPerMonth
 	s := &Storage{
 		path:            path,
 		cachePath:       path + "/cache",
-		retentionMonths: retentionMonths,
+		retentionMonths: int(retentionMonths),
 
 		stop: make(chan struct{}),
 	}
@@ -178,7 +178,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 
 	// Load data
 	tablePath := path + "/data"
-	tb, err := openTable(tablePath, retentionMonths, s.getDeletedMetricIDs)
+	tb, err := openTable(tablePath, s.getDeletedMetricIDs, retentionMsecs)
 	if err != nil {
 		s.idb().MustClose()
 		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)

@@ -134,6 +134,10 @@ type partition struct {
 	// The callack that returns deleted metric ids which must be skipped during merge.
 	getDeletedMetricIDs func() *uint64set.Set
 
+	// data retention in milliseconds.
+	// Used for deleting data outside the retention during background merge.
+	retentionMsecs int64
+
 	// Name is the name of the partition in the form YYYY_MM.
 	name string
 
@@ -206,7 +210,7 @@ func (pw *partWrapper) decRef() {
 
 // createPartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set) (*partition, error) {
+func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64) (*partition, error) {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Clean(smallPartitionsPath) + "/" + name
 	bigPartsPath := filepath.Clean(bigPartitionsPath) + "/" + name
@@ -219,7 +223,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 		return nil, fmt.Errorf("cannot create directories for big parts %q: %w", bigPartsPath, err)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs)
 	pt.tr.fromPartitionTimestamp(timestamp)
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
@@ -241,7 +245,7 @@ func (pt *partition) Drop() {
 }
 
 // openPartition opens the existing partition from the given paths.
-func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set) (*partition, error) {
+func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64) (*partition, error) {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
@@ -265,7 +269,7 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 		return nil, fmt.Errorf("cannot open big parts from %q: %w", bigPartsPath, err)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 	if err := pt.tr.fromPartitionName(name); err != nil {
@@ -278,13 +282,14 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 	return pt, nil
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64) *partition {
 	p := &partition{
 		name:           name,
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
 
 		getDeletedMetricIDs: getDeletedMetricIDs,
+		retentionMsecs:      retentionMsecs,
 
 		mergeIdx: uint64(time.Now().UnixNano()),
 		stopCh:   make(chan struct{}),
@@ -1129,7 +1134,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		atomic.AddUint64(&pt.smallMergesCount, 1)
 		atomic.AddUint64(&pt.activeSmallMerges, 1)
 	}
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, rowsMerged, rowsDeleted)
+	retentionDeadline := timestampFromTime(startTime) - pt.retentionMsecs
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
 	if isBigPart {
 		atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
 	} else {
