@@ -1047,13 +1047,14 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 	if !*denyQueriesOutsideRetention {
 		return nil
 	}
-	retentionPeriod := s.RetentionMonths()
-	minAllowedTimestamp := (int64(fasttime.UnixTimestamp()) - int64(retentionPeriod)*3600*24*30) * 1000
+	retentionMsecs := s.RetentionMsecs()
+	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionMsecs
 	if tr.MinTimestamp > minAllowedTimestamp {
 		return nil
 	}
 	return &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("the given time range %s is outside the allowed retention of %d months according to -denyQueriesOutsideRetention", &tr, retentionPeriod),
+		Err: fmt.Errorf("the given time range %s is outside the allowed retention %.3f days according to -denyQueriesOutsideRetention",
+			&tr, float64(retentionMsecs)/(24*3600*1000)),
 		StatusCode: http.StatusServiceUnavailable,
 	}
 }

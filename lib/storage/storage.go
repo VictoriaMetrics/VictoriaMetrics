@@ -50,9 +50,9 @@ type Storage struct {
 	slowPerDayIndexInserts uint64
 	slowMetricNameLoads    uint64
 
-	path            string
-	cachePath       string
-	retentionMonths int
+	path           string
+	cachePath      string
+	retentionMsecs int64
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -129,11 +129,10 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	if retentionMsecs <= 0 {
 		retentionMsecs = maxRetentionMsecs
 	}
-	retentionMonths := (retentionMsecs + (msecsPerMonth - 1)) / msecsPerMonth
 	s := &Storage{
-		path:            path,
-		cachePath:       path + "/cache",
-		retentionMonths: int(retentionMonths),
+		path:           path,
+		cachePath:      path + "/cache",
+		retentionMsecs: retentionMsecs,
 
 		stop: make(chan struct{}),
 	}
@@ -202,9 +201,9 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	return s, nil
 }
 
-// RetentionMonths returns retention months for s.
-func (s *Storage) RetentionMonths() int {
-	return s.retentionMonths
+// RetentionMsecs returns retentionMsecs for s.
+func (s *Storage) RetentionMsecs() int64 {
+	return s.retentionMsecs
 }
 
 // debugFlush flushes recently added storage data, so it becomes visible to search.
@@ -488,8 +487,9 @@ func (s *Storage) startRetentionWatcher() {
 }
 
 func (s *Storage) retentionWatcher() {
+	retentionMonths := int((s.retentionMsecs + (msecsPerMonth - 1)) / msecsPerMonth)
 	for {
-		d := nextRetentionDuration(s.retentionMonths)
+		d := nextRetentionDuration(retentionMonths)
 		select {
 		case <-s.stop:
 			return
