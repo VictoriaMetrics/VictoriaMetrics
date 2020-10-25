@@ -92,7 +92,9 @@ func main() {
 	}
 	srcFS.MustStop()
 	dstFS.MustStop()
-	originFS.MustStop()
+	if originFS != nil {
+		originFS.MustStop()
+	}
 }
 
 func usage() {
