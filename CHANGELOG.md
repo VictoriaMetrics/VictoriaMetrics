@@ -14,7 +14,7 @@
 * BUGFIX: vmagent: properly handle OpenStack endpoint ending with `v3.0` such as `https://ostack.example.com:5000/v3.0`
   in the same way as Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728#issuecomment-709914803
 * BUGFIX: Drop trailing data points for time series with a single raw sample. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
-
+* BUGFIX: fix panic in vmbackup when no origin fs is specified. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/856
 
 # [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
 
