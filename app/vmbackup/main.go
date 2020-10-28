@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/actions"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -92,9 +93,7 @@ func main() {
 	}
 	srcFS.MustStop()
 	dstFS.MustStop()
-	if originFS != nil {
-		originFS.MustStop()
-	}
+	originFS.MustStop()
 }
 
 func usage() {
@@ -148,9 +147,9 @@ func newDstFS() (common.RemoteFS, error) {
 	return fs, nil
 }
 
-func newOriginFS() (common.RemoteFS, error) {
+func newOriginFS() (common.OriginFS, error) {
 	if len(*origin) == 0 {
-		return nil, nil
+		return &fsnil.FS{}, nil
 	}
 	fs, err := actions.NewRemoteFS(*origin)
 	if err != nil {
