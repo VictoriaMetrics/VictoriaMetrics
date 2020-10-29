@@ -669,6 +669,9 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
 	}
+	if !strings.HasPrefix(metricsPathRelabeled, "/") {
+		metricsPathRelabeled = "/" + metricsPathRelabeled
+	}
 	paramsRelabeled := getParamsFromLabels(labels, swc.params)
 	optionalQuestion := "?"
 	if len(paramsRelabeled) == 0 || strings.Contains(metricsPathRelabeled, "?") {
