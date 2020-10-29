@@ -1331,6 +1331,45 @@ scrape_configs:
 			jobNameOriginal:    "snmp",
 		},
 	})
+	f(`
+scrape_configs:
+- job_name: path wo slash
+  static_configs: 
+  - targets: ["foo.bar:1234"]
+  relabel_configs:
+  - replacement: metricspath
+    target_label: __metrics_path__
+`, []ScrapeWork{
+		{
+			ScrapeURL:      "http://foo.bar:1234/metricspath",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "__address__",
+					Value: "foo.bar:1234",
+				},
+				{
+					Name:  "__metrics_path__",
+					Value: "metricspath",
+				},
+				{
+					Name:  "__scheme__",
+					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foo.bar:1234",
+				},
+				{
+					Name:  "job",
+					Value: "path wo slash",
+				},
+			},
+			jobNameOriginal: "path wo slash",
+			AuthConfig:      &promauth.Config{},
+		},
+	})
 }
 
 var defaultRegexForRelabelConfig = regexp.MustCompile("^(.*)$")
