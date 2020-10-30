@@ -355,6 +355,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
 					"__name__", alertForStateMetricName,
 					alertNameLabel, "",
+					alertGroupNameLabel, "groupID",
 					"foo", "bar",
 					"namespace", "baz",
 				),
