@@ -403,7 +403,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
 	}
 
-	// Get the last datapoint in range via MetricsQL `last_over_time`.
+	// Get the last data point in range via MetricsQL `last_over_time`.
 	// We don't use plain PromQL since Prometheus doesn't support
 	// remote write protocol which is used for state persistence in vmalert.
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
@@ -417,9 +417,12 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		labels := m.Labels
 		m.Labels = make([]datasource.Label, 0)
 		// drop all extra labels, so hash key will
-		// be identical to timeseries received in Exec
+		// be identical to time series received in Exec
 		for _, l := range labels {
 			if l.Name == alertNameLabel {
+				continue
+			}
+			if l.Name == alertGroupNameLabel {
 				continue
 			}
 			// drop all overridden labels
@@ -436,7 +439,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		a.ID = hash(m)
 		a.State = notifier.StatePending
 		ar.alerts[a.ID] = a
-		logger.Infof("alert %q(%d) restored to state at %v", a.Name, a.ID, a.Start)
+		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.Start)
 	}
 	return nil
 }
