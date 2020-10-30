@@ -21,7 +21,9 @@ services:
     image: victoriametrics/victoria-metrics
     ports:
       - 8428:8428
+      - 8428:8428/udp
       - 2003:2003
+      - 2003:2003/udp
       - 4242:4242
     volumes:
       - vmdata:/storage

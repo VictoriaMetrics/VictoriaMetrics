@@ -131,7 +131,6 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		}
 		return dst, fmt.Errorf("error when scraping %q: %w", c.scrapeURL, err)
 	}
-	dstLen := len(dst)
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
 		var err error
 		var src []byte
@@ -154,7 +153,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
-			c.scrapeURL, statusCode, fasthttp.StatusOK, dst[dstLen:])
+			c.scrapeURL, statusCode, fasthttp.StatusOK, dst)
 	}
 	scrapesOK.Inc()
 	fasthttp.ReleaseResponse(resp)
