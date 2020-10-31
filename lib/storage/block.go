@@ -23,7 +23,7 @@ const (
 type Block struct {
 	bh blockHeader
 
-	// nextIdx is the next row index for timestamps and values.
+	// nextIdx is the next index for reading timestamps and values.
 	nextIdx int
 
 	timestamps []int64
