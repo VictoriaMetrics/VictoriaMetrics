@@ -20,8 +20,14 @@
 
 * BUGFIX: vmagent: properly handle OpenStack endpoint ending with `v3.0` such as `https://ostack.example.com:5000/v3.0`
   in the same way as Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/728#issuecomment-709914803
-* BUGFIX: Drop trailing data points for time series with a single raw sample. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
-* BUGFIX: fix panic in vmbackup when no origin fs is specified. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/856
+* BUGFIX: drop trailing data points for time series with a single raw sample. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
+* BUGFIX: vmbackup: fix panic when `-origin` isn't specified. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/856
+* BUGFIX: vmalert: skip automatically added labels on alerts restore. Label `alertgroup` was introduced in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/611)
+  and automatically added to generated time series. By mistake, this new label wasn't correctly purged on restore event and affected alert's ID uniqueness.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870
+* BUGFIX: vmagent: fix panic at scrape error body formating. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/864
+* BUGFIX: vmagent: add leading missing slash to metrics path like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/835
+
 
 # [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
 
