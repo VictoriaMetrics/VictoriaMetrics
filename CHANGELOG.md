@@ -30,6 +30,7 @@
 * BUGFIX: vmagent: add leading missing slash to metrics path like Prometheus does. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/835
 * BUGFIX: vmagent: drop packet if remote storage returns 4xx status code. This make the behaviour consistent with Prometheus.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
+* BUGFIX: vmagent: properly handle 301 redirects. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/869
 
 
 # [v1.44.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.44.0)
