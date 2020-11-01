@@ -53,6 +53,7 @@ type client struct {
 	requestDuration *metrics.Histogram
 	requestsOKCount *metrics.Counter
 	errorsCount     *metrics.Counter
+	packetsDropped  *metrics.Counter
 	retriesCount    *metrics.Counter
 
 	wg     sync.WaitGroup
@@ -114,6 +115,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.sanitizedURL))
 	c.requestsOKCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.sanitizedURL))
 	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
+	c.packetsDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_packets_dropped_total{url=%q}`, c.sanitizedURL))
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
 	for i := 0; i < concurrency; i++ {
 		c.wg.Add(1)
@@ -228,10 +230,20 @@ again:
 		c.requestsOKCount.Inc()
 		return
 	}
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
+	if statusCode/100 == 4 {
+		// Just drop block on 4xx status code like Prometheus does.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
+		body, _ := ioutil.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		logger.Errorf("unexpected status code received when sending a block with size %d bytes to %q: #%d; dropping the block for 4XX status code like Prometheus does; "+
+			"response body=%q", len(block), c.sanitizedURL, statusCode, body)
+		c.packetsDropped.Inc()
+		return
+	}
 
 	// Unexpected status code returned
 	retriesCount++
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
 	retryDuration *= 2
 	if retryDuration > time.Minute {
 		retryDuration = time.Minute
