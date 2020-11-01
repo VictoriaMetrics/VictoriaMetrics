@@ -519,7 +519,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) && rc.End - tEnd >= 2*rc.Step {
+		if j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) && rc.End-tEnd >= 2*rc.Step {
 			// Drop trailing data points in the following cases:
 			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
 			// - if time series contains only a single raw sample
