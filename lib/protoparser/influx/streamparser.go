@@ -24,7 +24,8 @@ var (
 
 // ParseStream parses r with the given args and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from r.
+// The callback can be called concurrently multiple times for streamed data from r.
+// The callback can be called after ParseStream returns.
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {

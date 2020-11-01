@@ -231,6 +231,24 @@ This information may be useful for debugging target relabeling.
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
   and `http://vmagent-host:8429/api/v1/targets`.
 
+* If `vmagent` scrapes targets with millions of metrics per each target (for instance, when scraping [federation endpoints](https://prometheus.io/docs/prometheus/latest/federation/)),
+  then it is recommended enabling `stream parsing mode` in order to reduce memory usage during scraping. This mode may be enabled either globally for all the scrape targets
+  by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
+
+  ```yml
+  scrape_configs:
+  - job_name: 'big-federate'
+    stream_parse: true
+    static_configs:
+    - targets:
+      - big-prometeus1
+      - big-prometeus2
+    honor_labels: true
+    metrics_path: /federate
+    params:
+      'match[]': ['{__name__!=""}']
+  ```
+
 * It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 
 * If you see gaps on the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set, then try increasing `-remoteWrite.queues`.

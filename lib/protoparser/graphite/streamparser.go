@@ -23,7 +23,8 @@ var (
 
 // ParseStream parses Graphite lines from r and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from r.
+// The callback can be called concurrently multiple times for streamed data from r.
+// The callback can be called after ParseStream returns.
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, callback func(rows []Row) error) error {
