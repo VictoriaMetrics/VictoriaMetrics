@@ -7,7 +7,7 @@ import (
 
 func TestTableOpenClose(t *testing.T) {
 	const path = "TestTableOpenClose"
-	const retentionMonths = 123
+	const retentionMsecs = 123 * msecsPerMonth
 
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
@@ -17,7 +17,7 @@ func TestTableOpenClose(t *testing.T) {
 	}()
 
 	// Create a new table
-	tb, err := openTable(path, retentionMonths, nilGetDeletedMetricIDs)
+	tb, err := openTable(path, nilGetDeletedMetricIDs, retentionMsecs)
 	if err != nil {
 		t.Fatalf("cannot create new table: %s", err)
 	}
@@ -27,7 +27,7 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Re-open created table multiple times.
 	for i := 0; i < 10; i++ {
-		tb, err := openTable(path, retentionMonths, nilGetDeletedMetricIDs)
+		tb, err := openTable(path, nilGetDeletedMetricIDs, retentionMsecs)
 		if err != nil {
 			t.Fatalf("cannot open created table: %s", err)
 		}
@@ -37,20 +37,20 @@ func TestTableOpenClose(t *testing.T) {
 
 func TestTableOpenMultipleTimes(t *testing.T) {
 	const path = "TestTableOpenMultipleTimes"
-	const retentionMonths = 123
+	const retentionMsecs = 123 * msecsPerMonth
 
 	defer func() {
 		_ = os.RemoveAll(path)
 	}()
 
-	tb1, err := openTable(path, retentionMonths, nilGetDeletedMetricIDs)
+	tb1, err := openTable(path, nilGetDeletedMetricIDs, retentionMsecs)
 	if err != nil {
 		t.Fatalf("cannot open table the first time: %s", err)
 	}
 	defer tb1.MustClose()
 
 	for i := 0; i < 10; i++ {
-		tb2, err := openTable(path, retentionMonths, nilGetDeletedMetricIDs)
+		tb2, err := openTable(path, nilGetDeletedMetricIDs, retentionMsecs)
 		if err == nil {
 			tb2.MustClose()
 			t.Fatalf("expecting non-nil error when opening already opened table")

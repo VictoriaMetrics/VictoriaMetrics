@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/promdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -20,7 +21,7 @@ import (
 )
 
 var (
-	retentionPeriod   = flag.Int("retentionPeriod", 1, "Retention period in months")
+	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 
@@ -45,12 +46,12 @@ func CheckTimeRange(tr storage.TimeRange) error {
 	if !*denyQueriesOutsideRetention {
 		return nil
 	}
-	minAllowedTimestamp := (int64(fasttime.UnixTimestamp()) - int64(*retentionPeriod)*3600*24*30) * 1000
+	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionPeriod.Msecs
 	if tr.MinTimestamp > minAllowedTimestamp {
 		return nil
 	}
 	return &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("the given time range %s is outside the allowed retention of %d months according to -denyQueriesOutsideRetention", &tr, *retentionPeriod),
+		Err:        fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s according to -denyQueriesOutsideRetention", &tr, retentionPeriod),
 		StatusCode: http.StatusServiceUnavailable,
 	}
 }
@@ -73,12 +74,12 @@ func InitWithoutMetrics() {
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 
-	logger.Infof("opening storage at %q with retention period %d months", *DataPath, *retentionPeriod)
+	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
-	strg, err := storage.OpenStorage(*DataPath, *retentionPeriod)
+	strg, err := storage.OpenStorage(*DataPath, retentionPeriod.Msecs)
 	if err != nil {
-		logger.Fatalf("cannot open a storage at %s with retention period %d months: %s", *DataPath, *retentionPeriod, err)
+		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *DataPath, retentionPeriod, err)
 	}
 	Storage = strg
 

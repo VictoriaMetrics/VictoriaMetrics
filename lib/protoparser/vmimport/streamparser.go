@@ -20,10 +20,10 @@ var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maxi
 
 // ParseStream parses /api/v1/import lines from req and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from req.
+// The callback can be called concurrently multiple times for streamed data from req.
+// The callback can be called after ParseStream returns.
 //
 // callback shouldn't hold rows after returning.
-// callback is called from multiple concurrent goroutines.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {

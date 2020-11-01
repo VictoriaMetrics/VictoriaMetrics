@@ -1,13 +1,18 @@
 package promscrape
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -22,10 +27,18 @@ var (
 		"This may be useful when targets has no support for HTTP keep-alive connection. "+
 		"It is possible to set `disable_keepalive: true` individually per each 'scrape_config` section in '-promscrape.config' for fine grained control. "+
 		"Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
+	streamParse = flag.Bool("promscrape.streamParse", false, "Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful "+
+		"for reducing memory usage when millions of metrics are exposed per each scrape target. "+
+		"It is posible to set `stream_parse: true` individually per each `scrape_config` section in `-promscrape.config` for fine grained control")
 )
 
 type client struct {
+	// hc is the default client optimized for common case of scraping targets with moderate number of metrics.
 	hc *fasthttp.HostClient
+
+	// sc (aka `stream client`) is used instead of hc if ScrapeWork.ParseStream is set.
+	// It may be useful for scraping targets with millions of metrics per target.
+	sc *http.Client
 
 	scrapeURL          string
 	host               string
@@ -64,8 +77,23 @@ func newClient(sw *ScrapeWork) *client {
 		MaxResponseBodySize:          maxScrapeSize.N,
 		MaxIdempotentRequestAttempts: 1,
 	}
+	var sc *http.Client
+	if *streamParse || sw.StreamParse {
+		sc = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig:     tlsCfg,
+				TLSHandshakeTimeout: 10 * time.Second,
+				IdleConnTimeout:     2 * sw.ScrapeInterval,
+				DisableCompression:  *disableCompression || sw.DisableCompression,
+				DisableKeepAlives:   *disableKeepAlive || sw.DisableKeepAlive,
+				DialContext:         statStdDial,
+			},
+			Timeout: sw.ScrapeTimeout,
+		}
+	}
 	return &client{
 		hc: hc,
+		sc: sc,
 
 		scrapeURL:          sw.ScrapeURL,
 		host:               host,
@@ -74,6 +102,43 @@ func newClient(sw *ScrapeWork) *client {
 		disableCompression: sw.DisableCompression,
 		disableKeepAlive:   sw.DisableKeepAlive,
 	}
+}
+
+func (c *client) GetStreamReader() (*streamReader, error) {
+	deadline := time.Now().Add(c.hc.ReadTimeout)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	req, err := http.NewRequestWithContext(ctx, "GET", c.scrapeURL, nil)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
+	}
+	// The following `Accept` header has been copied from Prometheus sources.
+	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
+	// This is needed as a workaround for scraping stupid Java-based servers such as Spring Boot.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
+	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
+	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
+	if c.authHeader != "" {
+		req.Header.Set("Authorization", c.authHeader)
+	}
+	resp, err := c.sc.Do(req)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("cannot scrape %q: %w", c.scrapeURL, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, resp.StatusCode)).Inc()
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		cancel()
+		return nil, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
+			c.scrapeURL, resp.StatusCode, http.StatusOK, respBody)
+	}
+	scrapesOK.Inc()
+	return &streamReader{
+		r:      resp.Body,
+		cancel: cancel,
+	}, nil
 }
 
 func (c *client) ReadData(dst []byte) ([]byte, error) {
@@ -87,7 +152,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
 	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
-	if !*disableCompression || c.disableCompression {
+	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}
 	if *disableKeepAlive || c.disableKeepAlive {
@@ -131,7 +196,6 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		}
 		return dst, fmt.Errorf("error when scraping %q: %w", c.scrapeURL, err)
 	}
-	dstLen := len(dst)
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
 		var err error
 		var src []byte
@@ -154,7 +218,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
-			c.scrapeURL, statusCode, fasthttp.StatusOK, dst[dstLen:])
+			c.scrapeURL, statusCode, fasthttp.StatusOK, dst)
 	}
 	scrapesOK.Inc()
 	fasthttp.ReleaseResponse(resp)
@@ -183,5 +247,24 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		if time.Since(deadline) >= 0 {
 			return fmt.Errorf("the server closes all the connection attempts: %w", err)
 		}
+	}
+}
+
+type streamReader struct {
+	r         io.ReadCloser
+	cancel    context.CancelFunc
+	bytesRead int64
+}
+
+func (sr *streamReader) Read(p []byte) (int, error) {
+	n, err := sr.r.Read(p)
+	sr.bytesRead += int64(n)
+	return n, err
+}
+
+func (sr *streamReader) MustClose() {
+	sr.cancel()
+	if err := sr.r.Close(); err != nil {
+		logger.Errorf("cannot close reader: %s", err)
 	}
 }

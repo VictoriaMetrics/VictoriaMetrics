@@ -27,7 +27,10 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 )
 
-const maxRetentionMonths = 12 * 100
+const (
+	msecsPerMonth     = 31 * 24 * 3600 * 1000
+	maxRetentionMsecs = 100 * 12 * msecsPerMonth
+)
 
 // Storage represents TSDB storage.
 type Storage struct {
@@ -47,9 +50,9 @@ type Storage struct {
 	slowPerDayIndexInserts uint64
 	slowMetricNameLoads    uint64
 
-	path            string
-	cachePath       string
-	retentionMonths int
+	path           string
+	cachePath      string
+	retentionMsecs int64
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -106,23 +109,19 @@ type Storage struct {
 	snapshotLock sync.Mutex
 }
 
-// OpenStorage opens storage on the given path with the given number of retention months.
-func OpenStorage(path string, retentionMonths int) (*Storage, error) {
-	if retentionMonths > maxRetentionMonths {
-		return nil, fmt.Errorf("too big retentionMonths=%d; cannot exceed %d", retentionMonths, maxRetentionMonths)
-	}
-	if retentionMonths <= 0 {
-		retentionMonths = maxRetentionMonths
-	}
+// OpenStorage opens storage on the given path with the given retentionMsecs.
+func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
 	}
-
+	if retentionMsecs <= 0 {
+		retentionMsecs = maxRetentionMsecs
+	}
 	s := &Storage{
-		path:            path,
-		cachePath:       path + "/cache",
-		retentionMonths: retentionMonths,
+		path:           path,
+		cachePath:      path + "/cache",
+		retentionMsecs: retentionMsecs,
 
 		stop: make(chan struct{}),
 	}
@@ -178,7 +177,7 @@ func OpenStorage(path string, retentionMonths int) (*Storage, error) {
 
 	// Load data
 	tablePath := path + "/data"
-	tb, err := openTable(tablePath, retentionMonths, s.getDeletedMetricIDs)
+	tb, err := openTable(tablePath, s.getDeletedMetricIDs, retentionMsecs)
 	if err != nil {
 		s.idb().MustClose()
 		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
@@ -473,8 +472,9 @@ func (s *Storage) startRetentionWatcher() {
 }
 
 func (s *Storage) retentionWatcher() {
+	retentionMonths := int((s.retentionMsecs + (msecsPerMonth - 1)) / msecsPerMonth)
 	for {
-		d := nextRetentionDuration(s.retentionMonths)
+		d := nextRetentionDuration(retentionMonths)
 		select {
 		case <-s.stop:
 			return

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metricsql"
@@ -193,24 +194,31 @@ func Parse(pathPatterns []string, validateAnnotations, validateExpressions bool)
 		}
 		fp = append(fp, matches...)
 	}
+	errGroup := new(utils.ErrGroup)
 	var groups []Group
 	for _, file := range fp {
 		uniqueGroups := map[string]struct{}{}
 		gr, err := parseFile(file)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse file %q: %w", file, err)
+			errGroup.Add(fmt.Errorf("failed to parse file %q: %w", file, err))
+			continue
 		}
 		for _, g := range gr {
 			if err := g.Validate(validateAnnotations, validateExpressions); err != nil {
-				return nil, fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err)
+				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
+				continue
 			}
 			if _, ok := uniqueGroups[g.Name]; ok {
-				return nil, fmt.Errorf("group name %q duplicate in file %q", g.Name, file)
+				errGroup.Add(fmt.Errorf("group name %q duplicate in file %q", g.Name, file))
+				continue
 			}
 			uniqueGroups[g.Name] = struct{}{}
 			g.File = file
 			groups = append(groups, g)
 		}
+	}
+	if err := errGroup.Err(); err != nil {
+		return nil, err
 	}
 	if len(groups) < 1 {
 		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))

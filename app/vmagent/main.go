@@ -211,6 +211,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
 		return true
+	case "/api/v1/targets":
+		promscrapeAPIV1TargetsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		state := r.FormValue("state")
+		promscrape.WriteAPIV1Targets(w, state)
+		return true
 	case "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
@@ -241,7 +247,8 @@ var (
 
 	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query", protocol="influx"}`)
 
-	promscrapeTargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+	promscrapeTargetsRequests      = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )

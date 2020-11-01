@@ -21,7 +21,10 @@ services:
     image: victoriametrics/victoria-metrics
     ports:
       - 8428:8428
+      - 8089:8089
+      - 8089:8089/udp
       - 2003:2003
+      - 2003:2003/udp
       - 4242:4242
     volumes:
       - vmdata:/storage
@@ -30,6 +33,7 @@ services:
       - '--graphiteListenAddr=:2003'
       - '--opentsdbListenAddr=:4242'
       - '--httpListenAddr=:8428'
+      - '--influxListenAddr=:8089'
     networks:
       - vm_net
     restart: always

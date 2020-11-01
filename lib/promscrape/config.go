@@ -84,6 +84,7 @@ type ScrapeConfig struct {
 	// These options are supported only by lib/promscrape.
 	DisableCompression bool `yaml:"disable_compression"`
 	DisableKeepAlive   bool `yaml:"disable_keepalive"`
+	StreamParse        bool `yaml:"stream_parse"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -473,6 +474,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		sampleLimit:          sc.SampleLimit,
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
+		streamParse:          sc.StreamParse,
 	}
 	return swc, nil
 }
@@ -493,6 +495,7 @@ type scrapeWorkConfig struct {
 	sampleLimit          int
 	disableCompression   bool
 	disableKeepAlive     bool
+	streamParse          bool
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
@@ -642,6 +645,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	if len(labels) == 0 {
 		// Drop target without labels.
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
@@ -652,16 +656,21 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
 	if len(addressRelabeled) == 0 {
 		// Drop target without scrape address.
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	if strings.Contains(addressRelabeled, "/") {
 		// Drop target with '/'
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
+	}
+	if !strings.HasPrefix(metricsPathRelabeled, "/") {
+		metricsPathRelabeled = "/" + metricsPathRelabeled
 	}
 	paramsRelabeled := getParamsFromLabels(labels, swc.params)
 	optionalQuestion := "?"
@@ -696,6 +705,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		SampleLimit:          swc.sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
+		StreamParse:          swc.streamParse,
 
 		jobNameOriginal: swc.jobName,
 	})
