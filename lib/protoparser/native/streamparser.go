@@ -17,7 +17,8 @@ import (
 
 // ParseStream parses /api/v1/import/native lines from req and calls callback for parsed blocks.
 //
-// The callback can be called multiple times for streamed data from req.
+// The callback can be called concurrently multiple times for streamed data from req.
+// The callback can be called after ParseStream returns.
 //
 // callback shouldn't hold block after returning.
 // callback can be called in parallel from multiple concurrent goroutines.

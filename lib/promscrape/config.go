@@ -84,6 +84,7 @@ type ScrapeConfig struct {
 	// These options are supported only by lib/promscrape.
 	DisableCompression bool `yaml:"disable_compression"`
 	DisableKeepAlive   bool `yaml:"disable_keepalive"`
+	StreamParse        bool `yaml:"stream_parse"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -473,6 +474,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		sampleLimit:          sc.SampleLimit,
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
+		streamParse:          sc.StreamParse,
 	}
 	return swc, nil
 }
@@ -493,6 +495,7 @@ type scrapeWorkConfig struct {
 	sampleLimit          int
 	disableCompression   bool
 	disableKeepAlive     bool
+	streamParse          bool
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
@@ -699,6 +702,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		SampleLimit:          swc.sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
+		StreamParse:          swc.streamParse,
 
 		jobNameOriginal: swc.jobName,
 	})

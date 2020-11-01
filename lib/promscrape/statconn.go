@@ -1,12 +1,46 @@
 package promscrape
 
 import (
+	"context"
 	"net"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+func statStdDial(ctx context.Context, network, addr string) (net.Conn, error) {
+	d := getStdDialer()
+	conn, err := d.DialContext(ctx, network, addr)
+	dialsTotal.Inc()
+	if err != nil {
+		dialErrors.Inc()
+		return nil, err
+	}
+	conns.Inc()
+	sc := &statConn{
+		Conn: conn,
+	}
+	return sc, nil
+}
+
+func getStdDialer() *net.Dialer {
+	stdDialerOnce.Do(func() {
+		stdDialer = &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: netutil.TCP6Enabled(),
+		}
+	})
+	return stdDialer
+}
+
+var (
+	stdDialer     *net.Dialer
+	stdDialerOnce sync.Once
 )
 
 func statDial(addr string) (conn net.Conn, err error) {

@@ -16,7 +16,8 @@ import (
 
 // ParseStream parses lines with Prometheus exposition format from r and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from r.
+// The callback can be called concurrently multiple times for streamed data from r.
+// It is guaranteed that the callback isn't called after ParseStream returns.
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []Row) error) error {
@@ -32,11 +33,17 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
-		uw.callback = callback
+		uw.callback = func(rows []Row) error {
+			err := callback(rows)
+			ctx.wg.Done()
+			return err
+		}
 		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
 	}
+	ctx.wg.Wait() // wait for all the outstanding callback calls before returning
 	return ctx.Error()
 }
 
@@ -61,6 +68,8 @@ type streamContext struct {
 	reqBuf  []byte
 	tailBuf []byte
 	err     error
+
+	wg sync.WaitGroup
 }
 
 func (ctx *streamContext) Error() error {
