@@ -169,9 +169,6 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		dst = resp.SwapBody(dst)
 	}
 	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
-	if swapResponseBodies {
-		dst = resp.SwapBody(dst)
-	}
 	statusCode := resp.StatusCode()
 	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
 		// Allow a single redirect.
@@ -182,6 +179,9 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			err = c.hc.DoDeadline(req, resp, deadline)
 			statusCode = resp.StatusCode()
 		}
+	}
+	if swapResponseBodies {
+		dst = resp.SwapBody(dst)
 	}
 	fasthttp.ReleaseRequest(req)
 	if err != nil {
