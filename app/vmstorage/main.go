@@ -93,8 +93,7 @@ func InitWithoutMetrics() {
 	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
 		*DataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 
-	retentionMsecs := (int64(*retentionPeriod) * 3600 * 24 * 30) * 1000
-	promdb.Init(retentionMsecs)
+	promdb.Init(retentionPeriod.Msecs)
 }
 
 // Storage is a storage.
