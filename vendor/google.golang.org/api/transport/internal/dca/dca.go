@@ -129,11 +129,17 @@ func getMTLSMode() string {
 	return strings.ToLower(mode)
 }
 
-func mergeEndpoints(base, newHost string) (string, error) {
-	u, err := url.Parse(base)
+func mergeEndpoints(baseURL, newHost string) (string, error) {
+	u, err := url.Parse(fixScheme(baseURL))
 	if err != nil {
 		return "", err
 	}
-	u.Host = newHost
-	return u.String(), nil
+	return strings.Replace(baseURL, u.Host, newHost, 1), nil
+}
+
+func fixScheme(baseURL string) string {
+	if !strings.Contains(baseURL, "://") {
+		return "https://" + baseURL
+	}
+	return baseURL
 }
