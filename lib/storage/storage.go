@@ -1739,11 +1739,6 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *w
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
 	}
 
-	// Adjust startDateForPerDayInvertedIndex for the previous index.
-	if prev.startDateForPerDayInvertedIndex > curr.startDateForPerDayInvertedIndex {
-		prev.startDateForPerDayInvertedIndex = curr.startDateForPerDayInvertedIndex
-	}
-
 	return curr, prev, nil
 }
 

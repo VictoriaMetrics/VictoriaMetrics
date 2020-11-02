@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
@@ -1484,6 +1485,8 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	now := uint64(timestampFromTime(theDay))
 	baseDate := now / msecPerDay
 	var metricNameBuf []byte
+	perDayMetricIDs := make(map[uint64]*uint64set.Set)
+	var allMetricIDs uint64set.Set
 	for day := 0; day < days; day++ {
 		var tsids []TSID
 		for metric := 0; metric < metricsPerDay; metric++ {
@@ -1513,16 +1516,43 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 		// Add the metrics to the per-day stores
 		date := baseDate - uint64(day)
+		var metricIDs uint64set.Set
 		for i := range tsids {
 			tsid := &tsids[i]
+			metricIDs.Add(tsid.MetricID)
 			if err := is.storeDateMetricID(date, tsid.MetricID); err != nil {
 				t.Fatalf("error in storeDateMetricID(%d, %d): %s", date, tsid.MetricID, err)
 			}
 		}
+		allMetricIDs.Union(&metricIDs)
+		perDayMetricIDs[date] = &metricIDs
 	}
 
 	// Flush index to disk, so it becomes visible for search
 	db.tb.DebugFlush()
+
+	is2 := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is2)
+
+	// Check that all the metrics are found for all the days.
+	for date := baseDate - days + 1; date <= baseDate; date++ {
+		metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !perDayMetricIDs[date].Equal(metricIDs) {
+			t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+		}
+	}
+
+	// Check that all the metrics are found in updateMetricIDsAll
+	var metricIDs uint64set.Set
+	if err := is2.updateMetricIDsAll(&metricIDs, metricsPerDay*days); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !allMetricIDs.Equal(&metricIDs) {
+		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
+	}
 
 	// Create a filter that will match series that occur across multiple days
 	tfs := NewTagFilters()
