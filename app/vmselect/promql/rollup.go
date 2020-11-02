@@ -258,15 +258,16 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:        tagValue,
-			Func:            rf,
-			Start:           start,
-			End:             end,
-			Step:            step,
-			Window:          window,
-			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
-			LookbackDelta:   lookbackDelta,
-			Timestamps:      sharedTimestamps,
+			TagValue:          tagValue,
+			Func:              rf,
+			Start:             start,
+			End:               end,
+			Step:              step,
+			Window:            window,
+			MayAdjustWindow:   !rollupFuncsCannotAdjustWindow[name],
+			CanDropLastSample: name == "default_rollup",
+			LookbackDelta:     lookbackDelta,
+			Timestamps:        sharedTimestamps,
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
@@ -369,6 +370,11 @@ type rollupConfig struct {
 	// Without the adjustement their value would jump in unexpected directions
 	// when using window smaller than 2 x scrape_interval.
 	MayAdjustWindow bool
+
+	// Whether the last sample can be dropped during rollup calculations.
+	// The last sample can be dropped for `default_rollup()` function only.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748 .
+	CanDropLastSample bool
 
 	Timestamps []int64
 
@@ -501,6 +507,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	ni := 0
 	nj := 0
 	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
+	canDropLastSample := rc.CanDropLastSample
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -519,7 +526,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) && rc.End-tEnd >= 2*rc.Step {
+		if canDropLastSample && j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) && rc.End-tEnd >= 2*rc.Step {
 			// Drop trailing data points in the following cases:
 			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
 			// - if time series contains only a single raw sample
