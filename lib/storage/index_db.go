@@ -103,9 +103,6 @@ type indexDB struct {
 
 	mustDrop uint64
 
-	// Start date fully covered by per-day inverted index.
-	startDateForPerDayInvertedIndex uint64
-
 	name string
 	tb   *mergeset.Table
 
@@ -186,15 +183,6 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		return nil, fmt.Errorf("cannot load deleted metricIDs: %w", err)
 	}
 	db.setDeletedMetricIDs(dmis)
-
-	is = db.getIndexSearch(0, 0, noDeadline)
-	date, err := is.getStartDateForPerDayInvertedIndex()
-	db.putIndexSearch(is)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain start date for per-day inverted index: %w", err)
-	}
-	db.startDateForPerDayInvertedIndex = date
-
 	return db, nil
 }
 
@@ -1429,44 +1417,6 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	db.deletedMetricIDsUpdateLock.Unlock()
 }
 
-func (is *indexSearch) getStartDateForPerDayInvertedIndex() (uint64, error) {
-	minDate := uint64(0)
-	kb := &is.kb
-	ts := &is.ts
-	kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
-	prefix := kb.B
-	ts.Seek(kb.B)
-	for ts.NextItem() {
-		item := ts.Item
-		if !bytes.HasPrefix(item, prefix) {
-			break
-		}
-		suffix := item[len(prefix):]
-
-		// Suffix must contain encoded 32-bit (accountID, projectID) plus 64-bit date.
-		// Summary 16 bytes.
-		if len(suffix) < 16 {
-			return 0, fmt.Errorf("unexpected (date, tag)->metricIDs row len; must be at least 16 bytes; got %d bytes", len(suffix))
-		}
-		apNum := encoding.UnmarshalUint64(suffix[:8])
-		date := encoding.UnmarshalUint64(suffix[8:])
-		if date < minDate {
-			minDate = date
-		}
-		// Seek for the next (accountID, projectID) in order to obtain min date there.
-		apNumNext := apNum + 1
-		if apNumNext > apNum {
-			kb.B = append(kb.B[:0], nsPrefixDateTagToMetricIDs)
-			kb.B = encoding.MarshalUint64(kb.B, apNumNext)
-			ts.Seek(kb.B)
-		}
-	}
-	if err := ts.Error(); err != nil {
-		return 0, err
-	}
-	return minDate, nil
-}
-
 func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 	dmis := &uint64set.Set{}
 	ts := &is.ts
@@ -1813,14 +1763,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	maxTimeRangeMetrics := 20 * maxMetrics
 	metricIDsForTimeRange, err := is.getMetricIDsForTimeRange(tr, maxTimeRangeMetrics+1)
 	if err == errMissingMetricIDsForDate {
-		// Slow path: try to find the tag filter without maxMetrics adjustement.
-		minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
-		if err == nil {
-			return minTf, minMetricIDs, nil
-		}
-		if err != errTooManyMetrics {
-			return nil, nil, err
-		}
 		return nil, nil, fmt.Errorf("cannot find tag filter matching less than %d time series; "+
 			"either increase -search.maxUniqueTimeseries or use more specific tag filters", maxMetrics)
 	}
@@ -1829,15 +1771,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCountOptimized(tfs *TagFilter
 	}
 	if metricIDsForTimeRange.Len() <= maxTimeRangeMetrics {
 		return nil, metricIDsForTimeRange, nil
-	}
-
-	// Slow path: try to select the tag filter without maxMetrics adjustement.
-	minTf, minMetricIDs, err = is.getTagFilterWithMinMetricIDsCountAdaptive(tfs, maxMetrics)
-	if err == nil {
-		return minTf, minMetricIDs, nil
-	}
-	if err != errTooManyMetrics {
-		return nil, nil, err
 	}
 	return nil, nil, fmt.Errorf("more than %d time series found on the time range %s; either increase -search.maxUniqueTimeseries or shrink the time range",
 		maxMetrics, tr.String())
@@ -2531,7 +2464,7 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 	atomic.AddUint64(&is.db.dateRangeSearchCalls, 1)
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if minDate < is.db.startDateForPerDayInvertedIndex || maxDate < minDate {
+	if maxDate < minDate {
 		// Per-day inverted index doesn't cover the selected date range.
 		return errFallbackToMetricNameMatch
 	}
@@ -2660,8 +2593,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		if err != nil {
 			if err == errMissingMetricIDsForDate {
 				// Zero time series were written on the given date.
-				// It is OK, since (date, metricID) entries must exist for the given date
-				// according to startDateForPerDayInvertedIndex.
 				return nil, nil
 			}
 			return nil, fmt.Errorf("cannot obtain all the metricIDs: %w", err)
@@ -2880,11 +2811,6 @@ func (is *indexSearch) getMetricIDsForDate(date uint64, maxMetrics int) (*uint64
 	var metricIDs uint64set.Set
 	if err := is.updateMetricIDsForPrefix(kb.B, &metricIDs, maxMetrics); err != nil {
 		return nil, err
-	}
-	if metricIDs.Len() == 0 {
-		// There are no metricIDs for the given date.
-		// This may be the case for old data where (data, __name__=value)->metricIDs entries weren't available.
-		return nil, errMissingMetricIDsForDate
 	}
 	return &metricIDs, nil
 }
