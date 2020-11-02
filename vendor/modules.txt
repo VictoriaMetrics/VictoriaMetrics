@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.70.0
+# cloud.google.com/go v0.71.0
 cloud.google.com/go
 cloud.google.com/go/compute/metadata
 cloud.google.com/go/iam
@@ -19,7 +19,7 @@ github.com/VictoriaMetrics/metrics
 # github.com/VictoriaMetrics/metricsql v0.7.2
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
-# github.com/aws/aws-sdk-go v1.35.19
+# github.com/aws/aws-sdk-go v1.35.20
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
 github.com/aws/aws-sdk-go/aws/awserr
@@ -160,7 +160,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20201031021630-582c62ec74d0
+# golang.org/x/tools v0.0.0-20201102192140-3288bc1ea189
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
@@ -202,7 +202,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3
+# google.golang.org/genproto v0.0.0-20201102152239-715cce707fb0
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code

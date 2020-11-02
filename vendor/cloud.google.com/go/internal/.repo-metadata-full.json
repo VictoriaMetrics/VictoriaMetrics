@@ -183,6 +183,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/billing/apiv1",
     "release_level": "ga"
   },
+  "cloud.google.com/go/billing/budgets/apiv1": {
+    "distribution_name": "cloud.google.com/go/billing/budgets/apiv1",
+    "description": "Cloud Billing Budget API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/billing/budgets/apiv1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/billing/budgets/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/billing/budgets/apiv1beta1",
     "description": "",
