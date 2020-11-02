@@ -1276,6 +1276,7 @@ scrape_configs:
     sample_limit: 100
     disable_keepalive: true
     disable_compression: true
+    stream_parse: true
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1328,6 +1329,7 @@ scrape_configs:
 			SampleLimit:        100,
 			DisableKeepAlive:   true,
 			DisableCompression: true,
+			StreamParse:        true,
 			jobNameOriginal:    "snmp",
 		},
 	})

@@ -21,6 +21,9 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 
 // ParseStream parses Prometheus remote_write message req and calls callback for the parsed timeseries.
 //
+// The callback can be called concurrently multiple times for streamed data from req.
+// The callback can be called after ParseStream returns.
+//
 // callback shouldn't hold tss after returning.
 func ParseStream(req *http.Request, callback func(tss []prompb.TimeSeries) error) error {
 	ctx := getPushCtx(req.Body)

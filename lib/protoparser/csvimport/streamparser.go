@@ -23,7 +23,8 @@ var (
 
 // ParseStream parses csv from req and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from req.
+// The callback can be called concurrently multiple times for streamed data from req.
+// The callback can be called after ParseStream returns.
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {

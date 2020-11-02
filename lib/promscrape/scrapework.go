@@ -82,19 +82,22 @@ type ScrapeWork struct {
 	// Whether to disable HTTP keep-alive when querying ScrapeURL.
 	DisableKeepAlive bool
 
+	// Whether to parse target responses in a streaming manner.
+	StreamParse bool
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
 
 // key returns unique identifier for the given sw.
 //
-// it can be used for comparing for equality two ScrapeWork objects.
+// it can be used for comparing for equality for two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v",
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive)
+		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse)
 	return key
 }
 
@@ -131,6 +134,9 @@ type scrapeWork struct {
 
 	// ReadData is called for reading the data.
 	ReadData func(dst []byte) ([]byte, error)
+
+	// GetStreamReader is called if Config.StreamParse is set.
+	GetStreamReader func() (*streamReader, error)
 
 	// PushData is called for pushing collected data.
 	PushData func(wr *prompbmarshal.WriteRequest)
@@ -221,6 +227,15 @@ var (
 )
 
 func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error {
+	if *streamParse || sw.Config.StreamParse {
+		// Read data from scrape targets in streaming manner.
+		// This case is optimized for targets exposing millions and more of metrics per target.
+		return sw.scrapeStream(scrapeTimestamp, realTimestamp)
+	}
+
+	// Common case: read all the data from scrape target to memory (body) and then process it.
+	// This case should work more optimally for than stream parse code above for common case when scrape target exposes
+	// up to a few thouthand metrics.
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	var err error
 	body.B, err = sw.ReadData(body.B[:0])
@@ -279,6 +294,66 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	leveledbytebufferpool.Put(body)
 	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
 	return err
+}
+
+func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
+	sr, err := sw.GetStreamReader()
+	if err != nil {
+		return fmt.Errorf("cannot read data: %s", err)
+	}
+	samplesScraped := 0
+	samplesPostRelabeling := 0
+	wc := writeRequestCtxPool.Get(sw.prevRowsLen)
+	var mu sync.Mutex
+	err = parser.ParseStream(sr, scrapeTimestamp, false, func(rows []parser.Row) error {
+		mu.Lock()
+		defer mu.Unlock()
+		samplesScraped += len(rows)
+		for i := range rows {
+			sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
+			if len(wc.labels) > 40000 {
+				// Limit the maximum size of wc.writeRequest.
+				// This should reduce memory usage when scraping targets with millions of metrics and/or labels.
+				// For example, when scraping /federate handler from Prometheus - see https://prometheus.io/docs/prometheus/latest/federation/
+				samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+				sw.updateSeriesAdded(wc)
+				startTime := time.Now()
+				sw.PushData(&wc.writeRequest)
+				pushDataDuration.UpdateDuration(startTime)
+				wc.resetNoRows()
+			}
+		}
+		return nil
+	})
+	scrapedSamples.Update(float64(samplesScraped))
+	endTimestamp := time.Now().UnixNano() / 1e6
+	duration := float64(endTimestamp-realTimestamp) / 1e3
+	scrapeDuration.Update(duration)
+	scrapeResponseSize.Update(float64(sr.bytesRead))
+	sr.MustClose()
+	up := 1
+	if err != nil {
+		if samplesScraped == 0 {
+			up = 0
+		}
+		scrapesFailed.Inc()
+	}
+	samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+	sw.updateSeriesAdded(wc)
+	seriesAdded := sw.finalizeSeriesAdded(samplesPostRelabeling)
+	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
+	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(samplesScraped), scrapeTimestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(samplesPostRelabeling), scrapeTimestamp)
+	sw.addAutoTimeseries(wc, "scrape_series_added", float64(seriesAdded), scrapeTimestamp)
+	startTime := time.Now()
+	sw.PushData(&wc.writeRequest)
+	pushDataDuration.UpdateDuration(startTime)
+	sw.prevRowsLen = len(wc.rows.Rows)
+	wc.reset()
+	writeRequestCtxPool.Put(wc)
+	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
+	return nil
 }
 
 // leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
