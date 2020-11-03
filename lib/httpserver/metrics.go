@@ -21,7 +21,7 @@ func WritePrometheusMetrics(w io.Writer) {
 	metrics.WritePrometheus(w, true)
 
 	fmt.Fprintf(w, "vm_app_version{version=%q, short_version=%q} 1\n", buildinfo.Version,
-		re.FindString(buildinfo.Version))
+		versionRe.FindString(buildinfo.Version))
 	fmt.Fprintf(w, "vm_allowed_memory_bytes %d\n", memory.Allowed())
 
 	// Export start time and uptime in seconds
