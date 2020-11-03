@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,11 +14,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var versionRe := regexp.MustCompile(`v\d+\.\d+\.\d+`)
+
 // WritePrometheusMetrics writes all the registered metrics to w in Prometheus exposition format.
 func WritePrometheusMetrics(w io.Writer) {
 	metrics.WritePrometheus(w, true)
 
-	fmt.Fprintf(w, "vm_app_version{version=%q} 1\n", buildinfo.Version)
+	fmt.Fprintf(w, "vm_app_version{version=%q, short_version=%q} 1\n", buildinfo.Version,
+		re.FindString(buildinfo.Version))
 	fmt.Fprintf(w, "vm_allowed_memory_bytes %d\n", memory.Allowed())
 
 	// Export start time and uptime in seconds
