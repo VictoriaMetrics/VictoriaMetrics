@@ -1381,7 +1381,7 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 	}
 	if maxM < minM {
 		// There is no sense in merging parts with too small m.
-		return dst, needFreeSpace
+		return dst, false
 	}
 	return append(dst, pws...), needFreeSpace
 }
