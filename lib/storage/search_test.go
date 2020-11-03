@@ -71,7 +71,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	path := fmt.Sprintf("TestSearch")
+	path := "TestSearch"
 	st, err := OpenStorage(path, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage %q: %s", path, err)
