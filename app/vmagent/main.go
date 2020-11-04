@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
@@ -221,6 +222,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
+		return true
+	case "/ready":
+		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
+			errMsg := fmt.Sprintf("waiting for scrapes to init, left: %d", rdy)
+			http.Error(w, errMsg, http.StatusTooEarly)
+		} else {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		}
 		return true
 	}
 	return false
