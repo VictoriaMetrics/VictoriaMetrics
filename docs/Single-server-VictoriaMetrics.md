@@ -38,6 +38,7 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [Brandwatch](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#brandwatch)
 * [Adsterra](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adsterra)
 * [ARNES](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#arnes)
+* [Idealo.de](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#idealode)
 
 
 ## Prominent features
