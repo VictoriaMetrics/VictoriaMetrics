@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -45,6 +47,9 @@ func getDefaultMaxConcurrentRequests() int {
 
 // Init initializes vmselect
 func Init() {
+	tmpDirPath := *vmstorage.DataPath + "/tmp"
+	fs.RemoveDirContents(tmpDirPath)
+	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
