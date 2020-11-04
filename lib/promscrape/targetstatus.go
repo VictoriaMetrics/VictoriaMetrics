@@ -240,12 +240,18 @@ type droppedTarget struct {
 }
 
 func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
+
 	key := promLabelsString(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
 	dt.mu.Lock()
-	dt.m[key] = droppedTarget{
-		originalLabels: originalLabels,
-		deadline:       currentTime + 10*60,
+	if k, ok := dt.m[key]; ok {
+		k.deadline = currentTime + 10*60
+		dt.m[key] = k
+	} else if len(dt.m) < *maxDroppedTargets {
+		dt.m[key] = droppedTarget{
+			originalLabels: originalLabels,
+			deadline:       currentTime + 10*60,
+		}
 	}
 	if currentTime-dt.lastCleanupTime > 60 {
 		for k, v := range dt.m {

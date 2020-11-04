@@ -231,6 +231,12 @@ This information may be useful for debugging target relabeling.
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
   and `http://vmagent-host:8429/api/v1/targets`.
 
+* For debugging scrapes targets relabeling process, you can observe status of targets at `/api/v1/targets` page.
+  You may need to increase value for the flag `--promscrape.maxDroppedTargets`.  
+  Its needed, when `vmagent` scrapes thousands of targets, and some targets dropped during relabeling.
+  It requires additional memory for storing those targets (up to 10kb per target).
+  With service_discovery services, like kubernetes, it may be around 10 000 dropped scrape targets per 100 active scrape targets.
+
 * If `vmagent` scrapes targets with millions of metrics per each target (for instance, when scraping [federation endpoints](https://prometheus.io/docs/prometheus/latest/federation/)),
   then it is recommended enabling `stream parsing mode` in order to reduce memory usage during scraping. This mode may be enabled either globally for all the scrape targets
   by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
