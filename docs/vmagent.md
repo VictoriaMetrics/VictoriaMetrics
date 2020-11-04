@@ -249,9 +249,6 @@ This information may be useful for debugging target relabeling.
       'match[]': ['{__name__!=""}']
   ```
 
-* If `vmagent` scrapes big number of targets, then `-promscrape.dropOriginalLabels` command-line flag could be used for reducing memory usage. This flag removes tracking the original
-  labels for scrape targets. Such labels may be useful for debugging at `/api/v1/targets` page, but they aren't used in other places.
-
 * It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 
 * If you see gaps on the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set, then try increasing `-remoteWrite.queues`.
