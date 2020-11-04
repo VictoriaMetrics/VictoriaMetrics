@@ -578,9 +578,26 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	}
 	var labelValues []string
 	var isPartial bool
-	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+	if len(r.Form["match[]"]) == 0 {
 		var err error
-		labelValues, isPartial, err = netstorage.GetLabelValues(at, labelName, deadline)
+		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+			labelValues, isPartial, err = netstorage.GetLabelValues(at, labelName, deadline)
+		} else {
+			ct := startTime.UnixNano() / 1e6
+			end, err := searchutils.GetTime(r, "end", ct)
+			if err != nil {
+				return err
+			}
+			start, err := searchutils.GetTime(r, "start", end-defaultStep)
+			if err != nil {
+				return err
+			}
+			tr := storage.TimeRange{
+				MinTimestamp: start,
+				MaxTimestamp: end,
+			}
+			labelValues, isPartial, err = netstorage.GetLabelValuesOnTimeRange(at, labelName, tr, deadline)
+		}
 		if err != nil {
 			return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
 		}
@@ -771,9 +788,26 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	}
 	var labels []string
 	var isPartial bool
-	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+	if len(r.Form["match[]"]) == 0 {
 		var err error
-		labels, isPartial, err = netstorage.GetLabels(at, deadline)
+		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+			labels, isPartial, err = netstorage.GetLabels(at, deadline)
+		} else {
+			ct := startTime.UnixNano() / 1e6
+			end, err := searchutils.GetTime(r, "end", ct)
+			if err != nil {
+				return err
+			}
+			start, err := searchutils.GetTime(r, "start", end-defaultStep)
+			if err != nil {
+				return err
+			}
+			tr := storage.TimeRange{
+				MinTimestamp: start,
+				MaxTimestamp: end,
+			}
+			labels, isPartial, err = netstorage.GetLabelsOnTimeRange(at, tr, deadline)
+		}
 		if err != nil {
 			return fmt.Errorf("cannot obtain labels: %w", err)
 		}

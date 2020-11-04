@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"sort"
 	"testing"
 	"time"
 
@@ -1559,6 +1560,13 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	var metricNameBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
+	tagKeys := []string{
+		"", "constant", "day", "uniqueid",
+	}
+	tagValues := []string{
+		"testMetric",
+	}
+	sort.Strings(tagKeys)
 	for day := 0; day < days; day++ {
 		var tsids []TSID
 		for metric := 0; metric < metricsPerDay; metric++ {
@@ -1632,6 +1640,32 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	if !allMetricIDs.Equal(&metricIDs) {
 		t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), allMetricIDs.AppendTo(nil))
+	}
+
+	// Check SearchTagKeysOnTimeRange.
+	tks, err := db.SearchTagKeysOnTimeRange(accountID, projectID, TimeRange{
+		MinTimestamp: int64(now) - msecPerDay,
+		MaxTimestamp: int64(now),
+	}, 10000, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchTagKeysOnTimeRange: %s", err)
+	}
+	sort.Strings(tks)
+	if !reflect.DeepEqual(tks, tagKeys) {
+		t.Fatalf("unexpected tagKeys; got\n%s\nwant\n%s", tks, tagKeys)
+	}
+
+	// Check SearchTagValuesOnTimeRange.
+	tvs, err := db.SearchTagValuesOnTimeRange(accountID, projectID, []byte(""), TimeRange{
+		MinTimestamp: int64(now) - msecPerDay,
+		MaxTimestamp: int64(now),
+	}, 10000, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchTagValuesOnTimeRange: %s", err)
+	}
+	sort.Strings(tvs)
+	if !reflect.DeepEqual(tvs, tagValues) {
+		t.Fatalf("unexpected tagValues; got\n%s\nwant\n%s", tvs, tagValues)
 	}
 
 	// Create a filter that will match series that occur across multiple days
