@@ -219,6 +219,8 @@ It accepts optional `show_original_labels=1` query arg, which shows the original
 This information may be useful for debugging target relabeling.
 * `http://vmagent-host:8429/api/v1/targets`. This handler returns data compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
 
+* `http://vmagent-host:8429/ready` - this handler returns http 200 status code, when `vmagent` finished initialization for all service_discovery configs. 
+  It may be useful, when you have a lof of entries at promscrape.config and want to perform `vmagent` rolling update without metrics loss. 
 
 ### Troubleshooting
 

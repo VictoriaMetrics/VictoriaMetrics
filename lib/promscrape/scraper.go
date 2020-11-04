@@ -221,12 +221,12 @@ func (scfg *scrapeConfig) run() {
 
 	cfg := <-scfg.cfgCh
 	var swsPrev []ScrapeWork
-	updateScrapeWork := func() {
+	updateScrapeWork := func(cfg *Config) {
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
 		swsPrev = sws
 	}
-	updateScrapeWork()
+	updateScrapeWork(cfg)
 	atomic.AddInt32(&UnReadyScrapeConfigs, -1)
 
 	for {
@@ -237,7 +237,7 @@ func (scfg *scrapeConfig) run() {
 		case cfg = <-scfg.cfgCh:
 		case <-tickerCh:
 		}
-		updateScrapeWork()
+		updateScrapeWork(cfg)
 	}
 }
 
