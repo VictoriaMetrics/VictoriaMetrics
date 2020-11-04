@@ -30,6 +30,36 @@ func (br *BlockRef) init(p *part, bh *blockHeader) {
 	br.bh = *bh
 }
 
+// Init initializes br from pr and data
+func (br *BlockRef) Init(pr PartRef, data []byte) error {
+	br.p = pr.p
+	tail, err := br.bh.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	if len(tail) > 0 {
+		return fmt.Errorf("unexpected non-empty tail left after unmarshaling blockHeader; len(tail)=%d; tail=%q", len(tail), tail)
+	}
+	return nil
+}
+
+// Marshal marshals br to dst.
+func (br *BlockRef) Marshal(dst []byte) []byte {
+	return br.bh.Marshal(dst)
+}
+
+// PartRef returns PartRef from br.
+func (br *BlockRef) PartRef() PartRef {
+	return PartRef{
+		p: br.p,
+	}
+}
+
+// PartRef is Part reference.
+type PartRef struct {
+	p *part
+}
+
 // MustReadBlock reads block from br to dst.
 //
 // if fetchData is false, then only block header is read, otherwise all the data is read.

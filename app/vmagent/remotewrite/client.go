@@ -231,12 +231,12 @@ again:
 		return
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
-	if statusCode/100 == 4 {
-		// Just drop block on 4xx status code like Prometheus does.
+	if statusCode == 409 {
+		// Just drop block on 409 status code like Prometheus does.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873
 		body, _ := ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		logger.Errorf("unexpected status code received when sending a block with size %d bytes to %q: #%d; dropping the block for 4XX status code like Prometheus does; "+
+		logger.Errorf("unexpected status code received when sending a block with size %d bytes to %q: #%d; dropping the block like Prometheus does; "+
 			"response body=%q", len(block), c.sanitizedURL, statusCode, body)
 		c.packetsDropped.Inc()
 		return
