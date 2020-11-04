@@ -11,6 +11,33 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
+func TestPromLabelsString(t *testing.T) {
+	f := func(labels []prompbmarshal.Label, resultExpected string) {
+		t.Helper()
+		result := promLabelsString(labels)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+	f([]prompbmarshal.Label{}, "{}")
+	f([]prompbmarshal.Label{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"}`)
+	f([]prompbmarshal.Label{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "a",
+			Value: `"b"`,
+		},
+	}, `{foo="bar",a="\"b\""}`)
+}
+
 func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	dataExpected := `
 		up 0 123

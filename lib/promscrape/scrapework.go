@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -121,11 +122,24 @@ func (sw *ScrapeWork) LabelsString() string {
 }
 
 func promLabelsString(labels []prompbmarshal.Label) string {
-	a := make([]string, 0, len(labels))
+	// Calculate the required memory for storing serialized labels.
+	n := 2 // for `{...}`
 	for _, label := range labels {
-		a = append(a, fmt.Sprintf("%s=%q", label.Name, label.Value))
+		n += len(label.Name) + len(label.Value)
+		n += 4 // for `="...",`
 	}
-	return "{" + strings.Join(a, ", ") + "}"
+	b := make([]byte, 0, n)
+	b = append(b, '{')
+	for i, label := range labels {
+		b = append(b, label.Name...)
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		if i+1 < len(labels) {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return bytesutil.ToUnsafeString(b)
 }
 
 type scrapeWork struct {
