@@ -1577,7 +1577,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	// Check SearchTagValuesOnTimeRange.
 	tvs, err := db.SearchTagValuesOnTimeRange([]byte(""), TimeRange{
-		MinTimestamp: int64(now)-msecPerDay,
+		MinTimestamp: int64(now) - msecPerDay,
 		MaxTimestamp: int64(now),
 	}, 10000, noDeadline)
 	if err != nil {

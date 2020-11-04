@@ -182,7 +182,7 @@ func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted 
 	for nextIdx < len(timestamps) && timestamps[nextIdx] < retentionDeadline {
 		nextIdx++
 	}
-	atomic.AddUint64(rowsDeleted, uint64(nextIdx - b.nextIdx))
+	atomic.AddUint64(rowsDeleted, uint64(nextIdx-b.nextIdx))
 	b.nextIdx = nextIdx
 }
 
