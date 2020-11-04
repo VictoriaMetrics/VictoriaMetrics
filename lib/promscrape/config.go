@@ -32,9 +32,6 @@ var (
 	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output")
-	maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "Defines how many targets, dropped during service discovery,"+
-		" can be stored for  /api/v1/targets page. "+
-		"This value may be increased for debugging cause of dropping targets during service discovery relabeling")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
