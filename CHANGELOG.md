@@ -1,6 +1,9 @@
 # tip
 
 
+* FEATURE: reduce memory usage when query touches big number of time series.
+
+
 # [v1.45.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.45.0)
 
 * FEATURE: allow setting `-retentionPeriod` smaller than one month. I.e. `-retentionPeriod=3d`, `-retentionPeriod=2w`, etc. is supported now.
