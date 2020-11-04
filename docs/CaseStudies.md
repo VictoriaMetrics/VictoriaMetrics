@@ -6,6 +6,20 @@ and feel free asking for references, reviews and additional case studies from re
 See also [articles about VictoriaMetrics from our users](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles#third-party-articles-and-slides).
 
 
+* [Adidas](#adidas)
+* [CERN](#cern)
+* [COLOPL](#colopl)
+* [Zerodha](#zerodha)
+* [Wix.com](#wixcom)
+* [Wedos.com](#wedoscom)
+* [Synthesio](#synthesio)
+* [Dreamteam](#dreamteam)
+* [Brandwatch](#brandwatch)
+* [Adsterra](#adsterra)
+* [ARNES](#arnes)
+* [Idealo.de](#idealode)
+
+
 ## Adidas
 
 See [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
@@ -304,3 +318,21 @@ Grafana has a LB infront, so if one DC has problems, we can still view all metri
 
 We are still in the process of migration, but we are really happy with the whole stack. It has proven as an essential piece
 for insight into our services during COVID-19 and has enabled us to provide better service and spot problems faster.
+
+
+## Idealo.de
+
+[idealo.de](https://www.idealo.de/) is the leading price comparison website in Germany. We use Prometheus for metrics on our container platform.
+When we introduced Prometheus at idealo we started with m3db as a longterm storage. In our setup m3db was quite unstable and consumed a lot of resources.
+
+VictoriaMetrics runs very stable for us and uses only a fraction of the resources. Although we also increased our retention time from 1 month to 13 months.
+
+Numbers:
+
+- The number of active time series per VictoriaMetrics instance is 21M.
+- Total ingestion rate 120k metrics per second.
+- The total number of datapoints 3.1 trillion.
+- The average time series churn rate is ~9M per day.
+- The average query rate is ~20 per second. Response time for 99th quantile is 120ms.
+- Retention: 13 months.
+- Size of all datapoints: 3.5 TB
