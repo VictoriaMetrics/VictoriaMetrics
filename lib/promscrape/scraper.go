@@ -76,9 +76,9 @@ func Stop() {
 var (
 	globalStopCh chan struct{}
 	scraperWG    sync.WaitGroup
-	// UnReadyScrapeConfigs - zero value means, that
+	// PendingScrapeConfigs - zero value means, that
 	// all scrapeConfigs are inited and ready for work.
-	UnReadyScrapeConfigs int32
+	PendingScrapeConfigs int32
 )
 
 func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
@@ -170,7 +170,7 @@ func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest)) *scrapeConf
 }
 
 func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrapeWork func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork) {
-	atomic.AddInt32(&UnReadyScrapeConfigs, 1)
+	atomic.AddInt32(&PendingScrapeConfigs, 1)
 	scfg := &scrapeConfig{
 		name:          name,
 		pushData:      scs.pushData,
@@ -227,7 +227,7 @@ func (scfg *scrapeConfig) run() {
 		swsPrev = sws
 	}
 	updateScrapeWork(cfg)
-	atomic.AddInt32(&UnReadyScrapeConfigs, -1)
+	atomic.AddInt32(&PendingScrapeConfigs, -1)
 
 	for {
 

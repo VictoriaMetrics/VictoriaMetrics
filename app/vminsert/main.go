@@ -171,7 +171,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/ready":
-		if rdy := atomic.LoadInt32(&promscrape.UnReadyScrapeConfigs); rdy > 0 {
+		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
 			errMsg := fmt.Sprintf("waiting for scrape config to init targets, configs left: %d", rdy)
 			http.Error(w, errMsg, http.StatusTooEarly)
 		} else {
