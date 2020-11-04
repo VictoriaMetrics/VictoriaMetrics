@@ -232,10 +232,7 @@ This information may be useful for debugging target relabeling.
   and `http://vmagent-host:8429/api/v1/targets`.
 
 * The `/api/v1/targets` page could be useful for debugging relabeling process for scrape targets.
-  You may need to increase value for the flag `--promscrape.maxDroppedTargets`.  
-  Its needed, when `vmagent` scrapes thousands of targets, and some targets dropped during relabeling.
-  It requires additional memory for storing those targets (up to 10kb per target).
-  With service_discovery services, like kubernetes, it may be around 10 000 dropped scrape targets per 100 active scrape targets.
+  This page contains original labels for targets dropped during relabeling (see "droppedTargets" section in the page output). By default up to `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling, then increase `-promscrape.maxDroppedTargets` command-line flag value in order to see all the dropped targets. Note that tracking each dropped target requires up to 10Kb of RAM, so big values for `-promscrape.maxDroppedTargets` may result in increased memory usage if big number of scrape targets are dropped during relabeling.
 
 * If `vmagent` scrapes targets with millions of metrics per each target (for instance, when scraping [federation endpoints](https://prometheus.io/docs/prometheus/latest/federation/)),
   then it is recommended enabling `stream parsing mode` in order to reduce memory usage during scraping. This mode may be enabled either globally for all the scrape targets
