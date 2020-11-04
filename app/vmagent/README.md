@@ -231,7 +231,7 @@ This information may be useful for debugging target relabeling.
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
   and `http://vmagent-host:8429/api/v1/targets`.
 
-* For debugging scrapes targets relabeling process, you can observe status of targets at `/api/v1/targets` page.
+* The `/api/v1/targets` page could be useful for debugging relabeling process for scrape targets.
   You may need to increase value for the flag `--promscrape.maxDroppedTargets`.  
   Its needed, when `vmagent` scrapes thousands of targets, and some targets dropped during relabeling.
   It requires additional memory for storing those targets (up to 10kb per target).
