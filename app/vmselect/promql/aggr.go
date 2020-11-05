@@ -737,45 +737,29 @@ func getIntK(k float64, kMax int) int {
 }
 
 func minValue(values []float64) float64 {
-	if len(values) == 0 {
-		return nan
+	min := nan
+	for len(values) > 0 && math.IsNaN(min) {
+		min = values[0]
+		values = values[1:]
 	}
-	aNumberFounded := false
-	var min float64
 	for _, v := range values {
-		if !math.IsNaN(v) && !aNumberFounded {
-			min = v
-			aNumberFounded = true
-			continue
-		}
 		if !math.IsNaN(v) && v < min {
 			min = v
 		}
-	}
-	if !aNumberFounded {
-		return nan
 	}
 	return min
 }
 
 func maxValue(values []float64) float64 {
-	if len(values) == 0 {
-		return nan
+	max := nan
+	for len(values) > 0 && math.IsNaN(max) {
+		max = values[0]
+		values = values[1:]
 	}
-	aNumberFounded := false
-	var max float64
 	for _, v := range values {
-		if !math.IsNaN(v) && !aNumberFounded {
-			max = v
-			aNumberFounded = true
-			continue
-		}
 		if !math.IsNaN(v) && v > max {
 			max = v
 		}
-	}
-	if !aNumberFounded {
-		return nan
 	}
 	return max
 }
