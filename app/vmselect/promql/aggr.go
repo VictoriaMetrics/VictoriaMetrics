@@ -740,11 +740,20 @@ func minValue(values []float64) float64 {
 	if len(values) == 0 {
 		return nan
 	}
-	min := values[0]
-	for _, v := range values[1:] {
-		if v < min {
+	aNumberFounded := false
+	var min float64
+	for _, v := range values {
+		if !math.IsNaN(v) && !aNumberFounded {
+			min = v
+			aNumberFounded = true
+			continue
+		}
+		if !math.IsNaN(v) && v < min {
 			min = v
 		}
+	}
+	if !aNumberFounded {
+		return nan
 	}
 	return min
 }
@@ -753,11 +762,20 @@ func maxValue(values []float64) float64 {
 	if len(values) == 0 {
 		return nan
 	}
-	max := values[0]
-	for _, v := range values[1:] {
-		if v > max {
+	aNumberFounded := false
+	var max float64
+	for _, v := range values {
+		if !math.IsNaN(v) && !aNumberFounded {
+			max = v
+			aNumberFounded = true
+			continue
+		}
+		if !math.IsNaN(v) && v > max {
 			max = v
 		}
+	}
+	if !aNumberFounded {
+		return nan
 	}
 	return max
 }
