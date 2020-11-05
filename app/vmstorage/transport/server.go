@@ -816,17 +816,17 @@ func (s *Server) processVMSelectLabelValuesOnTimeRange(ctx *vmselectRequestCtx) 
 	if err != nil {
 		return err
 	}
+	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
+		return fmt.Errorf("cannot read labelName: %w", err)
+	}
+	labelName := string(ctx.dataBuf)
 	tr, err := ctx.readTimeRange()
 	if err != nil {
 		return err
 	}
-	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read labelName: %w", err)
-	}
-	labelName := ctx.dataBuf
 
 	// Search for tag values
-	labelValues, err := s.storage.SearchTagValuesOnTimeRange(accountID, projectID, labelName, tr, *maxTagValuesPerSearch, ctx.deadline)
+	labelValues, err := s.storage.SearchTagValuesOnTimeRange(accountID, projectID, []byte(labelName), tr, *maxTagValuesPerSearch, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
