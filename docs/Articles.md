@@ -47,3 +47,4 @@
 * [How to migrate data from Prometheus to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043)
 * [Filtering and modifying time series during import to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-filtering-and-modifying-time-series-6d40cea4bf21)
 * [Anomaly Detection in VictoriaMetrics](https://medium.com/@VictoriaMetrics/anomaly-detection-in-victoriametrics-9528538786a7)
+* [How to use relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
