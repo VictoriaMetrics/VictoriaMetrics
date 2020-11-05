@@ -701,10 +701,118 @@ func putIndexItems(ii *indexItems) {
 
 var indexItemsPool sync.Pool
 
+// SearchTagKeysOnTimeRange returns all the tag keys on the given tr.
+func (db *indexDB) SearchTagKeysOnTimeRange(tr TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
+	tks := make(map[string]struct{})
+	is := db.getIndexSearch(deadline)
+	err := is.searchTagKeysOnTimeRange(tks, tr, maxTagKeys)
+	db.putIndexSearch(is)
+	if err != nil {
+		return nil, err
+	}
+
+	ok := db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(deadline)
+		err = is.searchTagKeysOnTimeRange(tks, tr, maxTagKeys)
+		extDB.putIndexSearch(is)
+	})
+	if ok && err != nil {
+		return nil, err
+	}
+
+	keys := make([]string, 0, len(tks))
+	for key := range tks {
+		// Do not skip empty keys, since they are converted to __name__
+		keys = append(keys, key)
+	}
+	// Do not sort keys, since they must be sorted by vmselect.
+	return keys, nil
+}
+
+func (is *indexSearch) searchTagKeysOnTimeRange(tks map[string]struct{}, tr TimeRange, maxTagKeys int) error {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var errGlobal error
+	for date := minDate; date <= maxDate; date++ {
+		wg.Add(1)
+		go func(date uint64) {
+			defer wg.Done()
+			tksLocal := make(map[string]struct{})
+			isLocal := is.db.getIndexSearch(is.deadline)
+			err := isLocal.searchTagKeysOnDate(tksLocal, date, maxTagKeys)
+			is.db.putIndexSearch(isLocal)
+			mu.Lock()
+			defer mu.Unlock()
+			if errGlobal != nil {
+				return
+			}
+			if err != nil {
+				errGlobal = err
+				return
+			}
+			if len(tks) >= maxTagKeys {
+				return
+			}
+			for k := range tksLocal {
+				tks[k] = struct{}{}
+			}
+		}(date)
+	}
+	wg.Wait()
+	return errGlobal
+}
+
+func (is *indexSearch) searchTagKeysOnDate(tks map[string]struct{}, date uint64, maxTagKeys int) error {
+	ts := &is.ts
+	kb := &is.kb
+	mp := &is.mp
+	mp.Reset()
+	dmis := is.db.getDeletedMetricIDs()
+	loopsPaceLimiter := 0
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	prefix := kb.B
+	ts.Seek(prefix)
+	for len(tks) < maxTagKeys && ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			break
+		}
+		if err := mp.Init(item, nsPrefixDateTagToMetricIDs); err != nil {
+			return err
+		}
+		if mp.IsDeletedTag(dmis) {
+			continue
+		}
+
+		// Store tag key.
+		tks[string(mp.Tag.Key)] = struct{}{}
+
+		// Search for the next tag key.
+		// The last char in kb.B must be tagSeparatorChar.
+		// Just increment it in order to jump to the next tag key.
+		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+		kb.B = encoding.MarshalUint64(kb.B, date)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B[len(kb.B)-1]++
+		ts.Seek(kb.B)
+	}
+	if err := ts.Error(); err != nil {
+		return fmt.Errorf("error during search for prefix %q: %w", prefix, err)
+	}
+	return nil
+}
+
 // SearchTagKeys returns all the tag keys.
 func (db *indexDB) SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, error) {
-	// TODO: cache results?
-
 	tks := make(map[string]struct{})
 
 	is := db.getIndexSearch(deadline)
@@ -728,7 +836,6 @@ func (db *indexDB) SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, err
 		// Do not skip empty keys, since they are converted to __name__
 		keys = append(keys, key)
 	}
-
 	// Do not sort keys, since they must be sorted by vmselect.
 	return keys, nil
 }
@@ -778,10 +885,129 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 	return nil
 }
 
+// SearchTagValuesOnTimeRange returns all the tag values for the given tagKey on tr.
+func (db *indexDB) SearchTagValuesOnTimeRange(tagKey []byte, tr TimeRange, maxTagValues int, deadline uint64) ([]string, error) {
+	tvs := make(map[string]struct{})
+	is := db.getIndexSearch(deadline)
+	err := is.searchTagValuesOnTimeRange(tvs, tagKey, tr, maxTagValues)
+	db.putIndexSearch(is)
+	if err != nil {
+		return nil, err
+	}
+	ok := db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(deadline)
+		err = is.searchTagValuesOnTimeRange(tvs, tagKey, tr, maxTagValues)
+		extDB.putIndexSearch(is)
+	})
+	if ok && err != nil {
+		return nil, err
+	}
+
+	tagValues := make([]string, 0, len(tvs))
+	for tv := range tvs {
+		if len(tv) == 0 {
+			// Skip empty values, since they have no any meaning.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600
+			continue
+		}
+		tagValues = append(tagValues, tv)
+	}
+	// Do not sort tagValues, since they must be sorted by vmselect.
+	return tagValues, nil
+}
+
+func (is *indexSearch) searchTagValuesOnTimeRange(tvs map[string]struct{}, tagKey []byte, tr TimeRange, maxTagValues int) error {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	var errGlobal error
+	for date := minDate; date <= maxDate; date++ {
+		wg.Add(1)
+		go func(date uint64) {
+			defer wg.Done()
+			tvsLocal := make(map[string]struct{})
+			isLocal := is.db.getIndexSearch(is.deadline)
+			err := isLocal.searchTagValuesOnDate(tvsLocal, tagKey, date, maxTagValues)
+			is.db.putIndexSearch(isLocal)
+			mu.Lock()
+			defer mu.Unlock()
+			if errGlobal != nil {
+				return
+			}
+			if err != nil {
+				errGlobal = err
+				return
+			}
+			if len(tvs) >= maxTagValues {
+				return
+			}
+			for v := range tvsLocal {
+				tvs[v] = struct{}{}
+			}
+		}(date)
+	}
+	wg.Wait()
+	return errGlobal
+}
+
+func (is *indexSearch) searchTagValuesOnDate(tvs map[string]struct{}, tagKey []byte, date uint64, maxTagValues int) error {
+	ts := &is.ts
+	kb := &is.kb
+	mp := &is.mp
+	mp.Reset()
+	dmis := is.db.getDeletedMetricIDs()
+	loopsPaceLimiter := 0
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+	kb.B = encoding.MarshalUint64(kb.B, date)
+	kb.B = marshalTagValue(kb.B, tagKey)
+	prefix := kb.B
+	ts.Seek(prefix)
+	for len(tvs) < maxTagValues && ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
+		item := ts.Item
+		if !bytes.HasPrefix(item, prefix) {
+			break
+		}
+		if err := mp.Init(item, nsPrefixDateTagToMetricIDs); err != nil {
+			return err
+		}
+		if mp.IsDeletedTag(dmis) {
+			continue
+		}
+
+		// Store tag value
+		tvs[string(mp.Tag.Value)] = struct{}{}
+
+		if mp.MetricIDsLen() < maxMetricIDsPerRow/2 {
+			// There is no need in searching for the next tag value,
+			// since it is likely it is located in the next row,
+			// because the current row contains incomplete metricIDs set.
+			continue
+		}
+		// Search for the next tag value.
+		// The last char in kb.B must be tagSeparatorChar.
+		// Just increment it in order to jump to the next tag value.
+		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+		kb.B = encoding.MarshalUint64(kb.B, date)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B = marshalTagValue(kb.B, mp.Tag.Value)
+		kb.B[len(kb.B)-1]++
+		ts.Seek(kb.B)
+	}
+	if err := ts.Error(); err != nil {
+		return fmt.Errorf("error when searching for tag name prefix %q: %w", prefix, err)
+	}
+	return nil
+}
+
 // SearchTagValues returns all the tag values for the given tagKey
 func (db *indexDB) SearchTagValues(tagKey []byte, maxTagValues int, deadline uint64) ([]string, error) {
-	// TODO: cache results?
-
 	tvs := make(map[string]struct{})
 	is := db.getIndexSearch(deadline)
 	err := is.searchTagValues(tvs, tagKey, maxTagValues)
@@ -807,7 +1033,6 @@ func (db *indexDB) SearchTagValues(tagKey []byte, maxTagValues int, deadline uin
 		}
 		tagValues = append(tagValues, tv)
 	}
-
 	// Do not sort tagValues, since they must be sorted by vmselect.
 	return tagValues, nil
 }

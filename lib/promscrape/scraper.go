@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -75,6 +76,9 @@ func Stop() {
 var (
 	globalStopCh chan struct{}
 	scraperWG    sync.WaitGroup
+	// PendingScrapeConfigs - zero value means, that
+	// all scrapeConfigs are inited and ready for work.
+	PendingScrapeConfigs int32
 )
 
 func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
@@ -166,6 +170,7 @@ func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest)) *scrapeConf
 }
 
 func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrapeWork func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork) {
+	atomic.AddInt32(&PendingScrapeConfigs, 1)
 	scfg := &scrapeConfig{
 		name:          name,
 		pushData:      scs.pushData,
@@ -216,10 +221,15 @@ func (scfg *scrapeConfig) run() {
 
 	cfg := <-scfg.cfgCh
 	var swsPrev []ScrapeWork
-	for {
+	updateScrapeWork := func(cfg *Config) {
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
 		swsPrev = sws
+	}
+	updateScrapeWork(cfg)
+	atomic.AddInt32(&PendingScrapeConfigs, -1)
+
+	for {
 
 		select {
 		case <-scfg.stopCh:
@@ -227,6 +237,7 @@ func (scfg *scrapeConfig) run() {
 		case cfg = <-scfg.cfgCh:
 		case <-tickerCh:
 		}
+		updateScrapeWork(cfg)
 	}
 }
 

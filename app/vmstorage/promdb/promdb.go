@@ -60,12 +60,12 @@ func MustClose() {
 
 var promDB *tsdb.DB
 
-// GetLabelNames returns label names.
-func GetLabelNames(deadline searchutils.Deadline) ([]string, error) {
+// GetLabelNamesOnTimeRange returns label names.
+func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
-	q, err := promDB.Querier(ctx, 0, d.UnixNano()/1e6)
+	q, err := promDB.Querier(ctx, tr.MinTimestamp, tr.MaxTimestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +77,21 @@ func GetLabelNames(deadline searchutils.Deadline) ([]string, error) {
 	return names, err
 }
 
-// GetLabelValues returns values for the given labelName.
-func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, error) {
+// GetLabelNames returns label names.
+func GetLabelNames(deadline searchutils.Deadline) ([]string, error) {
+	tr := storage.TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: time.Now().UnixNano() / 1e6,
+	}
+	return GetLabelNamesOnTimeRange(tr, deadline)
+}
+
+// GetLabelValuesOnTimeRange returns values for the given labelName on the given tr.
+func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
-	q, err := promDB.Querier(ctx, 0, d.UnixNano()/1e6)
+	q, err := promDB.Querier(ctx, tr.MinTimestamp, tr.MaxTimestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +101,15 @@ func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, 
 	// Make full copy of values, since they cannot be used after q is closed.
 	values = copyStringsWithMemory(values)
 	return values, err
+}
+
+// GetLabelValues returns values for the given labelName.
+func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, error) {
+	tr := storage.TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: time.Now().UnixNano() / 1e6,
+	}
+	return GetLabelValuesOnTimeRange(labelName, tr, deadline)
 }
 
 func copyStringsWithMemory(a []string) []string {

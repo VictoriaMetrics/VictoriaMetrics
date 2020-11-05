@@ -495,6 +495,34 @@ func DeleteSeries(sq *storage.SearchQuery) (int, error) {
 	return vmstorage.DeleteMetrics(tfss)
 }
 
+// GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
+func GetLabelsOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	labels, err := vmstorage.SearchTagKeysOnTimeRange(tr, *maxTagKeysPerSearch, deadline.Deadline())
+	if err != nil {
+		return nil, fmt.Errorf("error during labels search on time range: %w", err)
+	}
+	// Substitute "" with "__name__"
+	for i := range labels {
+		if labels[i] == "" {
+			labels[i] = "__name__"
+		}
+	}
+
+	// Merge labels obtained from Prometheus storage.
+	promLabels, err := promdb.GetLabelNamesOnTimeRange(tr, deadline)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain labels from Prometheus storage: %w", err)
+	}
+	labels = mergeStrings(labels, promLabels)
+
+	// Sort labels like Prometheus does
+	sort.Strings(labels)
+	return labels, nil
+}
+
 // GetLabels returns labels until the given deadline.
 func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 	if deadline.Exceeded() {
@@ -504,7 +532,6 @@ func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search: %w", err)
 	}
-
 	// Substitute "" with "__name__"
 	for i := range labels {
 		if labels[i] == "" {
@@ -521,7 +548,6 @@ func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
-
 	return labels, nil
 }
 
@@ -546,6 +572,33 @@ func mergeStrings(a, b []string) []string {
 	return result
 }
 
+// GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
+// until the given deadline.
+func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	if labelName == "__name__" {
+		labelName = ""
+	}
+	// Search for tag values
+	labelValues, err := vmstorage.SearchTagValuesOnTimeRange([]byte(labelName), tr, *maxTagValuesPerSearch, deadline.Deadline())
+	if err != nil {
+		return nil, fmt.Errorf("error during label values search on time range for labelName=%q: %w", labelName, err)
+	}
+
+	// Merge label values obtained from Prometheus storage.
+	promLabelValues, err := promdb.GetLabelValuesOnTimeRange(labelName, tr, deadline)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain label values on time range for %q from Prometheus storage: %w", labelName, err)
+	}
+	labelValues = mergeStrings(labelValues, promLabelValues)
+
+	// Sort labelValues like Prometheus does
+	sort.Strings(labelValues)
+	return labelValues, nil
+}
+
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
 func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, error) {
@@ -555,7 +608,6 @@ func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, 
 	if labelName == "__name__" {
 		labelName = ""
 	}
-
 	// Search for tag values
 	labelValues, err := vmstorage.SearchTagValues([]byte(labelName), *maxTagValuesPerSearch, deadline.Deadline())
 	if err != nil {
@@ -571,7 +623,6 @@ func GetLabelValues(labelName string, deadline searchutils.Deadline) ([]string, 
 
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
-
 	return labelValues, nil
 }
 

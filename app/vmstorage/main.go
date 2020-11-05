@@ -125,12 +125,28 @@ func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
 	return n, err
 }
 
+// SearchTagKeysOnTimeRange searches for tag keys on tr.
+func SearchTagKeysOnTimeRange(tr storage.TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
+	WG.Add(1)
+	keys, err := Storage.SearchTagKeysOnTimeRange(tr, maxTagKeys, deadline)
+	WG.Done()
+	return keys, err
+}
+
 // SearchTagKeys searches for tag keys
 func SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, error) {
 	WG.Add(1)
 	keys, err := Storage.SearchTagKeys(maxTagKeys, deadline)
 	WG.Done()
 	return keys, err
+}
+
+// SearchTagValuesOnTimeRange searches for tag values for the given tagKey on tr.
+func SearchTagValuesOnTimeRange(tagKey []byte, tr storage.TimeRange, maxTagValues int, deadline uint64) ([]string, error) {
+	WG.Add(1)
+	values, err := Storage.SearchTagValuesOnTimeRange(tagKey, tr, maxTagValues, deadline)
+	WG.Done()
+	return values, err
 }
 
 // SearchTagValues searches for tag values for the given tagKey

@@ -170,6 +170,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "/ready":
+		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
+			errMsg := fmt.Sprintf("waiting for scrape config to init targets, configs left: %d", rdy)
+			http.Error(w, errMsg, http.StatusTooEarly)
+		} else {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		}
+		return true
 	default:
 		// This is not our link
 		return false

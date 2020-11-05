@@ -921,9 +921,19 @@ func (s *Storage) searchMetricName(dst []byte, metricID uint64) ([]byte, error) 
 	return s.idb().searchMetricName(dst, metricID)
 }
 
+// SearchTagKeysOnTimeRange searches for tag keys on tr.
+func (s *Storage) SearchTagKeysOnTimeRange(tr TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagKeysOnTimeRange(tr, maxTagKeys, deadline)
+}
+
 // SearchTagKeys searches for tag keys
 func (s *Storage) SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, error) {
 	return s.idb().SearchTagKeys(maxTagKeys, deadline)
+}
+
+// SearchTagValuesOnTimeRange searches for tag values for the given tagKey on tr.
+func (s *Storage) SearchTagValuesOnTimeRange(tagKey []byte, tr TimeRange, maxTagValues int, deadline uint64) ([]string, error) {
+	return s.idb().SearchTagValuesOnTimeRange(tagKey, tr, maxTagValues, deadline)
 }
 
 // SearchTagValues searches for tag values for the given tagKey

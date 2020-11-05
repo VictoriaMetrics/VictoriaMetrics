@@ -511,11 +511,31 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	var labelValues []string
-	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
-		var err error
-		labelValues, err = netstorage.GetLabelValues(labelName, deadline)
-		if err != nil {
-			return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
+	if len(r.Form["match[]"]) == 0 {
+		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+			var err error
+			labelValues, err = netstorage.GetLabelValues(labelName, deadline)
+			if err != nil {
+				return fmt.Errorf(`cannot obtain label values for %q: %w`, labelName, err)
+			}
+		} else {
+			ct := startTime.UnixNano() / 1e6
+			end, err := searchutils.GetTime(r, "end", ct)
+			if err != nil {
+				return err
+			}
+			start, err := searchutils.GetTime(r, "start", end-defaultStep)
+			if err != nil {
+				return err
+			}
+			tr := storage.TimeRange{
+				MinTimestamp: start,
+				MaxTimestamp: end,
+			}
+			labelValues, err = netstorage.GetLabelValuesOnTimeRange(labelName, tr, deadline)
+			if err != nil {
+				return fmt.Errorf(`cannot obtain label values on time range for %q: %w`, labelName, err)
+			}
 		}
 	} else {
 		// Extended functionality that allows filtering by label filters and time range
@@ -692,11 +712,31 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	var labels []string
-	if len(r.Form["match[]"]) == 0 && len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
-		var err error
-		labels, err = netstorage.GetLabels(deadline)
-		if err != nil {
-			return fmt.Errorf("cannot obtain labels: %w", err)
+	if len(r.Form["match[]"]) == 0 {
+		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
+			var err error
+			labels, err = netstorage.GetLabels(deadline)
+			if err != nil {
+				return fmt.Errorf("cannot obtain labels: %w", err)
+			}
+		} else {
+			ct := startTime.UnixNano() / 1e6
+			end, err := searchutils.GetTime(r, "end", ct)
+			if err != nil {
+				return err
+			}
+			start, err := searchutils.GetTime(r, "start", end-defaultStep)
+			if err != nil {
+				return err
+			}
+			tr := storage.TimeRange{
+				MinTimestamp: start,
+				MaxTimestamp: end,
+			}
+			labels, err = netstorage.GetLabelsOnTimeRange(tr, deadline)
+			if err != nil {
+				return fmt.Errorf("cannot obtain labels on time range: %w", err)
+			}
 		}
 	} else {
 		// Extended functionality that allows filtering by label filters and time range
