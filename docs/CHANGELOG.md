@@ -1,3 +1,5 @@
+# CHANGELOG
+
 # tip
 
 * FEATURE: optimize requests to `/api/v1/labels` and `/api/v1/label/<name>/values` when `start` and `end` args are set.
