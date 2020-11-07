@@ -325,18 +325,16 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		samplesScraped += len(rows)
 		for i := range rows {
 			sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
-			if len(wc.labels) > 40000 {
-				// Limit the maximum size of wc.writeRequest.
-				// This should reduce memory usage when scraping targets with millions of metrics and/or labels.
-				// For example, when scraping /federate handler from Prometheus - see https://prometheus.io/docs/prometheus/latest/federation/
-				samplesPostRelabeling += len(wc.writeRequest.Timeseries)
-				sw.updateSeriesAdded(wc)
-				startTime := time.Now()
-				sw.PushData(&wc.writeRequest)
-				pushDataDuration.UpdateDuration(startTime)
-				wc.resetNoRows()
-			}
 		}
+		// Push the collected rows to sw before returning from the callback, since they cannot be held
+		// after returning from the callback - this will result in data race.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
+		samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+		sw.updateSeriesAdded(wc)
+		startTime := time.Now()
+		sw.PushData(&wc.writeRequest)
+		pushDataDuration.UpdateDuration(startTime)
+		wc.resetNoRows()
 		return nil
 	})
 	scrapedSamples.Update(float64(samplesScraped))
@@ -352,8 +350,6 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		}
 		scrapesFailed.Inc()
 	}
-	samplesPostRelabeling += len(wc.writeRequest.Timeseries)
-	sw.updateSeriesAdded(wc)
 	seriesAdded := sw.finalizeSeriesAdded(samplesPostRelabeling)
 	sw.addAutoTimeseries(wc, "up", float64(up), scrapeTimestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", duration, scrapeTimestamp)
