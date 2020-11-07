@@ -95,7 +95,7 @@ func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
 		}
 		addrTypesUsed[a.Type] = true
 		ln := discoveryutils.SanitizeLabelName(a.Type)
-		m["__meta_kubernetes_node_address_" + ln] = a.Address
+		m["__meta_kubernetes_node_address_"+ln] = a.Address
 	}
 	ms = append(ms, m)
 	return ms

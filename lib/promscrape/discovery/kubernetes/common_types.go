@@ -22,13 +22,13 @@ type ObjectMeta struct {
 func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m map[string]string) {
 	for _, lb := range om.Labels {
 		ln := discoveryutils.SanitizeLabelName(lb.Name)
-		m[prefix + "_label_" + ln] = lb.Value
-		m[prefix + "_labelpresent_" + ln] = "true"
+		m[prefix+"_label_"+ln] = lb.Value
+		m[prefix+"_labelpresent_"+ln] = "true"
 	}
 	for _, a := range om.Annotations {
 		an := discoveryutils.SanitizeLabelName(a.Name)
-		m[prefix + "_annotation_" + an] = a.Value
-		m[prefix + "_annotationpresent_" + an] = "true"
+		m[prefix+"_annotation_"+an] = a.Value
+		m[prefix+"_annotationpresent_"+an] = "true"
 	}
 }
 
