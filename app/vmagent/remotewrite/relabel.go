@@ -117,12 +117,7 @@ type relabelCtx struct {
 }
 
 func (rctx *relabelCtx) reset() {
-	labels := rctx.labels
-	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
-	}
+	promrelabel.CleanLabels(rctx.labels)
 	rctx.labels = rctx.labels[:0]
 }
 
