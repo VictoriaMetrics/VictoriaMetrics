@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -23,13 +22,13 @@ type ObjectMeta struct {
 func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m map[string]string) {
 	for _, lb := range om.Labels {
 		ln := discoveryutils.SanitizeLabelName(lb.Name)
-		m[fmt.Sprintf("%s_label_%s", prefix, ln)] = lb.Value
-		m[fmt.Sprintf("%s_labelpresent_%s", prefix, ln)] = "true"
+		m[prefix + "_label_" + ln] = lb.Value
+		m[prefix + "_labelpresent_" + ln] = "true"
 	}
 	for _, a := range om.Annotations {
 		an := discoveryutils.SanitizeLabelName(a.Name)
-		m[fmt.Sprintf("%s_annotation_%s", prefix, an)] = a.Value
-		m[fmt.Sprintf("%s_annotationpresent_%s", prefix, an)] = "true"
+		m[prefix + "_annotation_" + an] = a.Value
+		m[prefix + "_annotationpresent_" + an] = "true"
 	}
 }
 
