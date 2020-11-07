@@ -927,9 +927,13 @@ func (b *bucket16) delFromSmallPool(x uint16) bool {
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	if b.bits == nil {
+		// Sort a copy of b.smallPool, since b must be readonly in order to prevent from data races
+		// when b.appendTo is called from concurrent goroutines.
+		smallPool := b.smallPool
+
 		// Use uint16Sorter instead of sort.Slice here in order to reduce memory allocations.
 		a := uint16SorterPool.Get().(*uint16Sorter)
-		*a = uint16Sorter(b.smallPool[:b.smallPoolLen])
+		*a = uint16Sorter(smallPool[:b.smallPoolLen])
 		if len(*a) > 1 && !sort.IsSorted(a) {
 			sort.Sort(a)
 		}
