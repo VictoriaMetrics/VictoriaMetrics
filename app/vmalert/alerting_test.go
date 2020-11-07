@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -219,19 +221,6 @@ func TestAlertingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			newTestAlertingRule("duplicate", 0),
-			[][]datasource.Metric{
-				{
-					// metrics with the same labelset should result in one alert
-					metricWithLabels(t, "name", "foo", "type", "bar"),
-					metricWithLabels(t, "type", "bar", "name", "foo"),
-				},
-			},
-			map[uint64]*notifier.Alert{
-				hash(metricWithLabels(t, "name", "foo", "type", "bar")): {State: notifier.StateFiring},
-			},
-		},
-		{
 			newTestAlertingRule("for-pending", time.Minute),
 			[][]datasource.Metric{
 				{metricWithLabels(t, "name", "foo")},
@@ -376,7 +365,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 					alertNameLabel, "",
 					"foo", "bar",
 					"namespace", "baz",
-					// following pair supposed to be dropped
+					// extra labels set by rule
 					"source", "vm",
 				),
 			},
@@ -384,6 +373,7 @@ func TestAlertingRule_Restore(t *testing.T) {
 				hash(metricWithLabels(t,
 					"foo", "bar",
 					"namespace", "baz",
+					"source", "vm",
 				)): {State: notifier.StatePending,
 					Start: time.Now().Truncate(time.Hour)},
 			},
@@ -439,6 +429,38 @@ func TestAlertingRule_Restore(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAlertingRule_Exec_Negative(t *testing.T) {
+	fq := &fakeQuerier{}
+	ar := newTestAlertingRule("test", 0)
+	ar.Labels = map[string]string{"job": "test"}
+
+	// successful attempt
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+	_, err := ar.Exec(context.TODO(), fq, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// label `job` will collide with rule extra label and will make both time series equal
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "baz"))
+	_, err = ar.Exec(context.TODO(), fq, false)
+	if !errors.Is(err, errDuplicate) {
+		t.Fatalf("expected to have %s error; got %s", errDuplicate, err)
+	}
+
+	fq.reset()
+
+	expErr := "connection reset by peer"
+	fq.setErr(errors.New(expErr))
+	_, err = ar.Exec(context.TODO(), fq, false)
+	if err == nil {
+		t.Fatalf("expected to get err; got nil")
+	}
+	if !strings.Contains(err.Error(), expErr) {
+		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
 	}
 }
 

@@ -172,6 +172,11 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("faield to create alert: %s", err)
 	}
 	alert1.State = notifier.StateFiring
+	// add external label
+	alert1.Labels["cluster"] = "east-1"
+	// add rule labels - see config/testdata/rules1-good.rules
+	alert1.Labels["label"] = "bar"
+	alert1.Labels["host"] = inst1
 	alert1.ID = hash(m1)
 
 	alert2, err := r.newAlert(m2, time.Now())
@@ -179,6 +184,11 @@ func TestGroupStart(t *testing.T) {
 		t.Fatalf("faield to create alert: %s", err)
 	}
 	alert2.State = notifier.StateFiring
+	// add external label
+	alert2.Labels["cluster"] = "east-1"
+	// add rule labels - see config/testdata/rules1-good.rules
+	alert2.Labels["label"] = "bar"
+	alert2.Labels["host"] = inst2
 	alert2.ID = hash(m2)
 
 	finished := make(chan struct{})

@@ -17,6 +17,23 @@ type Metric struct {
 	Value     float64
 }
 
+// SetLabel adds or updates existing one label
+// by the given key and label
+func (m *Metric) SetLabel(key, value string) {
+	for i, l := range m.Labels {
+		if l.Name == key {
+			m.Labels[i].Value = value
+			return
+		}
+	}
+	m.AddLabel(key, value)
+}
+
+// AddLabel appends the given label to the label set
+func (m *Metric) AddLabel(key, value string) {
+	m.Labels = append(m.Labels, Label{Name: key, Value: value})
+}
+
 // Label represents metric's label
 type Label struct {
 	Name  string
