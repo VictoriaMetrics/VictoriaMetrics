@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -135,12 +136,8 @@ type pushCtx struct {
 func (ctx *pushCtx) reset() {
 	ctx.ctx.Reset()
 
-	commonLabels := ctx.commonLabels
-	for i := range commonLabels {
-		label := &commonLabels[i]
-		label.Name = ""
-		label.Value = ""
-	}
+	promrelabel.CleanLabels(ctx.commonLabels)
+	ctx.commonLabels = ctx.commonLabels[:0]
 
 	ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 	ctx.buf = ctx.buf[:0]

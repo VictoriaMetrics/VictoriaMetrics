@@ -643,6 +643,11 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	promrelabel.SortLabels(originalLabels)
 	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	// Remove references to already deleted labels, so GC could clean strings for label name and label value.
+	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
+	promrelabel.CleanLabels(labels[len(labels):cap(labels)])
+
 	if len(labels) == 0 {
 		// Drop target without labels.
 		droppedTargetsMap.Register(originalLabels)

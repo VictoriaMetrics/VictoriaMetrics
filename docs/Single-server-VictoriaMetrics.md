@@ -772,7 +772,7 @@ Time series data can be imported via any supported ingestion protocol:
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
-  See [these docs](##how-to-import-data-in-json-line-format) for details.
+  See [these docs](#how-to-import-data-in-json-line-format) for details.
 * `/api/v1/import/native` for importing data obtained from [/api/v1/export/native](#how-to-export-data-in-native-format).
   See [these docs](#how-to-import-data-in-native-format) for details.
 * `/api/v1/import/csv` for importing arbitrary CSV data. See [these docs](#how-to-import-csv-data) for details.

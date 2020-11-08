@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
@@ -104,11 +105,7 @@ func (wr *writeRequest) reset() {
 	}
 	wr.tss = wr.tss[:0]
 
-	for i := range wr.labels {
-		label := &wr.labels[i]
-		label.Name = ""
-		label.Value = ""
-	}
+	promrelabel.CleanLabels(wr.labels)
 	wr.labels = wr.labels[:0]
 
 	wr.samples = wr.samples[:0]
