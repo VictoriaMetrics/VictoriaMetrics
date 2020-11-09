@@ -15,7 +15,7 @@ import (
 	"github.com/valyala/histogram"
 )
 
-var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The mimimum interval for staleness calculations. "+
+var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The minimum interval for staleness calculations. "+
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
