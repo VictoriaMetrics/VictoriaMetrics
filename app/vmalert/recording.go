@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -78,8 +77,6 @@ func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 func (rr *RecordingRule) Close() {
 	metrics.UnregisterMetric(rr.metrics.errors.name)
 }
-
-var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")
 
 // Exec executes RecordingRule expression via the given Querier.
 func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series bool) ([]prompbmarshal.TimeSeries, error) {
