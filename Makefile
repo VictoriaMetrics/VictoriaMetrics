@@ -156,4 +156,3 @@ docs-sync:
 	cp app/vmbackup/README.md docs/vmbackup.md
 	cp app/vmrestore/README.md docs/vmrestore.md
 	cp README.md docs/Single-server-VictoriaMetrics.md
-	cp CHANGELOG.md docs/
