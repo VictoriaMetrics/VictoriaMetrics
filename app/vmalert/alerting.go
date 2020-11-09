@@ -140,7 +140,17 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
+		for k, v := range ar.Labels {
+			// apply extra labels
+			m.SetLabel(k, v)
+		}
+
 		h := hash(m)
+		if _, ok := updated[h]; ok {
+			// duplicate may be caused by extra labels
+			// conflicting with the metric labels
+			return nil, fmt.Errorf("labels %v: %w", m.Labels, errDuplicate)
+		}
 		updated[h] = struct{}{}
 		if a, ok := ar.alerts[h]; ok {
 			if a.Value != m.Value {
@@ -258,25 +268,11 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time) (*notifie
 }
 
 func (ar *AlertingRule) template(a *notifier.Alert) error {
-	// 1. template rule labels with data labels
-	rLabels, err := a.ExecTemplate(ar.Labels)
-	if err != nil {
-		return err
-	}
-
-	// 2. merge data labels and rule labels
-	// metric labels may be overridden by
-	// rule labels
-	for k, v := range rLabels {
-		a.Labels[k] = v
-	}
-
-	// 3. template merged labels
+	var err error
 	a.Labels, err = a.ExecTemplate(a.Labels)
 	if err != nil {
 		return err
 	}
-
 	a.Annotations, err = a.ExecTemplate(ar.Annotations)
 	return err
 }
@@ -419,14 +415,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		// drop all extra labels, so hash key will
 		// be identical to time series received in Exec
 		for _, l := range labels {
-			if l.Name == alertNameLabel {
-				continue
-			}
-			if l.Name == alertGroupNameLabel {
-				continue
-			}
-			// drop all overridden labels
-			if _, ok := ar.Labels[l.Name]; ok {
+			if l.Name == alertNameLabel || l.Name == alertGroupNameLabel {
 				continue
 			}
 			m.Labels = append(m.Labels, l)
