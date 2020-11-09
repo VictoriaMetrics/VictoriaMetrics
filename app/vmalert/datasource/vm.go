@@ -37,7 +37,7 @@ func (r response) metrics() ([]Metric, error) {
 		}
 		m.Labels = nil
 		for k, v := range r.Data.Result[i].Labels {
-			m.Labels = append(m.Labels, Label{Name: k, Value: v})
+			m.AddLabel(k, v)
 		}
 		m.Timestamp = int64(res.TV[0].(float64))
 		m.Value = f
