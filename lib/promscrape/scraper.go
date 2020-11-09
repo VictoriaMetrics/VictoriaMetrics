@@ -319,7 +319,7 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 
 	// Stop deleted scrapers, which are missing in sws.
 	for key, sc := range sg.m {
-		if swsMap[key] == nil {
+		if _, ok := swsMap[key]; !ok {
 			close(sc.stopCh)
 			delete(sg.m, key)
 			deletionsCount++

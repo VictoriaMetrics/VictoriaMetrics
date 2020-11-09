@@ -32,6 +32,9 @@ var (
 	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output")
+	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
+		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
+		"Note that this reduces debuggability for improper per-target relabeling configs")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -639,14 +642,17 @@ func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfi
 
 func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
-	originalLabels := append([]prompbmarshal.Label{}, labels...)
-	promrelabel.SortLabels(originalLabels)
+	var originalLabels []prompbmarshal.Label
+	if !*dropOriginalLabels {
+		originalLabels = append([]prompbmarshal.Label{}, labels...)
+		promrelabel.SortLabels(originalLabels)
+	}
 	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
-	// Remove references to already deleted labels, so GC could clean strings for label name and label value.
+	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	promrelabel.CleanLabels(labels[len(labels):cap(labels)])
+	labels = append([]prompbmarshal.Label{}, labels...)
 
 	if len(labels) == 0 {
 		// Drop target without labels.
