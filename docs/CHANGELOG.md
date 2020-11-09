@@ -4,6 +4,7 @@
 
 * FEATURE: vmagent: add `-promscrape.dropOriginalLabels` command-line option, which can be used for reducing memory usage when scraping big number of targets.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-724308361 for details.
+* FEATURE: vmalert: explicitly set extra labels to alert entities. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870
 
 
 # [v1.46.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.46.0)
