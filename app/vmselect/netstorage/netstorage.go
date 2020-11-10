@@ -532,7 +532,7 @@ func GetLabelsOnTimeRange(at *auth.Token, tr storage.TimeRange, deadline searchu
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching labels on time range: %w", errors[0])
+			return nil, false, fmt.Errorf("error occured during fetching labels on time range: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -599,7 +599,7 @@ func GetLabels(at *auth.Token, deadline searchutils.Deadline) ([]string, bool, e
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching labels: %w", errors[0])
+			return nil, false, fmt.Errorf("error occured during fetching labels: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -671,7 +671,7 @@ func GetLabelValuesOnTimeRange(at *auth.Token, labelName string, tr storage.Time
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching label values on time range: %w", errors[0])
+			return nil, false, fmt.Errorf("error occured during fetching label values on time range: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -738,7 +738,7 @@ func GetLabelValues(at *auth.Token, labelName string, deadline searchutils.Deadl
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching label values: %w", errors[0])
+			return nil, false, fmt.Errorf("error occured during fetching label values: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -805,7 +805,7 @@ func GetTagValueSuffixes(at *auth.Token, tr storage.TimeRange, tagKey, tagValueP
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c: %w",
+			return nil, false, fmt.Errorf("error occured during fetching tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c: %w",
 				tr.String(), tagKey, tagValuePrefix, delimiter, errors[0])
 		}
 
@@ -867,7 +867,7 @@ func GetLabelEntries(at *auth.Token, deadline searchutils.Deadline) ([]storage.T
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching label entries: %w", errors[0])
+			return nil, false, fmt.Errorf("error occured during fetching label entries: %w", errors[0])
 		}
 
 		// Just log errors and return partial results.
@@ -975,7 +975,7 @@ func GetTSDBStatusForDate(at *auth.Token, deadline searchutils.Deadline, date ui
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return nil, true, fmt.Errorf("error occured during fetching tsdb stats: %w", errors[0])
+			return nil, false, fmt.Errorf("error occured during fetching tsdb stats: %w", errors[0])
 		}
 		// Just log errors and return partial results.
 		// This allows gracefully degrade vmselect in the case
@@ -1079,7 +1079,7 @@ func GetSeriesCount(at *auth.Token, deadline searchutils.Deadline) (uint64, bool
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return 0, true, fmt.Errorf("error occured during fetching series count: %w", errors[0])
+			return 0, false, fmt.Errorf("error occured during fetching series count: %w", errors[0])
 		}
 		// Just log errors and return partial results.
 		// This allows gracefully degrade vmselect in the case
@@ -1203,7 +1203,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 	isPartialResult, err := processSearchQuery(at, sq, fetchData, processBlock, deadline)
 	if err != nil {
 		putTmpBlocksFile(tbfw.tbf)
-		return nil, true, fmt.Errorf("error occured during search: %w", err)
+		return nil, false, fmt.Errorf("error occured during search: %w", err)
 	}
 	if err := tbfw.tbf.Finalize(); err != nil {
 		putTmpBlocksFile(tbfw.tbf)
@@ -1259,14 +1259,14 @@ func processSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
-			return true, errors[0]
+			return false, errors[0]
 		}
 
 		// Just return partial results.
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		// Do not return the error, since it may spam logs on busy vmselect
-		// serving high amount of requests.
+		// serving high amounts of requests.
 		partialSearchResults.Inc()
 		isPartialResult = true
 	}
