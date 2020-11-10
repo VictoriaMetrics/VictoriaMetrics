@@ -507,7 +507,9 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	ni := 0
 	nj := 0
 	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
-	canDropLastSample := rc.CanDropLastSample
+	// Do not drop trailing data points for queries, which return 2 or 1 point (aka instant queries).
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
+	canDropLastSample := rc.CanDropLastSample && len(rc.Timestamps) > 2
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -526,13 +528,12 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if canDropLastSample && j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) && rc.End-tEnd >= 2*rc.Step {
+		if canDropLastSample && j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) {
 			// Drop trailing data points in the following cases:
 			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
 			// - if time series contains only a single raw sample
 			// This should prevent from double counting when a label changes in time series (for instance,
 			// during new deployment in K8S). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748
-			// Do not drop trailing data points for instant queries. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
 			rfa.prevValue = nan
 			rfa.values = nil
 			rfa.timestamps = nil
