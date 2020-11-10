@@ -64,7 +64,7 @@ func (tsm *targetStatusMap) Reset() {
 func (tsm *targetStatusMap) Register(sw *ScrapeWork) {
 	tsm.mu.Lock()
 	tsm.m[sw.ID] = targetStatus{
-		sw: sw,
+		sw: *sw,
 	}
 	tsm.mu.Unlock()
 }
@@ -78,7 +78,7 @@ func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, err error) {
 	tsm.mu.Lock()
 	tsm.m[sw.ID] = targetStatus{
-		sw:             sw,
+		sw:             *sw,
 		up:             up,
 		scrapeGroup:    group,
 		scrapeTime:     scrapeTime,
@@ -221,7 +221,7 @@ type jobStatus struct {
 }
 
 type targetStatus struct {
-	sw             *ScrapeWork
+	sw             ScrapeWork
 	up             bool
 	scrapeGroup    string
 	scrapeTime     int64
