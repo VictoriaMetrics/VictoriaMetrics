@@ -6,6 +6,9 @@
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-724308361 for details.
 * FEATURE: vmalert: explicitly set extra labels to alert entities. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870
 
+* BUGFIX: do not return data points in the end of the selected time range for time series ending in the middle of the selected time range.
+  See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
+
 
 # [v1.46.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.46.0)
 
