@@ -475,7 +475,7 @@ scrape_configs:
 - job_name: foo
   static_configs:
   - targets: ["xxx"]
-`, nil)
+`, []ScrapeWork{})
 	f(`
 scrape_configs:
 - job_name: foo

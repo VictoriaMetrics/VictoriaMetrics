@@ -184,7 +184,7 @@ func getSWSByJob(sws []ScrapeWork) map[string][]ScrapeWork {
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -212,7 +212,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -240,7 +240,7 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -268,7 +268,7 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -296,7 +296,7 @@ func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -324,7 +324,7 @@ func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -352,7 +352,7 @@ func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getGCESDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -390,7 +390,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 			swsMapPrev[filepath] = append(swsMapPrev[filepath], *sw)
 		}
 	}
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.FileSDConfigs {
