@@ -16,10 +16,10 @@ type SDConfig struct {
 	Scheme       string              `yaml:"scheme,omitempty"`
 	Username     string              `yaml:"username"`
 	Password     string              `yaml:"password"`
-	TLSConfig    *promauth.TLSConfig `yaml:"tls_config"`
+	TLSConfig    *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	Services     []string            `yaml:"services,omitempty"`
 	Tags         []string            `yaml:"tags,omitempty"`
-	NodeMeta     map[string]string   `yaml:"node_meta"`
+	NodeMeta     map[string]string   `yaml:"node_meta,omitempty"`
 	TagSeparator *string             `yaml:"tag_separator,omitempty"`
 	AllowStale   bool                `yaml:"allow_stale,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`

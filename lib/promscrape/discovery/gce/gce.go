@@ -10,7 +10,7 @@ import (
 type SDConfig struct {
 	Project string   `yaml:"project"`
 	Zone    ZoneYAML `yaml:"zone"`
-	Filter  string   `yaml:"filter"`
+	Filter  string   `yaml:"filter,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.gceSDCheckInterval` command-line option.
 	Port         *int    `yaml:"port,omitempty"`

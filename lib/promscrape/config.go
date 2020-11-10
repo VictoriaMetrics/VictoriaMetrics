@@ -37,7 +37,7 @@ var (
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
 	Global        GlobalConfig   `yaml:"global"`
-	ScrapeConfigs []ScrapeConfig `yaml:"scrape_configs,omitempty"`
+	ScrapeConfigs []ScrapeConfig `yaml:"scrape_configs"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
@@ -102,7 +102,7 @@ type FileSDConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config
 type StaticConfig struct {
-	Targets []string          `yaml:"targets,omitempty"`
+	Targets []string          `yaml:"targets"`
 	Labels  map[string]string `yaml:"labels,omitempty"`
 }
 

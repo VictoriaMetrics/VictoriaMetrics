@@ -12,7 +12,7 @@ import (
 type SDConfig struct {
 	Host string `yaml:"host"`
 	// TODO: add support for proxy_url
-	TLSConfig *promauth.TLSConfig `yaml:"tls_config"`
+	TLSConfig *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	Role      string              `yaml:"role"`
 	Port      int                 `yaml:"port,omitempty"`
 	// refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option

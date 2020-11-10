@@ -17,7 +17,7 @@ type TLSConfig struct {
 	CertFile           string `yaml:"cert_file,omitempty"`
 	KeyFile            string `yaml:"key_file,omitempty"`
 	ServerName         string `yaml:"server_name,omitempty"`
-	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 }
 
 // BasicAuthConfig represents basic auth config.

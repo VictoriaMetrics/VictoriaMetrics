@@ -17,7 +17,7 @@ type SDConfig struct {
 	BearerTokenFile string                    `yaml:"bearer_token_file,omitempty"`
 	TLSConfig       *promauth.TLSConfig       `yaml:"tls_config,omitempty"`
 	Namespaces      Namespaces                `yaml:"namespaces,omitempty"`
-	Selectors       []Selector                `yaml:"selectors"`
+	Selectors       []Selector                `yaml:"selectors,omitempty"`
 }
 
 // Namespaces represents namespaces for SDConfig
