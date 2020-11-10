@@ -37,7 +37,7 @@ var (
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type Config struct {
 	Global        GlobalConfig   `yaml:"global"`
-	ScrapeConfigs []ScrapeConfig `yaml:"scrape_configs"`
+	ScrapeConfigs []ScrapeConfig `yaml:"scrape_configs,omitempty"`
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
@@ -47,9 +47,9 @@ type Config struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
-	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout"`
-	ExternalLabels map[string]string `yaml:"external_labels"`
+	ScrapeInterval time.Duration     `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels map[string]string `yaml:"external_labels,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -57,29 +57,29 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       time.Duration               `yaml:"scrape_interval"`
-	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout"`
-	MetricsPath          string                      `yaml:"metrics_path"`
-	HonorLabels          bool                        `yaml:"honor_labels"`
-	HonorTimestamps      bool                        `yaml:"honor_timestamps"`
-	Scheme               string                      `yaml:"scheme"`
-	Params               map[string][]string         `yaml:"params"`
-	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth"`
-	BearerToken          string                      `yaml:"bearer_token"`
-	BearerTokenFile      string                      `yaml:"bearer_token_file"`
-	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config"`
-	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
-	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
-	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
-	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs"`
-	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs"`
-	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs"`
-	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs"`
-	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
-	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
-	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
-	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
-	SampleLimit          int                         `yaml:"sample_limit"`
+	ScrapeInterval       time.Duration               `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout,omitempty"`
+	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
+	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
+	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
+	Scheme               string                      `yaml:"scheme,omitempty"`
+	Params               map[string][]string         `yaml:"params,omitempty"`
+	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
+	BearerToken          string                      `yaml:"bearer_token,omitempty"`
+	BearerTokenFile      string                      `yaml:"bearer_token_file,omitempty"`
+	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config,omitempty"`
+	StaticConfigs        []StaticConfig              `yaml:"static_configs,omitempty"`
+	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs,omitempty"`
+	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs,omitempty"`
+	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs,omitempty"`
+	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs,omitempty"`
+	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
+	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs,omitempty"`
+	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs,omitempty"`
+	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs,omitempty"`
+	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
+	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
+	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression bool `yaml:"disable_compression,omitempty"`
@@ -102,8 +102,8 @@ type FileSDConfig struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config
 type StaticConfig struct {
-	Targets []string          `yaml:"targets"`
-	Labels  map[string]string `yaml:"labels"`
+	Targets []string          `yaml:"targets,omitempty"`
+	Labels  map[string]string `yaml:"labels,omitempty"`
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {

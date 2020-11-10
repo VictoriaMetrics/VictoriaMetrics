@@ -25,10 +25,10 @@ type SDConfig struct {
 	Region                      string `yaml:"region"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.openstackSDCheckInterval` command-line option.
-	Port         int                 `yaml:"port"`
-	AllTenants   bool                `yaml:"all_tenants"`
+	Port         int                 `yaml:"port,omitempty"`
+	AllTenants   bool                `yaml:"all_tenants,omitempty"`
 	TLSConfig    *promauth.TLSConfig `yaml:"tls_config"`
-	Availability string              `yaml:"availability"`
+	Availability string              `yaml:"availability,omitempty"`
 }
 
 // GetLabels returns gce labels according to sdc.

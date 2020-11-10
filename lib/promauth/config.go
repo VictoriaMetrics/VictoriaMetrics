@@ -13,18 +13,18 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
 type TLSConfig struct {
-	CAFile             string `yaml:"ca_file"`
-	CertFile           string `yaml:"cert_file"`
-	KeyFile            string `yaml:"key_file"`
-	ServerName         string `yaml:"server_name"`
+	CAFile             string `yaml:"ca_file,omitempty"`
+	CertFile           string `yaml:"cert_file,omitempty"`
+	KeyFile            string `yaml:"key_file,omitempty"`
+	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
 }
 
 // BasicAuthConfig represents basic auth config.
 type BasicAuthConfig struct {
 	Username     string `yaml:"username"`
-	Password     string `yaml:"password"`
-	PasswordFile string `yaml:"password_file"`
+	Password     string `yaml:"password,omitempty"`
+	PasswordFile string `yaml:"password_file,omitempty"`
 }
 
 // Config is auth config.

@@ -13,8 +13,8 @@ type SDConfig struct {
 	Filter  string   `yaml:"filter"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.gceSDCheckInterval` command-line option.
-	Port         *int    `yaml:"port"`
-	TagSeparator *string `yaml:"tag_separator"`
+	Port         *int    `yaml:"port,omitempty"`
+	TagSeparator *string `yaml:"tag_separator,omitempty"`
 }
 
 // ZoneYAML holds info about zones.

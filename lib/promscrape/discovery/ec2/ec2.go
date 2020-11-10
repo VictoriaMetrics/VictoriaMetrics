@@ -8,17 +8,17 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config
 type SDConfig struct {
-	Region    string `yaml:"region"`
+	Region    string `yaml:"region,omitempty"`
 	Endpoint  string `yaml:"endpoint"`
-	AccessKey string `yaml:"access_key"`
-	SecretKey string `yaml:"secret_key"`
+	AccessKey string `yaml:"access_key,omitempty"`
+	SecretKey string `yaml:"secret_key,omitempty"`
 	// TODO add support for Profile, not working atm
 	Profile string `yaml:"profile"`
 	RoleARN string `yaml:"role_arn"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
-	Port    *int     `yaml:"port"`
-	Filters []Filter `yaml:"filters"`
+	Port    *int     `yaml:"port,omitempty"`
+	Filters []Filter `yaml:"filters,omitempty"`
 }
 
 // Filter is ec2 filter.
