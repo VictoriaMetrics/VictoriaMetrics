@@ -194,6 +194,8 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
     - `api/v1/export/native` - exports raw data in native binary format. It may be imported into another VictoriaMetrics via `api/v1/import/native` (see above).
     - `api/v1/export/csv` - exports data in CSV. It may be imported into another VictoriaMetrics via `api/v1/import/csv` (see above).
     - `api/v1/status/tsdb` - for time series stats. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats) for details.
+      VictoriaMetrics accepts optional `topN=N` and `date=YYYY-MM-DD` query args for this handler, where `N` is the number of top entries to return in the response
+      and `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day.
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
 
