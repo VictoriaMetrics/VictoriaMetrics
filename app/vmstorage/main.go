@@ -30,6 +30,7 @@ var (
 	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
+	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
 
 	finalMergeDelay = flag.Duration("finalMergeDelay", 30*time.Second, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
 		"Query speed and disk space usage is usually reduced after the final merge is complete. Too low delay for final merge may result in increased "+
@@ -144,6 +145,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			}
 			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
 		}()
+		return true
+	}
+	if path == "/internal/force_flush" {
+		authKey := r.FormValue("authKey")
+		if authKey != *forceFlushAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceFlushAuthKey command line flag", authKey)
+			return true
+		}
+		logger.Infof("flushing storage to make pending data available for reading")
+		strg.DebugFlush()
 		return true
 	}
 	if !strings.HasPrefix(path, "/snapshot") {

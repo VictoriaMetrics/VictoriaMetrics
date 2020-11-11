@@ -206,8 +206,8 @@ func (s *Storage) RetentionMsecs() int64 {
 	return s.retentionMsecs
 }
 
-// debugFlush flushes recently added storage data, so it becomes visible to search.
-func (s *Storage) debugFlush() {
+// DebugFlush flushes recently added storage data, so it becomes visible to search.
+func (s *Storage) DebugFlush() {
 	s.tb.flushRawRows()
 	s.idb().tb.DebugFlush()
 }

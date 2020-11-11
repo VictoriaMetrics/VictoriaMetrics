@@ -597,7 +597,7 @@ func testStorageDeleteMetrics(s *Storage, workerNum int) error {
 			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
 	}
-	s.debugFlush()
+	s.DebugFlush()
 
 	// Verify tag values exist
 	tvs, err := s.SearchTagValues(accountID, projectID, workerTag, 1e5, noDeadline)
