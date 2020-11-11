@@ -1243,6 +1243,11 @@ VictoriaMetrics also exposes currently running queries with their execution time
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `-search.treatDotsAsIsInRegexps` command-line flag could be useful.
+  By default `.` chars in regexps match any char. If you need matching only dots, then the `\\.` must be used in regexp filters.
+  When `-search.treatDotsAsIsInRegexps` option is enabled, then dots in regexps are automatically escaped in order to match only dots instead of arbitrary chars.
+  This may significantly increase performance when locating time series for the given label filters.
+
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
 
