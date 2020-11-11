@@ -23,6 +23,7 @@ var (
 	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
+	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -220,6 +221,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			}
 			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
 		}()
+		return true
+	}
+	if path == "/internal/force_flush" {
+		authKey := r.FormValue("authKey")
+		if authKey != *forceFlushAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceFlushAuthKey command line flag", authKey)
+			return true
+		}
+		logger.Infof("flushing storage to make pending data available for reading")
+		Storage.DebugFlush()
 		return true
 	}
 	prometheusCompatibleResponse := false
