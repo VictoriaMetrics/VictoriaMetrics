@@ -76,7 +76,7 @@ Pass `-help` to `vmagent` in order to see the full list of supported command-lin
 
 * Sending HTTP request to `http://vmagent:8429/-/reload` endpoint.
 
-There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from of updated `-promscrape.config` file.
+There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from updated `-promscrape.config` file.
 
 
 ### Use cases
