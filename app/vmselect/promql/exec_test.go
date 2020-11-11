@@ -8,7 +8,45 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/metricsql"
 )
+
+func TestEscapeDots(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		result := escapeDots(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for escapeDots(%q); got\n%s\nwant\n%s", s, result, resultExpected)
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("foobar", "foobar")
+	f(".", `\.`)
+	f(".*", `.*`)
+	f(".+", `.+`)
+	f("..", `\.\.`)
+	f("foo.b.{2}ar..+baz.*", `foo\.b.{2}ar\..+baz.*`)
+}
+
+func TestEscapeDotsInRegexpLabelFilters(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		e, err := metricsql.Parse(s)
+		if err != nil {
+			t.Fatalf("unexpected error in metricsql.Parse(%q): %s", s, err)
+		}
+		e = escapeDotsInRegexpLabelFilters(e)
+		result := e.AppendString(nil)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result for escapeDotsInRegexpLabelFilters(%q);\ngot\n%s\nwant\n%s", s, result, resultExpected)
+		}
+	}
+	f("2", "2")
+	f(`foo.bar + 123`, `foo.bar + 123`)
+	f(`foo{bar=~"baz.xx.yyy"}`, `foo{bar=~"baz\\.xx\\.yyy"}`)
+	f(`foo(a.b{c="d.e",x=~"a.b.+[.a]",y!~"aaa.bb|cc.dd"}) + x.y(1,sum({x=~"aa.bb"}))`, `foo(a.b{c="d.e", x=~"a\\.b.+[\\.a]", y!~"aaa\\.bb|cc\\.dd"}) + x.y(1, sum({x=~"aa\\.bb"}))`)
+}
 
 func TestExecSuccess(t *testing.T) {
 	accountID := uint32(123)
