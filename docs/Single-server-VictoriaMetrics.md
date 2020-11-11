@@ -26,6 +26,8 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 
 ## Case studies and talks
 
+Click on a link in order to read the corresponding case study
+
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
 * [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
