@@ -1203,8 +1203,6 @@ VictoriaMetrics also exposes currently running queries with their execution time
   VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
   It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
   ingestion and query performance in this case.
-  Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
-  option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
 * VictoriaMetrics prioritizes data ingestion over data querying. So if it has no enough resources for data ingestion,
   then data querying may slow down significantly.
@@ -1219,9 +1217,9 @@ VictoriaMetrics also exposes currently running queries with their execution time
   which would start background merge if they had more free disk space.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
-  then just remove directories with broken parts. This will recover VictoriaMetrics at the cost
-  of data loss stored in the broken parts. In the future, `vmrecover` tool will be created
-  for automatic recovering from such errors.
+  then just remove directories with broken parts. It is safe removing subdirectories under `<-storageDataPath>/data/{big,small}/YYYY_MM` directories
+  when VictoriaMetrics isn't running. This recovers VictoriaMetrics at the cost of data loss stored in the deleted broken parts.
+  In the future, `vmrecover` tool will be created for automatic recovering from such errors.
 
 * If you see gaps on the graphs, try resetting the cache by sending request to `/internal/resetRollupResultCache`.
   If this removes gaps on the graphs, then it is likely data with timestamps older than `-search.cacheTimestampOffset`
