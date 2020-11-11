@@ -497,7 +497,9 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
-* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
+* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts optional `topN=N` and `date=YYYY-MM-DD`
+  query args for this handler, where `N` is the number of top entries to return in the response and `YYYY-MM-DD` is the date for collecting the stats.
+  By default top 10 entries are returned and the stats is collected for the current day.
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
