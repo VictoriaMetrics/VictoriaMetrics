@@ -63,6 +63,22 @@ Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://gi
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
 
+### Configuration update
+
+`vmagent` should be restarted in order to update config options set via command-line args.
+
+`vmagent` supports multiple approaches for reloading configs from updated config files such as `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
+
+* Sending `SUGHUP` signal to `vmagent` process:
+  ```bash
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint.
+
+There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from of updated `-promscrape.config` file.
+
+
 ### Use cases
 
 
