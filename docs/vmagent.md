@@ -213,6 +213,7 @@ The relabeling can be defined in the following places:
 
 Read more about relabeling in the following articles:
 
+* [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
