@@ -131,8 +131,6 @@ To release a submodule:
 1. On master, run `git log $CV.. -- datastore/` to list all the changes to the
    submodule directory since the last release.
 1. Edit `datastore/CHANGES.md` to include a summary of the changes.
-1. In `internal/version/version.go`, update `const Repo` to today's date with
-   the format `YYYYMMDD`.
 1. In `internal/version` run `go generate`.
 1. Commit the changes, ignoring the generated `.go-r` file. Push to your fork,
    and create a PR titled `chore(datastore): release $NV`.
