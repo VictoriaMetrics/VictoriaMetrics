@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
@@ -75,10 +76,11 @@ func (ctx *pushCtx) reset() {
 func (ctx *pushCtx) Read() error {
 	readCalls.Inc()
 	lr := io.LimitReader(ctx.br, int64(maxInsertRequestSize.N)+1)
+	startTime := fasttime.UnixTimestamp()
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
-		return fmt.Errorf("cannot read compressed request: %w", err)
+		return fmt.Errorf("cannot read compressed request in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	if reqLen > int64(maxInsertRequestSize.N) {
 		readErrors.Inc()
