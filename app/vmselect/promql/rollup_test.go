@@ -1103,11 +1103,12 @@ func testRowsEqual(t *testing.T, values []float64, timestamps []int64, valuesExp
 }
 
 func TestRollupDelta(t *testing.T) {
-	f := func(prevValue float64, values []float64, resultExpected float64) {
+	f := func(prevValue, realPrevValue float64, values []float64, resultExpected float64) {
 		t.Helper()
 		rfa := &rollupFuncArg{
-			prevValue: prevValue,
-			values:    values,
+			prevValue:     prevValue,
+			values:        values,
+			realPrevValue: realPrevValue,
 		}
 		result := rollupDelta(rfa)
 		if math.IsNaN(result) {
@@ -1120,22 +1121,26 @@ func TestRollupDelta(t *testing.T) {
 			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
 		}
 	}
-	f(nan, nil, nan)
+	f(nan, nan, nil, nan)
 
 	// Small initial value
-	f(nan, []float64{1}, 1)
-	f(nan, []float64{10}, 10)
-	f(nan, []float64{100}, 100)
-	f(nan, []float64{1, 2, 3}, 3)
-	f(1, []float64{1, 2, 3}, 2)
-	f(nan, []float64{5, 6, 8}, 8)
-	f(2, []float64{5, 6, 8}, 6)
+	f(nan, nan, []float64{1}, 1)
+	f(nan, nan, []float64{10}, 10)
+	f(nan, nan, []float64{100}, 100)
+	f(nan, nan, []float64{1, 2, 3}, 3)
+	f(1, nan, []float64{1, 2, 3}, 2)
+	f(nan, nan, []float64{5, 6, 8}, 8)
+	f(2, nan, []float64{5, 6, 8}, 6)
 
 	// Too big initial value must be skipped.
-	f(nan, []float64{1000}, 0)
-	f(nan, []float64{1000, 1001, 1002}, 2)
+	f(nan, nan, []float64{1000}, 0)
+	f(nan, nan, []float64{1000, 1001, 1002}, 2)
+
+	// Delta calculations against non-nan realPrevValue
+	f(nan, 900, []float64{1000}, 100)
+	f(nan, 900, []float64{1000, 1001, 1002}, 102)
 
 	// Empty values
-	f(1, nil, 0)
-	f(100, nil, 0)
+	f(1, nan, nil, 0)
+	f(100, nan, nil, 0)
 }
