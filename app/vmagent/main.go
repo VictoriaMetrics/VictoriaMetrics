@@ -228,7 +228,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			errMsg := fmt.Sprintf("waiting for scrapes to init, left: %d", rdy)
 			http.Error(w, errMsg, http.StatusTooEarly)
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("OK"))
 		}

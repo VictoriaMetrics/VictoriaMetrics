@@ -88,9 +88,9 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	}
 	paths = deduplicatePaths(paths, delimiter)
 	sortPaths(paths, delimiter)
-	contentType := "application/json"
+	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
-		contentType = "text/javascript"
+		contentType = "text/javascript; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
@@ -173,9 +173,9 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		}
 		m[query] = paths
 	}
-	contentType := "application/json"
+	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
-		contentType = "text/javascript"
+		contentType = "text/javascript; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	if groupByExpr {
@@ -225,9 +225,9 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	if isPartial && searchutils.GetDenyPartialResponse(r) {
 		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
-	contentType := "application/json"
+	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
-		contentType = "text/javascript"
+		contentType = "text/javascript; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
