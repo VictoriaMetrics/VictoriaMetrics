@@ -10,25 +10,25 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config
 type SDConfig struct {
-	IdentityEndpoint            string `yaml:"identity_endpoint"`
-	Username                    string `yaml:"username"`
-	UserID                      string `yaml:"userid"`
-	Password                    string `yaml:"password"`
-	ProjectName                 string `yaml:"project_name"`
-	ProjectID                   string `yaml:"project_id"`
-	DomainName                  string `yaml:"domain_name"`
-	DomainID                    string `yaml:"domain_id"`
-	ApplicationCredentialName   string `yaml:"application_credential_name"`
-	ApplicationCredentialID     string `yaml:"application_credential_id"`
-	ApplicationCredentialSecret string `yaml:"application_credential_secret"`
+	IdentityEndpoint            string `yaml:"identity_endpoint,omitempty"`
+	Username                    string `yaml:"username,omitempty"`
+	UserID                      string `yaml:"userid,omitempty"`
+	Password                    string `yaml:"password,omitempty"`
+	ProjectName                 string `yaml:"project_name,omitempty"`
+	ProjectID                   string `yaml:"project_id,omitempty"`
+	DomainName                  string `yaml:"domain_name,omitempty"`
+	DomainID                    string `yaml:"domain_id,omitempty"`
+	ApplicationCredentialName   string `yaml:"application_credential_name,omitempty"`
+	ApplicationCredentialID     string `yaml:"application_credential_id,omitempty"`
+	ApplicationCredentialSecret string `yaml:"application_credential_secret,omitempty"`
 	Role                        string `yaml:"role"`
 	Region                      string `yaml:"region"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.openstackSDCheckInterval` command-line option.
-	Port         int                 `yaml:"port"`
-	AllTenants   bool                `yaml:"all_tenants"`
-	TLSConfig    *promauth.TLSConfig `yaml:"tls_config"`
-	Availability string              `yaml:"availability"`
+	Port         int                 `yaml:"port,omitempty"`
+	AllTenants   bool                `yaml:"all_tenants,omitempty"`
+	TLSConfig    *promauth.TLSConfig `yaml:"tls_config,omitempty"`
+	Availability string              `yaml:"availability,omitempty"`
 }
 
 // GetLabels returns gce labels according to sdc.
