@@ -155,13 +155,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
@@ -175,7 +175,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			errMsg := fmt.Sprintf("waiting for scrape config to init targets, configs left: %d", rdy)
 			http.Error(w, errMsg, http.StatusTooEarly)
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("OK"))
 		}

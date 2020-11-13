@@ -88,7 +88,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
@@ -151,7 +151,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 
@@ -331,9 +331,9 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 		WriteExportJSONLine(bb, xb)
 		resultsCh <- bb
 	}
-	contentType := "application/stream+json"
+	contentType := "application/stream+json; charset=utf-8"
 	if format == "prometheus" {
-		contentType = "text/plain"
+		contentType = "text/plain; charset=utf-8"
 		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
 			bb := quicktemplate.AcquireByteBuffer()
 			WriteExportPrometheusLine(bb, xb)
@@ -561,7 +561,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelValuesResponse(bw, labelValues)
@@ -639,7 +639,7 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %w`, err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelsCountResponse(bw, labelEntries)
@@ -690,7 +690,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteTSDBStatusResponse(bw, status)
@@ -760,7 +760,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelsResponse(bw, labels)
@@ -826,7 +826,7 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteSeriesCountResponse(bw, n)
@@ -883,7 +883,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -1020,7 +1020,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteQueryResponse(bw, result)
@@ -1119,7 +1119,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
 	result = removeEmptyValuesAndTimeseries(result)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteQueryRangeResponse(bw, result)

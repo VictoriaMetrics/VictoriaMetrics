@@ -262,19 +262,19 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"groups":[]}}`)
 		return true
 	case "/api/v1/alerts":
 		// Return dumb placehloder
 		alertsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{"alerts":[]}}`)
 		return true
 	case "/api/v1/metadata":
 		// Return dumb placeholder
 		metadataRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
@@ -299,7 +299,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	logger.Warnf("error in %q: %s", r.RequestURI, err)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	statusCode := http.StatusUnprocessableEntity
 	var esc *httpserver.ErrorWithStatusCode
 	if errors.As(err, &esc) {

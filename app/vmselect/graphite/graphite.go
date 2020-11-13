@@ -84,9 +84,9 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	}
 	paths = deduplicatePaths(paths, delimiter)
 	sortPaths(paths, delimiter)
-	contentType := "application/json"
+	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
-		contentType = "text/javascript"
+		contentType = "text/javascript; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
@@ -166,9 +166,9 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 		}
 		m[query] = paths
 	}
-	contentType := "application/json"
+	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
-		contentType = "text/javascript"
+		contentType = "text/javascript; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	if groupByExpr {
@@ -215,9 +215,9 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}
-	contentType := "application/json"
+	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
-		contentType = "text/javascript"
+		contentType = "text/javascript; charset=utf-8"
 	}
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
