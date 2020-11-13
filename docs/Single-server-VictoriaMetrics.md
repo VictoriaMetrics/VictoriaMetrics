@@ -1209,6 +1209,12 @@ VictoriaMetrics also exposes currently running queries with their execution time
 
 * It is recommended inspecting logs during troubleshooting, since they may contain useful information.
 
+* VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
+  This may lead to the following "issues":
+  * Data becomes available for querying in a few seconds after inserting.
+  * The last few seconds of inserted data may be lost on unclean shutdown (i.e. OOM, `kill -9` or hardware reset).
+    See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
+
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
   VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
