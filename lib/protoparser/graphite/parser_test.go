@@ -200,7 +200,7 @@ func Test_streamContext_Read(t *testing.T) {
 		}
 		uw := getUnmarshalWork()
 		callbackCalls := 0
-		uw.callback = func(rows []Row) error {
+		uw.callback = func(rows []Row) {
 			callbackCalls++
 			if len(rows) != len(rowsExpected.Rows) {
 				t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", rows, rowsExpected.Rows)
@@ -208,7 +208,6 @@ func Test_streamContext_Read(t *testing.T) {
 			if !reflect.DeepEqual(rows, rowsExpected.Rows) {
 				t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows, rowsExpected.Rows)
 			}
-			return nil
 		}
 		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
 		uw.Unmarshal()
