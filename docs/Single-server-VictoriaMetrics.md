@@ -699,7 +699,16 @@ VictoriaMetrics provides the following handlers for exporting data:
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
-for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
+for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time series.
+
+On large databases you may experience problems with limit on unique timeseries (default value is 300000). In this case you need to adjust `-search.maxUniqueTimeseries` parameter:
+
+```bash
+# count unique timeseries in database
+wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
+
+# relaunch victoriametrics with search.maxUniqueTimeseries more than value from previous command
+```
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
