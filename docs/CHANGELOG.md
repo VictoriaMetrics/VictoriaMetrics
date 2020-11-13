@@ -12,6 +12,7 @@
   This may be useful for querying Graphite data.
 * FEATURE: consistently return text-based HTTP responses such as `plain/text` and `application/json` with `charset=utf-8`.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/897
+* FEATURE: update Go builder from v1.15.4 to v1.15.5. This should fix [these issues in Go](https://github.com/golang/go/issues?q=milestone%3AGo1.15.5+label%3ACherryPickApproved).
 
 * BUGFIX: do not return data points in the end of the selected time range for time series ending in the middle of the selected time range.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
