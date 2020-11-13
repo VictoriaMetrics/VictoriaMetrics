@@ -338,8 +338,11 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Actual value preceeding values without restrictions on staleness interval.
+	// Real value preceeding values without restrictions on staleness interval.
 	realPrevValue float64
+
+	// Real value which goes after values.
+	realNextValue float64
 
 	// Current timestamp for rollup evaluation.
 	currTimestamp int64
@@ -557,6 +560,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			rfa.realPrevValue = values[i-1]
 		} else {
 			rfa.realPrevValue = nan
+		}
+		if j < len(values) {
+			rfa.realNextValue = values[j]
+		} else {
+			rfa.realNextValue = nan
 		}
 		rfa.currTimestamp = tEnd
 		value := rc.Func(rfa)
@@ -1282,6 +1290,8 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		d := float64(10)
 		if len(values) > 1 {
 			d = values[1] - values[0]
+		} else if !math.IsNaN(rfa.realNextValue) {
+			d = rfa.realNextValue - values[0]
 		}
 		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
 			prevValue = 0
