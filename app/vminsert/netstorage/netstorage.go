@@ -199,6 +199,7 @@ func (sn *storageNode) checkHealth() {
 	}
 	bc, err := sn.dial()
 	if err != nil {
+		atomic.StoreUint32(&sn.broken, 1)
 		if sn.lastDialErr == nil {
 			// Log the error only once.
 			sn.lastDialErr = err
@@ -222,7 +223,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	if sn.bc == nil {
 		// Do not call sn.dial() here in order to prevent long blocking on sn.bcLock.Lock(),
 		// which can negatively impact data sending in sendBufToReplicasNonblocking().
-		// sn.dial() should be called by sn.checkHealth() un unsuccessful call to sendBufToReplicasNonblocking().
+		// sn.dial() should be called by sn.checkHealth() on unsuccessful call to sendBufToReplicasNonblocking().
 		return false
 	}
 	err := sendToConn(sn.bc, br.buf)
@@ -554,6 +555,10 @@ func getHealthyStorageNodes() []*storageNode {
 func getHealthyStorageNodesBlocking(stopCh <-chan struct{}) []*storageNode {
 	// Wait for at least a single healthy storage node.
 	for {
+		// Wake up goroutines blocked at addToReroutedBufMayBlock, so they can return error to the caller if reroutedBR is full.
+		// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
+		reroutedBRCond.Broadcast()
+
 		sns := getHealthyStorageNodes()
 		if len(sns) > 0 {
 			return sns
