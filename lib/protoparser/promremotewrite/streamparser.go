@@ -32,20 +32,33 @@ func ParseStream(req *http.Request, callback func(tss []prompb.TimeSeries) error
 		return err
 	}
 	uw := getUnmarshalWork()
-	uw.callback = callback
+	ctx.wg.Add(1)
+	uw.callback = func(tss []prompb.TimeSeries) error {
+		// Propagate the error to the caller of ParseStream, so it could properly return HTTP 503 status code on error.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
+		ctx.err = callback(tss)
+		ctx.wg.Done()
+		// Do not return the error from callback in order to prevent from double logging.
+		return nil
+	}
 	uw.reqBuf, ctx.reqBuf.B = ctx.reqBuf.B, uw.reqBuf
 	common.ScheduleUnmarshalWork(uw)
-	return nil
+	ctx.wg.Wait()
+	return ctx.err
 }
 
 type pushCtx struct {
 	br     *bufio.Reader
 	reqBuf bytesutil.ByteBuffer
+
+	wg  sync.WaitGroup
+	err error
 }
 
 func (ctx *pushCtx) reset() {
 	ctx.br.Reset(nil)
 	ctx.reqBuf.Reset()
+	ctx.err = nil
 }
 
 func (ctx *pushCtx) Read() error {
