@@ -208,13 +208,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
