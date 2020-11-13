@@ -326,14 +326,29 @@ func getRollupFunc(funcName string) newRollupFunc {
 }
 
 type rollupFuncArg struct {
-	prevValue     float64
-	prevTimestamp int64
-	values        []float64
-	timestamps    []int64
+	// The value preceeding values if it fits staleness interval.
+	prevValue float64
 
+	// The timestamp for prevValue.
+	prevTimestamp int64
+
+	// Values that fit window ending at currTimestamp.
+	values []float64
+
+	// Timestamps for values.
+	timestamps []int64
+
+	// Actual value preceeding values without restrictions on staleness interval.
+	realPrevValue float64
+
+	// Current timestamp for rollup evaluation.
 	currTimestamp int64
-	idx           int
-	window        int64
+
+	// Index for the currently evaluated point relative to time range for query evaluation.
+	idx int
+
+	// Time window for rollup calculations.
+	window int64
 
 	tsm *timeseriesMap
 }
@@ -537,6 +552,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			rfa.prevValue = nan
 			rfa.values = nil
 			rfa.timestamps = nil
+		}
+		if i > 0 {
+			rfa.realPrevValue = values[i-1]
+		} else {
+			rfa.realPrevValue = nan
 		}
 		rfa.currTimestamp = tEnd
 		value := rc.Func(rfa)
@@ -1243,6 +1263,12 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
 			return nan
+		}
+		if !math.IsNaN(rfa.realPrevValue) {
+			// Assume that the value didn't change during the current gap.
+			// This should fix high delta() and increase() values at the end of gaps.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			return values[len(values)-1] - rfa.realPrevValue
 		}
 		// Assume that the previous non-existing value was 0
 		// only if the first value doesn't exceed too much the delta with the next value.
