@@ -62,6 +62,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	defer putJSONParser(p)
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
+		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %w", err)
 	}
 	rs := getRows()
