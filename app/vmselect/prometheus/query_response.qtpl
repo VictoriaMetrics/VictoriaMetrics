@@ -5,9 +5,10 @@
 {% stripspace %}
 QueryResponse generates response for /api/v1/query.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-{% func QueryResponse(rs []netstorage.Result) %}
+{% func QueryResponse(isPartial bool, rs []netstorage.Result) %}
 {
 	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":{
 		"resultType":"vector",
 		"result":[

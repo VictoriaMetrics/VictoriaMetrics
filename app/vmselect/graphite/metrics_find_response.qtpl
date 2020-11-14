@@ -9,20 +9,20 @@
 
 MetricsFindResponse generates response for /metrics/find .
 See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
-{% func MetricsFindResponse(paths []string, delimiter, format string, addWildcards bool, jsonp string) %}
+{% func MetricsFindResponse(isPartial bool, paths []string, delimiter, format string, addWildcards bool, jsonp string) %}
 	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
 	{% switch format %}
 	{% case "completer" %}
-		{%= metricsFindResponseCompleter(paths, delimiter, addWildcards) %}
+		{%= metricsFindResponseCompleter(isPartial, paths, delimiter, addWildcards) %}
 	{% case "treejson" %}
-		{%= metricsFindResponseTreeJSON(paths, delimiter, addWildcards) %}
+		{%= metricsFindResponseTreeJSON(isPartial, paths, delimiter, addWildcards) %}
 	{% default %}
 		{% code logger.Panicf("BUG: unexpected format=%q", format) %}
 	{% endswitch %}
 	{% if jsonp != "" %}){% endif %}
 {% endfunc %}
 
-{% func metricsFindResponseCompleter(paths []string, delimiter string, addWildcards bool) %}
+{% func metricsFindResponseCompleter(isPartial bool, paths []string, delimiter string, addWildcards bool) %}
 {
 	"metrics":[
 		{% for i, path := range paths %}
@@ -42,7 +42,7 @@ See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 }
 {% endfunc %}
 
-{% func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) %}
+{% func metricsFindResponseTreeJSON(isPartial bool, paths []string, delimiter string, addWildcards bool) %}
 [
 {% code
 	if len(paths) > 1 {

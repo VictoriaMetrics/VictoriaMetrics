@@ -1,8 +1,9 @@
 {% stripspace %}
 SeriesCountResponse generates response for /api/v1/series/count .
-{% func SeriesCountResponse(n uint64) %}
+{% func SeriesCountResponse(isPartial bool, n uint64) %}
 {
 	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":[{%dl int64(n) %}]
 }
 {% endfunc %}

@@ -2,7 +2,7 @@
 
 MetricsExpandResponseByQuery generates response for /metrics/expand?groupByExpr=1 .
 See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
-{% func MetricsExpandResponseByQuery(m map[string][]string, jsonp string) %}
+{% func MetricsExpandResponseByQuery(isPartial bool, m map[string][]string, jsonp string) %}
 	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
 	{
 		"results":{
@@ -20,7 +20,7 @@ See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
 
 MetricsExpandResponseFlat generates response for /metrics/expand?groupByExpr=0 .
 See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
-{% func MetricsExpandResponseFlat(paths []string, jsonp string) %}
+{% func MetricsExpandResponseFlat(isPartial bool, paths []string, jsonp string) %}
 	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
 	{%= metricPaths(paths) %}
 	{% if jsonp != "" %}){% endif %}

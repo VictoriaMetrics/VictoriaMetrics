@@ -20,48 +20,60 @@ var (
 )
 
 //line app/vmselect/prometheus/labels_response.qtpl:4
-func StreamLabelsResponse(qw422016 *qt422016.Writer, labels []string) {
+func StreamLabelsResponse(qw422016 *qt422016.Writer, isPartial bool, labels []string) {
 //line app/vmselect/prometheus/labels_response.qtpl:4
-	qw422016.N().S(`{"status":"success","data":[`)
-//line app/vmselect/prometheus/labels_response.qtpl:8
-	for i, label := range labels {
-//line app/vmselect/prometheus/labels_response.qtpl:9
-		qw422016.N().Q(label)
-//line app/vmselect/prometheus/labels_response.qtpl:10
-		if i+1 < len(labels) {
-//line app/vmselect/prometheus/labels_response.qtpl:10
-			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/labels_response.qtpl:10
-		}
-//line app/vmselect/prometheus/labels_response.qtpl:11
+	qw422016.N().S(`{"status":"success","isPartial":`)
+//line app/vmselect/prometheus/labels_response.qtpl:7
+	if isPartial {
+//line app/vmselect/prometheus/labels_response.qtpl:7
+		qw422016.N().S(`true`)
+//line app/vmselect/prometheus/labels_response.qtpl:7
+	} else {
+//line app/vmselect/prometheus/labels_response.qtpl:7
+		qw422016.N().S(`false`)
+//line app/vmselect/prometheus/labels_response.qtpl:7
 	}
+//line app/vmselect/prometheus/labels_response.qtpl:7
+	qw422016.N().S(`,"data":[`)
+//line app/vmselect/prometheus/labels_response.qtpl:9
+	for i, label := range labels {
+//line app/vmselect/prometheus/labels_response.qtpl:10
+		qw422016.N().Q(label)
 //line app/vmselect/prometheus/labels_response.qtpl:11
+		if i+1 < len(labels) {
+//line app/vmselect/prometheus/labels_response.qtpl:11
+			qw422016.N().S(`,`)
+//line app/vmselect/prometheus/labels_response.qtpl:11
+		}
+//line app/vmselect/prometheus/labels_response.qtpl:12
+	}
+//line app/vmselect/prometheus/labels_response.qtpl:12
 	qw422016.N().S(`]}`)
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
 }
 
-//line app/vmselect/prometheus/labels_response.qtpl:14
-func WriteLabelsResponse(qq422016 qtio422016.Writer, labels []string) {
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
+func WriteLabelsResponse(qq422016 qtio422016.Writer, isPartial bool, labels []string) {
+//line app/vmselect/prometheus/labels_response.qtpl:15
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/labels_response.qtpl:14
-	StreamLabelsResponse(qw422016, labels)
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
+	StreamLabelsResponse(qw422016, isPartial, labels)
+//line app/vmselect/prometheus/labels_response.qtpl:15
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
 }
 
-//line app/vmselect/prometheus/labels_response.qtpl:14
-func LabelsResponse(labels []string) string {
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
+func LabelsResponse(isPartial bool, labels []string) string {
+//line app/vmselect/prometheus/labels_response.qtpl:15
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/labels_response.qtpl:14
-	WriteLabelsResponse(qb422016, labels)
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
+	WriteLabelsResponse(qb422016, isPartial, labels)
+//line app/vmselect/prometheus/labels_response.qtpl:15
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
 	return qs422016
-//line app/vmselect/prometheus/labels_response.qtpl:14
+//line app/vmselect/prometheus/labels_response.qtpl:15
 }

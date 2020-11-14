@@ -2,9 +2,10 @@
 
 {% stripspace %}
 LabelsCountResponse generates response for /api/v1/labels/count .
-{% func LabelsCountResponse(labelEntries []storage.TagEntry) %}
+{% func LabelsCountResponse(isPartial bool, labelEntries []storage.TagEntry) %}
 {
 	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":{
 		{% for i, e := range labelEntries %}
 			{%q= e.Key %}:{%d= len(e.Values) %}

@@ -28,7 +28,7 @@ var (
 )
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:12
-func StreamMetricsFindResponse(qw422016 *qt422016.Writer, paths []string, delimiter, format string, addWildcards bool, jsonp string) {
+func StreamMetricsFindResponse(qw422016 *qt422016.Writer, isPartial bool, paths []string, delimiter, format string, addWildcards bool, jsonp string) {
 //line app/vmselect/graphite/metrics_find_response.qtpl:13
 	if jsonp != "" {
 //line app/vmselect/graphite/metrics_find_response.qtpl:13
@@ -42,11 +42,11 @@ func StreamMetricsFindResponse(qw422016 *qt422016.Writer, paths []string, delimi
 //line app/vmselect/graphite/metrics_find_response.qtpl:15
 	case "completer":
 //line app/vmselect/graphite/metrics_find_response.qtpl:16
-		streammetricsFindResponseCompleter(qw422016, paths, delimiter, addWildcards)
+		streammetricsFindResponseCompleter(qw422016, isPartial, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:17
 	case "treejson":
 //line app/vmselect/graphite/metrics_find_response.qtpl:18
-		streammetricsFindResponseTreeJSON(qw422016, paths, delimiter, addWildcards)
+		streammetricsFindResponseTreeJSON(qw422016, isPartial, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:19
 	default:
 //line app/vmselect/graphite/metrics_find_response.qtpl:20
@@ -64,22 +64,22 @@ func StreamMetricsFindResponse(qw422016 *qt422016.Writer, paths []string, delimi
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
-func WriteMetricsFindResponse(qq422016 qtio422016.Writer, paths []string, delimiter, format string, addWildcards bool, jsonp string) {
+func WriteMetricsFindResponse(qq422016 qtio422016.Writer, isPartial bool, paths []string, delimiter, format string, addWildcards bool, jsonp string) {
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
-	StreamMetricsFindResponse(qw422016, paths, delimiter, format, addWildcards, jsonp)
+	StreamMetricsFindResponse(qw422016, isPartial, paths, delimiter, format, addWildcards, jsonp)
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
-func MetricsFindResponse(paths []string, delimiter, format string, addWildcards bool, jsonp string) string {
+func MetricsFindResponse(isPartial bool, paths []string, delimiter, format string, addWildcards bool, jsonp string) string {
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
-	WriteMetricsFindResponse(qb422016, paths, delimiter, format, addWildcards, jsonp)
+	WriteMetricsFindResponse(qb422016, isPartial, paths, delimiter, format, addWildcards, jsonp)
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
 	qs422016 := string(qb422016.B)
 //line app/vmselect/graphite/metrics_find_response.qtpl:23
@@ -90,7 +90,7 @@ func MetricsFindResponse(paths []string, delimiter, format string, addWildcards 
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:25
-func streammetricsFindResponseCompleter(qw422016 *qt422016.Writer, paths []string, delimiter string, addWildcards bool) {
+func streammetricsFindResponseCompleter(qw422016 *qt422016.Writer, isPartial bool, paths []string, delimiter string, addWildcards bool) {
 //line app/vmselect/graphite/metrics_find_response.qtpl:25
 	qw422016.N().S(`{"metrics":[`)
 //line app/vmselect/graphite/metrics_find_response.qtpl:28
@@ -137,22 +137,22 @@ func streammetricsFindResponseCompleter(qw422016 *qt422016.Writer, paths []strin
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
-func writemetricsFindResponseCompleter(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
+func writemetricsFindResponseCompleter(qq422016 qtio422016.Writer, isPartial bool, paths []string, delimiter string, addWildcards bool) {
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
-	streammetricsFindResponseCompleter(qw422016, paths, delimiter, addWildcards)
+	streammetricsFindResponseCompleter(qw422016, isPartial, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
-func metricsFindResponseCompleter(paths []string, delimiter string, addWildcards bool) string {
+func metricsFindResponseCompleter(isPartial bool, paths []string, delimiter string, addWildcards bool) string {
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
-	writemetricsFindResponseCompleter(qb422016, paths, delimiter, addWildcards)
+	writemetricsFindResponseCompleter(qb422016, isPartial, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
 	qs422016 := string(qb422016.B)
 //line app/vmselect/graphite/metrics_find_response.qtpl:43
@@ -163,7 +163,7 @@ func metricsFindResponseCompleter(paths []string, delimiter string, addWildcards
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:45
-func streammetricsFindResponseTreeJSON(qw422016 *qt422016.Writer, paths []string, delimiter string, addWildcards bool) {
+func streammetricsFindResponseTreeJSON(qw422016 *qt422016.Writer, isPartial bool, paths []string, delimiter string, addWildcards bool) {
 //line app/vmselect/graphite/metrics_find_response.qtpl:45
 	qw422016.N().S(`[`)
 //line app/vmselect/graphite/metrics_find_response.qtpl:48
@@ -286,22 +286,22 @@ func streammetricsFindResponseTreeJSON(qw422016 *qt422016.Writer, paths []string
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
-func writemetricsFindResponseTreeJSON(qq422016 qtio422016.Writer, paths []string, delimiter string, addWildcards bool) {
+func writemetricsFindResponseTreeJSON(qq422016 qtio422016.Writer, isPartial bool, paths []string, delimiter string, addWildcards bool) {
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
-	streammetricsFindResponseTreeJSON(qw422016, paths, delimiter, addWildcards)
+	streammetricsFindResponseTreeJSON(qw422016, isPartial, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
 }
 
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
-func metricsFindResponseTreeJSON(paths []string, delimiter string, addWildcards bool) string {
+func metricsFindResponseTreeJSON(isPartial bool, paths []string, delimiter string, addWildcards bool) string {
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
-	writemetricsFindResponseTreeJSON(qb422016, paths, delimiter, addWildcards)
+	writemetricsFindResponseTreeJSON(qb422016, isPartial, paths, delimiter, addWildcards)
 //line app/vmselect/graphite/metrics_find_response.qtpl:123
 	qs422016 := string(qb422016.B)
 //line app/vmselect/graphite/metrics_find_response.qtpl:123

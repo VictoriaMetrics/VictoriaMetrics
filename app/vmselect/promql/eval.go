@@ -100,6 +100,9 @@ type EvalConfig struct {
 
 	DenyPartialResponse bool
 
+	// IsPartialResponse is set during query execution and can be used by Exec caller after query execution.
+	IsPartialResponse bool
+
 	timestamps     []int64
 	timestampsOnce sync.Once
 }
@@ -115,9 +118,16 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
 	ec.DenyPartialResponse = src.DenyPartialResponse
+	ec.IsPartialResponse = src.IsPartialResponse
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
+}
+
+func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
+	if !ec.IsPartialResponse {
+		ec.IsPartialResponse = isPartialResponse
+	}
 }
 
 func (ec *EvalConfig) validate() {
@@ -475,6 +485,7 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 	if err != nil {
 		return nil, err
 	}
+	ec.updateIsPartialResponse(ecNew.IsPartialResponse)
 	if offset != 0 && len(rvs) > 0 {
 		// Make a copy of timestamps, since they may be used in other values.
 		srcTimestamps := rvs[0].Timestamps
@@ -523,6 +534,7 @@ func evalRollupFuncWithSubquery(ec *EvalConfig, name string, rf rollupFunc, expr
 	if err != nil {
 		return nil, err
 	}
+	ec.updateIsPartialResponse(ecSQ.IsPartialResponse)
 	if len(tssSQ) == 0 {
 		if name == "absent_over_time" {
 			tss := evalNumber(ec, 1)
@@ -666,14 +678,11 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 		MaxTimestamp: ec.End,
 		TagFilterss:  [][]storage.TagFilter{tfs},
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, sq, true, ec.Deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, ec.DenyPartialResponse, sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}
-	if isPartial && ec.DenyPartialResponse {
-		rss.Cancel()
-		return nil, fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
-	}
+	ec.updateIsPartialResponse(isPartial)
 	rssLen := rss.Len()
 	if rssLen == 0 {
 		rss.Cancel()

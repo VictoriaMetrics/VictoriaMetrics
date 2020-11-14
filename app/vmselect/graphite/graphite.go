@@ -76,12 +76,10 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 		MinTimestamp: from,
 		MaxTimestamp: until,
 	}
-	paths, isPartial, err := metricsFind(at, tr, label, query, delimiter[0], false, deadline)
+	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, query, delimiter[0], false, deadline)
 	if err != nil {
 		return err
-	}
-	if isPartial && searchutils.GetDenyPartialResponse(r) {
-		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 	if leavesOnly {
 		paths = filterLeaves(paths, delimiter)
@@ -95,7 +93,7 @@ func MetricsFindHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteMetricsFindResponse(bw, paths, delimiter, format, wildcards, jsonp)
+	WriteMetricsFindResponse(bw, isPartial, paths, delimiter, format, wildcards, jsonp)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
@@ -160,13 +158,15 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		MaxTimestamp: until,
 	}
 	m := make(map[string][]string, len(queries))
+	isPartialResponse := false
+	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	for _, query := range queries {
-		paths, isPartial, err := metricsFind(at, tr, label, query, delimiter[0], true, deadline)
+		paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, query, delimiter[0], true, deadline)
 		if err != nil {
 			return err
 		}
-		if isPartial && searchutils.GetDenyPartialResponse(r) {
-			return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
+		if isPartial {
+			isPartialResponse = true
 		}
 		if leavesOnly {
 			paths = filterLeaves(paths, delimiter)
@@ -182,7 +182,7 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 		for _, paths := range m {
 			sortPaths(paths, delimiter)
 		}
-		WriteMetricsExpandResponseByQuery(w, m, jsonp)
+		WriteMetricsExpandResponseByQuery(w, isPartialResponse, m, jsonp)
 		return nil
 	}
 	paths := m[queries[0]]
@@ -201,7 +201,7 @@ func MetricsExpandHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	sortPaths(paths, delimiter)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteMetricsExpandResponseFlat(bw, paths, jsonp)
+	WriteMetricsExpandResponseFlat(bw, isPartialResponse, paths, jsonp)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
@@ -218,12 +218,10 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
 	jsonp := r.FormValue("jsonp")
-	metricNames, isPartial, err := netstorage.GetLabelValues(at, "__name__", deadline)
+	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	metricNames, isPartial, err := netstorage.GetLabelValues(at, denyPartialResponse, "__name__", deadline)
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
-	}
-	if isPartial && searchutils.GetDenyPartialResponse(r) {
-		return fmt.Errorf("cannot return full response, since some of vmstorage nodes are unavailable")
 	}
 	contentType := "application/json; charset=utf-8"
 	if jsonp != "" {
@@ -232,7 +230,7 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteMetricsIndexResponse(bw, metricNames, jsonp)
+	WriteMetricsIndexResponse(bw, isPartial, metricNames, jsonp)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
@@ -241,14 +239,15 @@ func MetricsIndexHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 }
 
 // metricsFind searches for label values that match the given query.
-func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, delimiter byte, isExpand bool, deadline searchutils.Deadline) ([]string, bool, error) {
+func metricsFind(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, label, query string, delimiter byte,
+	isExpand bool, deadline searchutils.Deadline) ([]string, bool, error) {
 	n := strings.IndexAny(query, "*{[")
 	if n < 0 || n == len(query)-1 && strings.HasSuffix(query, "*") {
 		expandTail := n >= 0
 		if expandTail {
 			query = query[:len(query)-1]
 		}
-		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(at, tr, label, query, delimiter, deadline)
+		suffixes, isPartial, err := netstorage.GetTagValueSuffixes(at, denyPartialResponse, tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, false, err
 		}
@@ -267,7 +266,7 @@ func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, deli
 		return results, isPartial, nil
 	}
 	subquery := query[:n] + "*"
-	paths, isPartial, err := metricsFind(at, tr, label, subquery, delimiter, isExpand, deadline)
+	paths, isPartial, err := metricsFind(at, denyPartialResponse, tr, label, subquery, delimiter, isExpand, deadline)
 	if err != nil {
 		return nil, false, err
 	}
@@ -292,7 +291,7 @@ func metricsFind(at *auth.Token, tr storage.TimeRange, label, query string, deli
 			continue
 		}
 		subquery := path + tail
-		fullPaths, isPartialLocal, err := metricsFind(at, tr, label, subquery, delimiter, isExpand, deadline)
+		fullPaths, isPartialLocal, err := metricsFind(at, denyPartialResponse, tr, label, subquery, delimiter, isExpand, deadline)
 		if err != nil {
 			return nil, false, err
 		}

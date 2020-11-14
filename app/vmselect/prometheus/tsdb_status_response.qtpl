@@ -2,9 +2,10 @@
 
 {% stripspace %}
 TSDBStatusResponse generates response for /api/v1/status/tsdb .
-{% func TSDBStatusResponse(status *storage.TSDBStatus) %}
+{% func TSDBStatusResponse(isPartial bool, status *storage.TSDBStatus) %}
 {
 	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":{
 		"seriesCountByMetricName":{%= tsdbStatusEntries(status.SeriesCountByMetricName) %},
 		"labelValueCountByLabelName":{%= tsdbStatusEntries(status.LabelValueCountByLabelName) %},

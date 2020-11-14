@@ -490,7 +490,7 @@ func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 }
 
 // GetLabelsOnTimeRange returns labels for the given tr until the given deadline.
-func GetLabelsOnTimeRange(at *auth.Token, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabelsOnTimeRange(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -528,7 +528,7 @@ func GetLabelsOnTimeRange(at *auth.Token, tr storage.TimeRange, deadline searchu
 		}
 		labels = append(labels, nr.labels...)
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -539,9 +539,10 @@ func GetLabelsOnTimeRange(at *auth.Token, tr storage.TimeRange, deadline searchu
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelsOnTimeRangeResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching labels on time range: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 	// Deduplicate labels
 	labels = deduplicateStrings(labels)
@@ -553,11 +554,11 @@ func GetLabelsOnTimeRange(at *auth.Token, tr storage.TimeRange, deadline searchu
 	}
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
-	return labels, isPartialResult, nil
+	return labels, isPartial, nil
 }
 
 // GetLabels returns labels until the given deadline.
-func GetLabels(at *auth.Token, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabels(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -595,7 +596,7 @@ func GetLabels(at *auth.Token, deadline searchutils.Deadline) ([]string, bool, e
 		}
 		labels = append(labels, nr.labels...)
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -606,9 +607,10 @@ func GetLabels(at *auth.Token, deadline searchutils.Deadline) ([]string, bool, e
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelsResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching labels: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 	// Deduplicate labels
 	labels = deduplicateStrings(labels)
@@ -620,12 +622,12 @@ func GetLabels(at *auth.Token, deadline searchutils.Deadline) ([]string, bool, e
 	}
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
-	return labels, isPartialResult, nil
+	return labels, isPartial, nil
 }
 
 // GetLabelValuesOnTimeRange returns label values for the given labelName on the given tr
 // until the given deadline.
-func GetLabelValuesOnTimeRange(at *auth.Token, labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabelValuesOnTimeRange(at *auth.Token, denyPartialResponse bool, labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -667,7 +669,7 @@ func GetLabelValuesOnTimeRange(at *auth.Token, labelName string, tr storage.Time
 		}
 		labelValues = append(labelValues, nr.labelValues...)
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -678,21 +680,22 @@ func GetLabelValuesOnTimeRange(at *auth.Token, labelName string, tr storage.Time
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelValuesOnTimeRangeResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching label values on time range: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 
 	// Deduplicate label values
 	labelValues = deduplicateStrings(labelValues)
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
-	return labelValues, isPartialResult, nil
+	return labelValues, isPartial, nil
 }
 
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
-func GetLabelValues(at *auth.Token, labelName string, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetLabelValues(at *auth.Token, denyPartialResponse bool, labelName string, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -734,7 +737,7 @@ func GetLabelValues(at *auth.Token, labelName string, deadline searchutils.Deadl
 		}
 		labelValues = append(labelValues, nr.labelValues...)
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -745,22 +748,24 @@ func GetLabelValues(at *auth.Token, labelName string, deadline searchutils.Deadl
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelValuesResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching label values: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 
 	// Deduplicate label values
 	labelValues = deduplicateStrings(labelValues)
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
-	return labelValues, isPartialResult, nil
+	return labelValues, isPartial, nil
 }
 
 // GetTagValueSuffixes returns tag value suffixes for the given tagKey and the given tagValuePrefix.
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
-func GetTagValueSuffixes(at *auth.Token, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetTagValueSuffixes(at *auth.Token, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
+	delimiter byte, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -801,7 +806,7 @@ func GetTagValueSuffixes(at *auth.Token, tr storage.TimeRange, tagKey, tagValueP
 			m[suffix] = struct{}{}
 		}
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -813,19 +818,20 @@ func GetTagValueSuffixes(at *auth.Token, tr storage.TimeRange, tagKey, tagValueP
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelEntriesResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching tag value suffixes: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 	suffixes := make([]string, 0, len(m))
 	for suffix := range m {
 		suffixes = append(suffixes, suffix)
 	}
-	return suffixes, isPartialResult, nil
+	return suffixes, isPartial, nil
 }
 
 // GetLabelEntries returns all the label entries for at until the given deadline.
-func GetLabelEntries(at *auth.Token, deadline searchutils.Deadline) ([]storage.TagEntry, bool, error) {
+func GetLabelEntries(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) ([]storage.TagEntry, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -863,7 +869,7 @@ func GetLabelEntries(at *auth.Token, deadline searchutils.Deadline) ([]storage.T
 		}
 		labelEntries = append(labelEntries, nr.labelEntries...)
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -874,9 +880,10 @@ func GetLabelEntries(at *auth.Token, deadline searchutils.Deadline) ([]storage.T
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialLabelEntriesResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching label entries: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 
 	// Substitute "" with "__name__"
@@ -899,7 +906,7 @@ func GetLabelEntries(at *auth.Token, deadline searchutils.Deadline) ([]storage.T
 		return labelEntries[i].Key > labelEntries[j].Key
 	})
 
-	return labelEntries, isPartialResult, nil
+	return labelEntries, isPartial, nil
 }
 
 func deduplicateLabelEntries(src []storage.TagEntry) []storage.TagEntry {
@@ -933,7 +940,7 @@ func deduplicateStrings(a []string) []string {
 }
 
 // GetTSDBStatusForDate returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
-func GetTSDBStatusForDate(at *auth.Token, deadline searchutils.Deadline, date uint64, topN int) (*storage.TSDBStatus, bool, error) {
+func GetTSDBStatusForDate(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline, date uint64, topN int) (*storage.TSDBStatus, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -971,7 +978,7 @@ func GetTSDBStatusForDate(at *auth.Token, deadline searchutils.Deadline, date ui
 		}
 		statuses = append(statuses, nr.status)
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -981,13 +988,14 @@ func GetTSDBStatusForDate(at *auth.Token, deadline searchutils.Deadline, date ui
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialTSDBStatusResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching tsdb stats: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
 	}
 
 	status := mergeTSDBStatuses(statuses, topN)
-	return status, isPartialResult, nil
+	return status, isPartial, nil
 }
 
 func mergeTSDBStatuses(statuses []*storage.TSDBStatus, topN int) *storage.TSDBStatus {
@@ -1037,7 +1045,7 @@ func toTopHeapEntries(m map[string]uint64, topN int) []storage.TopHeapEntry {
 }
 
 // GetSeriesCount returns the number of unique series for the given at.
-func GetSeriesCount(at *auth.Token, deadline searchutils.Deadline) (uint64, bool, error) {
+func GetSeriesCount(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) (uint64, bool, error) {
 	if deadline.Exceeded() {
 		return 0, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -1075,7 +1083,7 @@ func GetSeriesCount(at *auth.Token, deadline searchutils.Deadline) (uint64, bool
 		}
 		n += nr.n
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -1085,12 +1093,13 @@ func GetSeriesCount(at *auth.Token, deadline searchutils.Deadline) (uint64, bool
 		// This allows gracefully degrade vmselect in the case
 		// if certain storageNodes are temporarily unavailable.
 		partialSeriesCountResults.Inc()
-		// Log only the first error, since it has no sense in returning all errors.
-		logger.Errorf("certain storageNodes are unhealthy when fetching series count: %s", errors[0])
-		isPartialResult = true
+		if denyPartialResponse {
+			return 0, true, errors[0]
+		}
+		isPartial = true
 	}
 
-	return n, isPartialResult, nil
+	return n, isPartial, nil
 }
 
 type tmpBlocksFileWrapper struct {
@@ -1148,9 +1157,9 @@ var metricNamePool = &sync.Pool{
 // Data processing is immediately stopped if f returns non-nil error.
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
-func ExportBlocks(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) (bool, error) {
+func ExportBlocks(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
 	if deadline.Exceeded() {
-		return false, fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
+		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
@@ -1168,17 +1177,17 @@ func ExportBlocks(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 		metricNamePool.Put(mn)
 		return nil
 	}
-	isPartialResult, err := processSearchQuery(at, sq, true, processBlock, deadline)
+	_, err := processSearchQuery(at, true, sq, true, processBlock, deadline)
 	if err != nil {
-		return true, fmt.Errorf("error occured during export: %w", err)
+		return fmt.Errorf("error occured during export: %w", err)
 	}
-	return isPartialResult, nil
+	return nil
 }
 
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, bool, error) {
+func ProcessSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, fetchData bool, deadline searchutils.Deadline) (*Results, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -1200,7 +1209,7 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 		}
 		return nil
 	}
-	isPartialResult, err := processSearchQuery(at, sq, fetchData, processBlock, deadline)
+	isPartial, err := processSearchQuery(at, denyPartialResponse, sq, fetchData, processBlock, deadline)
 	if err != nil {
 		putTmpBlocksFile(tbfw.tbf)
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
@@ -1224,10 +1233,11 @@ func ProcessSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 		}
 	}
 	rss.packedTimeseries = pts
-	return &rss, isPartialResult, nil
+	return &rss, isPartial, nil
 }
 
-func processSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool, processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) (bool, error) {
+func processSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, fetchData bool,
+	processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) (bool, error) {
 	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
@@ -1255,7 +1265,7 @@ func processSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 			continue
 		}
 	}
-	isPartialResult := false
+	isPartial := false
 	if len(errors) > 0 {
 		if len(errors) == len(storageNodes) {
 			// Return only the first error, since it has no sense in returning all errors.
@@ -1268,9 +1278,12 @@ func processSearchQuery(at *auth.Token, sq *storage.SearchQuery, fetchData bool,
 		// Do not return the error, since it may spam logs on busy vmselect
 		// serving high amounts of requests.
 		partialSearchResults.Inc()
-		isPartialResult = true
+		if denyPartialResponse {
+			return true, errors[0]
+		}
+		isPartial = true
 	}
-	return isPartialResult, nil
+	return isPartial, nil
 }
 
 type storageNode struct {

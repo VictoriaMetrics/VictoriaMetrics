@@ -20,7 +20,7 @@ var (
 )
 
 //line app/vmselect/graphite/metrics_index_response.qtpl:5
-func StreamMetricsIndexResponse(qw422016 *qt422016.Writer, metricNames []string, jsonp string) {
+func StreamMetricsIndexResponse(qw422016 *qt422016.Writer, isPartial bool, metricNames []string, jsonp string) {
 //line app/vmselect/graphite/metrics_index_response.qtpl:6
 	if jsonp != "" {
 //line app/vmselect/graphite/metrics_index_response.qtpl:6
@@ -41,22 +41,22 @@ func StreamMetricsIndexResponse(qw422016 *qt422016.Writer, metricNames []string,
 }
 
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
-func WriteMetricsIndexResponse(qq422016 qtio422016.Writer, metricNames []string, jsonp string) {
+func WriteMetricsIndexResponse(qq422016 qtio422016.Writer, isPartial bool, metricNames []string, jsonp string) {
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
-	StreamMetricsIndexResponse(qw422016, metricNames, jsonp)
+	StreamMetricsIndexResponse(qw422016, isPartial, metricNames, jsonp)
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
 }
 
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
-func MetricsIndexResponse(metricNames []string, jsonp string) string {
+func MetricsIndexResponse(isPartial bool, metricNames []string, jsonp string) string {
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
-	WriteMetricsIndexResponse(qb422016, metricNames, jsonp)
+	WriteMetricsIndexResponse(qb422016, isPartial, metricNames, jsonp)
 //line app/vmselect/graphite/metrics_index_response.qtpl:9
 	qs422016 := string(qb422016.B)
 //line app/vmselect/graphite/metrics_index_response.qtpl:9

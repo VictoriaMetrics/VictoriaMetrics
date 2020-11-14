@@ -25,59 +25,71 @@ var (
 )
 
 //line app/vmselect/prometheus/series_response.qtpl:8
-func StreamSeriesResponse(qw422016 *qt422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer) {
+func StreamSeriesResponse(qw422016 *qt422016.Writer, isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer) {
 //line app/vmselect/prometheus/series_response.qtpl:8
-	qw422016.N().S(`{"status":"success","data":[`)
-//line app/vmselect/prometheus/series_response.qtpl:12
+	qw422016.N().S(`{"status":"success","isPartial":`)
+//line app/vmselect/prometheus/series_response.qtpl:11
+	if isPartial {
+//line app/vmselect/prometheus/series_response.qtpl:11
+		qw422016.N().S(`true`)
+//line app/vmselect/prometheus/series_response.qtpl:11
+	} else {
+//line app/vmselect/prometheus/series_response.qtpl:11
+		qw422016.N().S(`false`)
+//line app/vmselect/prometheus/series_response.qtpl:11
+	}
+//line app/vmselect/prometheus/series_response.qtpl:11
+	qw422016.N().S(`,"data":[`)
+//line app/vmselect/prometheus/series_response.qtpl:13
 	bb, ok := <-resultsCh
 
-//line app/vmselect/prometheus/series_response.qtpl:13
-	if ok {
 //line app/vmselect/prometheus/series_response.qtpl:14
-		qw422016.N().Z(bb.B)
+	if ok {
 //line app/vmselect/prometheus/series_response.qtpl:15
+		qw422016.N().Z(bb.B)
+//line app/vmselect/prometheus/series_response.qtpl:16
 		quicktemplate.ReleaseByteBuffer(bb)
 
-//line app/vmselect/prometheus/series_response.qtpl:16
-		for bb := range resultsCh {
-//line app/vmselect/prometheus/series_response.qtpl:16
-			qw422016.N().S(`,`)
 //line app/vmselect/prometheus/series_response.qtpl:17
-			qw422016.N().Z(bb.B)
+		for bb := range resultsCh {
+//line app/vmselect/prometheus/series_response.qtpl:17
+			qw422016.N().S(`,`)
 //line app/vmselect/prometheus/series_response.qtpl:18
+			qw422016.N().Z(bb.B)
+//line app/vmselect/prometheus/series_response.qtpl:19
 			quicktemplate.ReleaseByteBuffer(bb)
 
-//line app/vmselect/prometheus/series_response.qtpl:19
+//line app/vmselect/prometheus/series_response.qtpl:20
 		}
-//line app/vmselect/prometheus/series_response.qtpl:20
+//line app/vmselect/prometheus/series_response.qtpl:21
 	}
-//line app/vmselect/prometheus/series_response.qtpl:20
+//line app/vmselect/prometheus/series_response.qtpl:21
 	qw422016.N().S(`]}`)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:23
-func WriteSeriesResponse(qq422016 qtio422016.Writer, resultsCh <-chan *quicktemplate.ByteBuffer) {
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
+func WriteSeriesResponse(qq422016 qtio422016.Writer, isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer) {
+//line app/vmselect/prometheus/series_response.qtpl:24
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/series_response.qtpl:23
-	StreamSeriesResponse(qw422016, resultsCh)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
+	StreamSeriesResponse(qw422016, isPartial, resultsCh)
+//line app/vmselect/prometheus/series_response.qtpl:24
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
 }
 
-//line app/vmselect/prometheus/series_response.qtpl:23
-func SeriesResponse(resultsCh <-chan *quicktemplate.ByteBuffer) string {
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
+func SeriesResponse(isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer) string {
+//line app/vmselect/prometheus/series_response.qtpl:24
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/series_response.qtpl:23
-	WriteSeriesResponse(qb422016, resultsCh)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
+	WriteSeriesResponse(qb422016, isPartial, resultsCh)
+//line app/vmselect/prometheus/series_response.qtpl:24
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
 	return qs422016
-//line app/vmselect/prometheus/series_response.qtpl:23
+//line app/vmselect/prometheus/series_response.qtpl:24
 }

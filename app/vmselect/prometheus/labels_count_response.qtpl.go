@@ -23,52 +23,64 @@ var (
 )
 
 //line app/vmselect/prometheus/labels_count_response.qtpl:5
-func StreamLabelsCountResponse(qw422016 *qt422016.Writer, labelEntries []storage.TagEntry) {
+func StreamLabelsCountResponse(qw422016 *qt422016.Writer, isPartial bool, labelEntries []storage.TagEntry) {
 //line app/vmselect/prometheus/labels_count_response.qtpl:5
-	qw422016.N().S(`{"status":"success","data":{`)
-//line app/vmselect/prometheus/labels_count_response.qtpl:9
-	for i, e := range labelEntries {
-//line app/vmselect/prometheus/labels_count_response.qtpl:10
-		qw422016.N().Q(e.Key)
-//line app/vmselect/prometheus/labels_count_response.qtpl:10
-		qw422016.N().S(`:`)
-//line app/vmselect/prometheus/labels_count_response.qtpl:10
-		qw422016.N().D(len(e.Values))
-//line app/vmselect/prometheus/labels_count_response.qtpl:11
-		if i+1 < len(labelEntries) {
-//line app/vmselect/prometheus/labels_count_response.qtpl:11
-			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/labels_count_response.qtpl:11
-		}
-//line app/vmselect/prometheus/labels_count_response.qtpl:12
+	qw422016.N().S(`{"status":"success","isPartial":`)
+//line app/vmselect/prometheus/labels_count_response.qtpl:8
+	if isPartial {
+//line app/vmselect/prometheus/labels_count_response.qtpl:8
+		qw422016.N().S(`true`)
+//line app/vmselect/prometheus/labels_count_response.qtpl:8
+	} else {
+//line app/vmselect/prometheus/labels_count_response.qtpl:8
+		qw422016.N().S(`false`)
+//line app/vmselect/prometheus/labels_count_response.qtpl:8
 	}
+//line app/vmselect/prometheus/labels_count_response.qtpl:8
+	qw422016.N().S(`,"data":{`)
+//line app/vmselect/prometheus/labels_count_response.qtpl:10
+	for i, e := range labelEntries {
+//line app/vmselect/prometheus/labels_count_response.qtpl:11
+		qw422016.N().Q(e.Key)
+//line app/vmselect/prometheus/labels_count_response.qtpl:11
+		qw422016.N().S(`:`)
+//line app/vmselect/prometheus/labels_count_response.qtpl:11
+		qw422016.N().D(len(e.Values))
 //line app/vmselect/prometheus/labels_count_response.qtpl:12
+		if i+1 < len(labelEntries) {
+//line app/vmselect/prometheus/labels_count_response.qtpl:12
+			qw422016.N().S(`,`)
+//line app/vmselect/prometheus/labels_count_response.qtpl:12
+		}
+//line app/vmselect/prometheus/labels_count_response.qtpl:13
+	}
+//line app/vmselect/prometheus/labels_count_response.qtpl:13
 	qw422016.N().S(`}}`)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 }
 
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
-func WriteLabelsCountResponse(qq422016 qtio422016.Writer, labelEntries []storage.TagEntry) {
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
+func WriteLabelsCountResponse(qq422016 qtio422016.Writer, isPartial bool, labelEntries []storage.TagEntry) {
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
-	StreamLabelsCountResponse(qw422016, labelEntries)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
+	StreamLabelsCountResponse(qw422016, isPartial, labelEntries)
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 }
 
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
-func LabelsCountResponse(labelEntries []storage.TagEntry) string {
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
+func LabelsCountResponse(isPartial bool, labelEntries []storage.TagEntry) string {
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
-	WriteLabelsCountResponse(qb422016, labelEntries)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
+	WriteLabelsCountResponse(qb422016, isPartial, labelEntries)
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 	return qs422016
-//line app/vmselect/prometheus/labels_count_response.qtpl:15
+//line app/vmselect/prometheus/labels_count_response.qtpl:16
 }

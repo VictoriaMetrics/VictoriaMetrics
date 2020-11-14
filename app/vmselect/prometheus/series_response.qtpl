@@ -5,9 +5,10 @@
 {% stripspace %}
 SeriesResponse generates response for /api/v1/series.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers
-{% func SeriesResponse(resultsCh <-chan *quicktemplate.ByteBuffer) %}
+{% func SeriesResponse(isPartial bool, resultsCh <-chan *quicktemplate.ByteBuffer) %}
 {
 	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":[
 		{% code bb, ok := <-resultsCh %}
 		{% if ok %}

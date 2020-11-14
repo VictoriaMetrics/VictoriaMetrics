@@ -20,7 +20,7 @@ var (
 )
 
 //line app/vmselect/graphite/metrics_expand_response.qtpl:5
-func StreamMetricsExpandResponseByQuery(qw422016 *qt422016.Writer, m map[string][]string, jsonp string) {
+func StreamMetricsExpandResponseByQuery(qw422016 *qt422016.Writer, isPartial bool, m map[string][]string, jsonp string) {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:6
 	if jsonp != "" {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:6
@@ -65,22 +65,22 @@ func StreamMetricsExpandResponseByQuery(qw422016 *qt422016.Writer, m map[string]
 }
 
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
-func WriteMetricsExpandResponseByQuery(qq422016 qtio422016.Writer, m map[string][]string, jsonp string) {
+func WriteMetricsExpandResponseByQuery(qq422016 qtio422016.Writer, isPartial bool, m map[string][]string, jsonp string) {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
-	StreamMetricsExpandResponseByQuery(qw422016, m, jsonp)
+	StreamMetricsExpandResponseByQuery(qw422016, isPartial, m, jsonp)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
 }
 
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
-func MetricsExpandResponseByQuery(m map[string][]string, jsonp string) string {
+func MetricsExpandResponseByQuery(isPartial bool, m map[string][]string, jsonp string) string {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
-	WriteMetricsExpandResponseByQuery(qb422016, m, jsonp)
+	WriteMetricsExpandResponseByQuery(qb422016, isPartial, m, jsonp)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
 	qs422016 := string(qb422016.B)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:18
@@ -93,7 +93,7 @@ func MetricsExpandResponseByQuery(m map[string][]string, jsonp string) string {
 // MetricsExpandResponseFlat generates response for /metrics/expand?groupByExpr=0 .See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand
 
 //line app/vmselect/graphite/metrics_expand_response.qtpl:23
-func StreamMetricsExpandResponseFlat(qw422016 *qt422016.Writer, paths []string, jsonp string) {
+func StreamMetricsExpandResponseFlat(qw422016 *qt422016.Writer, isPartial bool, paths []string, jsonp string) {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:24
 	if jsonp != "" {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:24
@@ -114,22 +114,22 @@ func StreamMetricsExpandResponseFlat(qw422016 *qt422016.Writer, paths []string, 
 }
 
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
-func WriteMetricsExpandResponseFlat(qq422016 qtio422016.Writer, paths []string, jsonp string) {
+func WriteMetricsExpandResponseFlat(qq422016 qtio422016.Writer, isPartial bool, paths []string, jsonp string) {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
-	StreamMetricsExpandResponseFlat(qw422016, paths, jsonp)
+	StreamMetricsExpandResponseFlat(qw422016, isPartial, paths, jsonp)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
 }
 
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
-func MetricsExpandResponseFlat(paths []string, jsonp string) string {
+func MetricsExpandResponseFlat(isPartial bool, paths []string, jsonp string) string {
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
-	WriteMetricsExpandResponseFlat(qb422016, paths, jsonp)
+	WriteMetricsExpandResponseFlat(qb422016, isPartial, paths, jsonp)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27
 	qs422016 := string(qb422016.B)
 //line app/vmselect/graphite/metrics_expand_response.qtpl:27

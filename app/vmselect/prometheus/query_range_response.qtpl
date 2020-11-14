@@ -5,9 +5,10 @@
 {% stripspace %}
 QueryRangeResponse generates response for /api/v1/query_range.
 See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-{% func QueryRangeResponse(rs []netstorage.Result) %}
+{% func QueryRangeResponse(isPartial bool, rs []netstorage.Result) %}
 {
 	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
 	"data":{
 		"resultType":"matrix",
 		"result":[
