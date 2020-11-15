@@ -744,6 +744,10 @@ func (db *indexDB) SearchTagKeysOnTimeRange(accountID, projectID uint32, tr Time
 
 	keys := make([]string, 0, len(tks))
 	for key := range tks {
+		if key == string(graphiteReverseTagKey) {
+			// Do not show artificially created graphiteReverseTagKey to the caller.
+			continue
+		}
 		// Do not skip empty keys, since they are converted to __name__
 		keys = append(keys, key)
 	}
@@ -855,6 +859,10 @@ func (db *indexDB) SearchTagKeys(accountID, projectID uint32, maxTagKeys int, de
 
 	keys := make([]string, 0, len(tks))
 	for key := range tks {
+		if key == string(graphiteReverseTagKey) {
+			// Do not show artificially created graphiteReverseTagKey to the caller.
+			continue
+		}
 		// Do not skip empty keys, since they are converted to __name__
 		keys = append(keys, key)
 	}
