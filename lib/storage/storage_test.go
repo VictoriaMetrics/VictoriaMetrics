@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"testing/quick"
@@ -701,6 +702,148 @@ func checkTagKeys(tks []string, tksExpected map[string]bool) error {
 			return fmt.Errorf("cannot find %q in tag keys %q", k, tks)
 		}
 	}
+	return nil
+}
+
+func TestStorageRegisterMetricNamesSerial(t *testing.T) {
+	path := "TestStorageRegisterMetricNamesSerial"
+	s, err := OpenStorage(path, 0)
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+	if err := testStorageRegisterMetricNames(s); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	s.MustClose()
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+}
+
+func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
+	path := "TestStorageRegisterMetricNamesConcurrent"
+	s, err := OpenStorage(path, 0)
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+	ch := make(chan error, 3)
+	for i := 0; i < cap(ch); i++ {
+		go func() {
+			ch <- testStorageRegisterMetricNames(s)
+		}()
+	}
+	for i := 0; i < cap(ch); i++ {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("timeout")
+		}
+	}
+	s.MustClose()
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+}
+
+func testStorageRegisterMetricNames(s *Storage) error {
+	const metricsPerAdd = 1e3
+	const addsCount = 10
+	const accountID = 123
+	const projectID = 421
+
+	addIDsMap := make(map[string]struct{})
+	for i := 0; i < addsCount; i++ {
+		var mrs []MetricRow
+		var mn MetricName
+		addID := fmt.Sprintf("%d", i)
+		addIDsMap[addID] = struct{}{}
+		mn.AccountID = accountID
+		mn.ProjectID = projectID
+		mn.Tags = []Tag{
+			{[]byte("job"), []byte("webservice")},
+			{[]byte("instance"), []byte("1.2.3.4")},
+			{[]byte("add_id"), []byte(addID)},
+		}
+		now := timestampFromTime(time.Now())
+		for j := 0; j < metricsPerAdd; j++ {
+			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rand.Intn(100)))
+			metricNameRaw := mn.marshalRaw(nil)
+
+			mr := MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     now,
+			}
+			mrs = append(mrs, mr)
+		}
+		if err := s.RegisterMetricNames(mrs); err != nil {
+			return fmt.Errorf("unexpected error in AddMetrics: %w", err)
+		}
+	}
+	var addIDsExpected []string
+	for k := range addIDsMap {
+		addIDsExpected = append(addIDsExpected, k)
+	}
+	sort.Strings(addIDsExpected)
+
+	// Verify the storage contains the added metric names.
+	s.DebugFlush()
+
+	// Verify that SearchTagKeys returns correct result.
+	tksExpected := []string{
+		"",
+		"add_id",
+		"instance",
+		"job",
+	}
+	tks, err := s.SearchTagKeys(accountID, projectID, 100, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchTagKeys: %w", err)
+	}
+	sort.Strings(tks)
+	if !reflect.DeepEqual(tks, tksExpected) {
+		return fmt.Errorf("unexpected tag keys returned from SearchTagKeys;\ngot\n%q\nwant\n%q", tks, tksExpected)
+	}
+
+	// Verify that SearchTagKeysOnTimeRange returns correct result.
+	now := timestampFromTime(time.Now())
+	start := now - msecPerDay
+	end := now + 60*1000
+	tr := TimeRange{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+	}
+	tks, err = s.SearchTagKeysOnTimeRange(accountID, projectID, tr, 100, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchTagKeysOnTimeRange: %w", err)
+	}
+	sort.Strings(tks)
+	if !reflect.DeepEqual(tks, tksExpected) {
+		return fmt.Errorf("unexpected tag keys returned from SearchTagKeysOnTimeRange;\ngot\n%q\nwant\n%q", tks, tksExpected)
+	}
+
+	// Verify that SearchTagValues returns correct result.
+	addIDs, err := s.SearchTagValues(accountID, projectID, []byte("add_id"), addsCount+100, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchTagValues: %w", err)
+	}
+	sort.Strings(addIDs)
+	if !reflect.DeepEqual(addIDs, addIDsExpected) {
+		return fmt.Errorf("unexpected tag values returned from SearchTagValues;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+	}
+
+	// Verify that SearchTagValuesOnTimeRange returns correct result.
+	addIDs, err = s.SearchTagValuesOnTimeRange(accountID, projectID, []byte("add_id"), tr, addsCount+100, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchTagValuesOnTimeRange: %w", err)
+	}
+	sort.Strings(addIDs)
+	if !reflect.DeepEqual(addIDs, addIDsExpected) {
+		return fmt.Errorf("unexpected tag values returned from SearchTagValuesOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+	}
+
 	return nil
 }
 

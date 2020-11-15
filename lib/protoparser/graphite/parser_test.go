@@ -7,6 +7,57 @@ import (
 	"testing"
 )
 
+func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var r Row
+		_, err := r.UnmarshalMetricAndTags(s, nil)
+		if err == nil {
+			t.Fatalf("expecting non-nil error for UnmarshalMetricAndTags(%q)", s)
+		}
+	}
+	f("")
+	f(";foo=bar")
+	f(" ")
+	f("foo;bar")
+	f("foo ;bar=baz")
+	f("f oo;bar=baz")
+	f("foo;bar=baz   ")
+	f("foo;bar= baz")
+	f("foo;bar=b az")
+	f("foo;b ar=baz")
+}
+
+func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
+	f := func(s string, rExpected *Row) {
+		t.Helper()
+		var r Row
+		_, err := r.UnmarshalMetricAndTags(s, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in UnmarshalMetricAndTags(%q): %s", s, err)
+		}
+		if !reflect.DeepEqual(&r, rExpected) {
+			t.Fatalf("unexpected row;\ngot\n%+v\nwant\n%+v", &r, rExpected)
+		}
+	}
+	f("foo", &Row{
+		Metric: "foo",
+	})
+	f("foo;bar=123;baz=aabb", &Row{
+		Metric: "foo",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "123",
+			},
+			{
+				Key:   "baz",
+				Value: "aabb",
+			},
+		},
+	})
+}
+
 func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
