@@ -557,6 +557,26 @@ func GetLabelsOnTimeRange(at *auth.Token, denyPartialResponse bool, tr storage.T
 	return labels, isPartial, nil
 }
 
+// GetGraphiteTags returns Graphite tags until the given deadline.
+func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+	labels, isPartial, err := GetLabels(at, denyPartialResponse, deadline)
+	if err != nil {
+		return nil, false, err
+	}
+	if limit < len(labels) {
+		labels = labels[:limit]
+	}
+	// Convert __name__ to name in labels according to Graphite tags specs.
+	// See https://graphite.readthedocs.io/en/stable/tags.html#querying
+	for i, label := range labels {
+		if label == "__name__" {
+			labels[i] = "name"
+			break
+		}
+	}
+	return labels, isPartial, nil
+}
+
 // GetLabels returns labels until the given deadline.
 func GetLabels(at *auth.Token, denyPartialResponse bool, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
