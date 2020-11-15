@@ -259,6 +259,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/tags":
+		graphiteTagsRequests.Inc()
+		if err := graphite.TagsHandler(startTime, w, r); err != nil {
+			graphiteTagsErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -359,6 +367,9 @@ var (
 
 	graphiteMetricsIndexRequests = metrics.NewCounter(`vm_http_requests_total{path="/metrics/index.json"}`)
 	graphiteMetricsIndexErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/metrics/index.json"}`)
+
+	graphiteTagsRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags"}`)
+	graphiteTagsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)

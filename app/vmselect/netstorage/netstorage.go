@@ -473,6 +473,33 @@ func GetLabelsOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadline) (
 	return labels, nil
 }
 
+// GetGraphiteTags returns Graphite tags until the given deadline.
+func GetGraphiteTags(limit int, deadline searchutils.Deadline) ([]string, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	if limit <= 0 {
+		limit = *maxTagKeysPerSearch
+	}
+	if limit > *maxTagKeysPerSearch {
+		return nil, fmt.Errorf("limit=%d exceeds -search.maxTagKeys=%d; either decrease limit or increase -search.maxTagKeys command-line flag value",
+			limit, *maxTagKeysPerSearch)
+	}
+	labels, err := vmstorage.SearchTagKeys(limit, deadline.Deadline())
+	if err != nil {
+		return nil, fmt.Errorf("error during tags search: %w", err)
+	}
+	// Substitute "" with "name" for Graphite compatibility
+	for i := range labels {
+		if labels[i] == "" {
+			labels[i] = "name"
+		}
+	}
+	// Sort labels like Graphite does
+	sort.Strings(labels)
+	return labels, nil
+}
+
 // GetLabels returns labels until the given deadline.
 func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 	if deadline.Exceeded() {

@@ -1,0 +1,16 @@
+{% stripspace %}
+
+Tags generates response for /tags handler
+See https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags
+{% func TagsResponse(tags []string) %}
+[
+	{% for i, tag := range tags %}
+		{
+			"tag":{%q= tag %}
+		}
+		{% if i+1 < len(tags) %},{% endif %}
+	{% endfor %}
+]
+{% endfunc %}
+
+{% endstripspace %}

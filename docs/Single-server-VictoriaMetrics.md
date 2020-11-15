@@ -548,6 +548,7 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 
 * [/tags/tagSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
 * [/tags/tagMultiSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
+* [/tags](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
 
 
 ### How to build from sources
