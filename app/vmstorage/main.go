@@ -113,6 +113,14 @@ func AddRows(mrs []storage.MetricRow) error {
 	return err
 }
 
+// RegisterMetricNames registers all the metrics from mrs in the storage.
+func RegisterMetricNames(mrs []storage.MetricRow) error {
+	WG.Add(1)
+	err := Storage.RegisterMetricNames(mrs)
+	WG.Done()
+	return err
+}
+
 // DeleteMetrics deletes metrics matching tfss.
 //
 // Returns the number of deleted metrics.

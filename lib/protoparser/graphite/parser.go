@@ -55,6 +55,33 @@ func (r *Row) reset() {
 	r.Timestamp = 0
 }
 
+// UnmarshalMetricAndTags unmarshals metric and optional tags from s.
+func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
+	if strings.Contains(s, " ") {
+		return tagsPool, fmt.Errorf("unexpected whitespace found in %q", s)
+	}
+	n := strings.IndexByte(s, ';')
+	if n < 0 {
+		// No tags
+		r.Metric = s
+	} else {
+		// Tags found
+		r.Metric = s[:n]
+		tagsStart := len(tagsPool)
+		var err error
+		tagsPool, err = unmarshalTags(tagsPool, s[n+1:])
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot umarshal tags: %w", err)
+		}
+		tags := tagsPool[tagsStart:]
+		r.Tags = tags[:len(tags):len(tags)]
+	}
+	if len(r.Metric) == 0 {
+		return tagsPool, fmt.Errorf("metric cannot be empty")
+	}
+	return tagsPool, nil
+}
+
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
 	n := strings.IndexByte(s, ' ')
@@ -64,24 +91,9 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	metricAndTags := s[:n]
 	tail := s[n+1:]
 
-	n = strings.IndexByte(metricAndTags, ';')
-	if n < 0 {
-		// No tags
-		r.Metric = metricAndTags
-	} else {
-		// Tags found
-		r.Metric = metricAndTags[:n]
-		tagsStart := len(tagsPool)
-		var err error
-		tagsPool, err = unmarshalTags(tagsPool, metricAndTags[n+1:])
-		if err != nil {
-			return tagsPool, fmt.Errorf("cannot umarshal tags: %w", err)
-		}
-		tags := tagsPool[tagsStart:]
-		r.Tags = tags[:len(tags):len(tags)]
-	}
-	if len(r.Metric) == 0 {
-		return tagsPool, fmt.Errorf("metric cannot be empty")
+	tagsPool, err := r.UnmarshalMetricAndTags(metricAndTags, tagsPool)
+	if err != nil {
+		return tagsPool, err
 	}
 
 	n = strings.IndexByte(tail, ' ')
