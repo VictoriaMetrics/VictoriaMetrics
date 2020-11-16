@@ -106,8 +106,9 @@ Click on a link in order to read the corresponding case study
 * [How to send data from OpenTSDB-compatible agents](#how-to-send-data-from-opentsdb-compatible-agents)
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
   * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
-* [Graphite Metrics API usage](#graphite-metrics-api-usage)
-* [Graphite Tags API usage](#graphite-tags-api-usage)
+* [Graphite API usage](#graphite-api-usage)
+  * [Graphite Metrics API usage](#graphite-metrics-api-usage)
+  * [Graphite Tags API usage](#graphite-tags-api-usage)
 * [How to build from sources](#how-to-build-from-sources)
   * [Development build](#development-build)
   * [Production build](#production-build)
@@ -528,7 +529,15 @@ Additionally VictoriaMetrics provides the following handlers:
 * `/api/v1/status/active_queries` - it returns a list of currently running queries.
 
 
-### Graphite Metrics API usage
+### Graphite API usage
+
+VictoriaMetrics supports the following Graphite APIs:
+
+* Metrics API - see [these docs](#graphite-metrics-api-usage).
+* Tags API - see [these docs](#graphite-tags-api-usage).
+
+
+#### Graphite Metrics API usage
 
 VictoriaMetrics supports the following handlers from [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api):
 
@@ -542,7 +551,7 @@ VictoriaMetrics accepts the following additional query args at `/metrics/find` a
     that start with `node_`. By default `delimiter=.`.
 
 
-### Graphite Tags API usage
+#### Graphite Tags API usage
 
 VictoriaMetrics supports the following handlers from [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html):
 

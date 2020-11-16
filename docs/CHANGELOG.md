@@ -21,6 +21,8 @@
 * FEATURE: update Go builder from v1.15.4 to v1.15.5. This should fix [these issues in Go](https://github.com/golang/go/issues?q=milestone%3AGo1.15.5+label%3ACherryPickApproved).
 * FEATURE: added `/internal/force_flush` http handler for flushing recently ingested data from in-memory buffers to persistent storage.
   See [troubleshooting docs](https://victoriametrics.github.io/#troubleshooting) for more details.
+* FEATURE: added [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html) support.
+  See [these docs](https://victoriametrics.github.io/#graphite-tags-api-usage) for details.
 
 * BUGFIX: do not return data points in the end of the selected time range for time series ending in the middle of the selected time range.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/887 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
