@@ -1,0 +1,16 @@
+{% stripspace %}
+
+TagsAutoCompleteResponse generates responses for /tags/autoComplete/{tags,values} handlers in Graphite Tags API.
+See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
+{% func TagsAutoCompleteResponse(ss []string, jsonp string) %}
+	{% if jsonp != "" %}{%s= jsonp %}({% endif %}
+	[
+		{% for i, s := range ss %}
+			{%q= s %}
+			{% if i+1 < len(ss) %},{% endif %}
+		{% endfor %}
+	]
+	{% if jsonp != "" %}){% endif %}
+{% endfunc %}
+
+{% endstripspace %}
