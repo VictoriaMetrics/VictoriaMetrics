@@ -1,4 +1,4 @@
-# $OpenBSD$
+# $OpenBSD: Makefile,v $
 
 COMMENT =		fast, cost-effective and scalable time series database
 
@@ -21,17 +21,18 @@ USE_GMAKE =		Yes
 
 MODULES =		lang/go
 MODGO_GOPATH =		${MODGO_WORKSPACE}
-
 SUBST_VARS =		VARBASE
 
 do-build:
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} victoria-metrics-pure
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmbackup
+	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} vmrestore
 
 do-install:
 	${INSTALL_PROGRAM} ./pkg/vmlogger.pl ${PREFIX}/bin/vmetricslogger.pl
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/victoria-metrics-pure ${PREFIX}/bin/vmetrics
 	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmbackup ${PREFIX}/bin/vmetricsbackup
+	${INSTALL_PROGRAM} ${WRKSRC}/bin/vmrestore ${PREFIX}/bin/vmetricsrestore
 	${INSTALL_DATA_DIR} ${PREFIX}/share/doc/vmetrics/
 	${INSTALL_DATA} ${WRKSRC}/README.md ${PREFIX}/share/doc/vmetrics/
 	${INSTALL_DATA} ${WRKSRC}/LICENSE ${PREFIX}/share/doc/vmetrics/
