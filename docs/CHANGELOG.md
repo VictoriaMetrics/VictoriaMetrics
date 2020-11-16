@@ -2,6 +2,9 @@
 
 # tip
 
+
+# [v1.47.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.47.0)
+
 * FEATURE: vmselect: return the original error from `vmstorage` node in query response if `-search.denyPartialResponse` is set.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/891
 * FEATURE: vmselect: add `"isPartial":{true|false}` field in JSON output for `/api/v1/*` functions
