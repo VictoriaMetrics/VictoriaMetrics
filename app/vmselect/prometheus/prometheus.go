@@ -886,6 +886,9 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 				m[string(tag.Key)] = struct{}{}
 			}
 		}
+		if len(mns) > 0 {
+			m["__name__"] = struct{}{}
+		}
 	} else {
 		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
 		if err != nil {
@@ -906,7 +909,6 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 			return nil, false, fmt.Errorf("error when data fetching: %w", err)
 		}
 	}
-
 	labels := make([]string, 0, len(m))
 	for label := range m {
 		labels = append(labels, label)
