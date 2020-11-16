@@ -812,6 +812,9 @@ func labelsWithMatches(matches []string, start, end int64, deadline searchutils.
 				m[string(tag.Key)] = struct{}{}
 			}
 		}
+		if len(mns) > 0 {
+			m["__name__"] = struct{}{}
+		}
 	} else {
 		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
 		if err != nil {
@@ -831,7 +834,6 @@ func labelsWithMatches(matches []string, start, end int64, deadline searchutils.
 			return nil, fmt.Errorf("error when data fetching: %w", err)
 		}
 	}
-
 	labels := make([]string, 0, len(m))
 	for label := range m {
 		labels = append(labels, label)
