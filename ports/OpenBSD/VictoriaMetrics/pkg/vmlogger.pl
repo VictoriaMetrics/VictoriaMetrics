@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 use Sys::Syslog qw(:standard :macros);
 
-openlog("victoria-metrics", "pid", "daemon");
+openlog($ARGV[0], "pid", "daemon");
 
-while (my $l = <>) {
+while (my $l = <STDIN>) {
   my @d = split /\t/, $l;
   # go level : "INFO", "WARN", "ERROR", "FATAL", "PANIC":
   my $lvl = $d[0];
