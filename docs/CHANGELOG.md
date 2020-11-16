@@ -7,6 +7,7 @@
 * FEATURE: vmselect: add `"isPartial":{true|false}` field in JSON output for `/api/v1/*` functions
   from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/). `"isPartial":true` is set if the response contains partial data
   because of a part of `vmstorage` nodes were unavailable during query processing.
+* FEATURE: improve performance for `/api/v1/series` on time ranges exceeding one day.
 * FEATURE: vmagent: reduce memory usage when service discovery detects big number of scrape targets and the set of discovered targets changes over time.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825
 * FEATURE: vmagent: add `-promscrape.dropOriginalLabels` command-line option, which can be used for reducing memory usage when scraping big number of targets.
