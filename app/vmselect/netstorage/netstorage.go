@@ -577,6 +577,7 @@ func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, filter string, li
 	for i := range labels {
 		if labels[i] == "__name__" {
 			labels[i] = "name"
+			sort.Strings(labels)
 			break
 		}
 	}
