@@ -3,7 +3,6 @@ package graphite
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -21,24 +20,14 @@ func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	limit := 0
-	if limitStr := r.FormValue("limit"); len(limitStr) > 0 {
-		var err error
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil {
-			return fmt.Errorf("cannot parse limit=%q: %w", limit, err)
-		}
-	}
-	tagValues, err := netstorage.GetGraphiteTagValues(tagName, limit, deadline)
+	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
 	}
 	filter := r.FormValue("filter")
-	if len(filter) > 0 {
-		tagValues, err = applyRegexpFilter(filter, tagValues)
-		if err != nil {
-			return err
-		}
+	tagValues, err := netstorage.GetGraphiteTagValues(tagName, filter, limit, deadline)
+	if err != nil {
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -62,24 +51,14 @@ func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) er
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	limit := 0
-	if limitStr := r.FormValue("limit"); len(limitStr) > 0 {
-		var err error
-		limit, err = strconv.Atoi(limitStr)
-		if err != nil {
-			return fmt.Errorf("cannot parse limit=%q: %w", limit, err)
-		}
-	}
-	labels, err := netstorage.GetGraphiteTags(limit, deadline)
+	limit, err := getInt(r, "limit")
 	if err != nil {
 		return err
 	}
 	filter := r.FormValue("filter")
-	if len(filter) > 0 {
-		labels, err = applyRegexpFilter(filter, labels)
-		if err != nil {
-			return err
-		}
+	labels, err := netstorage.GetGraphiteTags(filter, limit, deadline)
+	if err != nil {
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -95,19 +74,14 @@ func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) er
 
 var tagsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/tags"}`)
 
-func applyRegexpFilter(filter string, ss []string) ([]string, error) {
-	// Anchor filter regexp to the beginning of the string as Graphite does.
-	// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/localdatabase.py#L157
-	filter = "^(?:" + filter + ")"
-	re, err := regexp.Compile(filter)
+func getInt(r *http.Request, argName string) (int, error) {
+	argValue := r.FormValue(argName)
+	if len(argValue) == 0 {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(argValue)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse regexp filter=%q: %w", filter, err)
+		return 0, fmt.Errorf("cannot parse %q=%q: %w", argName, argValue, err)
 	}
-	dst := ss[:0]
-	for _, s := range ss {
-		if re.MatchString(s) {
-			dst = append(dst, s)
-		}
-	}
-	return dst, nil
+	return n, nil
 }
