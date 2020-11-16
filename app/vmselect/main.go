@@ -132,6 +132,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 	}
+	if strings.HasPrefix(path, "/tags/") {
+		tagName := r.URL.Path[len("/tags/"):]
+		graphiteTagValuesRequests.Inc()
+		if err := graphite.TagValuesHandler(startTime, tagName, w, r); err != nil {
+			graphiteTagValuesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	}
 
 	switch path {
 	case "/api/v1/query":
@@ -370,6 +380,9 @@ var (
 
 	graphiteTagsRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags"}`)
 	graphiteTagsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags"}`)
+
+	graphiteTagValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/<tag_name>"}`)
+	graphiteTagValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/<tag_name>"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
