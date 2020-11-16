@@ -601,27 +601,40 @@ func labelValuesWithMatches(labelName string, matches []string, start, end int64
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
-	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
 	m := make(map[string]struct{})
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		labelValue := rs.MetricName.GetTagValue(labelName)
-		if len(labelValue) == 0 {
-			return nil
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		mLock.Lock()
-		m[string(labelValue)] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %w", err)
+		for _, mn := range mns {
+			labelValue := mn.GetTagValue(labelName)
+			if len(labelValue) == 0 {
+				continue
+			}
+			m[string(labelValue)] = struct{}{}
+		}
+	} else {
+		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		var mLock sync.Mutex
+		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			labelValue := rs.MetricName.GetTagValue(labelName)
+			if len(labelValue) == 0 {
+				return nil
+			}
+			mLock.Lock()
+			m[string(labelValue)] = struct{}{}
+			mLock.Unlock()
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error when data fetching: %w", err)
+		}
 	}
-
 	labelValues := make([]string, 0, len(m))
 	for labelValue := range m {
 		labelValues = append(labelValues, labelValue)
@@ -787,26 +800,36 @@ func labelsWithMatches(matches []string, start, end int64, deadline searchutils.
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
-	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
 	m := make(map[string]struct{})
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		mLock.Lock()
-		tags := rs.MetricName.Tags
-		for i := range tags {
-			t := &tags[i]
-			m[string(t.Key)] = struct{}{}
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		m["__name__"] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %w", err)
+		for _, mn := range mns {
+			for _, tag := range mn.Tags {
+				m[string(tag.Key)] = struct{}{}
+			}
+		}
+	} else {
+		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		var mLock sync.Mutex
+		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			mLock.Lock()
+			for _, tag := range rs.MetricName.Tags {
+				m[string(tag.Key)] = struct{}{}
+			}
+			m["__name__"] = struct{}{}
+			mLock.Unlock()
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error when data fetching: %w", err)
+		}
 	}
 
 	labels := make([]string, 0, len(m))
