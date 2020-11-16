@@ -209,6 +209,16 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 	}
+	if strings.HasPrefix(p.Suffix, "graphite/tags/") {
+		tagName := p.Suffix[len("graphite/tags/"):]
+		graphiteTagValuesRequests.Inc()
+		if err := graphite.TagValuesHandler(startTime, at, tagName, w, r); err != nil {
+			graphiteTagValuesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	}
 
 	switch p.Suffix {
 	case "prometheus/api/v1/query":
@@ -449,6 +459,9 @@ var (
 
 	graphiteTagsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags"}`)
 	graphiteTagsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags"}`)
+
+	graphiteTagValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/<tag_name>"}`)
+	graphiteTagValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/<tag_name>"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)

@@ -713,6 +713,24 @@ func GetLabelValuesOnTimeRange(at *auth.Token, denyPartialResponse bool, labelNa
 	return labelValues, isPartial, nil
 }
 
+// GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
+func GetGraphiteTagValues(at *auth.Token, denyPartialResponse bool, tagName string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	if tagName == "name" {
+		tagName = ""
+	}
+	tagValues, isPartial, err := GetLabelValues(at, denyPartialResponse, tagName, deadline)
+	if err != nil {
+		return nil, false, err
+	}
+	if limit < len(tagValues) {
+		tagValues = tagValues[:limit]
+	}
+	return tagValues, isPartial, nil
+}
+
 // GetLabelValues returns label values for the given labelName
 // until the given deadline.
 func GetLabelValues(at *auth.Token, denyPartialResponse bool, labelName string, deadline searchutils.Deadline) ([]string, bool, error) {
