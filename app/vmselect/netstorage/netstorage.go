@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -558,21 +559,29 @@ func GetLabelsOnTimeRange(at *auth.Token, denyPartialResponse bool, tr storage.T
 }
 
 // GetGraphiteTags returns Graphite tags until the given deadline.
-func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
 	labels, isPartial, err := GetLabels(at, denyPartialResponse, deadline)
 	if err != nil {
 		return nil, false, err
 	}
-	if limit < len(labels) {
-		labels = labels[:limit]
+	if len(filter) > 0 {
+		labels, err = applyGraphiteRegexpFilter(filter, labels)
+		if err != nil {
+			return nil, false, err
+		}
 	}
-	// Convert __name__ to name in labels according to Graphite tags specs.
-	// See https://graphite.readthedocs.io/en/stable/tags.html#querying
-	for i, label := range labels {
-		if label == "__name__" {
+	// Substitute "__name__" with "name" for Graphite compatibility
+	for i := range labels {
+		if labels[i] == "__name__" {
 			labels[i] = "name"
 			break
 		}
+	}
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
 	}
 	return labels, isPartial, nil
 }
@@ -714,7 +723,7 @@ func GetLabelValuesOnTimeRange(at *auth.Token, denyPartialResponse bool, labelNa
 }
 
 // GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
-func GetGraphiteTagValues(at *auth.Token, denyPartialResponse bool, tagName string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
+func GetGraphiteTagValues(at *auth.Token, denyPartialResponse bool, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
@@ -725,7 +734,13 @@ func GetGraphiteTagValues(at *auth.Token, denyPartialResponse bool, tagName stri
 	if err != nil {
 		return nil, false, err
 	}
-	if limit < len(tagValues) {
+	if len(filter) > 0 {
+		tagValues, err = applyGraphiteRegexpFilter(filter, tagValues)
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	if limit > 0 && limit < len(tagValues) {
 		tagValues = tagValues[:limit]
 	}
 	return tagValues, isPartial, nil
@@ -2263,3 +2278,20 @@ var (
 
 // The maximum number of concurrent queries per storageNode.
 const maxConcurrentQueriesPerStorageNode = 100
+
+func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
+	// Anchor filter regexp to the beginning of the string as Graphite does.
+	// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/localdatabase.py#L157
+	filter = "^(?:" + filter + ")"
+	re, err := regexp.Compile(filter)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse regexp filter=%q: %w", filter, err)
+	}
+	dst := ss[:0]
+	for _, s := range ss {
+		if re.MatchString(s) {
+			dst = append(dst, s)
+		}
+	}
+	return dst, nil
+}
