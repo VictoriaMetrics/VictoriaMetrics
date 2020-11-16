@@ -50,9 +50,9 @@ type Config struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
-	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout"`
-	ExternalLabels map[string]string `yaml:"external_labels"`
+	ScrapeInterval time.Duration     `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels map[string]string `yaml:"external_labels,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -60,34 +60,34 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       time.Duration               `yaml:"scrape_interval"`
-	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout"`
-	MetricsPath          string                      `yaml:"metrics_path"`
-	HonorLabels          bool                        `yaml:"honor_labels"`
-	HonorTimestamps      bool                        `yaml:"honor_timestamps"`
-	Scheme               string                      `yaml:"scheme"`
-	Params               map[string][]string         `yaml:"params"`
-	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth"`
-	BearerToken          string                      `yaml:"bearer_token"`
-	BearerTokenFile      string                      `yaml:"bearer_token_file"`
-	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config"`
-	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
-	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
-	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
-	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs"`
-	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs"`
-	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs"`
-	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs"`
-	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
-	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
-	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
-	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
-	SampleLimit          int                         `yaml:"sample_limit"`
+	ScrapeInterval       time.Duration               `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout,omitempty"`
+	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
+	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
+	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
+	Scheme               string                      `yaml:"scheme,omitempty"`
+	Params               map[string][]string         `yaml:"params,omitempty"`
+	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
+	BearerToken          string                      `yaml:"bearer_token,omitempty"`
+	BearerTokenFile      string                      `yaml:"bearer_token_file,omitempty"`
+	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config,omitempty"`
+	StaticConfigs        []StaticConfig              `yaml:"static_configs,omitempty"`
+	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs,omitempty"`
+	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs,omitempty"`
+	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs,omitempty"`
+	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs,omitempty"`
+	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
+	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs,omitempty"`
+	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs,omitempty"`
+	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs,omitempty"`
+	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
+	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
+	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression bool `yaml:"disable_compression"`
-	DisableKeepAlive   bool `yaml:"disable_keepalive"`
-	StreamParse        bool `yaml:"stream_parse"`
+	DisableCompression bool `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive   bool `yaml:"disable_keepalive,omitempty"`
+	StreamParse        bool `yaml:"stream_parse,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -106,7 +106,7 @@ type FileSDConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config
 type StaticConfig struct {
 	Targets []string          `yaml:"targets"`
-	Labels  map[string]string `yaml:"labels"`
+	Labels  map[string]string `yaml:"labels,omitempty"`
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
@@ -184,7 +184,7 @@ func getSWSByJob(sws []ScrapeWork) map[string][]ScrapeWork {
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -212,7 +212,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -240,7 +240,7 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -268,7 +268,7 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -296,7 +296,7 @@ func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -324,7 +324,7 @@ func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -352,7 +352,7 @@ func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getGCESDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -390,7 +390,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 			swsMapPrev[filepath] = append(swsMapPrev[filepath], *sw)
 		}
 	}
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.FileSDConfigs {

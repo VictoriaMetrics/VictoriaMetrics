@@ -11,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -25,7 +24,6 @@ var (
 // ParseStream parses r with the given args and calls callback for the parsed rows.
 //
 // The callback can be called concurrently multiple times for streamed data from r.
-// The callback can be called after ParseStream returns.
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {
@@ -59,13 +57,27 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
-		uw.callback = callback
+		uw.callback = func(db string, rows []Row) {
+			if err := callback(db, rows); err != nil {
+				ctx.callbackErrLock.Lock()
+				if ctx.callbackErr == nil {
+					ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+				}
+				ctx.callbackErrLock.Unlock()
+			}
+			ctx.wg.Done()
+		}
 		uw.db = db
 		uw.tsMultiplier = tsMultiplier
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
 	}
-	return ctx.Error()
+	ctx.wg.Wait()
+	if err := ctx.Error(); err != nil {
+		return err
+	}
+	return ctx.callbackErr
 }
 
 func (ctx *streamContext) Read() bool {
@@ -95,6 +107,10 @@ type streamContext struct {
 	reqBuf  []byte
 	tailBuf []byte
 	err     error
+
+	wg              sync.WaitGroup
+	callbackErrLock sync.Mutex
+	callbackErr     error
 }
 
 func (ctx *streamContext) Error() error {
@@ -109,6 +125,7 @@ func (ctx *streamContext) reset() {
 	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
 	ctx.err = nil
+	ctx.callbackErr = nil
 }
 
 func getStreamContext(r io.Reader) *streamContext {
@@ -142,7 +159,7 @@ var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
 
 type unmarshalWork struct {
 	rows         Rows
-	callback     func(db string, rows []Row) error
+	callback     func(db string, rows []Row)
 	db           string
 	tsMultiplier int64
 	reqBuf       []byte
@@ -195,11 +212,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	if err := uw.callback(uw.db, rows); err != nil {
-		logger.Errorf("error when processing imported data: %s", err)
-		putUnmarshalWork(uw)
-		return
-	}
+	uw.callback(uw.db, rows)
 	putUnmarshalWork(uw)
 }
 

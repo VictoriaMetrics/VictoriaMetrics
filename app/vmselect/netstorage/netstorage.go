@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"regexp"
 	"runtime"
 	"sort"
 	"sync"
@@ -523,6 +524,35 @@ func GetLabelsOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadline) (
 	return labels, nil
 }
 
+// GetGraphiteTags returns Graphite tags until the given deadline.
+func GetGraphiteTags(filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	labels, err := GetLabels(deadline)
+	if err != nil {
+		return nil, err
+	}
+	// Substitute "__name__" with "name" for Graphite compatibility
+	for i := range labels {
+		if labels[i] == "__name__" {
+			labels[i] = "name"
+			sort.Strings(labels)
+			break
+		}
+	}
+	if len(filter) > 0 {
+		labels, err = applyGraphiteRegexpFilter(filter, labels)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
+	}
+	return labels, nil
+}
+
 // GetLabels returns labels until the given deadline.
 func GetLabels(deadline searchutils.Deadline) ([]string, error) {
 	if deadline.Exceeded() {
@@ -597,6 +627,30 @@ func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline 
 	// Sort labelValues like Prometheus does
 	sort.Strings(labelValues)
 	return labelValues, nil
+}
+
+// GetGraphiteTagValues returns tag values for the given tagName until the given deadline.
+func GetGraphiteTagValues(tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	if tagName == "name" {
+		tagName = ""
+	}
+	tagValues, err := GetLabelValues(tagName, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(filter) > 0 {
+		tagValues, err = applyGraphiteRegexpFilter(filter, tagValues)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if limit > 0 && limit < len(tagValues) {
+		tagValues = tagValues[:limit]
+	}
+	return tagValues, nil
 }
 
 // GetLabelValues returns label values for the given labelName
@@ -819,6 +873,32 @@ var exportWorkPool = &sync.Pool{
 	},
 }
 
+// SearchMetricNames returns all the metric names matching sq until the given deadline.
+func SearchMetricNames(sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
+	}
+
+	// Setup search.
+	tfss, err := setupTfss(sq.TagFilterss)
+	if err != nil {
+		return nil, err
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return nil, err
+	}
+
+	mns, err := vmstorage.SearchMetricNames(tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	if err != nil {
+		return nil, fmt.Errorf("cannot find metric names: %w", err)
+	}
+	return mns, nil
+}
+
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
@@ -950,4 +1030,21 @@ func setupTfss(tagFilterss [][]storage.TagFilter) ([]*storage.TagFilters, error)
 		tfss = append(tfss, tfs.Finalize()...)
 	}
 	return tfss, nil
+}
+
+func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
+	// Anchor filter regexp to the beginning of the string as Graphite does.
+	// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/localdatabase.py#L157
+	filter = "^(?:" + filter + ")"
+	re, err := regexp.Compile(filter)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse regexp filter=%q: %w", filter, err)
+	}
+	dst := ss[:0]
+	for _, s := range ss {
+		if re.MatchString(s) {
+			dst = append(dst, s)
+		}
+	}
+	return dst, nil
 }

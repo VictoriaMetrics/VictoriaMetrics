@@ -7,6 +7,57 @@ import (
 	"testing"
 )
 
+func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		var r Row
+		_, err := r.UnmarshalMetricAndTags(s, nil)
+		if err == nil {
+			t.Fatalf("expecting non-nil error for UnmarshalMetricAndTags(%q)", s)
+		}
+	}
+	f("")
+	f(";foo=bar")
+	f(" ")
+	f("foo;bar")
+	f("foo ;bar=baz")
+	f("f oo;bar=baz")
+	f("foo;bar=baz   ")
+	f("foo;bar= baz")
+	f("foo;bar=b az")
+	f("foo;b ar=baz")
+}
+
+func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
+	f := func(s string, rExpected *Row) {
+		t.Helper()
+		var r Row
+		_, err := r.UnmarshalMetricAndTags(s, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in UnmarshalMetricAndTags(%q): %s", s, err)
+		}
+		if !reflect.DeepEqual(&r, rExpected) {
+			t.Fatalf("unexpected row;\ngot\n%+v\nwant\n%+v", &r, rExpected)
+		}
+	}
+	f("foo", &Row{
+		Metric: "foo",
+	})
+	f("foo;bar=123;baz=aabb", &Row{
+		Metric: "foo",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "123",
+			},
+			{
+				Key:   "baz",
+				Value: "aabb",
+			},
+		},
+	})
+}
+
 func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
@@ -200,7 +251,7 @@ func Test_streamContext_Read(t *testing.T) {
 		}
 		uw := getUnmarshalWork()
 		callbackCalls := 0
-		uw.callback = func(rows []Row) error {
+		uw.callback = func(rows []Row) {
 			callbackCalls++
 			if len(rows) != len(rowsExpected.Rows) {
 				t.Fatalf("different len of expected rows;\ngot\n%+v;\nwant\n%+v", rows, rowsExpected.Rows)
@@ -208,7 +259,6 @@ func Test_streamContext_Read(t *testing.T) {
 			if !reflect.DeepEqual(rows, rowsExpected.Rows) {
 				t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows, rowsExpected.Rows)
 			}
-			return nil
 		}
 		uw.reqBuf = append(uw.reqBuf[:0], ctx.reqBuf...)
 		uw.Unmarshal()

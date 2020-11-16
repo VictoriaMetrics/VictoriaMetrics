@@ -653,11 +653,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: minTimestamp,
-		MaxTimestamp: ec.End,
-		TagFilterss:  [][]storage.TagFilter{tfs},
-	}
+	sq := storage.NewSearchQuery(minTimestamp, ec.End, [][]storage.TagFilter{tfs})
 	rss, err := netstorage.ProcessSearchQuery(sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err

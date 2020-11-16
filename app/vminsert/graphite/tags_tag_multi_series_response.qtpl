@@ -1,0 +1,14 @@
+{% stripspace %}
+
+TagsTagMultiSeriesResponse generates response for /tags/tagMultiSeries .
+See https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb
+{% func TagsTagMultiSeriesResponse(canonicalPaths []string, isJSONResponse bool) %}
+	{% if isJSONResponse %}[{% endif %}
+	{% for i, path := range canonicalPaths %}
+		{%q= path %}
+		{% if i+1 < len(canonicalPaths) %},{% endif %}
+	{% endfor %}
+	{% if isJSONResponse %}]{% endif %}
+{% endfunc %}
+
+{% endstripspace %}

@@ -10,7 +10,7 @@
 
 ## VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable time-series database.
+VictoriaMetrics is fast, cost-effective and scalable monitoring solution and time series database.
 
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
@@ -21,10 +21,12 @@ Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaM
 See our [Wiki](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki) for additional documentation.
 
 [Contact us](mailto:info@victoriametrics.com) if you need paid enterprise support for VictoriaMetrics.
-See [features available for enterprise customers](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aissue+label%3Aenterprise).
+See [features available for enterprise customers](https://victoriametrics.com/enterprise.html).
 
 
 ## Case studies and talks
+
+Click on a link in order to read the corresponding case study
 
 * [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
 * [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
@@ -46,8 +48,8 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
   See [these docs](#prometheus-setup) for details.
 * Supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which is inspired by PromQL.
-* Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
+  VictoriaMetrics implements [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) query language, which inspired by PromQL. MetricsQL is backwards-compatible with PromQL.
+* Supports global query view. Multiple Prometheus instances or any other data sources may write data into VictoriaMetrics. Later this data may be queried in a single query.
 * High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
   and [selects](https://medium.com/@valyala/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4).
   [Outperforms InfluxDB and TimescaleDB by up to 20x](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
@@ -104,7 +106,9 @@ See [features available for enterprise customers](https://github.com/VictoriaMet
 * [How to send data from OpenTSDB-compatible agents](#how-to-send-data-from-opentsdb-compatible-agents)
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
   * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
-* [Graphite Metrics API usage](#graphite-metrics-api-usage)
+* [Graphite API usage](#graphite-api-usage)
+  * [Graphite Metrics API usage](#graphite-metrics-api-usage)
+  * [Graphite Tags API usage](#graphite-tags-api-usage)
 * [How to build from sources](#how-to-build-from-sources)
   * [Development build](#development-build)
   * [Production build](#production-build)
@@ -410,6 +414,7 @@ Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via t
 
 * [Prometheus querying API](#prometheus-querying-api-usage)
 * Metric names can be explored via [Graphite metrics API](#graphite-metrics-api-usage)
+* Tags can be explored via [Graphite tags API](#graphite-tags-api-usage)
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml)
 
 ### How to send data from OpenTSDB-compatible agents
@@ -495,7 +500,9 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers)
 * [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names)
 * [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
-* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
+* [/api/v1/status/tsdb](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts optional `topN=N` and `date=YYYY-MM-DD`
+  query args for this handler, where `N` is the number of top entries to return in the response and `YYYY-MM-DD` is the date for collecting the stats.
+  By default top 10 entries are returned and the stats is collected for the current day.
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
@@ -522,7 +529,15 @@ Additionally VictoriaMetrics provides the following handlers:
 * `/api/v1/status/active_queries` - it returns a list of currently running queries.
 
 
-### Graphite Metrics API usage
+### Graphite API usage
+
+VictoriaMetrics supports the following Graphite APIs:
+
+* Metrics API - see [these docs](#graphite-metrics-api-usage).
+* Tags API - see [these docs](#graphite-tags-api-usage).
+
+
+#### Graphite Metrics API usage
 
 VictoriaMetrics supports the following handlers from [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api):
 
@@ -534,6 +549,19 @@ VictoriaMetrics accepts the following additional query args at `/metrics/find` a
   * `label` - for selecting arbitrary label values. By default `label=__name__`, i.e. metric names are selected.
   * `delimiter` - for using different delimiters in metric name hierachy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
     that start with `node_`. By default `delimiter=.`.
+
+
+#### Graphite Tags API usage
+
+VictoriaMetrics supports the following handlers from [Graphite Tags API](https://graphite.readthedocs.io/en/stable/tags.html):
+
+* [/tags/tagSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
+* [/tags/tagMultiSeries](https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb)
+* [/tags](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
+* [/tags/tag_name](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
+* [/tags/findSeries](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
+* [/tags/autoComplete/tags](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
+* [/tags/autoComplete/values](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
 
 
 ### How to build from sources
@@ -695,7 +723,16 @@ VictoriaMetrics provides the following handlers for exporting data:
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export/native?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
-for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
+for metrics to export. Use `{__name__=~".*"}` selector for fetching all the time series.
+
+On large databases you may experience problems with limit on unique timeseries (default value is 300000). In this case you need to adjust `-search.maxUniqueTimeseries` parameter:
+
+```bash
+# count unique timeseries in database
+wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq '.data[0]'
+
+# relaunch victoriametrics with search.maxUniqueTimeseries more than value from previous command
+```
 
 Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
 unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
@@ -1196,13 +1233,18 @@ VictoriaMetrics also exposes currently running queries with their execution time
 
 * It is recommended inspecting logs during troubleshooting, since they may contain useful information.
 
+* VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
+  This may lead to the following "issues":
+  * Data becomes available for querying in a few seconds after inserting. It is possible to flush in-memory buffers to persistent storage
+    by requesting `/internal/force_flush` http handler.
+  * The last few seconds of inserted data may be lost on unclean shutdown (i.e. OOM, `kill -9` or hardware reset).
+    See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
+
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
   VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
   It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
   ingestion and query performance in this case.
-  Another option is to increase `-memory.allowedPercent` command-line flag value. Be careful with this
-  option, since too big value for `-memory.allowedPercent` may result in high I/O usage.
 
 * VictoriaMetrics prioritizes data ingestion over data querying. So if it has no enough resources for data ingestion,
   then data querying may slow down significantly.
@@ -1217,9 +1259,9 @@ VictoriaMetrics also exposes currently running queries with their execution time
   which would start background merge if they had more free disk space.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
-  then just remove directories with broken parts. This will recover VictoriaMetrics at the cost
-  of data loss stored in the broken parts. In the future, `vmrecover` tool will be created
-  for automatic recovering from such errors.
+  then just remove directories with broken parts. It is safe removing subdirectories under `<-storageDataPath>/data/{big,small}/YYYY_MM` directories
+  when VictoriaMetrics isn't running. This recovers VictoriaMetrics at the cost of data loss stored in the deleted broken parts.
+  In the future, `vmrecover` tool will be created for automatic recovering from such errors.
 
 * If you see gaps on the graphs, try resetting the cache by sending request to `/internal/resetRollupResultCache`.
   If this removes gaps on the graphs, then it is likely data with timestamps older than `-search.cacheTimestampOffset`
@@ -1240,6 +1282,11 @@ VictoriaMetrics also exposes currently running queries with their execution time
 * VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
+
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `-search.treatDotsAsIsInRegexps` command-line flag could be useful.
+  By default `.` chars in regexps match any char. If you need matching only dots, then the `\\.` must be used in regexp filters.
+  When `-search.treatDotsAsIsInRegexps` option is enabled, then dots in regexps are automatically escaped in order to match only dots instead of arbitrary chars.
+  This may significantly increase performance when locating time series for the given label filters.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 

@@ -63,6 +63,22 @@ Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://gi
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
 
+### Configuration update
+
+`vmagent` should be restarted in order to update config options set via command-line args.
+
+`vmagent` supports multiple approaches for reloading configs from updated config files such as `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
+
+* Sending `SUGHUP` signal to `vmagent` process:
+  ```bash
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint.
+
+There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from updated `-promscrape.config` file.
+
+
 ### Use cases
 
 
@@ -197,6 +213,7 @@ The relabeling can be defined in the following places:
 
 Read more about relabeling in the following articles:
 
+* [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)

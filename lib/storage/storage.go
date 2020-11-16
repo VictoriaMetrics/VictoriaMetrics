@@ -191,8 +191,8 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	return s, nil
 }
 
-// debugFlush flushes recently added storage data, so it becomes visible to search.
-func (s *Storage) debugFlush() {
+// DebugFlush flushes recently added storage data, so it becomes visible to search.
+func (s *Storage) DebugFlush() {
 	s.tb.flushRawRows()
 	s.idb().tb.DebugFlush()
 }
@@ -796,6 +796,41 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 	return deadline.Sub(t)
 }
 
+// SearchMetricNames returns metric names matching the given tfss on the given tr.
+func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
+	tsids, err := s.searchTSIDs(tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if err = s.prefetchMetricNames(tsids, deadline); err != nil {
+		return nil, err
+	}
+	idb := s.idb()
+	is := idb.getIndexSearch(deadline)
+	defer idb.putIndexSearch(is)
+	mns := make([]MetricName, 0, len(tsids))
+	var metricName []byte
+	for i := range tsids {
+		metricID := tsids[i].MetricID
+		var err error
+		metricName, err = is.searchMetricName(metricName[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				// Skip missing metricName for metricID.
+				// It should be automatically fixed. See indexDB.searchMetricName for details.
+				continue
+			}
+			return nil, fmt.Errorf("error when searching metricName for metricID=%d: %w", metricID, err)
+		}
+		mns = mns[:len(mns)+1]
+		mn := &mns[len(mns)-1]
+		if err = mn.Unmarshal(metricName); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		}
+	}
+	return mns, nil
+}
+
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	// Do not cache tfss -> tsids here, since the caching is performed
@@ -1070,7 +1105,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	if len(mrs) == 0 {
 		return nil
 	}
-	atomic.AddUint64(&rowsAddedTotal, uint64(len(mrs)))
 
 	// Limit the number of concurrent goroutines that may add rows to the storage.
 	// This should prevent from out of memory errors and CPU trashing when too many
@@ -1107,6 +1141,7 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 
 	<-addRowsConcurrencyCh
 
+	atomic.AddUint64(&rowsAddedTotal, uint64(len(mrs)))
 	return err
 }
 
@@ -1117,6 +1152,64 @@ var (
 	addRowsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1))
 	addRowsTimeout       = 30 * time.Second
 )
+
+// RegisterMetricNames registers all the metric names from mns in the indexdb, so they can be queried later.
+//
+// The the MetricRow.Timestamp is used for registering the metric name starting from the given timestamp.
+// Th MetricRow.Value field is ignored.
+func (s *Storage) RegisterMetricNames(mrs []MetricRow) error {
+	var (
+		tsid       TSID
+		mn         MetricName
+		metricName []byte
+	)
+	idb := s.idb()
+	is := idb.getIndexSearch(noDeadline)
+	defer idb.putIndexSearch(is)
+	for i := range mrs {
+		mr := &mrs[i]
+		if s.getTSIDFromCache(&tsid, mr.MetricNameRaw) {
+			// Fast path - mr.MetricNameRaw has been already registered.
+			continue
+		}
+
+		// Slow path - register mr.MetricNameRaw.
+		if err := mn.unmarshalRaw(mr.MetricNameRaw); err != nil {
+			return fmt.Errorf("cannot register the metric because cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+		}
+		mn.sortTags()
+		metricName = mn.Marshal(metricName[:0])
+		if err := is.GetOrCreateTSIDByName(&tsid, metricName); err != nil {
+			return fmt.Errorf("cannot register the metric because cannot create TSID for metricName %q: %w", metricName, err)
+		}
+		s.putTSIDToCache(&tsid, mr.MetricNameRaw)
+
+		// Register the metric in per-day inverted index.
+		date := uint64(mr.Timestamp) / msecPerDay
+		metricID := tsid.MetricID
+		if s.dateMetricIDCache.Has(date, metricID) {
+			// Fast path: the metric has been already registered in per-day inverted index
+			continue
+		}
+
+		// Slow path: acutally register the metric in per-day inverted index.
+		ok, err := is.hasDateMetricID(date, metricID)
+		if err != nil {
+			return fmt.Errorf("cannot register the metric in per-date inverted index because of error when locating (date=%d, metricID=%d) in database: %w",
+				date, metricID, err)
+		}
+		if !ok {
+			// The (date, metricID) entry is missing in the indexDB. Add it there.
+			if err := is.storeDateMetricID(date, metricID); err != nil {
+				return fmt.Errorf("cannot register the metric in per-date inverted index because of error when storing (date=%d, metricID=%d) in database: %w",
+					date, metricID, err)
+			}
+		}
+		// The metric must be added to cache only after it has been successfully added to indexDB.
+		s.dateMetricIDCache.Set(date, metricID)
+	}
+	return nil
+}
 
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	idb := s.idb()

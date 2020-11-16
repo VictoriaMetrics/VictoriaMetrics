@@ -78,17 +78,13 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
@@ -146,12 +142,8 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
-	w.Header().Set("Content-Type", "text/csv")
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 
@@ -227,11 +219,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -331,9 +319,9 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 		WriteExportJSONLine(bb, xb)
 		resultsCh <- bb
 	}
-	contentType := "application/stream+json"
+	contentType := "application/stream+json; charset=utf-8"
 	if format == "prometheus" {
-		contentType = "text/plain"
+		contentType = "text/plain; charset=utf-8"
 		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
 			bb := quicktemplate.AcquireByteBuffer()
 			WriteExportPrometheusLine(bb, xb)
@@ -381,11 +369,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -486,9 +470,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		TagFilterss: tagFilterss,
-	}
+	sq := storage.NewSearchQuery(0, 0, tagFilterss)
 	deletedCount, err := netstorage.DeleteSeries(sq)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series matching %q: %w", matches, err)
@@ -561,7 +543,7 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelValuesResponse(bw, labelValues)
@@ -596,32 +578,41 @@ func labelValuesWithMatches(labelName string, matches []string, start, end int64
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
-	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
-	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	m := make(map[string]struct{})
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		labelValue := rs.MetricName.GetTagValue(labelName)
-		if len(labelValue) == 0 {
-			return nil
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		mLock.Lock()
-		m[string(labelValue)] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %w", err)
+		for _, mn := range mns {
+			labelValue := mn.GetTagValue(labelName)
+			if len(labelValue) == 0 {
+				continue
+			}
+			m[string(labelValue)] = struct{}{}
+		}
+	} else {
+		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		var mLock sync.Mutex
+		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			labelValue := rs.MetricName.GetTagValue(labelName)
+			if len(labelValue) == 0 {
+				return nil
+			}
+			mLock.Lock()
+			m[string(labelValue)] = struct{}{}
+			mLock.Unlock()
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error when data fetching: %w", err)
+		}
 	}
-
 	labelValues := make([]string, 0, len(m))
 	for labelValue := range m {
 		labelValues = append(labelValues, labelValue)
@@ -639,7 +630,7 @@ func LabelsCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return fmt.Errorf(`cannot obtain label entries: %w`, err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelsCountResponse(bw, labelEntries)
@@ -690,7 +681,7 @@ func TSDBStatusHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return fmt.Errorf(`cannot obtain tsdb status for date=%d, topN=%d: %w`, date, topN, err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteTSDBStatusResponse(bw, status)
@@ -760,7 +751,7 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteLabelsResponse(bw, labels)
@@ -782,33 +773,41 @@ func labelsWithMatches(matches []string, start, end int64, deadline searchutils.
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
-	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
-	if err != nil {
-		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	m := make(map[string]struct{})
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		mLock.Lock()
-		tags := rs.MetricName.Tags
-		for i := range tags {
-			t := &tags[i]
-			m[string(t.Key)] = struct{}{}
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		m["__name__"] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error when data fetching: %w", err)
+		for _, mn := range mns {
+			for _, tag := range mn.Tags {
+				m[string(tag.Key)] = struct{}{}
+			}
+		}
+		if len(mns) > 0 {
+			m["__name__"] = struct{}{}
+		}
+	} else {
+		rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
+		if err != nil {
+			return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		var mLock sync.Mutex
+		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			mLock.Lock()
+			for _, tag := range rs.MetricName.Tags {
+				m[string(tag.Key)] = struct{}{}
+			}
+			m["__name__"] = struct{}{}
+			mLock.Unlock()
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error when data fetching: %w", err)
+		}
 	}
-
 	labels := make([]string, 0, len(m))
 	for label := range m {
 		labels = append(labels, label)
@@ -826,7 +825,7 @@ func SeriesCountHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteSeriesCountResponse(bw, n)
@@ -873,17 +872,39 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		bw := bufferedwriter.Get(w)
+		defer bufferedwriter.Put(bw)
+		resultsCh := make(chan *quicktemplate.ByteBuffer)
+		go func() {
+			for i := range mns {
+				bb := quicktemplate.AcquireByteBuffer()
+				writemetricNameObject(bb, &mns[i])
+				resultsCh <- bb
+			}
+			close(resultsCh)
+		}()
+		// WriteSeriesResponse must consume all the data from resultsCh.
+		WriteSeriesResponse(bw, resultsCh)
+		if err := bw.Flush(); err != nil {
+			return err
+		}
+		seriesDuration.UpdateDuration(startTime)
+		return nil
 	}
 	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	resultsCh := make(chan *quicktemplate.ByteBuffer)
@@ -1020,7 +1041,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteQueryResponse(bw, result)
@@ -1119,7 +1140,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/153
 	result = removeEmptyValuesAndTimeseries(result)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	WriteQueryRangeResponse(bw, result)

@@ -24,6 +24,7 @@ var (
 	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
 	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
+	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -115,6 +116,14 @@ func AddRows(mrs []storage.MetricRow) error {
 	return err
 }
 
+// RegisterMetricNames registers all the metrics from mrs in the storage.
+func RegisterMetricNames(mrs []storage.MetricRow) error {
+	WG.Add(1)
+	err := Storage.RegisterMetricNames(mrs)
+	WG.Done()
+	return err
+}
+
 // DeleteMetrics deletes metrics matching tfss.
 //
 // Returns the number of deleted metrics.
@@ -123,6 +132,14 @@ func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
 	n, err := Storage.DeleteMetrics(tfss)
 	WG.Done()
 	return n, err
+}
+
+// SearchMetricNames returns metric names for the given tfss on the given tr.
+func SearchMetricNames(tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
+	WG.Add(1)
+	mns, err := Storage.SearchMetricNames(tfss, tr, maxMetrics, deadline)
+	WG.Done()
+	return mns, err
 }
 
 // SearchTagKeysOnTimeRange searches for tag keys on tr.
@@ -226,6 +243,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}()
 		return true
 	}
+	if path == "/internal/force_flush" {
+		authKey := r.FormValue("authKey")
+		if authKey != *forceFlushAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceFlushAuthKey command line flag", authKey)
+			return true
+		}
+		logger.Infof("flushing storage to make pending data available for reading")
+		Storage.DebugFlush()
+		return true
+	}
 	prometheusCompatibleResponse := false
 	if path == "/api/v1/admin/tsdb/snapshot" {
 		// Handle Prometheus API - https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot .
@@ -244,7 +271,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	switch path {
 	case "/create":
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		snapshotPath, err := Storage.CreateSnapshot()
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
@@ -258,7 +285,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/list":
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
@@ -275,7 +302,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `]}`)
 		return true
 	case "/delete":
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		snapshotName := r.FormValue("snapshot")
 		if err := Storage.DeleteSnapshot(snapshotName); err != nil {
 			err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
@@ -285,7 +312,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/delete_all":
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)

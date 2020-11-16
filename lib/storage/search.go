@@ -220,6 +220,15 @@ type SearchQuery struct {
 	TagFilterss  [][]TagFilter
 }
 
+// NewSearchQuery creates new search query for the given args.
+func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter) *SearchQuery {
+	return &SearchQuery{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+		TagFilterss:  tagFilterss,
+	}
+}
+
 // TagFilter represents a single tag filter from SearchQuery.
 type TagFilter struct {
 	Key        []byte

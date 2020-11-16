@@ -12,13 +12,13 @@ import (
 type SDConfig struct {
 	Host string `yaml:"host"`
 	// TODO: add support for proxy_url
-	TLSConfig *promauth.TLSConfig `yaml:"tls_config"`
+	TLSConfig *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	Role      string              `yaml:"role"`
-	Port      int                 `yaml:"port"`
+	Port      int                 `yaml:"port,omitempty"`
 	// refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option
-	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth"`
-	BearerToken     string                    `yaml:"bearer_token"`
-	BearerTokenFile string                    `yaml:"bearer_token_file"`
+	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`
+	BearerToken     string                    `yaml:"bearer_token,omitempty"`
+	BearerTokenFile string                    `yaml:"bearer_token_file,omitempty"`
 }
 
 // GetLabels returns dockerswarm labels according to sdc.

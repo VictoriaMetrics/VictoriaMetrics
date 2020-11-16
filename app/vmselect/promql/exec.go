@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,7 +16,13 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+var (
+	logSlowQueryDuration   = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+	treatDotsAsIsInRegexps = flag.Bool("search.treatDotsAsIsInRegexps", false, "Whether to treat dots as is in regexp label filters used in queries. "+
+		`For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped `+
+		`in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. `+
+		`Such escaping can be useful when querying Graphite data`)
+)
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
@@ -177,6 +184,9 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 		if err == nil {
 			e = metricsql.Optimize(e)
 			e = adjustCmpOps(e)
+			if *treatDotsAsIsInRegexps {
+				e = escapeDotsInRegexpLabelFilters(e)
+			}
 		}
 		pcv = &parseCacheValue{
 			e:   e,
@@ -188,6 +198,41 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 		return nil, pcv.err
 	}
 	return pcv.e, nil
+}
+
+func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {
+	metricsql.VisitAll(e, func(expr metricsql.Expr) {
+		me, ok := expr.(*metricsql.MetricExpr)
+		if !ok {
+			return
+		}
+		for i := range me.LabelFilters {
+			f := &me.LabelFilters[i]
+			if f.IsRegexp {
+				f.Value = escapeDots(f.Value)
+			}
+		}
+	})
+	return e
+}
+
+func escapeDots(s string) string {
+	dotsCount := strings.Count(s, ".")
+	if dotsCount <= 0 {
+		return s
+	}
+	result := make([]byte, 0, len(s)+2*dotsCount)
+	for i := 0; i < len(s); i++ {
+		if s[i] == '.' && (i == 0 || s[i-1] != '\\') && (i+1 == len(s) || i+1 < len(s) && s[i+1] != '*' && s[i+1] != '+' && s[i+1] != '{') {
+			// Escape a dot if the following conditions are met:
+			// - if it isn't escaped already, i.e. if there is no `\` char before the dot.
+			// - if there is no regexp modifiers such as '+', '*' or '{' after the dot.
+			result = append(result, '\\', '.')
+		} else {
+			result = append(result, s[i])
+		}
+	}
+	return string(result)
 }
 
 var parseCacheV = func() *parseCache {

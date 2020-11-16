@@ -82,7 +82,7 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	if s.basicAuthPass != "" {
 		req.SetBasicAuth(s.basicAuthUser, s.basicAuthPass)
 	}
