@@ -952,6 +952,34 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		TagFilterss:  tagFilterss,
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, isPartial, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		bw := bufferedwriter.Get(w)
+		defer bufferedwriter.Put(bw)
+		resultsCh := make(chan *quicktemplate.ByteBuffer)
+		doneCh := make(chan struct{})
+		go func() {
+			for i := range mns {
+				bb := quicktemplate.AcquireByteBuffer()
+				writemetricNameObject(bb, &mns[i])
+				resultsCh <- bb
+			}
+			close(doneCh)
+		}()
+		// WriteSeriesResponse must consume all the data from resultsCh.
+		WriteSeriesResponse(bw, isPartial, resultsCh)
+		if err := bw.Flush(); err != nil {
+			return err
+		}
+		<-doneCh
+		seriesDuration.UpdateDuration(startTime)
+		return nil
+	}
 	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)

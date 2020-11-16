@@ -538,6 +538,20 @@ func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) 
 	return accountID, projectID, nil
 }
 
+func (ctx *vmselectRequestCtx) readSearchQuery() error {
+	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
+		return fmt.Errorf("cannot read searchQuery: %w", err)
+	}
+	tail, err := ctx.sq.Unmarshal(ctx.dataBuf)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
+	}
+	if len(tail) > 0 {
+		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
+	}
+	return nil
+}
+
 func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 	ctx.sizeBuf = bytesutil.Resize(ctx.sizeBuf, 8)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
@@ -663,7 +677,9 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 
 	switch rpcName {
 	case "search_v4":
-		return s.processVMSelectSearchQuery(ctx)
+		return s.processVMSelectSearch(ctx)
+	case "searchMetricNames_v1":
+		return s.processVMSelectSearchMetricNames(ctx)
 	case "labelValuesOnTimeRange_v1":
 		return s.processVMSelectLabelValuesOnTimeRange(ctx)
 	case "labelValues_v2":
@@ -1061,19 +1077,52 @@ func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) erro
 // maxSearchQuerySize is the maximum size of SearchQuery packet in bytes.
 const maxSearchQuerySize = 1024 * 1024
 
-func (s *Server) processVMSelectSearchQuery(ctx *vmselectRequestCtx) error {
-	vmselectSearchQueryRequests.Inc()
+func (s *Server) processVMSelectSearchMetricNames(ctx *vmselectRequestCtx) error {
+	vmselectSearchMetricNamesRequests.Inc()
 
-	// Read search query.
-	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
-		return fmt.Errorf("cannot read searchQuery: %w", err)
+	// Read request.
+	if err := ctx.readSearchQuery(); err != nil {
+		return err
 	}
-	tail, err := ctx.sq.Unmarshal(ctx.dataBuf)
+
+	// Search metric names.
+	if err := ctx.setupTfss(); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: ctx.sq.MinTimestamp,
+		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	mns, err := s.storage.SearchMetricNames(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
+		return ctx.writeErrorMessage(err)
 	}
-	if len(tail) > 0 {
-		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
+
+	// Send empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	// Send response.
+	metricNamesCount := len(mns)
+	if err := ctx.writeUint64(uint64(metricNamesCount)); err != nil {
+		return fmt.Errorf("cannot send metricNamesCount: %w", err)
+	}
+	for i, mn := range mns {
+		ctx.dataBuf = mn.Marshal(ctx.dataBuf[:0])
+		if err := ctx.writeDataBufBytes(); err != nil {
+			return fmt.Errorf("cannot send metricName #%d: %w", i+1, err)
+		}
+	}
+	return nil
+}
+
+func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
+	vmselectSearchRequests.Inc()
+
+	// Read request.
+	if err := ctx.readSearchQuery(); err != nil {
+		return err
 	}
 	fetchData, err := ctx.readBool()
 	if err != nil {
@@ -1153,7 +1202,8 @@ var (
 	vmselectLabelEntriesRequests           = metrics.NewCounter("vm_vmselect_label_entries_requests_total")
 	vmselectSeriesCountRequests            = metrics.NewCounter("vm_vmselect_series_count_requests_total")
 	vmselectTSDBStatusRequests             = metrics.NewCounter("vm_vmselect_tsdb_status_requests_total")
-	vmselectSearchQueryRequests            = metrics.NewCounter("vm_vmselect_search_query_requests_total")
+	vmselectSearchMetricNamesRequests      = metrics.NewCounter("vm_vmselect_search_metric_names_requests_total")
+	vmselectSearchRequests                 = metrics.NewCounter("vm_vmselect_search_requests_total")
 	vmselectMetricBlocksRead               = metrics.NewCounter("vm_vmselect_metric_blocks_read_total")
 	vmselectMetricRowsRead                 = metrics.NewCounter("vm_vmselect_metric_rows_read_total")
 )

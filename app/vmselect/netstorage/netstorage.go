@@ -1151,7 +1151,6 @@ func GetSeriesCount(at *auth.Token, denyPartialResponse bool, deadline searchuti
 		}
 		isPartial = true
 	}
-
 	return n, isPartial, nil
 }
 
@@ -1235,6 +1234,81 @@ func ExportBlocks(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 		return fmt.Errorf("error occured during export: %w", err)
 	}
 	return nil
+}
+
+// SearchMetricNames returns all the metric names matching sq until the given deadline.
+func SearchMetricNames(at *auth.Token, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, bool, error) {
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
+	}
+	requestData := sq.Marshal(nil)
+
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		metricNames [][]byte
+		err         error
+	}
+	resultsCh := make(chan nodeResult, len(storageNodes))
+	for _, sn := range storageNodes {
+		go func(sn *storageNode) {
+			sn.searchMetricNamesRequests.Inc()
+			metricNames, err := sn.processSearchMetricNames(requestData, deadline)
+			if err != nil {
+				sn.searchMetricNamesRequestErrors.Inc()
+				err = fmt.Errorf("cannot search metric names on vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			resultsCh <- nodeResult{
+				metricNames: metricNames,
+				err:         err,
+			}
+		}(sn)
+	}
+
+	// Collect results.
+	var errors []error
+	metricNames := make(map[string]struct{})
+	for i := 0; i < len(storageNodes); i++ {
+		// There is no need in timer here, since all the goroutines executing
+		// sn.processSearchQuery must be finished until the deadline.
+		nr := <-resultsCh
+		if nr.err != nil {
+			errors = append(errors, nr.err)
+			continue
+		}
+		for _, metricName := range nr.metricNames {
+			metricNames[string(metricName)] = struct{}{}
+		}
+	}
+	isPartial := false
+	if len(errors) > 0 {
+		if len(errors) == len(storageNodes) {
+			// Return only the first error, since it has no sense in returning all errors.
+			return nil, false, errors[0]
+		}
+
+		// Just return partial results.
+		// This allows gracefully degrade vmselect in the case
+		// if certain storageNodes are temporarily unavailable.
+		// Do not return the error, since it may spam logs on busy vmselect
+		// serving high amounts of requests.
+		partialSearchResults.Inc()
+		if denyPartialResponse {
+			return nil, true, errors[0]
+		}
+		isPartial = true
+	}
+
+	// Unmarshal metricNames
+	mns := make([]storage.MetricName, len(metricNames))
+	i := 0
+	for metricName := range metricNames {
+		mn := &mns[i]
+		if err := mn.Unmarshal(bytesutil.ToUnsafeBytes(metricName)); err != nil {
+			return nil, false, fmt.Errorf("cannot unmarshal metric name obtained from vmstorage: %w; metricName=%q", err, metricName)
+		}
+		i++
+	}
+	return mns, isPartial, nil
 }
 
 // ProcessSearchQuery performs sq until the given deadline.
@@ -1399,8 +1473,14 @@ type storageNode struct {
 	// The number of errors during requests to seriesCount.
 	seriesCountRequestErrors *metrics.Counter
 
+	// The number of 'search metric names' requests to storageNode.
+	searchMetricNamesRequests *metrics.Counter
+
 	// The number of search requests to storageNode.
 	searchRequests *metrics.Counter
+
+	// The number of 'search metric names' errors to storageNode.
+	searchMetricNamesRequestErrors *metrics.Counter
 
 	// The number of search request errors to storageNode.
 	searchRequestErrors *metrics.Counter
@@ -1591,6 +1671,25 @@ func (sn *storageNode) getSeriesCount(accountID, projectID uint32, deadline sear
 		}
 	}
 	return n, nil
+}
+
+func (sn *storageNode) processSearchMetricNames(requestData []byte, deadline searchutils.Deadline) ([][]byte, error) {
+	var metricNames [][]byte
+	f := func(bc *handshake.BufferedConn) error {
+		mns, err := sn.processSearchMetricNamesOnConn(bc, requestData)
+		if err != nil {
+			return err
+		}
+		metricNames = mns
+		return nil
+	}
+	if err := sn.execOnConn("searchMetricNames_v1", f, deadline); err != nil {
+		// Try again before giving up.
+		if err = sn.execOnConn("searchMetricNames_v1", f, deadline); err != nil {
+			return nil, err
+		}
+	}
+	return metricNames, nil
 }
 
 func (sn *storageNode) processSearchQuery(requestData []byte, fetchData bool, processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) error {
@@ -2078,6 +2177,42 @@ const maxMetricBlockSize = 1024 * 1024
 // from vmstorage.
 const maxErrorMessageSize = 64 * 1024
 
+func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn, requestData []byte) ([][]byte, error) {
+	// Send the requst to sn.
+	if err := writeBytes(bc, requestData); err != nil {
+		return nil, fmt.Errorf("cannot write requestData: %w", err)
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush requestData to conn: %w", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	// Read metricNames from response.
+	metricNamesCount, err := readUint64(bc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read metricNamesCount: %w", err)
+	}
+	metricNames := make([][]byte, 0, metricNamesCount)
+	for i := int64(0); i < int64(metricNamesCount); i++ {
+		buf, err = readBytes(buf[:0], bc, maxMetricNameSize)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read metricName #%d: %w", i+1, err)
+		}
+		metricNames[i] = append(metricNames[i][:0], buf...)
+	}
+	return metricNames, nil
+}
+
+const maxMetricNameSize = 64 * 1024
+
 func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte, fetchData bool, processBlock func(mb *storage.MetricBlock) error) (int, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
@@ -2090,11 +2225,8 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 		return 0, fmt.Errorf("cannot flush requestData to conn: %w", err)
 	}
 
-	var err error
-	var buf []byte
-
 	// Read response error.
-	buf, err = readBytes(buf[:0], bc, maxErrorMessageSize)
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
 		return 0, fmt.Errorf("cannot read error message: %w", err)
 	}
@@ -2248,7 +2380,9 @@ func InitStorageNodes(addrs []string) {
 			tsdbStatusRequestErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			seriesCountRequestErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchRequests:                      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesRequestErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchRequestErrors:                 metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			metricBlocksRead:                    metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
 			metricRowsRead:                      metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
