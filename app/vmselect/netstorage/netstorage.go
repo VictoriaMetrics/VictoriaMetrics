@@ -2201,7 +2201,7 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 	if err != nil {
 		return nil, fmt.Errorf("cannot read metricNamesCount: %w", err)
 	}
-	metricNames := make([][]byte, 0, metricNamesCount)
+	metricNames := make([][]byte, metricNamesCount)
 	for i := int64(0); i < int64(metricNamesCount); i++ {
 		buf, err = readBytes(buf[:0], bc, maxMetricNameSize)
 		if err != nil {
