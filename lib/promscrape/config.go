@@ -32,6 +32,9 @@ var (
 	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output")
+	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
+		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
+		"Note that this reduces debuggability for improper per-target relabeling configs")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -47,9 +50,9 @@ type Config struct {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval time.Duration     `yaml:"scrape_interval"`
-	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout"`
-	ExternalLabels map[string]string `yaml:"external_labels"`
+	ScrapeInterval time.Duration     `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout  time.Duration     `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels map[string]string `yaml:"external_labels,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -57,33 +60,34 @@ type GlobalConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 type ScrapeConfig struct {
 	JobName              string                      `yaml:"job_name"`
-	ScrapeInterval       time.Duration               `yaml:"scrape_interval"`
-	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout"`
-	MetricsPath          string                      `yaml:"metrics_path"`
-	HonorLabels          bool                        `yaml:"honor_labels"`
-	HonorTimestamps      bool                        `yaml:"honor_timestamps"`
-	Scheme               string                      `yaml:"scheme"`
-	Params               map[string][]string         `yaml:"params"`
-	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth"`
-	BearerToken          string                      `yaml:"bearer_token"`
-	BearerTokenFile      string                      `yaml:"bearer_token_file"`
-	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config"`
-	StaticConfigs        []StaticConfig              `yaml:"static_configs"`
-	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs"`
-	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs"`
-	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs"`
-	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs"`
-	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs"`
-	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs"`
-	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs"`
-	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs"`
-	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs"`
-	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs"`
-	SampleLimit          int                         `yaml:"sample_limit"`
+	ScrapeInterval       time.Duration               `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        time.Duration               `yaml:"scrape_timeout,omitempty"`
+	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
+	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
+	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
+	Scheme               string                      `yaml:"scheme,omitempty"`
+	Params               map[string][]string         `yaml:"params,omitempty"`
+	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
+	BearerToken          string                      `yaml:"bearer_token,omitempty"`
+	BearerTokenFile      string                      `yaml:"bearer_token_file,omitempty"`
+	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config,omitempty"`
+	StaticConfigs        []StaticConfig              `yaml:"static_configs,omitempty"`
+	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs,omitempty"`
+	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs,omitempty"`
+	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs,omitempty"`
+	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs,omitempty"`
+	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
+	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs,omitempty"`
+	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs,omitempty"`
+	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs,omitempty"`
+	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
+	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
+	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression bool `yaml:"disable_compression"`
-	DisableKeepAlive   bool `yaml:"disable_keepalive"`
+	DisableCompression bool `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive   bool `yaml:"disable_keepalive,omitempty"`
+	StreamParse        bool `yaml:"stream_parse,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -102,7 +106,7 @@ type FileSDConfig struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config
 type StaticConfig struct {
 	Targets []string          `yaml:"targets"`
-	Labels  map[string]string `yaml:"labels"`
+	Labels  map[string]string `yaml:"labels,omitempty"`
 }
 
 func loadStaticConfigs(path string) ([]StaticConfig, error) {
@@ -180,7 +184,7 @@ func getSWSByJob(sws []ScrapeWork) map[string][]ScrapeWork {
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -208,7 +212,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -236,7 +240,7 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -264,7 +268,7 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -292,7 +296,7 @@ func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -320,7 +324,7 @@ func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -348,7 +352,7 @@ func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 // getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getGCESDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -386,7 +390,7 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 			swsMapPrev[filepath] = append(swsMapPrev[filepath], *sw)
 		}
 	}
-	var dst []ScrapeWork
+	dst := make([]ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.FileSDConfigs {
@@ -473,6 +477,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		sampleLimit:          sc.SampleLimit,
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
+		streamParse:          sc.StreamParse,
 	}
 	return swc, nil
 }
@@ -493,6 +498,7 @@ type scrapeWorkConfig struct {
 	sampleLimit          int
 	disableCompression   bool
 	disableKeepAlive     bool
+	streamParse          bool
 }
 
 func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
@@ -636,12 +642,21 @@ func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfi
 
 func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
-	originalLabels := append([]prompbmarshal.Label{}, labels...)
-	promrelabel.SortLabels(originalLabels)
+	var originalLabels []prompbmarshal.Label
+	if !*dropOriginalLabels {
+		originalLabels = append([]prompbmarshal.Label{}, labels...)
+		promrelabel.SortLabels(originalLabels)
+	}
 	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
+	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
+	labels = append([]prompbmarshal.Label{}, labels...)
+
 	if len(labels) == 0 {
 		// Drop target without labels.
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
@@ -652,16 +667,21 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
 	if len(addressRelabeled) == 0 {
 		// Drop target without scrape address.
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	if strings.Contains(addressRelabeled, "/") {
 		// Drop target with '/'
+		droppedTargetsMap.Register(originalLabels)
 		return dst, nil
 	}
 	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
+	}
+	if !strings.HasPrefix(metricsPathRelabeled, "/") {
+		metricsPathRelabeled = "/" + metricsPathRelabeled
 	}
 	paramsRelabeled := getParamsFromLabels(labels, swc.params)
 	optionalQuestion := "?"
@@ -696,6 +716,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		SampleLimit:          swc.sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
+		StreamParse:          swc.streamParse,
 
 		jobNameOriginal: swc.jobName,
 	})

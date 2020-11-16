@@ -1,5 +1,25 @@
 # Articles
 
+## Third-party articles and slides about VictoriaMetrics
+
+* [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
+* [Making peace with Prometheus rate()](https://blog.doit-intl.com/making-peace-with-prometheus-rate-43a3ea75c4cf)
+* [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
+* [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/@IG1.com/sismology-iguana-solutions-monitoring-system-f46e4170447f)
+* [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
+* [How we improved our Kubernetes monitoring at Smarkets, and how you could too](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3)
+* [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit)
+* [CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
+* [The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf)
+* [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)
+* [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
+* [What are Open Source Time Series Databases?](https://www.iunera.com/kraken/fabric/time-series-database/)
+* [Evaluating performance and correctness](https://www.robustperception.io/evaluating-performance-and-correctness)
+* [Running VictoriaMetrics on Raspberry PI](https://stas.starikevich.com/posts/raspberry-pi-4-prometheus/)
+* [Calculating the Error of Quantile Estimation with Histograms](https://linuxczar.net/blog/2020/08/13/histogram-error/)
+* [Monitoring private clouds with VictoriaMetrics at LeroyMerlin](https://www.youtube.com/watch?v=74swsWqf0Uc)
+* [Monitoring Kubernetes with VictoriaMetrics+Prometheus](https://speakerdeck.com/bo0km4n/victoriametrics-plus-prometheusdegou-zhu-surufu-shu-kubernetesfalsejian-shi-ji-pan)
+
 
 ## Our articles
 
@@ -27,24 +47,4 @@
 * [How to migrate data from Prometheus to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043)
 * [Filtering and modifying time series during import to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-filtering-and-modifying-time-series-6d40cea4bf21)
 * [Anomaly Detection in VictoriaMetrics](https://medium.com/@VictoriaMetrics/anomaly-detection-in-victoriametrics-9528538786a7)
-
-
-## Third-party articles and slides
-
-* [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
-* [Making peace with Prometheus rate()](https://blog.doit-intl.com/making-peace-with-prometheus-rate-43a3ea75c4cf)
-* [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
-* [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/@IG1.com/sismology-iguana-solutions-monitoring-system-f46e4170447f)
-* [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
-* [How we improved our Kubernetes monitoring at Smarkets, and how you could too](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3)
-* [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d/1g7yUyVEaAp4tPuRy-MZbPXKqJ1z78_5VKuV841aQfsg/edit)
-* [CMS monitoring R&D: Real-time monitoring and alerts](https://indico.cern.ch/event/877333/contributions/3696707/attachments/1972189/3281133/CMS_mon_RD_for_opInt.pdf)
-* [The CMS monitoring infrastructure and applications](https://arxiv.org/pdf/2007.03630.pdf)
-* [Disk usage: VictoriaMetrics vs Prometheus](https://stas.starikevich.com/posts/disk-usage-for-vm-versus-prometheus/)
-* [Benchmarking time series workloads on Apache Kudu using TSBS](https://blog.cloudera.com/benchmarking-time-series-workloads-on-apache-kudu-using-tsbs/)
-* [What are Open Source Time Series Databases?](https://www.iunera.com/kraken/fabric/time-series-database/)
-* [Evaluating performance and correctness](https://www.robustperception.io/evaluating-performance-and-correctness)
-* [Running VictoriaMetrics on Raspberry PI](https://stas.starikevich.com/posts/raspberry-pi-4-prometheus/)
-* [Calculating the Error of Quantile Estimation with Histograms](https://linuxczar.net/blog/2020/08/13/histogram-error/)
-* [Monitoring private clouds with VictoriaMetrics at LeroyMerlin](https://www.youtube.com/watch?v=74swsWqf0Uc)
-* [Monitoring Kubernetes with VictoriaMetrics+Prometheus](https://speakerdeck.com/bo0km4n/victoriametrics-plus-prometheusdegou-zhu-surufu-shu-kubernetesfalsejian-shi-ji-pan)
+* [How to use relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)

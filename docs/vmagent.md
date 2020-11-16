@@ -63,6 +63,22 @@ Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://gi
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
 
+### Configuration update
+
+`vmagent` should be restarted in order to update config options set via command-line args.
+
+`vmagent` supports multiple approaches for reloading configs from updated config files such as `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
+
+* Sending `SUGHUP` signal to `vmagent` process:
+  ```bash
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint.
+
+There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from updated `-promscrape.config` file.
+
+
 ### Use cases
 
 
@@ -197,6 +213,7 @@ The relabeling can be defined in the following places:
 
 Read more about relabeling in the following articles:
 
+* [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
@@ -211,9 +228,16 @@ either via `vmagent` itself or via Prometheus, so the exported metrics could be 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 If you have suggestions, improvements or found a bug - feel free to open an issue on github or add review to the dashboard.
 
-`vmagent` also exports target statuses at `http://vmagent-host:8429/targets` page in plaintext format.
-`/targets` handler accepts optional `show_original_labels=1` query arg, which shows the original labels per each target
-before applying relabeling. This information may be useful for debugging target relabeling.
+`vmagent` also exports target statuses at the following handlers:
+
+* `http://vmagent-host:8429/targets`. This handler returns human-readable plaintext status for every active target.
+This page is convenient to query from command line with `wget`, `curl` or similar tools.
+It accepts optional `show_original_labels=1` query arg, which shows the original labels per each target before applying relabeling.
+This information may be useful for debugging target relabeling.
+* `http://vmagent-host:8429/api/v1/targets`. This handler returns data compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
+
+* `http://vmagent-host:8429/ready`. This handler returns http 200 status code when `vmagent` finishes initialization for all service_discovery configs.
+It may be useful for performing `vmagent` rolling update without scrape loss.
 
 
 ### Troubleshooting
@@ -224,7 +248,32 @@ before applying relabeling. This information may be useful for debugging target 
   since `vmagent` establishes at least a single TCP connection per each target.
 
 * When `vmagent` scrapes many unreliable targets, it can flood error log with scrape errors. These errors can be suppressed
-  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`.
+  by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
+  and `http://vmagent-host:8429/api/v1/targets`.
+
+* The `/api/v1/targets` page could be useful for debugging relabeling process for scrape targets.
+  This page contains original labels for targets dropped during relabeling (see "droppedTargets" section in the page output). By default up to `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling, then increase `-promscrape.maxDroppedTargets` command-line flag value in order to see all the dropped targets. Note that tracking each dropped target requires up to 10Kb of RAM, so big values for `-promscrape.maxDroppedTargets` may result in increased memory usage if big number of scrape targets are dropped during relabeling.
+
+* If `vmagent` scrapes big number of targets, then `-promscrape.dropOriginalLabels` command-line option may be passed to `vmagent` in order to reduce memory usage.
+  This option drops `"discoveredLabels"` and `"droppedTargets"` lists at `/api/v1/targets` page, which may result in reduced debuggability for improperly configured per-target relabeling.
+
+* If `vmagent` scrapes targets with millions of metrics per each target (for instance, when scraping [federation endpoints](https://prometheus.io/docs/prometheus/latest/federation/)),
+  then it is recommended enabling `stream parsing mode` in order to reduce memory usage during scraping. This mode may be enabled either globally for all the scrape targets
+  by passing `-promscrape.streamParse` command-line flag or on a per-scrape target basis with `stream_parse: true` option. For example:
+
+  ```yml
+  scrape_configs:
+  - job_name: 'big-federate'
+    stream_parse: true
+    static_configs:
+    - targets:
+      - big-prometeus1
+      - big-prometeus2
+    honor_labels: true
+    metrics_path: /federate
+    params:
+      'match[]': ['{__name__!=""}']
+  ```
 
 * It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
 

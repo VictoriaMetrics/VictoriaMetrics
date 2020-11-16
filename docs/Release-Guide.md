@@ -2,7 +2,7 @@ Release process guidance
 
 ## Release version and Docker images
 
-0. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/CHANGELOG.md).
+0. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
 1. Create release tag with `git tag v1.xx.y`.
 2. Run `make release` for creating `*.tar.gz` release archive with the corresponding `_checksums.txt` inside `bin` directory.
 3. Run `make publish` for creating and publishing Docker images.

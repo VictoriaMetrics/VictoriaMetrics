@@ -40,7 +40,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write(data)
 		return true
 	case "/api/v1/alerts":
@@ -49,7 +49,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write(data)
 		return true
 	case "/-/reload":
@@ -67,7 +67,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
 		}
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write(data)
 		return true
 	}

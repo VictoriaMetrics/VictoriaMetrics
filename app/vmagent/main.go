@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
@@ -207,14 +208,30 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
+		return true
+	case "/api/v1/targets":
+		promscrapeAPIV1TargetsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		state := r.FormValue("state")
+		promscrape.WriteAPIV1Targets(w, state)
 		return true
 	case "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
+		return true
+	case "/ready":
+		if rdy := atomic.LoadInt32(&promscrape.PendingScrapeConfigs); rdy > 0 {
+			errMsg := fmt.Sprintf("waiting for scrapes to init, left: %d", rdy)
+			http.Error(w, errMsg, http.StatusTooEarly)
+		} else {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		}
 		return true
 	}
 	return false
@@ -241,7 +258,8 @@ var (
 
 	influxQueryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/query", protocol="influx"}`)
 
-	promscrapeTargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+	promscrapeTargetsRequests      = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
+	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )

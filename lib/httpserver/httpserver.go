@@ -208,7 +208,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	r.URL.Path = path
 	switch r.URL.Path {
 	case "/health":
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		deadline := atomic.LoadInt64(&s.shutdownDelayDeadline)
 		if deadline <= 0 {
 			w.Write([]byte("OK"))
@@ -244,7 +244,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			return
 		}
 		startTime := time.Now()
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
@@ -395,7 +395,7 @@ func (zrw *gzipResponseWriter) Write(p []byte) (int, error) {
 			if h.Get("Content-Type") == "" {
 				// Disable auto-detection of content-type, since it
 				// is incorrectly detected after the compression.
-				h.Set("Content-Type", "text/html")
+				h.Set("Content-Type", "text/html; charset=utf-8")
 			}
 		}
 		zrw.writeHeader()

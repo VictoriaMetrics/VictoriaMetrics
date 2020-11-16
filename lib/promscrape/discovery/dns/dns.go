@@ -17,8 +17,8 @@ import (
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
 type SDConfig struct {
 	Names []string `yaml:"names"`
-	Type  string   `yaml:"type"`
-	Port  *int     `yaml:"port"`
+	Type  string   `yaml:"type,omitempty"`
+	Port  *int     `yaml:"port,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.dnsSDCheckInterval` command-line option.
 }

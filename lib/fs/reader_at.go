@@ -149,6 +149,15 @@ func (r *ReaderAt) MustClose() {
 	readersCount.Dec()
 }
 
+// MustFadviseSequentialRead hints the OS that f is read mostly sequentially.
+//
+// if prefetch is set, then the OS is hinted to prefetch f data.
+func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
+	if err := fadviseSequentialRead(r.f, prefetch); err != nil {
+		logger.Panicf("FATAL: error in fadviseSequentialRead(%q, %v): %s", r.f.Name(), prefetch, err)
+	}
+}
+
 // OpenReaderAt opens ReaderAt for reading from filename.
 //
 // MustClose must be called on the returned ReaderAt when it is no longer needed.

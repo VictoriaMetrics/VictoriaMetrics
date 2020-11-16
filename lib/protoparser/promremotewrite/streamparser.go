@@ -9,10 +9,9 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
@@ -28,12 +27,41 @@ func ParseStream(req *http.Request, callback func(tss []prompb.TimeSeries) error
 	if err := ctx.Read(); err != nil {
 		return err
 	}
-	uw := getUnmarshalWork()
-	uw.callback = callback
-	uw.reqBuf, ctx.reqBuf.B = ctx.reqBuf.B, uw.reqBuf
-	common.ScheduleUnmarshalWork(uw)
+
+	// Synchronously process the request in order to properly return errors to ParseStream caller,
+	// so it could properly return HTTP 503 status code in response.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
+	bb := bodyBufferPool.Get()
+	defer bodyBufferPool.Put(bb)
+	var err error
+	bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
+	if err != nil {
+		return fmt.Errorf("cannot decompress request with length %d: %w", len(ctx.reqBuf.B), err)
+	}
+	if len(bb.B) > maxInsertRequestSize.N {
+		return fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
+	}
+	wr := getWriteRequest()
+	defer putWriteRequest(wr)
+	if err := wr.Unmarshal(bb.B); err != nil {
+		unmarshalErrors.Inc()
+		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(bb.B), err)
+	}
+
+	rows := 0
+	tss := wr.Timeseries
+	for i := range tss {
+		rows += len(tss[i].Samples)
+	}
+	rowsRead.Add(rows)
+
+	if err := callback(tss); err != nil {
+		return fmt.Errorf("error when processing imported data: %w", err)
+	}
 	return nil
 }
+
+var bodyBufferPool bytesutil.ByteBufferPool
 
 type pushCtx struct {
 	br     *bufio.Reader
@@ -48,10 +76,11 @@ func (ctx *pushCtx) reset() {
 func (ctx *pushCtx) Read() error {
 	readCalls.Inc()
 	lr := io.LimitReader(ctx.br, int64(maxInsertRequestSize.N)+1)
+	startTime := fasttime.UnixTimestamp()
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
 		readErrors.Inc()
-		return fmt.Errorf("cannot read compressed request: %w", err)
+		return fmt.Errorf("cannot read compressed request in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
 	if reqLen > int64(maxInsertRequestSize.N) {
 		readErrors.Inc()
@@ -96,66 +125,17 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))
 
-type unmarshalWork struct {
-	wr       prompb.WriteRequest
-	callback func(tss []prompb.TimeSeries) error
-	reqBuf   []byte
-}
-
-func (uw *unmarshalWork) reset() {
-	uw.wr.Reset()
-	uw.callback = nil
-	uw.reqBuf = uw.reqBuf[:0]
-}
-
-// Unmarshal implements common.UnmarshalWork
-func (uw *unmarshalWork) Unmarshal() {
-	bb := bodyBufferPool.Get()
-	defer bodyBufferPool.Put(bb)
-	var err error
-	bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], uw.reqBuf)
-	if err != nil {
-		logger.Errorf("cannot decompress request with length %d: %s", len(uw.reqBuf), err)
-		return
-	}
-	if len(bb.B) > maxInsertRequestSize.N {
-		logger.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
-		return
-	}
-	if err := uw.wr.Unmarshal(bb.B); err != nil {
-		unmarshalErrors.Inc()
-		logger.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %s", len(bb.B), err)
-		return
-	}
-
-	rows := 0
-	tss := uw.wr.Timeseries
-	for i := range tss {
-		rows += len(tss[i].Samples)
-	}
-	rowsRead.Add(rows)
-
-	if err := uw.callback(tss); err != nil {
-		logger.Errorf("error when processing imported data: %s", err)
-		putUnmarshalWork(uw)
-		return
-	}
-	putUnmarshalWork(uw)
-}
-
-var bodyBufferPool bytesutil.ByteBufferPool
-
-func getUnmarshalWork() *unmarshalWork {
-	v := unmarshalWorkPool.Get()
+func getWriteRequest() *prompb.WriteRequest {
+	v := writeRequestPool.Get()
 	if v == nil {
-		return &unmarshalWork{}
+		return &prompb.WriteRequest{}
 	}
-	return v.(*unmarshalWork)
+	return v.(*prompb.WriteRequest)
 }
 
-func putUnmarshalWork(uw *unmarshalWork) {
-	uw.reset()
-	unmarshalWorkPool.Put(uw)
+func putWriteRequest(wr *prompb.WriteRequest) {
+	wr.Reset()
+	writeRequestPool.Put(wr)
 }
 
-var unmarshalWorkPool sync.Pool
+var writeRequestPool sync.Pool

@@ -336,3 +336,14 @@ func GetLabelValueByName(labels []prompbmarshal.Label, name string) string {
 	}
 	return label.Value
 }
+
+// CleanLabels sets label.Name and label.Value to an empty string for all the labels.
+//
+// This should help GC cleaning up label.Name and label.Value strings.
+func CleanLabels(labels []prompbmarshal.Label) {
+	for i := range labels {
+		label := &labels[i]
+		label.Name = ""
+		label.Value = ""
+	}
+}

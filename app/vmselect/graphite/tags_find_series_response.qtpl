@@ -1,0 +1,12 @@
+{% stripspace %}
+
+{% func TagsFindSeriesResponse(paths []string) %}
+[
+	{% for i, path := range paths %}
+		{%q= path %}
+		{% if i+1 < len(paths) %},{% endif %}
+	{% endfor %}
+]
+{% endfunc %}
+
+{% endstripspace %}

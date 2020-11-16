@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 // ParseStream parses lines with Prometheus exposition format from r and calls callback for the parsed rows.
 //
-// The callback can be called multiple times for streamed data from r.
+// The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []Row) error) error {
@@ -32,12 +31,26 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
-		uw.callback = callback
+		uw.callback = func(rows []Row) {
+			if err := callback(rows); err != nil {
+				ctx.callbackErrLock.Lock()
+				if ctx.callbackErr == nil {
+					ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+				}
+				ctx.callbackErrLock.Unlock()
+			}
+			ctx.wg.Done()
+		}
 		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
 	}
-	return ctx.Error()
+	ctx.wg.Wait()
+	if err := ctx.Error(); err != nil {
+		return err
+	}
+	return ctx.callbackErr
 }
 
 func (ctx *streamContext) Read() bool {
@@ -61,6 +74,10 @@ type streamContext struct {
 	reqBuf  []byte
 	tailBuf []byte
 	err     error
+
+	wg              sync.WaitGroup
+	callbackErrLock sync.Mutex
+	callbackErr     error
 }
 
 func (ctx *streamContext) Error() error {
@@ -75,6 +92,7 @@ func (ctx *streamContext) reset() {
 	ctx.reqBuf = ctx.reqBuf[:0]
 	ctx.tailBuf = ctx.tailBuf[:0]
 	ctx.err = nil
+	ctx.callbackErr = nil
 }
 
 var (
@@ -114,7 +132,7 @@ var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
 
 type unmarshalWork struct {
 	rows             Rows
-	callback         func(rows []Row) error
+	callback         func(rows []Row)
 	defaultTimestamp int64
 	reqBuf           []byte
 }
@@ -144,11 +162,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	if err := uw.callback(rows); err != nil {
-		logger.Errorf("error when processing imported data: %s", err)
-		putUnmarshalWork(uw)
-		return
-	}
+	uw.callback(rows)
 	putUnmarshalWork(uw)
 }
 

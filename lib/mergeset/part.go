@@ -231,8 +231,8 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	idxbc.mu.Lock()
 	for k, idxbe := range idxbc.m {
-		// Delete items accessed more than 10 minutes ago.
-		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 10*60 {
+		// Delete items accessed more than a minute ago.
+		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 60 {
 			delete(idxbc.m, k)
 		}
 	}
@@ -378,8 +378,8 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
-		// Delete items accessed more than 10 minutes ago.
-		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 10*60 {
+		// Delete items accessed more than a minute ago.
+		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 60 {
 			delete(ibc.m, k)
 		}
 	}

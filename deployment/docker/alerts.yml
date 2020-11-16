@@ -1,0 +1,23 @@
+groups:
+  - name: groupGorSingleAlert
+    rules:
+      - alert: VMRows
+        for: 10s
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value|humanize }}"
+          description: "{{$labels}}"
+  - name: TestGroup
+    rules:
+      - alert: Conns
+        expr: sum(vm_tcplistener_conns) by(instance) > 1
+        for: 5s
+        annotations:
+          summary: "Too high connection number for {{$labels.instance}}"
+          description: "It is {{ $value }} connections for {{$labels.instance}}"
+      - alert: ExampleAlertAlwaysFiring
+        expr: sum by(job)
+          (up == 1)

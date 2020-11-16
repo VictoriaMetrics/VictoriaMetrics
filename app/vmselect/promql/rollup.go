@@ -15,7 +15,7 @@ import (
 	"github.com/valyala/histogram"
 )
 
-var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The mimimum interval for staleness calculations. "+
+var minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The minimum interval for staleness calculations. "+
 	"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
 	"See also '-search.maxStalenessInterval'")
 
@@ -258,15 +258,16 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:        tagValue,
-			Func:            rf,
-			Start:           start,
-			End:             end,
-			Step:            step,
-			Window:          window,
-			MayAdjustWindow: !rollupFuncsCannotAdjustWindow[name],
-			LookbackDelta:   lookbackDelta,
-			Timestamps:      sharedTimestamps,
+			TagValue:          tagValue,
+			Func:              rf,
+			Start:             start,
+			End:               end,
+			Step:              step,
+			Window:            window,
+			MayAdjustWindow:   !rollupFuncsCannotAdjustWindow[name],
+			CanDropLastSample: name == "default_rollup",
+			LookbackDelta:     lookbackDelta,
+			Timestamps:        sharedTimestamps,
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
@@ -325,14 +326,32 @@ func getRollupFunc(funcName string) newRollupFunc {
 }
 
 type rollupFuncArg struct {
-	prevValue     float64
-	prevTimestamp int64
-	values        []float64
-	timestamps    []int64
+	// The value preceeding values if it fits staleness interval.
+	prevValue float64
 
+	// The timestamp for prevValue.
+	prevTimestamp int64
+
+	// Values that fit window ending at currTimestamp.
+	values []float64
+
+	// Timestamps for values.
+	timestamps []int64
+
+	// Real value preceeding values without restrictions on staleness interval.
+	realPrevValue float64
+
+	// Real value which goes after values.
+	realNextValue float64
+
+	// Current timestamp for rollup evaluation.
 	currTimestamp int64
-	idx           int
-	window        int64
+
+	// Index for the currently evaluated point relative to time range for query evaluation.
+	idx int
+
+	// Time window for rollup calculations.
+	window int64
 
 	tsm *timeseriesMap
 }
@@ -369,6 +388,11 @@ type rollupConfig struct {
 	// Without the adjustement their value would jump in unexpected directions
 	// when using window smaller than 2 x scrape_interval.
 	MayAdjustWindow bool
+
+	// Whether the last sample can be dropped during rollup calculations.
+	// The last sample can be dropped for `default_rollup()` function only.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/748 .
+	CanDropLastSample bool
 
 	Timestamps []int64
 
@@ -501,6 +525,9 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	ni := 0
 	nj := 0
 	stalenessInterval := int64(float64(scrapeInterval) * 0.9)
+	// Do not drop trailing data points for queries, which return 2 or 1 point (aka instant queries).
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
+	canDropLastSample := rc.CanDropLastSample && len(rc.Timestamps) > 2
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -519,7 +546,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
-		if j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) {
+		if canDropLastSample && j == len(timestamps) && j > 0 && (tEnd-timestamps[j-1] > stalenessInterval || i == j && len(timestamps) == 1) {
 			// Drop trailing data points in the following cases:
 			// - if the distance between the last raw sample and tEnd exceeds stalenessInterval
 			// - if time series contains only a single raw sample
@@ -528,6 +555,16 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			rfa.prevValue = nan
 			rfa.values = nil
 			rfa.timestamps = nil
+		}
+		if i > 0 {
+			rfa.realPrevValue = values[i-1]
+		} else {
+			rfa.realPrevValue = nan
+		}
+		if j < len(values) {
+			rfa.realNextValue = values[j]
+		} else {
+			rfa.realNextValue = nan
 		}
 		rfa.currTimestamp = tEnd
 		value := rc.Func(rfa)
@@ -1235,6 +1272,12 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		if len(values) == 0 {
 			return nan
 		}
+		if !math.IsNaN(rfa.realPrevValue) {
+			// Assume that the value didn't change during the current gap.
+			// This should fix high delta() and increase() values at the end of gaps.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			return values[len(values)-1] - rfa.realPrevValue
+		}
 		// Assume that the previous non-existing value was 0
 		// only if the first value doesn't exceed too much the delta with the next value.
 		//
@@ -1247,6 +1290,8 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 		d := float64(10)
 		if len(values) > 1 {
 			d = values[1] - values[0]
+		} else if !math.IsNaN(rfa.realNextValue) {
+			d = rfa.realNextValue - values[0]
 		}
 		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
 			prevValue = 0

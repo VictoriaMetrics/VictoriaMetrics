@@ -71,16 +71,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	t.Run("global_inverted_index", func(t *testing.T) {
-		testSearchGeneric(t, false)
-	})
-	t.Run("perday_inverted_index", func(t *testing.T) {
-		testSearchGeneric(t, true)
-	})
-}
-
-func testSearchGeneric(t *testing.T, forcePerDayInvertedIndex bool) {
-	path := fmt.Sprintf("TestSearch_%v", forcePerDayInvertedIndex)
+	path := "TestSearch"
 	st, err := OpenStorage(path, 0)
 	if err != nil {
 		t.Fatalf("cannot open storage %q: %s", path, err)
@@ -133,13 +124,6 @@ func testSearchGeneric(t *testing.T, forcePerDayInvertedIndex bool) {
 	st, err = OpenStorage(path, 0)
 	if err != nil {
 		t.Fatalf("cannot re-open storage %q: %s", path, err)
-	}
-	if forcePerDayInvertedIndex {
-		idb := st.idb()
-		idb.startDateForPerDayInvertedIndex = 0
-		idb.doExtDB(func(extDB *indexDB) {
-			extDB.startDateForPerDayInvertedIndex = 0
-		})
 	}
 
 	// Run search.

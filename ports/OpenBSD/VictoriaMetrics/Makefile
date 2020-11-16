@@ -4,7 +4,7 @@ COMMENT =		fast, cost-effective and scalable time series database
 
 GH_ACCOUNT =		VictoriaMetrics
 GH_PROJECT =		VictoriaMetrics
-GH_TAGNAME =		v1.44.0
+GH_TAGNAME =		v1.46.0
 
 CATEGORIES =		sysutils
 
@@ -19,8 +19,10 @@ WANTLIB =		c pthread
 
 USE_GMAKE =		Yes
 
-MODULES=		lang/go
-MODGO_GOPATH=		${MODGO_WORKSPACE}
+MODULES =		lang/go
+MODGO_GOPATH =		${MODGO_WORKSPACE}
+
+SUBST_VARS =		VARBASE
 
 do-build:
 	cd ${WRKSRC} && GOOS=openbsd ${MAKE_ENV} ${MAKE_PROGRAM} victoria-metrics-pure

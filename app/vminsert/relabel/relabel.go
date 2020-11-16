@@ -69,12 +69,7 @@ type Ctx struct {
 
 // Reset resets ctx.
 func (ctx *Ctx) Reset() {
-	labels := ctx.tmpLabels
-	for i := range labels {
-		label := &labels[i]
-		label.Name = ""
-		label.Value = ""
-	}
+	promrelabel.CleanLabels(ctx.tmpLabels)
 	ctx.tmpLabels = ctx.tmpLabels[:0]
 }
 
