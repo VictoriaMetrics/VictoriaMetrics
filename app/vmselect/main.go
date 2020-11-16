@@ -362,7 +362,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
-	case "/tags/autoComplete/tags":
+	case "graphite/tags/autoComplete/tags":
 		graphiteTagsAutoCompleteTagsRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteTagsHandler(startTime, at, w, r); err != nil {
@@ -371,7 +371,7 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
-	case "/tags/autoComplete/values":
+	case "graphite/tags/autoComplete/values":
 		graphiteTagsAutoCompleteValuesRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteValuesHandler(startTime, at, w, r); err != nil {
