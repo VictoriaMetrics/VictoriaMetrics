@@ -777,6 +777,32 @@ var exportWorkPool = &sync.Pool{
 	},
 }
 
+// SearchMetricNames returns all the metric names matching sq until the given deadline.
+func SearchMetricNames(sq *storage.SearchQuery, deadline searchutils.Deadline) ([]storage.MetricName, error) {
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
+	}
+
+	// Setup search.
+	tfss, err := setupTfss(sq.TagFilterss)
+	if err != nil {
+		return nil, err
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return nil, err
+	}
+
+	mns, err := vmstorage.SearchMetricNames(tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	if err != nil {
+		return nil, fmt.Errorf("cannot find metric names: %w", err)
+	}
+	return mns, nil
+}
+
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.

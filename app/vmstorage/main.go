@@ -131,6 +131,14 @@ func DeleteMetrics(tfss []*storage.TagFilters) (int, error) {
 	return n, err
 }
 
+// SearchMetricNames returns metric names for the given tfss on the given tr.
+func SearchMetricNames(tfss []*storage.TagFilters, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]storage.MetricName, error) {
+	WG.Add(1)
+	mns, err := Storage.SearchMetricNames(tfss, tr, maxMetrics, deadline)
+	WG.Done()
+	return mns, err
+}
+
 // SearchTagKeysOnTimeRange searches for tag keys on tr.
 func SearchTagKeysOnTimeRange(tr storage.TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
 	WG.Add(1)

@@ -132,7 +132,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 	}
-	if strings.HasPrefix(path, "/tags/") {
+	if strings.HasPrefix(path, "/tags/") && path != "/tags/findSeries" {
 		tagName := r.URL.Path[len("/tags/"):]
 		graphiteTagValuesRequests.Inc()
 		if err := graphite.TagValuesHandler(startTime, tagName, w, r); err != nil {
@@ -277,6 +277,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/tags/findSeries":
+		graphiteTagsFindSeriesRequests.Inc()
+		if err := graphite.TagsFindSeriesHandler(startTime, w, r); err != nil {
+			graphiteTagsFindSeriesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -383,6 +391,9 @@ var (
 
 	graphiteTagValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/<tag_name>"}`)
 	graphiteTagValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/<tag_name>"}`)
+
+	graphiteTagsFindSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/findSeries"}`)
+	graphiteTagsFindSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/findSeries"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)

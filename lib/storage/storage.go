@@ -796,6 +796,41 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 	return deadline.Sub(t)
 }
 
+// SearchMetricNames returns metric names matching the given tfss on the given tr.
+func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
+	tsids, err := s.searchTSIDs(tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if err = s.prefetchMetricNames(tsids, deadline); err != nil {
+		return nil, err
+	}
+	idb := s.idb()
+	is := idb.getIndexSearch(deadline)
+	defer idb.putIndexSearch(is)
+	mns := make([]MetricName, 0, len(tsids))
+	var metricName []byte
+	for i := range tsids {
+		metricID := tsids[i].MetricID
+		var err error
+		metricName, err = is.searchMetricName(metricName[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				// Skip missing metricName for metricID.
+				// It should be automatically fixed. See indexDB.searchMetricName for details.
+				continue
+			}
+			return nil, fmt.Errorf("error when searching metricName for metricID=%d: %w", metricID, err)
+		}
+		mns = mns[:len(mns)+1]
+		mn := &mns[len(mns)-1]
+		if err = mn.Unmarshal(metricName); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal metricName=%q: %w", metricName, err)
+		}
+	}
+	return mns, nil
+}
+
 // searchTSIDs returns sorted TSIDs for the given tfss and the given tr.
 func (s *Storage) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	// Do not cache tfss -> tsids here, since the caching is performed

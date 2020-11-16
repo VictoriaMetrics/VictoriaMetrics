@@ -878,6 +878,34 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, err := netstorage.SearchMetricNames(sq, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		bw := bufferedwriter.Get(w)
+		defer bufferedwriter.Put(bw)
+		resultsCh := make(chan *quicktemplate.ByteBuffer)
+		doneCh := make(chan struct{})
+		go func() {
+			for i := range mns {
+				bb := quicktemplate.AcquireByteBuffer()
+				writemetricNameObject(bb, &mns[i])
+				resultsCh <- bb
+			}
+			close(doneCh)
+		}()
+		// WriteSeriesResponse must consume all the data from resultsCh.
+		WriteSeriesResponse(bw, resultsCh)
+		if err := bw.Flush(); err != nil {
+			return err
+		}
+		<-doneCh
+		seriesDuration.UpdateDuration(startTime)
+		return nil
+	}
 	rss, err := netstorage.ProcessSearchQuery(sq, false, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
