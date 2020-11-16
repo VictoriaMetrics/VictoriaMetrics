@@ -962,21 +962,19 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 		bw := bufferedwriter.Get(w)
 		defer bufferedwriter.Put(bw)
 		resultsCh := make(chan *quicktemplate.ByteBuffer)
-		doneCh := make(chan struct{})
 		go func() {
 			for i := range mns {
 				bb := quicktemplate.AcquireByteBuffer()
 				writemetricNameObject(bb, &mns[i])
 				resultsCh <- bb
 			}
-			close(doneCh)
+			close(resultsCh)
 		}()
 		// WriteSeriesResponse must consume all the data from resultsCh.
 		WriteSeriesResponse(bw, isPartial, resultsCh)
 		if err := bw.Flush(); err != nil {
 			return err
 		}
-		<-doneCh
 		seriesDuration.UpdateDuration(startTime)
 		return nil
 	}
