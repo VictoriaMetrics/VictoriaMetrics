@@ -483,18 +483,18 @@ func GetGraphiteTags(filter string, limit int, deadline searchutils.Deadline) ([
 	if err != nil {
 		return nil, err
 	}
-	if len(filter) > 0 {
-		labels, err = applyGraphiteRegexpFilter(filter, labels)
-		if err != nil {
-			return nil, err
-		}
-	}
 	// Substitute "__name__" with "name" for Graphite compatibility
 	for i := range labels {
 		if labels[i] == "__name__" {
 			labels[i] = "name"
 			sort.Strings(labels)
 			break
+		}
+	}
+	if len(filter) > 0 {
+		labels, err = applyGraphiteRegexpFilter(filter, labels)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if limit > 0 && limit < len(labels) {
