@@ -567,18 +567,18 @@ func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, filter string, li
 	if err != nil {
 		return nil, false, err
 	}
-	if len(filter) > 0 {
-		labels, err = applyGraphiteRegexpFilter(filter, labels)
-		if err != nil {
-			return nil, false, err
-		}
-	}
 	// Substitute "__name__" with "name" for Graphite compatibility
 	for i := range labels {
 		if labels[i] == "__name__" {
 			labels[i] = "name"
 			sort.Strings(labels)
 			break
+		}
+	}
+	if len(filter) > 0 {
+		labels, err = applyGraphiteRegexpFilter(filter, labels)
+		if err != nil {
+			return nil, false, err
 		}
 	}
 	if limit > 0 && limit < len(labels) {
