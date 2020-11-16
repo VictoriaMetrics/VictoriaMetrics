@@ -84,10 +84,7 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	}
 	paths = deduplicatePaths(paths, delimiter)
 	sortPaths(paths, delimiter)
-	contentType := "application/json; charset=utf-8"
-	if jsonp != "" {
-		contentType = "text/javascript; charset=utf-8"
-	}
+	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -166,10 +163,7 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 		}
 		m[query] = paths
 	}
-	contentType := "application/json; charset=utf-8"
-	if jsonp != "" {
-		contentType = "text/javascript; charset=utf-8"
-	}
+	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	if groupByExpr {
 		for _, paths := range m {
@@ -215,10 +209,7 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return fmt.Errorf(`cannot obtain metric names: %w`, err)
 	}
-	contentType := "application/json; charset=utf-8"
-	if jsonp != "" {
-		contentType = "text/javascript; charset=utf-8"
-	}
+	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -417,3 +408,10 @@ var regexpCache = make(map[regexpCacheKey]*regexpCacheEntry)
 var regexpCacheLock sync.Mutex
 
 const maxRegexpCacheSize = 10000
+
+func getContentType(jsonp string) string {
+	if jsonp == "" {
+		return "application/json; charset=utf-8"
+	}
+	return "text/javascript; charset=utf-8"
+}

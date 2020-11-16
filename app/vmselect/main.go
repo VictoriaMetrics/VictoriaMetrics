@@ -132,7 +132,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 	}
-	if strings.HasPrefix(path, "/tags/") && path != "/tags/findSeries" {
+	if strings.HasPrefix(path, "/tags/") && !isGraphiteTagsPath(path) {
 		tagName := r.URL.Path[len("/tags/"):]
 		graphiteTagValuesRequests.Inc()
 		if err := graphite.TagValuesHandler(startTime, tagName, w, r); err != nil {
@@ -285,6 +285,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/tags/autoComplete/tags":
+		graphiteTagsAutoCompleteTagsRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.TagsAutoCompleteTagsHandler(startTime, w, r); err != nil {
+			graphiteTagsAutoCompleteTagsErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -316,6 +325,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return true
+	default:
+		return false
+	}
+}
+
+func isGraphiteTagsPath(path string) bool {
+	switch path {
+	// See https://graphite.readthedocs.io/en/stable/tags.html for a list of Graphite Tags API paths.
+	// Do not include `/tags/<tag_name>` here, since this will fool the caller.
+	case "/tags/tagSeries", "/tags/tagMultiSeries", "/tags/findSeries",
+		"/tags/autoComplete/tags", "/tags/autoComplete/values", "/tags/delSeries":
 		return true
 	default:
 		return false
@@ -394,6 +415,9 @@ var (
 
 	graphiteTagsFindSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/findSeries"}`)
 	graphiteTagsFindSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/findSeries"}`)
+
+	graphiteTagsAutoCompleteTagsRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/autoComplete/tags"}`)
+	graphiteTagsAutoCompleteTagsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/autoComplete/tags"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
