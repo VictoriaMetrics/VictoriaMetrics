@@ -371,6 +371,15 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
+	case "/tags/autoComplete/values":
+		graphiteTagsAutoCompleteValuesRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := graphite.TagsAutoCompleteValuesHandler(startTime, at, w, r); err != nil {
+			graphiteTagsAutoCompleteValuesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "prometheus/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -497,6 +506,9 @@ var (
 
 	graphiteTagsAutoCompleteTagsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/autoComplete/tags"}`)
 	graphiteTagsAutoCompleteTagsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/autoComplete/tags"}`)
+
+	graphiteTagsAutoCompleteValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/autoComplete/values"}`)
+	graphiteTagsAutoCompleteValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/autoComplete/values"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)

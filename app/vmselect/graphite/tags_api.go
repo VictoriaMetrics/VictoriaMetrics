@@ -17,6 +17,94 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+// TagsAutoCompleteValuesHandler implements /tags/autoComplete/values endpoint from Graphite Tags API.
+//
+// See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
+func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse form values: %w", err)
+	}
+	limit, err := getInt(r, "limit")
+	if err != nil {
+		return err
+	}
+	if limit <= 0 {
+		// Use limit=100 by default. See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
+		limit = 100
+	}
+	tag := r.FormValue("tag")
+	if len(tag) == 0 {
+		return fmt.Errorf("missing `tag` query arg")
+	}
+	valuePrefix := r.FormValue("valuePrefix")
+	exprs := r.Form["expr"]
+	var tagValues []string
+	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	isPartial := false
+	if len(exprs) == 0 {
+		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTagValues.
+		// Escape special chars in tagPrefix as Graphite does.
+		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
+		filter := regexp.QuoteMeta(valuePrefix)
+		tagValues, isPartial, err = netstorage.GetGraphiteTagValues(at, denyPartialResponse, tag, filter, limit, deadline)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
+		sq, err := getSearchQueryForExprs(exprs)
+		if err != nil {
+			return err
+		}
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		if err != nil {
+			return fmt.Errorf("cannot fetch metric names for %q: %w", sq, err)
+		}
+		isPartial = isPartialResponse
+		m := make(map[string]struct{})
+		if tag == "name" {
+			tag = "__name__"
+		}
+		for _, mn := range mns {
+			tagValue := mn.GetTagValue(tag)
+			if len(tagValue) == 0 {
+				continue
+			}
+			m[string(tagValue)] = struct{}{}
+		}
+		if len(valuePrefix) > 0 {
+			for tagValue := range m {
+				if !strings.HasPrefix(tagValue, valuePrefix) {
+					delete(m, tagValue)
+				}
+			}
+		}
+		tagValues = make([]string, 0, len(m))
+		for tagValue := range m {
+			tagValues = append(tagValues, tagValue)
+		}
+		sort.Strings(tagValues)
+		if limit > 0 && limit < len(tagValues) {
+			tagValues = tagValues[:limit]
+		}
+	}
+
+	jsonp := r.FormValue("jsonp")
+	contentType := getContentType(jsonp)
+	w.Header().Set("Content-Type", contentType)
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteTagsAutoCompleteResponse(bw, isPartial, tagValues, jsonp)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	tagsAutoCompleteValuesDuration.UpdateDuration(startTime)
+	return nil
+}
+
+var tagsAutoCompleteValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/tags/autoComplete/values"}`)
+
 // TagsAutoCompleteTagsHandler implements /tags/autoComplete/tags endpoint from Graphite Tags API.
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support
@@ -39,7 +127,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 	var labels []string
 	isPartial := false
 	if len(exprs) == 0 {
-		// Fast path: there are no `expr` filters.
+		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTags.
 
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
@@ -50,15 +138,9 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		tfs, err := exprsToTagFilters(exprs)
+		sq, err := getSearchQueryForExprs(exprs)
 		if err != nil {
 			return err
-		}
-		ct := time.Now().UnixNano() / 1e6
-		sq := &storage.SearchQuery{
-			MinTimestamp: 0,
-			MaxTimestamp: ct,
-			TagFilterss:  [][]storage.TagFilter{tfs},
 		}
 		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
 		if err != nil {
@@ -94,7 +176,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteTagsAutoCompleteTagsResponse(bw, isPartial, labels, jsonp)
+	WriteTagsAutoCompleteResponse(bw, isPartial, labels, jsonp)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
@@ -120,15 +202,9 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 	if len(exprs) == 0 {
 		return fmt.Errorf("expecting at least one `expr` query arg")
 	}
-	tfs, err := exprsToTagFilters(exprs)
+	sq, err := getSearchQueryForExprs(exprs)
 	if err != nil {
 		return err
-	}
-	ct := time.Now().UnixNano() / 1e6
-	sq := &storage.SearchQuery{
-		MinTimestamp: 0,
-		MaxTimestamp: ct,
-		TagFilterss:  [][]storage.TagFilter{tfs},
 	}
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	mns, isPartial, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
@@ -249,6 +325,20 @@ func getInt(r *http.Request, argName string) (int, error) {
 		return 0, fmt.Errorf("cannot parse %q=%q: %w", argName, argValue, err)
 	}
 	return n, nil
+}
+
+func getSearchQueryForExprs(exprs []string) (*storage.SearchQuery, error) {
+	tfs, err := exprsToTagFilters(exprs)
+	if err != nil {
+		return nil, err
+	}
+	ct := time.Now().UnixNano() / 1e6
+	sq := &storage.SearchQuery{
+		MinTimestamp: 0,
+		MaxTimestamp: ct,
+		TagFilterss:  [][]storage.TagFilter{tfs},
+	}
+	return sq, nil
 }
 
 func exprsToTagFilters(exprs []string) ([]storage.TagFilter, error) {
