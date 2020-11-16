@@ -662,27 +662,43 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
-	if err != nil {
-		return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
 	m := make(map[string]struct{})
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		labelValue := rs.MetricName.GetTagValue(labelName)
-		if len(labelValue) == 0 {
-			return nil
+	isPartial := false
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		mLock.Lock()
-		m[string(labelValue)] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, false, fmt.Errorf("error when data fetching: %w", err)
+		isPartial = isPartialResponse
+		for _, mn := range mns {
+			labelValue := mn.GetTagValue(labelName)
+			if len(labelValue) == 0 {
+				continue
+			}
+			m[string(labelValue)] = struct{}{}
+		}
+	} else {
+		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		isPartial = isPartialResponse
+		var mLock sync.Mutex
+		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			labelValue := rs.MetricName.GetTagValue(labelName)
+			if len(labelValue) == 0 {
+				return nil
+			}
+			mLock.Lock()
+			m[string(labelValue)] = struct{}{}
+			mLock.Unlock()
+			return nil
+		})
+		if err != nil {
+			return nil, false, fmt.Errorf("error when data fetching: %w", err)
+		}
 	}
-
 	labelValues := make([]string, 0, len(m))
 	for labelValue := range m {
 		labelValues = append(labelValues, labelValue)
@@ -856,26 +872,39 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
 	}
-	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
-	if err != nil {
-		return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-	}
-
 	m := make(map[string]struct{})
-	var mLock sync.Mutex
-	err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
-		mLock.Lock()
-		tags := rs.MetricName.Tags
-		for i := range tags {
-			t := &tags[i]
-			m[string(t.Key)] = struct{}{}
+	isPartial := false
+	if end-start > 24*3600*1000 {
+		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
+		mns, isPartialResponse, err := netstorage.SearchMetricNames(at, denyPartialResponse, sq, deadline)
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
 		}
-		m["__name__"] = struct{}{}
-		mLock.Unlock()
-		return nil
-	})
-	if err != nil {
-		return nil, false, fmt.Errorf("error when data fetching: %w", err)
+		isPartial = isPartialResponse
+		for _, mn := range mns {
+			for _, tag := range mn.Tags {
+				m[string(tag.Key)] = struct{}{}
+			}
+		}
+	} else {
+		rss, isPartialResponse, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, false, deadline)
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
+		}
+		isPartial = isPartialResponse
+		var mLock sync.Mutex
+		err = rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
+			mLock.Lock()
+			for _, tag := range rs.MetricName.Tags {
+				m[string(tag.Key)] = struct{}{}
+			}
+			m["__name__"] = struct{}{}
+			mLock.Unlock()
+			return nil
+		})
+		if err != nil {
+			return nil, false, fmt.Errorf("error when data fetching: %w", err)
+		}
 	}
 
 	labels := make([]string, 0, len(m))
