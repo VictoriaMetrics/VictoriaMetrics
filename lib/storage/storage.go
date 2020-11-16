@@ -860,7 +860,7 @@ func nextRetentionDuration(retentionMonths int) time.Duration {
 }
 
 // SearchMetricNames returns metric names matching the given tfss on the given tr.
-func (s *Storage) SearchMetricNames(accountID, projectID uint32, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
+func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]MetricName, error) {
 	tsids, err := s.searchTSIDs(tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -871,6 +871,8 @@ func (s *Storage) SearchMetricNames(accountID, projectID uint32, tfss []*TagFilt
 	if err = s.prefetchMetricNames(tsids, deadline); err != nil {
 		return nil, err
 	}
+	accountID := tsids[0].AccountID
+	projectID := tsids[0].ProjectID
 	idb := s.idb()
 	is := idb.getIndexSearch(accountID, projectID, deadline)
 	defer idb.putIndexSearch(is)
