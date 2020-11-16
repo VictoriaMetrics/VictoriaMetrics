@@ -78,11 +78,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	rss, err := netstorage.ProcessSearchQuery(sq, true, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
@@ -146,11 +142,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -227,11 +219,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -381,11 +369,7 @@ func exportHandler(w http.ResponseWriter, matches []string, start, end int64, fo
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -486,9 +470,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		TagFilterss: tagFilterss,
-	}
+	sq := storage.NewSearchQuery(0, 0, tagFilterss)
 	deletedCount, err := netstorage.DeleteSeries(sq)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series matching %q: %w", matches, err)
@@ -596,11 +578,7 @@ func labelValuesWithMatches(labelName string, matches []string, start, end int64
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	m := make(map[string]struct{})
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
@@ -795,11 +773,7 @@ func labelsWithMatches(matches []string, start, end int64, deadline searchutils.
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	m := make(map[string]struct{})
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
@@ -898,11 +872,7 @@ func SeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(start, end, tagFilterss)
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
 		mns, err := netstorage.SearchMetricNames(sq, deadline)

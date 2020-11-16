@@ -323,11 +323,7 @@ func getSearchQueryForExprs(exprs []string) (*storage.SearchQuery, error) {
 		return nil, err
 	}
 	ct := time.Now().UnixNano() / 1e6
-	sq := &storage.SearchQuery{
-		MinTimestamp: 0,
-		MaxTimestamp: ct,
-		TagFilterss:  [][]storage.TagFilter{tfs},
-	}
+	sq := storage.NewSearchQuery(0, ct, [][]storage.TagFilter{tfs})
 	return sq, nil
 }
 
