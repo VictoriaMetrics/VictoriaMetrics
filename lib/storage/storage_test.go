@@ -725,7 +725,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		}
 		now := timestampFromTime(time.Now())
 		for j := 0; j < metricsPerAdd; j++ {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rand.Intn(100)))
+			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", j))
 			metricNameRaw := mn.marshalRaw(nil)
 
 			mr := MetricRow{
@@ -798,6 +798,29 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	sort.Strings(addIDs)
 	if !reflect.DeepEqual(addIDs, addIDsExpected) {
 		return fmt.Errorf("unexpected tag values returned from SearchTagValuesOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+	}
+
+	// Verify that SearchMetricNames returns correct result.
+	tfs := NewTagFilters()
+	if err := tfs.Add([]byte("add_id"), []byte("0"), false, false); err != nil {
+		return fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
+	}
+	mns, err := s.SearchMetricNames([]*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
+	if err != nil {
+		return fmt.Errorf("error in SearchMetricNames: %w", err)
+	}
+	if len(mns) < metricsPerAdd {
+		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(mns), int(metricsPerAdd))
+	}
+	for i, mn := range mns {
+		addID := mn.GetTagValue("add_id")
+		if string(addID) != "0" {
+			return fmt.Errorf("unexpected addID for metricName #%d; got %q; want %q", i, addID, "0")
+		}
+		job := mn.GetTagValue("job")
+		if string(job) != "webservice" {
+			return fmt.Errorf("unexpected job for metricName #%d; got %q; want %q", i, job, "webservice")
+		}
 	}
 
 	return nil
