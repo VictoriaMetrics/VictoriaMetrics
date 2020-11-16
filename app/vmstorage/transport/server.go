@@ -1093,7 +1093,7 @@ func (s *Server) processVMSelectSearchMetricNames(ctx *vmselectRequestCtx) error
 		MinTimestamp: ctx.sq.MinTimestamp,
 		MaxTimestamp: ctx.sq.MaxTimestamp,
 	}
-	mns, err := s.storage.SearchMetricNames(ctx.sq.AccountID, ctx.sq.ProjectID, ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
+	mns, err := s.storage.SearchMetricNames(ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

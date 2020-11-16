@@ -53,7 +53,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(exprs)
+		sq, err := getSearchQueryForExprs(at, exprs)
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(exprs)
+		sq, err := getSearchQueryForExprs(at, exprs)
 		if err != nil {
 			return err
 		}
@@ -202,7 +202,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 	if len(exprs) == 0 {
 		return fmt.Errorf("expecting at least one `expr` query arg")
 	}
-	sq, err := getSearchQueryForExprs(exprs)
+	sq, err := getSearchQueryForExprs(at, exprs)
 	if err != nil {
 		return err
 	}
@@ -327,17 +327,13 @@ func getInt(r *http.Request, argName string) (int, error) {
 	return n, nil
 }
 
-func getSearchQueryForExprs(exprs []string) (*storage.SearchQuery, error) {
+func getSearchQueryForExprs(at *auth.Token, exprs []string) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)
 	if err != nil {
 		return nil, err
 	}
 	ct := time.Now().UnixNano() / 1e6
-	sq := &storage.SearchQuery{
-		MinTimestamp: 0,
-		MaxTimestamp: ct,
-		TagFilterss:  [][]storage.TagFilter{tfs},
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, [][]storage.TagFilter{tfs})
 	return sq, nil
 }
 

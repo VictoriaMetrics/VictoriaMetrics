@@ -671,13 +671,7 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    ec.AuthToken.AccountID,
-		ProjectID:    ec.AuthToken.ProjectID,
-		MinTimestamp: minTimestamp,
-		MaxTimestamp: ec.End,
-		TagFilterss:  [][]storage.TagFilter{tfs},
-	}
+	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, [][]storage.TagFilter{tfs})
 	rss, isPartial, err := netstorage.ProcessSearchQuery(ec.AuthToken, ec.DenyPartialResponse, sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err

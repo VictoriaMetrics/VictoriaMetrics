@@ -80,13 +80,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
 	if err != nil {
@@ -154,13 +148,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -237,13 +225,7 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -394,13 +376,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -506,11 +482,7 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	sq := &storage.SearchQuery{
-		AccountID:   at.AccountID,
-		ProjectID:   at.ProjectID,
-		TagFilterss: tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, tagFilterss)
 	deletedCount, err := netstorage.DeleteSeries(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series matching %q: %w", matches, err)
@@ -655,13 +627,7 @@ func labelValuesWithMatches(at *auth.Token, denyPartialResponse bool, labelName 
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	m := make(map[string]struct{})
 	isPartial := false
 	if end-start > 24*3600*1000 {
@@ -865,13 +831,7 @@ func labelsWithMatches(at *auth.Token, denyPartialResponse bool, matches []strin
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	m := make(map[string]struct{})
 	isPartial := false
 	if end-start > 24*3600*1000 {
@@ -975,13 +935,7 @@ func SeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if start >= end {
 		end = start + defaultStep
 	}
-	sq := &storage.SearchQuery{
-		AccountID:    at.AccountID,
-		ProjectID:    at.ProjectID,
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-	}
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	if end-start > 24*3600*1000 {
 		// It is cheaper to call SearchMetricNames on time ranges exceeding a day.
