@@ -1270,7 +1270,7 @@ func SearchMetricNames(at *auth.Token, denyPartialResponse bool, sq *storage.Sea
 	metricNames := make(map[string]struct{})
 	for i := 0; i < len(storageNodes); i++ {
 		// There is no need in timer here, since all the goroutines executing
-		// sn.processSearchQuery must be finished until the deadline.
+		// sn.processSearchMetricNames must be finished until the deadline.
 		nr := <-resultsCh
 		if nr.err != nil {
 			errors = append(errors, nr.err)
