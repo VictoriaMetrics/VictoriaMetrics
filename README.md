@@ -1236,7 +1236,7 @@ VictoriaMetrics also exposes currently running queries with their execution time
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":
   * Data becomes available for querying in a few seconds after inserting. It is possible to flush in-memory buffers to persistent storage
-    by requesting `/internal/force_flush` http handler.
+    by requesting `/internal/force_flush` http handler. This handler is mostly needed for testing and debugging purposes.
   * The last few seconds of inserted data may be lost on unclean shutdown (i.e. OOM, `kill -9` or hardware reset).
     See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
 
