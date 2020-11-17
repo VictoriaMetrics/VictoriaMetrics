@@ -1,0 +1,7 @@
+#!/bin/bash
+
+test -e $SNAP_DATA/extra_flags || echo 'FLAGS=""' > $SNAP_DATA/extra_flags
+
+# get args
+. $SNAP_DATA/extra_flags
+$SNAP/bin/victoria-metrics -storageDataPath /var/lib/victoriametrics --promscrape.config /etc/victoriametrics-scrape-config.yaml $FLAGS

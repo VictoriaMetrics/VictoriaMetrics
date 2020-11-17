@@ -1316,6 +1316,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
   See [this example](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
 * [Ansible role for installing single-node VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 * [Ansible role for installing cluster VictoriaMetrics](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
+* [Snap package VictoriaMetrics](https://snapcraft.io/victoriametrics).
 
 ## Third-party contributions
 
