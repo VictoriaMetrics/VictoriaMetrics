@@ -451,6 +451,12 @@ func InitStorageNodes(addrs []string) {
 			sn.brLock.Unlock()
 			return float64(n)
 		})
+		_ = metrics.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
+			if sn.isBroken() {
+				return 0
+			}
+			return 1
+		})
 		storageNodes = append(storageNodes, sn)
 	}
 
