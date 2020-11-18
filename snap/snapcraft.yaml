@@ -59,7 +59,7 @@ parts:
     override-build: |
       make app-local APP_NAME=victoria-metrics
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp -p $SNAPCRAFT_PART_BUILD/bin/victoria-metrics-prod $SNAPCRAFT_PART_INSTALL/bin/victoria-metrics
+      cp -p $SNAPCRAFT_PART_BUILD/bin/victoria-metrics $SNAPCRAFT_PART_INSTALL/bin/
       cp -p $SNAPCRAFT_PART_SRC/snap/local/victoriametrics-wrapper $SNAPCRAFT_PART_INSTALL/bin/
 apps:
   victoriametrics:
