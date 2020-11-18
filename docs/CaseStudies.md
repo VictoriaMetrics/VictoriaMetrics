@@ -6,7 +6,7 @@ and feel free asking for references, reviews and additional case studies from re
 See also [articles about VictoriaMetrics from our users](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles#third-party-articles-and-slides).
 
 
-* [Adidas](#adidas)
+* [adidas](#adidas)
 * [CERN](#cern)
 * [COLOPL](#colopl)
 * [Zerodha](#zerodha)
@@ -20,7 +20,7 @@ See also [articles about VictoriaMetrics from our users](https://github.com/Vict
 * [Idealo.de](#idealode)
 
 
-## Adidas
+## adidas
 
 See [slides](https://promcon.io/2019-munich/slides/remote-write-storage-wars.pdf) and [video](https://youtu.be/OsH6gPdxR4s)
 from [Remote Write Storage Wars](https://promcon.io/2019-munich/talks/remote-write-storage-wars/) talk at [PromCon 2019](https://promcon.io/2019-munich/).
