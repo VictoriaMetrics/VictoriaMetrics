@@ -25,6 +25,8 @@ var (
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 10, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
 		"are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit")
+	warnsPerSecondLimit = flag.Int("loggerWarnsPerSecondLimit", 10, "Per-second limit on the number of WARN messages. If more than the given number of warns "+
+		"are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit")
 )
 
 // Init initializes the logger.
@@ -36,7 +38,7 @@ func Init() {
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
-	go errorsLoggedCleaner()
+	go errorsAndWarnsLoggedCleaner()
 	logAllFlags()
 }
 
@@ -125,14 +127,18 @@ func logLevelSkipframes(skipframes int, level, format string, args ...interface{
 	logMessage(level, msg, 3+skipframes)
 }
 
-func errorsLoggedCleaner() {
+func errorsAndWarnsLoggedCleaner() {
 	for {
 		time.Sleep(time.Second)
 		atomic.StoreUint64(&errorsLogged, 0)
+		atomic.StoreUint64(&warnsLogged, 0)
 	}
 }
 
-var errorsLogged uint64
+var (
+	errorsLogged uint64
+	warnsLogged  uint64
+)
 
 type logWriter struct {
 }
@@ -146,6 +152,11 @@ func logMessage(level, msg string, skipframes int) {
 	// rate limit ERROR log messages
 	if level == "ERROR" {
 		if n := atomic.AddUint64(&errorsLogged, 1); *errorsPerSecondLimit > 0 && n > uint64(*errorsPerSecondLimit) {
+			return
+		}
+	}
+	if level == "WARN" {
+		if n := atomic.AddUint64(&warnsLogged, 1); *warnsPerSecondLimit > 0 && n > uint64(*warnsPerSecondLimit) {
 			return
 		}
 	}
