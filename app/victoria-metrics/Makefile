@@ -108,3 +108,10 @@ victoria-metrics-package-deb-rpm-all: \
         victoria-metrics-package-deb-arm64 \
         victoria-metrics-package-rpm \
         victoria-metrics-package-rpm-arm64
+
+### Packaging as snap
+victoria-metrics-package-snap: victoria-metrics-prod
+	which snapcraft || snap install snapcraft
+	which multipass || snap install multipass
+	snapcraft
+
