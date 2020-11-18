@@ -1,10 +1,12 @@
 # Quick Start
 
-1. Download the latest VictoriaMetrics release from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
+1. If you run Ubuntu, then just run `snap install victoriametrics` command in order to install and start VictoriaMetrics, then read [these docs](https://snapcraft.io/victoriametrics).
+   Otherwise download the latest VictoriaMetrics release from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
    from [Docker hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
    or [build it from sources](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics#how-to-build-from-sources).
 
-2. Run the binary or Docker image with the desired command-line flags. Pass `-help` in order to see description for all the available flags
+2. This step isn't needed if you run VictoriaMetrics via `snap install victoriametrics` as described above.
+   Otherwise run the binary or Docker image with the desired command-line flags. Pass `-help` in order to see description for all the available flags
    and their default values. Default flag values should fit the majoirty of cases. The minimum required flags to configure are:
 
    * `-storageDataPath` - path to directory where VictoriaMetrics stores all the data.
