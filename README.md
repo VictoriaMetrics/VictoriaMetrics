@@ -28,7 +28,7 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 Click on a link in order to read the corresponding case study
 
-* [Adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
+* [adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
 * [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
 * [Zerodha](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#zerodha)
