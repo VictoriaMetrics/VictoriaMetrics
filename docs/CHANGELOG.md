@@ -2,6 +2,10 @@
 
 # tip
 
+* FEATURE: added [Snap package for single-node VictoriaMetrics](https://snapcraft.io/victoriametrics). This simplifies installation under Ubuntu to a single command:
+  ```bash
+  snap install victoriametrics
+  ```
 * FEATURE: vminsert: export `vm_rpc_vmstorage_is_reachable` metric, which can be used for monitoring reachability of vmstorage nodes from vminsert nodes.
 
 
