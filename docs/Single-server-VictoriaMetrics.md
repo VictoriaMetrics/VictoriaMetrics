@@ -13,8 +13,10 @@
 VictoriaMetrics is fast, cost-effective and scalable monitoring solution and time series database.
 
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
-[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and
-in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
+[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap package](https://snapcraft.io/victoriametrics)
+and in [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). Just download VictoriaMetrics and see [how to start it](#how-to-start-victoriametrics).
+If you use Ubuntu, then just run `snap install victoriametrics` in order to install and run it.
+Then read [Prometheus setup](#prometheus-setup) and [Grafana setup](#grafana-setup) docs.
 
 Cluster version is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
