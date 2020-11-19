@@ -7,7 +7,8 @@
   snap install victoriametrics
   ```
 * FEATURE: vminsert: export `vm_rpc_vmstorage_is_reachable` metric, which can be used for monitoring reachability of vmstorage nodes from vminsert nodes.
-
+* FEATURE: vmagent: add Netflix Eureka service discovery (aka [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)).
+See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
 
 # [v1.47.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.47.0)
 
