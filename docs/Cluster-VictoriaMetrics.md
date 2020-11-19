@@ -285,7 +285,7 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 #### vmstorage
 
 * The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
-* The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = active_time_series * 1KB`.
+* The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = 2 * active_time_series * 1KB`.
   Time series is active if it received at least a single data point during the last hour or if it has been queried during the last hour.
   The required RAM per each `vmstorage` should be multiplied by `-replicationFactor` if [replication](#replication-and-data-safety) is enabled.
   Additional RAM can be required for query processing.

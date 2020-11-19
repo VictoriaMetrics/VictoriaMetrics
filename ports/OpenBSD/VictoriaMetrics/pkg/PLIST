@@ -5,6 +5,7 @@
 @rcscript ${RCDIR}/vmetrics
 @bin bin/vmetrics
 @bin bin/vmetricsbackup
+@bin bin/vmetricsrestore
 @bin bin/vmetricslogger.pl
 share/doc/vmetrics/
 share/doc/vmetrics/Articles.md

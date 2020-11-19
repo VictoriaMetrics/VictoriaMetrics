@@ -8,12 +8,14 @@ daemon_user=_vmetrics
 
 . /etc/rc.d/rc.subr
 
-pexp="${daemon}.*"
+pexp="${daemon} -loggerDisableTimestamps ${daemon_flags}.*"
 rc_bg=YES
 rc_reload=NO
 
+me=`basename $0`
+
 rc_start() {
-	${rcexec} "${daemon} -loggerDisableTimestamps ${daemon_flags} < /dev/null 2>&1 | ${TRUEPREFIX}/bin/vmetricslogger.pl"
+	${rcexec} "${daemon} -loggerDisableTimestamps ${daemon_flags} < /dev/null 2>&1 | ${TRUEPREFIX}/bin/vmetricslogger.pl $me"
 }
 
 rc_cmd $1

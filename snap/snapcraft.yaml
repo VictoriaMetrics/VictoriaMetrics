@@ -1,0 +1,83 @@
+name: victoriametrics
+base: core18
+version: git
+icon: logo.png
+summary: VictoriaMetrics is fast, cost-effective and scalable time-series database.
+description: |
+  * VictoriaMetrics can be used as long-term storage for Prometheus or for vmagent.
+  See [these docs](#prometheus-setup) for details.
+  * Supports Prometheus querying API, so it can be used as Prometheus drop-in replacement in Grafana.
+  VictoriaMetrics implements MetricsQL, https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL query language, which is inspired by PromQL.
+  * Supports global query view. Multiple Prometheus instances may write data into VictoriaMetrics. Later this data may be used in a single query.
+  * High performance and good scalability for both inserts  and selects.
+  * High data compression, so up to 70x more data points  may be crammed into limited storage comparing to TimescaleDB.
+  * Optimized for storage with high-latency IO and low IOPS (HDD and network storage in AWS, Google Cloud, Microsoft Azure, etc).
+  * A single-node VictoriaMetrics may substitute moderately sized clusters built with competing solutions such as Thanos, M3DB, Cortex, InfluxDB or TimescaleDB.
+  * Easy operation:
+      * VictoriaMetrics consists of a single without external dependencies.
+      * All the configuration is done via explicit command-line flags with reasonable defaults.
+      * All the data is stored in a single directory pointed by `-storageDataPath` flag.
+      * Easy and fast backups from
+      to S3 or GCS with [vmbackup] / [vmrestore].
+  * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to the storage architecture.
+  * Supports metrics' scraping, ingestion and backfilling via the following protocols:
+    * [Metrics from Prometheus exporters]
+      such as node_exporter.
+      *  Prometheus remote write API(
+      * InfluxDB line protocol over HTTP, TCP and UDP.
+      * Graphite plaintext protocol
+      if `-graphiteListenAddr` is set.
+      * OpenTSDB put message, if `-opentsdbListenAddr` is set.
+      * HTTP OpenTSDB /api/put requests, if `-opentsdbHTTPListenAddr` is set.
+      * JSON line format.
+      * Native binary format.
+      * Prometheus exposition format.
+      * Arbitrary CSV data.
+  * Supports metrics' relabeling. See [these docs](#relabeling) for details.
+  * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
+  * Has open source cluster version (https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
+
+  ** Configuration management**
+  * Prometheus scrape config can be edited with your favorite editor, its located at
+      `vi /var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml`
+      after changes, you can trigger config reread with `curl localhost:8248/-/reload`.
+  * Configuration tuning is possible with editing extra_flags:
+      `echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > /var/snap/victoriametrics/current/extra_flags && snap restart victoriametrics`
+  * Data folder located at `/var/snap/victoriametrics/current/var/lib/victoriametrics/`.
+
+grade: stable # must be 'stable' to release into candidate/stable channels
+confinement: strict # use 'strict' once you have the right plugs and slots
+
+parts:
+  build:
+    plugin: go
+    go-channel: 1.15/stable
+    go-importpath: github.com/VictoriaMetrics/VictoriaMetrics
+    source: .
+    source-type: local
+    build-packages: [build-essential, make]
+    override-build: |
+      make app-local APP_NAME=victoria-metrics
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      cp -p $SNAPCRAFT_PART_BUILD/bin/victoria-metrics $SNAPCRAFT_PART_INSTALL/bin/
+      cp -p $SNAPCRAFT_PART_SRC/snap/local/victoriametrics-wrapper $SNAPCRAFT_PART_INSTALL/bin/
+apps:
+  victoriametrics:
+    command: bin/victoriametrics-wrapper
+    daemon: simple
+    restart-condition: always
+    restart-delay: 10s
+    plugs: [network,network-bind]
+
+plugs:
+  network:
+  network-bind:
+
+layout:
+  /var/lib/victoriametrics:
+    bind: $SNAP_DATA/var/lib/victoriametrics
+  /etc/victoriametrics-scrape-config.yaml:
+    bind-file: $SNAP_DATA/etc/victoriametrics-scrape-config.yaml
+architectures:
+  - build-on: ['arm64', 'amd64']
+    run-on: ['arm64','amd64']
