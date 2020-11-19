@@ -787,6 +787,7 @@ var awsPartition = partition{
 		"athena": service{
 
 			Endpoints: endpoints{
+				"af-south-1":     endpoint{},
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
@@ -970,7 +971,7 @@ var awsPartition = partition{
 			},
 			Endpoints: endpoints{
 				"aws-global": endpoint{
-					Hostname:  "service.chime.aws.amazon.com",
+					Hostname:  "chime.us-east-1.amazonaws.com",
 					Protocols: []string{"https"},
 					CredentialScope: credentialScope{
 						Region: "us-east-1",
@@ -9763,6 +9764,12 @@ var awsisobPartition = partition{
 			},
 		},
 		"elasticmapreduce": service{
+
+			Endpoints: endpoints{
+				"us-isob-east-1": endpoint{},
+			},
+		},
+		"es": service{
 
 			Endpoints: endpoints{
 				"us-isob-east-1": endpoint{},
