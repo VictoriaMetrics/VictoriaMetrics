@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -38,7 +37,7 @@ func Init() {
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
-	go errorsAndWarnsLoggedCleaner()
+	go logLimiterCleaner()
 	logAllFlags()
 }
 
@@ -127,18 +126,60 @@ func logLevelSkipframes(skipframes int, level, format string, args ...interface{
 	logMessage(level, msg, 3+skipframes)
 }
 
-func errorsAndWarnsLoggedCleaner() {
+func logLimiterCleaner() {
 	for {
 		time.Sleep(time.Second)
-		atomic.StoreUint64(&errorsLogged, 0)
-		atomic.StoreUint64(&warnsLogged, 0)
+		logLimiter.reset()
 	}
 }
 
-var (
-	errorsLogged uint64
-	warnsLogged  uint64
-)
+var logLimiter = newLogLimit()
+
+func newLogLimit() *logLimit {
+	return &logLimit{
+		m: make(map[string]uint64),
+	}
+}
+
+type logLimit struct {
+	mu sync.Mutex
+	m  map[string]uint64
+}
+
+func (ll *logLimit) reset() {
+	ll.mu.Lock()
+	ll.m = make(map[string]uint64, len(ll.m))
+	ll.mu.Unlock()
+}
+
+// needSuppress checks if the number of calls for the given location exceeds the given limit.
+//
+// When the number of calls equals limit, log message prefix returned.
+func (ll *logLimit) needSuppress(location string, limit uint64) (bool, string) {
+	// fast path
+	var msg string
+	if limit == 0 {
+		return false, msg
+	}
+	ll.mu.Lock()
+	defer ll.mu.Unlock()
+
+	if n, ok := ll.m[location]; ok {
+		if n >= limit {
+			switch n {
+			// report only once
+			case limit:
+				msg = fmt.Sprintf("suppressing log message with rate limit=%d: ", limit)
+			default:
+				return true, msg
+			}
+		}
+		ll.m[location] = n + 1
+	} else {
+		ll.m[location] = 1
+	}
+	return false, msg
+}
 
 type logWriter struct {
 }
@@ -149,18 +190,6 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 }
 
 func logMessage(level, msg string, skipframes int) {
-	// rate limit ERROR log messages
-	if level == "ERROR" {
-		if n := atomic.AddUint64(&errorsLogged, 1); *errorsPerSecondLimit > 0 && n > uint64(*errorsPerSecondLimit) {
-			return
-		}
-	}
-	if level == "WARN" {
-		if n := atomic.AddUint64(&warnsLogged, 1); *warnsPerSecondLimit > 0 && n > uint64(*warnsPerSecondLimit) {
-			return
-		}
-	}
-
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
@@ -175,23 +204,39 @@ func logMessage(level, msg string, skipframes int) {
 		// Strip /VictoriaMetrics/ prefix
 		file = file[n+len("/VictoriaMetrics/"):]
 	}
+	location := fmt.Sprintf("%s:%d", file, line)
+
+	// rate limit ERROR and WARN log messages with given limit.
+	if level == "ERROR" || level == "WARN" {
+		limit := uint64(*errorsPerSecondLimit)
+		if level == "WARN" {
+			limit = uint64(*warnsPerSecondLimit)
+		}
+		ok, suppressMessage := logLimiter.needSuppress(location, limit)
+		if ok {
+			return
+		}
+		if len(suppressMessage) > 0 {
+			msg = suppressMessage + msg
+		}
+	}
+
 	for len(msg) > 0 && msg[len(msg)-1] == '\n' {
 		msg = msg[:len(msg)-1]
 	}
 	var logMsg string
 	switch *loggerFormat {
 	case "json":
-		caller := fmt.Sprintf("%s:%d", file, line)
 		if *disableTimestamps {
-			logMsg = fmt.Sprintf(`{"level":%q,"caller":%q,"msg":%q}`+"\n", levelLowercase, caller, msg)
+			logMsg = fmt.Sprintf(`{"level":%q,"caller":%q,"msg":%q}`+"\n", levelLowercase, location, msg)
 		} else {
-			logMsg = fmt.Sprintf(`{"ts":%q,"level":%q,"caller":%q,"msg":%q}`+"\n", timestamp, levelLowercase, caller, msg)
+			logMsg = fmt.Sprintf(`{"ts":%q,"level":%q,"caller":%q,"msg":%q}`+"\n", timestamp, levelLowercase, location, msg)
 		}
 	default:
 		if *disableTimestamps {
-			logMsg = fmt.Sprintf("%s\t%s:%d\t%s\n", levelLowercase, file, line, msg)
+			logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
 		} else {
-			logMsg = fmt.Sprintf("%s\t%s\t%s:%d\t%s\n", timestamp, levelLowercase, file, line, msg)
+			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
 		}
 	}
 
@@ -201,7 +246,6 @@ func logMessage(level, msg string, skipframes int) {
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
-	location := fmt.Sprintf("%s:%d", file, line)
 	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, levelLowercase, location)
 	metrics.GetOrCreateCounter(counterName).Inc()
 
