@@ -37,7 +37,7 @@ func Init() {
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
-	go errorsAndWarnsLoggedCleaner()
+	go logLimiterCleaner()
 	logAllFlags()
 }
 
@@ -126,37 +126,36 @@ func logLevelSkipframes(skipframes int, level, format string, args ...interface{
 	logMessage(level, msg, 3+skipframes)
 }
 
-func errorsAndWarnsLoggedCleaner() {
+func logLimiterCleaner() {
 	for {
 		time.Sleep(time.Second)
 		logLimiter.reset()
 	}
 }
 
-var (
-	logLimiter = newLogLimit()
-)
+var logLimiter = newLogLimit()
 
 func newLogLimit() *logLimit {
 	return &logLimit{
-		s: make(map[string]uint64),
+		m: make(map[string]uint64),
 	}
 }
 
 type logLimit struct {
 	mu sync.Mutex
-	s  map[string]uint64
+	m  map[string]uint64
 }
 
 func (ll *logLimit) reset() {
 	ll.mu.Lock()
-	ll.s = make(map[string]uint64)
+	ll.m = make(map[string]uint64, len(ll.m))
 	ll.mu.Unlock()
 }
 
-// needSuppress check if given string exceeds limit,
-// when count equals limit, log message prefix returned.
-func (ll *logLimit) needSuppress(file string, limit uint64) (bool, string) {
+// needSuppress checks if the number of calls for the given location exceeds the given limit.
+//
+// When the number of calls equals limit, log message prefix returned.
+func (ll *logLimit) needSuppress(location string, limit uint64) (bool, string) {
 	// fast path
 	var msg string
 	if limit == 0 {
@@ -165,7 +164,7 @@ func (ll *logLimit) needSuppress(file string, limit uint64) (bool, string) {
 	ll.mu.Lock()
 	defer ll.mu.Unlock()
 
-	if n, ok := ll.s[file]; ok {
+	if n, ok := ll.m[location]; ok {
 		if n >= limit {
 			switch n {
 			// report only once
@@ -175,9 +174,9 @@ func (ll *logLimit) needSuppress(file string, limit uint64) (bool, string) {
 				return true, msg
 			}
 		}
-		ll.s[file] = n + 1
+		ll.m[location] = n + 1
 	} else {
-		ll.s[file] = 1
+		ll.m[location] = 1
 	}
 	return false, msg
 }
@@ -191,7 +190,6 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 }
 
 func logMessage(level, msg string, skipframes int) {
-
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
