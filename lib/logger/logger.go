@@ -137,10 +137,9 @@ var (
 	logLimiter = newLogLimit()
 )
 
-func newLogLimit() logLimit {
-	return logLimit{
-		s:  map[string]uint64{},
-		mu: sync.Mutex{},
+func newLogLimit() *logLimit {
+	return &logLimit{
+		s: make(map[string]uint64),
 	}
 }
 
@@ -171,7 +170,7 @@ func (ll *logLimit) needSuppress(file string, limit uint64) (bool, string) {
 			switch n {
 			// report only once
 			case limit:
-				msg = "suppressing log message with rate limit: "
+				msg = fmt.Sprintf("suppressing log message with rate limit=%d: ", limit)
 			default:
 				return true, msg
 			}
