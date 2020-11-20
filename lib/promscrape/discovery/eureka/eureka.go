@@ -27,6 +27,7 @@ type SDConfig struct {
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
 	Port *int `yaml:"port,omitempty"`
 }
+
 type applications struct {
 	Applications []Application `xml:"application"`
 }
@@ -93,41 +94,42 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addInstanceLabels(apps, *sdc.Port), nil
+	port := 80
+	if sdc.Port != nil {
+		port = *sdc.Port
+	}
+	return addInstanceLabels(apps, port), nil
 }
 
-func addInstanceLabels(applications *applications, port int) []map[string]string {
+func addInstanceLabels(apps *applications, port int) []map[string]string {
 	var ms []map[string]string
-	for _, app := range applications.Applications {
+	for _, app := range apps.Applications {
 		for _, instance := range app.Instances {
-			var targetAddress string
-			if instance.Port.Port > 0 {
-				targetAddress = discoveryutils.JoinHostPort(instance.HostName, instance.Port.Port)
-			} else {
-				targetAddress = discoveryutils.JoinHostPort(instance.HostName, port)
+			instancePort := port
+			if instance.Port.Port != 0 {
+				instancePort = instance.Port.Port
 			}
+			targetAddress := discoveryutils.JoinHostPort(instance.HostName, instancePort)
 			m := map[string]string{
-				"__address__":                                targetAddress,
-				"instance":                                   instance.InstanceID,
-				"__meta_eureka_app_instance_app_nanem":       app.Name,
-				"__meta_eureka_app_instance_hostname":        instance.HostName,
-				"__meta_eureka_app_instance_homepage_url":    instance.HomePageURL,
-				"__meta_eureka_app_instance_statuspage_url":  instance.StatusPageURL,
-				"__meta_eureka_app_instance_healthcheck_url": instance.HealthCheckURL,
-				"__meta_eureka_app_instance_ip_addr":         instance.IPAddr,
-				"__meta_eureka_app_instance_vip_address":     instance.VipAddress,
-				"__meta_eureka_app_instance_status":          instance.Status,
-				"__meta_eureka_app_instance_country_id":      strconv.Itoa(instance.CountryID),
-				"__meta_eureka_app_instance_id":              instance.InstanceID,
+				"__address__":                                   targetAddress,
+				"instance":                                      instance.InstanceID,
+				"__meta_eureka_app_name":                        app.Name,
+				"__meta_eureka_app_instance_hostname":           instance.HostName,
+				"__meta_eureka_app_instance_homepage_url":       instance.HomePageURL,
+				"__meta_eureka_app_instance_statuspage_url":     instance.StatusPageURL,
+				"__meta_eureka_app_instance_healthcheck_url":    instance.HealthCheckURL,
+				"__meta_eureka_app_instance_ip_addr":            instance.IPAddr,
+				"__meta_eureka_app_instance_vip_address":        instance.VipAddress,
+				"__meta_eureka_app_instance_secure_vip_address": instance.SecureVipAddress,
+				"__meta_eureka_app_instance_status":             instance.Status,
+				"__meta_eureka_app_instance_country_id":         strconv.Itoa(instance.CountryID),
+				"__meta_eureka_app_instance_id":                 instance.InstanceID,
 			}
-			if len(instance.SecureVipAddress) > 0 {
-				m["__meta_eureka_app_instance_secure_vip_address"] = instance.SecureVipAddress
-			}
-			if instance.Port.Port > 0 {
+			if instance.Port.Port != 0 {
 				m["__meta_eureka_app_instance_port"] = strconv.Itoa(instance.Port.Port)
 				m["__meta_eureka_app_instance_port_enabled"] = strconv.FormatBool(instance.Port.Enabled)
 			}
-			if instance.SecurePort.Port > 0 {
+			if instance.SecurePort.Port != 0 {
 				m["__meta_eureka_app_instance_secure_port"] = strconv.Itoa(instance.SecurePort.Port)
 				m["__meta_eureka_app_instance_secure_port_enabled"] = strconv.FormatBool(instance.SecurePort.Enabled)
 

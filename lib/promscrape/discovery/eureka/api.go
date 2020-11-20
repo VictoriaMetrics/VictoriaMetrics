@@ -16,17 +16,11 @@ type apiConfig struct {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	var (
-		ba    *promauth.BasicAuthConfig
-		token string
-	)
+	token := ""
 	if sdc.Token != nil {
 		token = *sdc.Token
 	}
-	port := 80
-	if sdc.Port == nil {
-		sdc.Port = &port
-	}
+	var ba *promauth.BasicAuthConfig
 	if len(sdc.Username) > 0 {
 		ba = &promauth.BasicAuthConfig{
 			Username: sdc.Username,
