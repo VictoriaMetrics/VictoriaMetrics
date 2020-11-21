@@ -2,6 +2,7 @@ package promscrape
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -52,6 +53,9 @@ func statDial(addr string) (conn net.Conn, err error) {
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
+		if !netutil.TCP6Enabled() {
+			err = fmt.Errorf("%w; try -enableTCP6 command-line flag", err)
+		}
 		return nil, err
 	}
 	conns.Inc()
