@@ -97,8 +97,19 @@ func concurrencyLimitChInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrency)
 }
 
+// APIRequestParams modifies api request with given params.
+type APIRequestParams struct {
+	FetchFromResponse func(resp *fasthttp.Response)
+	SetToRequest      func(req *fasthttp.Request)
+}
+
 // GetAPIResponse returns response for the given absolute path.
 func (c *Client) GetAPIResponse(path string) ([]byte, error) {
+	return c.GetAPIResponseWithParams(path, nil)
+}
+
+// GetAPIResponseWithParams returns response for the given absolute path with given params.
+func (c *Client) GetAPIResponseWithParams(path string, params *APIRequestParams) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -122,6 +133,10 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 	if c.ac != nil && c.ac.Authorization != "" {
 		req.Header.Set("Authorization", c.ac.Authorization)
 	}
+	if params != nil && params.SetToRequest != nil {
+		params.SetToRequest(&req)
+	}
+
 	var resp fasthttp.Response
 	deadline := time.Now().Add(c.hc.ReadTimeout)
 	if err := doRequestWithPossibleRetry(c.hc, &req, &resp, deadline); err != nil {
@@ -136,6 +151,9 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 		data = dst
 	} else {
 		data = append(data[:0], resp.Body()...)
+	}
+	if params != nil && params.FetchFromResponse != nil {
+		params.FetchFromResponse(&resp)
 	}
 	statusCode := resp.StatusCode()
 	if statusCode != fasthttp.StatusOK {
