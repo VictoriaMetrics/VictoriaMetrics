@@ -3,6 +3,7 @@ package netstorage
 import (
 	"container/heap"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
+	"See -replicationFactor command-line flag for vminsert nodes")
 
 // Result is a single timeseries result.
 //
@@ -1249,6 +1253,7 @@ func processSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.Se
 
 func collectResults(denyPartialResponse bool, resultsCh <-chan interface{}, partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
 	var errors []error
+	resultsCollected := 0
 	for i := 0; i < len(storageNodes); i++ {
 		// There is no need in timer here, since all the goroutines executing
 		// the sn.process* function must be finished until the deadline.
@@ -1257,6 +1262,16 @@ func collectResults(denyPartialResponse bool, resultsCh <-chan interface{}, part
 		if err != nil {
 			errors = append(errors, err)
 			continue
+		}
+		resultsCollected++
+		if resultsCollected > len(storageNodes)-*replicationFactor {
+			// There is no need in waiting for the remaining results,
+			// because the collected results contain all the data according to the given -replicationFactor.
+			// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+			//
+			// It is expected that cap(resultsCh) == len(storageNodes), otherwise goroutine leak is possible.
+			return false, nil
 		}
 	}
 	isPartial := false
