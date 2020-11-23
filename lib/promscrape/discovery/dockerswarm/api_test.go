@@ -15,11 +15,11 @@ func TestGetFiltersQueryArg(t *testing.T) {
 	f(nil, "")
 	f([]Filter{
 		{
-			Name: "name",
+			Name:   "name",
 			Values: []string{"foo", "bar"},
 		},
 		{
-			Name: "xxx",
+			Name:   "xxx",
 			Values: []string{"aa"},
 		},
 	}, "%7B%22name%22%3A%7B%22bar%22%3Atrue%2C%22foo%22%3Atrue%7D%2C%22xxx%22%3A%7B%22aa%22%3Atrue%7D%7D")

@@ -104,7 +104,13 @@ type NetworkInterfaceSet struct {
 
 // NetworkInterface represents NetworkInterface from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html
 type NetworkInterface struct {
-	SubnetID string `xml:"subnetId"`
+	SubnetID         string           `xml:"subnetId"`
+	IPv6AddressesSet Ipv6AddressesSet `xml:"ipv6AddressesSet"`
+}
+
+// Ipv6AddressesSet represents ipv6AddressesSet from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_InstanceNetworkInterface.html
+type Ipv6AddressesSet struct {
+	Items []string `xml:"item"`
 }
 
 // TagSet represents TagSet from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html
@@ -151,21 +157,27 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string,
 		"__meta_ec2_vpc_id":             inst.VPCID,
 	}
 	if len(inst.VPCID) > 0 {
-		// Deduplicate VPC Subnet IDs maintaining the order of the network interfaces returned by EC2.
 		subnets := make([]string, 0, len(inst.NetworkInterfaceSet.Items))
 		seenSubnets := make(map[string]bool, len(inst.NetworkInterfaceSet.Items))
+		var ipv6Addrs []string
 		for _, ni := range inst.NetworkInterfaceSet.Items {
 			if len(ni.SubnetID) == 0 {
 				continue
 			}
+			// Deduplicate VPC Subnet IDs maintaining the order of the network interfaces returned by EC2.
 			if !seenSubnets[ni.SubnetID] {
 				seenSubnets[ni.SubnetID] = true
 				subnets = append(subnets, ni.SubnetID)
 			}
+			// Collect ipv6 addresses
+			ipv6Addrs = append(ipv6Addrs, ni.IPv6AddressesSet.Items...)
 		}
 		// We surround the separated list with the separator as well. This way regular expressions
 		// in relabeling rules don't have to consider tag positions.
 		m["__meta_ec2_subnet_id"] = "," + strings.Join(subnets, ",") + ","
+		if len(ipv6Addrs) > 0 {
+			m["__meta_ec2_ipv6_addresses"] = "," + strings.Join(ipv6Addrs, ",") + ","
+		}
 	}
 	for _, t := range inst.TagSet.Items {
 		if len(t.Key) == 0 || len(t.Value) == 0 {
