@@ -58,7 +58,7 @@ func getTasksLabels(cfg *apiConfig) ([]map[string]string, error) {
 }
 
 func getTasks(cfg *apiConfig) ([]task, error) {
-	resp, err := cfg.client.GetAPIResponse("/tasks")
+	resp, err := cfg.getAPIResponse("/tasks")
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for tasks: %w", err)
 	}
