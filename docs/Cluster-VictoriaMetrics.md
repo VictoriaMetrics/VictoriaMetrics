@@ -335,8 +335,9 @@ In order to enable application-level replication, `-replicationFactor=N` command
 This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
 For example, when `-replicationFactor=3` is passed to `vminsert`, then it replicates all the ingested data to 3 distinct `vmstorage` nodes.
 
-When the replication is enabled, `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect`
-in order to de-duplicate replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms
+When the replication is enabled, `-replicationFactor=N` and `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
+The `-replicationFactor=N` improves query performance when a part of vmstorage nodes respond slowly and/or temporarily unavailable.
+The `-dedup.minScrapeInterval=1ms` de-duplicates replicated data during queries. It is OK if `-dedup.minScrapeInterval` exceeds 1ms
 when [deduplication](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#deduplication) is used additionally to replication.
 
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),

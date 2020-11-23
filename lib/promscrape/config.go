@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dockerswarm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ec2"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/eureka"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
@@ -76,6 +77,7 @@ type ScrapeConfig struct {
 	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs,omitempty"`
 	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs,omitempty"`
 	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs,omitempty"`
+	EurekaSDConfigs      []eureka.SDConfig           `yaml:"eureka_sd_configs,omitempty"`
 	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
 	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs,omitempty"`
 	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs,omitempty"`
@@ -287,6 +289,34 @@ func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
 			logger.Errorf("there were errors when discovering consul targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getEurekaSDScrapeWork returns `eureka_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getEurekaSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]ScrapeWork, 0, len(prev))
+	for i := range cfg.ScrapeConfigs {
+		sc := &cfg.ScrapeConfigs[i]
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.EurekaSDConfigs {
+			sdc := &sc.EurekaSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendEurekaScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering eureka targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
@@ -535,6 +565,15 @@ func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir stri
 		return dst, false
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config"), true
+}
+
+func appendEurekaScrapeWork(dst []ScrapeWork, sdc *eureka.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+	targetLabels, err := eureka.GetLabels(sdc, baseDir)
+	if err != nil {
+		logger.Errorf("error when discovering eureka targets for `job_name` %q: %s; skipping it", swc.jobName, err)
+		return dst, false
+	}
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "eureka_sd_config"), true
 }
 
 func appendDNSScrapeWork(dst []ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {

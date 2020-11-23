@@ -68,15 +68,15 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `step()` function for returning the step in seconds used in the query.
 - `start()` and `end()` functions for returning the start and end timestamps of the `[start ... end]` range used in the query.
 - `integrate(m[d])` for returning integral over the given duration `d` for the given metric `m`.
-- `ideriv(m)` - for calculating `instant` derivative for `m`.
+- `ideriv(m[d])` - for calculating `instant` derivative for the metric `m` over the duration `d`.
 - `deriv_fast(m[d])` - for calculating `fast` derivative for `m` based on the first and the last points from duration `d`.
 - `running_` functions - `running_sum`, `running_min`, `running_max`, `running_avg` - for calculating [running values](https://en.wikipedia.org/wiki/Running_total) on the selected time range.
 - `range_` functions - `range_sum`, `range_min`, `range_max`, `range_avg`, `range_first`, `range_last`, `range_median`, `range_quantile` - for calculating global value over the selected time range. Note that global value is based on calculated datapoints for the inner query. The calculated datapoints can differ from raw datapoints stored in the database. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness) for details.
 - `smooth_exponential(q, sf)` - smooths `q` using [exponential moving average](https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average) with the given smooth factor `sf`.
 - `remove_resets(q)` - removes counter resets from `q`.
-- `lag(q[d])` - returns lag between the current timestamp and the timestamp from the previous data point in `q` over `d`.
-- `lifetime(q[d])` - returns lifetime of `q` over `d` in seconds. It is expected that `d` exceeds the lifetime of `q`.
-- `scrape_interval(q[d])` - returns the average interval in seconds between data points of `q` over `d` aka `scrape interval`.
+- `lag(m[d])` - returns lag between the current timestamp and the timestamp from the previous data point in `m` over `d`.
+- `lifetime(m[d])` - returns lifetime of `q` over `d` in seconds. It is expected that `d` exceeds the lifetime of `m`.
+- `scrape_interval(m[d])` - returns the average interval in seconds between data points of `m` over `d` aka `scrape interval`.
 - Trigonometric functions - `sin(q)`, `cos(q)`, `asin(q)`, `acos(q)` and `pi()`.
 - `range_over_time(m[d])` - returns value range for `m` over `d` time window, i.e. `max_over_time(m[d])-min_over_time(m[d])`.
 - `median_over_time(m[d])` - calculates median values for `m` over `d` time window. Shorthand to `quantile_over_time(0.5, m[d])`.
