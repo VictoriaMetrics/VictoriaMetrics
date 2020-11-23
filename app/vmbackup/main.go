@@ -43,7 +43,7 @@ func main() {
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	if len(*snapshotCreateURL) > 0 {
-		logger.Infof("%s", "Snapshots enabled")
+		logger.Infof("Snapshots enabled")
 		logger.Infof("Snapshot create url %s", *snapshotCreateURL)
 		if len(*snapshotDeleteURL) <= 0 {
 			err := flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
@@ -55,17 +55,17 @@ func main() {
 
 		name, err := snapshot.Create(*snapshotCreateURL)
 		if err != nil {
-			logger.Fatalf("%s", err)
+			logger.Fatalf("cannot create snapshot: %s", err)
 		}
 		err = flag.Set("snapshotName", name)
 		if err != nil {
-			logger.Fatalf("Failed to set snapshotName flag: %v", err)
+			logger.Fatalf("cannot set snapshotName flag: %v", err)
 		}
 
 		defer func() {
 			err := snapshot.Delete(*snapshotDeleteURL, name)
 			if err != nil {
-				logger.Fatalf("%s", err)
+				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
 		}()
 	}
