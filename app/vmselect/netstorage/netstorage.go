@@ -472,7 +472,7 @@ func RegisterMetricNames(at *auth.Token, mrs []storage.MetricRow, deadline searc
 		sn.registerMetricNamesRequests.Inc()
 		err := sn.registerMetricNames(mrsPerNode[idx], deadline)
 		if err != nil {
-			sn.registerMetricNamesRequestErrors.Inc()
+			sn.registerMetricNamesErrors.Inc()
 		}
 		return &err
 	})
@@ -501,7 +501,7 @@ func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 		sn.deleteSeriesRequests.Inc()
 		deletedCount, err := sn.deleteMetrics(requestData, deadline)
 		if err != nil {
-			sn.deleteSeriesRequestErrors.Inc()
+			sn.deleteSeriesErrors.Inc()
 		}
 		return &nodeResult{
 			deletedCount: deletedCount,
@@ -539,7 +539,7 @@ func GetLabelsOnTimeRange(at *auth.Token, denyPartialResponse bool, tr storage.T
 		sn.labelsOnTimeRangeRequests.Inc()
 		labels, err := sn.getLabelsOnTimeRange(at.AccountID, at.ProjectID, tr, deadline)
 		if err != nil {
-			sn.labelsOnTimeRangeRequestErrors.Inc()
+			sn.labelsOnTimeRangeErrors.Inc()
 			err = fmt.Errorf("cannot get labels on time range from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -618,7 +618,7 @@ func GetLabels(at *auth.Token, denyPartialResponse bool, deadline searchutils.De
 		sn.labelsRequests.Inc()
 		labels, err := sn.getLabels(at.AccountID, at.ProjectID, deadline)
 		if err != nil {
-			sn.labelsRequestErrors.Inc()
+			sn.labelsErrors.Inc()
 			err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -673,7 +673,7 @@ func GetLabelValuesOnTimeRange(at *auth.Token, denyPartialResponse bool, labelNa
 		sn.labelValuesOnTimeRangeRequests.Inc()
 		labelValues, err := sn.getLabelValuesOnTimeRange(at.AccountID, at.ProjectID, labelName, tr, deadline)
 		if err != nil {
-			sn.labelValuesOnTimeRangeRequestErrors.Inc()
+			sn.labelValuesOnTimeRangeErrors.Inc()
 			err = fmt.Errorf("cannot get label values on time range from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -746,7 +746,7 @@ func GetLabelValues(at *auth.Token, denyPartialResponse bool, labelName string, 
 		sn.labelValuesRequests.Inc()
 		labelValues, err := sn.getLabelValues(at.AccountID, at.ProjectID, labelName, deadline)
 		if err != nil {
-			sn.labelValuesRequestErrors.Inc()
+			sn.labelValuesErrors.Inc()
 			err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -793,7 +793,7 @@ func GetTagValueSuffixes(at *auth.Token, denyPartialResponse bool, tr storage.Ti
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(at.AccountID, at.ProjectID, tr, tagKey, tagValuePrefix, delimiter, deadline)
 		if err != nil {
-			sn.tagValueSuffixesRequestErrors.Inc()
+			sn.tagValueSuffixesErrors.Inc()
 			err = fmt.Errorf("cannot get tag value suffixes for tr=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c from vmstorage %s: %w",
 				tr.String(), tagKey, tagValuePrefix, delimiter, sn.connPool.Addr(), err)
 		}
@@ -840,7 +840,7 @@ func GetLabelEntries(at *auth.Token, denyPartialResponse bool, deadline searchut
 		sn.labelEntriesRequests.Inc()
 		labelEntries, err := sn.getLabelEntries(at.AccountID, at.ProjectID, deadline)
 		if err != nil {
-			sn.labelEntriesRequestErrors.Inc()
+			sn.labelEntriesErrors.Inc()
 			err = fmt.Errorf("cannot get label entries from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -930,7 +930,7 @@ func GetTSDBStatusForDate(at *auth.Token, denyPartialResponse bool, deadline sea
 		sn.tsdbStatusRequests.Inc()
 		status, err := sn.getTSDBStatusForDate(at.AccountID, at.ProjectID, date, topN, deadline)
 		if err != nil {
-			sn.tsdbStatusRequestErrors.Inc()
+			sn.tsdbStatusErrors.Inc()
 			err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -1017,7 +1017,7 @@ func GetSeriesCount(at *auth.Token, denyPartialResponse bool, deadline searchuti
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(at.AccountID, at.ProjectID, deadline)
 		if err != nil {
-			sn.seriesCountRequestErrors.Inc()
+			sn.seriesCountErrors.Inc()
 			err = fmt.Errorf("cannot get series count from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -1151,7 +1151,7 @@ func SearchMetricNames(at *auth.Token, denyPartialResponse bool, sq *storage.Sea
 		sn.searchMetricNamesRequests.Inc()
 		metricNames, err := sn.processSearchMetricNames(requestData, deadline)
 		if err != nil {
-			sn.searchMetricNamesRequestErrors.Inc()
+			sn.searchMetricNamesErrors.Inc()
 			err = fmt.Errorf("cannot search metric names on vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
@@ -1262,7 +1262,7 @@ func processSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.Se
 		sn.searchRequests.Inc()
 		err := sn.processSearchQuery(requestData, fetchData, processBlock, deadline)
 		if err != nil {
-			sn.searchRequestErrors.Inc()
+			sn.searchErrors.Inc()
 			err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &err
@@ -1367,13 +1367,13 @@ type storageNode struct {
 	registerMetricNamesRequests *metrics.Counter
 
 	// The number of RegisterMetricNames request errors to storageNode.
-	registerMetricNamesRequestErrors *metrics.Counter
+	registerMetricNamesErrors *metrics.Counter
 
 	// The number of DeleteSeries requests to storageNode.
 	deleteSeriesRequests *metrics.Counter
 
 	// The number of DeleteSeries request errors to storageNode.
-	deleteSeriesRequestErrors *metrics.Counter
+	deleteSeriesErrors *metrics.Counter
 
 	// The number of requests to labels.
 	labelsOnTimeRangeRequests *metrics.Counter
@@ -1382,10 +1382,10 @@ type storageNode struct {
 	labelsRequests *metrics.Counter
 
 	// The number of errors during requests to labels.
-	labelsOnTimeRangeRequestErrors *metrics.Counter
+	labelsOnTimeRangeErrors *metrics.Counter
 
 	// The number of errors during requests to labels.
-	labelsRequestErrors *metrics.Counter
+	labelsErrors *metrics.Counter
 
 	// The number of requests to labelValuesOnTimeRange.
 	labelValuesOnTimeRangeRequests *metrics.Counter
@@ -1394,34 +1394,34 @@ type storageNode struct {
 	labelValuesRequests *metrics.Counter
 
 	// The number of errors during requests to labelValuesOnTimeRange.
-	labelValuesOnTimeRangeRequestErrors *metrics.Counter
+	labelValuesOnTimeRangeErrors *metrics.Counter
 
 	// The number of errors during requests to labelValues.
-	labelValuesRequestErrors *metrics.Counter
+	labelValuesErrors *metrics.Counter
 
 	// The number of requests to labelEntries.
 	labelEntriesRequests *metrics.Counter
 
 	// The number of errors during requests to labelEntries.
-	labelEntriesRequestErrors *metrics.Counter
+	labelEntriesErrors *metrics.Counter
 
 	// The number of requests to tagValueSuffixes.
 	tagValueSuffixesRequests *metrics.Counter
 
 	// The number of errors during requests to tagValueSuffixes.
-	tagValueSuffixesRequestErrors *metrics.Counter
+	tagValueSuffixesErrors *metrics.Counter
 
 	// The number of requests to tsdb status.
 	tsdbStatusRequests *metrics.Counter
 
 	// The number of errors during requests to tsdb status.
-	tsdbStatusRequestErrors *metrics.Counter
+	tsdbStatusErrors *metrics.Counter
 
 	// The number of requests to seriesCount.
 	seriesCountRequests *metrics.Counter
 
 	// The number of errors during requests to seriesCount.
-	seriesCountRequestErrors *metrics.Counter
+	seriesCountErrors *metrics.Counter
 
 	// The number of 'search metric names' requests to storageNode.
 	searchMetricNamesRequests *metrics.Counter
@@ -1430,10 +1430,10 @@ type storageNode struct {
 	searchRequests *metrics.Counter
 
 	// The number of 'search metric names' errors to storageNode.
-	searchMetricNamesRequestErrors *metrics.Counter
+	searchMetricNamesErrors *metrics.Counter
 
 	// The number of search request errors to storageNode.
-	searchRequestErrors *metrics.Counter
+	searchErrors *metrics.Counter
 
 	// The number of metric blocks read.
 	metricBlocksRead *metrics.Counter
@@ -2356,32 +2356,32 @@ func InitStorageNodes(addrs []string) {
 
 			concurrentQueriesCh: make(chan struct{}, maxConcurrentQueriesPerStorageNode),
 
-			registerMetricNamesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			registerMetricNamesRequestErrors:    metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequestErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsOnTimeRangeRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsRequests:                      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsOnTimeRangeRequestErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelsRequestErrors:                 metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesOnTimeRangeRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValuesOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesOnTimeRangeRequestErrors: metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValuesOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequestErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelEntriesRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelEntriesRequestErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequestErrors:       metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:                  metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequestErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequestErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:                      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequestErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequestErrors:                 metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			metricBlocksRead:                    metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:                      metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelsOnTimeRangeRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelsRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelsOnTimeRangeErrors:        metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelsErrors:                   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labels", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesOnTimeRangeRequests: metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValuesOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesOnTimeRangeErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValuesOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelEntriesRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelEntriesErrors:             metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelEntries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesRequests:       metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesErrors:         metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequests:             metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusErrors:               metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountRequests:            metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountErrors:              metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesRequests:      metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequests:                 metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesErrors:        metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchErrors:                   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			metricBlocksRead:               metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+			metricRowsRead:                 metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 		}
 		metrics.NewGauge(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr), func() float64 {
 			return float64(len(sn.concurrentQueriesCh))
