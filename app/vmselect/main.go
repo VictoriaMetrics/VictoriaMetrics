@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series")
+	deleteAuthKey         = flag.String("deleteAuthKey", "", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
@@ -321,6 +321,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/tags/delSeries":
 		graphiteTagsDelSeriesRequests.Inc()
+		authKey := r.FormValue("authKey")
+		if authKey != *deleteAuthKey {
+			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
+			return true
+		}
 		if err := graphite.TagsDelSeriesHandler(startTime, w, r); err != nil {
 			graphiteTagsDelSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
