@@ -22,10 +22,7 @@ func testReaderAt(t *testing.T, bufSize int) {
 		t.Fatalf("cannot create %q: %s", path, err)
 	}
 	defer MustRemoveAll(path)
-	r, err := OpenReaderAt(path)
-	if err != nil {
-		t.Fatalf("error in OpenReaderAt(%q): %s", path, err)
-	}
+	r := MustOpenReaderAt(path)
 	defer r.MustClose()
 
 	buf := make([]byte, bufSize)

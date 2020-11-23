@@ -60,27 +60,15 @@ func openFilePart(path string) (*part, error) {
 	}
 
 	timestampsPath := path + "/timestamps.bin"
-	timestampsFile, err := fs.OpenReaderAt(timestampsPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open timestamps file: %w", err)
-	}
+	timestampsFile := fs.MustOpenReaderAt(timestampsPath)
 	timestampsSize := fs.MustFileSize(timestampsPath)
 
 	valuesPath := path + "/values.bin"
-	valuesFile, err := fs.OpenReaderAt(valuesPath)
-	if err != nil {
-		timestampsFile.MustClose()
-		return nil, fmt.Errorf("cannot open values file: %w", err)
-	}
+	valuesFile := fs.MustOpenReaderAt(valuesPath)
 	valuesSize := fs.MustFileSize(valuesPath)
 
 	indexPath := path + "/index.bin"
-	indexFile, err := fs.OpenReaderAt(indexPath)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		return nil, fmt.Errorf("cannot open index file: %w", err)
-	}
+	indexFile := fs.MustOpenReaderAt(indexPath)
 	indexSize := fs.MustFileSize(indexPath)
 
 	metaindexPath := path + "/metaindex.bin"
