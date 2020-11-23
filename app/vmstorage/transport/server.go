@@ -698,9 +698,51 @@ func (s *Server) processVMSelectRequest(ctx *vmselectRequestCtx) error {
 		return s.processVMSelectTSDBStatus(ctx)
 	case "deleteMetrics_v3":
 		return s.processVMSelectDeleteMetrics(ctx)
+	case "registerMetricNames_v1":
+		return s.processVMSelectRegisterMetricNames(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", ctx.dataBuf)
 	}
+}
+
+const maxMetricNameRawSize = 1024 * 1024
+const maxMetricNamesPerRequest = 1024 * 1024
+
+func (s *Server) processVMSelectRegisterMetricNames(ctx *vmselectRequestCtx) error {
+	vmselectRegisterMetricNamesRequests.Inc()
+
+	// Read request
+	metricsCount, err := ctx.readUint64()
+	if err != nil {
+		return fmt.Errorf("cannot read metricsCount: %w", err)
+	}
+	if metricsCount > maxMetricNamesPerRequest {
+		return fmt.Errorf("too many metric names in a single request; got %d; mustn't exceed %d", metricsCount, maxMetricNamesPerRequest)
+	}
+	mrs := make([]storage.MetricRow, metricsCount)
+	for i := 0; i < int(metricsCount); i++ {
+		if err := ctx.readDataBufBytes(maxMetricNameRawSize); err != nil {
+			return fmt.Errorf("cannot read metricNameRaw: %w", err)
+		}
+		mr := &mrs[i]
+		mr.MetricNameRaw = append(mr.MetricNameRaw[:0], ctx.dataBuf...)
+		n, err := ctx.readUint64()
+		if err != nil {
+			return fmt.Errorf("cannot read timestamp: %w", err)
+		}
+		mr.Timestamp = int64(n)
+	}
+
+	// Register metric names from mrs.
+	if err := s.storage.RegisterMetricNames(mrs); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+	return nil
 }
 
 const maxTagFiltersSize = 64 * 1024
@@ -1193,19 +1235,21 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 }
 
 var (
-	vmselectDeleteMetricsRequests          = metrics.NewCounter("vm_vmselect_delete_metrics_requests_total")
-	vmselectLabelsOnTimeRangeRequests      = metrics.NewCounter("vm_vmselect_labels_on_time_range_requests_total")
-	vmselectLabelsRequests                 = metrics.NewCounter("vm_vmselect_labels_requests_total")
-	vmselectLabelValuesOnTimeRangeRequests = metrics.NewCounter("vm_vmselect_label_values_on_time_range_requests_total")
-	vmselectLabelValuesRequests            = metrics.NewCounter("vm_vmselect_label_values_requests_total")
-	vmselectTagValueSuffixesRequests       = metrics.NewCounter("vm_vmselect_tag_value_suffixes_requests_total")
-	vmselectLabelEntriesRequests           = metrics.NewCounter("vm_vmselect_label_entries_requests_total")
-	vmselectSeriesCountRequests            = metrics.NewCounter("vm_vmselect_series_count_requests_total")
-	vmselectTSDBStatusRequests             = metrics.NewCounter("vm_vmselect_tsdb_status_requests_total")
-	vmselectSearchMetricNamesRequests      = metrics.NewCounter("vm_vmselect_search_metric_names_requests_total")
-	vmselectSearchRequests                 = metrics.NewCounter("vm_vmselect_search_requests_total")
-	vmselectMetricBlocksRead               = metrics.NewCounter("vm_vmselect_metric_blocks_read_total")
-	vmselectMetricRowsRead                 = metrics.NewCounter("vm_vmselect_metric_rows_read_total")
+	vmselectRegisterMetricNamesRequests    = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="register_metric_names"}`)
+	vmselectDeleteMetricsRequests          = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="delete_metrics"}`)
+	vmselectLabelsOnTimeRangeRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="labels_on_time_range"}`)
+	vmselectLabelsRequests                 = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="labels"}`)
+	vmselectLabelValuesOnTimeRangeRequests = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values_on_time_range"}`)
+	vmselectLabelValuesRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_values"}`)
+	vmselectTagValueSuffixesRequests       = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tag_value_suffixes"}`)
+	vmselectLabelEntriesRequests           = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="label_entries"}`)
+	vmselectSeriesCountRequests            = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="series_count"}`)
+	vmselectTSDBStatusRequests             = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="tsdb_status"}`)
+	vmselectSearchMetricNamesRequests      = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search_metric_names"}`)
+	vmselectSearchRequests                 = metrics.NewCounter(`vm_vmselect_rpc_requests_total{name="search"}`)
+
+	vmselectMetricBlocksRead = metrics.NewCounter(`vm_vmselect_metric_blocks_read_total`)
+	vmselectMetricRowsRead   = metrics.NewCounter(`vm_vmselect_metric_rows_read_total`)
 )
 
 func (ctx *vmselectRequestCtx) setupTfss() error {

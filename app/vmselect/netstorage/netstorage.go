@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/metrics"
+	xxhash "github.com/cespare/xxhash/v2"
 )
 
 var replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
@@ -451,6 +452,42 @@ func (sbh *sortBlocksHeap) Pop() interface{} {
 	return v
 }
 
+// RegisterMetricNames registers metric names from mrs in the storage.
+func RegisterMetricNames(at *auth.Token, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
+	// Split mrs among available vmstorage nodes.
+	mrsPerNode := make([][]storage.MetricRow, len(storageNodes))
+	for _, mr := range mrs {
+		idx := 0
+		if len(storageNodes) > 1 {
+			// There is no need in using the same hash as for time series distribution in vminsert,
+			// since RegisterMetricNames is used only in Graphite Tags API.
+			h := xxhash.Sum64(mr.MetricNameRaw)
+			idx = int(h % uint64(len(storageNodes)))
+		}
+		mrsPerNode[idx] = append(mrsPerNode[idx], mr)
+	}
+
+	// Push mrs to storage nodes in parallel.
+	snr := startStorageNodesRequest(true, func(idx int, sn *storageNode) interface{} {
+		sn.registerMetricNamesRequests.Inc()
+		err := sn.registerMetricNames(mrsPerNode[idx], deadline)
+		if err != nil {
+			sn.registerMetricNamesRequestErrors.Inc()
+		}
+		return &err
+	})
+
+	// Collect results
+	err := snr.collectAllResults(func(result interface{}) error {
+		errP := result.(*error)
+		return *errP
+	})
+	if err != nil {
+		return fmt.Errorf("cannot register series on all the vmstorage nodes: %w", err)
+	}
+	return nil
+}
+
 // DeleteSeries deletes time series matching the given sq.
 func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.Deadline) (int, error) {
 	requestData := sq.Marshal(nil)
@@ -460,7 +497,7 @@ func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 		deletedCount int
 		err          error
 	}
-	snr := startStorageNodesRequest(true, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(true, func(idx int, sn *storageNode) interface{} {
 		sn.deleteSeriesRequests.Inc()
 		deletedCount, err := sn.deleteMetrics(requestData, deadline)
 		if err != nil {
@@ -474,7 +511,7 @@ func DeleteSeries(at *auth.Token, sq *storage.SearchQuery, deadline searchutils.
 
 	// Collect results
 	deletedTotal := 0
-	err := snr.collectAllResults(partialDeleteSeriesResults, func(result interface{}) error {
+	err := snr.collectAllResults(func(result interface{}) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -498,7 +535,7 @@ func GetLabelsOnTimeRange(at *auth.Token, denyPartialResponse bool, tr storage.T
 		labels []string
 		err    error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.labelsOnTimeRangeRequests.Inc()
 		labels, err := sn.getLabelsOnTimeRange(at.AccountID, at.ProjectID, tr, deadline)
 		if err != nil {
@@ -577,7 +614,7 @@ func GetLabels(at *auth.Token, denyPartialResponse bool, deadline searchutils.De
 		labels []string
 		err    error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.labelsRequests.Inc()
 		labels, err := sn.getLabels(at.AccountID, at.ProjectID, deadline)
 		if err != nil {
@@ -632,7 +669,7 @@ func GetLabelValuesOnTimeRange(at *auth.Token, denyPartialResponse bool, labelNa
 		labelValues []string
 		err         error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.labelValuesOnTimeRangeRequests.Inc()
 		labelValues, err := sn.getLabelValuesOnTimeRange(at.AccountID, at.ProjectID, labelName, tr, deadline)
 		if err != nil {
@@ -705,7 +742,7 @@ func GetLabelValues(at *auth.Token, denyPartialResponse bool, labelName string, 
 		labelValues []string
 		err         error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.labelValuesRequests.Inc()
 		labelValues, err := sn.getLabelValues(at.AccountID, at.ProjectID, labelName, deadline)
 		if err != nil {
@@ -752,7 +789,7 @@ func GetTagValueSuffixes(at *auth.Token, denyPartialResponse bool, tr storage.Ti
 		suffixes []string
 		err      error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(at.AccountID, at.ProjectID, tr, tagKey, tagValuePrefix, delimiter, deadline)
 		if err != nil {
@@ -799,7 +836,7 @@ func GetLabelEntries(at *auth.Token, denyPartialResponse bool, deadline searchut
 		labelEntries []storage.TagEntry
 		err          error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.labelEntriesRequests.Inc()
 		labelEntries, err := sn.getLabelEntries(at.AccountID, at.ProjectID, deadline)
 		if err != nil {
@@ -889,7 +926,7 @@ func GetTSDBStatusForDate(at *auth.Token, denyPartialResponse bool, deadline sea
 		status *storage.TSDBStatus
 		err    error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.tsdbStatusRequests.Inc()
 		status, err := sn.getTSDBStatusForDate(at.AccountID, at.ProjectID, date, topN, deadline)
 		if err != nil {
@@ -976,7 +1013,7 @@ func GetSeriesCount(at *auth.Token, denyPartialResponse bool, deadline searchuti
 		n   uint64
 		err error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(at.AccountID, at.ProjectID, deadline)
 		if err != nil {
@@ -1110,7 +1147,7 @@ func SearchMetricNames(at *auth.Token, denyPartialResponse bool, sq *storage.Sea
 		metricNames [][]byte
 		err         error
 	}
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.searchMetricNamesRequests.Inc()
 		metricNames, err := sn.processSearchMetricNames(requestData, deadline)
 		if err != nil {
@@ -1221,7 +1258,7 @@ func processSearchQuery(at *auth.Token, denyPartialResponse bool, sq *storage.Se
 	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
-	snr := startStorageNodesRequest(denyPartialResponse, func(sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(denyPartialResponse, func(idx int, sn *storageNode) interface{} {
 		sn.searchRequests.Inc()
 		err := sn.processSearchQuery(requestData, fetchData, processBlock, deadline)
 		if err != nil {
@@ -1247,13 +1284,13 @@ type storageNodesRequest struct {
 	resultsCh           chan interface{}
 }
 
-func startStorageNodesRequest(denyPartialResponse bool, f func(sn *storageNode) interface{}) *storageNodesRequest {
+func startStorageNodesRequest(denyPartialResponse bool, f func(idx int, sn *storageNode) interface{}) *storageNodesRequest {
 	resultsCh := make(chan interface{}, len(storageNodes))
-	for _, sn := range storageNodes {
-		go func(sn *storageNode) {
-			result := f(sn)
+	for idx, sn := range storageNodes {
+		go func(idx int, sn *storageNode) {
+			result := f(idx, sn)
 			resultsCh <- result
-		}(sn)
+		}(idx, sn)
 	}
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
@@ -1261,7 +1298,7 @@ func startStorageNodesRequest(denyPartialResponse bool, f func(sn *storageNode) 
 	}
 }
 
-func (snr *storageNodesRequest) collectAllResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) error {
+func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) error) error {
 	var errors []error
 	for i := 0; i < len(storageNodes); i++ {
 		result := <-snr.resultsCh
@@ -1280,8 +1317,8 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	var errors []error
 	resultsCollected := 0
 	for i := 0; i < len(storageNodes); i++ {
-		// There is no need in timer here, since all the goroutines executing
-		// the sn.process* function must be finished until the deadline.
+		// There is no need in timer here, since all the goroutines executing the f function
+		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
 		if err := f(result); err != nil {
 			errors = append(errors, err)
@@ -1325,6 +1362,12 @@ type storageNode struct {
 
 	// The channel for limiting the maximum number of concurrent queries to storageNode.
 	concurrentQueriesCh chan struct{}
+
+	// The number of RegisterMetricNames requests to storageNode.
+	registerMetricNamesRequests *metrics.Counter
+
+	// The number of RegisterMetricNames request errors to storageNode.
+	registerMetricNamesRequestErrors *metrics.Counter
 
 	// The number of DeleteSeries requests to storageNode.
 	deleteSeriesRequests *metrics.Counter
@@ -1397,6 +1440,22 @@ type storageNode struct {
 
 	// The number of read metric rows.
 	metricRowsRead *metrics.Counter
+}
+
+func (sn *storageNode) registerMetricNames(mrs []storage.MetricRow, deadline searchutils.Deadline) error {
+	if len(mrs) == 0 {
+		return nil
+	}
+	f := func(bc *handshake.BufferedConn) error {
+		return sn.registerMetricNamesOnConn(bc, mrs)
+	}
+	if err := sn.execOnConn("registerMetricNames_v1", f, deadline); err != nil {
+		// Try again before giving up.
+		if err = sn.execOnConn("registerMetricNames_v1", f, deadline); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (sn *storageNode) deleteMetrics(requestData []byte, deadline searchutils.Deadline) (int, error) {
@@ -1712,6 +1771,34 @@ func newErrRemote(buf []byte) error {
 		Err:        err,
 		StatusCode: http.StatusServiceUnavailable,
 	}
+}
+
+func (sn *storageNode) registerMetricNamesOnConn(bc *handshake.BufferedConn, mrs []storage.MetricRow) error {
+	// Send the request to sn.
+	if err := writeUint64(bc, uint64(len(mrs))); err != nil {
+		return fmt.Errorf("cannot send metricsCount to conn: %w", err)
+	}
+	for i, mr := range mrs {
+		if err := writeBytes(bc, mr.MetricNameRaw); err != nil {
+			return fmt.Errorf("cannot send MetricNameRaw #%d to conn: %w", i+1, err)
+		}
+		if err := writeUint64(bc, uint64(mr.Timestamp)); err != nil {
+			return fmt.Errorf("cannot send Timestamp #%d to conn: %w", i+1, err)
+		}
+	}
+	if err := bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush registerMetricNames request to conn: %w", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return newErrRemote(buf)
+	}
+	return nil
 }
 
 func (sn *storageNode) deleteMetricsOnConn(bc *handshake.BufferedConn, requestData []byte) (int, error) {
@@ -2269,6 +2356,8 @@ func InitStorageNodes(addrs []string) {
 
 			concurrentQueriesCh: make(chan struct{}, maxConcurrentQueriesPerStorageNode),
 
+			registerMetricNamesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesRequestErrors:    metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			deleteSeriesRequests:                metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			deleteSeriesRequestErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			labelsOnTimeRangeRequests:           metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelsOnTimeRange", type="rpcClient", name="vmselect", addr=%q}`, addr)),
@@ -2307,7 +2396,6 @@ func Stop() {
 }
 
 var (
-	partialDeleteSeriesResults           = metrics.NewCounter(`vm_partial_results_total{type="delete_series", name="vmselect"}`)
 	partialLabelsOnTimeRangeResults      = metrics.NewCounter(`vm_partial_results_total{type="labels_on_time_range", name="vmselect"}`)
 	partialLabelsResults                 = metrics.NewCounter(`vm_partial_results_total{type="labels", name="vmselect"}`)
 	partialLabelValuesOnTimeRangeResults = metrics.NewCounter(`vm_partial_results_total{type="label_values_on_time_range", name="vmselect"}`)

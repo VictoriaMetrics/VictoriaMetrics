@@ -346,6 +346,22 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
+	case "graphite/tags/tagSeries":
+		graphiteTagsTagSeriesRequests.Inc()
+		if err := graphite.TagsTagSeriesHandler(startTime, at, w, r); err != nil {
+			graphiteTagsTagSeriesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
+	case "graphite/tags/tagMultiSeries":
+		graphiteTagsTagMultiSeriesRequests.Inc()
+		if err := graphite.TagsTagMultiSeriesHandler(startTime, at, w, r); err != nil {
+			graphiteTagsTagMultiSeriesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "graphite/tags":
 		graphiteTagsRequests.Inc()
 		if err := graphite.TagsHandler(startTime, at, w, r); err != nil {
@@ -494,6 +510,12 @@ var (
 
 	graphiteMetricsIndexRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/metrics/index.json"}`)
 	graphiteMetricsIndexErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/metrics/index.json"}`)
+
+	graphiteTagsTagSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/tagSeries"}`)
+	graphiteTagsTagSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/tagSeries"}`)
+
+	graphiteTagsTagMultiSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/tagMultiSeries"}`)
+	graphiteTagsTagMultiSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/tagMultiSeries"}`)
 
 	graphiteTagsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags"}`)
 	graphiteTagsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags"}`)
