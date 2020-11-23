@@ -19,6 +19,52 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+// TagsDelSeriesHandler implements /tags/delSeries handler.
+//
+// See https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb
+func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse form values: %w", err)
+	}
+	paths := r.Form["path"]
+	totalDeleted := 0
+	var row graphiteparser.Row
+	var tagsPool []graphiteparser.Tag
+	ct := time.Now().UnixNano() / 1e6
+	for _, path := range paths {
+		var err error
+		tagsPool, err = row.UnmarshalMetricAndTags(path, tagsPool[:0])
+		if err != nil {
+			return fmt.Errorf("cannot parse path=%q: %w", path, err)
+		}
+		tfs := make([]storage.TagFilter, 0, 1+len(row.Tags))
+		tfs = append(tfs, storage.TagFilter{
+			Key:   nil,
+			Value: []byte(row.Metric),
+		})
+		for _, tag := range row.Tags {
+			tfs = append(tfs, storage.TagFilter{
+				Key:   []byte(tag.Key),
+				Value: []byte(tag.Value),
+			})
+		}
+		sq := storage.NewSearchQuery(0, ct, [][]storage.TagFilter{tfs})
+		n, err := netstorage.DeleteSeries(sq)
+		if err != nil {
+			return fmt.Errorf("cannot delete series for %q: %w", sq, err)
+		}
+		totalDeleted += n
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if totalDeleted > 0 {
+		fmt.Fprintf(w, "true")
+	} else {
+		fmt.Fprintf(w, "false")
+	}
+	return nil
+}
+
 // TagsTagSeriesHandler implements /tags/tagSeries handler.
 //
 // See https://graphite.readthedocs.io/en/stable/tags.html#adding-series-to-the-tagdb

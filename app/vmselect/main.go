@@ -319,6 +319,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/tags/delSeries":
+		graphiteTagsDelSeriesRequests.Inc()
+		if err := graphite.TagsDelSeriesHandler(startTime, w, r); err != nil {
+			graphiteTagsDelSeriesErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/api/v1/rules":
 		// Return dumb placeholder
 		rulesRequests.Inc()
@@ -452,6 +460,9 @@ var (
 
 	graphiteTagsAutoCompleteValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/autoComplete/values"}`)
 	graphiteTagsAutoCompleteValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/autoComplete/values"}`)
+
+	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/delSeries"}`)
+	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/delSeries"}`)
 
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
