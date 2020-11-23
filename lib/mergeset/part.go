@@ -78,30 +78,15 @@ func openFilePart(path string) (*part, error) {
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
 	indexPath := path + "/index.bin"
-	indexFile, err := fs.OpenReaderAt(indexPath)
-	if err != nil {
-		metaindexFile.MustClose()
-		return nil, fmt.Errorf("cannot open %q: %w", indexPath, err)
-	}
+	indexFile := fs.MustOpenReaderAt(indexPath)
 	indexSize := fs.MustFileSize(indexPath)
 
 	itemsPath := path + "/items.bin"
-	itemsFile, err := fs.OpenReaderAt(itemsPath)
-	if err != nil {
-		metaindexFile.MustClose()
-		indexFile.MustClose()
-		return nil, fmt.Errorf("cannot open %q: %w", itemsPath, err)
-	}
+	itemsFile := fs.MustOpenReaderAt(itemsPath)
 	itemsSize := fs.MustFileSize(itemsPath)
 
 	lensPath := path + "/lens.bin"
-	lensFile, err := fs.OpenReaderAt(lensPath)
-	if err != nil {
-		metaindexFile.MustClose()
-		indexFile.MustClose()
-		itemsFile.MustClose()
-		return nil, fmt.Errorf("cannot open %q: %w", lensPath, err)
-	}
+	lensFile := fs.MustOpenReaderAt(lensPath)
 	lensSize := fs.MustFileSize(lensPath)
 
 	size := metaindexSize + indexSize + itemsSize + lensSize

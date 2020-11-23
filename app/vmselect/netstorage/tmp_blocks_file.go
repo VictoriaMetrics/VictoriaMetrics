@@ -133,10 +133,7 @@ func (tbf *tmpBlocksFile) Finalize() error {
 		return fmt.Errorf("cannot write the remaining %d bytes to %q: %w", len(tbf.buf), fname, err)
 	}
 	tbf.buf = tbf.buf[:0]
-	r, err := fs.OpenReaderAt(fname)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open %q: %s", fname, err)
-	}
+	r := fs.MustOpenReaderAt(fname)
 	// Hint the OS that the file is read almost sequentiallly.
 	// This should reduce the number of disk seeks, which is important
 	// for HDDs.

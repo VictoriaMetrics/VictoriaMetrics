@@ -29,10 +29,7 @@ func benchmarkReaderAtMustReadAt(b *testing.B, isMmap bool) {
 		b.Fatalf("cannot create %q: %s", path, err)
 	}
 	defer MustRemoveAll(path)
-	r, err := OpenReaderAt(path)
-	if err != nil {
-		b.Fatalf("error in OpenReaderAt(%q): %s", path, err)
-	}
+	r := MustOpenReaderAt(path)
 	defer r.MustClose()
 
 	b.ResetTimer()
