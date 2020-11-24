@@ -165,7 +165,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		})
 
-	// Superflouos columns
+	// Superfluous columns
 	f("1:metric:foo", `123,456,foo,bar`, []Row{
 		{
 			Metric: "foo",

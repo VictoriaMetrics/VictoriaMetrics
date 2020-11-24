@@ -249,7 +249,7 @@ func (ibc *indexBlockCache) Get(k uint64) *indexBlock {
 func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) {
 	ibc.mu.Lock()
 
-	// Clean superflouos cache entries.
+	// Clean superfluous cache entries.
 	if overflow := len(ibc.m) - getMaxCachedIndexBlocksPerPart(); overflow > 0 {
 		// Remove 10% of items from the cache.
 		overflow = int(float64(len(ibc.m)) * 0.1)

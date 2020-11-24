@@ -419,7 +419,7 @@ var maxLabelsPerTimeseries = 30
 // SetMaxLabelsPerTimeseries sets the limit on the number of labels
 // per each time series.
 //
-// Superfouos labels are dropped.
+// Superfluous labels are dropped.
 func SetMaxLabelsPerTimeseries(maxLabels int) {
 	if maxLabels <= 0 {
 		logger.Panicf("BUG: maxLabels must be positive; got %d", maxLabels)
