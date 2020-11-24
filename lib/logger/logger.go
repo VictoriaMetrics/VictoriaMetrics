@@ -22,9 +22,9 @@ var (
 	loggerOutput      = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
 
-	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 10, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
+	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
 		"are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit")
-	warnsPerSecondLimit = flag.Int("loggerWarnsPerSecondLimit", 10, "Per-second limit on the number of WARN messages. If more than the given number of warns "+
+	warnsPerSecondLimit = flag.Int("loggerWarnsPerSecondLimit", 0, "Per-second limit on the number of WARN messages. If more than the given number of warns "+
 		"are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit")
 )
 
