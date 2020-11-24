@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -229,6 +230,46 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			{
 				Metric: "foo",
 				Value:  344,
+			},
+		},
+	})
+
+	// "Infinity" word - this has been added in OpenMetrics.
+	// See https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md
+	// Checks for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924
+	inf := math.Inf(1)
+	f(`
+		foo Infinity
+		bar +Infinity
+		baz -infinity
+		aaa +inf
+		bbb -INF
+		ccc INF
+	`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo",
+				Value:  inf,
+			},
+			{
+				Metric: "bar",
+				Value:  inf,
+			},
+			{
+				Metric: "baz",
+				Value:  -inf,
+			},
+			{
+				Metric: "aaa",
+				Value:  inf,
+			},
+			{
+				Metric: "bbb",
+				Value:  -inf,
+			},
+			{
+				Metric: "ccc",
+				Value:  inf,
 			},
 		},
 	})
