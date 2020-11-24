@@ -19,6 +19,8 @@ See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
 * FEATURE: add remoteAddr to slow query log in order to simplify identifying the client that sends slow queries to VictoriaMetrics.
   Slow query logging is controlled with `-search.logSlowQueryDuration` command-line flag.
 
+* BUGFIX: properly parse Prometheus metrics with [exemplars](https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1) such as `foo 123 # {bar="baz"} 1`.
+
 
 # [v1.47.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.47.0)
 
