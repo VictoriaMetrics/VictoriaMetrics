@@ -19,6 +19,7 @@
 * [Calculating the Error of Quantile Estimation with Histograms](https://linuxczar.net/blog/2020/08/13/histogram-error/)
 * [Monitoring private clouds with VictoriaMetrics at LeroyMerlin](https://www.youtube.com/watch?v=74swsWqf0Uc)
 * [Monitoring Kubernetes with VictoriaMetrics+Prometheus](https://speakerdeck.com/bo0km4n/victoriametrics-plus-prometheusdegou-zhu-surufu-shu-kubernetesfalsejian-shi-ji-pan)
+* [High-performance Graphite storage solution on top of VictoriaMetrics](https://golangexample.com/a-high-performance-graphite-storage-solution/)
 
 
 ## Our articles
@@ -48,3 +49,4 @@
 * [Filtering and modifying time series during import to VictoriaMetrics](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-filtering-and-modifying-time-series-6d40cea4bf21)
 * [Anomaly Detection in VictoriaMetrics](https://medium.com/@VictoriaMetrics/anomaly-detection-in-victoriametrics-9528538786a7)
 * [How to use relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
+* [First look at performance comparison between InfluxDB IOx and VictoriaMetrics](https://medium.com/@VictoriaMetrics/first-look-at-perfomance-comparassion-between-influxdb-iox-and-victoriametrics-e590f847935b)
