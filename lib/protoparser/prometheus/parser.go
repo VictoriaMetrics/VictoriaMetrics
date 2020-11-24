@@ -155,7 +155,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		r.Value = v
 		return tagsPool, nil
 	}
-	// There is timestamp.
+	// There is a timestamp.
 	v, err := fastfloat.Parse(s[:n])
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot parse value %q: %w", s[:n], err)
