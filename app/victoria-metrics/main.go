@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -25,6 +26,8 @@ var (
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
 		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
 		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
+	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
+		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
 )
 
 func main() {
@@ -34,6 +37,18 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
+
+	if promscrape.IsDryRun() {
+		*dryRun = true
+	}
+	if *dryRun {
+		if err := promscrape.CheckConfig(); err != nil {
+			logger.Fatalf("error when checking -promscrape.config: %s", err)
+		}
+		logger.Infof("-promscrape.config is ok; exitting with 0 status code")
+		return
+	}
+
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
 	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
