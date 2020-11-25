@@ -69,12 +69,19 @@ func main() {
 	logger.Init()
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
+	if promscrape.IsDryRun() {
+		if err := promscrape.CheckConfig(); err != nil {
+			logger.Fatalf("error when checking -promscrape.config: %s", err)
+		}
+		logger.Infof("-promscrape.config is ok; exitting with 0 status code")
+		return
+	}
 	if *dryRun {
 		if err := remotewrite.CheckRelabelConfigs(); err != nil {
 			logger.Fatalf("error when checking relabel configs: %s", err)
 		}
 		if err := promscrape.CheckConfig(); err != nil {
-			logger.Fatalf("error when checking Prometheus config: %s", err)
+			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
 		logger.Infof("all the configs are ok; exitting with 0 status code")
 		return
