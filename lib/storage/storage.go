@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -121,7 +122,10 @@ type accountProjectKey struct {
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
+func OpenStorage(storagePath string, retention string) (*Storage, error) {
+	retentionConv, _ := strconv.ParseInt(retention, 10, 64)
+	retentionMsecs := retentionConv * msecsPerMonth
+	path := storagePath + "/retention_" + retention
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)

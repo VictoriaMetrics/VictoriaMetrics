@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewDuration("retentionPeriod", 1, "Data with timestamps outside the retentionPeriod is automatically deleted")
+	retentionPeriods  = flagutil.NewArray("retentionPeriod", "Data with timestamps outside the retentionPeriod is automatically deleted")
 	httpListenAddr    = flag.String("httpListenAddr", ":8482", "Address to listen for http connections")
 	storageDataPath   = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
 	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
@@ -54,64 +54,72 @@ func main() {
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
+	defultretentionPeriod := "1"
+	periods := append(*retentionPeriods, defultretentionPeriod)
+	retentions := make(map[string]int)
+	for i, retentionPeriod := range periods {
+		if _, ok := retentions[retentionPeriod]; ok {
+			continue
+		}
+		retentions[retentionPeriod] = i
+		logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
+		startTime := time.Now()
+		strg, err := storage.OpenStorage(*storageDataPath, retentionPeriod)
+		if err != nil {
+			logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *storageDataPath, retentionPeriod, err)
+		}
 
-	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
-	startTime := time.Now()
-	strg, err := storage.OpenStorage(*storageDataPath, retentionPeriod.Msecs)
-	if err != nil {
-		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *storageDataPath, retentionPeriod, err)
+		var m storage.Metrics
+		strg.UpdateMetrics(&m)
+		tm := &m.TableMetrics
+		partsCount := tm.SmallPartsCount + tm.BigPartsCount
+		blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
+		rowsCount := tm.SmallRowsCount + tm.BigRowsCount
+		sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
+		logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
+			*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
+
+		registerStorageMetrics(strg)
+
+		transport.StartUnmarshalWorkers()
+		srv, err := transport.NewServer(*vminsertAddr, *vmselectAddr, strg)
+		if err != nil {
+			logger.Fatalf("cannot create a server with vminsertAddr=%s, vmselectAddr=%s: %s", *vminsertAddr, *vmselectAddr, err)
+		}
+
+		go srv.RunVMInsert()
+		go srv.RunVMSelect()
+
+		requestHandler := newRequestHandler(strg)
+		go func() {
+			httpserver.Serve(*httpListenAddr, requestHandler)
+		}()
+
+		sig := procutil.WaitForSigterm()
+		logger.Infof("service received signal %s", sig)
+
+		logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
+		startTime = time.Now()
+		if err := httpserver.Stop(*httpListenAddr); err != nil {
+			logger.Fatalf("cannot stop http service: %s", err)
+		}
+		logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
+
+		logger.Infof("gracefully shutting down the service")
+		startTime = time.Now()
+		srv.MustClose()
+		transport.StopUnmarshalWorkers()
+		logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
+
+		logger.Infof("gracefully closing the storage at %s", *storageDataPath)
+		startTime = time.Now()
+		strg.MustClose()
+		logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
+
+		fs.MustStopDirRemover()
+
+		logger.Infof("the vmstorage has been stopped")
 	}
-
-	var m storage.Metrics
-	strg.UpdateMetrics(&m)
-	tm := &m.TableMetrics
-	partsCount := tm.SmallPartsCount + tm.BigPartsCount
-	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
-	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
-	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
-	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
-
-	registerStorageMetrics(strg)
-
-	transport.StartUnmarshalWorkers()
-	srv, err := transport.NewServer(*vminsertAddr, *vmselectAddr, strg)
-	if err != nil {
-		logger.Fatalf("cannot create a server with vminsertAddr=%s, vmselectAddr=%s: %s", *vminsertAddr, *vmselectAddr, err)
-	}
-
-	go srv.RunVMInsert()
-	go srv.RunVMSelect()
-
-	requestHandler := newRequestHandler(strg)
-	go func() {
-		httpserver.Serve(*httpListenAddr, requestHandler)
-	}()
-
-	sig := procutil.WaitForSigterm()
-	logger.Infof("service received signal %s", sig)
-
-	logger.Infof("gracefully shutting down http service at %q", *httpListenAddr)
-	startTime = time.Now()
-	if err := httpserver.Stop(*httpListenAddr); err != nil {
-		logger.Fatalf("cannot stop http service: %s", err)
-	}
-	logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
-
-	logger.Infof("gracefully shutting down the service")
-	startTime = time.Now()
-	srv.MustClose()
-	transport.StopUnmarshalWorkers()
-	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
-
-	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
-	startTime = time.Now()
-	strg.MustClose()
-	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
-
-	fs.MustStopDirRemover()
-
-	logger.Infof("the vmstorage has been stopped")
 }
 
 func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
