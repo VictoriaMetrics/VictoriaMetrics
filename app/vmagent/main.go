@@ -48,7 +48,8 @@ var (
 		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
 	dryRun                 = flag.Bool("dryRun", false, "Whether to check only config files without running vmagent. The following files are checked: "+
-		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . See also -promscrape.config.dryRun")
+		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . "+
+		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
 )
 
 var (
@@ -69,9 +70,6 @@ func main() {
 	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	if *dryRun {
-		if err := flag.Set("promscrape.config.strictParse", "true"); err != nil {
-			logger.Panicf("BUG: cannot set promscrape.config.strictParse=true: %s", err)
-		}
 		if err := remotewrite.CheckRelabelConfigs(); err != nil {
 			logger.Fatalf("error when checking relabel configs: %s", err)
 		}
