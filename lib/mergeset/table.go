@@ -369,7 +369,7 @@ func (tb *Table) AddItems(items [][]byte) error {
 			tb.rawItemsBlocks = append(tb.rawItemsBlocks, ib)
 		}
 	}
-	if len(tb.rawItemsBlocks) >= 1024 {
+	if len(tb.rawItemsBlocks) >= 512 {
 		blocksToMerge = tb.rawItemsBlocks
 		tb.rawItemsBlocks = nil
 		tb.rawItemsLastFlushTime = fasttime.UnixTimestamp()
