@@ -1248,7 +1248,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		if mr.Timestamp > maxTimestamp {
 			// Skip rows with too big timestamps significantly exceeding the current time.
 			if firstWarn == nil {
-				firstWarn = fmt.Errorf("cannot insert row with too big timestamp %d exceeding the current time; maximum allowd timestamp is %d; "+
+				firstWarn = fmt.Errorf("cannot insert row with too big timestamp %d exceeding the current time; maximum allowed timestamp is %d; "+
 					"propbably you need updating -retentionPeriod command-line flag",
 					mr.Timestamp, maxTimestamp)
 			}
