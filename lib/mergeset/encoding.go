@@ -31,6 +31,12 @@ type inmemoryBlock struct {
 func (ib *inmemoryBlock) Reset() {
 	ib.commonPrefix = ib.commonPrefix[:0]
 	ib.data = ib.data[:0]
+
+	items := ib.items
+	for i := range items {
+		// Remove reference to by slice, so GC could free the byte slice.
+		items[i] = nil
+	}
 	ib.items = ib.items[:0]
 }
 
