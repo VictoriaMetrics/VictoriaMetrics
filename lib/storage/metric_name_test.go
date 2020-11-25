@@ -6,6 +6,32 @@ import (
 	"testing"
 )
 
+func TestMetricNameString(t *testing.T) {
+	f := func(mn *MetricName, resultExpected string) {
+		t.Helper()
+		result := mn.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+	f(&MetricName{
+		MetricGroup: []byte("foobar"),
+	}, "foobar{}")
+	f(&MetricName{
+		MetricGroup: []byte("abc"),
+		Tags: []Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("baz"),
+				Value: []byte("123"),
+			},
+		},
+	}, `abc{baz="123",foo="bar"}`)
+}
+
 func TestMetricNameSortTags(t *testing.T) {
 	testMetricNameSortTags(t, []string{}, []string{})
 	testMetricNameSortTags(t, []string{"foo"}, []string{"foo"})

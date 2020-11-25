@@ -20,7 +20,7 @@ type snapshot struct {
 // Create creates a snapshot and the provided api endpoint and returns
 // the snapshot name
 func Create(createSnapshotURL string) (string, error) {
-	logger.Infof("%s", "Creating snapshot")
+	logger.Infof("Creating snapshot")
 	u, err := url.Parse(createSnapshotURL)
 	if err != nil {
 		return "", err

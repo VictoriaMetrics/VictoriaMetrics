@@ -40,7 +40,7 @@ var (
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
 		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
-	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superflouos labels are dropped")
+	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superfluous labels are dropped")
 )
 
 var (
@@ -153,22 +153,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
-	case "/tags/tagSeries":
-		graphiteTagsTagSeriesRequests.Inc()
-		if err := graphite.TagsTagSeriesHandler(w, r); err != nil {
-			graphiteTagsTagSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
-			return true
-		}
-		return true
-	case "/tags/tagMultiSeries":
-		graphiteTagsTagMultiSeriesRequests.Inc()
-		if err := graphite.TagsTagMultiSeriesHandler(w, r); err != nil {
-			graphiteTagsTagMultiSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
-			return true
-		}
-		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -222,12 +206,6 @@ var (
 	influxWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/write", protocol="influx"}`)
 
 	influxQueryRequests = metrics.NewCounter(`vm_http_requests_total{path="/query", protocol="influx"}`)
-
-	graphiteTagsTagSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/tagSeries", protocol="graphite"}`)
-	graphiteTagsTagSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/tagSeries", protocol="graphite"}`)
-
-	graphiteTagsTagMultiSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/tagMultiSeries", protocol="graphite"}`)
-	graphiteTagsTagMultiSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/tagMultiSeries", protocol="graphite"}`)
 
 	promscrapeTargetsRequests      = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/targets"}`)

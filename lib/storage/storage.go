@@ -1238,9 +1238,10 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
 			if firstWarn == nil {
+				metricName := getUserReadableMetricName(mr.MetricNameRaw)
 				firstWarn = fmt.Errorf("cannot insert row with too small timestamp %d outside the retention; minimum allowed timestamp is %d; "+
-					"probably you need updating -retentionPeriod command-line flag",
-					mr.Timestamp, minTimestamp)
+					"probably you need updating -retentionPeriod command-line flag; metricName: %s",
+					mr.Timestamp, minTimestamp, metricName)
 			}
 			atomic.AddUint64(&s.tooSmallTimestampRows, 1)
 			continue
@@ -1248,9 +1249,9 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		if mr.Timestamp > maxTimestamp {
 			// Skip rows with too big timestamps significantly exceeding the current time.
 			if firstWarn == nil {
-				firstWarn = fmt.Errorf("cannot insert row with too big timestamp %d exceeding the current time; maximum allowd timestamp is %d; "+
-					"propbably you need updating -retentionPeriod command-line flag",
-					mr.Timestamp, maxTimestamp)
+				metricName := getUserReadableMetricName(mr.MetricNameRaw)
+				firstWarn = fmt.Errorf("cannot insert row with too big timestamp %d exceeding the current time; maximum allowed timestamp is %d; metricName: %s",
+					mr.Timestamp, maxTimestamp, metricName)
 			}
 			atomic.AddUint64(&s.tooBigTimestampRows, 1)
 			continue
@@ -1357,6 +1358,14 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		return rows, fmt.Errorf("error occurred during rows addition: %w", firstError)
 	}
 	return rows, nil
+}
+
+func getUserReadableMetricName(metricNameRaw []byte) string {
+	var mn MetricName
+	if err := mn.unmarshalRaw(metricNameRaw); err != nil {
+		return fmt.Sprintf("cannot unmarshal metricNameRaw %q: %s", metricNameRaw, err)
+	}
+	return mn.String()
 }
 
 type pendingMetricRow struct {

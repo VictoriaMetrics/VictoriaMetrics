@@ -16,7 +16,7 @@ require (
 	github.com/golang/snappy v0.0.2
 	github.com/klauspost/compress v1.11.3
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
-	github.com/valyala/fastjson v1.6.1
+	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/fasttemplate v1.2.1
 	github.com/valyala/gozstd v1.8.3

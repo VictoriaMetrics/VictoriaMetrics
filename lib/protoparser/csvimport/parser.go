@@ -83,7 +83,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 		tagsLen := len(tags)
 		for sc.NextColumn() {
 			if col >= uint(len(cds)) {
-				// Skip superflouous column.
+				// Skip superfluous column.
 				continue
 			}
 			cd := &cds[col]

@@ -566,6 +566,7 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 * [/tags/findSeries](https://graphite.readthedocs.io/en/stable/tags.html#exploring-tags)
 * [/tags/autoComplete/tags](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
 * [/tags/autoComplete/values](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support)
+* [/tags/delSeries](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb)
 
 
 ## How to build from sources

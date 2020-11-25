@@ -343,17 +343,17 @@ func hasTag(tags []string, key []byte) bool {
 }
 
 // String returns user-readable representation of the metric name.
-//
-// Use this function only for debug logging.
 func (mn *MetricName) String() string {
-	mn.sortTags()
+	var mnCopy MetricName
+	mnCopy.CopyFrom(mn)
+	mnCopy.sortTags()
 	var tags []string
-	for i := range mn.Tags {
-		t := &mn.Tags[i]
-		tags = append(tags, fmt.Sprintf("%q=%q", t.Key, t.Value))
+	for i := range mnCopy.Tags {
+		t := &mnCopy.Tags[i]
+		tags = append(tags, fmt.Sprintf("%s=%q", t.Key, t.Value))
 	}
-	tagsStr := strings.Join(tags, ", ")
-	return fmt.Sprintf("MetricGroup=%q, tags=[%s]", mn.MetricGroup, tagsStr)
+	tagsStr := strings.Join(tags, ",")
+	return fmt.Sprintf("%s{%s}", mnCopy.MetricGroup, tagsStr)
 }
 
 // SortAndMarshal sorts mn tags and then marshals them to dst.
@@ -425,7 +425,7 @@ var maxLabelsPerTimeseries = 30
 // SetMaxLabelsPerTimeseries sets the limit on the number of labels
 // per each time series.
 //
-// Superfouos labels are dropped.
+// Superfluous labels are dropped.
 func SetMaxLabelsPerTimeseries(maxLabels int) {
 	if maxLabels <= 0 {
 		logger.Panicf("BUG: maxLabels must be positive; got %d", maxLabels)

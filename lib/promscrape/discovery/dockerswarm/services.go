@@ -59,7 +59,7 @@ func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
 }
 
 func getServices(cfg *apiConfig) ([]service, error) {
-	data, err := cfg.client.GetAPIResponse("/services")
+	data, err := cfg.getAPIResponse("/services")
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for services: %w", err)
 	}

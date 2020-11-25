@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -200,6 +201,77 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Metric: "cassandra_token_ownership_ratio",
 			Value:  78.9,
 		}},
+	})
+
+	// Exemplars - see https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1
+	f(`foo_bucket{le="10",a="#b"} 17 # {trace_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
+	   abc 123 456#foobar
+	   foo   344#bar`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "10",
+					},
+					{
+						Key:   "a",
+						Value: "#b",
+					},
+				},
+				Value: 17,
+			},
+			{
+				Metric:    "abc",
+				Value:     123,
+				Timestamp: 456,
+			},
+			{
+				Metric: "foo",
+				Value:  344,
+			},
+		},
+	})
+
+	// "Infinity" word - this has been added in OpenMetrics.
+	// See https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md
+	// Checks for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924
+	inf := math.Inf(1)
+	f(`
+		foo Infinity
+		bar +Infinity
+		baz -infinity
+		aaa +inf
+		bbb -INF
+		ccc INF
+	`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo",
+				Value:  inf,
+			},
+			{
+				Metric: "bar",
+				Value:  inf,
+			},
+			{
+				Metric: "baz",
+				Value:  -inf,
+			},
+			{
+				Metric: "aaa",
+				Value:  inf,
+			},
+			{
+				Metric: "bbb",
+				Value:  -inf,
+			},
+			{
+				Metric: "ccc",
+				Value:  inf,
+			},
+		},
 	})
 
 	// Timestamp bigger than 1<<31

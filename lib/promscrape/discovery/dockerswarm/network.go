@@ -27,7 +27,7 @@ func getNetworksLabelsByNetworkID(cfg *apiConfig) (map[string]map[string]string,
 }
 
 func getNetworks(cfg *apiConfig) ([]network, error) {
-	resp, err := cfg.client.GetAPIResponse("/networks")
+	resp, err := cfg.getAPIResponse("/networks")
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for networks: %w", err)
 	}

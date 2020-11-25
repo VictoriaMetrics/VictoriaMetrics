@@ -44,7 +44,7 @@ func TestDeduplicateSamples(t *testing.T) {
 			}
 		}
 		if j != len(timestampsCopy) {
-			t.Fatalf("superflouos timestamps found starting from index %d: %v", j, timestampsCopy[j:])
+			t.Fatalf("superfluous timestamps found starting from index %d: %v", j, timestampsCopy[j:])
 		}
 	}
 	f(time.Millisecond, nil, []int64{})
@@ -94,7 +94,7 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 			}
 		}
 		if j != len(timestampsCopy) {
-			t.Fatalf("superflouos timestamps found starting from index %d: %v", j, timestampsCopy[j:])
+			t.Fatalf("superfluous timestamps found starting from index %d: %v", j, timestampsCopy[j:])
 		}
 	}
 	f(time.Millisecond, nil, []int64{})

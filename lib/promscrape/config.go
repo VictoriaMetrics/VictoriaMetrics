@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -134,14 +133,12 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	if err := cfgObj.parse(data, path); err != nil {
 		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
-	if *dryRun {
-		// This is a dirty hack for checking Prometheus config only.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/362
-		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/508 for details.
-		logger.Infof("Success: the config at %q has no errors; exitting with 0 status code", path)
-		os.Exit(0)
-	}
 	return &cfgObj, data, nil
+}
+
+// IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
+func IsDryRun() bool {
+	return *dryRun
 }
 
 func (cfg *Config) parse(data []byte, path string) error {

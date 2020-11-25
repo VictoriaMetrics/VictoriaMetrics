@@ -136,7 +136,7 @@ func testTableSearchSerial(tb *Table, items []string) error {
 			n++
 		}
 		if ts.NextItem() {
-			return fmt.Errorf("superflouos item found at position %d when searching for %q: %q", n, key, ts.Item)
+			return fmt.Errorf("superfluous item found at position %d when searching for %q: %q", n, key, ts.Item)
 		}
 		if err := ts.Error(); err != nil {
 			return fmt.Errorf("unexpected error when searching for %q: %w", key, err)
