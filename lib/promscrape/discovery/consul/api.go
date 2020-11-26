@@ -151,9 +151,9 @@ func getAPIResponse(client *discoveryutils.Client, path string, index uint64) ([
 			index = newIndex
 		}
 	}
-	data, err := client.GetAPIResponseWithParams(path, &discoveryutils.APIRequestParams{
+	data, err := client.GetAPIResponseWithParamsAndPossibleWatch(path, &discoveryutils.APIRequestParams{
 		FetchFromResponse: getMeta,
-	})
+	}, true)
 	if err != nil {
 		return nil, index, fmt.Errorf("failed query consul api path=%q, err=%w", path, err)
 	}
