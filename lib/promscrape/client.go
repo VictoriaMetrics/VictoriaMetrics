@@ -215,13 +215,13 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	} else if !swapResponseBodies {
 		dst = append(dst, resp.Body()...)
 	}
+	fasthttp.ReleaseResponse(resp)
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
 			c.scrapeURL, statusCode, fasthttp.StatusOK, dst)
 	}
 	scrapesOK.Inc()
-	fasthttp.ReleaseResponse(resp)
 	return dst, nil
 }
 
