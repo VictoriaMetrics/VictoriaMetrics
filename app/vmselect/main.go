@@ -198,6 +198,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/api/v1/status/queries":
+		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
+			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			return true
+		}
+		return true
+
 	case "/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
 		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
