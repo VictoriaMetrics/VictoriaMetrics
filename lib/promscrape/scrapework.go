@@ -249,7 +249,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 
 	// Common case: read all the data from scrape target to memory (body) and then process it.
 	// This case should work more optimally for than stream parse code above for common case when scrape target exposes
-	// up to a few thouthand metrics.
+	// up to a few thousand metrics.
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	var err error
 	body.B, err = sw.ReadData(body.B[:0])
