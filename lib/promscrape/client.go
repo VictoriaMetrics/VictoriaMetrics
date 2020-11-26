@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/fasthttp"
@@ -198,14 +199,14 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	}
 	if ce := resp.Header.Peek("Content-Encoding"); string(ce) == "gzip" {
 		var err error
-		var src []byte
 		if swapResponseBodies {
-			src = append(src, dst...)
-			dst = dst[:0]
+			zb := gunzipBufPool.Get()
+			zb.B, err = fasthttp.AppendGunzipBytes(zb.B[:0], dst)
+			dst = append(dst[:0], zb.B...)
+			gunzipBufPool.Put(zb)
 		} else {
-			src = resp.Body()
+			dst, err = fasthttp.AppendGunzipBytes(dst, resp.Body())
 		}
-		dst, err = fasthttp.AppendGunzipBytes(dst, src)
 		if err != nil {
 			fasthttp.ReleaseResponse(resp)
 			scrapesGunzipFailed.Inc()
@@ -224,6 +225,8 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	scrapesOK.Inc()
 	return dst, nil
 }
+
+var gunzipBufPool bytesutil.ByteBufferPool
 
 var (
 	scrapesTimedout     = metrics.NewCounter(`vm_promscrape_scrapes_timed_out_total`)
