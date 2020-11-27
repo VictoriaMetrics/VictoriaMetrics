@@ -419,7 +419,7 @@ Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via t
 * [Prometheus querying API](#prometheus-querying-api-usage)
 * Metric names can be explored via [Graphite metrics API](#graphite-metrics-api-usage)
 * Tags can be explored via [Graphite tags API](#graphite-tags-api-usage)
-* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml)
+* [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
 
 ## How to send data from OpenTSDB-compatible agents
 
