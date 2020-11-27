@@ -117,7 +117,7 @@ func NewPromDuration(d time.Duration) PromDuration {
 
 // MarshalYAML implements yaml.Marshaler interface.
 func (pd PromDuration) MarshalYAML() (interface{}, error) {
-	return fmt.Sprintf("%s", pd.Duration()), nil
+	return pd.Duration().String(), nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
