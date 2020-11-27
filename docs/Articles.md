@@ -50,3 +50,4 @@
 * [Anomaly Detection in VictoriaMetrics](https://medium.com/@VictoriaMetrics/anomaly-detection-in-victoriametrics-9528538786a7)
 * [How to use relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [First look at performance comparison between InfluxDB IOx and VictoriaMetrics](https://medium.com/@VictoriaMetrics/first-look-at-perfomance-comparassion-between-influxdb-iox-and-victoriametrics-e590f847935b)
+* [Prometheus vs VictoriaMetrics benchmark on node-exporter metrics](https://valyala.medium.com/prometheus-vs-victoriametrics-benchmark-on-node-exporter-metrics-4ca29c75590f)
