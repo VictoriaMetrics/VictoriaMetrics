@@ -166,11 +166,18 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		// There is no timestamp - just a whitespace after the value.
 		return tagsPool, nil
 	}
-	ts, err := fastfloat.ParseInt64(s)
+	ts, err := fastfloat.Parse(s)
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 	}
-	r.Timestamp = ts
+	if ts >= -1<<31 && ts < 1<<31 {
+		// This looks like OpenMetrics timestamp in Unix seconds.
+		// Convert it to milliseconds.
+		//
+		// See https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md#timestamps
+		ts *= 1000
+	}
+	r.Timestamp = int64(ts)
 	return tagsPool, nil
 }
 
