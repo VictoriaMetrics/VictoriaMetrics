@@ -95,7 +95,7 @@ type Rule struct {
 	Record      string            `yaml:"record,omitempty"`
 	Alert       string            `yaml:"alert,omitempty"`
 	Expr        string            `yaml:"expr"`
-	For         PromDuration      `yaml:"for,omitempty"`
+	For         PromDuration      `yaml:"for"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 
@@ -113,6 +113,11 @@ func NewPromDuration(d time.Duration) PromDuration {
 	return PromDuration{
 		milliseconds: d.Milliseconds(),
 	}
+}
+
+// MarshalYAML implements yaml.Marshaler interface.
+func (pd PromDuration) MarshalYAML() (interface{}, error) {
+	return fmt.Sprintf("%s", pd.Duration()), nil
 }
 
 // UnmarshalYAML implements yaml.Unmarshaler interface.
