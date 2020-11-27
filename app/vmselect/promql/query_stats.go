@@ -17,7 +17,10 @@ var (
 	maxQueryLogsCount     = flag.Int("search.logsQueryMaxCount", 100, "Limits count for distinct query message + time range for tracking query execution stats. With Maximum 1000 records.")
 )
 
-var globalQueryLogger = initQL()
+var (
+	globalQueryLogger *queryLogger
+	gqlOnce           sync.Once
+)
 
 // queryLogger - tracks queries execution time,
 // query name and query range is a key for tracking.
@@ -42,7 +45,7 @@ type queryLogRecord struct {
 	execTime int64
 }
 
-func initQL() *queryLogger {
+func initQL() {
 	limit := *maxQueryLogsCount
 	if limit > 1000 {
 		limit = 1000
@@ -51,17 +54,18 @@ func initQL() *queryLogger {
 	if qlt == 0 {
 		qlt = time.Second * 10
 	}
-	ql := &queryLogger{
+	logger.Infof("enabled search query stats profiler, max records count: %d, max query record duration: %s", limit, qlt)
+	ql := queryLogger{
 		limit:                 limit,
 		maxQueryLogRecordTime: qlt,
 	}
 	go func() {
 		for {
 			time.Sleep(time.Second * 10)
-			ql.dropOldKeys()
+			ql.dropOldQueryRecords()
 		}
 	}()
-	return ql
+	globalQueryLogger = &ql
 }
 
 func formatJSONQueryLog(queries []queryLog) string {
@@ -71,7 +75,7 @@ func formatJSONQueryLog(queries []queryLog) string {
 		fmt.Fprintf(&s, `"range":  %q,`, time.Duration(q.timeRange*1e6))
 		fmt.Fprintf(&s, `"duration":  %q,`, q.duration())
 		if len(q.queries) > 0 {
-			fmt.Fprintf(&s, `"avg_duration": %q,`, int(q.duration())/len(q.queries))
+			fmt.Fprintf(&s, `"avg_duration": %q,`, q.duration()/time.Duration(len(q.queries)))
 		}
 		fmt.Fprintf(&s, `"count": "%d"`, len(q.queries))
 		s.WriteString(`}`)
@@ -85,6 +89,10 @@ func formatJSONQueryLog(queries []queryLog) string {
 
 // WriteQueryStatsResponse - writes query stats to given writer in json format.
 func WriteQueryStatsResponse(w io.Writer, topN int) {
+	if globalQueryLogger == nil {
+		fmt.Fprintf(w, `{"error": "query stats endpoint is disabled, according to flag value -search.logsQueryMaxCount=0"}`)
+		return
+	}
 	writeJSONQueryStats(w, globalQueryLogger, topN)
 }
 
@@ -120,7 +128,7 @@ func (ql *queryLog) dropOldRecords(t int64) {
 		}
 	}
 	if shrinkIndex > 0 {
-		ql.queries = ql.queries[:shrinkIndex]
+		ql.queries = ql.queries[shrinkIndex:]
 	}
 }
 
@@ -136,6 +144,7 @@ func (ql *queryLog) duration() time.Duration {
 // must be called with mutex,
 // shrinks slice by last added query log records.
 func (ql *queryLogger) shrink() {
+	logger.Infof("shrink needed")
 	sort.Slice(ql.s, func(i, j int) bool {
 		return ql.s[i].lastSeen < ql.s[j].lastSeen
 	})
@@ -153,7 +162,7 @@ func (ql *queryLogger) shrink() {
 }
 
 // drop old keys.
-func (ql *queryLogger) dropOldKeys() {
+func (ql *queryLogger) dropOldQueryRecords() {
 	ql.mu.Lock()
 	defer ql.mu.Unlock()
 	t := time.Now().Add(-ql.maxQueryLogRecordTime).Unix()
@@ -168,6 +177,12 @@ func (ql *queryLogger) dropOldKeys() {
 	ql.s = qlCopy
 }
 
+func InsertQueryStat(query string, tr int64, execTime time.Time, duration time.Duration) {
+	gqlOnce.Do(func() {
+		initQL()
+	})
+	globalQueryLogger.insertQuery(query, tr, execTime, duration)
+}
 func (ql *queryLogger) insertQuery(query string, tr int64, execTime time.Time, duration time.Duration) {
 	ql.mu.Lock()
 	defer ql.mu.Unlock()

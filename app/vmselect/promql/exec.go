@@ -39,10 +39,13 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 			}
 		}()
 	}
-	defer func(t time.Time) {
-		tr := ec.End - ec.Start
-		globalQueryLogger.insertQuery(q, tr, t, time.Since(t))
-	}(time.Now())
+	if *maxQueryLogsCount > 0 {
+		start := time.Now()
+		defer func() {
+			tr := ec.End - ec.Start
+			InsertQueryStat(q, tr, start, time.Since(start))
+		}()
+	}
 
 	ec.validate()
 
