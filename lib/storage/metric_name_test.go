@@ -15,8 +15,10 @@ func TestMetricNameString(t *testing.T) {
 		}
 	}
 	f(&MetricName{
+		AccountID:   123,
+		ProjectID:   456,
 		MetricGroup: []byte("foobar"),
-	}, "foobar{}")
+	}, "AccountID=123, ProjectID=456, foobar{}")
 	f(&MetricName{
 		MetricGroup: []byte("abc"),
 		Tags: []Tag{
@@ -29,7 +31,7 @@ func TestMetricNameString(t *testing.T) {
 				Value: []byte("123"),
 			},
 		},
-	}, `abc{baz="123",foo="bar"}`)
+	}, `AccountID=0, ProjectID=0, abc{baz="123",foo="bar"}`)
 }
 
 func TestMetricNameSortTags(t *testing.T) {
