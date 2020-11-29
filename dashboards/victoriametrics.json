@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1606684714460,
+  "iteration": 1606684714463,
   "links": [
     {
       "icon": "doc",
@@ -4462,7 +4462,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 57
           },
           "hiddenSeries": false,
           "id": 97,
@@ -4561,7 +4561,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 57
           },
           "hiddenSeries": false,
           "id": 99,
@@ -4678,7 +4678,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 57
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 90,
@@ -4790,7 +4790,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 57
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 88,
@@ -4891,7 +4891,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 73
           },
           "hiddenSeries": false,
           "id": 4,
@@ -4987,6 +4987,107 @@
             },
             {
               "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Shows if vmstorage node is reachable for vminsert. If below 1 means vmstorage is not reachable at this moment of time. ",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 73
+          },
+          "hiddenSeries": false,
+          "id": 114,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pluginVersion": "7.1.1",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "vm_rpc_vmstorage_is_reachable{job=~\"$job\", instance=~\"$instance\"}",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} => {{addr}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Storage reachability ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
               "format": "short",
               "label": null,
               "logBase": 1,
