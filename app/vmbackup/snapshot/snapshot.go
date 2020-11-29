@@ -39,7 +39,7 @@ func Create(createSnapshotURL string) (string, error) {
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", createSnapshotURL, err, body)
 	}
 
 	if snap.Status == "ok" {
@@ -77,7 +77,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	snap := snapshot{}
 	err = json.Unmarshal(body, &snap)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot parse JSON response from %q: %w; response body: %q", deleteSnapshotURL, err, body)
 	}
 
 	if snap.Status == "ok" {
