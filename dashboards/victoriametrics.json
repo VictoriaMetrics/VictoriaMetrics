@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1599035756461,
+  "iteration": 1606684714463,
   "links": [
     {
       "icon": "doc",
@@ -1368,7 +1368,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+      "description": "Shows the time needed to reach the 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -1383,6 +1383,103 @@
         "w": 12,
         "x": 12,
         "y": 34
+      },
+      "hiddenSeries": false,
+      "id": 113,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pluginVersion": "7.1.1",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "vm_free_disk_space_bytes{job=\"$job_storage\", instance=~\"$instance\"} / ignoring(path) ((rate(vm_rows_added_to_storage_total{job=\"$job_storage\", instance=~\"$instance\"}[1d]) - ignoring(type) rate(vm_deduplicated_samples_total{job=\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])) * (sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})))",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Storage full ETA ($instance)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "$ds",
+      "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 42
       },
       "hiddenSeries": false,
       "id": 104,
@@ -1467,7 +1564,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 50
       },
       "id": 46,
       "panels": [
@@ -1958,7 +2055,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 51
       },
       "id": 106,
       "panels": [
@@ -2254,7 +2351,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 52
       },
       "id": 48,
       "panels": [
@@ -2976,7 +3073,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "id": 60,
       "panels": [
@@ -3201,7 +3298,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 54
       },
       "id": 24,
       "panels": [
@@ -3225,7 +3322,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 16,
@@ -3323,7 +3420,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 100,
@@ -3419,7 +3516,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 18,
@@ -3515,7 +3612,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 20,
@@ -3611,7 +3708,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 54,
@@ -3705,7 +3802,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 14,
@@ -3818,7 +3915,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 22,
@@ -3914,7 +4011,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 55,
@@ -3999,7 +4096,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 55
       },
       "id": 42,
       "panels": [
@@ -4341,7 +4438,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 56
       },
       "id": 40,
       "panels": [
@@ -4365,7 +4462,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8
+            "y": 57
           },
           "hiddenSeries": false,
           "id": 97,
@@ -4464,7 +4561,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8
+            "y": 57
           },
           "hiddenSeries": false,
           "id": 99,
@@ -4505,6 +4602,7 @@
             {
               "expr": "sum(vm_concurrent_insert_current{job=\"$job_insert\", instance=~\"$instance\"})",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "current",
               "refId": "A"
@@ -4580,7 +4678,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 90,
@@ -4692,7 +4790,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 65
           },
           "hiddenSeries": false,
           "id": 88,
@@ -4793,7 +4891,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 73
           },
           "hiddenSeries": false,
           "id": 4,
@@ -4889,6 +4987,107 @@
             },
             {
               "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Shows if vmstorage node is reachable for vminsert. If below 1 means vmstorage is not reachable at this moment of time. ",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 73
+          },
+          "hiddenSeries": false,
+          "id": 114,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": false,
+            "min": false,
+            "show": true,
+            "sort": "current",
+            "sortDesc": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null as zero",
+          "percentage": false,
+          "pluginVersion": "7.1.1",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "vm_rpc_vmstorage_is_reachable{job=~\"$job\", instance=~\"$instance\"}",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} => {{addr}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Storage reachability ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": 0,
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": "0",
+              "show": true
+            },
+            {
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -5038,10 +5237,6 @@
         "tags": [
           {
             "selected": false,
-            "text": "vmselect"
-          },
-          {
-            "selected": false,
             "text": "vmstorage"
           },
           {
@@ -5051,6 +5246,10 @@
           {
             "selected": false,
             "text": "vminsert"
+          },
+          {
+            "selected": false,
+            "text": "vmselect"
           }
         ],
         "tagsQuery": "label_values(vm_app_version, job)",
