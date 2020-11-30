@@ -25,15 +25,16 @@ func Create(createSnapshotURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return "", err
 	}
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code returned from %q; expecting %d; got %d; response body: %q", createSnapshotURL, resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
@@ -58,20 +59,20 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	formData := url.Values{
 		"snapshot": {snapshotName},
 	}
-
 	u, err := url.Parse(deleteSnapshotURL)
 	if err != nil {
 		return err
 	}
-
 	resp, err := http.PostForm(u.String(), formData)
 	if err != nil {
 		return err
 	}
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code returned from %q; expecting %d; got %d; response body: %q", deleteSnapshotURL, resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
