@@ -1782,10 +1782,32 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`time() > scalar`, func(t *testing.T) {
 		t.Parallel()
-		q := `time() > 123`
+		q := `time() > 1234`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Values:     []float64{nan, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`time() >bool scalar`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() >bool 1234`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`nan >bool scalar1`, func(t *testing.T) {
+		t.Parallel()
+		q := `(time() > 1234) >bool 1450`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 0, 1, 1, 1},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
