@@ -136,13 +136,13 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
-// fetchFromResponse - should never reference data from response.
-func (c *Client) GetBlockingAPIResponse(path string, fetchFromResponse func(resp *fasthttp.Response)) ([]byte, error) {
-	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, fetchFromResponse)
+// inspectResponse - should never reference data from response.
+func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
+	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, inspectResponse)
 }
 
 // getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for response.
-func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, path string, fetchFromResponse func(resp *fasthttp.Response)) ([]byte, error) {
+func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, path string, inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
 	requestURL := c.apiServer + path
 	var u fasthttp.URI
 	u.Update(requestURL)
@@ -169,8 +169,8 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	} else {
 		data = append(data[:0], resp.Body()...)
 	}
-	if fetchFromResponse != nil {
-		fetchFromResponse(&resp)
+	if inspectResponse != nil {
+		inspectResponse(&resp)
 	}
 	statusCode := resp.StatusCode()
 	if statusCode != fasthttp.StatusOK {

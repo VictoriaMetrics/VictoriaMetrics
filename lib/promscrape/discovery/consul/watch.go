@@ -89,7 +89,7 @@ func (cw *consulWatcher) getServiceNames(index uint64) (map[string]struct{}, uin
 	if len(cw.nodeMeta) > 0 {
 		path += cw.nodeMeta
 	}
-	data, newIndex, err := getAPIResponse(cw.client, path, index)
+	data, newIndex, err := getBlockingAPIResponse(cw.client, path, index)
 	if err != nil {
 		return nil, index, err
 	}

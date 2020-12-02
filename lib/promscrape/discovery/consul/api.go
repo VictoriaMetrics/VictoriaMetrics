@@ -118,7 +118,7 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 func getServiceState(client *discoveryutils.Client, svc, baseArgs string, index uint64) ([]ServiceNode, uint64, error) {
 	path := fmt.Sprintf("/v1/health/service/%s%s", svc, baseArgs)
 
-	data, newIndex, err := getAPIResponse(client, path, index)
+	data, newIndex, err := getBlockingAPIResponse(client, path, index)
 	if err != nil {
 		return nil, index, err
 	}
@@ -131,7 +131,7 @@ func getServiceState(client *discoveryutils.Client, svc, baseArgs string, index 
 
 // returns consul api response with new index version of object.
 // https://www.consul.io/api-docs/features/blocking
-func getAPIResponse(client *discoveryutils.Client, path string, index uint64) ([]byte, uint64, error) {
+func getBlockingAPIResponse(client *discoveryutils.Client, path string, index uint64) ([]byte, uint64, error) {
 	path += "&index=" + strconv.FormatUint(index, 10)
 	path = path + fmt.Sprintf("&wait=%s", watchTime)
 	getMeta := func(resp *fasthttp.Response) {
