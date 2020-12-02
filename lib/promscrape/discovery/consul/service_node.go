@@ -9,11 +9,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// addServiceNodesLabels returns labels for Consul service nodes obtained from the given cfg
-func addServiceNodesLabels(sns []ServiceNode, tagSeparator string) ([]map[string]string, error) {
+// getServiceNodesLabels returns labels for Consul service nodes with given tagSeparator.
+func getServiceNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
+	sns := cfg.consulWatcher.getServiceNodes()
 	var ms []map[string]string
 	for _, sn := range sns {
-		ms = sn.appendTargetLabels(ms, tagSeparator)
+		ms = sn.appendTargetLabels(ms, cfg.tagSeparator)
 	}
 	return ms, nil
 }

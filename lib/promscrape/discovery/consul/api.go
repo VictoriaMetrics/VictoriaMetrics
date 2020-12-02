@@ -14,9 +14,10 @@ import (
 )
 
 // apiConfig contains config for API server
+// with consulWatcher service.
 type apiConfig struct {
 	tagSeparator  string
-	consulWatcher *watchConsul
+	consulWatcher *consulWatcher
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -70,7 +71,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, err
 	}
 
-	cw, err := newWatchConsul(client, sdc, dc)
+	cw, err := newConsulWatcher(client, sdc, dc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot start consul watcher: %w", err)
 	}
@@ -116,13 +117,6 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 // returns ServiceNodesState and version index.
 func getServiceState(client *discoveryutils.Client, svc, baseArgs string, index uint64) ([]ServiceNode, uint64, error) {
 	path := fmt.Sprintf("/v1/health/service/%s%s", svc, baseArgs)
-	// The /v1/health/service/:service endpoint supports background refresh caching,
-	// which guarantees fresh results obtained from local Consul agent.
-	// See https://www.consul.io/api-docs/health#list-nodes-for-service
-	// and https://www.consul.io/api/features/caching for details.
-	// Query cached results in order to reduce load on Consul cluster.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574 .
-	path += "&cached"
 
 	data, newIndex, err := getAPIResponse(client, path, index)
 	if err != nil {
@@ -136,10 +130,9 @@ func getServiceState(client *discoveryutils.Client, svc, baseArgs string, index 
 }
 
 // returns consul api response with new index version of object.
+// https://www.consul.io/api-docs/features/blocking
 func getAPIResponse(client *discoveryutils.Client, path string, index uint64) ([]byte, uint64, error) {
-	if index > 0 {
-		path = path + "&index=" + strconv.Itoa(int(index))
-	}
+	path += "&index=" + strconv.FormatUint(index, 10)
 	path = path + fmt.Sprintf("&wait=%s", watchTime)
 	getMeta := func(resp *fasthttp.Response) {
 		if ind := resp.Header.Peek("X-Consul-Index"); len(ind) > 0 {
@@ -148,12 +141,16 @@ func getAPIResponse(client *discoveryutils.Client, path string, index uint64) ([
 				logger.Errorf("failed to parse consul index: %v", err)
 				return
 			}
+			// reset index
+			// https://www.consul.io/api-docs/features/blocking#implementation-details
+			if index > newIndex {
+				index = 0
+				return
+			}
 			index = newIndex
 		}
 	}
-	data, err := client.GetAPIResponseWithParamsAndPossibleWatch(path, &discoveryutils.APIRequestParams{
-		FetchFromResponse: getMeta,
-	}, true)
+	data, err := client.GetBlockingAPIResponse(path, getMeta)
 	if err != nil {
 		return nil, index, fmt.Errorf("failed query consul api path=%q, err=%w", path, err)
 	}

@@ -46,8 +46,7 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
-	sns := cfg.consulWatcher.getSNS()
-	ms, err := addServiceNodesLabels(sns, cfg.tagSeparator)
+	ms, err := getServiceNodesLabels(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("error when fetching service nodes data from Consul: %w", err)
 	}

@@ -1,7 +1,6 @@
 package consul
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -9,34 +8,32 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 type serviceWatch struct {
-	cancel       context.CancelFunc
+	stopCh       chan struct{}
 	serviceNodes []ServiceNode
 }
 
 // watcher for consul api, updates targets in background with long-polling.
-type watchConsul struct {
-	baseQueryArgs  string
-	cancel         context.CancelFunc
-	client         *discoveryutils.Client
-	lastAccessTime uint64
-	// guards services
-	mu                  sync.Mutex
+type consulWatcher struct {
+	baseQueryArgs       string
+	client              *discoveryutils.Client
+	lastAccessTime      atomic.Value
 	nodeMeta            string
 	shouldWatchServices []string
 	shouldWatchTags     []string
-	services            map[string]serviceWatch
+	// guards services
+	servicesLock sync.Mutex
+	services     map[string]serviceWatch
+	stopCh       chan struct{}
 }
 
-// init new watcher and start bachground discovery.
-func newWatchConsul(client *discoveryutils.Client, sdc *SDConfig, dc string) (*watchConsul, error) {
-	// wait time must be less, then fasthttp client deadline - its 1 minute.
-	baseQueryArgs := fmt.Sprintf("?sdc=%s", url.QueryEscape(dc))
+// init new watcher and start background service discovery for Consul.
+func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter string) (*consulWatcher, error) {
+	baseQueryArgs := fmt.Sprintf("?sdc=%s", url.QueryEscape(datacenter))
 	var nodeMeta string
 	if len(sdc.NodeMeta) > 0 {
 		for k, v := range sdc.NodeMeta {
@@ -46,7 +43,7 @@ func newWatchConsul(client *discoveryutils.Client, sdc *SDConfig, dc string) (*w
 	if sdc.AllowStale {
 		baseQueryArgs += "&stale"
 	}
-	wc := watchConsul{
+	cw := consulWatcher{
 		client:              client,
 		baseQueryArgs:       baseQueryArgs,
 		shouldWatchServices: sdc.Services,
@@ -54,43 +51,45 @@ func newWatchConsul(client *discoveryutils.Client, sdc *SDConfig, dc string) (*w
 		services:            make(map[string]serviceWatch),
 	}
 
-	watchServiceNames, _, err := wc.getServiceNames(0)
+	watchServiceNames, _, err := cw.getServiceNames(0)
 	if err != nil {
 		return nil, err
 	}
-	// global context
-	ctx, cancel := context.WithCancel(context.Background())
-	wc.cancel = cancel
-	var syncWait sync.WaitGroup
+	var wg sync.WaitGroup
+	cw.servicesLock.Lock()
 	for serviceName := range watchServiceNames {
-		ctx, cancel := context.WithCancel(ctx)
-		syncWait.Add(1)
-		go wc.startWatchService(ctx, serviceName, &syncWait)
-		wc.services[serviceName] = serviceWatch{cancel: cancel}
+		stopCh := make(chan struct{})
+		cw.services[serviceName] = serviceWatch{stopCh: stopCh}
+		wg.Add(1)
+		go func(serviceName string) {
+			defer wg.Done()
+			cw.watchForServiceUpdates(serviceName, stopCh)
+		}(serviceName)
 	}
+	cw.servicesLock.Unlock()
 	// wait for first init.
-	syncWait.Wait()
-	go wc.watchForServices(ctx)
-	return &wc, nil
+	wg.Wait()
+	go cw.watchForServices()
+	return &cw, nil
 }
 
 // stops all service watchers.
-func (w *watchConsul) stopAll() {
-	w.mu.Lock()
-	for _, sw := range w.services {
-		sw.cancel()
+func (cw *consulWatcher) stopServiceWatchersAll() {
+	cw.servicesLock.Lock()
+	for _, sw := range cw.services {
+		close(sw.stopCh)
 	}
-	w.mu.Unlock()
+	cw.servicesLock.Unlock()
 }
 
 // getServiceNames returns serviceNames and index version.
-func (w *watchConsul) getServiceNames(index uint64) (map[string]struct{}, uint64, error) {
+func (cw *consulWatcher) getServiceNames(index uint64) (map[string]struct{}, uint64, error) {
 	sns := make(map[string]struct{})
-	path := fmt.Sprintf("/v1/catalog/services%s", w.baseQueryArgs)
-	if len(w.nodeMeta) > 0 {
-		path += w.nodeMeta
+	path := fmt.Sprintf("/v1/catalog/services%s", cw.baseQueryArgs)
+	if len(cw.nodeMeta) > 0 {
+		path += cw.nodeMeta
 	}
-	data, newIndex, err := getAPIResponse(w.client, path, index)
+	data, newIndex, err := getAPIResponse(cw.client, path, index)
 	if err != nil {
 		return nil, index, err
 	}
@@ -99,10 +98,10 @@ func (w *watchConsul) getServiceNames(index uint64) (map[string]struct{}, uint64
 		return nil, index, fmt.Errorf("cannot parse services response=%q, err=%w", data, err)
 	}
 	for k, tags := range m {
-		if !shouldCollectServiceByName(w.shouldWatchServices, k) {
+		if !shouldCollectServiceByName(cw.shouldWatchServices, k) {
 			continue
 		}
-		if !shouldCollectServiceByTags(w.shouldWatchTags, tags) {
+		if !shouldCollectServiceByTags(cw.shouldWatchTags, tags) {
 			continue
 		}
 		sns[k] = struct{}{}
@@ -111,22 +110,22 @@ func (w *watchConsul) getServiceNames(index uint64) (map[string]struct{}, uint64
 }
 
 // listen for new services and update it.
-func (w *watchConsul) watchForServices(ctx context.Context) {
+func (cw *consulWatcher) watchForServices() {
 	ticker := time.NewTicker(*SDCheckInterval)
 	defer ticker.Stop()
 	var index uint64
 	for {
 		select {
-		case <-ctx.Done():
-			w.stopAll()
+		case <-cw.stopCh:
+			cw.stopServiceWatchersAll()
 			return
 		case <-ticker.C:
-			if fasttime.UnixTimestamp()-atomic.LoadUint64(&w.lastAccessTime) > uint64(SDCheckInterval.Seconds())*2 {
+			if time.Since(cw.lastAccessTime.Load().(time.Time)) > *SDCheckInterval*2 {
 				// exit watch and stop all background watchers.
-				w.stopAll()
+				cw.stopServiceWatchersAll()
 				return
 			}
-			m, newIndex, err := w.getServiceNames(index)
+			m, newIndex, err := cw.getServiceNames(index)
 			if err != nil {
 				logger.Errorf("failed get serviceNames from consul api: err=%v", err)
 				continue
@@ -135,73 +134,71 @@ func (w *watchConsul) watchForServices(ctx context.Context) {
 			if index == newIndex {
 				continue
 			}
-			w.mu.Lock()
+			cw.servicesLock.Lock()
 			// start new services watchers.
 			for svc := range m {
-				if _, ok := w.services[svc]; !ok {
-					ctx, cancel := context.WithCancel(ctx)
-					go w.startWatchService(ctx, svc, nil)
-					w.services[svc] = serviceWatch{cancel: cancel}
+				if _, ok := cw.services[svc]; !ok {
+					stopCh := make(chan struct{})
+					cw.services[svc] = serviceWatch{stopCh: stopCh}
+					go cw.watchForServiceUpdates(svc, stopCh)
 				}
 			}
 			// stop watch for removed services.
-			for svc, s := range w.services {
+			for svc, s := range cw.services {
 				if _, ok := m[svc]; !ok {
-					s.cancel()
-					delete(w.services, svc)
+					close(s.stopCh)
+					delete(cw.services, svc)
 				}
 			}
-			w.mu.Unlock()
+			cw.servicesLock.Unlock()
 			index = newIndex
 		}
 	}
 
 }
 
-// start watch for consul service changes.
-func (w *watchConsul) startWatchService(ctx context.Context, svc string, initWait *sync.WaitGroup) {
+// start watching for consul service changes.
+func (cw *consulWatcher) watchForServiceUpdates(svc string, stopCh chan struct{}) {
 	ticker := time.NewTicker(*SDCheckInterval)
 	defer ticker.Stop()
 	updateServiceState := func(index uint64) uint64 {
-		sns, newIndex, err := getServiceState(w.client, svc, w.baseQueryArgs, index)
+		sns, newIndex, err := getServiceState(cw.client, svc, cw.baseQueryArgs, index)
 		if err != nil {
-			logger.Errorf("failed update service state err=%v", err)
+			logger.Errorf("failed update service state, service_name=%q, err=%v", svc, err)
 			return index
 		}
 		if newIndex == index {
 			return index
 		}
-		w.mu.Lock()
-		s := w.services[svc]
+		cw.servicesLock.Lock()
+		s := cw.services[svc]
 		s.serviceNodes = sns
-		w.services[svc] = s
-		w.mu.Unlock()
+		cw.services[svc] = s
+		cw.servicesLock.Unlock()
 		return newIndex
 	}
 	watchIndex := updateServiceState(0)
-	// report after first sync if needed.
-	if initWait != nil {
-		initWait.Done()
-	}
-	for {
-		select {
-		case <-ticker.C:
-			watchIndex = updateServiceState(watchIndex)
-		case <-ctx.Done():
-			return
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				watchIndex = updateServiceState(watchIndex)
+			case <-stopCh:
+				return
+			}
 		}
-	}
+	}()
 }
 
-// returns combined ServiceNodes.
-func (w *watchConsul) getSNS() []ServiceNode {
+// returns ServiceNodes.
+func (cw *consulWatcher) getServiceNodes() []ServiceNode {
 	var sns []ServiceNode
-	w.mu.Lock()
-	for _, v := range w.services {
+	cw.servicesLock.Lock()
+	for _, v := range cw.services {
 		sns = append(sns, v.serviceNodes...)
 	}
-	w.mu.Unlock()
-	atomic.StoreUint64(&w.lastAccessTime, fasttime.UnixTimestamp())
+	cw.servicesLock.Unlock()
+	cw.lastAccessTime.Store(time.Now())
 	return sns
 }
 
