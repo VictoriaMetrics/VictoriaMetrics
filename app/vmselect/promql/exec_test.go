@@ -531,7 +531,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `minute(time() <= 1200 or time() > 1600)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values: []float64{16, 20, nan, nan, 30, 33},
+			Values:     []float64{16, 20, nan, nan, 30, 33},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
