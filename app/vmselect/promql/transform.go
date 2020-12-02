@@ -265,6 +265,9 @@ func newTransformFuncDateTime(f func(t time.Time) int) transformFunc {
 		}
 		tf := func(values []float64) {
 			for i, v := range values {
+				if math.IsNaN(v) {
+					continue
+				}
 				t := time.Unix(int64(v), 0).UTC()
 				values[i] = float64(f(t))
 			}
