@@ -526,6 +526,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`minute(series_with_NaNs)`, func(t *testing.T) {
+		t.Parallel()
+		q := `minute(time() <= 1200 or time() > 1600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values: []float64{16, 20, nan, nan, 30, 33},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("rate({})", func(t *testing.T) {
 		t.Parallel()
 		q := `rate({})`
