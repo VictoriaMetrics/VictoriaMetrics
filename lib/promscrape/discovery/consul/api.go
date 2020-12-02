@@ -143,6 +143,10 @@ func getBlockingAPIResponse(client *discoveryutils.Client, path string, index ui
 			}
 			// reset index
 			// https://www.consul.io/api-docs/features/blocking#implementation-details
+			if newIndex < 1 {
+				index = 1
+				return
+			}
 			if index > newIndex {
 				index = 0
 				return
