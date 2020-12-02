@@ -149,8 +149,14 @@ func scanString(s string) (string, error) {
 func scanPositiveNumber(s string) (string, error) {
 	// Scan integer part. It may be empty if fractional part exists.
 	i := 0
-	if n := scanSpecialIntegerPrefix(s); n > 0 {
-		i += n
+	skipChars, isHex := scanSpecialIntegerPrefix(s)
+	i += skipChars
+	if isHex {
+		// Scan integer hex number
+		for i < len(s) && isHexChar(s[i]) {
+			i++
+		}
+		return s[:i], nil
 	}
 	for i < len(s) && isDecimalChar(s[i]) {
 		i++
@@ -370,26 +376,31 @@ func isPositiveNumberPrefix(s string) bool {
 }
 
 func isSpecialIntegerPrefix(s string) bool {
-	return scanSpecialIntegerPrefix(s) > 0
+	skipChars, _ := scanSpecialIntegerPrefix(s)
+	return skipChars > 0
 }
 
-func scanSpecialIntegerPrefix(s string) int {
+func scanSpecialIntegerPrefix(s string) (skipChars int, isHex bool) {
 	if len(s) < 1 || s[0] != '0' {
-		return 0
+		return 0, false
 	}
 	s = strings.ToLower(s[1:])
 	if len(s) == 0 {
-		return 0
+		return 0, false
 	}
 	if isDecimalChar(s[0]) {
 		// octal number: 0123
-		return 1
+		return 1, false
 	}
-	if s[0] == 'x' || s[0] == 'o' || s[0] == 'b' {
+	if s[0] == 'x' {
+		// 0x
+		return 2, true
+	}
+	if s[0] == 'o' || s[0] == 'b' {
 		// 0x, 0o or 0b prefix
-		return 2
+		return 2, false
 	}
-	return 0
+	return 0, false
 }
 
 func isPositiveDuration(s string) bool {
@@ -534,6 +545,10 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 
 func isDecimalChar(ch byte) bool {
 	return ch >= '0' && ch <= '9'
+}
+
+func isHexChar(ch byte) bool {
+	return isDecimalChar(ch) || ch >= 'a' && ch <= 'f' || ch >= 'A' && ch <= 'F'
 }
 
 func isIdentPrefix(s string) bool {
