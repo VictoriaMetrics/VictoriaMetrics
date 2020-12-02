@@ -39,7 +39,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 			}
 		}()
 	}
-	if *maxQueryLogsCount > 0 {
+	if *maxQueryStatsTrackerItemsCount > 0 {
 		start := time.Now()
 		defer func() {
 			tr := ec.End - ec.Start
