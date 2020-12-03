@@ -126,23 +126,26 @@ func getBlockingAPIResponse(client *discoveryutils.Client, path string, index in
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + maxWaitTimeStr
 	getMeta := func(resp *fasthttp.Response) {
-		if ind := resp.Header.Peek("X-Consul-Index"); len(ind) > 0 {
-			newIndex, err := strconv.ParseInt(string(ind), 10, 64)
-			if err != nil {
-				logger.Errorf("cannot parse X-Consul-Index header value in response from %q: %s", path, err)
-				return
-			}
-			// Properly handle the returned newIndex according to https://www.consul.io/api-docs/features/blocking#implementation-details
-			if newIndex < 1 {
-				index = 1
-				return
-			}
-			if index > newIndex {
-				index = 0
-				return
-			}
-			index = newIndex
+		ind := resp.Header.Peek("X-Consul-Index")
+		if len(ind) == 0 {
+			logger.Errorf("cannot find X-Consul-Index header in response from %q", path)
+			return
 		}
+		newIndex, err := strconv.ParseInt(string(ind), 10, 64)
+		if err != nil {
+			logger.Errorf("cannot parse X-Consul-Index header value in response from %q: %s", path, err)
+			return
+		}
+		// Properly handle the returned newIndex according to https://www.consul.io/api-docs/features/blocking#implementation-details
+		if newIndex < 1 {
+			index = 1
+			return
+		}
+		if index > newIndex {
+			index = 0
+			return
+		}
+		index = newIndex
 	}
 	data, err := client.GetBlockingAPIResponse(path, getMeta)
 	if err != nil {
