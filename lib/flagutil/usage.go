@@ -31,9 +31,6 @@ func isHelpArg(arg string) bool {
 	if !strings.HasPrefix(arg, "-") {
 		return false
 	}
-	arg = arg[1:]
-	if strings.HasPrefix(arg, "-") {
-		arg = arg[1:]
-	}
+	arg = strings.TrimPrefix(arg[1:], "-")
 	return arg == "h" || arg == "help"
 }
