@@ -1,23 +1,9 @@
 package consul
 
 import (
-	"flag"
 	"fmt"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-)
-
-var (
-	// SDCheckInterval - check interval for consul discovery.
-	SDCheckInterval = flag.Duration("promscrape.consulSDCheckInterval", 30*time.Second, "Interval for checking for changes in consul. "+
-		"This works only if `consul_sd_configs` is configured in '-promscrape.config' file. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details")
-	// duration for consul blocking request, maximum wait time is 10 min.
-	// But fasthttp client has readTimeout for 1 min, so we use 50s timeout.
-	// also consul adds random delay up to wait/16, so there is no need in jitter.
-	// https://www.consul.io/api-docs/features/blocking
-	watchTime = time.Second * 50
 )
 
 // SDConfig represents service discovery config for Consul.
@@ -46,9 +32,6 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
-	ms, err := getServiceNodesLabels(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("error when fetching service nodes data from Consul: %w", err)
-	}
+	ms := getServiceNodesLabels(cfg)
 	return ms, nil
 }
