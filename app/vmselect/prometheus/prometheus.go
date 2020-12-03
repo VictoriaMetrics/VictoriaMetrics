@@ -1253,7 +1253,7 @@ func getLatencyOffsetMilliseconds() int64 {
 
 // QueryStatsHandler - returns static for queries execution time and count.
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/907
-func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, aggregateBy string) error {
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
@@ -1275,7 +1275,7 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	promql.WriteQueryStatsResponse(bw, topN)
+	promql.WriteQueryStatsResponse(bw, topN, aggregateBy)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
