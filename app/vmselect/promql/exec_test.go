@@ -1090,6 +1090,62 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
 		f(q, resultExpected)
 	})
+	t.Run(`label_uppercase`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_uppercase(
+			label_set(time(), "foo", "bAr", "XXx", "yyy", "zzz", "abc"),
+			"foo", "XXx", "aaa"
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("XXx"),
+				Value: []byte("YYY"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("BAR"),
+			},
+			{
+				Key:   []byte("zzz"),
+				Value: []byte("abc"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`label_lowercase`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_lowercase(
+			label_set(time(), "foo", "bAr", "XXx", "yyy", "zzz", "aBc"),
+			"foo", "XXx", "aaa"
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("XXx"),
+				Value: []byte("yyy"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("zzz"),
+				Value: []byte("aBc"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`label_copy(new_tag)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_copy(
@@ -6217,6 +6273,8 @@ func TestExecError(t *testing.T) {
 	f(`label_transform(1, "foo", "invalid(regexp", "baz`)
 	f(`label_match(1, 2, 3)`)
 	f(`label_mismatch(1, 2, 3)`)
+	f(`label_uppercase()`)
+	f(`label_lowercase()`)
 	f(`alias(1, 2)`)
 	f(`aggr_over_time(1, 2)`)
 	f(`aggr_over_time(("foo", "bar"), 3)`)

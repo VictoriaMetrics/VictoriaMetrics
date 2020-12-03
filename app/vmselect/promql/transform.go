@@ -73,6 +73,8 @@ var transformFuncs = map[string]transformFunc{
 	// New funcs
 	"label_set":          transformLabelSet,
 	"label_map":          transformLabelMap,
+	"label_uppercase":    transformLabelUppercase,
+	"label_lowercase":    transformLabelLowercase,
 	"label_del":          transformLabelDel,
 	"label_keep":         transformLabelKeep,
 	"label_copy":         transformLabelCopy,
@@ -1190,6 +1192,42 @@ func transformLabelSet(tfa *transformFuncArg) ([]*timeseries, error) {
 			*dstValue = append((*dstValue)[:0], value...)
 			if len(value) == 0 {
 				mn.RemoveTag(dstLabel)
+			}
+		}
+	}
+	return rvs, nil
+}
+
+func transformLabelUppercase(tfa *transformFuncArg) ([]*timeseries, error) {
+	return transformLabelValueFunc(tfa, strings.ToUpper)
+}
+
+func transformLabelLowercase(tfa *transformFuncArg) ([]*timeseries, error) {
+	return transformLabelValueFunc(tfa, strings.ToLower)
+}
+
+func transformLabelValueFunc(tfa *transformFuncArg, f func(string) string) ([]*timeseries, error) {
+	args := tfa.args
+	if len(args) < 2 {
+		return nil, fmt.Errorf(`not enough args; got %d; want at least %d`, len(args), 2)
+	}
+	labels := make([]string, 0, len(args)-1)
+	for i := 1; i < len(args); i++ {
+		label, err := getString(args[i], i)
+		if err != nil {
+			return nil, err
+		}
+		labels = append(labels, label)
+	}
+
+	rvs := args[0]
+	for _, ts := range rvs {
+		mn := &ts.MetricName
+		for _, label := range labels {
+			dstValue := getDstValue(mn, label)
+			*dstValue = append((*dstValue)[:0], f(string(*dstValue))...)
+			if len(*dstValue) == 0 {
+				mn.RemoveTag(label)
 			}
 		}
 	}
