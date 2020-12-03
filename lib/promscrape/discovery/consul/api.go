@@ -3,23 +3,21 @@ package consul
 import (
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/fasthttp"
 )
 
 // apiConfig contains config for API server
+// with consulWatch service.
 type apiConfig struct {
-	client       *discoveryutils.Client
-	tagSeparator string
-	services     []string
-	tags         []string
-	datacenter   string
-	allowStale   bool
-	nodeMeta     map[string]string
+	tagSeparator  string
+	consulWatcher *consulWatch
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -72,15 +70,14 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg := &apiConfig{
-		client: client,
 
-		tagSeparator: tagSeparator,
-		services:     sdc.Services,
-		tags:         sdc.Tags,
-		datacenter:   dc,
-		allowStale:   sdc.AllowStale,
-		nodeMeta:     sdc.NodeMeta,
+	cw, err := newConsulWatch(client, sdc, dc)
+	if err != nil {
+		return nil, fmt.Errorf("cannot start consul watcher: %w", err)
+	}
+	cfg := &apiConfig{
+		tagSeparator:  tagSeparator,
+		consulWatcher: cw,
 	}
 	return cfg, nil
 }
@@ -117,20 +114,49 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 	return a.Config.Datacenter, nil
 }
 
-func getAPIResponse(cfg *apiConfig, path string) ([]byte, error) {
-	separator := "?"
-	if strings.Contains(path, "?") {
-		separator = "&"
+// returns ServiceNodesState and version index.
+func getServiceState(client *discoveryutils.Client, svc, baseArgs string, index uint64) ([]ServiceNode, uint64, error) {
+	path := fmt.Sprintf("/v1/health/service/%s%s", svc, baseArgs)
+
+	data, newIndex, err := getBlockingAPIResponse(client, path, index)
+	if err != nil {
+		return nil, index, err
 	}
-	path += fmt.Sprintf("%sdc=%s", separator, url.QueryEscape(cfg.datacenter))
-	if cfg.allowStale {
-		// See https://www.consul.io/api/features/consistency
-		path += "&stale"
+	sns, err := parseServiceNodes(data)
+	if err != nil {
+		return nil, index, err
 	}
-	if len(cfg.nodeMeta) > 0 {
-		for k, v := range cfg.nodeMeta {
-			path += fmt.Sprintf("&node-meta=%s", url.QueryEscape(k+":"+v))
+	return sns, newIndex, nil
+}
+
+// returns consul api response with new index version of object.
+// https://www.consul.io/api-docs/features/blocking
+func getBlockingAPIResponse(client *discoveryutils.Client, path string, index uint64) ([]byte, uint64, error) {
+	path += "&index=" + strconv.FormatUint(index, 10)
+	path = path + fmt.Sprintf("&wait=%s", watchTime)
+	getMeta := func(resp *fasthttp.Response) {
+		if ind := resp.Header.Peek("X-Consul-Index"); len(ind) > 0 {
+			newIndex, err := strconv.ParseUint(string(ind), 10, 64)
+			if err != nil {
+				logger.Errorf("failed to parse consul index: %v", err)
+				return
+			}
+			// reset index
+			// https://www.consul.io/api-docs/features/blocking#implementation-details
+			if newIndex < 1 {
+				index = 1
+				return
+			}
+			if index > newIndex {
+				index = 0
+				return
+			}
+			index = newIndex
 		}
 	}
-	return cfg.client.GetAPIResponse(path)
+	data, err := client.GetBlockingAPIResponse(path, getMeta)
+	if err != nil {
+		return nil, index, fmt.Errorf("failed query consul api path=%q, err=%w", path, err)
+	}
+	return data, index, nil
 }

@@ -33,10 +33,12 @@ func GetHTTPClient() *http.Client {
 
 // Client is http client, which talks to the given apiServer.
 type Client struct {
-	hc        *fasthttp.HostClient
-	ac        *promauth.Config
-	apiServer string
-	hostPort  string
+	hc *fasthttp.HostClient
+	// blockingClient is used for performing long-polling requests.
+	blockingClient *fasthttp.HostClient
+	ac             *promauth.Config
+	apiServer      string
+	hostPort       string
 }
 
 // NewClient returns new Client for the given apiServer and the given ac.
@@ -80,11 +82,24 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		MaxConns:            2 * *maxConcurrency,
 		Dial:                dialFunc,
 	}
+	wc := &fasthttp.HostClient{
+		Addr:                hostPort,
+		Name:                "vm_promscrape/discovery",
+		DialDualStack:       netutil.TCP6Enabled(),
+		IsTLS:               isTLS,
+		TLSConfig:           tlsCfg,
+		ReadTimeout:         time.Minute * 3,
+		WriteTimeout:        10 * time.Second,
+		MaxResponseBodySize: 300 * 1024 * 1024,
+		MaxConns:            20 * *maxConcurrency,
+		Dial:                dialFunc,
+	}
 	return &Client{
-		hc:        hc,
-		ac:        ac,
-		apiServer: apiServer,
-		hostPort:  hostPort,
+		hc:             hc,
+		blockingClient: wc,
+		ac:             ac,
+		apiServer:      apiServer,
+		hostPort:       hostPort,
 	}, nil
 }
 
@@ -95,6 +110,12 @@ var (
 
 func concurrencyLimitChInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrency)
+}
+
+// APIRequestParams modifies api request with given params.
+type APIRequestParams struct {
+	FetchFromResponse func(resp *fasthttp.Response)
+	SetToRequest      func(req *fasthttp.Request)
 }
 
 // GetAPIResponse returns response for the given absolute path.
@@ -111,7 +132,17 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 			c.apiServer, *maxWaitTime, *maxConcurrency)
 	}
 	defer func() { <-concurrencyLimitCh }()
+	return c.getAPIResponseWithParamsAndClient(c.hc, path, nil)
+}
 
+// GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
+// inspectResponse - should never reference data from response.
+func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
+	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, inspectResponse)
+}
+
+// getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for response.
+func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, path string, inspectResponse func(resp *fasthttp.Response)) ([]byte, error) {
 	requestURL := c.apiServer + path
 	var u fasthttp.URI
 	u.Update(requestURL)
@@ -122,9 +153,10 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 	if c.ac != nil && c.ac.Authorization != "" {
 		req.Header.Set("Authorization", c.ac.Authorization)
 	}
+
 	var resp fasthttp.Response
-	deadline := time.Now().Add(c.hc.ReadTimeout)
-	if err := doRequestWithPossibleRetry(c.hc, &req, &resp, deadline); err != nil {
+	deadline := time.Now().Add(client.ReadTimeout)
+	if err := doRequestWithPossibleRetry(client, &req, &resp, deadline); err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
 	var data []byte
@@ -136,6 +168,9 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 		data = dst
 	} else {
 		data = append(data[:0], resp.Body()...)
+	}
+	if inspectResponse != nil {
+		inspectResponse(&resp)
 	}
 	statusCode := resp.StatusCode()
 	if statusCode != fasthttp.StatusOK {
