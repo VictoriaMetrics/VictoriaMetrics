@@ -62,6 +62,7 @@ var (
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -257,3 +258,12 @@ var (
 		return float64(atomic.LoadUint64(&storage.TooLongLabelValues))
 	})
 )
+
+func usage() {
+	const s = `
+vminsert accepts data via popular data ingestion protocols and routes it to vmstorage nodes configured via -storageNode.
+
+See the docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html .
+`
+	flagutil.Usage(s)
+}

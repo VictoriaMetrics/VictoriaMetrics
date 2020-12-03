@@ -45,6 +45,7 @@ var (
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -624,4 +625,13 @@ func jsonResponseError(w http.ResponseWriter, err error) {
 	logger.Errorf("%s", err)
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(w, `{"status":"error","msg":%q}`, err)
+}
+
+func usage() {
+	const s = `
+vmstorage stores time series data obtained from vminsert and returns the requested data to vmselect.
+
+See the docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html .
+`
+	flagutil.Usage(s)
 }

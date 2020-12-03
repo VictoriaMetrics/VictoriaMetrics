@@ -60,6 +60,7 @@ func getDefaultMaxConcurrentRequests() int {
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -547,3 +548,12 @@ var (
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
 	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
 )
+
+func usage() {
+	const s = `
+vmselect processes incoming queries by fetching the requested data from vmstorage nodes configured via -storageNode.
+
+See the docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html .
+`
+	flagutil.Usage(s)
+}

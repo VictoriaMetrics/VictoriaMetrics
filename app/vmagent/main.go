@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
@@ -275,8 +276,5 @@ vmagent collects metrics data via popular data ingestion protocols and routes it
 
 See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md .
 `
-
-	f := flag.CommandLine.Output()
-	fmt.Fprintf(f, "%s\n", s)
-	flag.PrintDefaults()
+	flagutil.Usage(s)
 }
