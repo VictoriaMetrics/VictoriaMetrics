@@ -136,13 +136,14 @@ func (cw *consulWatcher) watchForServicesUpdates() {
 		if time.Since(lastAccessTime) > 3*checkInterval {
 			// The given cw is no longer used. Stop all service watchers and exit.
 			logger.Infof("starting to stop Consul service watchers for %q", clientAddr)
+			startTime := time.Now()
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
 				close(sw.stopCh)
 			}
 			cw.servicesLock.Unlock()
 			cw.wg.Wait()
-			logger.Infof("stopped Consul service watcher for %q", clientAddr)
+			logger.Infof("stopped Consul service watcher for %q in %.3f seconds", clientAddr, time.Since(startTime).Seconds())
 			return
 		}
 
