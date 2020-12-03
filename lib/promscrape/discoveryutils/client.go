@@ -33,12 +33,15 @@ func GetHTTPClient() *http.Client {
 
 // Client is http client, which talks to the given apiServer.
 type Client struct {
+	// hc is used for short requests.
 	hc *fasthttp.HostClient
-	// blockingClient is used for performing long-polling requests.
+
+	// blockingClient is used for long-polling requests.
 	blockingClient *fasthttp.HostClient
-	ac             *promauth.Config
-	apiServer      string
-	hostPort       string
+
+	ac        *promauth.Config
+	apiServer string
+	hostPort  string
 }
 
 // NewClient returns new Client for the given apiServer and the given ac.
@@ -82,7 +85,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		MaxConns:            2 * *maxConcurrency,
 		Dial:                dialFunc,
 	}
-	wc := &fasthttp.HostClient{
+	blockingClient := &fasthttp.HostClient{
 		Addr:                hostPort,
 		Name:                "vm_promscrape/discovery",
 		DialDualStack:       netutil.TCP6Enabled(),
@@ -96,7 +99,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 	}
 	return &Client{
 		hc:             hc,
-		blockingClient: wc,
+		blockingClient: blockingClient,
 		ac:             ac,
 		apiServer:      apiServer,
 		hostPort:       hostPort,
@@ -112,10 +115,9 @@ func concurrencyLimitChInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrency)
 }
 
-// APIRequestParams modifies api request with given params.
-type APIRequestParams struct {
-	FetchFromResponse func(resp *fasthttp.Response)
-	SetToRequest      func(req *fasthttp.Request)
+// Addr returns the address the client connects to.
+func (c *Client) Addr() string {
+	return c.hc.Addr
 }
 
 // GetAPIResponse returns response for the given absolute path.
