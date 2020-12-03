@@ -18,7 +18,7 @@ type serviceWatch struct {
 }
 
 // watcher for consul api, updates targets in background with long-polling.
-type consulWatcher struct {
+type consulWatch struct {
 	baseQueryArgs       string
 	client              *discoveryutils.Client
 	lastAccessTime      atomic.Value
@@ -32,7 +32,7 @@ type consulWatcher struct {
 }
 
 // init new watcher and start background service discovery for Consul.
-func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter string) (*consulWatcher, error) {
+func newConsulWatch(client *discoveryutils.Client, sdc *SDConfig, datacenter string) (*consulWatch, error) {
 	baseQueryArgs := fmt.Sprintf("?sdc=%s", url.QueryEscape(datacenter))
 	var nodeMeta string
 	if len(sdc.NodeMeta) > 0 {
@@ -43,7 +43,7 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter s
 	if sdc.AllowStale {
 		baseQueryArgs += "&stale"
 	}
-	cw := consulWatcher{
+	cw := consulWatch{
 		client:              client,
 		baseQueryArgs:       baseQueryArgs,
 		shouldWatchServices: sdc.Services,
@@ -74,7 +74,7 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter s
 }
 
 // stops all service watchers.
-func (cw *consulWatcher) stopServiceWatchersAll() {
+func (cw *consulWatch) stopServiceWatchersAll() {
 	cw.servicesLock.Lock()
 	for _, sw := range cw.services {
 		close(sw.stopCh)
@@ -83,7 +83,7 @@ func (cw *consulWatcher) stopServiceWatchersAll() {
 }
 
 // getServiceNames returns serviceNames and index version.
-func (cw *consulWatcher) getServiceNames(index uint64) (map[string]struct{}, uint64, error) {
+func (cw *consulWatch) getServiceNames(index uint64) (map[string]struct{}, uint64, error) {
 	sns := make(map[string]struct{})
 	path := fmt.Sprintf("/v1/catalog/services%s", cw.baseQueryArgs)
 	if len(cw.nodeMeta) > 0 {
@@ -110,7 +110,7 @@ func (cw *consulWatcher) getServiceNames(index uint64) (map[string]struct{}, uin
 }
 
 // listen for new services and update it.
-func (cw *consulWatcher) watchForServices() {
+func (cw *consulWatch) watchForServices() {
 	ticker := time.NewTicker(*SDCheckInterval)
 	defer ticker.Stop()
 	var index uint64
@@ -158,7 +158,7 @@ func (cw *consulWatcher) watchForServices() {
 }
 
 // start watching for consul service changes.
-func (cw *consulWatcher) watchForServiceUpdates(svc string, stopCh chan struct{}) {
+func (cw *consulWatch) watchForServiceUpdates(svc string, stopCh chan struct{}) {
 	ticker := time.NewTicker(*SDCheckInterval)
 	defer ticker.Stop()
 	updateServiceState := func(index uint64) uint64 {
@@ -171,9 +171,10 @@ func (cw *consulWatcher) watchForServiceUpdates(svc string, stopCh chan struct{}
 			return index
 		}
 		cw.servicesLock.Lock()
-		s := cw.services[svc]
-		s.serviceNodes = sns
-		cw.services[svc] = s
+		if s, ok := cw.services[svc]; ok {
+			s.serviceNodes = sns
+			cw.services[svc] = s
+		}
 		cw.servicesLock.Unlock()
 		return newIndex
 	}
@@ -191,7 +192,7 @@ func (cw *consulWatcher) watchForServiceUpdates(svc string, stopCh chan struct{}
 }
 
 // returns ServiceNodes.
-func (cw *consulWatcher) getServiceNodes() []ServiceNode {
+func (cw *consulWatch) getServiceNodes() []ServiceNode {
 	var sns []ServiceNode
 	cw.servicesLock.Lock()
 	for _, v := range cw.services {

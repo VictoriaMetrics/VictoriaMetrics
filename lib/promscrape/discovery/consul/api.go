@@ -14,10 +14,10 @@ import (
 )
 
 // apiConfig contains config for API server
-// with consulWatcher service.
+// with consulWatch service.
 type apiConfig struct {
 	tagSeparator  string
-	consulWatcher *consulWatcher
+	consulWatcher *consulWatch
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -71,7 +71,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, err
 	}
 
-	cw, err := newConsulWatcher(client, sdc, dc)
+	cw, err := newConsulWatch(client, sdc, dc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot start consul watcher: %w", err)
 	}
