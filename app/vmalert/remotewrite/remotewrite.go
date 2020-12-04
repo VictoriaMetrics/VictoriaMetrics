@@ -239,10 +239,11 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 func (c *Client) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
 	addr := c.addr + writePath
-	if c.tenancy {
-		addr = fmt.Sprintf(addr, c.defaultAuthToken.String())
-	}
-	req, err := http.NewRequest("POST", c.addr, r)
+	// comment for passing the code lint, will add logic for tenancy format later
+	//if c.tenancy {
+	//	addr = fmt.Sprintf(addr, c.defaultAuthToken.String())
+	//}
+	req, err := http.NewRequest("POST", addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}

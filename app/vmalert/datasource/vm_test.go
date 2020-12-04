@@ -61,26 +61,26 @@ func TestVMSelectQuery(t *testing.T) {
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, srv.Client())
-	if _, err := am.Query(ctx, query); err == nil {
+	am, _ := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, false, time.Minute, srv.Client())
+	if _, err := am.Query(ctx, nil, query); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, nil, query); err == nil {
 		t.Fatalf("expected invalid response status error got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, nil, query); err == nil {
 		t.Fatalf("expected response body error got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, nil, query); err == nil {
 		t.Fatalf("expected error status got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, nil, query); err == nil {
 		t.Fatalf("expected unkown status got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, nil, query); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
 	}
-	m, err := am.Query(ctx, query)
+	m, err := am.Query(ctx, nil, query)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"reflect"
 	"sort"
 	"sync"
@@ -38,7 +39,7 @@ func (fq *fakeQuerier) add(metrics ...datasource.Metric) {
 	fq.Unlock()
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ *auth.Token, _ string) ([]datasource.Metric, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {
