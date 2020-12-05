@@ -82,13 +82,13 @@ func TestParseStream(t *testing.T) {
 	f("foo 123 456", []Row{{
 		Metric:    "foo",
 		Value:     123,
-		Timestamp: 456,
+		Timestamp: 456000,
 	}})
 	f(`foo{bar="baz"} 1 2`+"\n"+`aaa{} 3 4`, []Row{
 		{
 			Metric:    "aaa",
 			Value:     3,
-			Timestamp: 4,
+			Timestamp: 4000,
 		},
 		{
 			Metric: "foo",
@@ -97,7 +97,7 @@ func TestParseStream(t *testing.T) {
 				Value: "baz",
 			}},
 			Value:     1,
-			Timestamp: 2,
+			Timestamp: 2000,
 		},
 	})
 	f("foo 23", []Row{{

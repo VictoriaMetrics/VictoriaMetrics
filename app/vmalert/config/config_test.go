@@ -323,34 +323,55 @@ func TestHashRule(t *testing.T) {
 }
 
 func TestGroupChecksum(t *testing.T) {
-	data := `
+	f := func(t *testing.T, data, newData string) {
+		t.Helper()
+		var g Group
+		if err := yaml.Unmarshal([]byte(data), &g); err != nil {
+			t.Fatalf("failed to unmarshal: %s", err)
+		}
+		if g.Checksum == "" {
+			t.Fatalf("expected to get non-empty checksum")
+		}
+
+		var ng Group
+		if err := yaml.Unmarshal([]byte(newData), &ng); err != nil {
+			t.Fatalf("failed to unmarshal: %s", err)
+		}
+		if g.Checksum == ng.Checksum {
+			t.Fatalf("expected to get different checksums")
+		}
+	}
+	t.Run("Ok", func(t *testing.T) {
+		f(t, `
 name: TestGroup
 rules:
   - alert: ExampleAlertAlwaysFiring
     expr: sum by(job) (up == 1)
   - record: handler:requests:rate5m
     expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
-`
-	var g Group
-	if err := yaml.Unmarshal([]byte(data), &g); err != nil {
-		t.Fatalf("failed to unmarshal: %s", err)
-	}
-	if g.Checksum == "" {
-		t.Fatalf("expected to get non-empty checksum")
-	}
-	newData := `
+`, `
 name: TestGroup
 rules:
   - record: handler:requests:rate5m
     expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
   - alert: ExampleAlertAlwaysFiring
     expr: sum by(job) (up == 1)
-`
-	var ng Group
-	if err := yaml.Unmarshal([]byte(newData), &g); err != nil {
-		t.Fatalf("failed to unmarshal: %s", err)
-	}
-	if g.Checksum == ng.Checksum {
-		t.Fatalf("expected to get different checksums")
-	}
+`)
+	})
+
+	t.Run("Ok, `for` must change cs", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+rules:
+  - alert: ExampleAlertWithFor
+    expr: sum by(job) (up == 1)
+    for: 5m
+`, `
+name: TestGroup
+rules:
+  - alert: ExampleAlertWithFor
+    expr: sum by(job) (up == 1)
+`)
+	})
+
 }

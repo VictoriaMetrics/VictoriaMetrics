@@ -62,10 +62,7 @@ vmrestore restores VictoriaMetrics data from backups made by vmbackup.
 
 See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md .
 `
-
-	f := flag.CommandLine.Output()
-	fmt.Fprintf(f, "%s\n", s)
-	flag.PrintDefaults()
+	flagutil.Usage(s)
 }
 
 func newDstFS() (*fslocal.FS, error) {

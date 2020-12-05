@@ -149,16 +149,32 @@ func adjustCmpOps(e metricsql.Expr) metricsql.Expr {
 		if !metricsql.IsBinaryOpCmp(be.Op) {
 			return
 		}
-		if _, ok := be.Left.(*metricsql.NumberExpr); !ok {
+		if isNumberExpr(be.Right) || !isScalarExpr(be.Left) {
 			return
 		}
 		// Convert 'num cmpOp query' expression to `query reverseCmpOp num` expression
-		// like Prometheus does. For isntance, `0.5 < foo` must be converted to `foo > 0.5`
+		// like Prometheus does. For instance, `0.5 < foo` must be converted to `foo > 0.5`
 		// in order to return valid values for `foo` that are bigger than 0.5.
 		be.Right, be.Left = be.Left, be.Right
 		be.Op = getReverseCmpOp(be.Op)
 	})
 	return e
+}
+
+func isNumberExpr(e metricsql.Expr) bool {
+	_, ok := e.(*metricsql.NumberExpr)
+	return ok
+}
+
+func isScalarExpr(e metricsql.Expr) bool {
+	if isNumberExpr(e) {
+		return true
+	}
+	if fe, ok := e.(*metricsql.FuncExpr); ok {
+		// time() returns scalar in PromQL - see https://prometheus.io/docs/prometheus/latest/querying/functions/#time
+		return strings.ToLower(fe.Name) == "time"
+	}
+	return false
 }
 
 func getReverseCmpOp(op string) string {

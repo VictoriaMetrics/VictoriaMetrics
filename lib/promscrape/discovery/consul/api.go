@@ -3,23 +3,21 @@ package consul
 import (
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/fasthttp"
 )
 
-// apiConfig contains config for API server
+// apiConfig contains config for API server.
 type apiConfig struct {
-	client       *discoveryutils.Client
-	tagSeparator string
-	services     []string
-	tags         []string
-	datacenter   string
-	allowStale   bool
-	nodeMeta     map[string]string
+	tagSeparator  string
+	consulWatcher *consulWatcher
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -72,15 +70,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg := &apiConfig{
-		client: client,
 
-		tagSeparator: tagSeparator,
-		services:     sdc.Services,
-		tags:         sdc.Tags,
-		datacenter:   dc,
-		allowStale:   sdc.AllowStale,
-		nodeMeta:     sdc.NodeMeta,
+	cw := newConsulWatcher(client, sdc, dc)
+	cfg := &apiConfig{
+		tagSeparator:  tagSeparator,
+		consulWatcher: cw,
 	}
 	return cfg, nil
 }
@@ -117,20 +111,45 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 	return a.Config.Datacenter, nil
 }
 
-func getAPIResponse(cfg *apiConfig, path string) ([]byte, error) {
-	separator := "?"
-	if strings.Contains(path, "?") {
-		separator = "&"
-	}
-	path += fmt.Sprintf("%sdc=%s", separator, url.QueryEscape(cfg.datacenter))
-	if cfg.allowStale {
-		// See https://www.consul.io/api/features/consistency
-		path += "&stale"
-	}
-	if len(cfg.nodeMeta) > 0 {
-		for k, v := range cfg.nodeMeta {
-			path += fmt.Sprintf("&node-meta=%s", url.QueryEscape(k+":"+v))
+// maxWaitTime is duration for consul blocking request, maximum wait time is 10 min.
+// But fasthttp client has readTimeout for 1 min, so we use 50s timeout.
+// also consul adds random delay up to wait/16, so there is no need in jitter.
+// https://www.consul.io/api-docs/features/blocking
+const maxWaitTime = 50 * time.Second
+
+var maxWaitTimeStr = maxWaitTime.String()
+
+// getBlockingAPIResponse perfoms blocking request to Consul via client and returns response.
+//
+// See https://www.consul.io/api-docs/features/blocking .
+func getBlockingAPIResponse(client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
+	path += "&index=" + strconv.FormatInt(index, 10)
+	path += "&wait=" + maxWaitTimeStr
+	getMeta := func(resp *fasthttp.Response) {
+		ind := resp.Header.Peek("X-Consul-Index")
+		if len(ind) == 0 {
+			logger.Errorf("cannot find X-Consul-Index header in response from %q", path)
+			return
 		}
+		newIndex, err := strconv.ParseInt(string(ind), 10, 64)
+		if err != nil {
+			logger.Errorf("cannot parse X-Consul-Index header value in response from %q: %s", path, err)
+			return
+		}
+		// Properly handle the returned newIndex according to https://www.consul.io/api-docs/features/blocking#implementation-details
+		if newIndex < 1 {
+			index = 1
+			return
+		}
+		if index > newIndex {
+			index = 0
+			return
+		}
+		index = newIndex
 	}
-	return cfg.client.GetAPIResponse(path)
+	data, err := client.GetBlockingAPIResponse(path, getMeta)
+	if err != nil {
+		return nil, index, fmt.Errorf("cannot perform blocking Consul API request at %q: %w", path, err)
+	}
+	return data, index, nil
 }

@@ -178,14 +178,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		Rows: []Row{{
 			Metric:    "foobar",
 			Value:     123.456,
-			Timestamp: 789,
+			Timestamp: 789000,
 		}},
 	})
-	f("foobar{} 123.456 789\n", &Rows{
+	f("foobar{} 123.456 789.4354\n", &Rows{
 		Rows: []Row{{
 			Metric:    "foobar",
 			Value:     123.456,
-			Timestamp: 789,
+			Timestamp: 789435,
 		}},
 	})
 	f(`#                                    _                                            _
@@ -225,7 +225,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			{
 				Metric:    "abc",
 				Value:     123,
-				Timestamp: 456,
+				Timestamp: 456000,
 			},
 			{
 				Metric: "foo",
@@ -274,12 +274,22 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 		},
 	})
 
-	// Timestamp bigger than 1<<31
+	// Timestamp bigger than 1<<31.
+	// It should be parsed in milliseconds.
 	f("aaa 1123 429496729600", &Rows{
 		Rows: []Row{{
 			Metric:    "aaa",
 			Value:     1123,
 			Timestamp: 429496729600,
+		}},
+	})
+
+	// Floating-point timestamps in OpenMetric format.
+	f("aaa 1123 42949.567", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: 42949567,
 		}},
 	})
 
@@ -292,7 +302,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 				Value: "baz",
 			}},
 			Value:     1,
-			Timestamp: 2,
+			Timestamp: 2000,
 		}},
 	})
 	f(`foo{bar="b\"a\\z"} -1.2`, &Rows{
@@ -324,7 +334,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 				},
 			},
 			Value:     1,
-			Timestamp: 2,
+			Timestamp: 2000,
 		}},
 	})
 
@@ -338,7 +348,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 				Value: "baz",
 			}},
 			Value:     1,
-			Timestamp: 2,
+			Timestamp: 2000,
 		}},
 	})
 
@@ -348,7 +358,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			{
 				Metric:    "foo",
 				Value:     0.3,
-				Timestamp: 2,
+				Timestamp: 2000,
 			},
 			{
 				Metric: "aaa",
@@ -357,7 +367,7 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			{
 				Metric:    "bar.baz",
 				Value:     0.34,
-				Timestamp: 43,
+				Timestamp: 43000,
 			},
 		},
 	})
@@ -368,12 +378,12 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			{
 				Metric:    "foo",
 				Value:     0.3,
-				Timestamp: 2,
+				Timestamp: 2000,
 			},
 			{
 				Metric:    "bar.baz",
 				Value:     0.34,
-				Timestamp: 43,
+				Timestamp: 43000,
 			},
 		},
 	})

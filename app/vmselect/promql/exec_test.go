@@ -526,6 +526,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`minute(series_with_NaNs)`, func(t *testing.T) {
+		t.Parallel()
+		q := `minute(time() <= 1200 or time() > 1600)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{16, 20, nan, nan, 30, 33},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("rate({})", func(t *testing.T) {
 		t.Parallel()
 		q := `rate({})`
@@ -1077,6 +1088,62 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
+		f(q, resultExpected)
+	})
+	t.Run(`label_uppercase`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_uppercase(
+			label_set(time(), "foo", "bAr", "XXx", "yyy", "zzz", "abc"),
+			"foo", "XXx", "aaa"
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("XXx"),
+				Value: []byte("YYY"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("BAR"),
+			},
+			{
+				Key:   []byte("zzz"),
+				Value: []byte("abc"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`label_lowercase`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_lowercase(
+			label_set(time(), "foo", "bAr", "XXx", "yyy", "zzz", "aBc"),
+			"foo", "XXx", "aaa"
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("XXx"),
+				Value: []byte("yyy"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("zzz"),
+				Value: []byte("aBc"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`label_copy(new_tag)`, func(t *testing.T) {
@@ -1772,10 +1839,32 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`time() > scalar`, func(t *testing.T) {
 		t.Parallel()
-		q := `time() > 123`
+		q := `time() > 1234`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Values:     []float64{nan, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`time() >bool scalar`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() >bool 1234`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`nan >bool scalar1`, func(t *testing.T) {
+		t.Parallel()
+		q := `(time() > 1234) >bool 1450`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 0, 1, 1, 1},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -4046,6 +4135,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`count_eq_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `count_eq_over_time(round(5*rand(0))[200s:10s], 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 4, 5, 2, 6, 6},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`count_ne_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `count_ne_over_time(round(5*rand(0))[200s:10s], 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{18, 16, 15, 18, 14, 14},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`increases_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `increases_over_time(rand(0)[200s:10s])`
@@ -6148,6 +6259,8 @@ func TestExecError(t *testing.T) {
 	f(`share_gt_over_time()`)
 	f(`count_le_over_time()`)
 	f(`count_gt_over_time()`)
+	f(`count_eq_over_time()`)
+	f(`count_ne_over_time()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -6184,6 +6297,8 @@ func TestExecError(t *testing.T) {
 	f(`label_transform(1, "foo", "invalid(regexp", "baz`)
 	f(`label_match(1, 2, 3)`)
 	f(`label_mismatch(1, 2, 3)`)
+	f(`label_uppercase()`)
+	f(`label_lowercase()`)
 	f(`alias(1, 2)`)
 	f(`aggr_over_time(1, 2)`)
 	f(`aggr_over_time(("foo", "bar"), 3)`)

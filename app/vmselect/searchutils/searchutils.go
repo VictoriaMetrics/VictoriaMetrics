@@ -184,5 +184,7 @@ func (d *Deadline) Deadline() uint64 {
 
 // String returns human-readable string representation for d.
 func (d *Deadline) String() string {
-	return fmt.Sprintf("%.3f seconds; the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), d.flagHint)
+	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
+	elapsed := time.Since(startTime)
+	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds); the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), elapsed.Seconds(), d.flagHint)
 }

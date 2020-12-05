@@ -3,131 +3,20 @@ package consul
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getServiceNodesLabels returns labels for Consul service nodes obtained from the given cfg
-func getServiceNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	sns, err := getAllServiceNodes(cfg)
-	if err != nil {
-		return nil, err
-	}
+// getServiceNodesLabels returns labels for Consul service nodes with given cfg.
+func getServiceNodesLabels(cfg *apiConfig) []map[string]string {
+	sns := cfg.consulWatcher.getServiceNodesSnapshot()
 	var ms []map[string]string
 	for _, sn := range sns {
 		ms = sn.appendTargetLabels(ms, cfg.tagSeparator)
 	}
-	return ms, nil
-}
-
-func getAllServiceNodes(cfg *apiConfig) ([]ServiceNode, error) {
-	// Obtain a list of services
-	// See https://www.consul.io/api/catalog.html#list-services
-	data, err := getAPIResponse(cfg, "/v1/catalog/services")
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain services: %w", err)
-	}
-	var m map[string][]string
-	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("cannot parse services response %q: %w", data, err)
-	}
-	serviceNames := make(map[string]bool)
-	for serviceName, tags := range m {
-		if !shouldCollectServiceByName(cfg.services, serviceName) {
-			continue
-		}
-		if !shouldCollectServiceByTags(cfg.tags, tags) {
-			continue
-		}
-		serviceNames[serviceName] = true
-	}
-
-	// Query all the serviceNames in parallel
-	type response struct {
-		sns []ServiceNode
-		err error
-	}
-	responsesCh := make(chan response, len(serviceNames))
-	for serviceName := range serviceNames {
-		go func(serviceName string) {
-			sns, err := getServiceNodes(cfg, serviceName)
-			responsesCh <- response{
-				sns: sns,
-				err: err,
-			}
-		}(serviceName)
-	}
-	var sns []ServiceNode
-	err = nil
-	for i := 0; i < len(serviceNames); i++ {
-		resp := <-responsesCh
-		if resp.err != nil && err == nil {
-			err = resp.err
-		}
-		sns = append(sns, resp.sns...)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return sns, nil
-}
-
-func shouldCollectServiceByName(filterServices []string, service string) bool {
-	if len(filterServices) == 0 {
-		return true
-	}
-	for _, filterService := range filterServices {
-		if filterService == service {
-			return true
-		}
-	}
-	return false
-}
-
-func shouldCollectServiceByTags(filterTags, tags []string) bool {
-	if len(filterTags) == 0 {
-		return true
-	}
-	for _, filterTag := range filterTags {
-		hasTag := false
-		for _, tag := range tags {
-			if tag == filterTag {
-				hasTag = true
-				break
-			}
-		}
-		if !hasTag {
-			return false
-		}
-	}
-	return true
-}
-
-func getServiceNodes(cfg *apiConfig, serviceName string) ([]ServiceNode, error) {
-	// See https://www.consul.io/api/health.html#list-nodes-for-service
-	path := fmt.Sprintf("/v1/health/service/%s", serviceName)
-	// The /v1/health/service/:service endpoint supports background refresh caching,
-	// which guarantees fresh results obtained from local Consul agent.
-	// See https://www.consul.io/api-docs/health#list-nodes-for-service
-	// and https://www.consul.io/api/features/caching for details.
-	// Query cached results in order to reduce load on Consul cluster.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574 .
-	path += "?cached"
-	var tagsArgs []string
-	for _, tag := range cfg.tags {
-		tagsArgs = append(tagsArgs, fmt.Sprintf("tag=%s", url.QueryEscape(tag)))
-	}
-	if len(tagsArgs) > 0 {
-		path += "&" + strings.Join(tagsArgs, "&")
-	}
-	data, err := getAPIResponse(cfg, path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain instances for serviceName=%q: %w", serviceName, err)
-	}
-	return parseServiceNodes(data)
+	return ms
 }
 
 // ServiceNode is Consul service node.

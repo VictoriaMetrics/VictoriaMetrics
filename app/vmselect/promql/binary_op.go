@@ -62,6 +62,9 @@ func newBinaryOpCmpFunc(cf func(left, right float64) bool) binaryOpFunc {
 		if cf(left, right) {
 			return 1
 		}
+		if math.IsNaN(left) {
+			return nan
+		}
 		return 0
 	}
 	return newBinaryOpFunc(cfe)
