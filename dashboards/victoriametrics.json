@@ -1410,7 +1410,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "vm_free_disk_space_bytes{job=\"$job_storage\", instance=~\"$instance\"} / ignoring(path) ((rate(vm_rows_added_to_storage_total{job=\"$job_storage\", instance=~\"$instance\"}[1d]) - ignoring(type) rate(vm_deduplicated_samples_total{job=\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])) * (sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})))",
+          "expr": "vm_free_disk_space_bytes{job=\"$job_storage\", instance=~\"$instance\"} / ignoring(path) ((rate(vm_rows_added_to_storage_total{job=\"$job_storage\", instance=~\"$instance\"}[1d]) - ignoring(type) rate(vm_deduplicated_samples_total{job=\"$job_storage\", instance=~\"$instance\", type=\"merge\"}[1d])) * scalar(sum(vm_data_size_bytes{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=\"$job_storage\", instance=~\"$instance\", type!=\"indexdb\"})))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
