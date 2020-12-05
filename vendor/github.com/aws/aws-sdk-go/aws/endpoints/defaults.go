@@ -2843,6 +2843,18 @@ var awsPartition = partition{
 				"eu-west-1":      endpoint{},
 				"eu-west-2":      endpoint{},
 				"eu-west-3":      endpoint{},
+				"fips-af-south-1": endpoint{
+					Hostname: "fms-fips.af-south-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "af-south-1",
+					},
+				},
+				"fips-ap-east-1": endpoint{
+					Hostname: "fms-fips.ap-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "ap-east-1",
+					},
+				},
 				"fips-ap-northeast-1": endpoint{
 					Hostname: "fms-fips.ap-northeast-1.amazonaws.com",
 					CredentialScope: credentialScope{
@@ -2885,6 +2897,12 @@ var awsPartition = partition{
 						Region: "eu-central-1",
 					},
 				},
+				"fips-eu-south-1": endpoint{
+					Hostname: "fms-fips.eu-south-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "eu-south-1",
+					},
+				},
 				"fips-eu-west-1": endpoint{
 					Hostname: "fms-fips.eu-west-1.amazonaws.com",
 					CredentialScope: credentialScope{
@@ -2901,6 +2919,12 @@ var awsPartition = partition{
 					Hostname: "fms-fips.eu-west-3.amazonaws.com",
 					CredentialScope: credentialScope{
 						Region: "eu-west-3",
+					},
+				},
+				"fips-me-south-1": endpoint{
+					Hostname: "fms-fips.me-south-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "me-south-1",
 					},
 				},
 				"fips-sa-east-1": endpoint{
