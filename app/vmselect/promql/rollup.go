@@ -64,6 +64,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"share_gt_over_time":    newRollupShareGT,
 	"count_le_over_time":    newRollupCountLE,
 	"count_gt_over_time":    newRollupCountGT,
+	"count_eq_over_time":    newRollupCountEQ,
+	"count_ne_over_time":    newRollupCountNE,
 	"histogram_over_time":   newRollupFuncOneArg(rollupHistogram),
 	"rollup":                newRollupFuncOneArg(rollupFake),
 	"rollup_rate":           newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
@@ -895,6 +897,26 @@ func countFilterGT(values []float64, gt float64) int {
 	return n
 }
 
+func countFilterEQ(values []float64, eq float64) int {
+	n := 0
+	for _, v := range values {
+		if v == eq {
+			n++
+		}
+	}
+	return n
+}
+
+func countFilterNE(values []float64, ne float64) int {
+	n := 0
+	for _, v := range values {
+		if v != ne {
+			n++
+		}
+	}
+	return n
+}
+
 func newRollupShareFilter(args []interface{}, countFilter func(values []float64, limit float64) int) (rollupFunc, error) {
 	rf, err := newRollupCountFilter(args, countFilter)
 	if err != nil {
@@ -912,6 +934,14 @@ func newRollupCountLE(args []interface{}) (rollupFunc, error) {
 
 func newRollupCountGT(args []interface{}) (rollupFunc, error) {
 	return newRollupCountFilter(args, countFilterGT)
+}
+
+func newRollupCountEQ(args []interface{}) (rollupFunc, error) {
+	return newRollupCountFilter(args, countFilterEQ)
+}
+
+func newRollupCountNE(args []interface{}) (rollupFunc, error) {
+	return newRollupCountFilter(args, countFilterNE)
 }
 
 func newRollupCountFilter(args []interface{}, countFilter func(values []float64, limit float64) int) (rollupFunc, error) {

@@ -285,6 +285,44 @@ func TestRollupCountGTOverTime(t *testing.T) {
 	f(1000, 0)
 }
 
+func TestRollupCountEQOverTime(t *testing.T) {
+	f := func(eq, vExpected float64) {
+		t.Helper()
+		eqs := []*timeseries{{
+			Values:     []float64{eq},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, eqs}
+		testRollupFunc(t, "count_eq_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 0)
+	f(0, 0)
+	f(34, 4)
+	f(123, 1)
+	f(12, 1)
+}
+
+func TestRollupCountNEOverTime(t *testing.T) {
+	f := func(ne, vExpected float64) {
+		t.Helper()
+		nes := []*timeseries{{
+			Values:     []float64{ne},
+			Timestamps: []int64{123},
+		}}
+		var me metricsql.MetricExpr
+		args := []interface{}{&metricsql.RollupExpr{Expr: &me}, nes}
+		testRollupFunc(t, "count_ne_over_time", args, &me, vExpected)
+	}
+
+	f(-123, 12)
+	f(0, 12)
+	f(34, 8)
+	f(123, 11)
+	f(12, 11)
+}
+
 func TestRollupQuantileOverTime(t *testing.T) {
 	f := func(phi, vExpected float64) {
 		t.Helper()

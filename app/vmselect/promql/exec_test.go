@@ -4135,6 +4135,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`count_eq_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `count_eq_over_time(round(5*rand(0))[200s:10s], 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 4, 5, 2, 6, 6},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`count_ne_over_time`, func(t *testing.T) {
+		t.Parallel()
+		q := `count_ne_over_time(round(5*rand(0))[200s:10s], 1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{18, 16, 15, 18, 14, 14},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`increases_over_time`, func(t *testing.T) {
 		t.Parallel()
 		q := `increases_over_time(rand(0)[200s:10s])`
@@ -6237,6 +6259,8 @@ func TestExecError(t *testing.T) {
 	f(`share_gt_over_time()`)
 	f(`count_le_over_time()`)
 	f(`count_gt_over_time()`)
+	f(`count_eq_over_time()`)
+	f(`count_ne_over_time()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)

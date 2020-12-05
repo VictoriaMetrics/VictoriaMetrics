@@ -5,6 +5,7 @@
 * FEATURE: optimize Consul service discovery speed when discovering big number of services. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574
 * FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
   for uppercasing and lowercasing values for the given labels. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/936
+* FEATURE: add `count_eq_over_time(m[d], N)` and `count_ne_over_time(m[d], N)` for counting the number of samples for `m` over `d` that (equal / not equal) to `N`.
 * FEATURE: do not print usage info for all the command-line flags when incorrect command-line flag is passed. Previously it could be hard reading the error message
   about incorrect command-line flag because of too big usage info for all the flags.
 

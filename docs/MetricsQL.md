@@ -123,6 +123,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   Example: `share_gt_over_time(up[24h], 0)` - returns service availability for the last 24 hours.
 - `count_le_over_time(m[d], le)` - returns the number of raw samples for `m` over `d`, which don't exceed `le`.
 - `count_gt_over_time(m[d], gt)` - returns the number of raw samples for `m` over `d`, which are bigger than `gt`.
+- `count_eq_over_time(m[d], N)` - returns the number of raw samples for `m` over `d` with values equal to `N`.
+- `count_ne_over_time(m[d], N)` - returns the number of raw samples for `m` over `d` with values not equal to `N`.
 - `tmin_over_time(m[d])` - returns timestamp for the minimum value for `m` over `d` time range.
 - `tmax_over_time(m[d])` - returns timestamp for the maximum value for `m` over `d` time range.
 - `aggr_over_time(("aggr_func1", "aggr_func2", ...), m[d])` - simultaneously calculates all the listed `aggr_func*` for `m` over `d` time range.
