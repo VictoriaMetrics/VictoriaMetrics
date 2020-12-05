@@ -94,7 +94,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		ReadTimeout:         time.Minute * 3,
 		WriteTimeout:        10 * time.Second,
 		MaxResponseBodySize: 300 * 1024 * 1024,
-		MaxConns:            20 * *maxConcurrency,
+		MaxConns:            64 * 1024,
 		Dial:                dialFunc,
 	}
 	return &Client{
