@@ -49,6 +49,8 @@ var rollupFuncs = map[string]bool{
 	"share_gt_over_time":    true,
 	"count_le_over_time":    true,
 	"count_gt_over_time":    true,
+	"count_eq_over_time":    true,
+	"count_ne_over_time":    true,
 	"histogram_over_time":   true,
 	"rollup":                true,
 	"rollup_rate":           true,
