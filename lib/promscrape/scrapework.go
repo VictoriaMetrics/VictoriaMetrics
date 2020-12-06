@@ -221,7 +221,9 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 
 func (sw *scrapeWork) logError(s string) {
 	if !*suppressScrapeErrors {
-		logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
+		logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s; "+
+			"scrape errors can be disabled by -promscrape.suppressScrapeErrors command-line flag",
+			sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
 	}
 }
 
