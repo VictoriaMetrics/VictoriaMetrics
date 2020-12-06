@@ -19,6 +19,9 @@ func statStdDial(ctx context.Context, network, addr string) (net.Conn, error) {
 	dialsTotal.Inc()
 	if err != nil {
 		dialErrors.Inc()
+		if !netutil.TCP6Enabled() {
+			err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
+		}
 		return nil, err
 	}
 	conns.Inc()
@@ -54,7 +57,7 @@ func statDial(addr string) (conn net.Conn, err error) {
 	if err != nil {
 		dialErrors.Inc()
 		if !netutil.TCP6Enabled() {
-			err = fmt.Errorf("%w; try -enableTCP6 command-line flag", err)
+			err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
 		}
 		return nil, err
 	}
