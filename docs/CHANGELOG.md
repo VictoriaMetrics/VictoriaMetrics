@@ -2,6 +2,10 @@
 
 # tip
 
+* FEATURE: allow multiple whitespace chars between measurements, fields and timestamp when parsing InfluxDB line protocol.
+  Though [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.8/write_protocols/line_protocol_tutorial/) denies multiple whitespace chars between these entities,
+  some apps improperly put multiple whitespace chars. This workaround allows accepting data from such apps.
+
 
 # [v1.49.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.49.0)
 
