@@ -69,7 +69,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 		return tagsPool, fieldsPool, fmt.Errorf("cannot find Whitespace I in %q", s)
 	}
 	measurementTags := s[:n]
-	s = s[n+1:]
+	s = stripLeadingWhitespace(s[n+1:])
 
 	// Parse measurement and tags
 	var err error
@@ -110,7 +110,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 		return tagsPool, fieldsPool, err
 	}
 	r.Fields = fieldsPool[fieldsStart:]
-	s = s[n+1:]
+	s = stripLeadingWhitespace(s[n+1:])
 
 	// Parse timestamp
 	timestamp, err := fastfloat.ParseInt64(s)
@@ -408,4 +408,11 @@ func isInQuote(s string, noEscapeChars bool) bool {
 		isQuote = !isQuote
 		s = s[n+1:]
 	}
+}
+
+func stripLeadingWhitespace(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	return s
 }
