@@ -586,11 +586,18 @@ func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, filter string, li
 	}
 	// Substitute "__name__" with "name" for Graphite compatibility
 	for i := range labels {
-		if labels[i] == "__name__" {
+		if labels[i] != "__name__" {
+			continue
+		}
+		// Prevent from duplicate `name` tag.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/942
+		if hasString(labels, "name") {
+			labels = append(labels[:i], labels[i+1:]...)
+		} else {
 			labels[i] = "name"
 			sort.Strings(labels)
-			break
 		}
+		break
 	}
 	if len(filter) > 0 {
 		labels, err = applyGraphiteRegexpFilter(filter, labels)
@@ -602,6 +609,15 @@ func GetGraphiteTags(at *auth.Token, denyPartialResponse bool, filter string, li
 		labels = labels[:limit]
 	}
 	return labels, isPartial, nil
+}
+
+func hasString(a []string, s string) bool {
+	for _, x := range a {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 // GetLabels returns labels until the given deadline.
