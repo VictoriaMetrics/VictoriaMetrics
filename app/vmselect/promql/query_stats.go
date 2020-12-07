@@ -216,7 +216,7 @@ func getTopNQueriesByAvgDuration(qst *queryStatsTracker, top int) []queryStats {
 		if lenI == 0 || lenJ == 0 {
 			return false
 		}
-		return int(qst.qs[i].Duration())/lenI > int(qst.qs[j].Duration())/lenJ
+		return qst.qs[i].Duration()/time.Duration(lenI) > qst.qs[j].Duration()/time.Duration(lenJ)
 	})
 }
 
