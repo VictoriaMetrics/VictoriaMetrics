@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// WriteActiveQueries writes active queryStatRecords to w.
+// WriteActiveQueries writes active queries to w.
 //
-// The written active queryStatRecords are sorted in descending order of their exeuction duration.
+// The written active queries are sorted in descending order of their exeuction duration.
 func WriteActiveQueries(w io.Writer) {
 	aqes := activeQueriesV.GetAll()
 	sort.Slice(aqes, func(i, j int) bool {

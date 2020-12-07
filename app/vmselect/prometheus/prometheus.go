@@ -1251,7 +1251,7 @@ func getLatencyOffsetMilliseconds() int64 {
 	return d
 }
 
-// QueryStatsHandler - returns static for queries execution time and count.
+// QueryStatsHandler - returns statistics for queries executions with given aggregate func name.
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/907
 func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, aggregateBy string) error {
 	if err := r.ParseForm(); err != nil {

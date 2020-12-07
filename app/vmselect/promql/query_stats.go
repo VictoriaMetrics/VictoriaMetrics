@@ -9,9 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -21,9 +20,9 @@ var (
 )
 
 var (
-	shrinkQueryStatsCalls = metrics.NewCounter(`vm_query_stats_shrink_calls_total`)
-	globalQueryStatsTrack *queryStatsTracker
-	gQSTOnce              sync.Once
+	shrinkQueryStatsCalls   = metrics.NewCounter(`vm_query_stats_shrink_calls_total`)
+	globalQueryStatsTracker *queryStatsTracker
+	gQSTOnce                sync.Once
 )
 
 // InsertQueryStat - inserts query stats record to global query stats tracker
@@ -32,7 +31,7 @@ func InsertQueryStat(query string, tr int64, execTime time.Time, duration time.D
 	gQSTOnce.Do(func() {
 		initQueryStatsTracker()
 	})
-	globalQueryStatsTrack.insertQueryStat(query, tr, execTime, duration)
+	globalQueryStatsTracker.insertQueryStat(query, tr, execTime, duration)
 }
 
 // WriteQueryStatsResponse - writes query stats to given writer in json format with given aggregate key.
@@ -40,10 +39,10 @@ func WriteQueryStatsResponse(w io.Writer, topN int, aggregateBy string) {
 	gQSTOnce.Do(func() {
 		initQueryStatsTracker()
 	})
-	writeJSONQueryStats(w, globalQueryStatsTrack, topN, aggregateBy)
+	writeJSONQueryStats(w, globalQueryStatsTracker, topN, aggregateBy)
 }
 
-// queryStatsTracker - hold queries statistics
+// queryStatsTracker - hold statistics for all queries,
 // query name and query range is a group key.
 type queryStatsTracker struct {
 	maxQueryLogRecordTime time.Duration
@@ -52,7 +51,7 @@ type queryStatsTracker struct {
 	qs                    []queryStats
 }
 
-// queryStats - represent single query
+// queryStats - represent single query statistic.
 type queryStats struct {
 	query            string
 	queryRange       int64
@@ -60,6 +59,7 @@ type queryStats struct {
 	queryStatRecords []queryStatRecord
 }
 
+// queryStatRecord - one record of query stat.
 type queryStatRecord struct {
 	// end-start
 	duration time.Duration
@@ -84,10 +84,10 @@ func initQueryStatsTracker() {
 	go func() {
 		for {
 			time.Sleep(time.Second * 10)
-			qst.shrinkOldStats()
+			qst.dropOutdatedRecords()
 		}
 	}()
-	globalQueryStatsTrack = &qst
+	globalQueryStatsTracker = &qst
 }
 
 func formatJSONQueryStats(queries []queryStats) string {
@@ -132,7 +132,7 @@ func writeJSONQueryStats(w io.Writer, ql *queryStatsTracker, topN int, aggregate
 // no need to sort
 // its added in chronological order.
 // must be called with mutex.
-func (qs *queryStats) shrinkOldStatsRecords(t int64) {
+func (qs *queryStats) dropOutDatedRecords(t int64) {
 	// fast path
 	// compare time with last elem.
 	if len(qs.queryStatRecords) > 0 && qs.queryStatRecords[len(qs.queryStatRecords)-1].execTime < t {
@@ -162,7 +162,7 @@ func (qs *queryStats) Duration() time.Duration {
 }
 
 // must be called with mutex,
-// shrinks slice by last added query log records with given shrinkSize.
+// shrinks slice by the last added query with given shrinkSize.
 func (qst *queryStatsTracker) shrink(shrinkSize int) {
 	if len(qst.qs) < shrinkSize {
 		return
@@ -173,13 +173,13 @@ func (qst *queryStatsTracker) shrink(shrinkSize int) {
 	qst.qs = qst.qs[shrinkSize:]
 }
 
-// drop old keys.
-func (qst *queryStatsTracker) shrinkOldStats() {
+// drop outdated keys.
+func (qst *queryStatsTracker) dropOutdatedRecords() {
 	qst.queryStatsLocker.Lock()
 	defer qst.queryStatsLocker.Unlock()
 	t := time.Now().Add(-qst.maxQueryLogRecordTime).Unix()
 	for _, v := range qst.qs {
-		v.shrinkOldStatsRecords(t)
+		v.dropOutDatedRecords(t)
 	}
 }
 
