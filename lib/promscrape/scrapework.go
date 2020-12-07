@@ -221,7 +221,9 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 
 func (sw *scrapeWork) logError(s string) {
 	if !*suppressScrapeErrors {
-		logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
+		logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s; "+
+			"scrape errors can be disabled by -promscrape.suppressScrapeErrors command-line flag",
+			sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
 	}
 }
 
@@ -249,7 +251,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 
 	// Common case: read all the data from scrape target to memory (body) and then process it.
 	// This case should work more optimally for than stream parse code above for common case when scrape target exposes
-	// up to a few thouthand metrics.
+	// up to a few thousand metrics.
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	var err error
 	body.B, err = sw.ReadData(body.B[:0])

@@ -57,6 +57,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   - `alias(q, name)` for setting metric name across all the time series `q`.
   - `label_set(q, label1, value1, ... labelN, valueN)` for setting the given values for the given labels on `q`.
   - `label_map(q, label, srcValue1, dstValue1, ... srcValueN, dstValueN)` for mapping `label` values from `src*` to `dst*`.
+  - `label_uppercase(q, label1, ... labelN)` for uppercasing values for the given labels.
+  - `label_lowercase(q, label2, ... labelN)` for lowercasing value for the given labels.
   - `label_del(q, label1, ... labelN)` for deleting the given labels from `q`.
   - `label_keep(q, label1, ... labelN)` for deleting all the labels except the given labels from `q`.
   - `label_copy(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for copying label values from `src_*` to `dst_*`.
@@ -121,6 +123,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
   Example: `share_gt_over_time(up[24h], 0)` - returns service availability for the last 24 hours.
 - `count_le_over_time(m[d], le)` - returns the number of raw samples for `m` over `d`, which don't exceed `le`.
 - `count_gt_over_time(m[d], gt)` - returns the number of raw samples for `m` over `d`, which are bigger than `gt`.
+- `count_eq_over_time(m[d], N)` - returns the number of raw samples for `m` over `d` with values equal to `N`.
+- `count_ne_over_time(m[d], N)` - returns the number of raw samples for `m` over `d` with values not equal to `N`.
 - `tmin_over_time(m[d])` - returns timestamp for the minimum value for `m` over `d` time range.
 - `tmax_over_time(m[d])` - returns timestamp for the maximum value for `m` over `d` time range.
 - `aggr_over_time(("aggr_func1", "aggr_func2", ...), m[d])` - simultaneously calculates all the listed `aggr_func*` for `m` over `d` time range.

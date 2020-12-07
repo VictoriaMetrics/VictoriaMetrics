@@ -110,7 +110,7 @@ func getMetricExprForOptimization(e Expr) *MetricExpr {
 	if IsTransformFunc(fe.Name) {
 		switch strings.ToLower(fe.Name) {
 		case "absent", "histogram_quantile", "label_join", "label_replace", "scalar", "vector",
-			"label_set", "label_map", "label_del", "label_keep", "label_copy",
+			"label_set", "label_map", "label_uppercase", "label_lowercase", "label_del", "label_keep", "label_copy",
 			"label_move", "label_transform", "label_value", "label_match", "label_mismatch",
 			"prometheus_buckets", "buckets_limit", "histogram_share", "union", "":
 			// metric expressions for these functions cannot be optimized.

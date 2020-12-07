@@ -2,6 +2,36 @@
 
 # tip
 
+* FEATURE: allow multiple whitespace chars between measurements, fields and timestamp when parsing InfluxDB line protocol.
+  Though [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.8/write_protocols/line_protocol_tutorial/) denies multiple whitespace chars between these entities,
+  some apps improperly put multiple whitespace chars. This workaround allows accepting data from such apps.
+
+* BUGFIX: prevent from duplicate `name` tag returned from `/tags/autoComplete/tags` handler. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/942
+* BUGFIX: do not enable strict parsing for `-promscrape.config` if `-promscrape.config.dryRun` comand-line flag is set. Strict parsing can be enabled with `-promscrape.config.strictParse` command-line flag. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/944
+
+
+# [v1.49.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.49.0)
+
+* FEATURE: optimize Consul service discovery speed when discovering big number of services. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574
+* FEATURE: add `label_uppercase(q, label1, ... labelN)` and `label_lowercase(q, label1, ... labelN)` function to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
+  for uppercasing and lowercasing values for the given labels. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/936
+* FEATURE: add `count_eq_over_time(m[d], N)` and `count_ne_over_time(m[d], N)` for counting the number of samples for `m` over `d` that (equal / not equal) to `N`.
+* FEATURE: do not print usage info for all the command-line flags when incorrect command-line flag is passed. Previously it could be hard reading the error message
+  about incorrect command-line flag because of too big usage info for all the flags.
+* FEATURE: upgrade Go builder from v1.15.5 to v1.15.6 . This fixes [issues found in Go since v1.15.5](https://github.com/golang/go/issues?q=milestone%3AGo1.15.6+label%3ACherryPickApproved).
+
+* BUGFIX: properly parse timestamps in OpenMetrics format - they are exposed as floating-point number in seconds instead of integer milliseconds
+  unlike in Prometheus exposition format. See [the docs](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md#timestamps).
+* BUGFIX: return `nan` for `a >bool b` query when `a` equals to `nan` like Prometheus does. Previously `0` was returned in this case. This applies to any comparison operation
+  with `bool` modifier. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/operators/#comparison-binary-operators) for details.
+* BUGFIX: properly parse hex numbers in MetricsQL. Previously hex numbers with non-decimal digits such as `0x3b` couldn't be parsed.
+* BUGFIX: handle `time() cmp_op metric` like Prometheus does - i.e. return `metric` value if `cmp_op` comparison is true. Previously `time()` value was returned.
+* BUGFIX: return `nan` for `minute(m)` query when `m` equals to `nan` like Prometheus does. This applies to all the time-related functions such as `day_of_month`, `day_of_week`,
+  `days_in_month`, `hour`, `month` and `year`.
+
+
+# [v1.48.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.48.0)
+
 * FEATURE: added [Snap package for single-node VictoriaMetrics](https://snapcraft.io/victoriametrics). This simplifies installation under Ubuntu to a single command:
   ```bash
   snap install victoriametrics
@@ -9,8 +39,7 @@
 * FEATURE: vmselect: add `-replicationFactor` command-line flag for reducing query duration when replication is enabled and a part of vmstorage nodes
   are temporarily slow and/or temporarily unavailable. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
 * FEATURE: vminsert: export `vm_rpc_vmstorage_is_reachable` metric, which can be used for monitoring reachability of vmstorage nodes from vminsert nodes.
-* FEATURE: vmagent: add Netflix Eureka service discovery (aka [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)).
-See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
+* FEATURE: vmagent: add [Netflix Eureka](https://github.com/Netflix/eureka) service discovery (aka [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config)). See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
 * FEATURE: add `filters` option to `dockerswarm_sd_config` like Prometheus did in v2.23.0 - see https://github.com/prometheus/prometheus/pull/8074
 * FEATURE: expose `__meta_ec2_ipv6_addresses` label for `ec2_sd_config` like Prometheus will do in the next release.
 * FEATURE: add `-loggerWarnsPerSecondLimit` command-line flag for rate limiting of WARN messages in logs. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/905
@@ -19,6 +48,8 @@ See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
 * FEATURE: add remoteAddr to slow query log in order to simplify identifying the client that sends slow queries to VictoriaMetrics.
   Slow query logging is controlled with `-search.logSlowQueryDuration` command-line flag.
 * FEATURE: add `/tags/delSeries` handler from Graphite Tags API. See https://victoriametrics.github.io/#graphite-tags-api-usage
+* FEATURE: log metric name plus all its labels when the metric timestamp is out of the configured retention. This should simplify detecting the source of metrics with unexpected timestamps.
+* FEATURE: add `-dryRun` command-line flag to single-node VictoriaMetrics in order to check config file pointed by `-promscrape.config`.
 
 * BUGFIX: properly parse Prometheus metrics with [exemplars](https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1) such as `foo 123 # {bar="baz"} 1`.
 * BUGFIX: properly parse "infinity" values in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#abnf).
@@ -59,7 +90,7 @@ See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/851
 
 * FEATURE: optimize requests to `/api/v1/labels` and `/api/v1/label/<name>/values` when `start` and `end` args are set.
 * FEATURE: reduce memory usage when query touches big number of time series.
-* FEATURE: vmagent: reduce memory usage when `kubernetes_sd_config` discovers big number of scrape targets (e.g. hundreds of thouthands) and the majority of these targets (99%)
+* FEATURE: vmagent: reduce memory usage when `kubernetes_sd_config` discovers big number of scrape targets (e.g. hundreds of thousands) and the majority of these targets (99%)
   are dropped during relabeling. Previously labels for all the dropped targets were displayed at `/api/v1/targets` page. Now only up to `-promscrape.maxDroppedTargets` such
   targets are displayed. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/878 for details.
 * FEATURE: vmagent: reduce memory usage when scraping big number of targets with big number of temporary labels starting with `__`.

@@ -1476,8 +1476,8 @@ type httpWriter interface {
 }
 
 func writeBodyChunked(w *bufio.Writer, r io.Reader) error {
-	vbuf := copyBufPool.Get()
-	buf := vbuf.([]byte)
+	bufv := copyBufPool.Get().(*copyBuf)
+	buf := bufv.b[:]
 
 	var err error
 	var n int
@@ -1500,7 +1500,7 @@ func writeBodyChunked(w *bufio.Writer, r io.Reader) error {
 		}
 	}
 
-	copyBufPool.Put(vbuf)
+	copyBufPool.Put(bufv)
 	return err
 }
 
@@ -1541,16 +1541,19 @@ func writeBodyFixedSize(w *bufio.Writer, r io.Reader, size int64) error {
 }
 
 func copyZeroAlloc(w io.Writer, r io.Reader) (int64, error) {
-	vbuf := copyBufPool.Get()
-	buf := vbuf.([]byte)
-	n, err := io.CopyBuffer(w, r, buf)
-	copyBufPool.Put(vbuf)
+	buf := copyBufPool.Get().(*copyBuf)
+	n, err := io.CopyBuffer(w, r, buf.b[:])
+	copyBufPool.Put(buf)
 	return n, err
+}
+
+type copyBuf struct {
+	b [4 * 4096]byte
 }
 
 var copyBufPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, 4096)
+		return &copyBuf{}
 	},
 }
 

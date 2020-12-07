@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -100,8 +100,5 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 
 See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md .
 `
-
-	f := flag.CommandLine.Output()
-	fmt.Fprintf(f, "%s\n", s)
-	flag.PrintDefaults()
+	flagutil.Usage(s)
 }

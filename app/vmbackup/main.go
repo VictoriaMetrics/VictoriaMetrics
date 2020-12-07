@@ -103,10 +103,7 @@ or local filesystem. Backed up data can be restored with vmrestore.
 
 See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md .
 `
-
-	f := flag.CommandLine.Output()
-	fmt.Fprintf(f, "%s\n", s)
-	flag.PrintDefaults()
+	flagutil.Usage(s)
 }
 
 func newSrcFS() (*fslocal.FS, error) {
