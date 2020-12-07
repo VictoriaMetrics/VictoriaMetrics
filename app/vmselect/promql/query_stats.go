@@ -15,14 +15,14 @@ import (
 )
 
 var (
-	maxQueryStatsRecordLifeTime    = flag.Duration("search.MaxQueryStatsRecordLifeTime", 5*time.Minute, "Limits maximum lifetime for query stats record. With minimum 10 seconds")
+	maxQueryStatsRecordLifeTime    = flag.Duration("search.MaxQueryStatsRecordLifeTime", 10*time.Minute, "Limits maximum lifetime for query stats record. With minimum 10 seconds")
 	maxQueryStatsTrackerItemsCount = flag.Int("search.MaxQueryStatsItems", 1000, "Limits count for distinct query stat records, keyed by query name and query time range. "+
 		"With Maximum 5000 records. Zero value disables query stats recording")
 )
 
 var (
 	shrinkQueryStatsCalls = metrics.NewCounter(`vm_query_stats_shrink_calls_total`)
-	globalQueryStatsTrack *queryStatsTrack
+	globalQueryStatsTrack *queryStatsTracker
 	gQSTOnce              sync.Once
 )
 
@@ -30,7 +30,7 @@ var (
 // with given query name, query time-range, execution time and its duration.
 func InsertQueryStat(query string, tr int64, execTime time.Time, duration time.Duration) {
 	gQSTOnce.Do(func() {
-		initQL()
+		initQueryStatsTracker()
 	})
 	globalQueryStatsTrack.insertQueryStat(query, tr, execTime, duration)
 }
@@ -38,18 +38,18 @@ func InsertQueryStat(query string, tr int64, execTime time.Time, duration time.D
 // WriteQueryStatsResponse - writes query stats to given writer in json format with given aggregate key.
 func WriteQueryStatsResponse(w io.Writer, topN int, aggregateBy string) {
 	gQSTOnce.Do(func() {
-		initQL()
+		initQueryStatsTracker()
 	})
 	writeJSONQueryStats(w, globalQueryStatsTrack, topN, aggregateBy)
 }
 
-// queryStatsTrack - hold queries statistics
+// queryStatsTracker - hold queries statistics
 // query name and query range is a group key.
-type queryStatsTrack struct {
+type queryStatsTracker struct {
 	maxQueryLogRecordTime time.Duration
 	limit                 int
 	queryStatsLocker      sync.Mutex
-	s                     []queryStats
+	qs                    []queryStats
 }
 
 // queryStats - represent single query
@@ -67,7 +67,7 @@ type queryStatRecord struct {
 	execTime int64
 }
 
-func initQL() {
+func initQueryStatsTracker() {
 	limit := *maxQueryStatsTrackerItemsCount
 	if limit > 5000 {
 		limit = 5000
@@ -77,7 +77,7 @@ func initQL() {
 		qlt = time.Second * 10
 	}
 	logger.Infof("enabled query stats tracking, max records count: %d, max query record lifetime: %s", limit, qlt)
-	qst := queryStatsTrack{
+	qst := queryStatsTracker{
 		limit:                 limit,
 		maxQueryLogRecordTime: qlt,
 	}
@@ -109,7 +109,7 @@ func formatJSONQueryStats(queries []queryStats) string {
 	return s.String()
 }
 
-func writeJSONQueryStats(w io.Writer, ql *queryStatsTrack, topN int, aggregateBy string) {
+func writeJSONQueryStats(w io.Writer, ql *queryStatsTracker, topN int, aggregateBy string) {
 	fmt.Fprint(w, `{"status": "ok",`)
 	fmt.Fprintf(w, `"top_n": "%d",`, topN)
 	fmt.Fprintf(w, `"stats_since": %q,`, time.Now().Add(-*maxQueryStatsRecordLifeTime))
@@ -123,7 +123,7 @@ func writeJSONQueryStats(w io.Writer, ql *queryStatsTrack, topN int, aggregateBy
 		fmt.Fprint(w, formatJSONQueryStats(getTopNQueriesByAvgDuration(ql, topN)))
 	default:
 		logger.Errorf("invalid aggregation key=%q, report bug", aggregateBy)
-		panic("invalid aggregation key")
+		fmt.Fprint(w, `{"error": "invalid aggregateBy value"}`)
 	}
 	fmt.Fprint(w, `]`)
 	fmt.Fprint(w, `}`)
@@ -164,49 +164,44 @@ func (qs *queryStats) Duration() time.Duration {
 
 // must be called with mutex,
 // shrinks slice by last added query log records with given shrinkSize.
-func (qst *queryStatsTrack) shrink(shrinkSize int) {
-	if len(qst.s) < shrinkSize {
+func (qst *queryStatsTracker) shrink(shrinkSize int) {
+	if len(qst.qs) < shrinkSize {
 		return
 	}
-	sort.Slice(qst.s, func(i, j int) bool {
-		return qst.s[i].queryLastSeen < qst.s[j].queryLastSeen
+	sort.Slice(qst.qs, func(i, j int) bool {
+		return qst.qs[i].queryLastSeen < qst.qs[j].queryLastSeen
 	})
-	qst.s = qst.s[shrinkSize:]
+	qst.qs = qst.qs[shrinkSize:]
 }
 
 // drop old keys.
-func (qst *queryStatsTrack) shrinkOldStats() {
+func (qst *queryStatsTracker) shrinkOldStats() {
 	qst.queryStatsLocker.Lock()
 	defer qst.queryStatsLocker.Unlock()
 	t := time.Now().Add(-qst.maxQueryLogRecordTime).Unix()
-	qlCopy := make([]queryStats, 0, len(qst.s))
-	for _, v := range qst.s {
+	for _, v := range qst.qs {
 		v.shrinkOldStatsRecords(t)
-		if len(v.queryStatRecords) == 0 {
-			continue
-		}
-		qlCopy = append(qlCopy, v)
 	}
-	qst.s = qlCopy
 }
 
-func (qst *queryStatsTrack) insertQueryStat(query string, tr int64, execTime time.Time, duration time.Duration) {
+func (qst *queryStatsTracker) insertQueryStat(query string, tr int64, execTime time.Time, duration time.Duration) {
 	qst.queryStatsLocker.Lock()
 	defer qst.queryStatsLocker.Unlock()
-	if len(qst.s) > qst.limit {
+	// shrink old queries.
+	if len(qst.qs) > qst.limit {
 		shrinkQueryStatsCalls.Inc()
 		qst.shrink(1)
 	}
-	for i, v := range qst.s {
-		// add record to exist stats, keyed by query string and time-range.
+	// add record to exist stats, keyed by query string and time-range.
+	for i, v := range qst.qs {
 		if v.query == query && v.queryRange == tr {
 			v.queryLastSeen = execTime.Unix()
 			v.queryStatRecords = append(v.queryStatRecords, queryStatRecord{execTime: execTime.Unix(), duration: duration})
-			qst.s[i] = v
+			qst.qs[i] = v
 			return
 		}
 	}
-	qst.s = append(qst.s, queryStats{
+	qst.qs = append(qst.qs, queryStats{
 		queryStatRecords: []queryStatRecord{{execTime: execTime.Unix(), duration: duration}},
 		queryLastSeen:    execTime.Unix(),
 		query:            query,
@@ -215,38 +210,37 @@ func (qst *queryStatsTrack) insertQueryStat(query string, tr int64, execTime tim
 
 }
 
-// returns
-func getTopNQueriesByAvgDuration(qst *queryStatsTrack, top int) []queryStats {
+func getTopNQueriesByAvgDuration(qst *queryStatsTracker, top int) []queryStats {
 	return getTopNQueryStatsItemsWithFilter(qst, top, func(i, j int) bool {
-		lenI := len(qst.s[i].queryStatRecords)
-		lenJ := len(qst.s[j].queryStatRecords)
+		lenI := len(qst.qs[i].queryStatRecords)
+		lenJ := len(qst.qs[j].queryStatRecords)
 		if lenI == 0 || lenJ == 0 {
 			return false
 		}
-		return int(qst.s[i].Duration())/lenI > int(qst.s[j].Duration())/lenJ
+		return int(qst.qs[i].Duration())/lenI > int(qst.qs[j].Duration())/lenJ
 	})
 }
 
-func getTopNQueriesByRecordCount(qst *queryStatsTrack, top int) []queryStats {
+func getTopNQueriesByRecordCount(qst *queryStatsTracker, top int) []queryStats {
 	return getTopNQueryStatsItemsWithFilter(qst, top, func(i, j int) bool {
-		return len(qst.s[i].queryStatRecords) > len(qst.s[j].queryStatRecords)
+		return len(qst.qs[i].queryStatRecords) > len(qst.qs[j].queryStatRecords)
 	})
 }
 
-func getTopNQueriesByDuration(qst *queryStatsTrack, top int) []queryStats {
+func getTopNQueriesByDuration(qst *queryStatsTracker, top int) []queryStats {
 	return getTopNQueryStatsItemsWithFilter(qst, top, func(i, j int) bool {
-		return qst.s[i].Duration() > qst.s[j].Duration()
+		return qst.qs[i].Duration() > qst.qs[j].Duration()
 	})
 }
 
-func getTopNQueryStatsItemsWithFilter(qst *queryStatsTrack, top int, filterFunc func(i, j int) bool) []queryStats {
+func getTopNQueryStatsItemsWithFilter(qst *queryStatsTracker, top int, filterFunc func(i, j int) bool) []queryStats {
 	qst.queryStatsLocker.Lock()
 	defer qst.queryStatsLocker.Unlock()
-	if top > len(qst.s) {
-		top = len(qst.s)
+	if top > len(qst.qs) {
+		top = len(qst.qs)
 	}
-	sort.Slice(qst.s, filterFunc)
+	sort.Slice(qst.qs, filterFunc)
 	result := make([]queryStats, 0, top)
-	result = append(result, qst.s[:top]...)
+	result = append(result, qst.qs[:top]...)
 	return result
 }

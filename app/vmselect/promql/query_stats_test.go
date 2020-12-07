@@ -9,15 +9,15 @@ import (
 func TestQueryLoggerShrink(t *testing.T) {
 	f := func(addItemCount, limit, expectedLen int) {
 		t.Helper()
-		qst := &queryStatsTrack{
+		qst := &queryStatsTracker{
 			limit:                 limit,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
 		for i := 0; i < addItemCount; i++ {
 			qst.insertQueryStat(fmt.Sprintf("random-n-%d", i), int64(i), time.Now().Add(-time.Second), 500+time.Duration(i))
 		}
-		if len(qst.s) != expectedLen {
-			t.Fatalf("unxpected len got=%d, for queryStats slice, want=%d", len(qst.s), expectedLen)
+		if len(qst.qs) != expectedLen {
+			t.Fatalf("unxpected len got=%d, for queryStats slice, want=%d", len(qst.qs), expectedLen)
 		}
 	}
 	f(10, 5, 6)
@@ -28,7 +28,7 @@ func TestQueryLoggerShrink(t *testing.T) {
 func TestGetTopNQueriesByDuration(t *testing.T) {
 	f := func(topN int, expectedQueryStats []queryStats) {
 		t.Helper()
-		ql := &queryStatsTrack{
+		ql := &queryStatsTracker{
 			limit:                 25,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
@@ -54,7 +54,7 @@ func TestGetTopNQueriesByDuration(t *testing.T) {
 func TestGetTopNQueriesByCount(t *testing.T) {
 	f := func(topN int, expectedQueryStats []queryStats) {
 		t.Helper()
-		ql := &queryStatsTrack{
+		ql := &queryStatsTracker{
 			limit:                 25,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
@@ -81,7 +81,7 @@ func TestGetTopNQueriesByCount(t *testing.T) {
 func TestGetTopNQueriesByAverageDuration(t *testing.T) {
 	f := func(topN int, expectedQueryStats []queryStats) {
 		t.Helper()
-		ql := &queryStatsTrack{
+		ql := &queryStatsTracker{
 			limit:                 25,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
