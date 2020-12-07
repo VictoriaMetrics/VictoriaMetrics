@@ -27,11 +27,12 @@ import (
 )
 
 var (
-	strictParse = flag.Bool("promscrape.config.strictParse", false, "Whether to allow only supported fields in '-promscrape.config'. "+
-		"This option may be used for errors detection in '-promscrape.config' file")
+	strictParse = flag.Bool("promscrape.config.strictParse", false, "Whether to allow only supported fields in -promscrape.config . "+
+		"By default unsupported fields are silently skipped")
 	dryRun = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
-		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output")
+		"See also -promscrape.config.strictParse command-line flag. "+
+		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
 	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
@@ -164,7 +165,7 @@ func (cfg *Config) parse(data []byte, path string) error {
 func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	data = envtemplate.Replace(data)
 	var err error
-	if *strictParse || *dryRun {
+	if *strictParse {
 		err = yaml.UnmarshalStrict(data, dst)
 	} else {
 		err = yaml.Unmarshal(data, dst)
