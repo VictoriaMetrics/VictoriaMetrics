@@ -110,9 +110,8 @@ func formatJSONQueryStats(queries []queryStats) string {
 }
 
 func writeJSONQueryStats(w io.Writer, ql *queryStatsTracker, topN int, aggregateBy string) {
-	fmt.Fprint(w, `{"status": "ok",`)
-	fmt.Fprintf(w, `"top_n": "%d",`, topN)
-	fmt.Fprintf(w, `"stats_since": %q,`, time.Now().Add(-*maxQueryStatsRecordLifeTime))
+	fmt.Fprintf(w, `{"top_n": "%d",`, topN)
+	fmt.Fprintf(w, `"stats_max_duration": %q,`, maxQueryStatsRecordLifeTime.String())
 	fmt.Fprint(w, `"top": [`)
 	switch aggregateBy {
 	case "frequency":
@@ -123,7 +122,7 @@ func writeJSONQueryStats(w io.Writer, ql *queryStatsTracker, topN int, aggregate
 		fmt.Fprint(w, formatJSONQueryStats(getTopNQueriesByAvgDuration(ql, topN)))
 	default:
 		logger.Errorf("invalid aggregation key=%q, report bug", aggregateBy)
-		fmt.Fprint(w, `{"error": "invalid aggregateBy value"}`)
+		fmt.Fprintf(w, `{"error": "invalid aggregateBy value=%s"}`, aggregateBy)
 	}
 	fmt.Fprint(w, `]`)
 	fmt.Fprint(w, `}`)
