@@ -32,8 +32,8 @@ func TestGetTopNQueriesByDuration(t *testing.T) {
 			limit:                 25,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
-		items := []int{11, 4, 5, 10}
-		for i, v := range items {
+		queriesDurations := []int{16, 4, 5, 10}
+		for i, v := range queriesDurations {
 			ql.insertQueryStat(fmt.Sprintf("query-n-%d", i), int64(0), time.Now(), time.Second*time.Duration(v))
 		}
 		got := getTopNQueriesByAvgDuration(ql, topN)
@@ -58,9 +58,11 @@ func TestGetTopNQueriesByCount(t *testing.T) {
 			limit:                 25,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
-		items := []int{1, 4, 5, 11}
-		for i, v := range items {
-			ql.insertQueryStat(fmt.Sprintf("query-n-%d", i), int64(0), time.Now(), time.Second*time.Duration(v))
+		queriesCounts := []int{1, 4, 5, 11}
+		for i, v := range queriesCounts {
+			for ic := 0; ic < v; ic++ {
+				ql.insertQueryStat(fmt.Sprintf("query-n-%d", i), int64(0), time.Now(), time.Second*time.Duration(v))
+			}
 		}
 
 		got := getTopNQueriesByRecordCount(ql, topN)
@@ -74,8 +76,8 @@ func TestGetTopNQueriesByCount(t *testing.T) {
 			}
 		}
 	}
-	f(1, []queryStats{{query: "query-n-0"}})
-	f(2, []queryStats{{query: "query-n-0"}, {query: "query-n-1"}})
+	f(1, []queryStats{{query: "query-n-3"}})
+	f(2, []queryStats{{query: "query-n-3"}, {query: "query-n-2"}})
 }
 
 func TestGetTopNQueriesByAverageDuration(t *testing.T) {
@@ -85,8 +87,8 @@ func TestGetTopNQueriesByAverageDuration(t *testing.T) {
 			limit:                 25,
 			maxQueryLogRecordTime: time.Second * 5,
 		}
-		items := []int{4, 15, 11, 10}
-		for i, v := range items {
+		queriesQurations := []int{4, 25, 14, 10}
+		for i, v := range queriesQurations {
 			ql.insertQueryStat(fmt.Sprintf("query-n-%d", i), int64(0), time.Now(), time.Second*time.Duration(v))
 		}
 
