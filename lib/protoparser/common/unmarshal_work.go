@@ -1,9 +1,9 @@
 package common
 
 import (
-	"runtime"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -25,7 +25,7 @@ func StartUnmarshalWorkers() {
 	if unmarshalWorkCh != nil {
 		logger.Panicf("BUG: it looks like startUnmarshalWorkers() has been alread called without stopUnmarshalWorkers()")
 	}
-	gomaxprocs := runtime.GOMAXPROCS(-1)
+	gomaxprocs := cgroup.AvailableCPUs()
 	unmarshalWorkCh = make(chan UnmarshalWork, 2*gomaxprocs)
 	unmarshalWorkersWG.Add(gomaxprocs)
 	for i := 0; i < gomaxprocs; i++ {

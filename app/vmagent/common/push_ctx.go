@@ -1,9 +1,9 @@
 package common
 
 import (
-	"runtime"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -63,4 +63,4 @@ func PutPushCtx(ctx *PushCtx) {
 }
 
 var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *PushCtx, runtime.GOMAXPROCS(-1))
+var pushCtxPoolCh = make(chan *PushCtx, cgroup.AvailableCPUs())

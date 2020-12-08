@@ -3,10 +3,10 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
-	"runtime"
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -43,7 +43,7 @@ var allRelabelConfigs atomic.Value
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
-var maxQueues = runtime.GOMAXPROCS(-1) * 4
+var maxQueues = cgroup.AvailableCPUs() * 4
 
 // InitSecretFlags must be called after flag.Parse and before any logging.
 func InitSecretFlags() {

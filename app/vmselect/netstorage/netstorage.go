@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"regexp"
-	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -14,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -179,7 +179,7 @@ func (rss *Results) RunParallel(f func(rs *Result, workerID uint) error) error {
 var perQueryRowsProcessed = metrics.NewHistogram(`vm_per_query_rows_processed_count`)
 var perQuerySeriesProcessed = metrics.NewHistogram(`vm_per_query_series_processed_count`)
 
-var gomaxprocs = runtime.GOMAXPROCS(-1)
+var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
 	metricName string
@@ -265,7 +265,7 @@ func unpackWorker() {
 // unpackBatchSize is the maximum number of blocks that may be unpacked at once by a single goroutine.
 //
 // This batch is needed in order to reduce contention for upackWorkCh in multi-CPU system.
-var unpackBatchSize = 8 * runtime.GOMAXPROCS(-1)
+var unpackBatchSize = 8 * cgroup.AvailableCPUs()
 
 // Unpack unpacks pts to dst.
 func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange, fetchData bool) error {
@@ -715,7 +715,7 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
 
 	// Start workers that call f in parallel on available CPU cores.
-	gomaxprocs := runtime.GOMAXPROCS(-1)
+	gomaxprocs := cgroup.AvailableCPUs()
 	workCh := make(chan *exportWork, gomaxprocs*8)
 	var (
 		errGlobal     error

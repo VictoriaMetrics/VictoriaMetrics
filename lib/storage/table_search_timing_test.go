@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 func TestMain(m *testing.M) {
@@ -79,7 +80,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	timestamp := uint64(startTimestamp)
 
 	var wg sync.WaitGroup
-	for k := 0; k < runtime.GOMAXPROCS(-1); k++ {
+	for k := 0; k < cgroup.AvailableCPUs(); k++ {
 		wg.Add(1)
 		go func() {
 			rows := make([]rawRow, rowsPerInsert)

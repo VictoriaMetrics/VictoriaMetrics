@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -959,7 +959,7 @@ func (tb *Table) maxOutPartItemsSlow() uint64 {
 	return freeSpace / uint64(mergeWorkersCount) / 4
 }
 
-var mergeWorkersCount = runtime.GOMAXPROCS(-1)
+var mergeWorkersCount = cgroup.AvailableCPUs()
 
 func openParts(path string) ([]*partWrapper, error) {
 	// The path can be missing after restoring from backup, so create it if needed.

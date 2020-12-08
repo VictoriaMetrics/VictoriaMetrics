@@ -7,7 +7,6 @@ import (
 	"math/bits"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -16,6 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -77,7 +77,7 @@ const finalPartsToMerge = 3
 // The number of shards for rawRow entries per partition.
 //
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
-var rawRowsShardsPerPartition = (runtime.GOMAXPROCS(-1) + 7) / 8
+var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 7) / 8
 
 // getMaxRowsPerPartition returns the maximum number of rows that haven't been converted into parts yet.
 func getMaxRawRowsPerPartition() int {
@@ -882,8 +882,8 @@ func hasActiveMerges(pws []*partWrapper) bool {
 }
 
 var (
-	bigMergeWorkersCount   = (runtime.GOMAXPROCS(-1) + 1) / 2
-	smallMergeWorkersCount = (runtime.GOMAXPROCS(-1) + 1) / 2
+	bigMergeWorkersCount   = (cgroup.AvailableCPUs() + 1) / 2
+	smallMergeWorkersCount = (cgroup.AvailableCPUs() + 1) / 2
 )
 
 // SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.

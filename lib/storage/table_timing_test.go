@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"runtime"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 func BenchmarkTableAddRows(b *testing.B) {
@@ -57,7 +58,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		close(workCh)
 
 		doneCh := make(chan struct{})
-		gomaxprocs := runtime.GOMAXPROCS(-1)
+		gomaxprocs := cgroup.AvailableCPUs()
 
 		for j := 0; j < gomaxprocs; j++ {
 			go func(goroutineID int) {
