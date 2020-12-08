@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -683,6 +684,8 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	if !*dropOriginalLabels {
 		originalLabels = append([]prompbmarshal.Label{}, labels...)
 		promrelabel.SortLabels(originalLabels)
+		// Reduce memory usage by interning all the strings in originalLabels.
+		internLabelStrings(originalLabels)
 	}
 	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
@@ -739,6 +742,8 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 		})
 		promrelabel.SortLabels(labels)
 	}
+	// Reduce memory usage by interning all the strings in labels.
+	internLabelStrings(labels)
 	dst = append(dst, ScrapeWork{
 		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),
 		ScrapeURL:            scrapeURL,
@@ -762,6 +767,35 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 
 // Each ScrapeWork has an ID, which is used for locating it when updating its status.
 var nextScrapeWorkID uint64
+
+func internLabelStrings(labels []prompbmarshal.Label) {
+	for i := range labels {
+		label := &labels[i]
+		label.Name = internString(label.Name)
+		label.Value = internString(label.Value)
+	}
+}
+
+func internString(s string) string {
+	internStringsMapLock.Lock()
+	defer internStringsMapLock.Unlock()
+
+	if sInterned, ok := internStringsMap[s]; ok {
+		return sInterned
+	}
+	// Make a new copy for s in order to remove references from possible bigger string s refers to.
+	sCopy := string(append([]byte{}, s...))
+	internStringsMap[sCopy] = sCopy
+	if len(internStringsMap) > 100e3 {
+		internStringsMap = make(map[string]string, 100e3)
+	}
+	return sCopy
+}
+
+var (
+	internStringsMapLock sync.Mutex
+	internStringsMap     = make(map[string]string, 100e3)
+)
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {
 	// See https://www.robustperception.io/life-of-a-label
