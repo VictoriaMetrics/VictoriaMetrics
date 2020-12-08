@@ -94,7 +94,7 @@ scrape_configs:
 	}
 	sws := cfg.getStaticScrapeWork()
 	resetNonEssentialFields(sws)
-	swsExpected := []ScrapeWork{{
+	swsExpected := []*ScrapeWork{{
 		ScrapeURL:      "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
 		ScrapeInterval: defaultScrapeInterval,
 		ScrapeTimeout:  defaultScrapeTimeout,
@@ -199,7 +199,7 @@ scrape_configs:
 	}
 }
 
-func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
+func getFileSDScrapeWork(data []byte, path string) ([]*ScrapeWork, error) {
 	var cfg Config
 	if err := cfg.parse(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse data: %w", err)
@@ -207,7 +207,7 @@ func getFileSDScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
 	return cfg.getFileSDScrapeWork(nil), nil
 }
 
-func getStaticScrapeWork(data []byte, path string) ([]ScrapeWork, error) {
+func getStaticScrapeWork(data []byte, path string) ([]*ScrapeWork, error) {
 	var cfg Config
 	if err := cfg.parse(data, path); err != nil {
 		return nil, fmt.Errorf("cannot parse data: %w", err)
@@ -440,7 +440,7 @@ scrape_configs:
 `)
 }
 
-func resetNonEssentialFields(sws []ScrapeWork) {
+func resetNonEssentialFields(sws []*ScrapeWork) {
 	for i := range sws {
 		sws[i].ID = 0
 		sws[i].OriginalLabels = nil
@@ -448,7 +448,7 @@ func resetNonEssentialFields(sws []ScrapeWork) {
 }
 
 func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
-	f := func(data string, expectedSws []ScrapeWork) {
+	f := func(data string, expectedSws []*ScrapeWork) {
 		t.Helper()
 		sws, err := getFileSDScrapeWork([]byte(data), "non-existing-file")
 		if err != nil {
@@ -457,8 +457,7 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 		resetNonEssentialFields(sws)
 
 		// Remove `__vm_filepath` label, since its value depends on the current working dir.
-		for i := range sws {
-			sw := &sws[i]
+		for _, sw := range sws {
 			for j := range sw.Labels {
 				label := &sw.Labels[j]
 				if label.Name == "__vm_filepath" {
@@ -475,14 +474,14 @@ scrape_configs:
 - job_name: foo
   static_configs:
   - targets: ["xxx"]
-`, []ScrapeWork{})
+`, []*ScrapeWork{})
 	f(`
 scrape_configs:
 - job_name: foo
   metrics_path: /abc/de
   file_sd_configs:
   - files: ["testdata/file_sd.json", "testdata/file_sd*.yml"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:       "http://host1:80/abc/de",
 			ScrapeInterval:  defaultScrapeInterval,
@@ -604,7 +603,7 @@ scrape_configs:
 }
 
 func TestGetStaticScrapeWorkSuccess(t *testing.T) {
-	f := func(data string, expectedSws []ScrapeWork) {
+	f := func(data string, expectedSws []*ScrapeWork) {
 		t.Helper()
 		sws, err := getStaticScrapeWork([]byte(data), "non-exsiting-file")
 		if err != nil {
@@ -621,7 +620,7 @@ scrape_configs:
 - job_name: foo
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:       "http://foo.bar:1234/metrics",
 			ScrapeInterval:  defaultScrapeInterval,
@@ -663,7 +662,7 @@ scrape_configs:
 - job_name: foo
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:       "http://foo.bar:1234/metrics",
 			ScrapeInterval:  defaultScrapeInterval,
@@ -733,7 +732,7 @@ scrape_configs:
     insecure_skip_verify: true
   static_configs:
   - targets: [1.2.3.4]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:       "https://foo.bar:443/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  543 * time.Second,
@@ -887,7 +886,7 @@ scrape_configs:
     x: [keep_me]
   static_configs:
   - targets: ["foo.bar:1234", "drop-this-target"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metrics?x=keep_me",
 			ScrapeInterval: defaultScrapeInterval,
@@ -957,7 +956,7 @@ scrape_configs:
     replacement: b
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "mailto://foo.bar:1234/abc.de?a=b",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1012,7 +1011,7 @@ scrape_configs:
     regex: ""
   static_configs:
   - targets: ["foo.bar:1234", "xyz"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1051,7 +1050,7 @@ scrape_configs:
     target_label: abc
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1091,7 +1090,7 @@ scrape_configs:
     password_file: testdata/password.txt
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1130,7 +1129,7 @@ scrape_configs:
   bearer_token_file: testdata/password.txt
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1175,7 +1174,7 @@ scrape_configs:
     key_file: testdata/ssl-cert-snakeoil.key
   static_configs:
   - targets: ["foo.bar:1234"]
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metrics",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1227,7 +1226,7 @@ scrape_configs:
       __param_a: c
       __address__: pp
       job: yyy
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://pp:80/metrics?a=c&a=xy",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1290,7 +1289,7 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: 127.0.0.1:9116  # The SNMP exporter's real hostname:port.
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1341,7 +1340,7 @@ scrape_configs:
   relabel_configs:
   - replacement: metricspath
     target_label: __metrics_path__
-`, []ScrapeWork{
+`, []*ScrapeWork{
 		{
 			ScrapeURL:      "http://foo.bar:1234/metricspath",
 			ScrapeInterval: defaultScrapeInterval,
@@ -1376,7 +1375,7 @@ scrape_configs:
 
 var defaultRegexForRelabelConfig = regexp.MustCompile("^(.*)$")
 
-func equalStaticConfigForScrapeWorks(a, b []ScrapeWork) bool {
+func equalStaticConfigForScrapeWorks(a, b []*ScrapeWork) bool {
 	if len(a) != len(b) {
 		return false
 	}
