@@ -250,8 +250,10 @@ type scraperGroup struct {
 	m        map[string]*scraper
 	pushData func(wr *prompbmarshal.WriteRequest)
 
-	changesCount   *metrics.Counter
-	activeScrapers *metrics.Counter
+	changesCount    *metrics.Counter
+	activeScrapers  *metrics.Counter
+	scrapersStarted *metrics.Counter
+	scrapersStopped *metrics.Counter
 }
 
 func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest)) *scraperGroup {
@@ -260,8 +262,10 @@ func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest))
 		m:        make(map[string]*scraper),
 		pushData: pushData,
 
-		changesCount:   metrics.NewCounter(fmt.Sprintf(`vm_promscrape_config_changes_total{type=%q}`, name)),
-		activeScrapers: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_active_scrapers{type=%q}`, name)),
+		changesCount:    metrics.NewCounter(fmt.Sprintf(`vm_promscrape_config_changes_total{type=%q}`, name)),
+		activeScrapers:  metrics.NewCounter(fmt.Sprintf(`vm_promscrape_active_scrapers{type=%q}`, name)),
+		scrapersStarted: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_scrapers_started_total{type=%q}`, name)),
+		scrapersStopped: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_scrapers_stopped_total{type=%q}`, name)),
 	}
 	metrics.NewGauge(fmt.Sprintf(`vm_promscrape_targets{type=%q, status="up"}`, name), func() float64 {
 		return float64(tsmGlobal.StatusByGroup(sg.name, true))
@@ -313,12 +317,14 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 		// Start a scraper for the missing key.
 		sc := newScraper(sw, sg.name, sg.pushData)
 		sg.activeScrapers.Inc()
+		sg.scrapersStarted.Inc()
 		sg.wg.Add(1)
 		go func() {
 			defer sg.wg.Done()
 			sc.sw.run(sc.stopCh)
 			tsmGlobal.Unregister(sw)
 			sg.activeScrapers.Dec()
+			sg.scrapersStopped.Inc()
 		}()
 		tsmGlobal.Register(sw)
 		sg.m[key] = sc
