@@ -160,6 +160,9 @@ func newManager(ctx context.Context) (*manager, error) {
 	manager.rr = rr
 
 	for _, s := range *externalLabels {
+		if len(s) == 0 {
+			continue
+		}
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
 			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
