@@ -46,24 +46,24 @@ func WriteAPIV1Targets(w io.Writer, state string) {
 
 type targetStatusMap struct {
 	mu sync.Mutex
-	m  map[uint64]targetStatus
+	m  map[uint64]*targetStatus
 }
 
 func newTargetStatusMap() *targetStatusMap {
 	return &targetStatusMap{
-		m: make(map[uint64]targetStatus),
+		m: make(map[uint64]*targetStatus),
 	}
 }
 
 func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Lock()
-	tsm.m = make(map[uint64]targetStatus)
+	tsm.m = make(map[uint64]*targetStatus)
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Register(sw *ScrapeWork) {
 	tsm.mu.Lock()
-	tsm.m[sw.ID] = targetStatus{
+	tsm.m[sw.ID] = &targetStatus{
 		sw: *sw,
 	}
 	tsm.mu.Unlock()
@@ -77,7 +77,7 @@ func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 
 func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, err error) {
 	tsm.mu.Lock()
-	tsm.m[sw.ID] = targetStatus{
+	tsm.m[sw.ID] = &targetStatus{
 		sw:             *sw,
 		up:             up,
 		scrapeGroup:    group,
@@ -114,7 +114,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		key := promLabelsString(st.sw.OriginalLabels)
 		kss = append(kss, keyStatus{
 			key: key,
-			st:  st,
+			st:  *st,
 		})
 	}
 	tsm.mu.Unlock()
@@ -167,7 +167,7 @@ func (tsm *targetStatusMap) WriteHumanReadable(w io.Writer, showOriginalLabels b
 	tsm.mu.Lock()
 	for _, st := range tsm.m {
 		job := st.sw.Job()
-		byJob[job] = append(byJob[job], st)
+		byJob[job] = append(byJob[job], *st)
 	}
 	tsm.mu.Unlock()
 
@@ -245,7 +245,6 @@ type droppedTarget struct {
 }
 
 func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
-
 	key := promLabelsString(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
 	dt.mu.Lock()
