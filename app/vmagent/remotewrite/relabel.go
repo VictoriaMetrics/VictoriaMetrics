@@ -65,6 +65,9 @@ type relabelConfigs struct {
 func initLabelsGlobal() {
 	labelsGlobal = nil
 	for _, s := range *unparsedLabelsGlobal {
+		if len(s) == 0 {
+			continue
+		}
 		n := strings.IndexByte(s, '=')
 		if n < 0 {
 			logger.Fatalf("missing '=' in `-remoteWrite.label`. It must contain label in the form `name=value`; got %q", s)
