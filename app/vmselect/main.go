@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -44,7 +43,7 @@ var (
 )
 
 func getDefaultMaxConcurrentRequests() int {
-	n := runtime.GOMAXPROCS(-1)
+	n := cgroup.AvailableCPUs()
 	if n <= 4 {
 		n *= 2
 	}
@@ -64,7 +63,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	logger.Infof("starting netstorage at storageNodes %s", *storageNodes)
 	startTime := time.Now()

@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -59,7 +58,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	if *dryRun {
 		u, _ := url.Parse("https://victoriametrics.com/")

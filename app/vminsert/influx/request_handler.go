@@ -4,13 +4,13 @@ import (
 	"flag"
 	"io"
 	"net/http"
-	"runtime"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -197,4 +197,4 @@ func putPushCtx(ctx *pushCtx) {
 }
 
 var pushCtxPool sync.Pool
-var pushCtxPoolCh = make(chan *pushCtx, runtime.GOMAXPROCS(-1))
+var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())

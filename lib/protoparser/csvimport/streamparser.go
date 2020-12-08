@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -142,7 +142,7 @@ func putStreamContext(ctx *streamContext) {
 }
 
 var streamContextPool sync.Pool
-var streamContextPoolCh = make(chan *streamContext, runtime.GOMAXPROCS(-1))
+var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
 	rows     Rows

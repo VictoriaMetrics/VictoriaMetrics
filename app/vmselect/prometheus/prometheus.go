@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -153,7 +153,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 
-	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
+	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error)
 	go func() {
 		err := netstorage.ExportBlocks(at, sq, deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
@@ -381,7 +381,7 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 
-	resultsCh := make(chan *quicktemplate.ByteBuffer, runtime.GOMAXPROCS(-1))
+	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error)
 	if !reduceMemUsage {
 		denyPartialResponse := searchutils.GetDenyPartialResponse(r)

@@ -6,17 +6,21 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"sync"
 )
 
-// UpdateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cgroup CPU quota if GOMAXPROCS isn't set in environment var.
-//
-// This function must be called after logger.Init().
-func UpdateGOMAXPROCSToCPUQuota() {
+// AvailableCPUs returns the number of available CPU cores for the app.
+func AvailableCPUs() int {
+	availableCPUsOnce.Do(updateGOMAXPROCSToCPUQuota)
+	return runtime.GOMAXPROCS(-1)
+}
+
+var availableCPUsOnce sync.Once
+
+// updateGOMAXPROCSToCPUQuota updates GOMAXPROCS to cgroup CPU quota if GOMAXPROCS isn't set in environment var.
+func updateGOMAXPROCSToCPUQuota() {
 	if v := os.Getenv("GOMAXPROCS"); v != "" {
 		// Do not override explicitly set GOMAXPROCS.
-		logger.Infof("using GOMAXPROCS=%q set via environment variable", v)
 		return
 	}
 	q := getCPUQuota()
@@ -28,13 +32,11 @@ func UpdateGOMAXPROCSToCPUQuota() {
 	numCPU := runtime.NumCPU()
 	if gomaxprocs > numCPU {
 		// There is no sense in setting more GOMAXPROCS than the number of available CPU cores.
-		logger.Infof("cgroup CPU quota=%d exceeds NumCPU=%d; using GOMAXPROCS=NumCPU", gomaxprocs, numCPU)
 		return
 	}
 	if gomaxprocs <= 0 {
 		gomaxprocs = 1
 	}
-	logger.Infof("updating GOMAXPROCS to %d according to cgroup CPU quota", gomaxprocs)
 	runtime.GOMAXPROCS(gomaxprocs)
 }
 

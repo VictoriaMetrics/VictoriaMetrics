@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -33,7 +32,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	srcFS, err := newSrcFS()
 	if err != nil {

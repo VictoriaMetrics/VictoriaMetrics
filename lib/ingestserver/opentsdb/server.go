@@ -5,12 +5,12 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -133,7 +133,7 @@ func serveTelnet(ln net.Listener, insertHandler func(r io.Reader) error) {
 }
 
 func serveUDP(ln net.PacketConn, insertHandler func(r io.Reader) error) {
-	gomaxprocs := runtime.GOMAXPROCS(-1)
+	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	for i := 0; i < gomaxprocs; i++ {
 		wg.Add(1)

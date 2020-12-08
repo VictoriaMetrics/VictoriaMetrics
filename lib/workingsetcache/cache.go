@@ -1,11 +1,11 @@
 package workingsetcache
 
 import (
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/fastcache"
 )
 
@@ -198,7 +198,7 @@ func (c *Cache) cacheSizeWatcher(maxBytes int) {
 // Save safes the cache to filePath.
 func (c *Cache) Save(filePath string) error {
 	curr := c.curr.Load().(*fastcache.Cache)
-	concurrency := runtime.GOMAXPROCS(-1)
+	concurrency := cgroup.AvailableCPUs()
 	return curr.SaveToFileConcurrent(filePath, concurrency)
 }
 

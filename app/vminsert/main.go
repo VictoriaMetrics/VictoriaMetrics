@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -66,7 +65,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	cgroup.UpdateGOMAXPROCSToCPUQuota()
 
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()

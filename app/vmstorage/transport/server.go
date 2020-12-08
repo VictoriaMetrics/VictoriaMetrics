@@ -7,12 +7,12 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -352,7 +352,7 @@ func getUnmarshalWork() *unmarshalWork {
 //
 // This function must be called before servers are created via NewServer.
 func StartUnmarshalWorkers() {
-	gomaxprocs := runtime.GOMAXPROCS(-1)
+	gomaxprocs := cgroup.AvailableCPUs()
 	unmarshalWorkCh = make(chan *unmarshalWork, gomaxprocs)
 	unmarshalWorkersWG.Add(gomaxprocs)
 	for i := 0; i < gomaxprocs; i++ {
