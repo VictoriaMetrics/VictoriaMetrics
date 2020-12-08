@@ -178,9 +178,18 @@ func (qst *queryStatsTracker) dropOutdatedRecords() {
 	qst.queryStatsLocker.Lock()
 	defer qst.queryStatsLocker.Unlock()
 	t := time.Now().Add(-qst.maxQueryLogRecordTime).Unix()
+	var i int
 	for _, v := range qst.qs {
 		v.dropOutDatedRecords(t)
+		if len(v.queryStatRecords) > 0 {
+			qst.qs[i] = v
+			i++
+		}
 	}
+	if i == len(qst.qs) {
+		return
+	}
+	qst.qs = qst.qs[:i]
 }
 
 func (qst *queryStatsTracker) insertQueryStat(query string, tr int64, execTime time.Time, duration time.Duration) {
