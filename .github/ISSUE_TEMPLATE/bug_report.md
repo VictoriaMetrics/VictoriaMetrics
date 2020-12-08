@@ -8,10 +8,11 @@ assignees: ''
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear and concise description of what the bug is. It would be great updating to [the latest avaialble release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+and verifying whether the bug is reproducible there.
 
 **To Reproduce**
-Steps to reproduce the behavior
+Steps to reproduce the behavior.
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
