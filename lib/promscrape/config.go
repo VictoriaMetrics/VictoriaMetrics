@@ -174,8 +174,8 @@ func unmarshalMaybeStrict(data []byte, dst interface{}) error {
 	return err
 }
 
-func getSWSByJob(sws []ScrapeWork) map[string][]ScrapeWork {
-	m := make(map[string][]ScrapeWork)
+func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
+	m := make(map[string][]*ScrapeWork)
 	for _, sw := range sws {
 		m[sw.jobNameOriginal] = append(m[sw.jobNameOriginal], sw)
 	}
@@ -183,9 +183,9 @@ func getSWSByJob(sws []ScrapeWork) map[string][]ScrapeWork {
 }
 
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -211,9 +211,9 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -239,9 +239,9 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getDockerSwarmSDScrapeWork returns `dockerswarm_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -267,9 +267,9 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getConsulSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -295,9 +295,9 @@ func (cfg *Config) getConsulSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getEurekaSDScrapeWork returns `eureka_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getEurekaSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -323,9 +323,9 @@ func (cfg *Config) getEurekaSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getDNSSDScrapeWork returns `dns_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -351,9 +351,9 @@ func (cfg *Config) getDNSSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getEC2SDScrapeWork returns `ec2_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -379,9 +379,9 @@ func (cfg *Config) getEC2SDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getGCESDScrapeWork returns `gce_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getGCESDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
@@ -407,19 +407,18 @@ func (cfg *Config) getGCESDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
+func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	// Create a map for the previous scrape work.
-	swsMapPrev := make(map[string][]ScrapeWork)
-	for i := range prev {
-		sw := &prev[i]
+	swsMapPrev := make(map[string][]*ScrapeWork)
+	for _, sw := range prev {
 		filepath := promrelabel.GetLabelValueByName(sw.Labels, "__vm_filepath")
 		if len(filepath) == 0 {
 			logger.Panicf("BUG: missing `__vm_filepath` label")
 		} else {
-			swsMapPrev[filepath] = append(swsMapPrev[filepath], *sw)
+			swsMapPrev[filepath] = append(swsMapPrev[filepath], sw)
 		}
 	}
-	dst := make([]ScrapeWork, 0, len(prev))
+	dst := make([]*ScrapeWork, 0, len(prev))
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.FileSDConfigs {
@@ -431,8 +430,8 @@ func (cfg *Config) getFileSDScrapeWork(prev []ScrapeWork) []ScrapeWork {
 }
 
 // getStaticScrapeWork returns `static_configs` ScrapeWork from from cfg.
-func (cfg *Config) getStaticScrapeWork() []ScrapeWork {
-	var dst []ScrapeWork
+func (cfg *Config) getStaticScrapeWork() []*ScrapeWork {
+	var dst []*ScrapeWork
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.StaticConfigs {
@@ -530,7 +529,7 @@ type scrapeWorkConfig struct {
 	streamParse          bool
 }
 
-func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendKubernetesScrapeWork(dst []*ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := kubernetes.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering kubernetes targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -539,7 +538,7 @@ func appendKubernetesScrapeWork(dst []ScrapeWork, sdc *kubernetes.SDConfig, base
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config"), true
 }
 
-func appendOpenstackScrapeWork(dst []ScrapeWork, sdc *openstack.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendOpenstackScrapeWork(dst []*ScrapeWork, sdc *openstack.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := openstack.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering openstack targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -548,7 +547,7 @@ func appendOpenstackScrapeWork(dst []ScrapeWork, sdc *openstack.SDConfig, baseDi
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "openstack_sd_config"), true
 }
 
-func appendDockerSwarmScrapeWork(dst []ScrapeWork, sdc *dockerswarm.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendDockerSwarmScrapeWork(dst []*ScrapeWork, sdc *dockerswarm.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := dockerswarm.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering dockerswarm targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -557,7 +556,7 @@ func appendDockerSwarmScrapeWork(dst []ScrapeWork, sdc *dockerswarm.SDConfig, ba
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dockerswarm_sd_config"), true
 }
 
-func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendConsulScrapeWork(dst []*ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := consul.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering consul targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -566,7 +565,7 @@ func appendConsulScrapeWork(dst []ScrapeWork, sdc *consul.SDConfig, baseDir stri
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config"), true
 }
 
-func appendEurekaScrapeWork(dst []ScrapeWork, sdc *eureka.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendEurekaScrapeWork(dst []*ScrapeWork, sdc *eureka.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := eureka.GetLabels(sdc, baseDir)
 	if err != nil {
 		logger.Errorf("error when discovering eureka targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -575,7 +574,7 @@ func appendEurekaScrapeWork(dst []ScrapeWork, sdc *eureka.SDConfig, baseDir stri
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "eureka_sd_config"), true
 }
 
-func appendDNSScrapeWork(dst []ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendDNSScrapeWork(dst []*ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := dns.GetLabels(sdc)
 	if err != nil {
 		logger.Errorf("error when discovering dns targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -584,7 +583,7 @@ func appendDNSScrapeWork(dst []ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkCon
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dns_sd_config"), true
 }
 
-func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendEC2ScrapeWork(dst []*ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := ec2.GetLabels(sdc)
 	if err != nil {
 		logger.Errorf("error when discovering ec2 targets for `job_name` %q: %s; skipping it", swc.jobName, err)
@@ -593,7 +592,7 @@ func appendEC2ScrapeWork(dst []ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkCon
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config"), true
 }
 
-func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) ([]ScrapeWork, bool) {
+func appendGCEScrapeWork(dst []*ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
 	targetLabels, err := gce.GetLabels(sdc)
 	if err != nil {
 		logger.Errorf("error when discovering gce targets for `job_name` %q: %s; skippint it", swc.jobName, err)
@@ -602,7 +601,7 @@ func appendGCEScrapeWork(dst []ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkCon
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config"), true
 }
 
-func appendScrapeWorkForTargetLabels(dst []ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []ScrapeWork {
+func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []*ScrapeWork {
 	for _, metaLabels := range targetLabels {
 		target := metaLabels["__address__"]
 		var err error
@@ -615,7 +614,7 @@ func appendScrapeWorkForTargetLabels(dst []ScrapeWork, swc *scrapeWorkConfig, ta
 	return dst
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swsMapPrev map[string][]ScrapeWork, baseDir string, swc *scrapeWorkConfig) []ScrapeWork {
+func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[string][]*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
 	for _, file := range sdc.Files {
 		pathPattern := getFilepath(baseDir, file)
 		paths := []string{pathPattern}
@@ -660,7 +659,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []ScrapeWork, swsMapPrev map[strin
 	return dst
 }
 
-func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, metaLabels map[string]string) []ScrapeWork {
+func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, metaLabels map[string]string) []*ScrapeWork {
 	for _, target := range stc.Targets {
 		if target == "" {
 			// Do not return this error, since other targets may be valid
@@ -678,7 +677,7 @@ func (stc *StaticConfig) appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfi
 	return dst
 }
 
-func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]ScrapeWork, error) {
+func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]*ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
@@ -744,7 +743,7 @@ func appendScrapeWork(dst []ScrapeWork, swc *scrapeWorkConfig, target string, ex
 	}
 	// Reduce memory usage by interning all the strings in labels.
 	internLabelStrings(labels)
-	dst = append(dst, ScrapeWork{
+	dst = append(dst, &ScrapeWork{
 		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       swc.scrapeInterval,
