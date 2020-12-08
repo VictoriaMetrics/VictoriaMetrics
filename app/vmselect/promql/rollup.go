@@ -508,8 +508,8 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
-		if rc.LookbackDelta > 0 && window > rc.LookbackDelta {
-			// Implicitly set window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
+		if rc.CanDropLastSample && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
+			// Implicitly window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
 			// according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 			window = rc.LookbackDelta
 		}
