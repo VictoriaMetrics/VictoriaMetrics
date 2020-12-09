@@ -834,8 +834,9 @@ Time series data can be imported via any supported ingestion protocol:
 
 ### How to import data in native format
 
-The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import/native`.
-Example for importing data obtained via [/api/v1/export/native](#how-to-export-data-in-native-format):
+The specification of VictoriaMetrics' native format may yet change and is not formally documented yet. So currently we do not recommend that external clients attempt to pack their own metrics in native format file.
+
+If you have a native format file obtained via [/api/v1/export/native](#how-to-export-data-in-native-format) however this is the most efficient protocol for importing data in.
 
 ```bash
 # Export the data from <source-victoriametrics>:
