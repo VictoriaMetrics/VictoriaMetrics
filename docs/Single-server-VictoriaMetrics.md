@@ -1101,6 +1101,8 @@ VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-
 is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points
 on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept.  In the case of equal timestamps, an arbitrary data point will be kept.
 
+The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs.
+
 The de-duplication reduces disk space usage if multiple identically configured Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. Note that these Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series.
