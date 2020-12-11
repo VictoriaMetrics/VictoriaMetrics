@@ -1,7 +1,7 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
 require (
-	cloud.google.com/go v0.73.0 // indirect
+	cloud.google.com/go v0.74.0 // indirect
 	cloud.google.com/go/storage v1.12.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 
@@ -10,7 +10,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.0.9
 	github.com/VictoriaMetrics/metrics v1.12.3
 	github.com/VictoriaMetrics/metricsql v0.9.0
-	github.com/aws/aws-sdk-go v1.36.2
+	github.com/aws/aws-sdk-go v1.36.7
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/golang/snappy v0.0.2
 	github.com/klauspost/compress v1.11.3
@@ -20,13 +20,11 @@ require (
 	github.com/valyala/gozstd v1.8.3
 	github.com/valyala/histogram v1.1.2
 	github.com/valyala/quicktemplate v1.6.3
-	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb // indirect
-	golang.org/x/oauth2 v0.0.0-20201203001011-0b49973bad19
-	golang.org/x/sys v0.0.0-20201204225414-ed752295db88
-	golang.org/x/tools v0.0.0-20201204222352-654352759326 // indirect
+	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
+	golang.org/x/sys v0.0.0-20201211090839-8ad439b19e0f
+	golang.org/x/tools v0.0.0-20201211185031-d93e913c1a58 // indirect
 	google.golang.org/api v0.36.0
-	google.golang.org/genproto v0.0.0-20201204160425-06b3db808446 // indirect
-	google.golang.org/grpc v1.34.0 // indirect
+	google.golang.org/genproto v0.0.0-20201211151036-40ec1c210f7a // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
 
