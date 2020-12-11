@@ -735,6 +735,14 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/securitycenter/settings/apiv1beta1",
     "release_level": "beta"
   },
+  "cloud.google.com/go/servicedirectory/apiv1": {
+    "distribution_name": "cloud.google.com/go/servicedirectory/apiv1",
+    "description": "Service Directory API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/servicedirectory/apiv1",
+    "release_level": "beta"
+  },
   "cloud.google.com/go/servicedirectory/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/servicedirectory/apiv1beta1",
     "description": "Service Directory API",
