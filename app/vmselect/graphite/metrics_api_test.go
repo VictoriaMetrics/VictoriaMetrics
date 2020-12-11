@@ -28,6 +28,9 @@ func TestGetRegexpForQuery(t *testing.T) {
 	f("foo_[ab]*", '_', `^(?:foo_[ab][^_]*_?)$`)
 	f("foo_[ab]_", '_', `^(?:foo_[ab]_)$`)
 	f("foo.[ab].", '.', `^(?:foo\.[ab]\.)$`)
+	f("foo{b{ar*,ba*z[1-9]}", '.', `^(?:foo(?:b\{ar[^\.]*|ba[^\.]*z[1-9])\.?)$`)
+	f("{foo*}", '.', `^(?:(?:foo[^\.]*)\.?)$`)
+	f("{foo*,}", '.', `^(?:(?:foo[^\.]*|)\.?)$`)
 }
 
 func TestSortPaths(t *testing.T) {
@@ -72,4 +75,5 @@ func TestAddAutomaticVariants(t *testing.T) {
 	f("foo,bar.baz", "_", "{foo,bar.baz}")
 	f("foo,bar_baz*", "_", "{foo,bar}_baz*")
 	f("foo.bar,baz,aa.bb,cc", ".", "foo.{bar,baz,aa}.{bb,cc}")
+	f("foo.b*r,b[a-xz]z,aa.bb,cc", ".", "foo.{b*r,b[a-xz]z,aa}.{bb,cc}")
 }
