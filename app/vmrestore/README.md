@@ -1,6 +1,6 @@
 ## vmrestore
 
-`vmrestore` restores data from backups created by [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md).
+`vmrestore` restores data from backups created by [vmbackup](https://victoriametrics.github.io/vbackup.html).
 VictoriaMetrics `v1.29.0` and newer versions must be used for working with the restored data.
 
 Restore process can be interrupted at any time. It is automatically resumed from the interruption point
@@ -17,7 +17,7 @@ vmrestore -src=gcs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/r
 ```
 
 * `<bucket>` is [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets) name.
-* `<path/to/backup>` is the path to backup made with [vmbackup](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md) on GCS bucket.
+* `<path/to/backup>` is the path to backup made with [vmbackup](https://victoriametrics.github.io/vbackup.html) on GCS bucket.
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed
   to VictoriaMetrics in `-storageDataPath` command-line flag after the restore process is complete.
 

@@ -1,6 +1,6 @@
 ## vmbackup
 
-`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
+`vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 
 Supported storage systems for backups:
 
@@ -15,7 +15,7 @@ data between the existing backup and new backup. It saves time and costs on data
 
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 
-Backed up data can be restored with [vmrestore](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md).
+Backed up data can be restored with [vmrestore](https://victoriametrics.github.io/vmrestore.html).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
@@ -34,8 +34,8 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
-  There is no need to stop VictoriaMetrics for creating backups, since they are performed from immutable [instant snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
-* `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
+  There is no need to stop VictoriaMetrics for creating backups, since they are performed from immutable [instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
+* `<local-snapshot>` is the snapshot to back up. See [how to create instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
@@ -72,7 +72,7 @@ Smart backups mean storing full daily backups into `YYYYMMDD` folders and creati
 vmbackup -snapshotName=<latest-snapshot> -dst=gcs://<bucket>/latest
 ```
 
-Where `<latest-snapshot>` is the latest [snapshot](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots).
+Where `<latest-snapshot>` is the latest [snapshot](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 The command will upload only changed data to `gcs://<bucket>/latest`.
 
 * Run the following command once a day:
@@ -123,8 +123,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process.
-* Backups created from [single-node VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md) cannot be restored
-  at [cluster VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md) and vice versa.
+* Backups created from [single-node VictoriaMetrics](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html) cannot be restored
+  at [cluster VictoriaMetrics](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html) and vice versa.
 
 
 ### Advanced usage
@@ -214,7 +214,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -snapshot.deleteURL string
     	VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. All created snaphosts will be automatically deleted. Example: http://victoriametrics:8428/snaphsot/delete
   -snapshotName string
-    	Name for the snapshot to backup. See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots
+    	Name for the snapshot to backup. See https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots
   -storageDataPath string
     	Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -version

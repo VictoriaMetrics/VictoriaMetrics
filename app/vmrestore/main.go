@@ -58,7 +58,7 @@ func usage() {
 	const s = `
 vmrestore restores VictoriaMetrics data from backups made by vmbackup.
 
-See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmrestore/README.md .
+See the docs at https://victoriametrics.github.io/vmrestore.html .
 `
 	flagutil.Usage(s)
 }

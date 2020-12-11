@@ -21,14 +21,14 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
   See [Quick Start](#quick-start) for details.
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Accepts data via all the ingestion protocols supported by VictoriaMetrics:
-  * Influx line protocol via `http://<vmagent>:8429/write`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
-  * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
-  * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-opentsdb-compatible-agents).
+  * Influx line protocol via `http://<vmagent>:8429/write`. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+  * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+  * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents).
   * Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
-  * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-json-line-format).
-  * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-native-format).
-  * Data in Prometheus exposition format. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-data-in-prometheus-exposition-format) for details.
-  * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-import-csv-data).
+  * JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-data-in-json-line-format).
+  * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-data-in-native-format).
+  * Data in Prometheus exposition format. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
+  * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-csv-data).
 * Can replicate collected metrics simultaneously to multiple remote storage systems.
 * Works in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as connection
@@ -56,7 +56,7 @@ If you only need to collect Influx data, then the following is sufficient:
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
+Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for more details.
 
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 

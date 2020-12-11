@@ -338,47 +338,8 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 	if re := regexpCache[k]; re != nil {
 		return re.re, re.err
 	}
-	a := make([]string, 0, len(query))
-	quotedDelimiter := regexp.QuoteMeta(string([]byte{delimiter}))
-	tillNextDelimiter := "[^" + quotedDelimiter + "]*"
-	for i := 0; i < len(query); i++ {
-		switch query[i] {
-		case '*':
-			a = append(a, tillNextDelimiter)
-		case '{':
-			tmp := query[i+1:]
-			if n := strings.IndexByte(tmp, '}'); n < 0 {
-				a = append(a, regexp.QuoteMeta(query[i:]))
-				i = len(query)
-			} else {
-				a = append(a, "(?:")
-				opts := strings.Split(tmp[:n], ",")
-				for j, opt := range opts {
-					opts[j] = regexp.QuoteMeta(opt)
-				}
-				a = append(a, strings.Join(opts, "|"))
-				a = append(a, ")")
-				i += n + 1
-			}
-		case '[':
-			tmp := query[i:]
-			if n := strings.IndexByte(tmp, ']'); n < 0 {
-				a = append(a, regexp.QuoteMeta(query[i:]))
-				i = len(query)
-			} else {
-				a = append(a, tmp[:n+1])
-				i += n
-			}
-		default:
-			a = append(a, regexp.QuoteMeta(query[i:i+1]))
-		}
-	}
-	s := strings.Join(a, "")
-	if !strings.HasSuffix(s, quotedDelimiter) {
-		s += quotedDelimiter + "?"
-	}
-	s = "^(?:" + s + ")$"
-	re, err := regexp.Compile(s)
+	rs := getRegexpStringForQuery(query, delimiter, false)
+	re, err := regexp.Compile(rs)
 	regexpCache[k] = &regexpCacheEntry{
 		re:  re,
 		err: err,
@@ -392,6 +353,63 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 		}
 	}
 	return re, err
+}
+
+func getRegexpStringForQuery(query string, delimiter byte, isSubquery bool) string {
+	var a []string
+	quotedDelimiter := regexp.QuoteMeta(string([]byte{delimiter}))
+	tillNextDelimiter := "[^" + quotedDelimiter + "]*"
+	j := 0
+	for i := 0; i < len(query); i++ {
+		switch query[i] {
+		case '*':
+			a = append(a, regexp.QuoteMeta(query[j:i]))
+			a = append(a, tillNextDelimiter)
+			j = i + 1
+		case '{':
+			if isSubquery {
+				break
+			}
+			a = append(a, regexp.QuoteMeta(query[j:i]))
+			tmp := query[i+1:]
+			if n := strings.IndexByte(tmp, '}'); n < 0 {
+				rs := getRegexpStringForQuery(query[i:], delimiter, true)
+				a = append(a, rs)
+				i = len(query)
+			} else {
+				a = append(a, "(?:")
+				opts := strings.Split(tmp[:n], ",")
+				for j, opt := range opts {
+					opts[j] = getRegexpStringForQuery(opt, delimiter, true)
+				}
+				a = append(a, strings.Join(opts, "|"))
+				a = append(a, ")")
+				i += n + 1
+			}
+			j = i + 1
+		case '[':
+			a = append(a, regexp.QuoteMeta(query[j:i]))
+			tmp := query[i:]
+			if n := strings.IndexByte(tmp, ']'); n < 0 {
+				a = append(a, regexp.QuoteMeta(query[i:]))
+				i = len(query)
+			} else {
+				a = append(a, tmp[:n+1])
+				i += n
+			}
+			j = i + 1
+		}
+	}
+	a = append(a, regexp.QuoteMeta(query[j:]))
+	s := strings.Join(a, "")
+	if isSubquery {
+		return s
+	}
+	if !strings.HasSuffix(s, quotedDelimiter) {
+		s += quotedDelimiter + "?"
+	}
+	s = "^(?:" + s + ")$"
+	return s
 }
 
 type regexpCacheEntry struct {
