@@ -3,7 +3,7 @@
 1. If you run Ubuntu, then just run `snap install victoriametrics` command in order to install and start VictoriaMetrics, then read [these docs](https://snapcraft.io/victoriametrics).
    Otherwise download the latest VictoriaMetrics release from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
    from [Docker hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
-   or [build it from sources](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics#how-to-build-from-sources).
+   or [build it from sources](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-build-from-sources).
 
 2. This step isn't needed if you run VictoriaMetrics via `snap install victoriametrics` as described above.
    Otherwise run the binary or Docker image with the desired command-line flags. Pass `-help` in order to see description for all the available flags
@@ -17,15 +17,15 @@
    `./victoria-metrics-prod -storageDataPath=/var/lib/victoria-metrics-data -retentionPeriod=3`
 
    See [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) in order to configure VictoriaMetrics as OS service.
-   It is recommended setting up [VictoriaMetrics monitoring](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#monitoring).
+   It is recommended setting up [VictoriaMetrics monitoring](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#monitoring).
 
-3. Configure [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) or Prometheus to write data to VictoriaMetrics.
+3. Configure [vmagent](https://victoriametrics.github.io/vmagent.html) or Prometheus to write data to VictoriaMetrics.
    It is recommended to use `vmagent` instead of Prometheus, since it is more resource efficient. If you still prefer Prometheus, then
-   see [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics#prometheus-setup)
+   see [these instructions](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#prometheus-setup)
    for details on how to configure Prometheus.
 
 4. Configure Grafana to query VictoriaMetrics instead of Prometheus.
-   See [these instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Single-server-VictoriaMetrics#grafana-setup).
+   See [these instructions](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#grafana-setup).
 
 
 There is also [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) and [SaaS playground](https://play.victoriametrics.com/signIn).

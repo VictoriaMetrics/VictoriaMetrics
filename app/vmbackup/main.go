@@ -19,7 +19,7 @@ import (
 
 var (
 	storageDataPath   = flag.String("storageDataPath", "victoria-metrics-data", "Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage")
-	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-work-with-snapshots")
+	snapshotName      = flag.String("snapshotName", "", "Name for the snapshot to backup. See https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots")
 	snapshotCreateURL = flag.String("snapshot.createURL", "", "VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup. "+
 		"Example: http://victoriametrics:8428/snaphsot/create")
 	snapshotDeleteURL = flag.String("snapshot.deleteURL", "", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
@@ -99,7 +99,7 @@ func usage() {
 vmbackup performs backups for VictoriaMetrics data from instant snapshots to gcs, s3
 or local filesystem. Backed up data can be restored with vmrestore.
 
-See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmbackup/README.md .
+See the docs at https://victoriametrics.github.io/vbackup.html .
 `
 	flagutil.Usage(s)
 }

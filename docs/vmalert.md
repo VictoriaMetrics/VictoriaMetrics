@@ -6,7 +6,7 @@ rules against configured address.
 
 ### Features:
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
-* VictoriaMetrics [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL)
+* VictoriaMetrics [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
  support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
  support;
@@ -90,7 +90,7 @@ rules:
 
 There are two types of Rules:
 * [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) - 
-Alerting rules allows to define alert conditions via [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL)
+Alerting rules allows to define alert conditions via [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
 and to send notifications about firing alerts to [Alertmanager](https://github.com/prometheus/alertmanager).
 * [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) - 
 Recording rules allow you to precompute frequently needed or computationally expensive expressions 

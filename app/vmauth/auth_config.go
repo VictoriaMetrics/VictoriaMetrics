@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	authConfigPath = flag.String("auth.config", "", "Path to auth config. See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md "+
+	authConfigPath = flag.String("auth.config", "", "Path to auth config. See https://victoriametrics.github.io/vmauth.html "+
 		"for details on the format of this auth config")
 )
 

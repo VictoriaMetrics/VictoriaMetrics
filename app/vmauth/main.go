@@ -96,7 +96,7 @@ func usage() {
 	const s = `
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md .
+See the docs at https://victoriametrics.github.io/vmauth.html .
 `
 	flagutil.Usage(s)
 }
