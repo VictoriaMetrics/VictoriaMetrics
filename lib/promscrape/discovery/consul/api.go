@@ -111,13 +111,20 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 	return a.Config.Datacenter, nil
 }
 
-// maxWaitTime is duration for consul blocking request, maximum wait time is 10 min.
-// But fasthttp client has readTimeout for 1 min, so we use 50s timeout.
-// also consul adds random delay up to wait/16, so there is no need in jitter.
-// https://www.consul.io/api-docs/features/blocking
-const maxWaitTime = 50 * time.Second
+// maxWaitTime is duration for consul blocking request.
+var maxWaitTime = func() time.Duration {
+	d := discoveryutils.BlockingClientReadTimeout
+	// Consul adds random delay up to wait/16, so reduce the timeout in order to keep it below BlockingClientReadTimeout.
+	// See https://www.consul.io/api-docs/features/blocking
+	d -= d / 8
+	// The timeout cannot exceed 10 minuntes. See https://www.consul.io/api-docs/features/blocking
+	if d > 10*time.Minute {
+		d = 10 * time.Minute
+	}
+	return d
+}()
 
-var maxWaitTimeStr = maxWaitTime.String()
+var maxWaitTimeStr = fmt.Sprintf("%ds", int(maxWaitTime.Seconds()))
 
 // getBlockingAPIResponse perfoms blocking request to Consul via client and returns response.
 //

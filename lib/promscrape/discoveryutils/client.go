@@ -91,7 +91,7 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		DialDualStack:       netutil.TCP6Enabled(),
 		IsTLS:               isTLS,
 		TLSConfig:           tlsCfg,
-		ReadTimeout:         time.Minute * 3,
+		ReadTimeout:         BlockingClientReadTimeout,
 		WriteTimeout:        10 * time.Second,
 		MaxResponseBodySize: 300 * 1024 * 1024,
 		MaxConns:            64 * 1024,
@@ -105,6 +105,9 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 		hostPort:       hostPort,
 	}, nil
 }
+
+// BlockingClientReadTimeout is the maximum duration for waiting the response from GetBlockingAPI*
+const BlockingClientReadTimeout = 10 * time.Minute
 
 var (
 	concurrencyLimitCh     chan struct{}
