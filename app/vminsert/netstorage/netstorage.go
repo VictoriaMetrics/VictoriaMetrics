@@ -585,7 +585,9 @@ func getHealthyStorageNodesBlocking(stopCh <-chan struct{}) []*storageNode {
 func spreadReroutedBufToStorageNodesBlocking(stopCh <-chan struct{}, br *bufRows) {
 	var mr storage.MetricRow
 	rowsProcessed := 0
-	defer reroutedRowsProcessed.Add(rowsProcessed)
+	defer func() {
+		reroutedRowsProcessed.Add(rowsProcessed)
+	}()
 
 	sns := getHealthyStorageNodesBlocking(stopCh)
 	if len(sns) == 0 {
