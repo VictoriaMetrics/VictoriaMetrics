@@ -30,6 +30,7 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 Click on a link in order to read the corresponding case study
 
+* [zhihu](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#zhihu)
 * [adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
 * [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
