@@ -46,7 +46,7 @@ users:
   url_prefix: "http://localhost:8428"
 
   # The user for querying account 123 in VictoriaMetrics cluster
-  # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format
+  # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be routed to http://vmselect:8481/select/123/prometheus .
   # For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8481/select/123/prometheus/api/v1/select
@@ -55,7 +55,7 @@ users:
   url_prefix: "http://vmselect:8481/select/123/prometheus"
 
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
-  # See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#url-format
+  # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
   # All the reuqests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be routed to http://vminsert:8480/insert/42/prometheus .
   # For example, http://vmauth:8427/api/v1/write is routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
@@ -87,7 +87,7 @@ Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termi
 ### Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
-either via [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md) or via Prometheus, so the exported metrics could be analyzed later.
+either via [vmagent](https://victoriametrics.github.io/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
 
 ### How to build from sources
@@ -151,10 +151,10 @@ Pass `-help` command-line arg to `vmauth` in order to see all the configuration 
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
 
-See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md .
+See the docs at https://victoriametrics.github.io/vmauth.html .
 
   -auth.config string
-    	Path to auth config. See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/README.md for details on the format of this auth config
+    	Path to auth config. See https://victoriametrics.github.io/vmauth.html for details on the format of this auth config
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
   -envflag.enable

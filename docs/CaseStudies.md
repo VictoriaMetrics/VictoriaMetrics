@@ -3,7 +3,7 @@
 Below are approved public case studies and talks from VictoriaMetrics users. Join our [community Slack channel](http://slack.victoriametrics.com/)
 and feel free asking for references, reviews and additional case studies from real VictoriaMetrics users there.
 
-See also [articles about VictoriaMetrics from our users](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/Articles#third-party-articles-and-slides).
+See also [articles about VictoriaMetrics from our users](https://victoriametrics.github.io/Articles.html#third-party-articles-and-slides).
 
 
 * [zhihu](#zhihu)
@@ -86,7 +86,7 @@ Thanos, Cortex and VictoriaMetrics were evaluated as a long-term storage for Pro
 * Blazing fast benchmarks for a single node setup.
 * Single binary mode. Easy to scale vertically, very less operational headache.
 * Considerable [improvements on creating Histograms](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
-* [MetricsQL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) gives us the ability to extend PromQL with more aggregation operators.
+* [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) gives us the ability to extend PromQL with more aggregation operators.
 * API is compatible with Prometheus, almost all standard PromQL queries just work out of the box.
 * Handles storage well, with periodic compaction. Makes it easy to take snapshots.
 
@@ -98,7 +98,7 @@ See [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d
 
 [Wix.com](https://en.wikipedia.org/wiki/Wix.com) is the leading web development platform.
 
-> We needed to redesign metric infrastructure from the ground up after the move to Kubernethes. A few approaches/designs have been tried before the one that works great has been chosen: Prometheus instance in every datacenter with 2 hours retention for local storage and remote write into [HA pair of single-node VictoriaMetrics instances](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#high-availability).
+> We needed to redesign metric infrastructure from the ground up after the move to Kubernethes. A few approaches/designs have been tried before the one that works great has been chosen: Prometheus instance in every datacenter with 2 hours retention for local storage and remote write into [HA pair of single-node VictoriaMetrics instances](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#high-availability).
 
 Numbers:
 
@@ -121,14 +121,14 @@ Numbers:
 * Enough head room/scaling capacity for future growth, up to 100M active time series.
 * Ability to split DB replicas per workload. Alert queries go to one replica, user queries go to another (speed for users, effective cache).
 
-> Optimizing for those points and our specific workload VictoriaMetrics proved to be the best option. As an icing on a cake we’ve got [PromQL extensions](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL) - `default 0` and `histogram` are my favorite ones, for example. What we specially like is having a lot of tsdb params easily available via config options, that makes tsdb easy to tune for specific use case. Also worth noting is a great community in [Slack channel](http://slack.victoriametrics.com/) and of course maintainer support.
+> Optimizing for those points and our specific workload VictoriaMetrics proved to be the best option. As an icing on a cake we’ve got [PromQL extensions](https://victoriametrics.github.io/MetricsQL.html) - `default 0` and `histogram` are my favorite ones, for example. What we specially like is having a lot of tsdb params easily available via config options, that makes tsdb easy to tune for specific use case. Also worth noting is a great community in [Slack channel](http://slack.victoriametrics.com/) and of course maintainer support.
 
 Alex Ulstein, Head of Monitoring, Wix.com
 
 
 ## Wedos.com
 
-> [Wedos](https://www.wedos.com/) is the Biggest Czech Hosting. We have our own private data center, that holds only our servers and technologies. The second data center, where the servers will be cooled in an oil bath, is being built. We started using [cluster VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md) to store Prometheus metrics from all our infrastructure after receiving positive references from our friends who successfully use VictoriaMetrics.
+> [Wedos](https://www.wedos.com/) is the Biggest Czech Hosting. We have our own private data center, that holds only our servers and technologies. The second data center, where the servers will be cooled in an oil bath, is being built. We started using [cluster VictoriaMetrics](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html) to store Prometheus metrics from all our infrastructure after receiving positive references from our friends who successfully use VictoriaMetrics.
 
 Numbers:
 
@@ -249,12 +249,12 @@ We end up with the following configuration:
 
 Turns out that remote write protocol generates too much traffic and connections. So after 8 months we started to look for alternatives.
 
-Around the same time VictoriaMetrics released [vmagent](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md).
+Around the same time VictoriaMetrics released [vmagent](https://victoriametrics.github.io/vmagent.html).
 We tried to scrape all the metrics via a single insance of vmagent. But that didn't work - vmgent wasn't able to catch up with writes
 into VictoriaMetrics. We tested different options and end up with the following scheme:
 
 - We removed Prometheus from our setup.
-- VictoriaMetrics [can scrape targets](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#how-to-scrape-prometheus-exporters-such-as-node-exporter) as well,
+- VictoriaMetrics [can scrape targets](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-scrape-prometheus-exporters-such-as-node-exporter) as well,
 so we removed vmagent. Now VictoriaMetrics scrapes all the metrics from 110 jobs and 5531 targets.
 - We use [Promxy](https://github.com/jacksontj/promxy) for alerting.
 
@@ -265,7 +265,7 @@ Such a scheme has the following benefits comparing to Prometheus:
 
 Cons are the following:
 
-- VictoriaMetrics didn't support replication (it [supports replication now](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/README.md#replication-and-data-safety)) - we run extra instance of VictoriaMetrics and Promxy in front of VictoriaMetrics pair for high availability.
+- VictoriaMetrics didn't support replication (it [supports replication now](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#replication-and-data-safety)) - we run extra instance of VictoriaMetrics and Promxy in front of VictoriaMetrics pair for high availability.
 - VictoriaMetrics stores 1 extra month for defined retention (if retention is set to N months, then VM stores N+1 months of data), but this is still better than other solutions.
 
 Some numbers from our single-node VictoriaMetrics setup:

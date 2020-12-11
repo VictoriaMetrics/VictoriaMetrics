@@ -272,7 +272,7 @@ func usage() {
 	const s = `
 vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
 
-See the docs at https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/README.md .
+See the docs at https://victoriametrics.github.io/vmagent.html .
 `
 	flagutil.Usage(s)
 }
