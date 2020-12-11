@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -873,7 +873,7 @@ var (
 	// Limit the concurrency for TSID searches to GOMAXPROCS*2, since this operation
 	// is CPU bound and sometimes disk IO bound, so there is no sense in running more
 	// than GOMAXPROCS*2 concurrent goroutines for TSID searches.
-	searchTSIDsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1)*2)
+	searchTSIDsConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs()*2)
 )
 
 // prefetchMetricNames pre-fetches metric names for the given tsids into metricID->metricName cache.
@@ -1149,7 +1149,7 @@ var (
 	// Limit the concurrency for data ingestion to GOMAXPROCS, since this operation
 	// is CPU bound, so there is no sense in running more than GOMAXPROCS concurrent
 	// goroutines on data ingestion path.
-	addRowsConcurrencyCh = make(chan struct{}, runtime.GOMAXPROCS(-1))
+	addRowsConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 	addRowsTimeout       = 30 * time.Second
 )
 

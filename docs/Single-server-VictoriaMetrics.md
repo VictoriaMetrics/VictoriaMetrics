@@ -30,6 +30,7 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 Click on a link in order to read the corresponding case study
 
+* [zhihu](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#zhihu)
 * [adidas](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#adidas)
 * [CERN](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#cern)
 * [COLOPL](https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/CaseStudies#colopl)
@@ -834,8 +835,9 @@ Time series data can be imported via any supported ingestion protocol:
 
 ### How to import data in native format
 
-The most efficient protocol for importing data into VictoriaMetrics is `/api/v1/import/native`.
-Example for importing data obtained via [/api/v1/export/native](#how-to-export-data-in-native-format):
+The specification of VictoriaMetrics' native format may yet change and is not formally documented yet. So currently we do not recommend that external clients attempt to pack their own metrics in native format file.
+
+If you have a native format file obtained via [/api/v1/export/native](#how-to-export-data-in-native-format) however this is the most efficient protocol for importing data in.
 
 ```bash
 # Export the data from <source-victoriametrics>:
@@ -1099,6 +1101,8 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 VictoriaMetrics de-duplicates data points if `-dedup.minScrapeInterval` command-line flag
 is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would de-duplicate data points
 on the same time series if they fall within the same discrete 60s bucket.  The earliest data point will be kept.  In the case of equal timestamps, an arbitrary data point will be kept.
+
+The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs.
 
 The de-duplication reduces disk space usage if multiple identically configured Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. Note that these Prometheus instances must have identical

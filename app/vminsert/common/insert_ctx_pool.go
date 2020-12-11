@@ -1,8 +1,9 @@
 package common
 
 import (
-	"runtime"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 // GetInsertCtx returns InsertCtx from the pool.
@@ -33,4 +34,4 @@ func PutInsertCtx(ctx *InsertCtx) {
 }
 
 var insertCtxPool sync.Pool
-var insertCtxPoolCh = make(chan *InsertCtx, runtime.GOMAXPROCS(-1))
+var insertCtxPoolCh = make(chan *InsertCtx, cgroup.AvailableCPUs())

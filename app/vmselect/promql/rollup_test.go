@@ -683,7 +683,7 @@ func TestRollupFuncsLookbackDelta(t *testing.T) {
 		}
 		rc.Timestamps = getTimestamps(rc.Start, rc.End, rc.Step)
 		values := rc.Do(nil, testValues, testTimestamps)
-		valuesExpected := []float64{12, nan, nan, nan, 34, 34, nan}
+		valuesExpected := []float64{99, nan, 44, nan, 32, 34, nan}
 		timestampsExpected := []int64{80, 90, 100, 110, 120, 130, 140}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})

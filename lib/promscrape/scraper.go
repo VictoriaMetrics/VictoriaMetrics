@@ -95,16 +95,16 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	}
 
 	scs := newScrapeConfigs(pushData)
-	scs.add("static_configs", 0, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getStaticScrapeWork() })
-	scs.add("file_sd_configs", *fileSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getFileSDScrapeWork(swsPrev) })
-	scs.add("kubernetes_sd_configs", *kubernetesSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getKubernetesSDScrapeWork(swsPrev) })
-	scs.add("openstack_sd_configs", *openstackSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getOpenStackSDScrapeWork(swsPrev) })
-	scs.add("consul_sd_configs", *consul.SDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getConsulSDScrapeWork(swsPrev) })
-	scs.add("eureka_sd_configs", *eurekaSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getEurekaSDScrapeWork(swsPrev) })
-	scs.add("dns_sd_configs", *dnsSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getDNSSDScrapeWork(swsPrev) })
-	scs.add("ec2_sd_configs", *ec2SDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getEC2SDScrapeWork(swsPrev) })
-	scs.add("gce_sd_configs", *gceSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getGCESDScrapeWork(swsPrev) })
-	scs.add("dockerswarm_sd_configs", *dockerswarmSDCheckInterval, func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork { return cfg.getDockerSwarmSDScrapeWork(swsPrev) })
+	scs.add("static_configs", 0, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getStaticScrapeWork() })
+	scs.add("file_sd_configs", *fileSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getFileSDScrapeWork(swsPrev) })
+	scs.add("kubernetes_sd_configs", *kubernetesSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getKubernetesSDScrapeWork(swsPrev) })
+	scs.add("openstack_sd_configs", *openstackSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getOpenStackSDScrapeWork(swsPrev) })
+	scs.add("consul_sd_configs", *consul.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getConsulSDScrapeWork(swsPrev) })
+	scs.add("eureka_sd_configs", *eurekaSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEurekaSDScrapeWork(swsPrev) })
+	scs.add("dns_sd_configs", *dnsSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDNSSDScrapeWork(swsPrev) })
+	scs.add("ec2_sd_configs", *ec2SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getEC2SDScrapeWork(swsPrev) })
+	scs.add("gce_sd_configs", *gceSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getGCESDScrapeWork(swsPrev) })
+	scs.add("dockerswarm_sd_configs", *dockerswarmSDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDockerSwarmSDScrapeWork(swsPrev) })
 
 	sighupCh := procutil.NewSighupChan()
 
@@ -171,7 +171,7 @@ func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest)) *scrapeConf
 	}
 }
 
-func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrapeWork func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork) {
+func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrapeWork func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork) {
 	atomic.AddInt32(&PendingScrapeConfigs, 1)
 	scfg := &scrapeConfig{
 		name:          name,
@@ -204,7 +204,7 @@ func (scs *scrapeConfigs) stop() {
 type scrapeConfig struct {
 	name          string
 	pushData      func(wr *prompbmarshal.WriteRequest)
-	getScrapeWork func(cfg *Config, swsPrev []ScrapeWork) []ScrapeWork
+	getScrapeWork func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork
 	checkInterval time.Duration
 	cfgCh         chan *Config
 	stopCh        <-chan struct{}
@@ -222,7 +222,7 @@ func (scfg *scrapeConfig) run() {
 	}
 
 	cfg := <-scfg.cfgCh
-	var swsPrev []ScrapeWork
+	var swsPrev []*ScrapeWork
 	updateScrapeWork := func(cfg *Config) {
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
@@ -244,20 +244,28 @@ func (scfg *scrapeConfig) run() {
 }
 
 type scraperGroup struct {
-	name         string
-	wg           sync.WaitGroup
-	mLock        sync.Mutex
-	m            map[string]*scraper
-	pushData     func(wr *prompbmarshal.WriteRequest)
-	changesCount *metrics.Counter
+	name     string
+	wg       sync.WaitGroup
+	mLock    sync.Mutex
+	m        map[string]*scraper
+	pushData func(wr *prompbmarshal.WriteRequest)
+
+	changesCount    *metrics.Counter
+	activeScrapers  *metrics.Counter
+	scrapersStarted *metrics.Counter
+	scrapersStopped *metrics.Counter
 }
 
 func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest)) *scraperGroup {
 	sg := &scraperGroup{
-		name:         name,
-		m:            make(map[string]*scraper),
-		pushData:     pushData,
-		changesCount: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_config_changes_total{type=%q}`, name)),
+		name:     name,
+		m:        make(map[string]*scraper),
+		pushData: pushData,
+
+		changesCount:    metrics.NewCounter(fmt.Sprintf(`vm_promscrape_config_changes_total{type=%q}`, name)),
+		activeScrapers:  metrics.NewCounter(fmt.Sprintf(`vm_promscrape_active_scrapers{type=%q}`, name)),
+		scrapersStarted: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_scrapers_started_total{type=%q}`, name)),
+		scrapersStopped: metrics.NewCounter(fmt.Sprintf(`vm_promscrape_scrapers_stopped_total{type=%q}`, name)),
 	}
 	metrics.NewGauge(fmt.Sprintf(`vm_promscrape_targets{type=%q, status="up"}`, name), func() float64 {
 		return float64(tsmGlobal.StatusByGroup(sg.name, true))
@@ -278,15 +286,14 @@ func (sg *scraperGroup) stop() {
 	sg.wg.Wait()
 }
 
-func (sg *scraperGroup) update(sws []ScrapeWork) {
+func (sg *scraperGroup) update(sws []*ScrapeWork) {
 	sg.mLock.Lock()
 	defer sg.mLock.Unlock()
 
 	additionsCount := 0
 	deletionsCount := 0
 	swsMap := make(map[string][]prompbmarshal.Label, len(sws))
-	for i := range sws {
-		sw := &sws[i]
+	for _, sw := range sws {
 		key := sw.key()
 		originalLabels := swsMap[key]
 		if originalLabels != nil {
@@ -308,11 +315,15 @@ func (sg *scraperGroup) update(sws []ScrapeWork) {
 
 		// Start a scraper for the missing key.
 		sc := newScraper(sw, sg.name, sg.pushData)
+		sg.activeScrapers.Inc()
+		sg.scrapersStarted.Inc()
 		sg.wg.Add(1)
 		go func() {
 			defer sg.wg.Done()
 			sc.sw.run(sc.stopCh)
 			tsmGlobal.Unregister(sw)
+			sg.activeScrapers.Dec()
+			sg.scrapersStopped.Inc()
 		}()
 		tsmGlobal.Register(sw)
 		sg.m[key] = sc
