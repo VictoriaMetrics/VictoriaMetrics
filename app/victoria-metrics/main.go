@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
@@ -81,7 +83,15 @@ func main() {
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.RequestURI == "/" {
-		fmt.Fprintf(w, "Single-node VictoriaMetrics. See docs at https://victoriametrics.github.io/")
+		fmt.Fprintf(w, "<h2>Single-node VictoriaMetrics.</h2></br>")
+		fmt.Fprintf(w, "See docs at<a href='https://victoriametrics.github.io/'>https://victoriametrics.github.io/</a></br>")
+		fmt.Fprintf(w, "usefull apis: </br>")
+		writeAPIHelp(w, [][]string{
+			{"/targets", "discovered targets list"},
+			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
+			{"/metrics", "available service metrics"},
+			{"/api/v1/status/tsdb", "tsdb status page"},
+		})
 		return true
 	}
 	if vminsert.RequestHandler(w, r) {
@@ -94,4 +104,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+func writeAPIHelp(w io.Writer, pathList [][]string) {
+	pathPrefix := httpserver.GetPathPrefix()
+	for _, p := range pathList {
+		p, doc := p[0], p[1]
+		p = path.Join(pathPrefix, p)
+		fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
+	}
 }
