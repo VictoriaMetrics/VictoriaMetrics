@@ -2,6 +2,8 @@ package notifier
 
 import (
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 )
 
 func TestAlert_ExecTemplate(t *testing.T) {
@@ -60,11 +62,41 @@ func TestAlert_ExecTemplate(t *testing.T) {
 				"exprEscapedPath":  "vm_rows%7B%5C%22label%5C%22=%5C%22bar%5C%22%7D%3E0",
 			},
 		},
+		{
+			name:  "query",
+			alert: &Alert{Expr: `vm_rows{"label"="bar"}>0`},
+			annotations: map[string]string{
+				"summary": `{{ query "foo" | first | value }}`,
+				"desc":    `{{ range query "bar" }}{{ . | label "foo" }} {{ . | value }};{{ end }}`,
+			},
+			expTpl: map[string]string{
+				"summary": "1",
+				"desc":    "bar 1;garply 2;",
+			},
+		},
 	}
 
+	qFn := func(q string) ([]datasource.Metric, error) {
+		return []datasource.Metric{
+			{
+				Labels: []datasource.Label{
+					{Name: "foo", Value: "bar"},
+					{Name: "baz", Value: "qux"},
+				},
+				Value: 1,
+			},
+			{
+				Labels: []datasource.Label{
+					{Name: "foo", Value: "garply"},
+					{Name: "baz", Value: "fred"},
+				},
+				Value: 2,
+			},
+		}, nil
+	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tpl, err := tc.alert.ExecTemplate(tc.annotations)
+			tpl, err := tc.alert.ExecTemplate(qFn, tc.annotations)
 			if err != nil {
 				t.Fatal(err)
 			}
