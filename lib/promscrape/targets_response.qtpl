@@ -1,17 +1,30 @@
 {% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 %}
 
+{% stripspace %}
+
 {% func TargetsResponsePlain (jts []jobTargetsStatuses,  showOriginLabels bool) -%}
-{%- for _, js := range jts -%}
-job={%q= js.job %}({%d js.upCount %}/{%d js.targetsTotal %} up)
-{%- for _, ts := range js.targetsStatus -%}
-    {%- code
+
+{% for _, js := range jts %}
+job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space %} up)
+{% newline %}
+{% for _, ts := range js.targetsStatus %}
+    {% code
      labels :=  promLabelsString(ts.labels)
      ol := promLabelsString(ts.originalLabels)
-    -%}
-    state={% if ts.up %}up{% else %}down{% endif %}, endpoint={%s= ts.endpoint %}, labels={%s= labels %}{% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %}, last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago, scrape_duration={%f.3 float64(ts.scrapeDuration/1000) %}, error={%q= ts.error %}
-{% endfor -%}
+    %}
+{%s= "\t" %}state={% if ts.up %}up{% else %}down{% endif %},
+    {% space %} endpoint={%s= ts.endpoint %},
+    {% space %} labels={%s= labels %}
+    {% if showOriginLabels %},{% space %} originalLabels={%s= ol %}{% endif %},
+    {% space %} last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,
+    {% space %} scrape_duration={%f.3 float64(ts.scrapeDuration.Seconds()) %}s,
+    {% space %} error={%q= ts.error %}
+    {% newline %}
 {% endfor %}
+{% endfor %}
+{% newline %}
+
 {% endfunc %}
 
 {% func TargetsResponseHTML(jts []jobTargetsStatuses, redirectPath string, onlyUnhealthy bool) %}
@@ -67,7 +80,7 @@ job={%q= js.job %}({%d js.upCount %}/{%d js.targetsTotal %} up)
                       <td class="state border">
                         <span class="state_indicator">{% if ts.up %}UP{% else %}DOWN{% endif %}</span>
                       </td>
-                      <td class="labels border", title="{%= formatLabel(ts.originalLabels) %}">
+                      <td class="labels border", title="Original {% space %} labels: {% space %} {%= formatLabel(ts.originalLabels) %}">
                            {%= formatLabel(ts.labels) %}
                       </td>
                       <td class="last-scrape border">{%s ts.lastScrapeTime.String() %} ago</td>
@@ -85,6 +98,7 @@ job={%q= js.job %}({%d js.upCount %}/{%d js.targetsTotal %} up)
 
 {% func formatLabel(labels []prompbmarshal.Label) %}
 {% for _, label := range labels %}
-  {%s label.Name %}={%q label.Value %}
+ {% space %} {%s label.Name %}={%q label.Value %} {% space %}
 {% endfor %}
 {% endfunc %}
+{% endstripspace %}

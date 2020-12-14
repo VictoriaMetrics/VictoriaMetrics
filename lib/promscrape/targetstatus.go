@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"path"
 	"sort"
 	"sync"
@@ -22,11 +23,13 @@ var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maxi
 var tsmGlobal = newTargetStatusMap()
 
 // WriteHumanReadableTargetsStatus writes human-readable status for all the scrape targets to w with given format and options.
-func WriteHumanReadableTargetsStatus(w io.Writer, showOriginalLabels, showOnlyUnhealthy bool, format string) {
+func WriteHumanReadableTargetsStatus(w http.ResponseWriter, showOriginalLabels, showOnlyUnhealthy bool, format string) {
 	switch format {
 	case "plain":
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
 	case "html":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy)
 	}
 }

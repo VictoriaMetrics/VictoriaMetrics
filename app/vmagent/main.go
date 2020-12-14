@@ -212,11 +212,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
 		showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
 		if accept := r.Header.Get("accept"); strings.Contains(accept, "text/html") {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels, showOnlyUnhealthy, "html")
 			return true
 		}
