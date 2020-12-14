@@ -14,7 +14,7 @@ jobs:
         id: go
       - name: Dependencies
         env:
-          GO111MODULE: on
+          GO111MODULE: off
         run: |
           go install golang.org/x/lint/golint
           go install github.com/kisielk/errcheck
