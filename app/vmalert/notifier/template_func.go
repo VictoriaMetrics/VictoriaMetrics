@@ -14,21 +14,40 @@
 package notifier
 
 import (
+	"errors"
 	"fmt"
-	html_template "html/template"
 	"math"
 	"net/url"
 	"regexp"
 	"strings"
-	text_template "text/template"
 	"time"
+
+	htmlTpl "html/template"
+	textTpl "text/template"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 )
 
-var tmplFunc text_template.FuncMap
+// QueryFn is used to wrap a call to datasource into simple-to-use function
+// for templating functions.
+type QueryFn func(query string) ([]datasource.Metric, error)
 
-// InitTemplateFunc returns template helper functions
+func funcsWithQuery(query QueryFn) textTpl.FuncMap {
+	fm := make(textTpl.FuncMap)
+	for k, fn := range tmplFunc {
+		fm[k] = fn
+	}
+	fm["query"] = func(q string) ([]datasource.Metric, error) {
+		return query(q)
+	}
+	return fm
+}
+
+var tmplFunc textTpl.FuncMap
+
+// InitTemplateFunc initiates template helper functions
 func InitTemplateFunc(externalURL *url.URL) {
-	tmplFunc = text_template.FuncMap{
+	tmplFunc = textTpl.FuncMap{
 		"args": func(args ...interface{}) map[string]interface{} {
 			result := make(map[string]interface{})
 			for i, a := range args {
@@ -40,8 +59,8 @@ func InitTemplateFunc(externalURL *url.URL) {
 			re := regexp.MustCompile(pattern)
 			return re.ReplaceAllString(text, repl)
 		},
-		"safeHtml": func(text string) html_template.HTML {
-			return html_template.HTML(text)
+		"safeHtml": func(text string) htmlTpl.HTML {
+			return htmlTpl.HTML(text)
 		},
 		"match":   regexp.MatchString,
 		"title":   strings.Title,
@@ -150,6 +169,24 @@ func InitTemplateFunc(externalURL *url.URL) {
 		},
 		"quotesEscape": func(q string) string {
 			return strings.Replace(q, `"`, `\"`, -1)
+		},
+		// query function supposed to be substituted at funcsWithQuery().
+		// it is present here only for validation purposes, when there is no
+		// provided datasource.
+		"query": func(q string) ([]datasource.Metric, error) {
+			return nil, nil
+		},
+		"first": func(metrics []datasource.Metric) (datasource.Metric, error) {
+			if len(metrics) > 0 {
+				return metrics[0], nil
+			}
+			return datasource.Metric{}, errors.New("first() called on vector with no elements")
+		},
+		"label": func(label string, m datasource.Metric) string {
+			return m.Label(label)
+		},
+		"value": func(m datasource.Metric) float64 {
+			return m.Value
 		},
 	}
 }

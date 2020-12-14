@@ -7,11 +7,18 @@ groups:
         expr: sum(vm_tcplistener_conns) by(instance) > 1
         for: 3m
         annotations:
-          summary: "Too high connection number for {{$labels.instance}}"
+          summary: Too high connection number for {{$labels.instance}}
+            {{ with printf "sum(vm_tcplistener_conns{instance=%q})" .Labels.instance | query }}
+              {{ . | first | value }}
+            {{ end }}
           description: "It is {{ $value }} connections for {{$labels.instance}}"
       - alert: ExampleAlertAlwaysFiring
         expr: sum by(job)
           (up == 1)
+        annotations:
+          summary: Instances up {{ range query "up" }}
+            {{ . | label "instance" }}
+            {{ end }}
       - record: handler:requests:rate5m
         expr: sum(rate(prometheus_http_requests_total[5m])) by (handler)
         labels:
