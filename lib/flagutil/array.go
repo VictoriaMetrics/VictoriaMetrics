@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // NewArray returns new Array with the given name and description.
@@ -12,6 +13,24 @@ func NewArray(name, description string) *Array {
 	description += "\nSupports `array` of values separated by comma" +
 		" or specified via multiple flags."
 	var a Array
+	flag.Var(&a, name, description)
+	return &a
+}
+
+// NewArrayDuration returns new ArrayDuration with the given name and description.
+func NewArrayDuration(name, description string) *ArrayDuration {
+	description += "\nSupports `array` of values separated by comma" +
+		" or specified via multiple flags."
+	var a ArrayDuration
+	flag.Var(&a, name, description)
+	return &a
+}
+
+// NewArrayBool returns new ArrayBool with the given name and description.
+func NewArrayBool(name, description string) *ArrayBool {
+	description += "\nSupports `array` of values separated by comma" +
+		" or specified via multiple flags."
+	var a ArrayBool
 	flag.Var(&a, name, description)
 	return &a
 }
@@ -121,6 +140,83 @@ func (a *Array) GetOptionalArg(argIdx int) string {
 			return x[0]
 		}
 		return ""
+	}
+	return x[argIdx]
+}
+
+// ArrayBool is a flag that holds an array of booleans values.
+// have the same api as Array.
+type ArrayBool []bool
+
+// String implements flag.Value interface
+func (a *ArrayBool) String() string {
+	formattedBools := make([]string, len(*a))
+	for i, v := range *a {
+		formattedBools[i] = strconv.FormatBool(v)
+	}
+	return strings.Join(formattedBools, ",")
+}
+
+// Set implements flag.Value interface
+func (a *ArrayBool) Set(value string) error {
+	values := parseArrayValues(value)
+	for _, v := range values {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return err
+		}
+		*a = append(*a, b)
+	}
+	return nil
+}
+
+// GetOptionalArg returns optional arg under the given argIdx.
+func (a *ArrayBool) GetOptionalArg(argIdx int) bool {
+	x := *a
+	if argIdx >= len(x) {
+		if len(x) == 1 {
+			return x[0]
+		}
+		return false
+	}
+	return x[argIdx]
+}
+
+// ArrayDuration is a flag that holds an array of time.Duration values.
+// have the same api as Array.
+type ArrayDuration []time.Duration
+
+// String implements flag.Value interface
+func (a *ArrayDuration) String() string {
+	formattedBools := make([]string, len(*a))
+	for i, v := range *a {
+		formattedBools[i] = v.String()
+	}
+	return strings.Join(formattedBools, ",")
+}
+
+// Set implements flag.Value interface
+func (a *ArrayDuration) Set(value string) error {
+	values := parseArrayValues(value)
+	for _, v := range values {
+		b, err := time.ParseDuration(v)
+		if err != nil {
+			return err
+		}
+		*a = append(*a, b)
+	}
+	return nil
+}
+
+// GetOptionalArgOrDefault returns optional arg under the given argIdx,
+// or default value, if argIdx not found.
+func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Duration) time.Duration {
+	x := *a
+	if argIdx >= len(x) {
+		if len(x) == 1 {
+			return x[0]
+		}
+		return defaultValue
 	}
 	return x[argIdx]
 }
