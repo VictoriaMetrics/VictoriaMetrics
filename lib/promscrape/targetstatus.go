@@ -285,9 +285,9 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 			return statuses[i].sw.ScrapeURL < statuses[j].sw.ScrapeURL
 		})
 		ups := 0
-		var jobStatuses []jobTargetStatus
-		for _, st := range statuses {
-			if st.up {
+		var targetsStatuses []jobTargetStatus
+		for _, ts := range statuses {
+			if ts.up {
 				ups++
 			}
 		}
@@ -296,7 +296,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 			if st.err != nil {
 				errMsg = st.err.Error()
 			}
-			jobStatuses = append(jobStatuses, jobTargetStatus{
+			targetsStatuses = append(targetsStatuses, jobTargetStatus{
 				up:             st.up,
 				endpoint:       st.sw.ScrapeURL,
 				labels:         promrelabel.FinalizeLabels(nil, st.sw.Labels),
@@ -310,7 +310,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 			job:           job,
 			upCount:       ups,
 			targetsTotal:  len(statuses),
-			targetsStatus: jobStatuses,
+			targetsStatus: targetsStatuses,
 		})
 	}
 	sort.Slice(jts, func(i, j int) bool {

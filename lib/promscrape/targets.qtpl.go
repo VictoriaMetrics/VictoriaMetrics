@@ -40,15 +40,15 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 		qw422016.N().S(` up)
 `)
 //line lib/promscrape/targets.qtpl:7
-		for _, target := range js.targetsStatus {
+		for _, ts := range js.targetsStatus {
 //line lib/promscrape/targets.qtpl:9
-			labels := promLabelsString(target.labels)
-			ol := promLabelsString(target.originalLabels)
+			labels := promLabelsString(ts.labels)
+			ol := promLabelsString(ts.originalLabels)
 
 //line lib/promscrape/targets.qtpl:11
 			qw422016.N().S(`    state=`)
 //line lib/promscrape/targets.qtpl:12
-			if target.up {
+			if ts.up {
 //line lib/promscrape/targets.qtpl:12
 				qw422016.N().S(`up`)
 //line lib/promscrape/targets.qtpl:12
@@ -60,7 +60,7 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets.qtpl:12
 			qw422016.N().S(`, endpoint=`)
 //line lib/promscrape/targets.qtpl:12
-			qw422016.N().S(target.endpoint)
+			qw422016.N().S(ts.endpoint)
 //line lib/promscrape/targets.qtpl:12
 			qw422016.N().S(`, labels=`)
 //line lib/promscrape/targets.qtpl:12
@@ -76,15 +76,15 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets.qtpl:12
 			qw422016.N().S(`, last_scrape=`)
 //line lib/promscrape/targets.qtpl:12
-			qw422016.N().FPrec(target.lastScrapeTime.Seconds(), 3)
+			qw422016.N().FPrec(ts.lastScrapeTime.Seconds(), 3)
 //line lib/promscrape/targets.qtpl:12
 			qw422016.N().S(`s ago, scrape_duration=`)
 //line lib/promscrape/targets.qtpl:12
-			qw422016.N().FPrec(float64(target.scrapeDuration/1000), 3)
+			qw422016.N().FPrec(float64(ts.scrapeDuration/1000), 3)
 //line lib/promscrape/targets.qtpl:12
 			qw422016.N().S(`, error=`)
 //line lib/promscrape/targets.qtpl:12
-			qw422016.N().Q(target.error)
+			qw422016.N().Q(ts.error)
 //line lib/promscrape/targets.qtpl:12
 			qw422016.N().S(`
 `)
@@ -217,12 +217,12 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
                   <tbody>
                   `)
 //line lib/promscrape/targets.qtpl:61
-		for _, target := range js.targetsStatus {
+		for _, ts := range js.targetsStatus {
 //line lib/promscrape/targets.qtpl:61
 			qw422016.N().S(`
                     `)
 //line lib/promscrape/targets.qtpl:62
-			if onlyUnhealthy && target.up {
+			if onlyUnhealthy && ts.up {
 //line lib/promscrape/targets.qtpl:62
 				qw422016.N().S(` `)
 //line lib/promscrape/targets.qtpl:62
@@ -235,18 +235,18 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
                       <td class="endpoint border">
                         <a href="`)
 //line lib/promscrape/targets.qtpl:65
-			qw422016.N().S(target.endpoint)
+			qw422016.N().S(ts.endpoint)
 //line lib/promscrape/targets.qtpl:65
 			qw422016.N().S(`">`)
 //line lib/promscrape/targets.qtpl:65
-			qw422016.N().S(target.endpoint)
+			qw422016.N().S(ts.endpoint)
 //line lib/promscrape/targets.qtpl:65
 			qw422016.N().S(`</a><br>
                       </td>
                       <td class="state border">
                         <span class="state_indicator">`)
 //line lib/promscrape/targets.qtpl:68
-			if target.up {
+			if ts.up {
 //line lib/promscrape/targets.qtpl:68
 				qw422016.N().S(`UP`)
 //line lib/promscrape/targets.qtpl:68
@@ -260,28 +260,28 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
                       </td>
                       <td class="labels border", title="`)
 //line lib/promscrape/targets.qtpl:70
-			streamformatLabel(qw422016, target.originalLabels)
+			streamformatLabel(qw422016, ts.originalLabels)
 //line lib/promscrape/targets.qtpl:70
 			qw422016.N().S(`">
                            `)
 //line lib/promscrape/targets.qtpl:71
-			streamformatLabel(qw422016, target.labels)
+			streamformatLabel(qw422016, ts.labels)
 //line lib/promscrape/targets.qtpl:71
 			qw422016.N().S(`
                       </td>
                       <td class="last-scrape border">`)
 //line lib/promscrape/targets.qtpl:73
-			qw422016.E().S(target.lastScrapeTime.String())
+			qw422016.E().S(ts.lastScrapeTime.String())
 //line lib/promscrape/targets.qtpl:73
 			qw422016.N().S(` ago</td>
                       <td class="scrape-duration border">`)
 //line lib/promscrape/targets.qtpl:74
-			qw422016.E().S(target.scrapeDuration.String())
+			qw422016.E().S(ts.scrapeDuration.String())
 //line lib/promscrape/targets.qtpl:74
 			qw422016.N().S(`</td>
                       <td class="errors border"><span class="alert alert-danger state_indicator">`)
 //line lib/promscrape/targets.qtpl:75
-			qw422016.N().S(target.error)
+			qw422016.N().S(ts.error)
 //line lib/promscrape/targets.qtpl:75
 			qw422016.N().S(`</span></td>
                     </tr>

@@ -4,12 +4,12 @@
 {% func TargetsResponsePlain (jts []jobTargetsStatuses,  showOriginLabels bool) -%}
 {%- for _, js := range jts -%}
 job={%q= js.job %}({%d js.upCount %}/{%d js.targetsTotal %} up)
-{%- for _, target := range js.targetsStatus -%}
+{%- for _, ts := range js.targetsStatus -%}
     {%- code
-     labels :=  promLabelsString(target.labels)
-     ol := promLabelsString(target.originalLabels)
+     labels :=  promLabelsString(ts.labels)
+     ol := promLabelsString(ts.originalLabels)
     -%}
-    state={% if target.up %}up{% else %}down{% endif %}, endpoint={%s= target.endpoint %}, labels={%s= labels %}{% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %}, last_scrape={%f.3 target.lastScrapeTime.Seconds() %}s ago, scrape_duration={%f.3 float64(target.scrapeDuration/1000) %}, error={%q= target.error %}
+    state={% if ts.up %}up{% else %}down{% endif %}, endpoint={%s= ts.endpoint %}, labels={%s= labels %}{% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %}, last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago, scrape_duration={%f.3 float64(ts.scrapeDuration/1000) %}, error={%q= ts.error %}
 {% endfor -%}
 {% endfor %}
 {% endfunc %}
@@ -58,21 +58,21 @@ job={%q= js.job %}({%d js.upCount %}/{%d js.targetsTotal %} up)
                     </tr>
                   </thead>
                   <tbody>
-                  {% for _, target := range js.targetsStatus %}
-                    {% if onlyUnhealthy && target.up %} {% continue %} {% endif %}
+                  {% for _, ts := range js.targetsStatus %}
+                    {% if onlyUnhealthy && ts.up %} {% continue %} {% endif %}
                     <tr class="table-row border">
                       <td class="endpoint border">
-                        <a href="{%s= target.endpoint %}">{%s= target.endpoint %}</a><br>
+                        <a href="{%s= ts.endpoint %}">{%s= ts.endpoint %}</a><br>
                       </td>
                       <td class="state border">
-                        <span class="state_indicator">{% if target.up %}UP{% else %}DOWN{% endif %}</span>
+                        <span class="state_indicator">{% if ts.up %}UP{% else %}DOWN{% endif %}</span>
                       </td>
-                      <td class="labels border", title="{%= formatLabel(target.originalLabels) %}">
-                           {%= formatLabel(target.labels) %}
+                      <td class="labels border", title="{%= formatLabel(ts.originalLabels) %}">
+                           {%= formatLabel(ts.labels) %}
                       </td>
-                      <td class="last-scrape border">{%s target.lastScrapeTime.String() %} ago</td>
-                      <td class="scrape-duration border">{%s target.scrapeDuration.String() %}</td>
-                      <td class="errors border"><span class="alert alert-danger state_indicator">{%s= target.error %}</span></td>
+                      <td class="last-scrape border">{%s ts.lastScrapeTime.String() %} ago</td>
+                      <td class="scrape-duration border">{%s ts.scrapeDuration.String() %}</td>
+                      <td class="errors border"><span class="alert alert-danger state_indicator">{%s= ts.error %}</span></td>
                     </tr>
                   {% endfor %}
                   </tbody>
