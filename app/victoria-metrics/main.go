@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -50,7 +51,7 @@ func main() {
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
 	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
-	vmstorage.Init()
+	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
 	startSelfScraper()
