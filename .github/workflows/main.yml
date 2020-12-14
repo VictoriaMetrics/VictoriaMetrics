@@ -22,9 +22,9 @@ jobs:
         env:
           GO111MODULE: on
         run: |
-          go get -u golang.org/x/lint/golint
-          go get -u github.com/kisielk/errcheck
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.27.0
+          go install golang.org/x/lint/golint
+          go install github.com/kisielk/errcheck
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.29.0
       - name: Code checkout
         uses: actions/checkout@master
       - name: Build
