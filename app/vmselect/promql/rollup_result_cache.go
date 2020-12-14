@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
@@ -24,6 +25,39 @@ var (
 		"which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses "+
 		"due to time synchronization issues between VictoriaMetrics and data sources")
 )
+
+// ResetRollupResultCacheIfNeeded resets rollup result cache if mrs contains timestamps outside `now - search.cacheTimestampOffset`.
+func ResetRollupResultCacheIfNeeded(mrs []storage.MetricRow) {
+	checkRollupResultCacheResetOnce.Do(func() {
+		go checkRollupResultCacheReset()
+	})
+	minTimestamp := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds() + checkRollupResultCacheResetInterval.Milliseconds()
+	needCacheReset := false
+	for i := range mrs {
+		if mrs[i].Timestamp < minTimestamp {
+			needCacheReset = true
+			break
+		}
+	}
+	if needCacheReset {
+		// Do not call ResetRollupResultCache() here, since it may be heavy when frequently called.
+		atomic.StoreUint32(&needRollupResultCacheReset, 1)
+	}
+}
+
+func checkRollupResultCacheReset() {
+	for {
+		time.Sleep(checkRollupResultCacheResetInterval)
+		if atomic.SwapUint32(&needRollupResultCacheReset, 0) > 0 {
+			ResetRollupResultCache()
+		}
+	}
+}
+
+const checkRollupResultCacheResetInterval = 5 * time.Second
+
+var needRollupResultCacheReset uint32
+var checkRollupResultCacheResetOnce sync.Once
 
 var rollupResultCacheV = &rollupResultCache{
 	c: workingsetcache.New(1024*1024, time.Hour), // This is a cache for testing.

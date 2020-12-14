@@ -20,6 +20,7 @@ import (
 	testutil "github.com/VictoriaMetrics/VictoriaMetrics/app/victoria-metrics/test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -129,7 +130,7 @@ func setUp() {
 	storagePath = filepath.Join(os.TempDir(), testStorageSuffix)
 	processFlags()
 	logger.Init()
-	vmstorage.InitWithoutMetrics()
+	vmstorage.InitWithoutMetrics(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
 	go httpserver.Serve(*httpListenAddr, requestHandler)
@@ -192,7 +193,7 @@ func TestWriteRead(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	vmstorage.Stop()
 	// open storage after stop in write
-	vmstorage.InitWithoutMetrics()
+	vmstorage.InitWithoutMetrics(promql.ResetRollupResultCacheIfNeeded)
 	t.Run("read", testRead)
 }
 

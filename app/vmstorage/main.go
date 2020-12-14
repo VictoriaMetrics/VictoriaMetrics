@@ -58,19 +58,20 @@ func CheckTimeRange(tr storage.TimeRange) error {
 }
 
 // Init initializes vmstorage.
-func Init() {
-	InitWithoutMetrics()
+func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
+	InitWithoutMetrics(resetCacheIfNeeded)
 	registerStorageMetrics()
 }
 
 // InitWithoutMetrics must be called instead of Init inside tests.
 //
 // This allows multiple Init / Stop cycles.
-func InitWithoutMetrics() {
+func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid `-precisionBits`: %s", err)
 	}
 
+	resetResponseCacheIfNeeded = resetCacheIfNeeded
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
@@ -108,8 +109,12 @@ var Storage *storage.Storage
 // Use syncwg instead of sync, since Add is called from concurrent goroutines.
 var WG syncwg.WaitGroup
 
+// resetResponseCacheIfNeeded is a callback for automatic resetting of response cache if needed.
+var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
+
 // AddRows adds mrs to the storage.
 func AddRows(mrs []storage.MetricRow) error {
+	resetResponseCacheIfNeeded(mrs)
 	WG.Add(1)
 	err := Storage.AddRows(mrs, uint8(*precisionBits))
 	WG.Done()

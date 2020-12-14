@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -144,7 +143,7 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	if r.RequestURI == "/" {
+	if r.URL.Path == "/" {
 		fmt.Fprintf(w, "vmagent - see docs at https://victoriametrics.github.io/vmagent.html")
 		return true
 	}
@@ -212,9 +211,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
-		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
+		promscrape.WriteHumanReadableTargetsStatus(w, r)
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()

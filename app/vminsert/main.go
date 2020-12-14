@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -155,9 +154,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
-		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels)
+		promscrape.WriteHumanReadableTargetsStatus(w, r)
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
