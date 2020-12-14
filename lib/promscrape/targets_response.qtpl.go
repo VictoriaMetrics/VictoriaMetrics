@@ -102,7 +102,11 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets_response.qtpl:20
 			qw422016.N().FPrec(ts.lastScrapeTime.Seconds(), 3)
 //line lib/promscrape/targets_response.qtpl:20
-			qw422016.N().S(`s ago,`)
+			qw422016.N().S(`s`)
+//line lib/promscrape/targets_response.qtpl:20
+			qw422016.N().S(` `)
+//line lib/promscrape/targets_response.qtpl:20
+			qw422016.N().S(`ago,`)
 //line lib/promscrape/targets_response.qtpl:21
 			qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:21
@@ -250,6 +254,8 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 			qw422016.N().S(`</td><td class="last-scrape border">`)
 //line lib/promscrape/targets_response.qtpl:86
 			qw422016.E().S(ts.lastScrapeTime.String())
+//line lib/promscrape/targets_response.qtpl:86
+			qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:86
 			qw422016.N().S(`ago</td><td class="scrape-duration border">`)
 //line lib/promscrape/targets_response.qtpl:87
