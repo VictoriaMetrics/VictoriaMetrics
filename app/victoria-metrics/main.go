@@ -86,7 +86,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
 		fmt.Fprintf(w, "<h2>Single-node VictoriaMetrics.</h2></br>")
 		fmt.Fprintf(w, "See docs at <a href='https://victoriametrics.github.io/'>https://victoriametrics.github.io/</a></br>")
-		fmt.Fprintf(w, "usefull apis: </br>")
+		fmt.Fprintf(w, "Useful endpoints: </br>")
 		writeAPIHelp(w, [][]string{
 			{"/targets", "discovered targets list"},
 			{"/api/v1/targets", "advanced information about discovered targets in JSON format"},
