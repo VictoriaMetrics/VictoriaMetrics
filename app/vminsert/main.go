@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -155,13 +154,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()
-		showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
-		showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
-		if accept := r.Header.Get("accept"); strings.Contains(accept, "text/html") {
-			promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels, showOnlyUnhealthy, "html")
-			return true
-		}
-		promscrape.WriteHumanReadableTargetsStatus(w, showOriginalLabels, showOnlyUnhealthy, "plain")
+		promscrape.WriteHumanReadableTargetsStatus(w, r)
 		return true
 	case "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"path"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,15 +24,16 @@ var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maxi
 
 var tsmGlobal = newTargetStatusMap()
 
-// WriteHumanReadableTargetsStatus writes human-readable status for all the scrape targets to w with given format and options.
-func WriteHumanReadableTargetsStatus(w http.ResponseWriter, showOriginalLabels, showOnlyUnhealthy bool, format string) {
-	switch format {
-	case "plain":
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
-	case "html":
+// WriteHumanReadableTargetsStatus writes human-readable status for all the scrape targets to w according to r.
+func WriteHumanReadableTargetsStatus(w http.ResponseWriter, r *http.Request) {
+	showOriginalLabels, _ := strconv.ParseBool(r.FormValue("show_original_labels"))
+	showOnlyUnhealthy, _ := strconv.ParseBool(r.FormValue("show_only_unhealthy"))
+	if accept := r.Header.Get("Accept"); strings.Contains(accept, "text/html") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		tsmGlobal.WriteTargetsHTML(w, showOnlyUnhealthy)
+	} else {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		tsmGlobal.WriteTargetsPlain(w, showOriginalLabels)
 	}
 }
 
