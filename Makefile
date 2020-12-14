@@ -99,7 +99,7 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go get -u golang.org/x/lint/golint
+	which golint || GO111MODULE=off go install golang.org/x/lint/golint
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
@@ -113,7 +113,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
 
 install-errcheck:
-	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck
+	which errcheck || GO111MODULE=off go install github.com/kisielk/errcheck
 
 check-all: fmt vet lint errcheck golangci-lint
 
@@ -159,14 +159,14 @@ quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || GO111MODULE=off go get -u github.com/valyala/quicktemplate/qtc
+	which qtc || GO111MODULE=off go install github.com/valyala/quicktemplate/qtc
 
 
 golangci-lint: install-golangci-lint
 	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
-	which golangci-lint || GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.29.0
 
 docs-sync:
 	cp app/vmagent/README.md docs/vmagent.md
