@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"gopkg.in/yaml.v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +43,7 @@ func TestParseBad(t *testing.T) {
 		},
 		{
 			[]string{"testdata/dir/rules2-bad.rules"},
-			"function \"value\" not defined",
+			"function \"unknown\" not defined",
 		},
 		{
 			[]string{"testdata/dir/rules3-bad.rules"},
@@ -137,12 +138,14 @@ func TestGroup_Validate(t *testing.T) {
 						Alert: "alert",
 						Expr:  "up == 1",
 						Labels: map[string]string{
-							"summary": "{{ value|query }}",
+							"summary": `
+{{ with printf "node_memory_MemTotal{job='node',instance='%s'}" "localhost" | query }}
+  {{ . | first | value | humanize1024 }}B
+{{ end }}`,
 						},
 					},
 				},
 			},
-			expErr:              "error parsing annotation",
 			validateAnnotations: true,
 		},
 		{

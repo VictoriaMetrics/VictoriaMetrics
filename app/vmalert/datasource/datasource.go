@@ -34,6 +34,17 @@ func (m *Metric) AddLabel(key, value string) {
 	m.Labels = append(m.Labels, Label{Name: key, Value: value})
 }
 
+// Label returns the given label value.
+// If label is missing empty string will be returned
+func (m *Metric) Label(key string) string {
+	for _, l := range m.Labels {
+		if l.Name == key {
+			return l.Value
+		}
+	}
+	return ""
+}
+
 // Label represents metric's label
 type Label struct {
 	Name  string

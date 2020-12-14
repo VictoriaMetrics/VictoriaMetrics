@@ -137,6 +137,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 		}
 	}
 
+	qFn := func(query string) ([]datasource.Metric, error) { return q.Query(ctx, query) }
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
@@ -158,14 +159,14 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 				a.Value = m.Value
 				// and re-exec template since Value can be used
 				// in templates
-				err = ar.template(a)
+				err = ar.template(a, qFn)
 				if err != nil {
 					return nil, err
 				}
 			}
 			continue
 		}
-		a, err := ar.newAlert(m, ar.lastExecTime)
+		a, err := ar.newAlert(m, ar.lastExecTime, qFn)
 		if err != nil {
 			ar.lastExecError = err
 			return nil, fmt.Errorf("failed to create alert: %w", err)
@@ -245,7 +246,7 @@ func hash(m datasource.Metric) uint64 {
 	return hash.Sum64()
 }
 
-func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time) (*notifier.Alert, error) {
+func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notifier.QueryFn) (*notifier.Alert, error) {
 	a := &notifier.Alert{
 		GroupID: ar.GroupID,
 		Name:    ar.Name,
@@ -264,16 +265,16 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time) (*notifie
 		}
 		a.Labels[l.Name] = l.Value
 	}
-	return a, ar.template(a)
+	return a, ar.template(a, qFn)
 }
 
-func (ar *AlertingRule) template(a *notifier.Alert) error {
+func (ar *AlertingRule) template(a *notifier.Alert, qFn notifier.QueryFn) error {
 	var err error
-	a.Labels, err = a.ExecTemplate(a.Labels)
+	a.Labels, err = a.ExecTemplate(qFn, a.Labels)
 	if err != nil {
 		return err
 	}
-	a.Annotations, err = a.ExecTemplate(ar.Annotations)
+	a.Annotations, err = a.ExecTemplate(qFn, ar.Annotations)
 	return err
 }
 
@@ -393,6 +394,8 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 		return fmt.Errorf("querier is nil")
 	}
 
+	qFn := func(query string) ([]datasource.Metric, error) { return q.Query(ctx, query) }
+
 	// account for external labels in filter
 	var labelsFilter string
 	for k, v := range labels {
@@ -421,7 +424,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 			m.Labels = append(m.Labels, l)
 		}
 
-		a, err := ar.newAlert(m, time.Unix(int64(m.Value), 0))
+		a, err := ar.newAlert(m, time.Unix(int64(m.Value), 0), qFn)
 		if err != nil {
 			return fmt.Errorf("failed to create alert: %w", err)
 		}
