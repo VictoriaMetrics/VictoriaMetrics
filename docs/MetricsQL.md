@@ -83,7 +83,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `range_over_time(m[d])` - returns value range for `m` over `d` time window, i.e. `max_over_time(m[d])-min_over_time(m[d])`.
 - `median_over_time(m[d])` - calculates median values for `m` over `d` time window. Shorthand to `quantile_over_time(0.5, m[d])`.
 - `median(q)` - median aggregate. Shorthand to `quantile(0.5, q)`.
-- `limitk(k, q)` - limits the number of time series returned from `q` to `k`.
+- `limitk(k, q) by (group_labels)` - limits the number of time series returned from `q` to `k` per each `group_labels`. The returned set of `k` time series per each `group_labels` can change with each call.
 - `any(q) by (x)` - returns any time series from `q` for each group in `x`.
 - `keep_last_value(q)` - fills missing data (gaps) in `q` with the previous non-empty value.
 - `keep_next_value(q)` - fills missing data (gaps) in `q` with the next non-empty value.

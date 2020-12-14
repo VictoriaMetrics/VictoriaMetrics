@@ -117,6 +117,7 @@ var (
 	procQueryServiceStatusEx                                 = modadvapi32.NewProc("QueryServiceStatusEx")
 	procRegCloseKey                                          = modadvapi32.NewProc("RegCloseKey")
 	procRegEnumKeyExW                                        = modadvapi32.NewProc("RegEnumKeyExW")
+	procRegNotifyChangeKeyValue                              = modadvapi32.NewProc("RegNotifyChangeKeyValue")
 	procRegOpenKeyExW                                        = modadvapi32.NewProc("RegOpenKeyExW")
 	procRegQueryInfoKeyW                                     = modadvapi32.NewProc("RegQueryInfoKeyW")
 	procRegQueryValueExW                                     = modadvapi32.NewProc("RegQueryValueExW")
@@ -925,6 +926,22 @@ func RegCloseKey(key Handle) (regerrno error) {
 
 func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
 	r0, _, _ := syscall.Syscall9(procRegEnumKeyExW.Addr(), 8, uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(classLen)), uintptr(unsafe.Pointer(lastWriteTime)), 0)
+	if r0 != 0 {
+		regerrno = syscall.Errno(r0)
+	}
+	return
+}
+
+func RegNotifyChangeKeyValue(key Handle, watchSubtree bool, notifyFilter uint32, event Handle, asynchronous bool) (regerrno error) {
+	var _p0 uint32
+	if watchSubtree {
+		_p0 = 1
+	}
+	var _p1 uint32
+	if asynchronous {
+		_p1 = 1
+	}
+	r0, _, _ := syscall.Syscall6(procRegNotifyChangeKeyValue.Addr(), 5, uintptr(key), uintptr(_p0), uintptr(notifyFilter), uintptr(event), uintptr(_p1), 0)
 	if r0 != 0 {
 		regerrno = syscall.Errno(r0)
 	}
