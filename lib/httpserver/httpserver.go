@@ -277,6 +277,9 @@ func getCanonicalPath(path string) (string, error) {
 	if len(*pathPrefix) == 0 || path == "/" {
 		return path, nil
 	}
+	if *pathPrefix == path {
+		return "/", nil
+	}
 	prefix := *pathPrefix
 	if !strings.HasSuffix(prefix, "/") {
 		prefix = prefix + "/"
