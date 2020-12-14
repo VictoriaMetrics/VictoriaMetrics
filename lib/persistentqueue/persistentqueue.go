@@ -336,6 +336,10 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		cleanOnError()
 		return nil, fmt.Errorf("couldn't find chunk file for writing in %q", q.dir)
 	}
+	if q.readerOffset > q.writerOffset {
+		cleanOnError()
+		return nil, fmt.Errorf("readerOffset=%d cannot exceed writerOffset=%d", q.readerOffset, q.writerOffset)
+	}
 	mustCloseFlockF = false
 	return &q, nil
 }
