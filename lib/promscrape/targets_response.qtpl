@@ -17,7 +17,7 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
     {% space %} endpoint={%s= ts.endpoint %},
     {% space %} labels={%s= labels %}
     {% if showOriginLabels %},{% space %} originalLabels={%s= ol %}{% endif %},
-    {% space %} last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,
+    {% space %} last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s {% space %} ago,
     {% space %} scrape_duration={%f.3 float64(ts.scrapeDuration.Seconds()) %}s,
     {% space %} error={%q= ts.error %}
     {% newline %}
@@ -83,7 +83,7 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
                       <td class="labels border", title="Original {% space %} labels: {% space %} {%= formatLabel(ts.originalLabels) %}">
                            {%= formatLabel(ts.labels) %}
                       </td>
-                      <td class="last-scrape border">{%s ts.lastScrapeTime.String() %} ago</td>
+                      <td class="last-scrape border">{%s ts.lastScrapeTime.String() %} {% space %} ago</td>
                       <td class="scrape-duration border">{%s ts.scrapeDuration.String() %}</td>
                       <td class="errors border"><span class="alert alert-danger state_indicator">{%s= ts.error %}</span></td>
                     </tr>
