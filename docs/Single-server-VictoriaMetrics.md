@@ -1332,7 +1332,8 @@ An alternative solution is to query `/internal/resetRollupResultCache` url after
 the query cache, which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
-for data with timestamps close to the current time.
+for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
+cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to it.
 
 
 ## Data updates
