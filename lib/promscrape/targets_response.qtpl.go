@@ -163,7 +163,7 @@ func TargetsResponsePlain(jts []jobTargetsStatuses, showOriginLabels bool) strin
 //line lib/promscrape/targets_response.qtpl:30
 func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatuses, redirectPath string, onlyUnhealthy bool) {
 //line lib/promscrape/targets_response.qtpl:30
-	qw422016.N().S(`<!DOCTYPE html><style>.border{border-collapse: collapse;border: 1px solid black;}.table-row:hover{background-color: #f5f5f5;}</style><html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>VictoriaMetrics Database</title></head><body><h1>Targets</h1><div id="showTargets" class="btn-group btn-group-toggle" data-toggle="buttons"><label class="btn"><input type="radio" name="targets" id="all-targets" autocomplete="off" onclick="location.href='`)
+	qw422016.N().S(`<!DOCTYPE html><html lang="en"><head><style>.border{border-collapse: collapse;border: 1px solid black;}.table-row:hover{background-color: #f5f5f5;}</style><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>Scrape targets</title></head><body><h1>Targets</h1><div id="showTargets" class="btn-group btn-group-toggle" data-toggle="buttons"><label class="btn"><input type="radio" name="targets" id="all-targets" autocomplete="off" onclick="location.href='`)
 //line lib/promscrape/targets_response.qtpl:50
 	qw422016.N().S(redirectPath)
 //line lib/promscrape/targets_response.qtpl:50
