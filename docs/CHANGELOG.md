@@ -11,6 +11,7 @@
 * FEATURE: export `vm_promscrape_active_scrapers{type="<sd_type>"}` metric for tracking the number of active scrapers per each service discovery type.
 * FEATURE: export `vm_promscrape_scrapers_started_total{type="<sd_type>"}` and `vm_promscrape_scrapers_stopped_total{type="<sd_type>"}` metrics for tracking churn rate for scrapers
   per each service discovery type.
+* FEATURE: vmagent: allow setting per-`-remoteWrite.url` command-line flags for `-remoteWrite.sendTimeout` and `-remoteWrite.tlsInsecureSkipVerify`.
 
 * BUGFIX: properly handle `*` and `[...]` inside curly braces in query passed to Graphite Metrics API. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/952
 * BUGFIX: vmagent: fix memory leak when big number of targets is discovered via service discovery.
