@@ -142,6 +142,7 @@ func TestArrayDurationGetOptionalArg(t *testing.T) {
 	f("", 0, time.Second, time.Second)
 	f("", 1, time.Minute, time.Minute)
 	f("10s,1m", 1, time.Minute, time.Minute)
+	f("10s", 3, time.Second*10, time.Minute)
 }
 
 func TestArrayDurationString(t *testing.T) {
@@ -201,6 +202,7 @@ func TestArrayBoolGetOptionalArg(t *testing.T) {
 	f("", 0, false)
 	f("", 1, false)
 	f("true,true,false", 1, true)
+	f("true", 2, true)
 }
 
 func TestArrayBoolString(t *testing.T) {
