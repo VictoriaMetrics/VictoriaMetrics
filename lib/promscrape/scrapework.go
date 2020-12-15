@@ -313,38 +313,43 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 }
 
 func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
-	sr, err := sw.GetStreamReader()
-	if err != nil {
-		return fmt.Errorf("cannot read data: %s", err)
-	}
 	samplesScraped := 0
 	samplesPostRelabeling := 0
+	responseSize := int64(0)
 	wc := writeRequestCtxPool.Get(sw.prevRowsLen)
-	var mu sync.Mutex
-	err = parser.ParseStream(sr, scrapeTimestamp, false, func(rows []parser.Row) error {
-		mu.Lock()
-		defer mu.Unlock()
-		samplesScraped += len(rows)
-		for i := range rows {
-			sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
-		}
-		// Push the collected rows to sw before returning from the callback, since they cannot be held
-		// after returning from the callback - this will result in data race.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
-		samplesPostRelabeling += len(wc.writeRequest.Timeseries)
-		sw.updateSeriesAdded(wc)
-		startTime := time.Now()
-		sw.PushData(&wc.writeRequest)
-		pushDataDuration.UpdateDuration(startTime)
-		wc.resetNoRows()
-		return nil
-	})
+
+	sr, err := sw.GetStreamReader()
+	if err != nil {
+		err = fmt.Errorf("cannot read data: %s", err)
+	} else {
+		var mu sync.Mutex
+		err = parser.ParseStream(sr, scrapeTimestamp, false, func(rows []parser.Row) error {
+			mu.Lock()
+			defer mu.Unlock()
+			samplesScraped += len(rows)
+			for i := range rows {
+				sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
+			}
+			// Push the collected rows to sw before returning from the callback, since they cannot be held
+			// after returning from the callback - this will result in data race.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
+			samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+			sw.updateSeriesAdded(wc)
+			startTime := time.Now()
+			sw.PushData(&wc.writeRequest)
+			pushDataDuration.UpdateDuration(startTime)
+			wc.resetNoRows()
+			return nil
+		})
+		responseSize = sr.bytesRead
+		sr.MustClose()
+	}
+
 	scrapedSamples.Update(float64(samplesScraped))
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
-	scrapeResponseSize.Update(float64(sr.bytesRead))
-	sr.MustClose()
+	scrapeResponseSize.Update(float64(responseSize))
 	up := 1
 	if err != nil {
 		if samplesScraped == 0 {
