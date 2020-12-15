@@ -387,13 +387,13 @@ All the cluster components provide the following handlers for [profiling](https:
 Example command for collecting cpu profile from `vmstorage`:
 
 ```bash
-curl -s http://<victoria-metrics-host>:8428/debug/pprof/profile > cpu.pprof
+curl -s http://vmstorage:8482/debug/pprof/profile > cpu.pprof
 ```
 
 Example command for collecting memory profile from `vminsert`:
 
 ```bash
-curl -s http://<victoria-metrics-host>:8428/debug/pprof/heap > mem.pprof
+curl -s http://vminsert:8480/debug/pprof/heap > mem.pprof
 ```
 
 
