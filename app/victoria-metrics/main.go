@@ -32,7 +32,11 @@ var (
 		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
 )
 
-var customAPIPathList [][]string // custom api help links [["/api","doc"]] without http.pathPrefix.
+// custom api help links [["/api","doc"]] without http.pathPrefix.
+var customAPIPathList = [][]string{
+	{"/graph/explore", "explore metrics grafana page"},
+	{"/graph/d/prometheus-advanced/advanced-data-exploration", "PMM grafana dashboard"},
+}
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
