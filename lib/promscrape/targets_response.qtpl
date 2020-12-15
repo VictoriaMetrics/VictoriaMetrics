@@ -29,6 +29,8 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
 
 {% func TargetsResponseHTML(jts []jobTargetsStatuses, redirectPath string, onlyUnhealthy bool) %}
 <!DOCTYPE html>
+<html lang="en">
+<head>
 <style>
     .border{
         border-collapse: collapse;
@@ -38,12 +40,10 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
         background-color: #f5f5f5;
     }
 </style>
-<html lang="en">
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title>VictoriaMetrics Database</title>
-    </head>
-    <body>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Scrape targets</title>
+</head>
+<body>
     <h1>Targets</h1>
     <div id="showTargets" class="btn-group btn-group-toggle" data-toggle="buttons">
       <label class="btn">
@@ -92,13 +92,14 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
                 </table>
               </div>
   {% endfor %}
-    </body>
+</body>
 </html>
 {% endfunc %}
 
 {% func formatLabel(labels []prompbmarshal.Label) %}
 {% for _, label := range labels %}
- {% space %} {%s label.Name %}={%q label.Value %} {% space %}
+    {% space %} {%s label.Name %}={%q label.Value %} {% space %}
 {% endfor %}
 {% endfunc %}
+
 {% endstripspace %}
