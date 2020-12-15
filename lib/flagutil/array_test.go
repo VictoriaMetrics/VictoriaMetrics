@@ -9,19 +9,17 @@ import (
 )
 
 var (
-	fooFlag          Array
-	fooFlagDuration  ArrayDuration
-	fooFlagBool      ArrayBool
-	fooFlagBoolEmpty ArrayBool
+	fooFlag         Array
+	fooFlagDuration ArrayDuration
+	fooFlagBool     ArrayBool
 )
 
 func init() {
 	os.Args = append(os.Args, "--fooFlag=foo", "--fooFlag=bar", "--fooFlagDuration=10s", "--fooFlagDuration=5m")
-	os.Args = append(os.Args, "--fooFlagBool=true", "--fooFlagBool=false", "--fooFlagBoolEmpty")
+	os.Args = append(os.Args, "--fooFlagBool=true", "--fooFlagBool=false,true", "--fooFlagBool")
 	flag.Var(&fooFlag, "fooFlag", "test")
 	flag.Var(&fooFlagDuration, "fooFlagDuration", "test")
 	flag.Var(&fooFlagBool, "fooFlagBool", "test")
-	flag.Var(&fooFlagBoolEmpty, "fooFlagBoolEmpty", "test")
 }
 
 func TestMain(m *testing.M) {
@@ -163,30 +161,15 @@ func TestArrayDurationString(t *testing.T) {
 }
 
 func TestArrayBool(t *testing.T) {
-	expected := map[bool]struct{}{
-		true:  {},
-		false: {},
+	expected := []bool{
+		true, false, true, true,
 	}
 	if len(expected) != len(fooFlagBool) {
 		t.Errorf("len array flag (%d) is not equal to %d", len(fooFlag), len(expected))
 	}
-	for _, i := range fooFlagBool {
-		if _, ok := expected[i]; !ok {
-			t.Errorf("unexpected item in array %v", i)
-		}
-	}
-}
-
-func TestArrayBoolEmpty(t *testing.T) {
-	expected := map[bool]struct{}{
-		true: {},
-	}
-	if len(expected) != len(fooFlagBoolEmpty) {
-		t.Errorf("len array flag (%d) is not equal to %d", len(fooFlag), len(expected))
-	}
-	for _, i := range fooFlagBoolEmpty {
-		if _, ok := expected[i]; !ok {
-			t.Errorf("unexpected item in array %v", i)
+	for i, v := range fooFlagBool {
+		if v != expected[i] {
+			t.Errorf("unexpected item in array index=%v,value=%v,want=%v", i, v, expected[i])
 		}
 	}
 }
