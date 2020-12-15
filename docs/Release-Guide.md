@@ -3,12 +3,12 @@ Release process guidance
 ## Release version and Docker images
 
 0. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
-1. Create release tag with `git tag v1.xx.y`.
+1. Create release tag with `git tag v1.xx.y` in `master` branch and `git tag v1.xx.y-cluster` in `cluster` branch.
 2. Run `make release` for creating `*.tar.gz` release archive with the corresponding `_checksums.txt` inside `bin` directory.
 3. Run `make publish` for creating and publishing Docker images.
-4. Push release tag to https://github.com/VictoriaMetrics/VictoriaMetrics : `git push origin v1.xx.y`.
-5. Go to https://github.com/VictoriaMetrics/VictoriaMetrics/releases , create new release from the pushed tag on step 4
-   and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 2.
+4. Repeat steps 3-4 for `cluster` branch.
+5. Push release tag to https://github.com/VictoriaMetrics/VictoriaMetrics : `git push origin v1.xx.y`.
+6. Go to https://github.com/VictoriaMetrics/VictoriaMetrics/releases , create new release from the pushed tag on step 5 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 2.
 
 
 ## Helm Charts
