@@ -1,12 +1,12 @@
 {% import "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 %}
 
-{% stripspace %}
+{% collapsespace %}
 
 {% func TargetsResponsePlain (jts []jobTargetsStatuses,  showOriginLabels bool) -%}
 
 {% for _, js := range jts %}
-job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space %} up)
+job={%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)
 {% newline %}
 {% for _, ts := range js.targetsStatus %}
     {% code
@@ -14,12 +14,12 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
      ol := promLabelsString(ts.originalLabels)
     %}
 {%s= "\t" %}state={% if ts.up %}up{% else %}down{% endif %},
-    {% space %} endpoint={%s= ts.endpoint %},
-    {% space %} labels={%s= labels %}
-    {% if showOriginLabels %},{% space %} originalLabels={%s= ol %}{% endif %},
-    {% space %} last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s {% space %} ago,
-    {% space %} scrape_duration={%f.3 float64(ts.scrapeDuration.Seconds()) %}s,
-    {% space %} error={%q= ts.error %}
+    endpoint={%s= ts.endpoint %},
+    labels={%s= labels %}
+    {% if showOriginLabels %}, originalLabels={%s= ol %}{% endif %},
+    last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s ago,
+    scrape_duration={%f.3 ts.scrapeDuration.Seconds() %}s,
+    error={%q= ts.error %}
     {% newline %}
 {% endfor %}
 {% endfor %}
@@ -29,76 +29,68 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
 
 {% func TargetsResponseHTML(jts []jobTargetsStatuses, redirectPath string, onlyUnhealthy bool) %}
 <!DOCTYPE html>
-<style>
-    .border{
-        border-collapse: collapse;
-        border: 1px solid black;
-    }
-    .table-row:hover{
-        background-color: #f5f5f5;
-    }
-</style>
 <html lang="en">
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title>VictoriaMetrics Database</title>
-    </head>
-    <body>
-    <h1>Targets</h1>
-    <div id="showTargets" class="btn-group btn-group-toggle" data-toggle="buttons">
-      <label class="btn">
-        <input type="radio" name="targets" id="all-targets" autocomplete="off" onclick="location.href='{%s= redirectPath %}';" {% if !onlyUnhealthy %}checked {% endif %}> All
-      </label>
-      <label class="btn">
-        <input type="radio" name="targets" id="unhealthy-targets" autocomplete="off" onclick="location.href='{%s= redirectPath %}?show_only_unhealthy=true';" {% if onlyUnhealthy %}checked {% endif %}> Unhealthy
-      </label>
-      <br />
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+    <title>Scrape targets</title>
+</head>
+<body class="m-3">
+  <h1>Scrape targets</h1>
+  <div>
+    <button type="button" class="btn {% if !onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
+        {% if onlyUnhealthy %}onclick="location.href='{%s redirectPath %}'"{% endif %}>
+        All
+    </button>
+    <button type="button" class="btn {% if onlyUnhealthy %}btn-primary{% else %}btn-secondary{% endif %}"
+        {% if !onlyUnhealthy %}onclick="location.href='{%s= redirectPath %}?show_only_unhealthy=true'"{% endif %}>
+        Unhealthy
+    </button>
   </div>
   {% for _,js :=range jts %}
-  		    <div class="table-container">
-                <h2 class="job_header danger">
-                  <a id="job-{%q= js.job %}" >{%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)</a>
-                </h2>
-                <table class="table-bordered table-hover border">
-                  <thead class="job_details border">
-                    <tr class="table-row border">
-                      <th class="border">Endpoint</th>
-                      <th class="border">State</th>
-                      <th class="border">Labels</th>
-                      <th class="border">Last Scrape</th>
-                      <th class="border">Scrape Duration</th>
-                      <th class="border">Error</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                  {% for _, ts := range js.targetsStatus %}
-                    {% if onlyUnhealthy && ts.up %} {% continue %} {% endif %}
-                    <tr class="table-row border">
-                      <td class="endpoint border">
-                        <a href="{%s= ts.endpoint %}">{%s= ts.endpoint %}</a><br>
-                      </td>
-                      <td class="state border">
-                        <span class="state_indicator">{% if ts.up %}UP{% else %}DOWN{% endif %}</span>
-                      </td>
-                      <td class="labels border", title="Original {% space %} labels: {% space %} {%= formatLabel(ts.originalLabels) %}">
-                           {%= formatLabel(ts.labels) %}
-                      </td>
-                      <td class="last-scrape border">{%s ts.lastScrapeTime.String() %} {% space %} ago</td>
-                      <td class="scrape-duration border">{%s ts.scrapeDuration.String() %}</td>
-                      <td class="errors border"><span class="alert alert-danger state_indicator">{%s= ts.error %}</span></td>
-                    </tr>
-                  {% endfor %}
-                  </tbody>
-                </table>
-              </div>
+    {% if onlyUnhealthy && js.upCount == js.targetsTotal %}{% continue %}{% endif %}
+    <div>
+      <h4>
+        <a>{%s js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)</a>
+      </h4>
+      <table class="table table-striped table-hover table-bordered table-sm">
+        <thead>
+          <tr>
+            <th scope="col">Endpoint</th>
+            <th scope="col">State</th>
+            <th scope="col">Labels</th>
+            <th scope="col">Last Scrape</th>
+            <th scope="col">Scrape Duration</th>
+            <th scope="col">Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for _, ts := range js.targetsStatus %}
+            {% if onlyUnhealthy && ts.up %}{% continue %}{% endif %}
+            <tr {% if !ts.up %}class="alert alert-danger" role="alert"{% endif %}>
+              <td><a href="{%s ts.endpoint %}">{%s ts.endpoint %}</a><br></td>
+              <td>{% if ts.up %}UP{% else %}DOWN{% endif %}</td>
+              <td title="Original labels: {%= formatLabel(ts.originalLabels) %}">
+                {%= formatLabel(ts.labels) %}
+              </td>
+              <td>{%f.3 ts.lastScrapeTime.Seconds() %}s ago</td>
+              <td>{%f.3 ts.scrapeDuration.Seconds() %}s</td>
+              <td>{%s ts.error %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% endfor %}
-    </body>
+</body>
 </html>
 {% endfunc %}
 
 {% func formatLabel(labels []prompbmarshal.Label) %}
 {% for _, label := range labels %}
- {% space %} {%s label.Name %}={%q label.Value %} {% space %}
+    {%s label.Name %}={%q label.Value %} {% space %}
 {% endfor %}
 {% endfunc %}
-{% endstripspace %}
+
+{% endcollapsespace %}
