@@ -2,6 +2,16 @@
 
 # tip
 
+
+# [v1.50.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.1)
+
+* FEATURE: vmagent: export `vmagent_remotewrite_blocks_sent_total` and `vmagent_remotewrite_blocks_sent_total` metrics for each `-remoteWrite.url`.
+
+* BUGFIX: vmagent: properly delete unregistered scrape targets from `/targets` and `/api/v1/targets` pages. They weren't deleted due to the bug in `v1.50.0`.
+
+
+# [v1.50.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.0)
+
 * FEATURE: automatically reset response cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to VictoriaMetrics. This makes unnecessary disabling response cache during data backfilling or resetting it after backfilling is complete as described [in these docs](https://victoriametrics.github.io/#backfilling). This feature applies only to single-node VictoriaMetrics. It doesn't apply to cluster version of VictoriaMetrics because `vminsert` nodes don't know about `vmselect` nodes where the response cache must be reset.
 * FEATURE: vmalert: add `query`, `first` and `value` functions to alert templates. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/539
 * FEATURE: vmagent: return user-friendly HTML page when requesting `/targets` page from web browser. The page is returned in the old plaintext format when requesting via curl or similar tool.

@@ -49,6 +49,8 @@ type client struct {
 	fq             *persistentqueue.FastQueue
 	hc             *http.Client
 
+	bytesSent       *metrics.Counter
+	blocksSent      *metrics.Counter
 	requestDuration *metrics.Histogram
 	requestsOKCount *metrics.Counter
 	errorsCount     *metrics.Counter
@@ -111,6 +113,8 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		},
 		stopCh: make(chan struct{}),
 	}
+	c.bytesSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_bytes_sent_total{url=%q}`, c.sanitizedURL))
+	c.blocksSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_blocks_sent_total{url=%q}`, c.sanitizedURL))
 	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.sanitizedURL))
 	c.requestsOKCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, c.sanitizedURL))
 	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
@@ -187,6 +191,8 @@ func (c *client) runWorker() {
 func (c *client) sendBlock(block []byte) {
 	retryDuration := time.Second
 	retriesCount := 0
+	c.bytesSent.Add(len(block))
+	c.blocksSent.Inc()
 
 again:
 	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))

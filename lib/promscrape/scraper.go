@@ -318,14 +318,14 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 		sg.activeScrapers.Inc()
 		sg.scrapersStarted.Inc()
 		sg.wg.Add(1)
-		go func() {
+		tsmGlobal.Register(sw)
+		go func(sw *ScrapeWork) {
 			defer sg.wg.Done()
 			sc.sw.run(sc.stopCh)
 			tsmGlobal.Unregister(sw)
 			sg.activeScrapers.Dec()
 			sg.scrapersStopped.Inc()
-		}()
-		tsmGlobal.Register(sw)
+		}(sw)
 		sg.m[key] = sc
 		additionsCount++
 	}
