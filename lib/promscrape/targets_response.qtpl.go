@@ -112,7 +112,7 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, jts []jobTargetsStatu
 //line lib/promscrape/targets_response.qtpl:21
 			qw422016.N().S(`scrape_duration=`)
 //line lib/promscrape/targets_response.qtpl:21
-			qw422016.N().FPrec(float64(ts.scrapeDuration.Seconds()), 3)
+			qw422016.N().FPrec(ts.scrapeDuration.Seconds(), 3)
 //line lib/promscrape/targets_response.qtpl:21
 			qw422016.N().S(`s,`)
 //line lib/promscrape/targets_response.qtpl:22
@@ -193,11 +193,11 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line lib/promscrape/targets_response.qtpl:57
 		qw422016.N().S(`<div class="table-container"><h2 class="job_header danger"><a id="job-`)
 //line lib/promscrape/targets_response.qtpl:60
-		qw422016.N().Q(js.job)
+		qw422016.E().Q(js.job)
 //line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(`" >`)
 //line lib/promscrape/targets_response.qtpl:60
-		qw422016.N().Q(js.job)
+		qw422016.E().Q(js.job)
 //line lib/promscrape/targets_response.qtpl:60
 		qw422016.N().S(`(`)
 //line lib/promscrape/targets_response.qtpl:60
@@ -219,11 +219,11 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line lib/promscrape/targets_response.qtpl:75
 			qw422016.N().S(`<tr class="table-row border"><td class="endpoint border"><a href="`)
 //line lib/promscrape/targets_response.qtpl:78
-			qw422016.N().S(ts.endpoint)
+			qw422016.E().S(ts.endpoint)
 //line lib/promscrape/targets_response.qtpl:78
 			qw422016.N().S(`">`)
 //line lib/promscrape/targets_response.qtpl:78
-			qw422016.N().S(ts.endpoint)
+			qw422016.E().S(ts.endpoint)
 //line lib/promscrape/targets_response.qtpl:78
 			qw422016.N().S(`</a><br></td><td class="state border"><span class="state_indicator">`)
 //line lib/promscrape/targets_response.qtpl:81
@@ -253,17 +253,19 @@ func StreamTargetsResponseHTML(qw422016 *qt422016.Writer, jts []jobTargetsStatus
 //line lib/promscrape/targets_response.qtpl:84
 			qw422016.N().S(`</td><td class="last-scrape border">`)
 //line lib/promscrape/targets_response.qtpl:86
-			qw422016.E().S(ts.lastScrapeTime.String())
+			qw422016.N().FPrec(ts.lastScrapeTime.Seconds(), 3)
+//line lib/promscrape/targets_response.qtpl:86
+			qw422016.N().S(`s`)
 //line lib/promscrape/targets_response.qtpl:86
 			qw422016.N().S(` `)
 //line lib/promscrape/targets_response.qtpl:86
 			qw422016.N().S(`ago</td><td class="scrape-duration border">`)
 //line lib/promscrape/targets_response.qtpl:87
-			qw422016.E().S(ts.scrapeDuration.String())
+			qw422016.N().FPrec(ts.scrapeDuration.Seconds(), 3)
 //line lib/promscrape/targets_response.qtpl:87
-			qw422016.N().S(`</td><td class="errors border"><span class="alert alert-danger state_indicator">`)
+			qw422016.N().S(`s</td><td class="errors border"><span class="alert alert-danger state_indicator">`)
 //line lib/promscrape/targets_response.qtpl:88
-			qw422016.N().S(ts.error)
+			qw422016.E().S(ts.error)
 //line lib/promscrape/targets_response.qtpl:88
 			qw422016.N().S(`</span></td></tr>`)
 //line lib/promscrape/targets_response.qtpl:90

@@ -18,7 +18,7 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
     {% space %} labels={%s= labels %}
     {% if showOriginLabels %},{% space %} originalLabels={%s= ol %}{% endif %},
     {% space %} last_scrape={%f.3 ts.lastScrapeTime.Seconds() %}s {% space %} ago,
-    {% space %} scrape_duration={%f.3 float64(ts.scrapeDuration.Seconds()) %}s,
+    {% space %} scrape_duration={%f.3 ts.scrapeDuration.Seconds() %}s,
     {% space %} error={%q= ts.error %}
     {% newline %}
 {% endfor %}
@@ -57,7 +57,7 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
   {% for _,js :=range jts %}
   		    <div class="table-container">
                 <h2 class="job_header danger">
-                  <a id="job-{%q= js.job %}" >{%q= js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)</a>
+                  <a id="job-{%q js.job %}" >{%q js.job %} ({%d js.upCount %}/{%d js.targetsTotal %} up)</a>
                 </h2>
                 <table class="table-bordered table-hover border">
                   <thead class="job_details border">
@@ -75,7 +75,7 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
                     {% if onlyUnhealthy && ts.up %} {% continue %} {% endif %}
                     <tr class="table-row border">
                       <td class="endpoint border">
-                        <a href="{%s= ts.endpoint %}">{%s= ts.endpoint %}</a><br>
+                        <a href="{%s ts.endpoint %}">{%s ts.endpoint %}</a><br>
                       </td>
                       <td class="state border">
                         <span class="state_indicator">{% if ts.up %}UP{% else %}DOWN{% endif %}</span>
@@ -83,9 +83,9 @@ job={%q= js.job %}{% space %} ({%d js.upCount %}/{%d js.targetsTotal %} {% space
                       <td class="labels border", title="Original {% space %} labels: {% space %} {%= formatLabel(ts.originalLabels) %}">
                            {%= formatLabel(ts.labels) %}
                       </td>
-                      <td class="last-scrape border">{%s ts.lastScrapeTime.String() %} {% space %} ago</td>
-                      <td class="scrape-duration border">{%s ts.scrapeDuration.String() %}</td>
-                      <td class="errors border"><span class="alert alert-danger state_indicator">{%s= ts.error %}</span></td>
+                      <td class="last-scrape border">{%f.3 ts.lastScrapeTime.Seconds() %}s {% space %} ago</td>
+                      <td class="scrape-duration border">{%f.3 ts.scrapeDuration.Seconds() %}s</td>
+                      <td class="errors border"><span class="alert alert-danger state_indicator">{%s ts.error %}</span></td>
                     </tr>
                   {% endfor %}
                   </tbody>
