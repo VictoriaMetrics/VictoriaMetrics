@@ -21,7 +21,6 @@ may fail;
 * by default, rules execution is sequential within one group, but persisting of execution results to remote
 storage is asynchronous. Hence, user shouldn't rely on recording rules chaining when result of previous
 recording rule is reused in next one;
-* there is no `query` function support in templates yet;
 * `vmalert` has no UI, just an API for getting groups and rules statuses.
 
 ### QuickStart
