@@ -32,6 +32,8 @@ var (
 		"Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse")
 )
 
+var customAPIPathList [][]string // custom api help links [["/api","doc"]] without http.pathPrefix.
+
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -112,6 +114,10 @@ func writeAPIHelp(w io.Writer, pathList [][]string) {
 	for _, p := range pathList {
 		p, doc := p[0], p[1]
 		p = path.Join(pathPrefix, p)
+		fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
+	}
+	for _, p := range customAPIPathList {
+		p, doc := p[0], p[1]
 		fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
 	}
 }
