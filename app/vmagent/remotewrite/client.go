@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -21,11 +20,11 @@ import (
 )
 
 var (
-	sendTimeout = flag.Duration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to -remoteWrite.url")
+	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", "Timeout for sending a single block of data to -remoteWrite.url")
 	proxyURL    = flagutil.NewArray("remoteWrite.proxyURL", "Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. "+
 		"Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
-	tlsInsecureSkipVerify = flag.Bool("remoteWrite.tlsInsecureSkipVerify", false, "Whether to skip tls verification when connecting to -remoteWrite.url")
+	tlsInsecureSkipVerify = flagutil.NewArrayBool("remoteWrite.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to -remoteWrite.url")
 	tlsCertFile           = flagutil.NewArray("remoteWrite.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url")
 	tlsKeyFile = flagutil.NewArray("remoteWrite.tlsKeyFile", "Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url. "+
@@ -108,7 +107,7 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		fq:             fq,
 		hc: &http.Client{
 			Transport: tr,
-			Timeout:   *sendTimeout,
+			Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, time.Minute),
 		},
 		stopCh: make(chan struct{}),
 	}
@@ -140,7 +139,7 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 		CertFile:           tlsCertFile.GetOptionalArg(argIdx),
 		KeyFile:            tlsKeyFile.GetOptionalArg(argIdx),
 		ServerName:         tlsServerName.GetOptionalArg(argIdx),
-		InsecureSkipVerify: *tlsInsecureSkipVerify,
+		InsecureSkipVerify: tlsInsecureSkipVerify.GetOptionalArg(argIdx),
 	}
 	if c.CAFile == "" && c.CertFile == "" && c.KeyFile == "" && c.ServerName == "" && !c.InsecureSkipVerify {
 		return nil, nil
