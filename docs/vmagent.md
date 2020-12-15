@@ -277,7 +277,7 @@ It may be useful for performing `vmagent` rolling update without scrape loss.
       'match[]': ['{__name__!=""}']
   ```
 
-  Note that `sample_limit` option doesn't work if stream parsing is enabled, since the pearsed data is pushed to remote storage as soon as it is parsed. So `sample_limit` option
+  Note that `sample_limit` option doesn't work if stream parsing is enabled, since the parsed data is pushed to remote storage as soon as it is parsed. So `sample_limit` option
   has no sense during stream parsing.
 
 * It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page constantly grows.
