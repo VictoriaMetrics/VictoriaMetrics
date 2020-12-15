@@ -99,7 +99,7 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go install golang.org/x/lint/golint
+	which golint || go install golang.org/x/lint/golint
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
@@ -113,7 +113,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
 
 install-errcheck:
-	which errcheck || GO111MODULE=off go install github.com/kisielk/errcheck
+	which errcheck || go install github.com/kisielk/errcheck
 
 check-all: fmt vet lint errcheck golangci-lint
 
@@ -159,7 +159,7 @@ quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || GO111MODULE=off go install github.com/valyala/quicktemplate/qtc
+	which qtc || go install github.com/valyala/quicktemplate/qtc
 
 
 golangci-lint: install-golangci-lint
