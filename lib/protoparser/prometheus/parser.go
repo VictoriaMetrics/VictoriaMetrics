@@ -166,6 +166,8 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		// There is no timestamp - just a whitespace after the value.
 		return tagsPool, nil
 	}
+	// There are some whitespaces after timestamp
+	s = skipTrailingWhitespace(s)
 	ts, err := fastfloat.Parse(s)
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
