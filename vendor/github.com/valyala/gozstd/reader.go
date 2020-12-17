@@ -1,11 +1,30 @@
 package gozstd
 
 /*
+#cgo CFLAGS: -O3
+
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zstd_errors.h"
 
 #include <stdlib.h>  // for malloc/free
+#include <stdint.h>  // for uintptr_t
+
+// The following *_wrapper functions allow avoiding memory allocations
+// durting calls from Go.
+// See https://github.com/golang/go/issues/24450 .
+
+static size_t ZSTD_initDStream_usingDDict_wrapper(uintptr_t ds, uintptr_t dict) {
+    return ZSTD_initDStream_usingDDict((ZSTD_DStream*)ds, (ZSTD_DDict*)dict);
+}
+
+static size_t ZSTD_freeDStream_wrapper(uintptr_t ds) {
+    return ZSTD_freeDStream((ZSTD_DStream*)ds);
+}
+
+static size_t ZSTD_decompressStream_wrapper(uintptr_t ds, uintptr_t output, uintptr_t input) {
+    return ZSTD_decompressStream((ZSTD_DStream*)ds, (ZSTD_outBuffer*)output, (ZSTD_inBuffer*)input);
+}
 */
 import "C"
 
@@ -92,7 +111,9 @@ func initDStream(ds *C.ZSTD_DStream, dd *DDict) {
 	if dd != nil {
 		ddict = dd.p
 	}
-	result := C.ZSTD_initDStream_usingDDict(ds, ddict)
+	result := C.ZSTD_initDStream_usingDDict_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(ds))),
+		C.uintptr_t(uintptr(unsafe.Pointer(ddict))))
 	ensureNoError("ZSTD_initDStream_usingDDict", result)
 }
 
@@ -108,7 +129,8 @@ func (zr *Reader) Release() {
 		return
 	}
 
-	result := C.ZSTD_freeDStream(zr.ds)
+	result := C.ZSTD_freeDStream_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(zr.ds))))
 	ensureNoError("ZSTD_freeDStream", result)
 	zr.ds = nil
 
@@ -180,7 +202,10 @@ tryDecompressAgain:
 	zr.outBuf.size = dstreamOutBufSize
 	zr.outBuf.pos = 0
 	prevInBufPos := zr.inBuf.pos
-	result := C.ZSTD_decompressStream(zr.ds, zr.outBuf, zr.inBuf)
+	result := C.ZSTD_decompressStream_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(zr.ds))),
+		C.uintptr_t(uintptr(unsafe.Pointer(zr.outBuf))),
+		C.uintptr_t(uintptr(unsafe.Pointer(zr.inBuf))))
 	zr.outBuf.size = zr.outBuf.pos
 	zr.outBuf.pos = 0
 

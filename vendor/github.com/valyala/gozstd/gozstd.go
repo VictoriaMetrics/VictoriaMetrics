@@ -13,20 +13,20 @@ package gozstd
 // durting calls from Go.
 // See https://github.com/golang/go/issues/24450 .
 
-static size_t ZSTD_compressCCtx_wrapper(ZSTD_CCtx* ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize, int compressionLevel) {
-    return ZSTD_compressCCtx(ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, compressionLevel);
+static size_t ZSTD_compressCCtx_wrapper(uintptr_t ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize, int compressionLevel) {
+    return ZSTD_compressCCtx((ZSTD_CCtx*)ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, compressionLevel);
 }
 
-static size_t ZSTD_compress_usingCDict_wrapper(ZSTD_CCtx* ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize, const ZSTD_CDict* cdict) {
-    return ZSTD_compress_usingCDict(ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, cdict);
+static size_t ZSTD_compress_usingCDict_wrapper(uintptr_t ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize, uintptr_t cdict) {
+    return ZSTD_compress_usingCDict((ZSTD_CCtx*)ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, (const ZSTD_CDict*)cdict);
 }
 
-static size_t ZSTD_decompressDCtx_wrapper(ZSTD_DCtx* ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize) {
-    return ZSTD_decompressDCtx(ctx, (void*)dst, dstCapacity, (const void*)src, srcSize);
+static size_t ZSTD_decompressDCtx_wrapper(uintptr_t ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize) {
+    return ZSTD_decompressDCtx((ZSTD_DCtx*)ctx, (void*)dst, dstCapacity, (const void*)src, srcSize);
 }
 
-static size_t ZSTD_decompress_usingDDict_wrapper(ZSTD_DCtx* ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize, const ZSTD_DDict *ddict) {
-    return ZSTD_decompress_usingDDict(ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, ddict);
+static size_t ZSTD_decompress_usingDDict_wrapper(uintptr_t ctx, uintptr_t dst, size_t dstCapacity, uintptr_t src, size_t srcSize, uintptr_t ddict) {
+    return ZSTD_decompress_usingDDict((ZSTD_DCtx*)ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, (const ZSTD_DDict*)ddict);
 }
 
 static unsigned long long ZSTD_getFrameContentSize_wrapper(uintptr_t src, size_t srcSize) {
@@ -149,12 +149,13 @@ func compress(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressi
 
 func compressInternal(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, compressionLevel int, mustSucceed bool) C.size_t {
 	if cd != nil {
-		result := C.ZSTD_compress_usingCDict_wrapper(cctxDict.cctx,
+		result := C.ZSTD_compress_usingCDict_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(cctxDict.cctx))),
 			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(cap(dst)),
 			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 			C.size_t(len(src)),
-			cd.p)
+			C.uintptr_t(uintptr(unsafe.Pointer(cd.p))))
 		// Prevent from GC'ing of dst and src during CGO call above.
 		runtime.KeepAlive(dst)
 		runtime.KeepAlive(src)
@@ -163,7 +164,8 @@ func compressInternal(cctx, cctxDict *cctxWrapper, dst, src []byte, cd *CDict, c
 		}
 		return result
 	}
-	result := C.ZSTD_compressCCtx_wrapper(cctx.cctx,
+	result := C.ZSTD_compressCCtx_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(cctx.cctx))),
 		C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 		C.size_t(cap(dst)),
 		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
@@ -289,14 +291,16 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 func decompressInternal(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) C.size_t {
 	var n C.size_t
 	if dd != nil {
-		n = C.ZSTD_decompress_usingDDict_wrapper(dctxDict.dctx,
+		n = C.ZSTD_decompress_usingDDict_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(dctxDict.dctx))),
 			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(cap(dst)),
 			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
 			C.size_t(len(src)),
-			dd.p)
+			C.uintptr_t(uintptr(unsafe.Pointer(dd.p))))
 	} else {
-		n = C.ZSTD_decompressDCtx_wrapper(dctx.dctx,
+		n = C.ZSTD_decompressDCtx_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(dctx.dctx))),
 			C.uintptr_t(uintptr(unsafe.Pointer(&dst[0]))),
 			C.size_t(cap(dst)),
 			C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))),
