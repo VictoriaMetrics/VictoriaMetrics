@@ -355,7 +355,7 @@ func newScraper(sw *ScrapeWork, group string, pushData func(wr *prompbmarshal.Wr
 		stopCh: make(chan struct{}),
 	}
 	c := newClient(sw)
-	sc.sw.Config = *sw
+	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData
 	sc.sw.GetStreamReader = c.GetStreamReader
