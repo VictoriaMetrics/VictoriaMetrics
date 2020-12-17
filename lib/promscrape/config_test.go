@@ -442,7 +442,6 @@ scrape_configs:
 
 func resetNonEssentialFields(sws []*ScrapeWork) {
 	for i := range sws {
-		sws[i].ID = 0
 		sws[i].OriginalLabels = nil
 	}
 }

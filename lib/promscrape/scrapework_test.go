@@ -49,6 +49,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	timeseriesExpected := parseData(dataExpected)
 
 	var sw scrapeWork
+	sw.Config = &ScrapeWork{}
 
 	readDataCalls := 0
 	sw.ReadData = func(dst []byte) ([]byte, error) {
@@ -87,7 +88,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		timeseriesExpected := parseData(dataExpected)
 
 		var sw scrapeWork
-		sw.Config = *cfg
+		sw.Config = cfg
 
 		readDataCalls := 0
 		sw.ReadData = func(dst []byte) ([]byte, error) {
