@@ -198,12 +198,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run("time() offset 1m40s0ms", func(t *testing.T) {
+	t.Run("time() offset 1h40s0ms", func(t *testing.T) {
 		t.Parallel()
-		q := `time() offset 100s`
+		q := `time() offset 1h40s0ms`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{800, 1000, 1200, 1400, 1600, 1800},
+			Values:     []float64{-2800, -2600, -2400, -2200, -2000, -1800},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time() offset -1h40s0ms", func(t *testing.T) {
+		t.Parallel()
+		q := `time() offset -1h40s0ms`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4600, 4800, 5000, 5200, 5400, 5600},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
