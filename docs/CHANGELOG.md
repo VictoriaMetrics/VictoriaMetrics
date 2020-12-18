@@ -2,6 +2,8 @@
 
 # tip
 
+* FEATURE: do not publish duplicate Docker images with `-cluster` tag suffix for [vmagent](https://victoriametrics.github.io/vmagent.html), [vmalert](https://victoriametrics.github.io/vmalert.html), [vmauth](https://victoriametrics.github.io/vmauth.html), [vmbackup](https://victoriametrics.github.io/vmbackup.html) and [vmrestore](https://victoriametrics.github.io/vmrestore.html), since they are identical to images without `-cluster` tag suffix.
+
 * BUGFIX: properly parse lines in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md) with whitespace after the timestamp. For example, `foo 123 456 # some comment here`. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/970
 
 
