@@ -15,22 +15,12 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date 
 all: \
 	vminsert \
 	vmselect \
-	vmstorage \
-	vmagent \
-	vmalert \
-	vmauth \
-	vmbackup \
-	vmrestore
+	vmstorage
 
 all-pure: \
 	vminsert-pure \
 	vmselect-pure \
-	vmstorage-pure \
-	vmagent-pure \
-	vmalert-pure \
-	vmauth-pure \
-	vmbackup-pure \
-	vmrestore-pure
+	vmstorage-pure
 
 include app/*/Makefile
 include deployment/*/Makefile
@@ -41,33 +31,15 @@ clean:
 publish: \
 	publish-vminsert \
 	publish-vmselect \
-	publish-vmstorage \
-	publish-vmagent \
-	publish-vmalert \
-	publish-vmauth \
-	publish-vmbackup \
-	publish-vmrestore
+	publish-vmstorage
 
 package: \
 	package-vminsert \
 	package-vmselect \
-	package-vmstorage \
-	package-vmagent \
-	package-vmalert \
-	package-vmauth \
-	package-vmbackup \
-	package-vmrestore
-
-vmutils: \
-	vmagent \
-	vmalert \
-	vmauth \
-	vmbackup \
-	vmrestore
+	package-vmstorage
 
 release: \
-	release-vmcluster \
-	release-vmutils
+	release-vmcluster
 
 release-vmcluster: \
 	vminsert-prod \
@@ -75,15 +47,6 @@ release-vmcluster: \
 	vmstorage-prod
 	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vminsert-prod vmselect-prod vmstorage-prod && \
 		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
-
-release-vmutils: \
-	vmagent-prod \
-	vmalert-prod \
-	vmauth-prod \
-	vmbackup-prod \
-	vmrestore-prod
-	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmauth-prod vmbackup-prod vmrestore-prod && \
-		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
