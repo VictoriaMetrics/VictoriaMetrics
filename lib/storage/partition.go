@@ -1279,7 +1279,7 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool, isBig 
 
 // getPartsToMerge returns optimal parts to merge from pws.
 //
-// The returned rows will contain less than maxRows rows.
+// The returned parts will contain less than maxRows rows.
 // The function returns true if pws contains parts, which cannot be merged because of maxRows limit.
 func getPartsToMerge(pws []*partWrapper, maxRows uint64, isFinal bool) ([]*partWrapper, bool) {
 	pwsRemaining := make([]*partWrapper, 0, len(pws))
@@ -1345,21 +1345,35 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 		return a.RowsCount < b.RowsCount
 	})
 
-	n := maxPartsToMerge
-	if len(src) < n {
-		n = len(src)
+	minSrcParts := (maxPartsToMerge + 1) / 2
+	if minSrcParts < 2 {
+		minSrcParts = 2
+	}
+	maxSrcParts := maxPartsToMerge
+	if len(src) < maxSrcParts {
+		maxSrcParts = len(src)
 	}
 
-	// Exhaustive search for parts giving the lowest write amplification
-	// when merged.
+	// Exhaustive search for parts giving the lowest write amplification when merged.
 	var pws []*partWrapper
 	maxM := float64(0)
-	for i := 2; i <= n; i++ {
+	for i := minSrcParts; i <= maxSrcParts; i++ {
 		for j := 0; j <= len(src)-i; j++ {
 			a := src[j : j+i]
+			if a[0].p.ph.RowsCount*uint64(len(a)) < a[len(a)-1].p.ph.RowsCount {
+				// Do not merge parts with too big difference in rows count,
+				// since this results in unbalanced merges.
+				continue
+			}
 			rowsSum := uint64(0)
 			for _, pw := range a {
 				rowsSum += pw.p.ph.RowsCount
+			}
+			if rowsSum < 1e6 && len(a) < maxPartsToMerge {
+				// Do not merge parts with too small number of rows if the number of source parts
+				// isn't equal to maxPartsToMerge. This should reduce CPU usage and disk IO usage
+				// for small parts merge.
+				continue
 			}
 			if rowsSum > maxRows {
 				// There is no need in verifying remaining parts with higher number of rows
