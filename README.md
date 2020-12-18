@@ -28,22 +28,22 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 ## Case studies and talks
 
-Click on a link in order to read the corresponding case study
+Alphabetically sorted links to case studies:
 
-* [zhihu](https://victoriametrics.github.io/CaseStudies.html#zhihu)
 * [adidas](https://victoriametrics.github.io/CaseStudies.html#adidas)
-* [CERN](https://victoriametrics.github.io/CaseStudies.html#cern)
-* [COLOPL](https://victoriametrics.github.io/CaseStudies.html#colopl)
-* [Zerodha](https://victoriametrics.github.io/CaseStudies.html#zerodha)
-* [Wix.com](https://victoriametrics.github.io/CaseStudies.html#wixcom)
-* [Wedos.com](https://victoriametrics.github.io/CaseStudies.html#wedoscom)
-* [Synthesio](https://victoriametrics.github.io/CaseStudies.html#synthesio)
-* [MHI Vestas Offshore Wind](https://victoriametrics.github.io/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Dreamteam](https://victoriametrics.github.io/CaseStudies.html#dreamteam)
-* [Brandwatch](https://victoriametrics.github.io/CaseStudies.html#brandwatch)
 * [Adsterra](https://victoriametrics.github.io/CaseStudies.html#adsterra)
 * [ARNES](https://victoriametrics.github.io/CaseStudies.html#arnes)
+* [Brandwatch](https://victoriametrics.github.io/CaseStudies.html#brandwatch)
+* [CERN](https://victoriametrics.github.io/CaseStudies.html#cern)
+* [COLOPL](https://victoriametrics.github.io/CaseStudies.html#colopl)
+* [Dreamteam](https://victoriametrics.github.io/CaseStudies.html#dreamteam)
 * [Idealo.de](https://victoriametrics.github.io/CaseStudies.html#idealode)
+* [MHI Vestas Offshore Wind](https://victoriametrics.github.io/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Synthesio](https://victoriametrics.github.io/CaseStudies.html#synthesio)
+* [Wedos.com](https://victoriametrics.github.io/CaseStudies.html#wedoscom)
+* [Wix.com](https://victoriametrics.github.io/CaseStudies.html#wixcom)
+* [Zerodha](https://victoriametrics.github.io/CaseStudies.html#zerodha)
+* [zhihu](https://victoriametrics.github.io/CaseStudies.html#zhihu)
 
 
 ## Prominent features
