@@ -5,20 +5,23 @@ and feel free asking for references, reviews and additional case studies from re
 
 See also [articles about VictoriaMetrics from our users](https://victoriametrics.github.io/Articles.html#third-party-articles-and-slides).
 
+Alphabetically sorted links to case studies:
 
-* [zhihu](#zhihu)
 * [adidas](#adidas)
-* [CERN](#cern)
-* [COLOPL](#colopl)
-* [Zerodha](#zerodha)
-* [Wix.com](#wixcom)
-* [Wedos.com](#wedoscom)
-* [Synthesio](#synthesio)
-* [Dreamteam](#dreamteam)
-* [Brandwatch](#brandwatch)
 * [Adsterra](#adsterra)
 * [ARNES](#arnes)
+* [Brandwatch](#brandwatch)
+* [CERN](#cern)
+* [COLOPL](#colopl)
+* [Dreamteam](#dreamteam)
 * [Idealo.de](#idealode)
+* [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+* [Synthesio](#synthesio)
+* [Wedos.com](#wedoscom)
+* [Wix.com](#wixcom)
+* [Zerodha](#zerodha)
+* [zhihu](#zhihu)
+
 
 ## zhihu
 
