@@ -4,6 +4,7 @@
 
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
+* [Percona monitoring and management migration from Prometheus to VictoriaMetrics FAQ](https://www.percona.com/blog/2020/12/16/percona-monitoring-and-management-migration-from-prometheus-to-victoriametrics-faq/)
 * [Making peace with Prometheus rate()](https://blog.doit-intl.com/making-peace-with-prometheus-rate-43a3ea75c4cf)
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/@IG1.com/sismology-iguana-solutions-monitoring-system-f46e4170447f)
