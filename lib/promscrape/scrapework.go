@@ -27,10 +27,9 @@ var (
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
+//
+// It must be immutable during its lifetime, since it is read from concurrently running goroutines.
 type ScrapeWork struct {
-	// Unique ID for the ScrapeWork.
-	ID uint64
-
 	// Full URL (including query args) for the scrape.
 	ScrapeURL string
 
@@ -144,7 +143,7 @@ func promLabelsString(labels []prompbmarshal.Label) string {
 
 type scrapeWork struct {
 	// Config for the scrape.
-	Config ScrapeWork
+	Config *ScrapeWork
 
 	// ReadData is called for reading the data.
 	ReadData func(dst []byte) ([]byte, error)
@@ -308,7 +307,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// body must be released only after wc is released, since wc refers to body.
 	sw.prevBodyLen = len(body.B)
 	leveledbytebufferpool.Put(body)
-	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
+	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
 	return err
 }
 
@@ -369,7 +368,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	sw.prevRowsLen = len(wc.rows.Rows)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
-	tsmGlobal.Update(&sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
+	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
 	return nil
 }
 

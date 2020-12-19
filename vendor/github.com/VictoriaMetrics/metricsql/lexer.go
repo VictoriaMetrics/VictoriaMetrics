@@ -408,8 +408,12 @@ func isPositiveDuration(s string) bool {
 	return n == len(s)
 }
 
-// PositiveDurationValue returns the duration in milliseconds for the given s
+// PositiveDurationValue returns positive duration in milliseconds for the given s
 // and the given step.
+//
+// Duration in s may be combined, i.e. 2h5m or 2h-5m.
+//
+// Error is returned if the duration in s is negative.
 func PositiveDurationValue(s string, step int64) (int64, error) {
 	d, err := DurationValue(s, step)
 	if err != nil {
@@ -424,7 +428,7 @@ func PositiveDurationValue(s string, step int64) (int64, error) {
 // DurationValue returns the duration in milliseconds for the given s
 // and the given step.
 //
-// Duration in s may be combined, i.e. 2h5m or 2h-5m.
+// Duration in s may be combined, i.e. 2h5m, -2h5m or 2h-5m.
 //
 // The returned duration value can be negative.
 func DurationValue(s string, step int64) (int64, error) {
@@ -432,6 +436,7 @@ func DurationValue(s string, step int64) (int64, error) {
 		return 0, fmt.Errorf("duration cannot be empty")
 	}
 	var d int64
+	isMinus := false
 	for len(s) > 0 {
 		n := scanSingleDuration(s, true)
 		if n <= 0 {
@@ -443,7 +448,13 @@ func DurationValue(s string, step int64) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
+		if isMinus && dLocal > 0 {
+			dLocal = -dLocal
+		}
 		d += dLocal
+		if dLocal < 0 {
+			isMinus = true
+		}
 	}
 	return d, nil
 }

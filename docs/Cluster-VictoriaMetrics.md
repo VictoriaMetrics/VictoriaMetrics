@@ -122,7 +122,7 @@ ROOT_IMAGE=scratch make package
 
 ## Operation
 
-### Cluster setup
+## Cluster setup
 
 A minimal cluster must contain the following nodes:
 
@@ -141,7 +141,7 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 
 It is recommended setting up [monitoring](#monitoring) for the cluster.
 
-#### Environment variables
+### Environment variables
 
 Each flag values can be set thru environment variables by following these rules:
 
@@ -151,7 +151,7 @@ Each flag values can be set thru environment variables by following these rules:
 - It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
 
 
-### Monitoring
+## Monitoring
 
 All the cluster components expose various metrics in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
 By default the following TCP ports are used:
@@ -165,7 +165,7 @@ with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafan
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
 
 
-### URL format
+## URL format
 
 * URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
@@ -231,7 +231,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
   across `vmstorage` nodes.
 
 
-### Cluster resizing and scalability
+## Cluster resizing and scalability
 
 Cluster performance and capacity scales with adding new nodes.
 
@@ -250,7 +250,7 @@ Steps to add `vmstorage` node:
 3. Gradually restart all the `vminsert` nodes with new `-storageNode` arg containing `<new_vmstorage_host>:8400`.
 
 
-### Updating / reconfiguring cluster nodes
+## Updating / reconfiguring cluster nodes
 
 All the node types - `vminsert`, `vmselect` and `vmstorage` - may be updated via graceful shutdown.
 Send `SIGINT` signal to the corresponding process, wait until it finishes and then start new version
@@ -260,7 +260,7 @@ Cluster should remain in working state if at least a single node of each type re
 the update process. See [cluster availability](#cluster-availability) section for details.
 
 
-### Cluster availability
+## Cluster availability
 
 * HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
 * The cluster remains available if at least a single `vmstorage` node exists:
@@ -271,11 +271,11 @@ the update process. See [cluster availability](#cluster-availability) section fo
 Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
 
-### Capacity planning
+## Capacity planning
 
 Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware.
 
-#### vminsert
+### vminsert
 
 * The recommended total number of vCPU cores for all the `vminsert` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
 * The recommended number of vCPU cores per each `vminsert` instance should equal to the number of `vmstorage` instances in the cluster.
@@ -285,7 +285,7 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 * Sometimes `-rpc.disableCompression` command-line flag on `vminsert` instances could increase ingestion capacity at the cost
   of higher network bandwidth usage between `vminsert` and `vmstorage`.
 
-#### vmstorage
+### vmstorage
 
 * The recommended total number of vCPU cores for all the `vmstorage` instances can be calculated from the ingestion rate: `vCPUs = ingestion_rate / 150K`.
 * The recommended total amount of RAM for all the `vmstorage` instances can be calculated from the number of active time series: `RAM = 2 * active_time_series * 1KB`.
@@ -299,7 +299,7 @@ Each instance type - `vminsert`, `vmselect` and `vmstorage` - can run on the mos
 * The recommended total amount of storage space for all the `vmstorage` instances can be calculated
   from the ingestion rate and retention: `storage_space = ingestion_rate * retention_seconds`.
 
-#### vmselect
+### vmselect
 
 The recommended hardware for `vmselect` instances highly depends on the type of queries. Lightweight queries over small number of time series usually require
 small number of vCPU cores and small amount of RAM on `vmselect`, while heavy queries over big number of time series (>10K) usually require
@@ -309,7 +309,7 @@ In general it is recommended increasing the number of vCPU cores and RAM per `vm
 while adding new `vmselect` nodes only when old nodes are overloaded with incoming query stream.
 
 
-### High availability
+## High availability
 
 It is recommended to run all the components for a single cluster in the same subnetwork with high bandwidth, low latency and low error rates.
 This improves cluster performance and availability.
@@ -321,18 +321,18 @@ If you need multi-AZ setup, then it is recommended running independed clusters i
 into all the cluster. Then [promxy](https://github.com/jacksontj/promxy) could be used for querying the data from multiple clusters.
 
 
-### Helm
+## Helm
 
 Helm chart simplifies managing cluster version of VictoriaMetrics in Kubernetes.
 It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-charts) repository.
 
 
-### Kubernetes operator
+## Kubernetes operator
 
 [K8s operator](https://github.com/VictoriaMetrics/operator) simplifies managing VictoriaMetrics components in Kubernetes.
 
 
-### Replication and data safety
+## Replication and data safety
 
 In order to enable application-level replication, `-replicationFactor=N` command-line flag must be passed to `vminsert`.
 This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
@@ -355,7 +355,7 @@ HDD-based persistent disks should be enough for the majority of use cases.
 It is recommended using durable replicated persistent volumes in Kubernetes.
 
 
-### Backups
+## Backups
 
 It is recommended performing periodical backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
 for protecting from user errors such as accidental data deletion.
@@ -374,6 +374,27 @@ Restoring from backup:
 1. Stop `vmstorage` node with `kill -INT`.
 2. Restore data from backup using [vmrestore](https://victoriametrics.github.io/vmrestore.html) into `-storageDataPath` directory.
 3. Start `vmstorage` node.
+
+
+## Profiling
+
+All the cluster components provide the following handlers for [profiling](https://blog.golang.org/profiling-go-programs):
+
+* `http://vminsert:8480/debug/pprof/heap` for memory profile and `http://vminsert:8480/debug/pprof/profile` for CPU profile
+* `http://vmselect:8481/debug/pprof/heap` for memory profile and `http://vmselect:8481/debug/pprof/profile` for CPU profile
+* `http://vmstorage:8482/debug/pprof/heap` for memory profile and `http://vmstorage:8482/debug/pprof/profile` for CPU profile
+
+Example command for collecting cpu profile from `vmstorage`:
+
+```bash
+curl -s http://vmstorage:8482/debug/pprof/profile > cpu.pprof
+```
+
+Example command for collecting memory profile from `vminsert`:
+
+```bash
+curl -s http://vminsert:8480/debug/pprof/heap > mem.pprof
+```
 
 
 ## Community and contributions

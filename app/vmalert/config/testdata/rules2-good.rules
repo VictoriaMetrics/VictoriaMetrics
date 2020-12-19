@@ -15,8 +15,11 @@ groups:
       - alert: ExampleAlertAlwaysFiring
         expr: sum by(job)
           (up == 1)
+        labels:
+          job: '{{ $labels.job }}'
         annotations:
-          summary: Instances up {{ range query "up" }}
+          description: Job {{ $labels.job }} is up!
+          summary: All instances up {{ range query "up" }}
             {{ . | label "instance" }}
             {{ end }}
       - record: handler:requests:rate5m

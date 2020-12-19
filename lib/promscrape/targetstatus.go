@@ -59,45 +59,49 @@ func WriteAPIV1Targets(w io.Writer, state string) {
 
 type targetStatusMap struct {
 	mu sync.Mutex
-	m  map[uint64]*targetStatus
+	m  map[*ScrapeWork]*targetStatus
 }
 
 func newTargetStatusMap() *targetStatusMap {
 	return &targetStatusMap{
-		m: make(map[uint64]*targetStatus),
+		m: make(map[*ScrapeWork]*targetStatus),
 	}
 }
 
 func (tsm *targetStatusMap) Reset() {
 	tsm.mu.Lock()
-	tsm.m = make(map[uint64]*targetStatus)
+	tsm.m = make(map[*ScrapeWork]*targetStatus)
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Register(sw *ScrapeWork) {
 	tsm.mu.Lock()
-	tsm.m[sw.ID] = &targetStatus{
-		sw: *sw,
+	tsm.m[sw] = &targetStatus{
+		sw: sw,
 	}
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Unregister(sw *ScrapeWork) {
 	tsm.mu.Lock()
-	delete(tsm.m, sw.ID)
+	delete(tsm.m, sw)
 	tsm.mu.Unlock()
 }
 
 func (tsm *targetStatusMap) Update(sw *ScrapeWork, group string, up bool, scrapeTime, scrapeDuration int64, err error) {
 	tsm.mu.Lock()
-	tsm.m[sw.ID] = &targetStatus{
-		sw:             *sw,
-		up:             up,
-		scrapeGroup:    group,
-		scrapeTime:     scrapeTime,
-		scrapeDuration: scrapeDuration,
-		err:            err,
+	ts := tsm.m[sw]
+	if ts == nil {
+		ts = &targetStatus{
+			sw: sw,
+		}
+		tsm.m[sw] = ts
 	}
+	ts.up = up
+	ts.scrapeGroup = group
+	ts.scrapeTime = scrapeTime
+	ts.scrapeDuration = scrapeDuration
+	ts.err = err
 	tsm.mu.Unlock()
 }
 
@@ -123,8 +127,8 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		st  targetStatus
 	}
 	kss := make([]keyStatus, 0, len(tsm.m))
-	for _, st := range tsm.m {
-		key := promLabelsString(st.sw.OriginalLabels)
+	for sw, st := range tsm.m {
+		key := promLabelsString(sw.OriginalLabels)
 		kss = append(kss, keyStatus{
 			key: key,
 			st:  *st,
@@ -176,7 +180,7 @@ func writeLabelsJSON(w io.Writer, labels []prompbmarshal.Label) {
 }
 
 type targetStatus struct {
-	sw             ScrapeWork
+	sw             *ScrapeWork
 	up             bool
 	scrapeGroup    string
 	scrapeTime     int64

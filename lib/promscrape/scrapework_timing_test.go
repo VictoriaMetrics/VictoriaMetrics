@@ -37,6 +37,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 	b.SetBytes(int64(len(data)))
 	b.RunParallel(func(pb *testing.PB) {
 		var sw scrapeWork
+		sw.Config = &ScrapeWork{}
 		sw.ReadData = readDataFunc
 		sw.PushData = func(wr *prompbmarshal.WriteRequest) {}
 		timestamp := int64(0)

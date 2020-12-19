@@ -141,11 +141,16 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
-		for k, v := range ar.Labels {
-			// apply extra labels
+		// extra labels could contain templates, so we expand them first
+		labels, err := expandLabels(m, qFn, ar)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand labels: %s", err)
+		}
+		for k, v := range labels {
+			// apply extra labels to datasource
+			// so the hash key will be consistent on restore
 			m.SetLabel(k, v)
 		}
-
 		h := hash(m)
 		if _, ok := updated[h]; ok {
 			// duplicate may be caused by extra labels
@@ -158,8 +163,8 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 				// update Value field with latest value
 				a.Value = m.Value
 				// and re-exec template since Value can be used
-				// in templates
-				err = ar.template(a, qFn)
+				// in annotations
+				a.Annotations, err = a.ExecTemplate(qFn, ar.Annotations)
 				if err != nil {
 					return nil, err
 				}
@@ -198,6 +203,19 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 		return ar.toTimeSeries(ar.lastExecTime), nil
 	}
 	return nil, nil
+}
+
+func expandLabels(m datasource.Metric, q notifier.QueryFn, ar *AlertingRule) (map[string]string, error) {
+	metricLabels := make(map[string]string)
+	for _, l := range m.Labels {
+		metricLabels[l.Name] = l.Value
+	}
+	tpl := notifier.AlertTplData{
+		Labels: metricLabels,
+		Value:  m.Value,
+		Expr:   ar.Expr,
+	}
+	return notifier.ExecTemplate(q, ar.Labels, tpl)
 }
 
 func (ar *AlertingRule) toTimeSeries(timestamp time.Time) []prompbmarshal.TimeSeries {
@@ -265,17 +283,9 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, start time.Time, qFn notif
 		}
 		a.Labels[l.Name] = l.Value
 	}
-	return a, ar.template(a, qFn)
-}
-
-func (ar *AlertingRule) template(a *notifier.Alert, qFn notifier.QueryFn) error {
 	var err error
-	a.Labels, err = a.ExecTemplate(qFn, a.Labels)
-	if err != nil {
-		return err
-	}
 	a.Annotations, err = a.ExecTemplate(qFn, ar.Annotations)
-	return err
+	return a, err
 }
 
 // AlertAPI generates APIAlert object from alert by its id(hash)

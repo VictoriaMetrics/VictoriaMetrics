@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -744,7 +743,6 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 	// Reduce memory usage by interning all the strings in labels.
 	internLabelStrings(labels)
 	dst = append(dst, &ScrapeWork{
-		ID:                   atomic.AddUint64(&nextScrapeWorkID, 1),
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       swc.scrapeInterval,
 		ScrapeTimeout:        swc.scrapeTimeout,
@@ -763,9 +761,6 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 	})
 	return dst, nil
 }
-
-// Each ScrapeWork has an ID, which is used for locating it when updating its status.
-var nextScrapeWorkID uint64
 
 func internLabelStrings(labels []prompbmarshal.Label) {
 	for i := range labels {

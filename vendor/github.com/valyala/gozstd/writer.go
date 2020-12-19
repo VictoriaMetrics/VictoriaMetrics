@@ -1,10 +1,47 @@
 package gozstd
 
 /*
+#cgo CFLAGS: -O3
+
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
+#include "zstd_errors.h"
 
 #include <stdlib.h>  // for malloc/free
+#include <stdint.h>  // for uintptr_t
+
+// The following *_wrapper functions allow avoiding memory allocations
+// durting calls from Go.
+// See https://github.com/golang/go/issues/24450 .
+
+static size_t ZSTD_CCtx_setParameter_wrapper(uintptr_t cs, ZSTD_cParameter param, int value) {
+    return ZSTD_CCtx_setParameter((ZSTD_CStream*)cs, param, value);
+}
+
+static size_t ZSTD_initCStream_wrapper(uintptr_t cs, int compressionLevel) {
+    return ZSTD_initCStream((ZSTD_CStream*)cs, compressionLevel);
+}
+
+static size_t ZSTD_initCStream_usingCDict_wrapper(uintptr_t cs, uintptr_t dict) {
+    return ZSTD_initCStream_usingCDict((ZSTD_CStream*)cs, (ZSTD_CDict*)dict);
+}
+
+static size_t ZSTD_freeCStream_wrapper(uintptr_t cs) {
+    return ZSTD_freeCStream((ZSTD_CStream*)cs);
+}
+
+static size_t ZSTD_compressStream_wrapper(uintptr_t cs, uintptr_t output, uintptr_t input) {
+    return ZSTD_compressStream((ZSTD_CStream*)cs, (ZSTD_outBuffer*)output, (ZSTD_inBuffer*)input);
+}
+
+static size_t ZSTD_flushStream_wrapper(uintptr_t cs, uintptr_t output) {
+    return ZSTD_flushStream((ZSTD_CStream*)cs, (ZSTD_outBuffer*)output);
+}
+
+static size_t ZSTD_endStream_wrapper(uintptr_t cs, uintptr_t output) {
+    return ZSTD_endStream((ZSTD_CStream*)cs, (ZSTD_outBuffer*)output);
+}
+
 */
 import "C"
 
@@ -177,14 +214,21 @@ func (zw *Writer) ResetWriterParams(w io.Writer, params *WriterParams) {
 
 func initCStream(cs *C.ZSTD_CStream, params WriterParams) {
 	if params.Dict != nil {
-		result := C.ZSTD_initCStream_usingCDict(cs, params.Dict.p)
+		result := C.ZSTD_initCStream_usingCDict_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(params.Dict.p))))
 		ensureNoError("ZSTD_initCStream_usingCDict", result)
 	} else {
-		result := C.ZSTD_initCStream(cs, C.int(params.CompressionLevel))
+		result := C.ZSTD_initCStream_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(cs))),
+			C.int(params.CompressionLevel))
 		ensureNoError("ZSTD_initCStream", result)
 	}
 
-	result := C.ZSTD_CCtx_setParameter(cs, C.ZSTD_cParameter(C.ZSTD_c_windowLog), C.int(params.WindowLog))
+	result := C.ZSTD_CCtx_setParameter_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(cs))),
+		C.ZSTD_cParameter(C.ZSTD_c_windowLog),
+		C.int(params.WindowLog))
 	ensureNoError("ZSTD_CCtx_setParameter", result)
 }
 
@@ -200,7 +244,8 @@ func (zw *Writer) Release() {
 		return
 	}
 
-	result := C.ZSTD_freeCStream(zw.cs)
+	result := C.ZSTD_freeCStream_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))))
 	ensureNoError("ZSTD_freeCStream", result)
 	zw.cs = nil
 
@@ -279,7 +324,10 @@ func (zw *Writer) Write(p []byte) (int, error) {
 
 func (zw *Writer) flushInBuf() error {
 	prevInBufPos := zw.inBuf.pos
-	result := C.ZSTD_compressStream(zw.cs, zw.outBuf, zw.inBuf)
+	result := C.ZSTD_compressStream_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))),
+		C.uintptr_t(uintptr(unsafe.Pointer(zw.outBuf))),
+		C.uintptr_t(uintptr(unsafe.Pointer(zw.inBuf))))
 	ensureNoError("ZSTD_compressStream", result)
 
 	// Move the remaining data to the start of inBuf.
@@ -328,7 +376,9 @@ func (zw *Writer) Flush() error {
 
 	// Flush the internal buffer to outBuf.
 	for {
-		result := C.ZSTD_flushStream(zw.cs, zw.outBuf)
+		result := C.ZSTD_flushStream_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(zw.outBuf))))
 		ensureNoError("ZSTD_flushStream", result)
 		if err := zw.flushOutBuf(); err != nil {
 			return err
@@ -350,7 +400,9 @@ func (zw *Writer) Close() error {
 	}
 
 	for {
-		result := C.ZSTD_endStream(zw.cs, zw.outBuf)
+		result := C.ZSTD_endStream_wrapper(
+			C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(zw.outBuf))))
 		ensureNoError("ZSTD_endStream", result)
 		if err := zw.flushOutBuf(); err != nil {
 			return err
