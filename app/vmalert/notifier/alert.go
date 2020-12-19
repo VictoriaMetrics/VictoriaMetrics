@@ -52,7 +52,8 @@ func (as AlertState) String() string {
 	return "inactive"
 }
 
-type alertTplData struct {
+// AlertTplData is used to execute templating
+type AlertTplData struct {
 	Labels map[string]string
 	Value  float64
 	Expr   string
@@ -60,25 +61,30 @@ type alertTplData struct {
 
 const tplHeader = `{{ $value := .Value }}{{ $labels := .Labels }}{{ $expr := .Expr }}`
 
-// ExecTemplate executes the Alert template for give
+// ExecTemplate executes the Alert template for given
 // map of annotations.
 // Every alert could have a different datasource, so function
 // requires a queryFunction as an argument.
 func (a *Alert) ExecTemplate(q QueryFn, annotations map[string]string) (map[string]string, error) {
-	tplData := alertTplData{Value: a.Value, Labels: a.Labels, Expr: a.Expr}
+	tplData := AlertTplData{Value: a.Value, Labels: a.Labels, Expr: a.Expr}
 	return templateAnnotations(annotations, tplData, funcsWithQuery(q))
+}
+
+// ExecTemplate executes the given template for given annotations map.
+func ExecTemplate(q QueryFn, annotations map[string]string, tpl AlertTplData) (map[string]string, error) {
+	return templateAnnotations(annotations, tpl, funcsWithQuery(q))
 }
 
 // ValidateTemplates validate annotations for possible template error, uses empty data for template population
 func ValidateTemplates(annotations map[string]string) error {
-	_, err := templateAnnotations(annotations, alertTplData{
+	_, err := templateAnnotations(annotations, AlertTplData{
 		Labels: map[string]string{},
 		Value:  0,
 	}, tmplFunc)
 	return err
 }
 
-func templateAnnotations(annotations map[string]string, data alertTplData, funcs template.FuncMap) (map[string]string, error) {
+func templateAnnotations(annotations map[string]string, data AlertTplData, funcs template.FuncMap) (map[string]string, error) {
 	var builder strings.Builder
 	var buf bytes.Buffer
 	eg := new(utils.ErrGroup)
@@ -99,7 +105,7 @@ func templateAnnotations(annotations map[string]string, data alertTplData, funcs
 	return r, eg.Err()
 }
 
-func templateAnnotation(dst io.Writer, text string, data alertTplData, funcs template.FuncMap) error {
+func templateAnnotation(dst io.Writer, text string, data AlertTplData, funcs template.FuncMap) error {
 	t := template.New("").Funcs(funcs).Option("missingkey=zero")
 	tpl, err := t.Parse(text)
 	if err != nil {
