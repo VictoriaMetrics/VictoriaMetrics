@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -461,6 +462,106 @@ func TestAlertingRule_Exec_Negative(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), expErr) {
 		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
+	}
+}
+
+func TestAlertingRule_Template(t *testing.T) {
+	testCases := []struct {
+		rule      *AlertingRule
+		metrics   []datasource.Metric
+		expAlerts map[uint64]*notifier.Alert
+	}{
+		{
+			newTestRuleWithLabels("common", "region", "east"),
+			[]datasource.Metric{
+				metricWithValueAndLabels(t, 1, "instance", "foo"),
+				metricWithValueAndLabels(t, 1, "instance", "bar"),
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "region", "east", "instance", "foo")): {
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						alertGroupNameLabel: "",
+						"region":            "east",
+						"instance":          "foo",
+					},
+				},
+				hash(metricWithLabels(t, "region", "east", "instance", "bar")): {
+					Annotations: map[string]string{},
+					Labels: map[string]string{
+						alertGroupNameLabel: "",
+						"region":            "east",
+						"instance":          "bar",
+					},
+				},
+			},
+		},
+		{
+			&AlertingRule{
+				Name: "override label",
+				Labels: map[string]string{
+					"instance": "{{ $labels.instance }}",
+					"region":   "east",
+				},
+				Annotations: map[string]string{
+					"summary":     `Too high connection number for "{{ $labels.instance }}" for region {{ $labels.region }}`,
+					"description": `It is {{ $value }} connections for "{{ $labels.instance }}"`,
+				},
+				alerts: make(map[uint64]*notifier.Alert),
+			},
+			[]datasource.Metric{
+				metricWithValueAndLabels(t, 2, "instance", "foo"),
+				metricWithValueAndLabels(t, 10, "instance", "bar"),
+			},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "region", "east", "instance", "foo")): {
+					Labels: map[string]string{
+						alertGroupNameLabel: "",
+						"instance":          "foo",
+						"region":            "east",
+					},
+					Annotations: map[string]string{
+						"summary":     `Too high connection number for "foo" for region east`,
+						"description": `It is 2 connections for "foo"`,
+					},
+				},
+				hash(metricWithLabels(t, "region", "east", "instance", "bar")): {
+					Labels: map[string]string{
+						alertGroupNameLabel: "",
+						"instance":          "bar",
+						"region":            "east",
+					},
+					Annotations: map[string]string{
+						"summary":     `Too high connection number for "bar" for region east`,
+						"description": `It is 10 connections for "bar"`,
+					},
+				},
+			},
+		},
+	}
+	fakeGroup := Group{Name: "TestRule_Exec"}
+	for _, tc := range testCases {
+		t.Run(tc.rule.Name, func(t *testing.T) {
+			fq := &fakeQuerier{}
+			tc.rule.GroupID = fakeGroup.ID()
+			fq.add(tc.metrics...)
+			if _, err := tc.rule.Exec(context.TODO(), fq, false); err != nil {
+				t.Fatalf("unexpected err: %s", err)
+			}
+			for hash, expAlert := range tc.expAlerts {
+				gotAlert := tc.rule.alerts[hash]
+				if gotAlert == nil {
+					t.Fatalf("alert %d is missing; labels: %v; annotations: %v",
+						hash, expAlert.Labels, expAlert.Annotations)
+				}
+				if !reflect.DeepEqual(expAlert.Annotations, gotAlert.Annotations) {
+					t.Fatalf("expected to have annotations %#v; got %#v", expAlert.Annotations, gotAlert.Annotations)
+				}
+				if !reflect.DeepEqual(expAlert.Labels, gotAlert.Labels) {
+					t.Fatalf("expected to have labels %#v; got %#v", expAlert.Labels, gotAlert.Labels)
+				}
+			}
+		})
 	}
 }
 
