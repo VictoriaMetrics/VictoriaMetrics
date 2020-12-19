@@ -10,6 +10,11 @@ Release process guidance
 5. Push release tag to https://github.com/VictoriaMetrics/VictoriaMetrics : `git push origin v1.xx.y`.
 6. Go to https://github.com/VictoriaMetrics/VictoriaMetrics/releases , create new release from the pushed tag on step 5 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 2.
 
+### Public Announcement 
+
+1. Publish message in slack (victoriametrics.slack.com, general channel)
+2. Post twit with release notes URL
+3. Post in subreddit https://www.reddit.com/r/VictoriaMetrics/ 
 
 ## Helm Charts
 
