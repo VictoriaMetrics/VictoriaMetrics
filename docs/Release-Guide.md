@@ -15,6 +15,7 @@ Release process guidance
 1. Publish message in slack (victoriametrics.slack.com, general channel)
 2. Post twit with release notes URL
 3. Post in subreddit https://www.reddit.com/r/VictoriaMetrics/ 
+4. Post in linkedin
 
 ## Helm Charts
 
