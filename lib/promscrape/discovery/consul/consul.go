@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
