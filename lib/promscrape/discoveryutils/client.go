@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -45,11 +46,12 @@ type Client struct {
 }
 
 // NewClient returns new Client for the given apiServer and the given ac.
-func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *url.URL) (*Client, error) {
 	var (
 		dialFunc fasthttp.DialFunc
 		tlsCfg   *tls.Config
 		u        fasthttp.URI
+		err      error
 	)
 	u.Update(apiServer)
 
@@ -61,6 +63,13 @@ func NewClient(apiServer string, ac *promauth.Config) (*Client, error) {
 			return net.Dial("unix", dialAddr)
 		}
 	}
+	if proxyURL != nil {
+		dialFunc, err = netutil.GetProxyDialFunc(proxyURL)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	hostPort := string(u.Host())
 	isTLS := string(u.Scheme()) == "https"
 	if isTLS && ac != nil {

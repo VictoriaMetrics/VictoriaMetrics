@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,25 +48,38 @@ var (
 	stdDialerOnce sync.Once
 )
 
-func statDial(addr string) (conn net.Conn, err error) {
-	if netutil.TCP6Enabled() {
-		conn, err = fasthttp.DialDualStack(addr)
-	} else {
-		conn, err = fasthttp.Dial(addr)
-	}
-	dialsTotal.Inc()
-	if err != nil {
-		dialErrors.Inc()
-		if !netutil.TCP6Enabled() {
-			err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
+func getDialStatConn(proxyURL *url.URL) fasthttp.DialFunc {
+	auth := netutil.MakeBasicAuthHeader(nil, proxyURL)
+	return func(addr string) (conn net.Conn, err error) {
+		dialAddr := addr
+		if proxyURL != nil {
+			dialAddr = proxyURL.Host
 		}
-		return nil, err
+		if netutil.TCP6Enabled() {
+			conn, err = fasthttp.DialDualStack(dialAddr)
+		} else {
+			conn, err = fasthttp.Dial(dialAddr)
+		}
+		dialsTotal.Inc()
+		if err != nil {
+			dialErrors.Inc()
+			if !netutil.TCP6Enabled() {
+				err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
+			}
+			return nil, err
+		}
+		conns.Inc()
+		if proxyURL != nil {
+			if err := netutil.MakeProxyConnectCall(conn, []byte(addr), auth); err != nil {
+				_ = conn.Close()
+				return nil, err
+			}
+		}
+		sc := &statConn{
+			Conn: conn,
+		}
+		return sc, nil
 	}
-	conns.Inc()
-	sc := &statConn{
-		Conn: conn,
-	}
-	return sc, nil
 }
 
 var (

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -71,6 +73,7 @@ type ScrapeConfig struct {
 	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
 	BearerToken          string                      `yaml:"bearer_token,omitempty"`
 	BearerTokenFile      string                      `yaml:"bearer_token_file,omitempty"`
+	ProxyURL             netutil.ProxyURL            `yaml:"proxy_url,omitempty"`
 	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config,omitempty"`
 	StaticConfigs        []StaticConfig              `yaml:"static_configs,omitempty"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs,omitempty"`
@@ -495,6 +498,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		metricsPath:          metricsPath,
 		scheme:               scheme,
 		params:               params,
+		proxyURL:             sc.ProxyURL.URL(),
 		authConfig:           ac,
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
@@ -516,6 +520,7 @@ type scrapeWorkConfig struct {
 	metricsPath          string
 	scheme               string
 	params               map[string][]string
+	proxyURL             *url.URL
 	authConfig           *promauth.Config
 	honorLabels          bool
 	honorTimestamps      bool
@@ -750,6 +755,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		HonorTimestamps:      swc.honorTimestamps,
 		OriginalLabels:       originalLabels,
 		Labels:               labels,
+		ProxyURL:             swc.proxyURL,
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		SampleLimit:          swc.sampleLimit,
