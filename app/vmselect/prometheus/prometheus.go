@@ -500,13 +500,15 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/admin/tsdb/delete_series"}`)
 
 func resetRollupResultCaches() {
+	resetRollupResultCacheCalls.Inc()
+	// reset local cache.
+	promql.ResetRollupResultCache()
 	if len(*selectNodes) == 0 {
 		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other select nodes." +
 			"you can fix it by adding flag with all vmselect node addresses from your cluster," +
 			" fox example: -selectNode select-addr-1:8481,select-addr-2:8481")
+		return
 	}
-	// reset local cache.
-	promql.ResetRollupResultCache()
 	for _, selectNode := range *selectNodes {
 		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
 		resp, err := httpClient.Get(callURL)
@@ -523,7 +525,6 @@ func resetRollupResultCaches() {
 		}
 		_ = resp.Body.Close()
 	}
-	resetRollupResultCacheCalls.Inc()
 }
 
 var (
