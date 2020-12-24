@@ -1324,13 +1324,13 @@ func (pt *partition) removeStaleParts() {
 
 	pt.partsLock.Lock()
 	for _, pw := range pt.bigParts {
-		if pw.p.ph.MaxTimestamp < retentionDeadline {
+		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
 			atomic.AddUint64(&pt.bigRowsDeleted, pw.p.ph.RowsCount)
 			m[pw] = true
 		}
 	}
 	for _, pw := range pt.smallParts {
-		if pw.p.ph.MaxTimestamp < retentionDeadline {
+		if !pw.isInMerge && pw.p.ph.MaxTimestamp < retentionDeadline {
 			atomic.AddUint64(&pt.smallRowsDeleted, pw.p.ph.RowsCount)
 			m[pw] = true
 		}
