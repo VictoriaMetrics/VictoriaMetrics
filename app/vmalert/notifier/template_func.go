@@ -167,6 +167,10 @@ func InitTemplateFunc(externalURL *url.URL) {
 		"queryEscape": func(q string) string {
 			return url.QueryEscape(q)
 		},
+		"crlfEscape": func(q string) string {
+			q = strings.Replace(q, "\n", `\n`, -1)
+			return strings.Replace(q, "\r", `\r`, -1)
+		},
 		"quotesEscape": func(q string) string {
 			return strings.Replace(q, `"`, `\"`, -1)
 		},
