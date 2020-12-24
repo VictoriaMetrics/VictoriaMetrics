@@ -69,7 +69,7 @@ func newClient(sw *ScrapeWork) *client {
 	hc := &fasthttp.HostClient{
 		Addr:                         host,
 		Name:                         "vm_promscrape",
-		Dial:                         statDial,
+		Dial:                         getDialStatConn(sw.ProxyURL),
 		IsTLS:                        isTLS,
 		TLSConfig:                    tlsCfg,
 		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
@@ -83,6 +83,7 @@ func newClient(sw *ScrapeWork) *client {
 		sc = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig:     tlsCfg,
+				Proxy:               http.ProxyURL(sw.ProxyURL),
 				TLSHandshakeTimeout: 10 * time.Second,
 				IdleConnTimeout:     2 * sw.ScrapeInterval,
 				DisableCompression:  *disableCompression || sw.DisableCompression,
@@ -93,9 +94,8 @@ func newClient(sw *ScrapeWork) *client {
 		}
 	}
 	return &client{
-		hc: hc,
-		sc: sc,
-
+		hc:                 hc,
+		sc:                 sc,
 		scrapeURL:          sw.ScrapeURL,
 		host:               host,
 		requestURI:         requestURI,

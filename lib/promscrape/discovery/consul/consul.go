@@ -3,6 +3,7 @@ package consul
 import (
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -16,6 +17,7 @@ type SDConfig struct {
 	Scheme       string              `yaml:"scheme,omitempty"`
 	Username     string              `yaml:"username"`
 	Password     string              `yaml:"password"`
+	ProxyURL     netutil.ProxyURL    `yaml:"proxy_url,omitempty"`
 	TLSConfig    *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	Services     []string            `yaml:"services,omitempty"`
 	Tags         []string            `yaml:"tags,omitempty"`

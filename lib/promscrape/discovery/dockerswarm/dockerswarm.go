@@ -3,6 +3,7 @@ package dockerswarm
 import (
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -15,7 +16,7 @@ type SDConfig struct {
 	Port    int      `yaml:"port,omitempty"`
 	Filters []Filter `yaml:"filters,omitempty"`
 
-	// TODO: add support for proxy_url
+	ProxyURL  netutil.ProxyURL    `yaml:"proxy_url,omitempty"`
 	TLSConfig *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	// refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option
 	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`

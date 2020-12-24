@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -15,6 +16,7 @@ type SDConfig struct {
 	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`
 	BearerToken     string                    `yaml:"bearer_token,omitempty"`
 	BearerTokenFile string                    `yaml:"bearer_token_file,omitempty"`
+	ProxyURL        netutil.ProxyURL          `yaml:"proxy_url,omitempty"`
 	TLSConfig       *promauth.TLSConfig       `yaml:"tls_config,omitempty"`
 	Namespaces      Namespaces                `yaml:"namespaces,omitempty"`
 	Selectors       []Selector                `yaml:"selectors,omitempty"`

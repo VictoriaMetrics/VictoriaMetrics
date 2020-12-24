@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,6 +70,9 @@ type ScrapeWork struct {
 
 	// Auth config
 	AuthConfig *promauth.Config
+
+	// ProxyURL HTTP proxy url
+	ProxyURL *url.URL
 
 	// Optional `metric_relabel_configs`.
 	MetricRelabelConfigs []promrelabel.ParsedRelabelConfig
