@@ -501,12 +501,13 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 
 func resetRollupResultCaches() {
 	resetRollupResultCacheCalls.Inc()
-	// reset local cache.
+	// Reset local cache before checking whether selectNodes list is empty.
+	// This guarantees that at least local cache is reset if selectNodes list is empty.
 	promql.ResetRollupResultCache()
 	if len(*selectNodes) == 0 {
-		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other select nodes." +
-			"you can fix it by adding flag with all vmselect node addresses from your cluster," +
-			" fox example: -selectNode select-addr-1:8481,select-addr-2:8481")
+		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other vmselect nodes." +
+			"This can be fixed by enumerating all the vmselect node addresses in `-selectNode` command line flag. " +
+			" For example: -selectNode=select-addr-1:8481,select-addr-2:8481")
 		return
 	}
 	for _, selectNode := range *selectNodes {
