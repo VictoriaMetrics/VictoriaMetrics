@@ -113,6 +113,9 @@ func (eps *EndpointSlice) appendTargetLabels(ms []map[string]string, pods []Pod,
 				}
 				p.appendCommonLabels(m)
 				p.appendContainerLabels(m, c, &cp)
+				if svc != nil {
+					svc.appendCommonLabels(m)
+				}
 				ms = append(ms, m)
 			}
 		}
