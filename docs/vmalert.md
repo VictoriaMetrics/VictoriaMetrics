@@ -246,10 +246,10 @@ The shortlist of configuration flags is the following:
   -metricsAuthKey string
     	Auth key for /metrics. It overrides httpAuth settings
   -notifier.basicAuth.password array
-    	Optional basic auth password for -datasource.url
+    	Optional basic auth password for -notifier.url
     	Supports array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.username array
-    	Optional basic auth username for -datasource.url
+    	Optional basic auth username for -notifier.url
     	Supports array of values separated by comma or specified via multiple flags.
   -notifier.tlsCAFile array
     	Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
