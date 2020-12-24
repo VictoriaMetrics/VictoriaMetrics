@@ -12,7 +12,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -24,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"gopkg.in/yaml.v2"
 )
 
@@ -72,7 +72,7 @@ type ScrapeConfig struct {
 	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
 	BearerToken          string                      `yaml:"bearer_token,omitempty"`
 	BearerTokenFile      string                      `yaml:"bearer_token_file,omitempty"`
-	ProxyURL             netutil.ProxyURL            `yaml:"proxy_url,omitempty"`
+	ProxyURL             proxy.URL                   `yaml:"proxy_url,omitempty"`
 	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config,omitempty"`
 	StaticConfigs        []StaticConfig              `yaml:"static_configs,omitempty"`
 	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs,omitempty"`
@@ -497,7 +497,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		metricsPath:          metricsPath,
 		scheme:               scheme,
 		params:               params,
-		proxyURL:             sc.ProxyURL.URL(),
+		proxyURL:             sc.ProxyURL,
 		authConfig:           ac,
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
@@ -519,7 +519,7 @@ type scrapeWorkConfig struct {
 	metricsPath          string
 	scheme               string
 	params               map[string][]string
-	proxyURL             *url.URL
+	proxyURL             proxy.URL
 	authConfig           *promauth.Config
 	honorLabels          bool
 	honorTimestamps      bool

@@ -2,14 +2,15 @@ package promscrape
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
-	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -48,18 +49,13 @@ var (
 	stdDialerOnce sync.Once
 )
 
-func getDialStatConn(proxyURL *url.URL) fasthttp.DialFunc {
-	auth := netutil.MakeBasicAuthHeader(nil, proxyURL)
-	return func(addr string) (conn net.Conn, err error) {
-		dialAddr := addr
-		if proxyURL != nil {
-			dialAddr = proxyURL.Host
-		}
-		if netutil.TCP6Enabled() {
-			conn, err = fasthttp.DialDualStack(dialAddr)
-		} else {
-			conn, err = fasthttp.Dial(dialAddr)
-		}
+func newStatDialFunc(proxyURL proxy.URL, tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
+	dialFunc, err := proxyURL.NewDialFunc(tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+	statDialFunc := func(addr string) (net.Conn, error) {
+		conn, err := dialFunc(addr)
 		dialsTotal.Inc()
 		if err != nil {
 			dialErrors.Inc()
@@ -69,17 +65,12 @@ func getDialStatConn(proxyURL *url.URL) fasthttp.DialFunc {
 			return nil, err
 		}
 		conns.Inc()
-		if proxyURL != nil {
-			if err := netutil.MakeProxyConnectCall(conn, []byte(addr), auth); err != nil {
-				_ = conn.Close()
-				return nil, err
-			}
-		}
 		sc := &statConn{
 			Conn: conn,
 		}
 		return sc, nil
 	}
+	return statDialFunc, nil
 }
 
 var (

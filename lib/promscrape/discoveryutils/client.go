@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/fasthttp"
 )
@@ -46,7 +45,7 @@ type Client struct {
 }
 
 // NewClient returns new Client for the given apiServer and the given ac.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *url.URL) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Client, error) {
 	var (
 		dialFunc fasthttp.DialFunc
 		tlsCfg   *tls.Config
@@ -63,12 +62,6 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *url.URL) (*Clien
 			return net.Dial("unix", dialAddr)
 		}
 	}
-	if proxyURL != nil {
-		dialFunc, err = netutil.GetProxyDialFunc(proxyURL)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	hostPort := string(u.Host())
 	isTLS := string(u.Scheme()) == "https"
@@ -82,10 +75,15 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *url.URL) (*Clien
 		}
 		hostPort = net.JoinHostPort(hostPort, port)
 	}
+	if dialFunc == nil {
+		dialFunc, err = proxyURL.NewDialFunc(tlsCfg)
+		if err != nil {
+			return nil, err
+		}
+	}
 	hc := &fasthttp.HostClient{
 		Addr:                hostPort,
 		Name:                "vm_promscrape/discovery",
-		DialDualStack:       netutil.TCP6Enabled(),
 		IsTLS:               isTLS,
 		TLSConfig:           tlsCfg,
 		ReadTimeout:         time.Minute,
@@ -97,7 +95,6 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *url.URL) (*Clien
 	blockingClient := &fasthttp.HostClient{
 		Addr:                hostPort,
 		Name:                "vm_promscrape/discovery",
-		DialDualStack:       netutil.TCP6Enabled(),
 		IsTLS:               isTLS,
 		TLSConfig:           tlsCfg,
 		ReadTimeout:         BlockingClientReadTimeout,

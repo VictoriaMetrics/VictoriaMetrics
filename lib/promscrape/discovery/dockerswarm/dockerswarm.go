@@ -3,8 +3,8 @@ package dockerswarm
 import (
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDConfig represents docker swarm service discovery configuration
@@ -16,7 +16,7 @@ type SDConfig struct {
 	Port    int      `yaml:"port,omitempty"`
 	Filters []Filter `yaml:"filters,omitempty"`
 
-	ProxyURL  netutil.ProxyURL    `yaml:"proxy_url,omitempty"`
+	ProxyURL  proxy.URL           `yaml:"proxy_url,omitempty"`
 	TLSConfig *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	// refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option
 	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`

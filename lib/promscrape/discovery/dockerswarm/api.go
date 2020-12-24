@@ -39,7 +39,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := discoveryutils.NewClient(sdc.Host, ac, sdc.ProxyURL.URL())
+	client, err := discoveryutils.NewClient(sdc.Host, ac, sdc.ProxyURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", sdc.Host, err)
 	}
