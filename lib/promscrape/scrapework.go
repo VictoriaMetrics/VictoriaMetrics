@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
 	xxhash "github.com/cespare/xxhash/v2"
 )
@@ -72,7 +72,7 @@ type ScrapeWork struct {
 	AuthConfig *promauth.Config
 
 	// ProxyURL HTTP proxy url
-	ProxyURL *url.URL
+	ProxyURL proxy.URL
 
 	// Optional `metric_relabel_configs`.
 	MetricRelabelConfigs []promrelabel.ParsedRelabelConfig
