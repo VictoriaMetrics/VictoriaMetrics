@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -66,10 +67,14 @@ func newClient(sw *ScrapeWork) *client {
 			host += ":443"
 		}
 	}
+	dialFunc, err := newStatDialFunc(sw.ProxyURL, tlsCfg)
+	if err != nil {
+		logger.Fatalf("cannot create dial func: %s", err)
+	}
 	hc := &fasthttp.HostClient{
 		Addr:                         host,
 		Name:                         "vm_promscrape",
-		Dial:                         statDial,
+		Dial:                         dialFunc,
 		IsTLS:                        isTLS,
 		TLSConfig:                    tlsCfg,
 		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
@@ -80,9 +85,14 @@ func newClient(sw *ScrapeWork) *client {
 	}
 	var sc *http.Client
 	if *streamParse || sw.StreamParse {
+		var proxy func(*http.Request) (*url.URL, error)
+		if proxyURL := sw.ProxyURL.URL(); proxyURL != nil {
+			proxy = http.ProxyURL(proxyURL)
+		}
 		sc = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig:     tlsCfg,
+				Proxy:               proxy,
 				TLSHandshakeTimeout: 10 * time.Second,
 				IdleConnTimeout:     2 * sw.ScrapeInterval,
 				DisableCompression:  *disableCompression || sw.DisableCompression,
@@ -93,9 +103,8 @@ func newClient(sw *ScrapeWork) *client {
 		}
 	}
 	return &client{
-		hc: hc,
-		sc: sc,
-
+		hc:                 hc,
+		sc:                 sc,
 		scrapeURL:          sw.ScrapeURL,
 		host:               host,
 		requestURI:         requestURI,

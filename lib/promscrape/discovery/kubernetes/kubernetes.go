@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 // SDConfig represents kubernetes-based service discovery config.
@@ -15,6 +16,7 @@ type SDConfig struct {
 	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`
 	BearerToken     string                    `yaml:"bearer_token,omitempty"`
 	BearerTokenFile string                    `yaml:"bearer_token_file,omitempty"`
+	ProxyURL        proxy.URL                 `yaml:"proxy_url,omitempty"`
 	TLSConfig       *promauth.TLSConfig       `yaml:"tls_config,omitempty"`
 	Namespaces      Namespaces                `yaml:"namespaces,omitempty"`
 	Selectors       []Selector                `yaml:"selectors,omitempty"`

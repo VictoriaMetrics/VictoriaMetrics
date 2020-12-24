@@ -2,6 +2,7 @@ package promscrape
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -47,25 +49,28 @@ var (
 	stdDialerOnce sync.Once
 )
 
-func statDial(addr string) (conn net.Conn, err error) {
-	if netutil.TCP6Enabled() {
-		conn, err = fasthttp.DialDualStack(addr)
-	} else {
-		conn, err = fasthttp.Dial(addr)
-	}
-	dialsTotal.Inc()
+func newStatDialFunc(proxyURL proxy.URL, tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
+	dialFunc, err := proxyURL.NewDialFunc(tlsConfig)
 	if err != nil {
-		dialErrors.Inc()
-		if !netutil.TCP6Enabled() {
-			err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
-		}
 		return nil, err
 	}
-	conns.Inc()
-	sc := &statConn{
-		Conn: conn,
+	statDialFunc := func(addr string) (net.Conn, error) {
+		conn, err := dialFunc(addr)
+		dialsTotal.Inc()
+		if err != nil {
+			dialErrors.Inc()
+			if !netutil.TCP6Enabled() {
+				err = fmt.Errorf("%w; try -enableTCP6 command-line flag if you scrape ipv6 addresses", err)
+			}
+			return nil, err
+		}
+		conns.Inc()
+		sc := &statConn{
+			Conn: conn,
+		}
+		return sc, nil
 	}
-	return sc, nil
+	return statDialFunc, nil
 }
 
 var (

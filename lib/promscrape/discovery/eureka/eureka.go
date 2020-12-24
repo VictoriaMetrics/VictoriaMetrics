@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 const appsAPIPath = "/apps"
@@ -22,6 +22,7 @@ type SDConfig struct {
 	Scheme     string              `yaml:"scheme,omitempty"`
 	Username   string              `yaml:"username"`
 	Password   string              `yaml:"password"`
+	ProxyURL   proxy.URL           `yaml:"proxy_url,omitempty"`
 	TLSConfig  *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
