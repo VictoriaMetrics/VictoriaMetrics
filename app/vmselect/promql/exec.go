@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -37,6 +38,12 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 					*logSlowQueryDuration, ec.QuotedRemoteAddr, d.Seconds(), ec.Start/1000, ec.End/1000, ec.Step/1000, q)
 				slowQueries.Inc()
 			}
+		}()
+	}
+	if querystats.Enabled() {
+		startTime := time.Now()
+		defer func() {
+			querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
 		}()
 	}
 

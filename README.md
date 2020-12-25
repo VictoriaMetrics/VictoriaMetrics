@@ -535,11 +535,17 @@ See [this feature request](https://github.com/prometheus/prometheus/issues/6178)
 
 Additionally VictoriaMetrics provides the following handlers:
 
-* `/api/v1/series/count` - it returns the total number of time series in the database. Some notes:
+* `/api/v1/series/count` - returns the total number of time series in the database. Some notes:
   * the handler scans all the inverted index, so it can be slow if the database contains tens of millions of time series;
   * the handler may count [deleted time series](#how-to-delete-time-series) additionally to normal time series due to internal implementation restrictions;
-* `/api/v1/labels/count` - it returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
-* `/api/v1/status/active_queries` - it returns a list of currently running queries.
+* `/api/v1/labels/count` - returns a list of `label: values_count` entries. It can be used for determining labels with the maximum number of values.
+* `/api/v1/status/active_queries` - returns a list of currently running queries.
+* `/api/v1/status/top_queries` - returns the following query lists:
+  * the most frequently executed queries - `topByCount`
+  * queries with the biggest average execution duration - `topByAvgDuration`
+  * queries that took the most time for execution - `topBySumDuration`
+  The number of returned queries can be limited via `topN` query arg. Old queries can be filtered out with `maxLifetime` query arg.
+  For example, request to `/api/v1/status/top_queries?topN=5&maxLifetime=30s` would return up to 5 queries per list, which were executed during the last 30 seconds.
 
 
 ## Graphite API usage

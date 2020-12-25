@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -1250,3 +1251,34 @@ func getLatencyOffsetMilliseconds() int64 {
 	}
 	return d
 }
+
+// QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
+func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse form values: %w", err)
+	}
+	topN := 20
+	topNStr := r.FormValue("topN")
+	if len(topNStr) > 0 {
+		n, err := strconv.Atoi(topNStr)
+		if err != nil {
+			return fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err)
+		}
+		topN = n
+	}
+	maxLifetimeMsecs, err := searchutils.GetDuration(r, "maxLifetime", 10*60*1000)
+	if err != nil {
+		return fmt.Errorf("cannot parse `maxLifetime` arg: %w", err)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	querystats.WriteJSONQueryStats(bw, topN, time.Duration(maxLifetimeMsecs)*time.Millisecond)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	queryStatsDuration.UpdateDuration(startTime)
+	return nil
+}
+
+var queryStatsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/top_queries"}`)
