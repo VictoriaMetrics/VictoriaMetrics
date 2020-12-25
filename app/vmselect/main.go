@@ -171,6 +171,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promql.ResetRollupResultCache()
 		return true
 	}
+	if path == "/api/v1/status/top_queries" {
+		topQueriesRequests.Inc()
+		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
+			topQueriesErrors.Inc()
+			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			return true
+		}
+		return true
+	}
 
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
@@ -274,25 +283,6 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
-	case "prometheus/api/v1/status/queries/avg_duration":
-		if err := prometheus.QueryStatsHandler(startTime, w, r, "avg_duration"); err != nil {
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
-			return true
-		}
-		return true
-	case "prometheus/api/v1/status/queries/duration":
-		if err := prometheus.QueryStatsHandler(startTime, w, r, "duration"); err != nil {
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
-			return true
-		}
-		return true
-	case "prometheus/api/v1/status/queries/frequency":
-		if err := prometheus.QueryStatsHandler(startTime, w, r, "frequency"); err != nil {
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
-			return true
-		}
-		return true
-
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
 		if err := prometheus.TSDBStatusHandler(startTime, at, w, r); err != nil {
@@ -510,6 +500,9 @@ var (
 
 	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
+
+	topQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/top_queries"}`)
+	topQueriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/top_queries"}`)
 
 	statusActiveQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}prometheus/api/v1/status/active_queries"}`)
 

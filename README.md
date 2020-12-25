@@ -214,6 +214,8 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
       - `tags/autoComplete/values` - returns tag values matching the given `valuePrefix` and/or `expr`. See [these docs](https://graphite.readthedocs.io/en/stable/tags.html#auto-complete-support).
       - `tags/delSeries` - deletes series matching the given `path`. See [these docs](https://graphite.readthedocs.io/en/stable/tags.html#removing-series-from-the-tagdb).
 
+* URL for query stats across all tenants: `http://<vmselect>:8481/api/v1/status/top_queries`. It returns query lists with the most frequently executed queries and queries taking the most duration.
+
 * URL for time series deletion: `http://<vmselect>:8481/delete/<accountID>/prometheus/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`.
   Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
   be used on a regular basis, since it carries non-zero overhead.

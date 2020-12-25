@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -39,11 +40,11 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 			}
 		}()
 	}
-	if *maxQueryStatsTrackerItemsCount > 0 {
-		start := time.Now()
+	if querystats.Enabled() {
+		startTime := time.Now()
+		ac := ec.AuthToken
 		defer func() {
-			tr := ec.End - ec.Start
-			InsertQueryStat(q, tr, start, time.Since(start))
+			querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
 		}()
 	}
 
