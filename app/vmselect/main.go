@@ -198,25 +198,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
-	case "/api/v1/status/queries/avg_duration":
-		if err := prometheus.QueryStatsHandler(startTime, w, r, "avg_duration"); err != nil {
+	case "/api/v1/status/top_queries":
+		topQueriesRequests.Inc()
+		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
+			topQueriesErrors.Inc()
 			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
 			return true
 		}
 		return true
-	case "/api/v1/status/queries/duration":
-		if err := prometheus.QueryStatsHandler(startTime, w, r, "duration"); err != nil {
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
-			return true
-		}
-		return true
-	case "/api/v1/status/queries/frequency":
-		if err := prometheus.QueryStatsHandler(startTime, w, r, "frequency"); err != nil {
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
-			return true
-		}
-		return true
-
 	case "/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
 		if err := prometheus.TSDBStatusHandler(startTime, w, r); err != nil {
@@ -434,6 +423,9 @@ var (
 
 	labelsCountRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/labels/count"}`)
 	labelsCountErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/labels/count"}`)
+
+	topQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/top_queries"}`)
+	topQueriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/top_queries"}`)
 
 	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/tsdb"}`)
 	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/tsdb"}`)
