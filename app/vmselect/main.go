@@ -274,6 +274,25 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 			return true
 		}
 		return true
+	case "prometheus/api/v1/status/queries/avg_duration":
+		if err := prometheus.QueryStatsHandler(startTime, w, r, "avg_duration"); err != nil {
+			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			return true
+		}
+		return true
+	case "prometheus/api/v1/status/queries/duration":
+		if err := prometheus.QueryStatsHandler(startTime, w, r, "duration"); err != nil {
+			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			return true
+		}
+		return true
+	case "prometheus/api/v1/status/queries/frequency":
+		if err := prometheus.QueryStatsHandler(startTime, w, r, "frequency"); err != nil {
+			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			return true
+		}
+		return true
+
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
 		if err := prometheus.TSDBStatusHandler(startTime, at, w, r); err != nil {

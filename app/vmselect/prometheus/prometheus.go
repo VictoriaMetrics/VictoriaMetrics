@@ -1326,3 +1326,37 @@ func getLatencyOffsetMilliseconds() int64 {
 	}
 	return d
 }
+
+// QueryStatsHandler - returns statistics for queries executions with given aggregate func name.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/907
+func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, aggregateBy string) error {
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("cannot parse form values: %w", err)
+	}
+	topN := 10
+	topNStr := r.FormValue("topN")
+	if len(topNStr) > 0 {
+		n, err := strconv.Atoi(topNStr)
+		if err != nil {
+			return fmt.Errorf("cannot parse `topN` arg %q: %w", topNStr, err)
+		}
+		if n <= 0 {
+			n = 1
+		}
+		if n > 1000 {
+			n = 1000
+		}
+		topN = n
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	promql.WriteQueryStatsResponse(bw, topN, aggregateBy)
+	if err := bw.Flush(); err != nil {
+		return err
+	}
+	queryStatsDuration.UpdateDuration(startTime)
+	return nil
+}
+
+var queryStatsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/queries"}`)
