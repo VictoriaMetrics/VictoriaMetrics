@@ -186,12 +186,16 @@ func mustSyncParentDirIfExists(path string) {
 
 // MustRemoveAll removes path with all the contents.
 //
+// It properly fsyncs the parent directory after path removal.
+//
 // It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
 func MustRemoveAll(path string) {
 	_ = mustRemoveAll(path, func() {})
 }
 
 // MustRemoveAllWithDoneCallback removes path with all the contents.
+//
+// It properly fsyncs the parent directory after path removal.
 //
 // done is called after the path is successfully removed.
 //
