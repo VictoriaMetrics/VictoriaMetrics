@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -35,6 +36,7 @@ var (
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
+	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
@@ -114,4 +116,13 @@ func writeAPIHelp(w io.Writer, pathList [][]string) {
 		p = path.Join(pathPrefix, p)
 		fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)
 	}
+}
+
+func usage() {
+	const s = `
+victoria-metrics is a time series database and monitoring solution.
+
+See the docs at https://victoriametrics.github.io/
+`
+	flagutil.Usage(s)
 }
