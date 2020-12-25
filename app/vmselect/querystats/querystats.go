@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	lastQueriesCount = flag.Int("search.queryStats.lastQueriesCount", 100000, "Query stats for `/api/v1/status/top_queries` is tracked on this number of last queries. "+
+	lastQueriesCount = flag.Int("search.queryStats.lastQueriesCount", 20000, "Query stats for `/api/v1/status/top_queries` is tracked on this number of last queries. "+
 		"Zero value disables query stats tracking")
 	minQueryDuration = flag.Duration("search.queryStats.minQueryDuration", 0, "The minimum duration for queries to track in query stats at `/api/v1/status/top_queries`. "+
 		"Queries with lower duration are ignored in query stats")
