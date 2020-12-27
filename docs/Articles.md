@@ -3,6 +3,7 @@
 ## Third-party articles and slides about VictoriaMetrics
 
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
+* [Observations on Better Resource Usage with Percona Monitoring and Management v2.12.0](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/)
 * [Better Prometheus rate() function with VictoriaMetrics](https://www.percona.com/blog/2020/02/28/better-prometheus-rate-function-with-victoriametrics/)
 * [Percona monitoring and management migration from Prometheus to VictoriaMetrics FAQ](https://www.percona.com/blog/2020/12/16/percona-monitoring-and-management-migration-from-prometheus-to-victoriametrics-faq/)
 * [Making peace with Prometheus rate()](https://blog.doit-intl.com/making-peace-with-prometheus-rate-43a3ea75c4cf)
