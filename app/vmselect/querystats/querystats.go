@@ -39,7 +39,17 @@ func RegisterQuery(accountID, projectID uint32, query string, timeRangeMsecs int
 // WriteJSONQueryStats writes query stats to given writer in json format.
 func WriteJSONQueryStats(w io.Writer, topN int, maxLifetime time.Duration) {
 	initOnce.Do(initQueryStats)
-	qsTracker.writeJSONQueryStats(w, topN, maxLifetime)
+	qsTracker.writeJSONQueryStats(w, topN, nil, maxLifetime)
+}
+
+// WriteJSONQueryStatsForAccountProject writes query stats for the given (accountID, projectID) to given writer in json format.
+func WriteJSONQueryStatsForAccountProject(w io.Writer, topN int, accountID, projectID uint32, maxLifetime time.Duration) {
+	initOnce.Do(initQueryStats)
+	apFilter := &accountProjectFilter{
+		accountID: accountID,
+		projectID: projectID,
+	}
+	qsTracker.writeJSONQueryStats(w, topN, apFilter, maxLifetime)
 }
 
 // queryStatsTracker holds statistics for queries
@@ -65,6 +75,11 @@ type queryStatKey struct {
 	timeRangeSecs int64
 }
 
+type accountProjectFilter struct {
+	accountID uint32
+	projectID uint32
+}
+
 func initQueryStats() {
 	recordsCount := *lastQueriesCount
 	if recordsCount <= 0 {
@@ -78,12 +93,12 @@ func initQueryStats() {
 	}
 }
 
-func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLifetime time.Duration) {
+func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) {
 	fmt.Fprintf(w, `{"topN":"%d","maxLifetime":%q,`, topN, maxLifetime)
 	fmt.Fprintf(w, `"search.queryStats.lastQueriesCount":%d,`, *lastQueriesCount)
 	fmt.Fprintf(w, `"search.queryStats.minQueryDuration":%q,`, *minQueryDuration)
 	fmt.Fprintf(w, `"topByCount":[`)
-	topByCount := qst.getTopByCount(topN, maxLifetime)
+	topByCount := qst.getTopByCount(topN, apFilter, maxLifetime)
 	for i, r := range topByCount {
 		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%q,"timeRangeSeconds":%d,"count":%d}`, r.accountID, r.projectID, r.query, r.timeRangeSecs, r.count)
 		if i+1 < len(topByCount) {
@@ -91,7 +106,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 		}
 	}
 	fmt.Fprintf(w, `],"topByAvgDuration":[`)
-	topByAvgDuration := qst.getTopByAvgDuration(topN, maxLifetime)
+	topByAvgDuration := qst.getTopByAvgDuration(topN, apFilter, maxLifetime)
 	for i, r := range topByAvgDuration {
 		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%q,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f}`,
 			r.accountID, r.projectID, r.query, r.timeRangeSecs, r.duration.Seconds())
@@ -100,7 +115,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 		}
 	}
 	fmt.Fprintf(w, `],"topBySumDuration":[`)
-	topBySumDuration := qst.getTopBySumDuration(topN, maxLifetime)
+	topBySumDuration := qst.getTopBySumDuration(topN, apFilter, maxLifetime)
 	for i, r := range topBySumDuration {
 		fmt.Fprintf(w, `{"accountID":%d,"projectID":%d,"query":%q,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f}`,
 			r.accountID, r.projectID, r.query, r.timeRangeSecs, r.duration.Seconds())
@@ -136,21 +151,34 @@ func (qst *queryStatsTracker) registerQuery(accountID, projectID uint32, query s
 	r.duration = duration
 }
 
-func (qst *queryStatsTracker) getTopByCount(topN int, maxLifetime time.Duration) []queryStatByCount {
+func (r *queryStatRecord) matches(apFilter *accountProjectFilter, currentTime time.Time, maxLifetime time.Duration) bool {
+	if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
+		return false
+	}
+	if apFilter != nil && (apFilter.accountID != r.accountID || apFilter.projectID != r.projectID) {
+		return false
+	}
+	return true
+}
+
+func (r *queryStatRecord) key() queryStatKey {
+	return queryStatKey{
+		accountID:     r.accountID,
+		projectID:     r.projectID,
+		query:         r.query,
+		timeRangeSecs: r.timeRangeSecs,
+	}
+}
+
+func (qst *queryStatsTracker) getTopByCount(topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) []queryStatByCount {
 	currentTime := time.Now()
 	qst.mu.Lock()
 	m := make(map[queryStatKey]int)
 	for _, r := range qst.a {
-		if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
-			continue
+		if r.matches(apFilter, currentTime, maxLifetime) {
+			k := r.key()
+			m[k] = m[k] + 1
 		}
-		k := queryStatKey{
-			accountID:     r.accountID,
-			projectID:     r.projectID,
-			query:         r.query,
-			timeRangeSecs: r.timeRangeSecs,
-		}
-		m[k] = m[k] + 1
 	}
 	qst.mu.Unlock()
 
@@ -181,7 +209,7 @@ type queryStatByCount struct {
 	count         int
 }
 
-func (qst *queryStatsTracker) getTopByAvgDuration(topN int, maxLifetime time.Duration) []queryStatByDuration {
+func (qst *queryStatsTracker) getTopByAvgDuration(topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) []queryStatByDuration {
 	currentTime := time.Now()
 	qst.mu.Lock()
 	type countSum struct {
@@ -190,19 +218,13 @@ func (qst *queryStatsTracker) getTopByAvgDuration(topN int, maxLifetime time.Dur
 	}
 	m := make(map[queryStatKey]countSum)
 	for _, r := range qst.a {
-		if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
-			continue
+		if r.matches(apFilter, currentTime, maxLifetime) {
+			k := r.key()
+			ks := m[k]
+			ks.count++
+			ks.sum += r.duration
+			m[k] = ks
 		}
-		k := queryStatKey{
-			accountID:     r.accountID,
-			projectID:     r.projectID,
-			query:         r.query,
-			timeRangeSecs: r.timeRangeSecs,
-		}
-		ks := m[k]
-		ks.count++
-		ks.sum += r.duration
-		m[k] = ks
 	}
 	qst.mu.Unlock()
 
@@ -233,21 +255,15 @@ type queryStatByDuration struct {
 	duration      time.Duration
 }
 
-func (qst *queryStatsTracker) getTopBySumDuration(topN int, maxLifetime time.Duration) []queryStatByDuration {
+func (qst *queryStatsTracker) getTopBySumDuration(topN int, apFilter *accountProjectFilter, maxLifetime time.Duration) []queryStatByDuration {
 	currentTime := time.Now()
 	qst.mu.Lock()
 	m := make(map[queryStatKey]time.Duration)
 	for _, r := range qst.a {
-		if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
-			continue
+		if r.matches(apFilter, currentTime, maxLifetime) {
+			k := r.key()
+			m[k] = m[k] + r.duration
 		}
-		k := queryStatKey{
-			accountID:     r.accountID,
-			projectID:     r.projectID,
-			query:         r.query,
-			timeRangeSecs: r.timeRangeSecs,
-		}
-		m[k] = m[k] + r.duration
 	}
 	qst.mu.Unlock()
 

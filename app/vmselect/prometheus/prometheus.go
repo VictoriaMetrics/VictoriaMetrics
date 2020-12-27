@@ -1329,7 +1329,7 @@ func getLatencyOffsetMilliseconds() int64 {
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
-func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
@@ -1346,10 +1346,15 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return fmt.Errorf("cannot parse `maxLifetime` arg: %w", err)
 	}
+	maxLifetime := time.Duration(maxLifetimeMsecs) * time.Millisecond
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	querystats.WriteJSONQueryStats(bw, topN, time.Duration(maxLifetimeMsecs)*time.Millisecond)
+	if at == nil {
+		querystats.WriteJSONQueryStats(bw, topN, maxLifetime)
+	} else {
+		querystats.WriteJSONQueryStatsForAccountProject(bw, topN, at.AccountID, at.ProjectID, maxLifetime)
+	}
 	if err := bw.Flush(); err != nil {
 		return err
 	}

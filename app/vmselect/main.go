@@ -172,10 +172,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if path == "/api/v1/status/top_queries" {
-		topQueriesRequests.Inc()
-		if err := prometheus.QueryStatsHandler(startTime, w, r); err != nil {
-			topQueriesErrors.Inc()
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+		globalTopQueriesRequests.Inc()
+		if err := prometheus.QueryStatsHandler(startTime, nil, w, r); err != nil {
+			globalTopQueriesErrors.Inc()
+			sendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -294,6 +294,14 @@ func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, 
 	case "prometheus/api/v1/status/active_queries":
 		statusActiveQueriesRequests.Inc()
 		promql.WriteActiveQueries(w)
+		return true
+	case "prometheus/api/v1/status/top_queries":
+		topQueriesRequests.Inc()
+		if err := prometheus.QueryStatsHandler(startTime, at, w, r); err != nil {
+			topQueriesErrors.Inc()
+			sendPrometheusError(w, r, err)
+			return true
+		}
 		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
@@ -501,10 +509,13 @@ var (
 	statusTSDBRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 	statusTSDBErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
 
-	topQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/top_queries"}`)
-	topQueriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/top_queries"}`)
-
 	statusActiveQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}prometheus/api/v1/status/active_queries"}`)
+
+	topQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/top_queries"}`)
+	topQueriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/top_queries"}`)
+
+	globalTopQueriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/top_queries"}`)
+	globalTopQueriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/top_queries"}`)
 
 	deleteRequests = metrics.NewCounter(`vm_http_requests_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)
 	deleteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/delete/{}/prometheus/api/v1/admin/tsdb/delete_series"}`)
