@@ -42,9 +42,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	}
 	if querystats.Enabled() {
 		startTime := time.Now()
-		defer func() {
-			querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
-		}()
+		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
 	}
 
 	ec.validate()
