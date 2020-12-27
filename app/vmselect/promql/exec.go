@@ -43,9 +43,7 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	if querystats.Enabled() {
 		startTime := time.Now()
 		ac := ec.AuthToken
-		defer func() {
-			querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
-		}()
+		defer querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
 	}
 
 	ec.validate()
