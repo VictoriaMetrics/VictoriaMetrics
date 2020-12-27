@@ -7,7 +7,7 @@ PKG_TAG ?= $(shell git tag -l --points-at HEAD)
 ifeq ($(PKG_TAG),)
 PKG_TAG := $(BUILDINFO_TAG)
 endif
-
+SNAP_PGK_TAG ?= $(shell git describe --always)
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date -u +'%Y%m%d-%H%M%S')-$(BUILDINFO_TAG)'
 
 .PHONY: $(MAKECMDGOALS)
@@ -51,7 +51,7 @@ vmutils: \
 
 release-snap:
 	snapcraft
-	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
+	snapcraft upload "victoriametrics_$(SNAP_PGK_TAG)_multi.snap" --release beta,edge,candidate
 
 release: \
 	release-victoria-metrics \
