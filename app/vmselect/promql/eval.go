@@ -439,12 +439,10 @@ func evalRollupFunc(ec *EvalConfig, name string, rf rollupFunc, expr metricsql.E
 		ecNew = newEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset
-		if ecNew.MayCache {
-			start, end := AdjustStartEnd(ecNew.Start, ecNew.End, ecNew.Step)
-			offset += ecNew.Start - start
-			ecNew.Start = start
-			ecNew.End = end
-		}
+		// There is no need in calling AdjustStartEnd() on ecNew if ecNew.MayCache is set to true,
+		// since the time range alignment has been already performed by the caller,
+		// so cache hit rate should be quite good.
+		// See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/976
 	}
 	if name == "rollup_candlestick" {
 		// Automatically apply `offset -step` to `rollup_candlestick` function

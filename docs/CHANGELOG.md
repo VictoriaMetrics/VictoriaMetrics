@@ -9,6 +9,7 @@
 
 * BUGFIX: vmalert: properly escape multiline queries when passing them to Grafana. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890
 * BUGFIX: vmagent: set missing `__meta_kubernetes_service_*` labels in `kubernetes_sd_config` for `endpoints` and `endpointslices` roles. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/982
+* BUGFIX: do not adjust `offset` value provided in MetricsQL query. Previously it could be modified in order to improve response cache hit ratio. This is unneeded, since cache hit ratio should remain good because the query time range should be already aligned to multiple of `step` values. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/976
 
 
 # [v1.50.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.50.2)
