@@ -128,19 +128,29 @@ func (qst *queryStatsTracker) registerQuery(query string, timeRangeMsecs int64, 
 	r.duration = duration
 }
 
+func (r *queryStatRecord) matches(currentTime time.Time, maxLifetime time.Duration) bool {
+	if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
+		return false
+	}
+	return true
+}
+
+func (r *queryStatRecord) key() queryStatKey {
+	return queryStatKey{
+		query:         r.query,
+		timeRangeSecs: r.timeRangeSecs,
+	}
+}
+
 func (qst *queryStatsTracker) getTopByCount(topN int, maxLifetime time.Duration) []queryStatByCount {
 	currentTime := time.Now()
 	qst.mu.Lock()
 	m := make(map[queryStatKey]int)
 	for _, r := range qst.a {
-		if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
-			continue
+		if r.matches(currentTime, maxLifetime) {
+			k := r.key()
+			m[k] = m[k] + 1
 		}
-		k := queryStatKey{
-			query:         r.query,
-			timeRangeSecs: r.timeRangeSecs,
-		}
-		m[k] = m[k] + 1
 	}
 	qst.mu.Unlock()
 
@@ -176,17 +186,13 @@ func (qst *queryStatsTracker) getTopByAvgDuration(topN int, maxLifetime time.Dur
 	}
 	m := make(map[queryStatKey]countSum)
 	for _, r := range qst.a {
-		if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
-			continue
+		if r.matches(currentTime, maxLifetime) {
+			k := r.key()
+			ks := m[k]
+			ks.count++
+			ks.sum += r.duration
+			m[k] = ks
 		}
-		k := queryStatKey{
-			query:         r.query,
-			timeRangeSecs: r.timeRangeSecs,
-		}
-		ks := m[k]
-		ks.count++
-		ks.sum += r.duration
-		m[k] = ks
 	}
 	qst.mu.Unlock()
 
@@ -218,14 +224,10 @@ func (qst *queryStatsTracker) getTopBySumDuration(topN int, maxLifetime time.Dur
 	qst.mu.Lock()
 	m := make(map[queryStatKey]time.Duration)
 	for _, r := range qst.a {
-		if r.query == "" || currentTime.Sub(r.registerTime) > maxLifetime {
-			continue
+		if r.matches(currentTime, maxLifetime) {
+			k := r.key()
+			m[k] = m[k] + r.duration
 		}
-		k := queryStatKey{
-			query:         r.query,
-			timeRangeSecs: r.timeRangeSecs,
-		}
-		m[k] = m[k] + r.duration
 	}
 	qst.mu.Unlock()
 

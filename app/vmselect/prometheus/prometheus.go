@@ -1270,10 +1270,11 @@ func QueryStatsHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return fmt.Errorf("cannot parse `maxLifetime` arg: %w", err)
 	}
+	maxLifetime := time.Duration(maxLifetimeMsecs) * time.Millisecond
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	querystats.WriteJSONQueryStats(bw, topN, time.Duration(maxLifetimeMsecs)*time.Millisecond)
+	querystats.WriteJSONQueryStats(bw, topN, maxLifetime)
 	if err := bw.Flush(); err != nil {
 		return err
 	}
