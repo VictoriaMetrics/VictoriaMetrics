@@ -19,7 +19,8 @@ Release process guidance
 - login with `snapcraft login`
 
 0. checkout to the latest git tag for single-node version.
-1. execute make release-snap
+1. execute `make release-snap` - it must build and upload snap package.
+2. promote release to current, if needed manually at release page [snapcraft-releases](https://snapcraft.io/victoriametrics/releases)
 
 ### Public Announcement 
 
