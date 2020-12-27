@@ -17,6 +17,7 @@ Release process guidance
    for MacOS`brew install snapcraft` and [install mutipass](https://discourse.ubuntu.com/t/installing-multipass-on-macos/8329),
    for Ubuntu - `sudo snap install snapcraft --classic`
 - login with `snapcraft login`
+- already created release at github (it operates `git describe` version, so git tag must be annotated).
 
 0. checkout to the latest git tag for single-node version.
 1. execute `make release-snap` - it must build and upload snap package.
