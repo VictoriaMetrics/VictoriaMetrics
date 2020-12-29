@@ -544,8 +544,10 @@ Additionally VictoriaMetrics provides the following handlers:
   * the most frequently executed queries - `topByCount`
   * queries with the biggest average execution duration - `topByAvgDuration`
   * queries that took the most time for execution - `topBySumDuration`
+
   The number of returned queries can be limited via `topN` query arg. Old queries can be filtered out with `maxLifetime` query arg.
   For example, request to `/api/v1/status/top_queries?topN=5&maxLifetime=30s` would return up to 5 queries per list, which were executed during the last 30 seconds.
+  VictoriaMetrics tracks the last `-search.queryStats.lastQueriesCount` queries with durations at least `-search.queryStats.minQueryDuration`.
 
 
 ## Graphite API usage
