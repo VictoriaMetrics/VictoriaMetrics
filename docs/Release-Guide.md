@@ -14,7 +14,7 @@ Release process guidance
 
  pre-requirements: 
 - snapcraft binary, can be installed with commands:
-   for MacOS`brew install snapcraft` and [install mutipass](https://discourse.ubuntu.com/t/installing-multipass-on-macos/8329),
+   for MacOS `brew install snapcraft` and [install mutipass](https://discourse.ubuntu.com/t/installing-multipass-on-macos/8329),
    for Ubuntu - `sudo snap install snapcraft --classic`
 - login with `snapcraft login`
 - already created release at github (it operates `git describe` version, so git tag must be annotated).
