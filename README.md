@@ -104,6 +104,7 @@ Alphabetically sorted links to case studies:
 
 * [How to start VictoriaMetrics](#how-to-start-victoriametrics)
   * [Environment variables](#environment-variables)
+  * [Configuration with snap package](#configuration-with-snap-package)
 * [Prometheus setup](#prometheus-setup)
 * [Grafana setup](#grafana-setup)
 * [How to upgrade VictoriaMetrics](#how-to-upgrade-victoriametrics)
@@ -196,6 +197,26 @@ Each flag value can be set via environment variables according to these rules:
 * Each `.` char in flag name must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
 * For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 * It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+
+### Configuration with snap package
+
+
+ Command-line flags can be changed with following command:
+
+```text
+echo 'FLAGS="-selfScrapeInterval=10s -search.logSlowQueryDuration=20s"' > $SNAP_DATA/var/snap/victoriametrics/current/extra_flags
+snap restart victoriametrics
+```
+  Or add needed command-line flags to the file `$SNAP_DATA/var/snap/victoriametrics/current/extra_flags`.
+
+ Note you cannot change value for `-storageDataPath` flag, for safety snap package has limited access to host system.
+
+
+ Changing scrape configuration is possible with text editor:
+    ```text
+    vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
+    ```
+ After changes was made, trigger config re-read with command `curl 127.0.0.1:8248/-/reload`.
 
 
 ## Prometheus setup
@@ -544,8 +565,10 @@ Additionally VictoriaMetrics provides the following handlers:
   * the most frequently executed queries - `topByCount`
   * queries with the biggest average execution duration - `topByAvgDuration`
   * queries that took the most time for execution - `topBySumDuration`
+
   The number of returned queries can be limited via `topN` query arg. Old queries can be filtered out with `maxLifetime` query arg.
   For example, request to `/api/v1/status/top_queries?topN=5&maxLifetime=30s` would return up to 5 queries per list, which were executed during the last 30 seconds.
+  VictoriaMetrics tracks the last `-search.queryStats.lastQueriesCount` queries with durations at least `-search.queryStats.minQueryDuration`.
 
 
 ## Graphite API usage

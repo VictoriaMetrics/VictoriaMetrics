@@ -10,6 +10,19 @@ Release process guidance
 5. Push release tag to https://github.com/VictoriaMetrics/VictoriaMetrics : `git push origin v1.xx.y`.
 6. Go to https://github.com/VictoriaMetrics/VictoriaMetrics/releases , create new release from the pushed tag on step 5 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 2.
 
+## Building snap package.
+
+ pre-requirements: 
+- snapcraft binary, can be installed with commands:
+   for MacOS `brew install snapcraft` and [install mutipass](https://discourse.ubuntu.com/t/installing-multipass-on-macos/8329),
+   for Ubuntu - `sudo snap install snapcraft --classic`
+- login with `snapcraft login`
+- already created release at github (it operates `git describe` version, so git tag must be annotated).
+
+0. checkout to the latest git tag for single-node version.
+1. execute `make release-snap` - it must build and upload snap package.
+2. promote release to current, if needed manually at release page [snapcraft-releases](https://snapcraft.io/victoriametrics/releases)
+
 ### Public Announcement 
 
 1. Publish message in slack (victoriametrics.slack.com, general channel)
