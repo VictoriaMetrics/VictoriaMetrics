@@ -49,6 +49,10 @@ vmutils: \
 	vmbackup \
 	vmrestore
 
+release-snap:
+	snapcraft
+	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
+
 release: \
 	release-victoria-metrics \
 	release-vmutils
