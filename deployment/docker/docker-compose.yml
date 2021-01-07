@@ -77,6 +77,10 @@ services:
   alertmanager:
     container_name: alertmanager
     image:  prom/alertmanager
+    volumes:
+      - ./alertmanager.yml:/config/alertmanager.yml
+    command:
+      - '--config.file=/config/alertmanager.yml'
     ports:
       - 9093:9093
     networks:
