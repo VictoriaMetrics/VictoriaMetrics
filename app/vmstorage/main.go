@@ -30,9 +30,9 @@ var (
 	// DataPath is a path to storage data.
 	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
 
-	finalMergeDelay = flag.Duration("finalMergeDelay", 30*time.Second, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
-		"Query speed and disk space usage is usually reduced after the final merge is complete. Too low delay for final merge may result in increased "+
-		"disk IO usage and CPU usage")
+	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
+		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
+		"Zero value disables final merge")
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
 
