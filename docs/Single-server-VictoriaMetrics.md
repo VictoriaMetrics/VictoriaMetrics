@@ -10,7 +10,7 @@
 
 ## VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable monitoring solution and time series database.
+VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap package](https://snapcraft.io/victoriametrics)
