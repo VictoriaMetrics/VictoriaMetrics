@@ -178,7 +178,9 @@ func InitTemplateFunc(externalURL *url.URL) {
 		// it is present here only for validation purposes, when there is no
 		// provided datasource.
 		"query": func(q string) ([]datasource.Metric, error) {
-			return nil, nil
+			// return non-empty slice to pass validation with chained functions in template
+			// see issue #989 for details
+			return []datasource.Metric{{}}, nil
 		},
 		"first": func(metrics []datasource.Metric) (datasource.Metric, error) {
 			if len(metrics) > 0 {

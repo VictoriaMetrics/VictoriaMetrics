@@ -17,6 +17,7 @@ groups:
           (up == 1)
         labels:
           job: '{{ $labels.job }}'
+          dynamic: '{{ $x := query "up" | first | value }}{{ if eq 1.0 $x }}one{{ else }}unknown{{ end }}'
         annotations:
           description: Job {{ $labels.job }} is up!
           summary: All instances up {{ range query "up" }}
