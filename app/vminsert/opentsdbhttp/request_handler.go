@@ -6,6 +6,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -22,15 +24,21 @@ func InsertHandler(req *http.Request) error {
 	path := req.URL.Path
 	switch path {
 	case "/api/put":
+		extraLabels, err := parserCommon.GetExtraLabels(req)
+		if err != nil {
+			return err
+		}
 		return writeconcurrencylimiter.Do(func() error {
-			return parser.ParseStream(req, insertRows)
+			return parser.ParseStream(req, func(rows []parser.Row) error {
+				return insertRows(rows, extraLabels)
+			})
 		})
 	default:
 		return fmt.Errorf("unexpected path requested on HTTP OpenTSDB server: %q", path)
 	}
 }
 
-func insertRows(rows []parser.Row) error {
+func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -40,6 +48,10 @@ func insertRows(rows []parser.Row) error {
 		r := &rows[i]
 		ctx.Labels = ctx.Labels[:0]
 		ctx.AddLabel("", r.Metric)
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ctx.AddLabel(label.Name, label.Value)
+		}
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			ctx.AddLabel(tag.Key, tag.Value)
