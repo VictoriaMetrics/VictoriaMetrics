@@ -1279,6 +1279,7 @@ The most interesting metrics are:
 
 VictoriaMetrics also exposes currently running queries with their execution times at `/api/v1/status/active_queries` page.
 
+See the example of alerting rules for VM components [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
 ## Troubleshooting
 
