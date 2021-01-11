@@ -2,6 +2,8 @@
 
 # tip
 
+* BUGFIX: vmagent: prevent from `dialing to the given TCP address time out` error when scraping big number of unavailable targets. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
+
 * FEATURE: disable final merge for data for the previous month at the beginning of new month, since it may result in high disk IO and CPU usage. Final merge can be enabled by setting `-finalMergeDelay` command-line flag to positive duration.
 
 
