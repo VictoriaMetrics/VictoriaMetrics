@@ -176,14 +176,16 @@ func VisitSeries(sq *storage.SearchQuery, fetchData bool, deadline searchutils.D
 		return err
 	}
 	defer mustCloseQuerier(q)
-	if len(sq.TagFilterss) != 1 {
-		return fmt.Errorf("unexpected len(sq.TagFilters); got %d; want 1", len(sq.TagFilterss))
+	var seriesSet []promstorage.SeriesSet
+	for _, tf := range sq.TagFilterss {
+		ms, err := convertTagFiltersToMatchers(tf)
+		if err != nil {
+			return fmt.Errorf("cannot convert tag filters to matchers: %w", err)
+		}
+		s := q.Select(false, nil, ms...)
+		seriesSet = append(seriesSet, s)
 	}
-	ms, err := convertTagFiltersToMatchers(sq.TagFilterss[0])
-	if err != nil {
-		return fmt.Errorf("cannot convert tag filters to matchers: %w", err)
-	}
-	ss := q.Select(false, nil, ms...)
+	ss := promstorage.NewMergeSeriesSet(seriesSet, promstorage.ChainedSeriesMerge)
 	var (
 		mn         storage.MetricName
 		metricName []byte
