@@ -312,7 +312,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob() []jobTargetsStatuses {
 				labels:         promrelabel.FinalizeLabels(nil, st.sw.Labels),
 				originalLabels: st.sw.OriginalLabels,
 				lastScrapeTime: st.getDurationFromLastScrape(),
-				scrapeDuration: time.Duration(st.scrapeDuration),
+				scrapeDuration: time.Duration(st.scrapeDuration) * time.Millisecond,
 				error:          errMsg,
 			})
 		}
