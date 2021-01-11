@@ -190,6 +190,9 @@ func (d *tcpDialer) NewDial(timeout time.Duration) DialFunc {
 			if err == ErrDialTimeout {
 				return nil, err
 			}
+			if err, ok := err.(net.Error); ok && err.Timeout() {
+				return nil, err
+			}
 			idx++
 			n--
 		}
@@ -232,7 +235,7 @@ func tryDial(network string, addr *net.TCPAddr, deadline time.Time, concurrencyC
 	ch := chv.(chan dialResult)
 	go func() {
 		var dr dialResult
-		dr.conn, dr.err = net.DialTCP(network, nil, addr)
+		dr.conn, dr.err = net.DialTimeout(network, addr.String(), timeout)
 		ch <- dr
 		<-concurrencyCh
 	}()
