@@ -13,11 +13,13 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(shell date 
 .PHONY: $(MAKECMDGOALS)
 
 all: \
+	vmagent \
 	vminsert \
 	vmselect \
 	vmstorage
 
 all-pure: \
+	vmagent-pure \
 	vminsert-pure \
 	vmselect-pure \
 	vmstorage-pure
@@ -42,10 +44,11 @@ release: \
 	release-vmcluster
 
 release-vmcluster: \
+	vmagent-prod \
 	vminsert-prod \
 	vmselect-prod \
 	vmstorage-prod
-	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vminsert-prod vmselect-prod vmstorage-prod && \
+	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vmagent-prod vminsert-prod vmselect-prod vmstorage-prod && \
 		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
