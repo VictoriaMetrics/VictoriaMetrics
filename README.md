@@ -1424,6 +1424,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [Ansible role for installing single-node VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 * [Ansible role for installing cluster VictoriaMetrics](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
+* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://victoriametrics.github.io/vmalert.html).
 
 
 ## Third-party contributions
