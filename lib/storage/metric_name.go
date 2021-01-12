@@ -375,7 +375,11 @@ func (mn *MetricName) Marshal(dst []byte) []byte {
 	dst = marshalTagValue(dst, mn.MetricGroup)
 
 	// Marshal tags.
-	dst = marshalTags(dst, mn.Tags)
+	tags := mn.Tags
+	for i := range tags {
+		t := &tags[i]
+		dst = t.Marshal(dst)
+	}
 	return dst
 }
 
@@ -633,20 +637,6 @@ func (ts *canonicalTagsSort) Less(i, j int) bool {
 func (ts *canonicalTagsSort) Swap(i, j int) {
 	x := *ts
 	x[i], x[j] = x[j], x[i]
-}
-
-func marshalTags(dst []byte, tags []Tag) []byte {
-	var prevKey []byte
-	for i := range tags {
-		t := &tags[i]
-		if string(prevKey) == string(t.Key) {
-			// Skip duplicate keys, since they aren't allowed in Prometheus data model.
-			continue
-		}
-		prevKey = t.Key
-		dst = t.Marshal(dst)
-	}
-	return dst
 }
 
 func copyTags(dst, src []Tag) []Tag {
