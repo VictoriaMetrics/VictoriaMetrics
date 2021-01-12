@@ -78,10 +78,6 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 		rowsTotal += len(r.Fields)
 		ic.Labels = ic.Labels[:0]
 		hasDBKey := false
-		for j := range extraLabels {
-			label := &extraLabels[j]
-			ic.AddLabel(label.Name, label.Value)
-		}
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			if tag.Key == "db" {
@@ -91,6 +87,10 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 		}
 		if !hasDBKey {
 			ic.AddLabel("db", db)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ic.AddLabel(label.Name, label.Value)
 		}
 		ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 		if !*skipMeasurement {

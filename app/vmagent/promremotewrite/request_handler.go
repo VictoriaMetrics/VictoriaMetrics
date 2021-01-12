@@ -3,6 +3,8 @@ package promremotewrite
 import (
 	"net/http"
 
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -20,12 +22,18 @@ var (
 
 // InsertHandler processes remote write for prometheus.
 func InsertHandler(req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, insertRows)
+		return parser.ParseStream(req, func(tss []prompb.TimeSeries) error {
+			return insertRows(tss, extraLabels)
+		})
 	})
 }
 
-func insertRows(timeseries []prompb.TimeSeries) error {
+func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -44,6 +52,7 @@ func insertRows(timeseries []prompb.TimeSeries) error {
 				Value: bytesutil.ToUnsafeString(label.Value),
 			})
 		}
+		labels = append(labels, extraLabels...)
 		samplesLen := len(samples)
 		for i := range ts.Samples {
 			sample := &ts.Samples[i]

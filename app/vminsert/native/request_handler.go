@@ -50,13 +50,13 @@ func insertRows(block *parser.Block, extraLabels []prompbmarshal.Label) error {
 	mn := &block.MetricName
 	ic.Labels = ic.Labels[:0]
 	ic.AddLabelBytes(nil, mn.MetricGroup)
-	for j := range extraLabels {
-		label := &extraLabels[j]
-		ic.AddLabel(label.Name, label.Value)
-	}
 	for j := range mn.Tags {
 		tag := &mn.Tags[j]
 		ic.AddLabelBytes(tag.Key, tag.Value)
+	}
+	for j := range extraLabels {
+		label := &extraLabels[j]
+		ic.AddLabel(label.Name, label.Value)
 	}
 	if hasRelabeling {
 		ic.ApplyRelabeling()

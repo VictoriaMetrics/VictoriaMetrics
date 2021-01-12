@@ -40,13 +40,13 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 		r := &rows[i]
 		ctx.Labels = ctx.Labels[:0]
 		ctx.AddLabel("", r.Metric)
-		for j := range extraLabels {
-			label := &extraLabels[j]
-			ctx.AddLabel(label.Name, label.Value)
-		}
 		for j := range r.Tags {
 			tag := &r.Tags[j]
 			ctx.AddLabel(tag.Key, tag.Value)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ctx.AddLabel(label.Name, label.Value)
 		}
 		if hasRelabeling {
 			ctx.ApplyRelabeling()
