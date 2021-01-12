@@ -365,7 +365,8 @@ func (mn *MetricName) String() string {
 
 // Marshal appends marshaled mn to dst and returns the result.
 //
-// Tags must be sorted before calling this function.
+// mn.sortTags must be called before calling this function
+// in order to sort and de-duplcate tags.
 func (mn *MetricName) Marshal(dst []byte) []byte {
 	// Calculate the required size and pre-allocate space in dst
 	dstLen := len(dst)
@@ -411,7 +412,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 	}
 
 	// There is no need in verifying for identical tag keys,
-	// since they must be handled in MetricName.Marshal inside marshalTags.
+	// since they must be handled by MetricName.sortTags before calling MetricName.Marshal.
 
 	return nil
 }
@@ -631,7 +632,10 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 	return src[n:], src[:n], nil
 }
 
-// sortTags sorts tags in mn.
+// sortTags sorts tags in mn to canonical form needed for storing in the index.
+//
+// The function also de-duplicates tags with identical keys in mn. The last tag value
+// for duplicate tags wins.
 //
 // Tags sorting is quite slow, so try avoiding it by caching mn
 // with sorted tags.
@@ -653,12 +657,25 @@ func (mn *MetricName) sortTags() {
 	}
 	cts.tags = dst
 
-	// Use sort.Sort instead of sort.Slice, since sort.Slice allocates a lot.
-	sort.Sort(&cts.tags)
+	// Use sort.Stable instead of sort.Sort in order to preserve the order of tags with duplicate keys.
+	// The last tag value wins for tags with duplicate keys.
+	// Use sort.Stable instead of sort.SliceStable, since sort.SliceStable allocates a lot.
+	sort.Stable(&cts.tags)
 
+	j := 0
+	var prevKey []byte
 	for i := range cts.tags {
-		mn.Tags[i].copyFrom(&cts.tags[i].tag)
+		tag := &cts.tags[i].tag
+		if j > 0 && bytes.Equal(tag.Key, prevKey) {
+			// Overwrite the previous tag with duplicate key.
+			j--
+		} else {
+			prevKey = tag.Key
+		}
+		mn.Tags[j].copyFrom(tag)
+		j++
 	}
+	mn.Tags = mn.Tags[:j]
 
 	putCanonicalTags(cts)
 }
