@@ -33,7 +33,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 			return insertRows(at, rows, extraLabels)
-		})
+		}, nil)
 	})
 }
 
