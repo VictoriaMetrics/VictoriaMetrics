@@ -12,6 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -37,7 +39,7 @@ var (
 func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
-			return insertRows(at, db, rows, true)
+			return insertRows(at, db, rows, nil, true)
 		})
 	})
 }
@@ -46,6 +48,10 @@ func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 		q := req.URL.Query()
@@ -53,12 +59,12 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 		db := q.Get("db")
 		return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
-			return insertRows(at, db, rows, false)
+			return insertRows(at, db, rows, extraLabels, false)
 		})
 	})
 }
 
-func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccountProjectID bool) error {
+func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label, mayOverrideAccountProjectID bool) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -90,6 +96,10 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, mayOverrideAccount
 		}
 		if !hasDBKey {
 			ic.AddLabel("db", db)
+		}
+		for j := range extraLabels {
+			label := &extraLabels[j]
+			ic.AddLabel(label.Name, label.Value)
 		}
 		ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 		if !*skipMeasurement {
