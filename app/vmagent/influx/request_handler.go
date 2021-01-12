@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -33,7 +34,9 @@ var (
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
 func InsertHandlerForReader(r io.Reader) error {
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, false, "", "", insertRows)
+		return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
+			return insertRows(db, rows, nil)
+		})
 	})
 }
 
@@ -41,17 +44,23 @@ func InsertHandlerForReader(r io.Reader) error {
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
 func InsertHandlerForHTTP(req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
 		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 		q := req.URL.Query()
 		precision := q.Get("precision")
 		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 		db := q.Get("db")
-		return parser.ParseStream(req.Body, isGzipped, precision, db, insertRows)
+		return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+			return insertRows(db, rows, extraLabels)
+		})
 	})
 }
 
-func insertRows(db string, rows []parser.Row) error {
+func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -82,6 +91,7 @@ func insertRows(db string, rows []parser.Row) error {
 				Value: db,
 			})
 		}
+		commonLabels = append(commonLabels, extraLabels...)
 		ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 		if !*skipMeasurement {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, r.Measurement...)

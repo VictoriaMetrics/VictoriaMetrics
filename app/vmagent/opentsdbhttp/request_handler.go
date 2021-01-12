@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -19,12 +20,18 @@ var (
 // InsertHandler processes HTTP OpenTSDB put requests.
 // See http://opentsdb.net/docs/build/html/api_http/put.html
 func InsertHandler(req *http.Request) error {
+	extraLabels, err := parserCommon.GetExtraLabels(req)
+	if err != nil {
+		return err
+	}
 	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, insertRows)
+		return parser.ParseStream(req, func(rows []parser.Row) error {
+			return insertRows(rows, extraLabels)
+		})
 	})
 }
 
-func insertRows(rows []parser.Row) error {
+func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -45,6 +52,7 @@ func insertRows(rows []parser.Row) error {
 				Value: tag.Value,
 			})
 		}
+		labels = append(labels, extraLabels...)
 		samples = append(samples, prompbmarshal.Sample{
 			Value:     r.Value,
 			Timestamp: r.Timestamp,
