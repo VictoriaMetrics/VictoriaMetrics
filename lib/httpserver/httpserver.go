@@ -93,7 +93,9 @@ func Serve(addr string, rh RequestHandler) {
 			logger.Fatalf("cannot load TLS cert from tlsCertFile=%q, tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
 		}
 		cfg := &tls.Config{
-			Certificates: []tls.Certificate{cert},
+			Certificates:             []tls.Certificate{cert},
+			MinVersion:               tls.VersionTLS12,
+			PreferServerCipherSuites: true,
 		}
 		ln = tls.NewListener(ln, cfg)
 	}
