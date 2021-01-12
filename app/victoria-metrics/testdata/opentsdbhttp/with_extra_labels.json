@@ -1,0 +1,9 @@
+{
+  "name": "insert_with_extra_labels",
+  "data": ["{\"metric\": \"opentsdbhttp.foobar\", \"value\": 1001, \"timestamp\": {TIME_S}, \"tags\": {\"bar\":\"baz\", \"x\": \"y\"}}"],
+  "insert_query": "?extra_label=job=open-test&extra_label=x=z",
+  "query": ["/api/v1/export?match={__name__!=''}"],
+  "result_metrics": [
+    {"metric":{"__name__":"opentsdbhttp.foobar","bar":"baz","x":"z","job": "open-test"},"values":[1001], "timestamps": ["{TIME_MSZ}"]}
+  ]
+}

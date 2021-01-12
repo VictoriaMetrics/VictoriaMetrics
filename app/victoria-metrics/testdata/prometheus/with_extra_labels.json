@@ -1,0 +1,9 @@
+{
+  "name": "basic_insertion_with_extra_labels",
+  "insert_query": "?extra_label=job=prom-test&extra_label=baz=bar",
+  "data": ["[{\"labels\":[{\"name\":\"__name__\",\"value\":\"prometheus.foobar\"},{\"name\":\"baz\",\"value\":\"qux\"}],\"samples\":[{\"value\":100000,\"timestamp\":\"{TIME_MS}\"}]}]"],
+  "query": ["/api/v1/export?match={__name__!=''}"],
+  "result_metrics": [
+    {"metric":{"__name__":"prometheus.foobar","baz":"bar","job": "prom-test"},"values":[100000], "timestamps": ["{TIME_MS}"]}
+  ]
+}

@@ -58,6 +58,7 @@ var (
 type test struct {
 	Name             string     `json:"name"`
 	Data             []string   `json:"data"`
+	InsertQuery      string     `json:"insert_query"`
 	Query            []string   `json:"query"`
 	ResultMetrics    []Metric   `json:"result_metrics"`
 	ResultSeries     Series     `json:"result_series"`
@@ -209,7 +210,7 @@ func testWrite(t *testing.T) {
 				t.Errorf("error compressing %v %s", r, err)
 				t.Fail()
 			}
-			httpWrite(t, testPromWriteHTTPPath, bytes.NewBuffer(data))
+			httpWrite(t, testPromWriteHTTPPath, test.InsertQuery, bytes.NewBuffer(data))
 		}
 	})
 
@@ -218,7 +219,7 @@ func testWrite(t *testing.T) {
 			test := x
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
-				httpWrite(t, testWriteHTTPPath, bytes.NewBufferString(strings.Join(test.Data, "\n")))
+				httpWrite(t, testWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")))
 			})
 		}
 	})
@@ -246,7 +247,7 @@ func testWrite(t *testing.T) {
 			t.Run(test.Name, func(t *testing.T) {
 				t.Parallel()
 				logger.Infof("writing %s", test.Data)
-				httpWrite(t, testOpenTSDBWriteHTTPPath, bytes.NewBufferString(strings.Join(test.Data, "\n")))
+				httpWrite(t, testOpenTSDBWriteHTTPPath, test.InsertQuery, bytes.NewBufferString(strings.Join(test.Data, "\n")))
 			})
 		}
 	})
@@ -324,10 +325,10 @@ func readIn(readFor string, t *testing.T, insertTime time.Time) []test {
 	return tt
 }
 
-func httpWrite(t *testing.T, address string, r io.Reader) {
+func httpWrite(t *testing.T, address, query string, r io.Reader) {
 	t.Helper()
 	s := newSuite(t)
-	resp, err := http.Post(address, "", r)
+	resp, err := http.Post(address+query, "", r)
 	s.noError(err)
 	s.noError(resp.Body.Close())
 	s.equalInt(resp.StatusCode, 204)
