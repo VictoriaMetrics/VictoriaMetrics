@@ -381,7 +381,13 @@ func (mn *MetricName) Marshal(dst []byte) []byte {
 	dst = encoding.MarshalUint32(dst, mn.AccountID)
 	dst = encoding.MarshalUint32(dst, mn.ProjectID)
 	dst = marshalTagValue(dst, mn.MetricGroup)
-	dst = marshalTags(dst, mn.Tags)
+
+	// Marshal tags.
+	tags := mn.Tags
+	for i := range tags {
+		t := &tags[i]
+		dst = t.Marshal(dst)
+	}
 	return dst
 }
 
@@ -420,7 +426,9 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 // MarshalNoAccountIDProjectID appends marshaled mn without AccountID and ProjectID
 // to dst and returns the result.
 //
-// The result must be unmarshaled with UnmarshalNoAccountIDProjectID
+// The result must be unmarshaled with UnmarshalNoAccountIDProjectID.
+//
+// It is expected that mn.Tags are already sorted and de-duplicated with mn.sortTags.
 func (mn *MetricName) MarshalNoAccountIDProjectID(dst []byte) []byte {
 	// Calculate the required size and pre-allocate space in dst
 	dstLen := len(dst)
@@ -433,7 +441,11 @@ func (mn *MetricName) MarshalNoAccountIDProjectID(dst []byte) []byte {
 	dst = dst[:dstLen]
 
 	dst = marshalTagValue(dst, mn.MetricGroup)
-	dst = marshalTags(dst, mn.Tags)
+	tags := mn.Tags
+	for i := range tags {
+		t := &tags[i]
+		dst = t.Marshal(dst)
+	}
 	return dst
 }
 
@@ -714,20 +726,6 @@ func (ts *canonicalTagsSort) Less(i, j int) bool {
 func (ts *canonicalTagsSort) Swap(i, j int) {
 	x := *ts
 	x[i], x[j] = x[j], x[i]
-}
-
-func marshalTags(dst []byte, tags []Tag) []byte {
-	var prevKey []byte
-	for i := range tags {
-		t := &tags[i]
-		if string(prevKey) == string(t.Key) {
-			// Skip duplicate keys, since they aren't allowed in Prometheus data model.
-			continue
-		}
-		prevKey = t.Key
-		dst = t.Marshal(dst)
-	}
-	return dst
 }
 
 func copyTags(dst, src []Tag) []Tag {
