@@ -410,7 +410,7 @@ Note that Influx line protocol expects [timestamps in *nanoseconds* by default](
 while VictoriaMetrics stores them with *milliseconds* precision.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
-For example, `/write?extra_label=foo=bar` would add `"foo":"bar"` label to all the written time series.
+For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
@@ -527,7 +527,7 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 
 Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
-For example, `/api/put?extra_label=foo=bar` would add `"foo":"bar"` label to all the imported time series.
+For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
 ## Prometheus querying API usage
 
