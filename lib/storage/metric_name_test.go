@@ -64,15 +64,16 @@ func TestMetricNameMarshalDuplicateKeys(t *testing.T) {
 	var mn MetricName
 	mn.MetricGroup = []byte("xxx")
 	mn.AddTag("foo", "bar")
-	mn.AddTag("duplicate", "tag")
-	mn.AddTag("duplicate", "tag")
-	mn.AddTag("tt", "xx")
+	mn.AddTag("duplicate", "tag1")
 	mn.AddTag("duplicate", "tag2")
+	mn.AddTag("tt", "xx")
+	mn.AddTag("foo", "abc")
+	mn.AddTag("duplicate", "tag3")
 
 	var mnExpected MetricName
 	mnExpected.MetricGroup = []byte("xxx")
-	mnExpected.AddTag("duplicate", "tag")
-	mnExpected.AddTag("foo", "bar")
+	mnExpected.AddTag("duplicate", "tag3")
+	mnExpected.AddTag("foo", "abc")
 	mnExpected.AddTag("tt", "xx")
 
 	mn.sortTags()

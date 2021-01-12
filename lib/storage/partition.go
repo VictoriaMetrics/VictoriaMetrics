@@ -976,7 +976,7 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 		if !errors.Is(err, errNothingToMerge) {
 			return err
 		}
-		if fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
+		if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
 			// We have free time for merging into bigger parts.
 			// This should improve select performance.
 			lastMergeTime = fasttime.UnixTimestamp()
@@ -998,17 +998,18 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 	}
 }
 
-var finalMergeDelaySeconds = uint64(30)
+// Disable final merge by default, since it may lead to high disk IO and CPU usage
+// at the beginning of every month when merging data for the previous month.
+var finalMergeDelaySeconds = uint64(0)
 
 // SetFinalMergeDelay sets the delay before doing final merge for partitions without newly ingested data.
 //
 // This function may be called only before Storage initialization.
 func SetFinalMergeDelay(delay time.Duration) {
-	delaySeconds := int(delay.Seconds() + 0.5)
-	if delaySeconds <= 0 {
+	if delay <= 0 {
 		return
 	}
-	finalMergeDelaySeconds = uint64(delaySeconds)
+	finalMergeDelaySeconds = uint64(delay.Seconds() + 1)
 }
 
 func maxRowsByPath(path string) uint64 {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
@@ -80,10 +81,12 @@ func (u *URL) NewDialFunc(tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
 }
 
 func defaultDialFunc(addr string) (net.Conn, error) {
+	network := "tcp4"
 	if netutil.TCP6Enabled() {
-		return fasthttp.DialDualStack(addr)
+		network = "tcp"
 	}
-	return fasthttp.Dial(addr)
+	// Do not use fasthttp.Dial because of https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
+	return net.DialTimeout(network, addr, 5*time.Second)
 }
 
 // sendConnectRequest sends CONNECT request to proxyConn for the given addr and authHeader and returns the established connection to dstAddr.

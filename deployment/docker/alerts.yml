@@ -1,23 +1,174 @@
+# File contains default list of alerts for vm-single and vmagent services.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
 groups:
-  - name: groupGorSingleAlert
+  - name: serviceHealth
     rules:
-      - alert: VMRows
-        for: 10s
-        expr: vm_rows > 0
+      # note the `job` filter and update accordingly to your setup
+      - alert: TooManyRestarts
+        expr: changes(process_start_time_seconds{job=~"victoriametrics|vmagent|vmalert"}[15m]) > 2
         labels:
-          label: bar
-          host: "{{ $labels.instance }}"
+          severity: critical
         annotations:
-          summary: "{{ $value|humanize }}"
-          description: "{{$labels}}"
-  - name: TestGroup
+          summary: "{{ $labels.job }} too many restarts (instance {{ $labels.instance }})"
+          description: "Job {{ $labels.job }} has restarted more than twice in the last 15 minutes.
+            It might be crashlooping."
+
+  # Alerts group for VM single assumes that Grafana dashboard
+  # https://grafana.com/grafana/dashboards/10229 is installed.
+  # Pls update the `dashboard` annotation according to your setup.
+  - name: vmsingle
+    interval: 30s
+    concurrency: 2
     rules:
-      - alert: Conns
-        expr: sum(vm_tcplistener_conns) by(instance) > 1
-        for: 5s
+      - alert: DiskRunsOutOfSpaceIn3Days
+        expr: |
+          vm_free_disk_space_bytes / ignoring(path) (
+           (
+            sum(rate(vm_rows_added_to_storage_total[1d])) -
+            sum(rate(vm_deduplicated_samples_total[1d])) without(type)
+           )
+          *
+           (
+            sum(vm_data_size_bytes{type!="indexdb"}) /
+            sum(vm_rows{type!="indexdb"})
+           )
+          ) < 3 * 24 * 3600
+        for: 30m
+        labels:
+          severity: critical
         annotations:
-          summary: "Too high connection number for {{$labels.instance}}"
-          description: "It is {{ $value }} connections for {{$labels.instance}}"
-      - alert: ExampleAlertAlwaysFiring
-        expr: sum by(job)
-          (up == 1)
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=73&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} will run out of disk space soon"
+          description: "Taking into account current ingestion rate, free disk space will be enough only
+            for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+
+      - alert: RequestErrorsToAPI
+        expr: increase(vm_http_request_errors_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
+          summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
+          description: "Requests to path {{ $labels.path }} are receiving errors.
+            Please verify if clients are sending correct requests."
+
+      - alert: ConcurrentFlushesHitTheLimit
+        expr: vm_concurrent_addrows_current >= vm_concurrent_addrows_capacity
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=59&var-instance={{ $labels.instance }}"
+          summary: "VictoriMetrics on instance {{ $labels.instance }} is constantly hitting concurrent flushes limit"
+          description: "The limit of concurrent flushes on instance {{ $labels.instance }} is equal to number of CPUs.\n
+            When VictoriaMetrics constantly hits the limit it means that storage is overloaded and requires more CPU."
+
+      - alert: TooManyLogs
+        expr: sum(increase(vm_log_messages_total{level!="info"}[5m])) by (job, instance) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=67&var-instance={{ $labels.instance }}"
+          summary: "Too many logs printed for job \"{{ $labels.job }}\" ({{ $labels.instance }})"
+          description: "Logging rate for job \"{{ $labels.job }}\" ({{ $labels.instance }}) is {{ $value }} for last 15m.\n
+           Worth to check logs for specific error messages."
+
+      - alert: RowsRejectedOnIngestion
+        expr: sum(rate(vm_rows_ignored_total[5m])) by (instance, reason) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=58&var-instance={{ $labels.instance }}"
+          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
+          description: "VM is rejecting to ingest rows on \"{{ $labels.instance }}\" due to the
+            following reason: \"{{ $labels.reason }}\""
+
+      - alert: TooHighChurnRate
+        expr: |
+          (
+             sum(rate(vm_new_timeseries_created_total[5m])) by(instance)
+             /
+             sum(rate(vm_rows_inserted_total[5m])) by (instance)
+           ) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
+          summary: "Churn rate is more than 10% on \"{{ $labels.instance }}\" for the last 15m"
+          description: "VM constantly creates new time series on \"{{ $labels.instance }}\".\n
+            This effect is known as Churn Rate.\n
+            High Churn Rate tightly connected with database performance and may
+            result in unexpected OOM's or slow queries."
+
+      - alert: TooHighSlowInsertsRate
+        expr: |
+          (
+             sum(rate(vm_slow_row_inserts_total[5m])) by(instance)
+             /
+             sum(rate(vm_rows_inserted_total[5m])) by (instance)
+           ) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
+          summary: "Percentage of slow inserts is more than 50% on \"{{ $labels.instance }}\" for the last 15m"
+          description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
+            for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series."
+
+  # Alerts group for vmagent assumes that Grafana dashboard
+  # https://grafana.com/grafana/dashboards/12683 is installed.
+  # Pls update the `dashboard` annotation according to your setup.
+  - name: vmagent
+    interval: 30s
+    concurrency: 2
+    rules:
+      - alert: PersistentQueueIsDroppingData
+        expr: sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) by (job, instance) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=49&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} is dropping data from persistent queue"
+          description: "Vmagent dropped {{ $value | humanize1024 }} from persistent queue
+              on instance {{ $labels.instance }} for the last 10m."
+
+      - alert: TooManyScrapeErrors
+        expr: sum(increase(vm_promscrape_scrapes_failed_total[5m])) by (job, instance) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=31&var-instance={{ $labels.instance }}"
+          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to scrape targets for last 15m"
+
+      - alert: TooManyWriteErrors
+        expr: |
+          (sum(increase(vm_ingestserver_request_errors_total[5m])) by (job, instance)
+          +
+          sum(increase(vmagent_http_request_errors_total[5m])) by (job, instance)) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=77&var-instance={{ $labels.instance }}"
+          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} responds with errors to write requests for last 15m."
+
+      - alert: TooManyRemoteWriteErrors
+        expr: sum(rate(vmagent_remotewrite_retries_count_total[5m])) by(job, instance, url) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=61&var-instance={{ $labels.instance }}"
+          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to push to remote storage"
+          description: "Vmagent fails to push data via remote write protocol to destination \"{{ $labels.url }}\"\n
+            Ensure that destination is up and reachable."
+

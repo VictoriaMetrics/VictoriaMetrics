@@ -10,7 +10,7 @@
 
 ## VictoriaMetrics
 
-VictoriaMetrics is fast, cost-effective and scalable monitoring solution and time series database.
+VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
 It is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap package](https://snapcraft.io/victoriametrics)
@@ -1283,6 +1283,7 @@ The most interesting metrics are:
 
 VictoriaMetrics also exposes currently running queries with their execution times at `/api/v1/status/active_queries` page.
 
+See the example of alerting rules for VM components [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
 ## Troubleshooting
 
@@ -1372,7 +1373,7 @@ cache when samples with timestamps older than `now - search.cacheTimestampOffset
 ## Data updates
 
 VictoriaMetrics doesn't support updating already existing sample values to new ones. It stores all the ingested data points
-for the same time series with identical timestamps. While is possible substituting old time series with new time series via
+for the same time series with identical timestamps. While it is possible substituting old time series with new time series via
 [removal of old time series](#how-to-delete-timeseries) and then [writing new time series](#backfilling), this approach
 should be used only for one-off updates. It shouldn't be used for frequent updates because of non-zero overhead related to data removal.
 
@@ -1427,6 +1428,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [Ansible role for installing single-node VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 * [Ansible role for installing cluster VictoriaMetrics](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
+* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://victoriametrics.github.io/vmalert.html).
 
 
 ## Third-party contributions
