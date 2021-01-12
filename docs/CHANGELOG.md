@@ -6,7 +6,9 @@
 * FEATURE: disable final merge for data for the previous month at the beginning of new month, since it may result in high disk IO and CPU usage. Final merge can be enabled by setting `-finalMergeDelay` command-line flag to positive duration.
 * FEATURE: add `tfirst_over_time(m[d])` and `tlast_over_time(m[d])` functions to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) for returning timestamps for the first and the last data point in `m` over `d` duration.
 * FEATURE: enforce at least TLS v1.2 when accepting HTTPS requests if `-tls`, `-tlsCertFile` and `-tlsKeyFile` command-line flags are set, because older TLS protocols such as v1.0 and v1.1 have been deprecated due to security vulnerabilities.
+* FEATURE: support `extra_label` query arg for all HTTP-based [data ingestion protocols](https://victoriametrics.github.io/#how-to-import-time-series-data). This query arg can be used for specifying extra labels which should be added for the ingested data.
 
+* BUGFIX: override user-provided labels with labels set in `extra_label` query args during data ingestion over HTTP-based protocols.
 * BUGFIX: vmagent: prevent from `dialing to the given TCP address time out` error when scraping big number of unavailable targets. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
 * BUGFIX: vmagent: properly show scrape duration on `/targets` page. Previously it was incorrectly shown as 0.000s.
 * BUGFIX: vmagent: properly log errors when `-promscrape.streamParse` command-line flag is set. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009
