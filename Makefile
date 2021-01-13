@@ -64,9 +64,23 @@ release: \
 	release-victoria-metrics \
 	release-vmutils
 
-release-victoria-metrics: victoria-metrics-prod
-	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz victoria-metrics-prod && \
-		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
+release-victoria-metrics: \
+	release-victoria-metrics-amd64 \
+	release-victoria-metrics-arm64
+
+release-victoria-metrics-amd64:
+	GOARCH=amd64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-arm64:
+	GOARCH=arm64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
+	cd bin && \
+		tar --transform="flags=r;s|-$(GOARCH)||" -czf victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-metrics-$(GOARCH)-prod \
+		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-metrics-$(GOARCH)-prod \
+			| sed s/-$(GOARCH)// > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
 	release-vmutils-amd64 \
