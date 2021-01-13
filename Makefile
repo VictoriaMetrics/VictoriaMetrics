@@ -49,6 +49,13 @@ vmutils: \
 	vmbackup \
 	vmrestore
 
+vmutils-arm64: \
+	vmagent-arm64 \
+	vmalert-arm64 \
+	vmauth-arm64 \
+	vmbackup-arm64 \
+	vmrestore-arm64
+
 release-snap:
 	snapcraft
 	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
@@ -69,6 +76,16 @@ release-vmutils: \
 	vmrestore-prod
 	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmauth-prod vmbackup-prod vmrestore-prod && \
 		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
+
+release-vmutils-arm64: \
+	vmagent-arm64-prod \
+	vmalert-arm64-prod \
+	vmauth-arm64-prod \
+	vmbackup-arm64-prod \
+	vmrestore-arm64-prod
+	cd bin && tar czf vmutils-arm64-$(PKG_TAG).tar.gz vmagent-arm64-prod vmalert-arm64-prod vmauth-arm64-prod vmbackup-arm64-prod vmrestore-arm64-prod && \
+		sha256sum vmutils-arm64-$(PKG_TAG).tar.gz > vmutils-arm64-$(PKG_TAG)_checksums.txt
+
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)

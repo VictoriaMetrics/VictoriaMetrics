@@ -2,12 +2,20 @@
 
 # tip
 
-* BUGFIX: vmagent: prevent from `dialing to the given TCP address time out` error when scraping big number of unavailable targets. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
-* BUGFIX: vmagent: properly show scrape duration on `/targets` page. Previously it was incorrectly shown as 0.000s.
-* BUGFIX: vmalert: return non-empty result in template func `query` stub to pass validation. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/989 .
-
 * FEATURE: provide a sample list of alerting rules for VictoriaMetrics components. It is available [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 * FEATURE: disable final merge for data for the previous month at the beginning of new month, since it may result in high disk IO and CPU usage. Final merge can be enabled by setting `-finalMergeDelay` command-line flag to positive duration.
+* FEATURE: add `tfirst_over_time(m[d])` and `tlast_over_time(m[d])` functions to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) for returning timestamps for the first and the last data point in `m` over `d` duration.
+* FEATURE: enforce at least TLS v1.2 when accepting HTTPS requests if `-tls`, `-tlsCertFile` and `-tlsKeyFile` command-line flags are set, because older TLS protocols such as v1.0 and v1.1 have been deprecated due to security vulnerabilities.
+* FEATURE: support `extra_label` query arg for all HTTP-based [data ingestion protocols](https://victoriametrics.github.io/#how-to-import-time-series-data). This query arg can be used for specifying extra labels which should be added for the ingested data.
+
+* BUGFIX: properly parse escaped unicode chars in MetricsQL metric names, label names and function names. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/990
+* BUGFIX: override user-provided labels with labels set in `extra_label` query args during data ingestion over HTTP-based protocols.
+* BUGFIX: vmagent: prevent from `dialing to the given TCP address time out` error when scraping big number of unavailable targets. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
+* BUGFIX: vmagent: properly show scrape duration on `/targets` page. Previously it was incorrectly shown as 0.000s.
+* BUGFIX: vmagent: properly log errors when `-promscrape.streamParse` command-line flag is set. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009
+* BUGFIX: vmagent: properly suppress errors when both `-promscrape.suppressScrapeErrors` and `-promscrape.streamParse` command-line flags are set. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1009 .
+* BUGFIX: vmalert: return non-empty result in template func `query` stub to pass validation. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/989 .
+* BUGFIX: upgrade base image for Docker packages from Alpine 3.12.1 to Alpine 3.12.3 in order to fix potential security issues. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1010
 
 
 # [v1.51.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.51.0)

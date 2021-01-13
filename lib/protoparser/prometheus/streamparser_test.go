@@ -31,7 +31,7 @@ func TestParseStream(t *testing.T) {
 			}
 			lock.Unlock()
 			return nil
-		})
+		}, nil)
 		if err != nil {
 			t.Fatalf("unexpected error when parsing %q: %s", s, err)
 		}
@@ -64,7 +64,7 @@ func TestParseStream(t *testing.T) {
 			}
 			lock.Unlock()
 			return nil
-		})
+		}, nil)
 		if err != nil {
 			t.Fatalf("unexpected error when parsing compressed %q: %s", s, err)
 		}

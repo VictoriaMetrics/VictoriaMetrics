@@ -343,7 +343,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 			pushDataDuration.UpdateDuration(startTime)
 			wc.resetNoRows()
 			return nil
-		})
+		}, sw.logError)
 		responseSize = sr.bytesRead
 		sr.MustClose()
 	}
@@ -373,7 +373,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
-	return nil
+	return err
 }
 
 // leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx

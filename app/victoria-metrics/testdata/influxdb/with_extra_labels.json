@@ -1,0 +1,10 @@
+{
+  "name": "insert_with_extra_labels",
+  "data": ["measurement,tag1=value1,tag2=value2 field6=1.23,field5=123 {TIME_NS}"],
+  "insert_query": "?extra_label=job=test&extra_label=tag2=value10",
+  "query": ["/api/v1/export?match={__name__!=''}"],
+  "result_metrics": [
+    {"metric":{"__name__":"measurement_field5","tag1":"value1","job": "test","tag2":"value10"},"values":[123], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"measurement_field6","tag1":"value1","job": "test","tag2":"value10"},"values":[1.23], "timestamps": ["{TIME_MS}"]}
+  ]
+}

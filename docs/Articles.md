@@ -23,6 +23,7 @@
 * [Monitoring private clouds with VictoriaMetrics at LeroyMerlin](https://www.youtube.com/watch?v=74swsWqf0Uc)
 * [Monitoring Kubernetes with VictoriaMetrics+Prometheus](https://speakerdeck.com/bo0km4n/victoriametrics-plus-prometheusdegou-zhu-surufu-shu-kubernetesfalsejian-shi-ji-pan)
 * [High-performance Graphite storage solution on top of VictoriaMetrics](https://golangexample.com/a-high-performance-graphite-storage-solution/)
+* [Cloud Native Model Driven Telemetry Stack on OpenShift](https://cer6erus.medium.com/cloud-native-model-driven-telemetry-stack-on-openshift-80712621f5bc)
 
 
 ## Our articles

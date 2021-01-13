@@ -86,8 +86,8 @@ github.com/VictoriaMetrics/fasthttp v1.0.11/go.mod h1:3SeUL4zwB/p/a9aEeRc6gdlbrt
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metrics v1.12.3 h1:Fe6JHC6MSEKa+BtLhPN8WIvS+HKPzMc2evEpNeCGy7I=
 github.com/VictoriaMetrics/metrics v1.12.3/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
-github.com/VictoriaMetrics/metricsql v0.9.1 h1:CVl9fSW4pGhv7r9Q54zBPVVIGmwpAWvfo0QybVv+TV8=
-github.com/VictoriaMetrics/metricsql v0.9.1/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
+github.com/VictoriaMetrics/metricsql v0.10.0 h1:45BARAP2shaL/5p67Hvz+YrWUbr0X0VCy9t+gvdIm8o=
+github.com/VictoriaMetrics/metricsql v0.10.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
 github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5/go.mod h1:SkGFH1ia65gfNATL8TAiHDNxPzPdmEL5uirI2Uyuz6c=
 github.com/agnivade/levenshtein v1.0.1/go.mod h1:CURSv5d9Uaml+FovSIICkLbAUZ9S4RqaHDIsdSBg7lM=

@@ -18,7 +18,7 @@ import (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []Row) error) error {
+func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []Row) error, errLogger func(string)) error {
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -31,6 +31,7 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
+		uw.errLogger = errLogger
 		uw.callback = func(rows []Row) {
 			if err := callback(rows); err != nil {
 				ctx.callbackErrLock.Lock()
@@ -133,6 +134,7 @@ var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 type unmarshalWork struct {
 	rows             Rows
 	callback         func(rows []Row)
+	errLogger        func(string)
 	defaultTimestamp int64
 	reqBuf           []byte
 }
@@ -140,13 +142,18 @@ type unmarshalWork struct {
 func (uw *unmarshalWork) reset() {
 	uw.rows.Reset()
 	uw.callback = nil
+	uw.errLogger = nil
 	uw.defaultTimestamp = 0
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+	if uw.errLogger != nil {
+		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+	} else {
+		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+	}
 	rows := uw.rows.Rows
 	rowsRead.Add(len(rows))
 

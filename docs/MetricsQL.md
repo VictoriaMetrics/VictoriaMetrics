@@ -127,6 +127,8 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `count_ne_over_time(m[d], N)` - returns the number of raw samples for `m` over `d` with values not equal to `N`.
 - `tmin_over_time(m[d])` - returns timestamp for the minimum value for `m` over `d` time range.
 - `tmax_over_time(m[d])` - returns timestamp for the maximum value for `m` over `d` time range.
+- `tfirst_over_time(m[d])` - returns timestamp for the first sample for `m` over `d` time range.
+- `tlast_over_time(m[d])` - returns timestamp for the last sample for `m` over `d` time range.
 - `aggr_over_time(("aggr_func1", "aggr_func2", ...), m[d])` - simultaneously calculates all the listed `aggr_func*` for `m` over `d` time range.
   `aggr_func*` can contain any functions that accept range vector. For instance, `aggr_over_time(("min_over_time", "max_over_time", "rate"), m[d])`
   would calculate `min_over_time`, `max_over_time` and `rate` for `m[d]`.

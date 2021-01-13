@@ -60,6 +60,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"scrape_interval":       newRollupFuncOneArg(rollupScrapeInterval),
 	"tmin_over_time":        newRollupFuncOneArg(rollupTmin),
 	"tmax_over_time":        newRollupFuncOneArg(rollupTmax),
+	"tfirst_over_time":      newRollupFuncOneArg(rollupTfirst),
+	"tlast_over_time":       newRollupFuncOneArg(rollupTlast),
 	"share_le_over_time":    newRollupShareLE,
 	"share_gt_over_time":    newRollupShareGT,
 	"count_le_over_time":    newRollupCountLE,
@@ -83,7 +85,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
-	"timestamp": newRollupFuncOneArg(rollupTimestamp),
+	"timestamp": newRollupFuncOneArg(rollupTlast),
 
 	// See https://en.wikipedia.org/wiki/Mode_(statistics)
 	"mode_over_time": newRollupFuncOneArg(rollupModeOverTime),
@@ -128,10 +130,12 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"scrape_interval":     rollupScrapeInterval,
 	"tmin_over_time":      rollupTmin,
 	"tmax_over_time":      rollupTmax,
+	"tfirst_over_time":    rollupTfirst,
+	"tlast_over_time":     rollupTlast,
 	"ascent_over_time":    rollupAscentOverTime,
 	"descent_over_time":   rollupDescentOverTime,
 	"zscore_over_time":    rollupZScoreOverTime,
-	"timestamp":           rollupTimestamp,
+	"timestamp":           rollupTlast,
 	"mode_over_time":      rollupModeOverTime,
 	"rate_over_sum":       rollupRateOverSum,
 }
@@ -1167,6 +1171,32 @@ func rollupTmax(rfa *rollupFuncArg) float64 {
 	return float64(maxTimestamp) / 1e3
 }
 
+func rollupTfirst(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	timestamps := rfa.timestamps
+	if len(timestamps) == 0 {
+		// Do not take into account rfa.prevTimestamp, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
+	}
+	return float64(timestamps[0]) / 1e3
+}
+
+func rollupTlast(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	timestamps := rfa.timestamps
+	if len(timestamps) == 0 {
+		// Do not take into account rfa.prevTimestamp, since it may lead
+		// to inconsistent results comparing to Prometheus on broken time series
+		// with irregular data points.
+		return nan
+	}
+	return float64(timestamps[len(timestamps)-1]) / 1e3
+}
+
 func rollupSum(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
@@ -1660,19 +1690,6 @@ func rollupLow(rfa *rollupFuncArg) float64 {
 		}
 	}
 	return min
-}
-
-func rollupTimestamp(rfa *rollupFuncArg) float64 {
-	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
-	timestamps := rfa.timestamps
-	if len(timestamps) == 0 {
-		// Do not take into account rfa.prevTimestamp, since it may lead
-		// to inconsistent results comparing to Prometheus on broken time series
-		// with irregular data points.
-		return nan
-	}
-	return float64(timestamps[len(timestamps)-1]) / 1e3
 }
 
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
