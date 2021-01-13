@@ -581,6 +581,12 @@ var awsPartition = partition{
 				},
 			},
 		},
+		"api.fleethub.iot": service{
+
+			Endpoints: endpoints{
+				"us-east-1": endpoint{},
+			},
+		},
 		"api.mediatailor": service{
 
 			Endpoints: endpoints{
@@ -3551,12 +3557,6 @@ var awsPartition = partition{
 						Region: "us-west-2",
 					},
 				},
-			},
-		},
-		"iotfleethub": service{
-
-			Endpoints: endpoints{
-				"us-east-1": endpoint{},
 			},
 		},
 		"iotsecuredtunneling": service{
