@@ -1603,21 +1603,31 @@ func transformScalar(tfa *transformFuncArg) ([]*timeseries, error) {
 func newTransformFuncSortByLabel(isDesc bool) transformFunc {
 	return func(tfa *transformFuncArg) ([]*timeseries, error) {
 		args := tfa.args
-		if err := expectTransformArgsNum(args, 2); err != nil {
-			return nil, err
+		if len(args) < 2 {
+			return nil, fmt.Errorf("expecting at least 2 args; got %d args", len(args))
 		}
-		label, err := getString(args[1], 1)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse label name for sorting: %w", err)
+		var labels []string
+		for i, arg := range args[1:] {
+			label, err := getString(arg, 1)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse label #%d for sorting: %w", i+1, err)
+			}
+			labels = append(labels, label)
 		}
 		rvs := args[0]
 		sort.SliceStable(rvs, func(i, j int) bool {
-			a := rvs[i].MetricName.GetTagValue(label)
-			b := rvs[j].MetricName.GetTagValue(label)
-			if isDesc {
-				return string(b) < string(a)
+			for _, label := range labels {
+				a := rvs[i].MetricName.GetTagValue(label)
+				b := rvs[j].MetricName.GetTagValue(label)
+				if string(a) == string(b) {
+					continue
+				}
+				if isDesc {
+					return string(b) < string(a)
+				}
+				return string(a) < string(b)
 			}
-			return string(a) < string(b)
+			return false
 		})
 		return rvs, nil
 	}
