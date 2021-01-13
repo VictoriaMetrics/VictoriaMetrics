@@ -131,6 +131,10 @@ The `vmagent` can be configured to encrypt the incoming `remote_write` requests 
 Additionally, Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAuth.*` command-line flags.
 
 
+#### remote_write for clustered version
+
+Despite `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets, writes always peformed in Promethes remote_write protocol. Therefore for clustered version `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<customer-id>/prometheus/api/v1/write`
+
 
 ### How to collect metrics in Prometheus format
 
