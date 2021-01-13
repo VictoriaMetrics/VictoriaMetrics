@@ -24,6 +24,7 @@ func TestParseMetricSelectorSuccess(t *testing.T) {
 	f(`foo {bar != "baz"}`)
 	f(` foo { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
 	f(`(foo)`)
+	f(`\п\р\и\в\е\т{\ы="111"}`)
 }
 
 func TestParseMetricSelectorError(t *testing.T) {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 type lexer struct {
@@ -220,13 +222,12 @@ func scanIdent(s string) string {
 		if s[i] != '\\' {
 			break
 		}
+		i++
 
 		// Do not verify the next char, since it is escaped.
-		i += 2
-		if i > len(s) {
-			i--
-			break
-		}
+		// The next char may be encoded as multi-byte UTF8 sequence. See https://en.wikipedia.org/wiki/UTF-8#Encoding
+		_, size := utf8.DecodeRuneInString(s[i:])
+		i += size
 	}
 	if i == 0 {
 		panic("BUG: scanIdent couldn't find a single ident char; make sure isIdentPrefix called before scanIdent")
@@ -257,8 +258,10 @@ func unescapeIdent(s string) string {
 				s = s[1:]
 			}
 		} else {
-			dst = append(dst, s[0])
-			s = s[1:]
+			// UTF8 char. See https://en.wikipedia.org/wiki/UTF-8#Encoding
+			_, size := utf8.DecodeRuneInString(s)
+			dst = append(dst, s[:size]...)
+			s = s[size:]
 		}
 		n = strings.IndexByte(s, '\\')
 		if n < 0 {
@@ -298,12 +301,18 @@ func appendEscapedIdent(dst []byte, s string) []byte {
 			} else {
 				dst = append(dst, ch)
 			}
-		} else if ch >= 0x20 && ch < 0x7f {
-			// Leave ASCII printable chars as is
-			dst = append(dst, '\\', ch)
+			continue
+		}
+
+		// escape ch
+		dst = append(dst, '\\')
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r != utf8.RuneError && unicode.IsPrint(r) {
+			dst = append(dst, s[i:i+size]...)
+			i += size - 1
 		} else {
 			// hex-encode non-printable chars
-			dst = append(dst, '\\', 'x', toHex(ch>>4), toHex(ch&0xf))
+			dst = append(dst, 'x', toHex(ch>>4), toHex(ch&0xf))
 		}
 	}
 	return dst
