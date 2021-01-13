@@ -69,24 +69,35 @@ release-victoria-metrics: victoria-metrics-prod
 		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
-	vmagent-prod \
-	vmalert-prod \
-	vmauth-prod \
-	vmbackup-prod \
-	vmrestore-prod
-	cd bin && \
-		tar -czf vmutils-amd64-$(PKG_TAG).tar.gz vm{agent,alert,auth,backup,restore}-prod && \
-		sha256sum vmutils-amd64-$(PKG_TAG).tar.gz vm{agent,alert,auth,backup,restore}-prod > vmutils-$(PKG_TAG)_checksums.txt
+	release-vmutils-amd64 \
+	release-vmutils-arm64
 
-release-vmutils-arm64: \
-	vmagent-arm64-prod \
-	vmalert-arm64-prod \
-	vmauth-arm64-prod \
-	vmbackup-arm64-prod \
-	vmrestore-arm64-prod
+release-vmutils-amd64:
+	GOARCH=amd64 $(MAKE) release-vmutils-generic
+
+release-vmutils-arm64:
+	GOARCH=arm64 $(MAKE) release-vmutils-generic
+
+release-vmutils-generic: \
+	vmagent-$(GOARCH)-prod \
+	vmalert-$(GOARCH)-prod \
+	vmauth-$(GOARCH)-prod \
+	vmbackup-$(GOARCH)-prod \
+	vmrestore-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-arm64||" -czf vmutils-arm64-$(PKG_TAG).tar.gz vm{agent,alert,auth,backup,restore}-arm64-prod && \
-		sha256sum vmutils-arm64-$(PKG_TAG).tar.gz  vm{agent,alert,auth,backup,restore}-arm64-prod | sed s/arm64-prod/prod/ > vmutils-arm64-$(PKG_TAG)_checksums.txt
+		tar --transform="flags=r;s|-$(GOARCH)||" -czf vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vmagent-$(GOARCH)-prod \
+			vmalert-$(GOARCH)-prod \
+			vmauth-$(GOARCH)-prod \
+			vmbackup-$(GOARCH)-prod \
+			vmrestore-$(GOARCH)-prod \
+		&& sha256sum vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vmagent-$(GOARCH)-prod \
+			vmalert-$(GOARCH)-prod \
+			vmauth-$(GOARCH)-prod \
+			vmbackup-$(GOARCH)-prod \
+			vmrestore-$(GOARCH)-prod \
+			| sed s/-$(GOARCH)// > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
