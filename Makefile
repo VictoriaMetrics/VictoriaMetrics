@@ -75,7 +75,7 @@ release-vmutils: \
 	vmbackup-prod \
 	vmrestore-prod
 	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmauth-prod vmbackup-prod vmrestore-prod && \
-		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
+		sha256sum vmutils-$(PKG_TAG).tar.gz vm{agent,alert,auth,backup,restore}-arm64-prod > vmutils-$(PKG_TAG)_checksums.txt
 
 release-vmutils-arm64: \
 	vmagent-arm64-prod \
@@ -84,8 +84,8 @@ release-vmutils-arm64: \
 	vmbackup-arm64-prod \
 	vmrestore-arm64-prod
 	cd bin && tar czf vmutils-arm64-$(PKG_TAG).tar.gz vmagent-arm64-prod vmalert-arm64-prod vmauth-arm64-prod vmbackup-arm64-prod vmrestore-arm64-prod && \
-		sha256sum vmutils-arm64-$(PKG_TAG).tar.gz > vmutils-arm64-$(PKG_TAG)_checksums.txt
 
+		sha256sum vmutils-arm64-$(PKG_TAG).tar.gz  vm{agent,alert,auth,backup,restore}-arm64-prod | sed s/arm64-prod/prod/ > vmutils-arm64-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
