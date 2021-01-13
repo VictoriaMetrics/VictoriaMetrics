@@ -1837,6 +1837,45 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`sort_by_label(multiple_labels)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label((
+			label_set(1, "x", "b", "y", "aa"),
+			label_set(2, "x", "a", "y", "aa"),
+		), "y", "x")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("a"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("aa"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("b"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("aa"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`scalar < time()`, func(t *testing.T) {
 		t.Parallel()
 		q := `123 < time()`
