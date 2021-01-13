@@ -47,14 +47,6 @@
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/asset/apiv1",
     "release_level": "ga"
   },
-  "cloud.google.com/go/asset/apiv1beta1": {
-    "distribution_name": "cloud.google.com/go/asset/apiv1beta1",
-    "description": "Cloud Asset API",
-    "language": "Go",
-    "client_library_type": "generated",
-    "docs_url": "https://pkg.go.dev/cloud.google.com/go/asset/apiv1beta1",
-    "release_level": "beta"
-  },
   "cloud.google.com/go/asset/apiv1p2beta1": {
     "distribution_name": "cloud.google.com/go/asset/apiv1p2beta1",
     "description": "Cloud Asset API",
@@ -205,6 +197,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/billing/budgets/apiv1beta1",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/channel/apiv1": {
+    "distribution_name": "cloud.google.com/go/channel/apiv1",
+    "description": "Cloud Channel API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/channel/apiv1",
     "release_level": "beta"
   },
   "cloud.google.com/go/cloudbuild/apiv1/v2": {
@@ -653,6 +653,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/redis/apiv1beta1",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/retail/apiv2": {
+    "distribution_name": "cloud.google.com/go/retail/apiv2",
+    "description": "Retail API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/retail/apiv2",
     "release_level": "beta"
   },
   "cloud.google.com/go/rpcreplay": {
