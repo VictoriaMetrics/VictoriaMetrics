@@ -1005,6 +1005,7 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 		pd.timestamps = append(pd.timestamps, timestamps...)
 	})
 	if err != nil {
+		putTmpBlocksFile(tbf)
 		putStorageSearch(sr)
 		return nil, fmt.Errorf("error when searching in Prometheus data: %w", err)
 	}
