@@ -77,6 +77,7 @@ func (ps *partSearch) Init(p *part, shouldCacheBlock func(item []byte) bool) {
 	ps.p = p
 	ps.idxbCache = p.idxbCache
 	ps.ibCache = p.ibCache
+	ps.shouldCacheBlock = shouldCacheBlock
 }
 
 // Seek seeks for the first item greater or equal to k in ps.
