@@ -357,24 +357,27 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 
 func getCanonicalPaths(mns []storage.MetricName) []string {
 	paths := make([]string, 0, len(mns))
-	var b []byte
-	var tags []storage.Tag
 	for _, mn := range mns {
-		b = append(b[:0], mn.MetricGroup...)
-		tags = append(tags[:0], mn.Tags...)
-		sort.Slice(tags, func(i, j int) bool {
-			return string(tags[i].Key) < string(tags[j].Key)
-		})
-		for _, tag := range tags {
-			b = append(b, ';')
-			b = append(b, tag.Key...)
-			b = append(b, '=')
-			b = append(b, tag.Value...)
-		}
-		paths = append(paths, string(b))
+		path := getCanonicalPath(&mn)
+		paths = append(paths, path)
 	}
 	sort.Strings(paths)
 	return paths
+}
+
+func getCanonicalPath(mn *storage.MetricName) string {
+	b := append([]byte{}, mn.MetricGroup...)
+	tags := append([]storage.Tag{}, mn.Tags...)
+	sort.Slice(tags, func(i, j int) bool {
+		return string(tags[i].Key) < string(tags[j].Key)
+	})
+	for _, tag := range tags {
+		b = append(b, ';')
+		b = append(b, tag.Key...)
+		b = append(b, '=')
+		b = append(b, tag.Value...)
+	}
+	return string(b)
 }
 
 var tagsFindSeriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/tags/findSeries"}`)
