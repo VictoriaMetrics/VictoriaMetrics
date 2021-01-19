@@ -2,6 +2,8 @@
 
 # tip
 
+* FEATURE: added `search.maxStepForPointsAdjustment` command-line flag, which can be used for disabling adjustment for points returned `/api/v1/query_range` handler if such points have timestamps closer than `-search.latencyOffset` to the current time. Such points may contain incomplete data, so they are substituted by the previous values for `step` query args smaller than one minute by default.
+
 
 # [v1.52.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.52.0)
 
@@ -306,7 +308,7 @@
 * BUGFIX: properly apply `-search.maxStalenessInterval` command-line flag value. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784 .
 * BUGFIX: fix displaying data in Grafana tables. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/720 .
 * BUGFIX: do not adjust the number of detected CPU cores found at `/sys/devices/system/cpu/online`.
-  The adjustement was increasing the resulting GOMAXPROC by 1, which looked confusing to users.
+  The adjustment was increasing the resulting GOMAXPROC by 1, which looked confusing to users.
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-698595309 .
 * BUGFIX: vmagent: do not show `-remoteWrite.url` in initial logs if `-remoteWrite.showURL` isn't set. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/773 .
 * BUGFIX: properly handle case when [/metrics/find](https://victoriametrics.github.io/#graphite-metrics-api-usage) finds both a leaf and a node for the given `query=prefix.*`.
