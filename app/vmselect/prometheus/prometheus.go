@@ -41,6 +41,8 @@ var (
 		"By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
 		"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. "+
 		"See also '-search.maxLookback' flag, which has the same meaning due to historical reasons")
+	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
+		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 )
 
 // Default step used if not set.
@@ -1132,9 +1134,11 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 	if err != nil {
 		return fmt.Errorf("cannot execute query: %w", err)
 	}
-	queryOffset := getLatencyOffsetMilliseconds()
-	if ct-queryOffset < end {
-		result = adjustLastPoints(result, ct-queryOffset, ct+step)
+	if step < maxStepForPointsAdjustment.Milliseconds() {
+		queryOffset := getLatencyOffsetMilliseconds()
+		if ct-queryOffset < end {
+			result = adjustLastPoints(result, ct-queryOffset, ct+step)
+		}
 	}
 
 	// Remove NaN values as Prometheus does.
