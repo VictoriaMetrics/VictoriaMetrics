@@ -571,6 +571,14 @@ type clientConn struct {
 	lastWriteDeadlineTime time.Time
 }
 
+func (cc *clientConn) reset() {
+	cc.c = nil
+	cc.createdTime = zeroTime
+	cc.lastUseTime = zeroTime
+	cc.lastReadDeadlineTime = zeroTime
+	cc.lastWriteDeadlineTime = zeroTime
+}
+
 var startTimeUnix = time.Now().Unix()
 
 // LastUseTime returns time the client was last used
@@ -1252,7 +1260,7 @@ func acquireClientConn(conn net.Conn) *clientConn {
 }
 
 func releaseClientConn(cc *clientConn) {
-	cc.c = nil
+	cc.reset()
 	clientConnPool.Put(cc)
 }
 
