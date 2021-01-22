@@ -199,7 +199,7 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		if err == nil {
 			return nil
 		}
-		if err != fasthttp.ErrConnectionClosed {
+		if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
 			return err
 		}
 		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
