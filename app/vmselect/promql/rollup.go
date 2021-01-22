@@ -391,7 +391,7 @@ type rollupConfig struct {
 	// Whether window may be adjusted to 2 x interval between data points.
 	// This is needed for functions which have dt in the denominator
 	// such as rate, deriv, etc.
-	// Without the adjustement their value would jump in unexpected directions
+	// Without the adjustment their value would jump in unexpected directions
 	// when using window smaller than 2 x scrape_interval.
 	MayAdjustWindow bool
 

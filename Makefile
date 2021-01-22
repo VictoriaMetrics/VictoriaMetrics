@@ -64,28 +64,54 @@ release: \
 	release-victoria-metrics \
 	release-vmutils
 
-release-victoria-metrics: victoria-metrics-prod
-	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz victoria-metrics-prod && \
-		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
+release-victoria-metrics: \
+	release-victoria-metrics-amd64 \
+	release-victoria-metrics-arm64
+
+release-victoria-metrics-amd64:
+	GOARCH=amd64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-arm64:
+	GOARCH=arm64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
+	cd bin && \
+		tar --transform="flags=r;s|-$(GOARCH)||" -czf victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-metrics-$(GOARCH)-prod \
+		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-metrics-$(GOARCH)-prod \
+			| sed s/-$(GOARCH)// > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
-	vmagent-prod \
-	vmalert-prod \
-	vmauth-prod \
-	vmbackup-prod \
-	vmrestore-prod
-	cd bin && tar czf vmutils-$(PKG_TAG).tar.gz vmagent-prod vmalert-prod vmauth-prod vmbackup-prod vmrestore-prod && \
-		sha256sum vmutils-$(PKG_TAG).tar.gz > vmutils-$(PKG_TAG)_checksums.txt
+	release-vmutils-amd64 \
+	release-vmutils-arm64
 
-release-vmutils-arm64: \
-	vmagent-arm64-prod \
-	vmalert-arm64-prod \
-	vmauth-arm64-prod \
-	vmbackup-arm64-prod \
-	vmrestore-arm64-prod
-	cd bin && tar czf vmutils-arm64-$(PKG_TAG).tar.gz vmagent-arm64-prod vmalert-arm64-prod vmauth-arm64-prod vmbackup-arm64-prod vmrestore-arm64-prod && \
-		sha256sum vmutils-arm64-$(PKG_TAG).tar.gz > vmutils-arm64-$(PKG_TAG)_checksums.txt
+release-vmutils-amd64:
+	GOARCH=amd64 $(MAKE) release-vmutils-generic
 
+release-vmutils-arm64:
+	GOARCH=arm64 $(MAKE) release-vmutils-generic
+
+release-vmutils-generic: \
+	vmagent-$(GOARCH)-prod \
+	vmalert-$(GOARCH)-prod \
+	vmauth-$(GOARCH)-prod \
+	vmbackup-$(GOARCH)-prod \
+	vmrestore-$(GOARCH)-prod
+	cd bin && \
+		tar --transform="flags=r;s|-$(GOARCH)||" -czf vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vmagent-$(GOARCH)-prod \
+			vmalert-$(GOARCH)-prod \
+			vmauth-$(GOARCH)-prod \
+			vmbackup-$(GOARCH)-prod \
+			vmrestore-$(GOARCH)-prod \
+		&& sha256sum vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vmagent-$(GOARCH)-prod \
+			vmalert-$(GOARCH)-prod \
+			vmauth-$(GOARCH)-prod \
+			vmbackup-$(GOARCH)-prod \
+			vmrestore-$(GOARCH)-prod \
+			| sed s/-$(GOARCH)// > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
