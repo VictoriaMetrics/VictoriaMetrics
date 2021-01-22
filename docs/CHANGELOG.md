@@ -4,6 +4,8 @@
 
 * FEATURE: added `search.maxStepForPointsAdjustment` command-line flag, which can be used for disabling adjustment for points returned `/api/v1/query_range` handler if such points have timestamps closer than `-search.latencyOffset` to the current time. Such points may contain incomplete data, so they are substituted by the previous values for `step` query args smaller than one minute by default.
 
+* BUGFIX: vmagent: reduce the HTTP reconnection rate to scrape targets. Previously vmagent could errorneusly close HTTP keep-alive connections more often than needed.
+
 
 # [v1.52.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.52.0)
 
