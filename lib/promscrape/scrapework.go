@@ -269,6 +269,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_failed_per_url_total{url=%q}`, sw.Config.ScrapeURL)).Inc()
 	} else {
 		bodyString := bytesutil.ToUnsafeString(body.B)
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
@@ -280,6 +281,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		srcRows = srcRows[:0]
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_skipped_by_sample_limit_per_url_total{url=%q}`, sw.Config.ScrapeURL)).Inc()
 	}
 	samplesPostRelabeling := 0
 	for i := range srcRows {
