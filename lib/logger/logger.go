@@ -53,7 +53,7 @@ func initTimezone() {
 	timezone = tz
 }
 
-var timezone *time.Location
+var timezone = time.UTC
 
 func setLoggerOutput() {
 	switch *loggerOutput {
