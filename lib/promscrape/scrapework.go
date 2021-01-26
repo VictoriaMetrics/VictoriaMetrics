@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	xxhash "github.com/cespare/xxhash/v2"
 )
@@ -193,14 +194,15 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		randSleep += uint64(scrapeInterval)
 	}
 	randSleep -= sleepOffset
-	timer := time.NewTimer(time.Duration(randSleep))
+	timer := timerpool.Get(time.Duration(randSleep))
 	var timestamp int64
 	var ticker *time.Ticker
 	select {
 	case <-stopCh:
-		timer.Stop()
+		timerpool.Put(timer)
 		return
 	case <-timer.C:
+		timerpool.Put(timer)
 		ticker = time.NewTicker(scrapeInterval)
 		timestamp = time.Now().UnixNano() / 1e6
 		sw.scrapeAndLogError(timestamp, timestamp)

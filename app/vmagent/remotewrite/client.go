@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -238,12 +239,13 @@ again:
 		}
 		logger.Errorf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
-		t := time.NewTimer(retryDuration)
+		t := timerpool.Get(retryDuration)
 		select {
 		case <-c.stopCh:
-			t.Stop()
+			timerpool.Put(t)
 			return
 		case <-t.C:
+			timerpool.Put(t)
 		}
 		c.retriesCount.Inc()
 		goto again
@@ -280,12 +282,13 @@ again:
 		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
 			"re-sending the block in %.3f seconds", len(block), c.sanitizedURL, retriesCount, statusCode, body, retryDuration.Seconds())
 	}
-	t := time.NewTimer(retryDuration)
+	t := timerpool.Get(retryDuration)
 	select {
 	case <-c.stopCh:
-		t.Stop()
+		timerpool.Put(t)
 		return
 	case <-t.C:
+		timerpool.Put(t)
 	}
 	c.retriesCount.Inc()
 	goto again
@@ -312,12 +315,13 @@ func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
 		now := time.Now()
 		if d := rl.deadline.Sub(now); d > 0 {
 			rl.limitReached.Inc()
-			t := time.NewTimer(retryDuration)
+			t := timerpool.Get(d)
 			select {
 			case <-stopCh:
-				t.Stop()
+				timerpool.Put(t)
 				return
 			case <-t.C:
+				timerpool.Put(t)
 			}
 		}
 		rl.budget += limit
