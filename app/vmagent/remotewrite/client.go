@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,10 +17,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
+	rateLimit = flagutil.NewArray("remoteWrite.rateLimit", "Optional rate limit in bytes per second for data sent to -remoteWrite.url. "+
+		"By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
+		"is sent after temporary unavailability of the remote storage")
 	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", "Timeout for sending a single block of data to -remoteWrite.url")
 	proxyURL    = flagutil.NewArray("remoteWrite.proxyURL", "Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. "+
 		"Example: -remoteWrite.proxyURL=socks5://proxy:1234")
@@ -48,6 +53,8 @@ type client struct {
 	authHeader     string
 	fq             *persistentqueue.FastQueue
 	hc             *http.Client
+
+	rl rateLimiter
 
 	bytesSent       *metrics.Counter
 	blocksSent      *metrics.Counter
@@ -113,6 +120,18 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		},
 		stopCh: make(chan struct{}),
 	}
+	if bytesPerSec := rateLimit.GetOptionalArg(argIdx); bytesPerSec != "" {
+		limit, err := strconv.ParseInt(bytesPerSec, 10, 64)
+		if err != nil {
+			logger.Fatalf("cannot parse -remoteWrite.rateLimit=%q for -remoteWrite.url=%q: %s", bytesPerSec, sanitizedURL, err)
+		}
+		if limit > 0 {
+			logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", limit, sanitizedURL)
+			c.rl.perSecondLimit = limit
+		}
+	}
+	c.rl.limitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remote_write_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
+
 	c.bytesSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_bytes_sent_total{url=%q}`, c.sanitizedURL))
 	c.blocksSent = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_blocks_sent_total{url=%q}`, c.sanitizedURL))
 	c.requestDuration = metrics.GetOrCreateHistogram(fmt.Sprintf(`vmagent_remotewrite_duration_seconds{url=%q}`, c.sanitizedURL))
@@ -189,6 +208,7 @@ func (c *client) runWorker() {
 }
 
 func (c *client) sendBlock(block []byte) {
+	c.rl.register(len(block), c.stopCh)
 	retryDuration := time.Second
 	retriesCount := 0
 	c.bytesSent.Add(len(block))
@@ -219,12 +239,13 @@ again:
 		}
 		logger.Errorf("couldn't send a block with size %d bytes to %q: %s; re-sending the block in %.3f seconds",
 			len(block), c.sanitizedURL, err, retryDuration.Seconds())
-		t := time.NewTimer(retryDuration)
+		t := timerpool.Get(retryDuration)
 		select {
 		case <-c.stopCh:
-			t.Stop()
+			timerpool.Put(t)
 			return
 		case <-t.C:
+			timerpool.Put(t)
 		}
 		c.retriesCount.Inc()
 		goto again
@@ -261,13 +282,50 @@ again:
 		logger.Errorf("unexpected status code received after sending a block with size %d bytes to %q during retry #%d: %d; response body=%q; "+
 			"re-sending the block in %.3f seconds", len(block), c.sanitizedURL, retriesCount, statusCode, body, retryDuration.Seconds())
 	}
-	t := time.NewTimer(retryDuration)
+	t := timerpool.Get(retryDuration)
 	select {
 	case <-c.stopCh:
-		t.Stop()
+		timerpool.Put(t)
 		return
 	case <-t.C:
+		timerpool.Put(t)
 	}
 	c.retriesCount.Inc()
 	goto again
+}
+
+type rateLimiter struct {
+	perSecondLimit int64
+
+	// The current budget. It is increased by perSecondLimit every second.
+	budget int64
+
+	// The next deadline for increasing the budget by perSecondLimit
+	deadline time.Time
+
+	limitReached *metrics.Counter
+}
+
+func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
+	limit := rl.perSecondLimit
+	if limit <= 0 {
+		return
+	}
+	for rl.budget <= 0 {
+		now := time.Now()
+		if d := rl.deadline.Sub(now); d > 0 {
+			rl.limitReached.Inc()
+			t := timerpool.Get(d)
+			select {
+			case <-stopCh:
+				timerpool.Put(t)
+				return
+			case <-t.C:
+				timerpool.Put(t)
+			}
+		}
+		rl.budget += limit
+		rl.deadline = now.Add(time.Second)
+	}
+	rl.budget -= int64(dataLen)
 }

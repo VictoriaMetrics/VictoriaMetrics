@@ -53,18 +53,20 @@ type VMStorage struct {
 	basicAuthUser string
 	basicAuthPass string
 	lookBack      time.Duration
+	queryStep     time.Duration
 }
 
 const queryPath = "/api/v1/query?query="
 
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, queryStep time.Duration, c *http.Client) *VMStorage {
 	return &VMStorage{
 		c:             c,
 		basicAuthUser: basicAuthUser,
 		basicAuthPass: basicAuthPass,
 		queryURL:      strings.TrimSuffix(baseURL, "/") + queryPath,
 		lookBack:      lookBack,
+		queryStep:     queryStep,
 	}
 }
 
@@ -77,6 +79,9 @@ func (s *VMStorage) Query(ctx context.Context, query string) ([]Metric, error) {
 	if s.lookBack > 0 {
 		lookBack := time.Now().Add(-s.lookBack)
 		q += fmt.Sprintf("&time=%d", lookBack.Unix())
+	}
+	if s.queryStep > 0 {
+		q += fmt.Sprintf("&step=%s", s.queryStep.String())
 	}
 	req, err := http.NewRequest("POST", q, nil)
 	if err != nil {
