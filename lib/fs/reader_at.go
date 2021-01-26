@@ -198,7 +198,7 @@ func MustOpenReaderAt(path string) *ReaderAt {
 }
 
 func pageCacheBitmapCleaner(pcbm *atomic.Value, stopCh <-chan struct{}) {
-	t := time.NewTimer(time.Minute)
+	t := time.NewTicker(time.Minute)
 	for {
 		select {
 		case <-stopCh:
