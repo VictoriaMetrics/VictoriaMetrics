@@ -20,6 +20,7 @@ var (
 	loggerLevel       = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat      = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput      = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerTimezone    = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Local timezone can be used")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
@@ -37,9 +38,22 @@ func Init() {
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
+	initTimezone()
 	go logLimiterCleaner()
 	logAllFlags()
+
 }
+
+func initTimezone() {
+	tz, err := time.LoadLocation(*loggerTimezone)
+	if err != nil {
+		log.Printf("cannot load timezone %q, so using UTC; error: %s", *loggerTimezone, err)
+		tz = time.UTC
+	}
+	timezone = tz
+}
+
+var timezone *time.Location
 
 func setLoggerOutput() {
 	switch *loggerOutput {
@@ -192,7 +206,7 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 func logMessage(level, msg string, skipframes int) {
 	timestamp := ""
 	if !*disableTimestamps {
-		timestamp = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
 	}
 	levelLowercase := strings.ToLower(level)
 	_, file, line, ok := runtime.Caller(skipframes)
