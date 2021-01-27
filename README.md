@@ -269,7 +269,7 @@ the update process. See [cluster availability](#cluster-availability) section fo
 * The cluster remains available if at least a single `vmstorage` node exists:
 
   - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
-  - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available.
+  - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available. If consistency over availability is preferred, then either pass `-search.denyPartialResponse` command-line flag to `vmselect` or pass `deny_partial_response=1` query arg in requests to `vmselect`.
 
 Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
