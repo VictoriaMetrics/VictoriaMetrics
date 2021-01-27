@@ -248,7 +248,9 @@ func TestAlertingRule_Exec(t *testing.T) {
 				// empty step to reset and delete pending alerts
 				{},
 			},
-			map[uint64]*notifier.Alert{},
+			map[uint64]*notifier.Alert{
+				hash(metricWithLabels(t, "name", "foo")): {State: notifier.StateInactive},
+			},
 		},
 		{
 			newTestAlertingRule("for-pending=>firing=>inactive", defaultStep),

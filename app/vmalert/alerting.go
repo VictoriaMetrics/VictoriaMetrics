@@ -185,12 +185,6 @@ func (ar *AlertingRule) Exec(ctx context.Context, q datasource.Querier, series b
 		// if alert wasn't updated in this iteration
 		// means it is resolved already
 		if _, ok := updated[h]; !ok {
-			if a.State == notifier.StatePending {
-				// alert was in Pending state - it is not
-				// active anymore
-				delete(ar.alerts, h)
-				continue
-			}
 			a.State = notifier.StateInactive
 			continue
 		}
