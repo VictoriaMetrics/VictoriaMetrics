@@ -387,13 +387,10 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error)
 	if !reduceMemUsage {
-		denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-		rss, isPartial, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
+		denyPartialResponse := true
+		rss, _, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
-		}
-		if isPartial {
-			return fmt.Errorf("cannot export data, because some of vmstorage nodes are unhealthy")
 		}
 		go func() {
 			err := rss.RunParallel(func(rs *netstorage.Result, workerID uint) error {
