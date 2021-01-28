@@ -73,6 +73,10 @@ vmagent-ppc64le:
 vmagent-386:
 	CGO_ENABLED=0 GOARCH=386 $(MAKE) vmagent-local-with-goarch
 
+vmagent-windows:
+	GOOS=windows CGO_ENABLED=0 $(MAKE) vmagent-local-with-goarch
+
+
 vmagent-local-with-goarch:
 	APP_NAME=vmagent $(MAKE) app-local-with-goarch
 

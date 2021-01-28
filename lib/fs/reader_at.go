@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
-	"golang.org/x/sys/unix"
 )
 
 var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread() instead of mmap() for reading data files. "+
@@ -139,7 +138,7 @@ func (r *ReaderAt) MustClose() {
 
 	fname := r.f.Name()
 	if len(r.mmapData) > 0 {
-		if err := unix.Munmap(r.mmapData[:cap(r.mmapData)]); err != nil {
+		if err := munMap(r.mmapData[:cap(r.mmapData)]); err != nil {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
 		}
 		r.mmapData = nil
@@ -237,7 +236,7 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	if size%4096 != 0 {
 		size += 4096 - size%4096
 	}
-	data, err := unix.Mmap(int(f.Fd()), 0, int(size), unix.PROT_READ, unix.MAP_SHARED)
+	data, err := mmap(int(f.Fd()), 0, int(size))
 	if err != nil {
 		return nil, fmt.Errorf("cannot mmap file with size %d: %w", size, err)
 	}

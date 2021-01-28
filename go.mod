@@ -21,7 +21,7 @@ require (
 	github.com/valyala/histogram v1.1.2
 	github.com/valyala/quicktemplate v1.6.3
 	golang.org/x/oauth2 v0.0.0-20210112200429-01de73cf58bd
-	golang.org/x/sys v0.0.0-20210113000019-eaf3bda374d2
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	golang.org/x/text v0.3.5 // indirect
 	golang.org/x/tools v0.0.0-20210112230658-8b4aab62c064 // indirect
 	google.golang.org/api v0.36.0

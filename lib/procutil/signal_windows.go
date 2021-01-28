@@ -1,13 +1,12 @@
-// +build !windows
+// +build windows
 
 package procutil
 
 import (
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // WaitForSigterm waits for either SIGTERM or SIGINT
@@ -29,16 +28,28 @@ func WaitForSigterm() os.Signal {
 	}
 }
 
-// SelfSIGHUP sends SIGHUP signal to the current process.
+var sigPool []chan os.Signal
+var sigPoolLock sync.Mutex
+
+// https://golang.org/pkg/os/signal/#hdr-Windows
+// https://github.com/golang/go/issues/6948
+// SelfSIGHUP sends SIGHUP signal to the subscribed listeners.
 func SelfSIGHUP() {
-	if err := syscall.Kill(syscall.Getpid(), syscall.SIGHUP); err != nil {
-		logger.Panicf("FATAL: cannot send SIGHUP to itself: %s", err)
+	sigPoolLock.Lock()
+	defer sigPoolLock.Unlock()
+	for _, c := range sigPool {
+		select {
+		case c <- syscall.SIGHUP:
+		default:
+		}
 	}
 }
 
-// NewSighupChan returns a channel, which is triggered on every SIGHUP.
+// NewSighupChan returns a channel, which is triggered on every SelfSIGHUP.
 func NewSighupChan() <-chan os.Signal {
+	sigPoolLock.Lock()
+	defer sigPoolLock.Unlock()
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGHUP)
+	sigPool = append(sigPool, ch)
 	return ch
 }
