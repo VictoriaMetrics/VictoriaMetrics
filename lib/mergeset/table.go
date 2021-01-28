@@ -1243,7 +1243,7 @@ func validatePath(pathPrefix, path string) (string, error) {
 		return path, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
 	}
 
-	if !strings.HasPrefix(path, pathPrefix+string(os.PathSeparator)) {
+	if !strings.HasPrefix(path, pathPrefix+"/") {
 		return path, fmt.Errorf("invalid path %q; must start with %q", path, pathPrefix+"/")
 	}
 	return path, nil
