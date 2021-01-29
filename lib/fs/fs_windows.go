@@ -28,6 +28,7 @@ const (
 	lockfileExclusiveLock = 2
 	fileFlagNormal        = 0x00000080
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
+	FILE_DISPOSITION_DELETE                    = 0x00000001
 	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
 	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
 )
@@ -131,11 +132,14 @@ func setPosixDelete(handle windows.Handle) error {
 	// class FileDispositionInformationEx,                   // 64
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class
 	flags := FILE_DISPOSITION_INFORMATION_EX{
-		Flags: FILE_DISPOSITION_POSIX_SEMANTICS | FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
+		Flags: FILE_DISPOSITION_DELETE | FILE_DISPOSITION_POSIX_SEMANTICS | FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
 	}
-	r0, _, err := ntSetInformationProc.Call(uintptr(handle), uintptr(unsafe.Pointer(&iosb)), uintptr(unsafe.Pointer(&flags)), uintptr(uint32(unsafe.Sizeof(flags))), uintptr(64))
+	r0, _, err := ntSetInformationProc.Call(uintptr(handle), uintptr(unsafe.Pointer(&iosb)), uintptr(unsafe.Pointer(&flags)), unsafe.Sizeof(flags), uintptr(64))
 	if r0 == 0 {
 		return fmt.Errorf("cannot set file disposition information: %w", err)
+	}
+	if r0 == 0xC000000D {
+		logger.Infof("invalid parametr response from windows: %X, %v", r0, err)
 	}
 	return nil
 }
