@@ -13,43 +13,48 @@ import (
 //
 // Returns the caught signal.
 //
-// It also prevent from program termination on SIGHUP signal,
-// since this signal is frequently used for config reloading.
+// Windows dont have SIGHUP syscall.
 func WaitForSigterm() os.Signal {
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-	for {
-		sig := <-ch
-		if sig == syscall.SIGHUP {
-			// Prevent from the program stop on SIGHUP
-			continue
-		}
-		return sig
-	}
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	sig := <-ch
+	return sig
 }
 
-var sigPool []chan os.Signal
-var sigPoolLock sync.Mutex
+type sigHUPNotifier struct {
+	lock        sync.Mutex
+	subscribers []chan<- os.Signal
+}
+
+var notifier sigHUPNotifier
 
 // https://golang.org/pkg/os/signal/#hdr-Windows
 // https://github.com/golang/go/issues/6948
 // SelfSIGHUP sends SIGHUP signal to the subscribed listeners.
 func SelfSIGHUP() {
-	sigPoolLock.Lock()
-	defer sigPoolLock.Unlock()
-	for _, c := range sigPool {
-		select {
-		case c <- syscall.SIGHUP:
-		default:
-		}
-	}
+	notifier.notify(syscall.SIGHUP)
 }
 
 // NewSighupChan returns a channel, which is triggered on every SelfSIGHUP.
 func NewSighupChan() <-chan os.Signal {
-	sigPoolLock.Lock()
-	defer sigPoolLock.Unlock()
 	ch := make(chan os.Signal, 1)
-	sigPool = append(sigPool, ch)
+	notifier.subscribe(ch)
 	return ch
+}
+
+func (sn *sigHUPNotifier) subscribe(sub chan<- os.Signal) {
+	sn.lock.Lock()
+	defer sn.lock.Unlock()
+	sn.subscribers = append(sn.subscribers, sub)
+}
+
+func (sn *sigHUPNotifier) notify(sig os.Signal) {
+	sn.lock.Lock()
+	sn.lock.Unlock()
+	for _, sub := range sn.subscribers {
+		select {
+		case sub <- sig:
+		default:
+		}
+	}
 }

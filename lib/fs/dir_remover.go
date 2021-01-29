@@ -20,11 +20,6 @@ func mustRemoveAll(path string, done func()) bool {
 		done()
 		return true
 	}
-	// todo fix it
-	if isWindowsFlockError(err) {
-		return true
-	}
-
 	if !isTemporaryNFSError(err) {
 		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
 	}
@@ -90,11 +85,6 @@ func dirRemover() {
 			logger.Warnf("failed to remove directory %q due to NFS lock; retrying later in %.3f seconds", w.path, sleepTime.Seconds())
 		}
 	}
-}
-
-func isWindowsFlockError(err error) bool {
-	errStr := err.Error()
-	return strings.Contains(errStr, "flock.lock") && strings.Contains(errStr, "is being used by another process")
 }
 
 func isTemporaryNFSError(err error) bool {
