@@ -6,9 +6,9 @@ import (
 	"log"
 	"sync"
 
-	"github.com/cheggaaa/pb/v3"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type influxProcessor struct {
@@ -95,7 +95,9 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch datapoints: %s", err)
 	}
-	defer cr.Close()
+	defer func() {
+		_ = cr.Close()
+	}()
 	var name string
 	if s.Measurement != "" {
 		name = fmt.Sprintf("%s%s%s", s.Measurement, ip.separator, s.Field)

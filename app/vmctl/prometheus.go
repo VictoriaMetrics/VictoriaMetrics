@@ -5,10 +5,10 @@ import (
 	"log"
 	"sync"
 
-	"github.com/cheggaaa/pb/v3"
-	"github.com/prometheus/prometheus/tsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/cheggaaa/pb/v3"
+	"github.com/prometheus/prometheus/tsdb"
 )
 
 type prometheusProcessor struct {

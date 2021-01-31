@@ -115,6 +115,7 @@ func NewClient(cfg Config) (*Client, error) {
 	return client, nil
 }
 
+// Database returns database name
 func (c Client) Database() string {
 	return c.database
 }
@@ -184,6 +185,7 @@ type ChunkedResponse struct {
 	field string
 }
 
+// Close closes cr.
 func (cr *ChunkedResponse) Close() error {
 	return cr.cr.Close()
 }
