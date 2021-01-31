@@ -76,6 +76,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmauth/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
 
 install-errcheck:
 	which errcheck || go install github.com/kisielk/errcheck
@@ -139,4 +140,5 @@ docs-sync:
 	cp app/vmauth/README.md docs/vmauth.md
 	cp app/vmbackup/README.md docs/vmbackup.md
 	cp app/vmrestore/README.md docs/vmrestore.md
+	cp app/vmctl/README.md docs/vmctl.md
 	cp README.md docs/Cluster-VictoriaMetrics.md

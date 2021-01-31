@@ -12,9 +12,13 @@ require (
 	github.com/VictoriaMetrics/metricsql v0.10.0
 	github.com/aws/aws-sdk-go v1.36.25
 	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/cheggaaa/pb/v3 v3.0.5
 	github.com/golang/snappy v0.0.2
+	github.com/influxdata/influxdb v1.8.3
 	github.com/klauspost/compress v1.11.6
 	github.com/lithammer/go-jump-consistent-hash v1.0.1
+	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
+	github.com/urfave/cli/v2 v2.3.0
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.0.0
 	github.com/valyala/fasttemplate v1.2.1
