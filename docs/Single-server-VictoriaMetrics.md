@@ -154,6 +154,7 @@ Alphabetically sorted links to case studies:
 * [Tuning](#tuning)
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
+* [Data migration](#data-migration)
 * [Backfilling](#backfilling)
 * [Data updates](#data-updates)
 * [Replication](#replication)
@@ -1353,6 +1354,17 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
 
+## Data migration
+
+Use [vmctl](https://victoriametrics.github.io/vmctl.html) for data migration. It supports the following data migration types:
+
+* From Prometheus to VictoriaMetrics
+* From InfluxDB to VictoriaMetrics
+* From VictoriaMetrics to VictoriaMetrics
+
+See [vmctl docs](https://victoriametrics.github.io/vmctl.html) for more details.
+
+
 ## Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
@@ -1420,7 +1432,6 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 * [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
 * [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
-* [vmctl tool for data migration to VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl).
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
