@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/urfave/cli/v2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {

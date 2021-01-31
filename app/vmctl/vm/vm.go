@@ -66,12 +66,14 @@ type Importer struct {
 	s *stats
 }
 
+// ResetStats resets im stats.
 func (im *Importer) ResetStats() {
 	im.s = &stats{
 		startTime: time.Now(),
 	}
 }
 
+// Stats returns im stats.
 func (im *Importer) Stats() string {
 	return im.s.String()
 }
@@ -92,6 +94,7 @@ func AddExtraLabelsToImportPath(path string, extraLabels []string) (string, erro
 	return dst, nil
 }
 
+// NewImporter creates new Importer for the given cfg.
 func NewImporter(cfg Config) (*Importer, error) {
 	if cfg.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency can't be lower than 1")
@@ -245,6 +248,7 @@ func (im *Importer) flush(b []*TimeSeries) error {
 	return fmt.Errorf("import failed with %d retries: %s", backoffRetries, err)
 }
 
+// Ping sends a ping to im.addr.
 func (im *Importer) Ping() error {
 	url := fmt.Sprintf("%s/health", im.addr)
 	req, err := http.NewRequest("GET", url, nil)
@@ -264,6 +268,7 @@ func (im *Importer) Ping() error {
 	return nil
 }
 
+// Import imports tsBatch.
 func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	if len(tsBatch) < 1 {
 		return nil
@@ -333,6 +338,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	return nil
 }
 
+// ErrBadRequest represents bad request error.
 var ErrBadRequest = errors.New("bad request")
 
 func do(req *http.Request) error {
@@ -340,7 +346,9 @@ func do(req *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("unexpected error when performing request: %s", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusNoContent {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

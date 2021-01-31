@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Stats represents data migration stats.
 type Stats struct {
 	Filtered      bool
 	MinTime       int64
@@ -15,6 +16,7 @@ type Stats struct {
 	SkippedBlocks int
 }
 
+// String returns string representation for s.
 func (s Stats) String() string {
 	str := fmt.Sprintf("Prometheus snapshot stats:\n"+
 		"  blocks found: %d;\n"+

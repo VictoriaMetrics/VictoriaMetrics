@@ -5,6 +5,7 @@ import (
 	"io"
 )
 
+// TimeSeries represents a time series.
 type TimeSeries struct {
 	Name       string
 	LabelPairs []LabelPair
@@ -12,11 +13,13 @@ type TimeSeries struct {
 	Values     []float64
 }
 
+// LabelPair represents a label
 type LabelPair struct {
 	Name  string
 	Value string
 }
 
+// String returns user-readable ts.
 func (ts TimeSeries) String() string {
 	s := ts.Name
 	if len(ts.LabelPairs) < 1 {

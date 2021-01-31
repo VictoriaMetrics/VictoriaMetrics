@@ -27,7 +27,7 @@ type Filter struct {
 	LabelValue string
 }
 
-// Clinet is a wrapper over Prometheus tsdb.DBReader
+// Client is a wrapper over Prometheus tsdb.DBReader
 type Client struct {
 	*tsdb.DBReadOnly
 	filter filter

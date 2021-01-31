@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cheggaaa/pb/v3"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type vmNativeProcessor struct {
@@ -75,7 +75,9 @@ func (p *vmNativeProcessor) run() error {
 		if err != nil {
 			log.Fatalf("import request failed: %s", err)
 		}
-		importResp.Body.Close()
+		if err := importResp.Body.Close(); err != nil {
+			log.Fatalf("cannot close import response body: %s", err)
+		}
 	}()
 
 	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
