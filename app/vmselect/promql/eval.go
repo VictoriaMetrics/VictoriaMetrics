@@ -100,6 +100,9 @@ type EvalConfig struct {
 	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
 	LookbackDelta int64
 
+	// EnforcedTagFilters used for apply additional label filters to query.
+	EnforcedTagFilters []storage.TagFilter
+
 	DenyPartialResponse bool
 
 	// IsPartialResponse is set during query execution and can be used by Exec caller after query execution.
@@ -119,6 +122,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
+	ec.EnforcedTagFilters = src.EnforcedTagFilters
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse = src.IsPartialResponse
 
@@ -665,6 +669,8 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 
 	// Fetch the remaining part of the result.
 	tfs := toTagFilters(me.LabelFilters)
+	// append external filters.
+	tfs = append(tfs, ec.EnforcedTagFilters...)
 	minTimestamp := start - maxSilenceInterval
 	if window > ec.Step {
 		minTimestamp -= window
