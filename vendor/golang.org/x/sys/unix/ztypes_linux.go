@@ -3271,7 +3271,6 @@ const (
 	ETHTOOL_LINK_EXT_SUBSTATE_BSI_UNSUPPORTED_RATE                          = 0x2
 	ETHTOOL_LINK_EXT_SUBSTATE_CI_UNSUPPORTED_CABLE                          = 0x1
 	ETHTOOL_LINK_EXT_SUBSTATE_CI_CABLE_TEST_FAILURE                         = 0x2
-	ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF                                        = 0x20
 	ETHTOOL_FLASH_ALL_REGIONS                                               = 0x0
 	ETHTOOL_F_UNSUPPORTED__BIT                                              = 0x0
 	ETHTOOL_F_WISH__BIT                                                     = 0x1

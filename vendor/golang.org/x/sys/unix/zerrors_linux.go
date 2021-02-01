@@ -609,6 +609,7 @@ const (
 	ETHTOOL_RXNTUPLE_ACTION_DROP                = -0x1
 	ETHTOOL_RX_FLOW_SPEC_RING                   = 0xffffffff
 	ETHTOOL_RX_FLOW_SPEC_RING_VF                = 0xff00000000
+	ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF            = 0x20
 	ETHTOOL_SCHANNELS                           = 0x3d
 	ETHTOOL_SCOALESCE                           = 0xf
 	ETHTOOL_SEEE                                = 0x45
