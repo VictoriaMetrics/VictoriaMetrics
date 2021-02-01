@@ -42,6 +42,9 @@ type Config struct {
 	// in metric values before importing.
 	// Zero value saves all the significant decimal places
 	SignificantFigures int
+	// RoundDigits defines the number of decimal digits after the point that must be left
+	// in metric values before importing.
+	RoundDigits int
 	// ExtraLabels that will be added to all imported series. Must be in label=value format.
 	ExtraLabels []string
 }
@@ -136,7 +139,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 	for i := 0; i < int(cfg.Concurrency); i++ {
 		go func() {
 			defer im.wg.Done()
-			im.startWorker(cfg.BatchSize, cfg.SignificantFigures)
+			im.startWorker(cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
 		}()
 	}
 	im.ResetStats()
@@ -170,7 +173,7 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(batchSize, significantFigures int) {
+func (im *Importer) startWorker(batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -192,9 +195,13 @@ func (im *Importer) startWorker(batchSize, significantFigures int) {
 			}
 
 			if significantFigures > 0 {
-				// Round values according to significantFigures
 				for i, v := range ts.Values {
-					ts.Values[i] = decimal.Round(v, significantFigures)
+					ts.Values[i] = decimal.RoundToSignificantFigures(v, significantFigures)
+				}
+			}
+			if roundDigits < 100 {
+				for i, v := range ts.Values {
+					ts.Values[i] = decimal.RoundToDecimalDigits(v, roundDigits)
 				}
 			}
 

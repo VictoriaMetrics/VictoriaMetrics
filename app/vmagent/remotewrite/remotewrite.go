@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -31,9 +30,13 @@ var (
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. "+
 		"Disk usage is unlimited if the value is set to 0")
-	significantFigures = flag.Int("remoteWrite.significantFigures", 0, "The number of significant figures to leave in metric values before writing them to remote storage. "+
-		"See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
-		"This option may be used for increasing on-disk compression level for the stored metrics")
+	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", "The number of significant figures to leave in metric values before writing them "+
+		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
+		"This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits")
+	roundDigits = flagutil.NewArrayInt("remoteWrite.roundDigits", "Round metric values to this number of decimal digits after the point before writing them to remote storage. "+
+		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
+		"By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
+		"This option may be used for improving data compression for the stored metrics")
 )
 
 var rwctxs []*remoteWriteCtx
@@ -137,17 +140,6 @@ func Stop() {
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
 func Push(wr *prompbmarshal.WriteRequest) {
-	if *significantFigures > 0 {
-		// Round values according to significantFigures
-		for i := range wr.Timeseries {
-			samples := wr.Timeseries[i].Samples
-			for j := range samples {
-				s := &samples[j]
-				s.Value = decimal.Round(s.Value, *significantFigures)
-			}
-		}
-	}
-
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
 	prcsGlobal := rcs.global
@@ -213,9 +205,11 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int,
 		return float64(fq.GetInmemoryQueueLen())
 	})
 	c := newClient(argIdx, remoteWriteURL, sanitizedURL, fq, *queues)
+	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
+	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
 	pss := make([]*pendingSeries, *queues)
 	for i := range pss {
-		pss[i] = newPendingSeries(fq.MustWriteBlock)
+		pss[i] = newPendingSeries(fq.MustWriteBlock, sf, rd)
 	}
 	return &remoteWriteCtx{
 		idx: argIdx,

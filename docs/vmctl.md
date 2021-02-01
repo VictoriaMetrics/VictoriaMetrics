@@ -413,11 +413,16 @@ Moreover, such values may be just a result of [floating point arithmetic](https:
 create a [false precision](https://en.wikipedia.org/wiki/False_precision) and result into bad compression ratio 
 according to [information theory](https://en.wikipedia.org/wiki/Information_theory). 
 
-The `--vm-significant-figures` flag allows to limit the number of significant figures. It takes no effect if set 
-to 0 (by default), but set `--vm-significant-figures=5` and `102.342305` will be rounded to `102.34`. Such value will 
-have much higher compression ratio comparing to previous one and will save some extra disk space after the migration. 
-The most common case for using this flag is to reduce number of significant figures for time series storing aggregation 
-results such as `average`, `rate`, etc.   
+`vmctl` provides the following flags for improving data compression:
+
+* `--vm-round-digits` flag for rounding processed values to the given number of decimal digits after the point.
+  For example, `--vm-round-digits=2` would round `1.2345` to `1.23`. By default the rounding is disabled.
+
+* `--vm-significant-figures` flag for limiting the number of significant figures in processed values. It takes no effect if set
+  to 0 (by default), but set `--vm-significant-figures=5` and `102.342305` will be rounded to `102.34`.
+
+The most common case for using these flags is to improve data compression for time series storing aggregation
+results such as `average`, `rate`, etc.
 
 ### Adding extra labels
 
