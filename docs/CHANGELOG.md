@@ -11,9 +11,13 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 * FEATURE: vmalert: added ability to query Graphite datasource when evaluating alerting and recording rules. See [these docs](https://victoriametrics.github.io/vmalert.html#graphite) for details.
 * FEATURE: vmagent: added `-remoteWrite.roundDigits` command-line option for rounding metric values to the given number of decimal digits after the point before sending the metric to the corresponding `-remoteWrite.url`. This option can be used for improving data compression on the remote storage, because values with lower number of decimal digits can be compressed better than values with bigger number of decimal digits.
 * FEATURE: vmagent: added `-remoteWrite.rateLimit` command-line flag for limiting data transfer rate to `-remoteWrite.url`. This may be useful when big amounts of buffered data is sent after temporarily unavailability of the remote storage. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1035
-* FEATURE: vmagent: export `vm_promscrape_scrapes_failed_per_url_total` and `vm_promscrape_scrapes_skipped_by_sample_limit_per_url_total` counters, which may help identifying improperly working scrape targets.
-
-* BUGFIX: vmagent: reduce the HTTP reconnection rate to scrape targets. Previously vmagent could errorneusly close HTTP keep-alive connections more frequently than needed.
+* FEATURE: vmagent: export the following additional metrics, which may be useful during troubleshooting:
+  - `vm_promscrape_scrapes_failed_per_url_total`
+  - `vm_promscrape_scrapes_skipped_by_sample_limit_per_url_total`
+  - `vm_promscrape_discovery_requests_total`
+  - `vm_promscrape_discovery_retries_total`
+  - `vm_promscrape_scrape_retries_total`
+* BUGFIX: vmagent: reduce HTTP reconnection rate for scrape targets. Previously vmagent could errorneusly close HTTP keep-alive connections more frequently than needed.
 * BUGFIX: vmagent: retry scrape and service discovery requests when the remote server closes HTTP keep-alive connection. Previously `disable_keepalive: true` option could be used under `scrape_configs` section when working with such servers.
 
 
