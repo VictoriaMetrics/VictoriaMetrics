@@ -5,7 +5,7 @@ It reads username and password from [Basic Auth headers](https://en.wikipedia.or
 matches them against configs pointed by `-auth.config` command-line flag and proxies incoming HTTP requests to the configured per-user `url_prefix` on successful match.
 
 
-### Quick start
+## Quick start
 
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
 and pass the following flag to `vmauth` binary in order to start authorizing and routing requests:
@@ -26,7 +26,7 @@ Pass `-help` to `vmauth` in order to see all the supported command-line flags wi
 Feel free [contacting us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting, limits, etc.
 
 
-### Auth config
+## Auth config
 
 Auth config is represented in the following simple `yml` format:
 
@@ -68,7 +68,7 @@ The config may contain `%{ENV_VAR}` placeholders, which are substituted by the c
 This may be useful for passing secrets to the config.
 
 
-### Security
+## Security
 
 Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable https. This can be done by passing the following `-tls*` command-line flags to `vmauth`:
 
@@ -84,30 +84,30 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
 
-### Monitoring
+## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://victoriametrics.github.io/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
 
-### How to build from sources
+## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmauth` is located in `vmutils-*` archives there.
 
 
-#### Development build
+### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make vmauth` from the root folder of the repository.
    It builds `vmauth` binary and puts it into the `bin` folder.
 
-#### Production build
+### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmauth-prod` from the root folder of the repository.
    It builds `vmauth-prod` binary and puts it into the `bin` folder.
 
-#### Building docker images
+### Building docker images
 
 Run `make package-vmauth`. It builds `victoriametrics/vmauth:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
@@ -121,7 +121,7 @@ ROOT_IMAGE=scratch make package-vmauth
 ```
 
 
-### Profiling
+## Profiling
 
 `vmauth` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
@@ -142,7 +142,7 @@ The command for collecting CPU profile waits for 30 seconds before returning.
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 
 
-### Advanced usage
+## Advanced usage
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 

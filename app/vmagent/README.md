@@ -7,7 +7,7 @@ or any other Prometheus-compatible storage system that supports the `remote_writ
 <img alt="vmagent" src="vmagent.png">
 
 
-### Motivation
+## Motivation
 
 While VictoriaMetrics provides an efficient solution to store and observe metrics, our users needed something fast
 and RAM friendly to scrape metrics from Prometheus-compatible exporters to VictoriaMetrics.
@@ -15,7 +15,7 @@ Also, we found that users’ infrastructure are snowflakes - no two are alike, a
 to `vmagent` (like the ability to push metrics instead of pulling them). We did our best and plan to do even more.
 
 
-### Features
+## Features
 
 * Can be used as drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
   See [Quick Start](#quick-start) for details.
@@ -36,7 +36,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared to Prometheus.
 
 
-### Quick Start
+## Quick Start
 
 Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases), unpack it
 and pass the following flags to `vmagent` binary in order to start scraping Prometheus targets:
@@ -63,7 +63,7 @@ Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://vi
 Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
 
 
-### Configuration update
+## Configuration update
 
 `vmagent` should be restarted in order to update config options set via command-line args.
 
@@ -79,10 +79,10 @@ Pass `-help` to `vmagent` in order to see the full list of supported command-lin
 There is also `-promscrape.configCheckInterval` command-line option, which can be used for automatic reloading configs from updated `-promscrape.config` file.
 
 
-### Use cases
+## Use cases
 
 
-#### IoT and Edge monitoring
+### IoT and Edge monitoring
 
 `vmagent` can run and collect metrics in IoT and industrial networks with unreliable or scheduled connections to the remote storage.
 It buffers the collected data in local files until the connection to remote storage becomes available and then sends the buffered
@@ -93,14 +93,14 @@ The maximum buffer size can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/Makefile) for details.
 
 
-#### Drop-in replacement for Prometheus
+### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage,
 then `vmagent` can replace such Prometheus setup. Usually `vmagent` requires lower amounts of RAM, CPU and network bandwidth comparing to Prometheus for such a setup.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 
 
-#### Replication and high availability
+### Replication and high availability
 
 `vmagent` replicates the collected metrics among multiple remote storage instances configured via `-remoteWrite.url` args.
 If a single remote storage instance temporarily is out of service, then the collected data remains available in another remote storage instances.
@@ -108,14 +108,14 @@ If a single remote storage instance temporarily is out of service, then the coll
 Then it sends the buffered data to the remote storage in order to prevent data gaps in the remote storage.
 
 
-#### Relabeling and filtering
+### Relabeling and filtering
 
 `vmagent` can add, remove or update labels on the collected data before sending it to remote storage. Additionally,
 it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
 See [these docs](#relabeling) for details.
 
 
-#### Splitting data streams among multiple systems
+### Splitting data streams among multiple systems
 
 `vmagent` supports splitting the collected data between muliple destinations with the help of `-remoteWrite.urlRelabelConfig`,
 which is applied independently for each configured `-remoteWrite.url` destination. For instance, it is possible to replicate or split
@@ -123,7 +123,7 @@ data among long-term remote storage, short-term remote storage and real-time ana
 Note that each destination can receive its own subset of the collected data thanks to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
 
 
-#### Prometheus remote_write proxy
+### Prometheus remote_write proxy
 
 `vmagent` may be used as a proxy for Prometheus data sent via Prometheus `remote_write` protocol. It can accept data via `remote_write` API
 at `/api/v1/write` endpoint, apply relabeling and filtering and then proxy it to another `remote_write` systems.
@@ -131,12 +131,12 @@ The `vmagent` can be configured to encrypt the incoming `remote_write` requests 
 Additionally, Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAuth.*` command-line flags.
 
 
-#### remote_write for clustered version
+### remote_write for clustered version
 
 Despite `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets, writes always peformed in Promethes remote_write protocol. Therefore for clustered version `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<customer-id>/prometheus/api/v1/write`
 
 
-### How to collect metrics in Prometheus format
+## How to collect metrics in Prometheus format
 
 Pass the path to `prometheus.yml` to `-promscrape.config` command-line flag. `vmagent` takes into account the following
 sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
@@ -192,7 +192,7 @@ entries to 60s. Run `vmagent -help` in order to see default values for `-promscr
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 
-### Adding labels to metrics
+## Adding labels to metrics
 
 Labels can be added to metrics via the following mechanisms:
 
@@ -200,7 +200,7 @@ Labels can be added to metrics via the following mechanisms:
 * Via `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`.
 
 
-### Relabeling
+## Relabeling
 
 `vmagent` supports [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config).
 Additionally it provides the following extra actions:
@@ -227,7 +227,7 @@ Read more about relabeling in the following articles:
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
 
 
-### Monitoring
+## Monitoring
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. It is recommended setting up regular scraping of this page
 either via `vmagent` itself or via Prometheus, so the exported metrics could be analyzed later.
@@ -246,7 +246,7 @@ This information may be useful for debugging target relabeling.
 It may be useful for performing `vmagent` rolling update without scrape loss.
 
 
-### Troubleshooting
+## Troubleshooting
 
 * It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor `vmagent` state.
 
@@ -322,24 +322,24 @@ It may be useful for performing `vmagent` rolling update without scrape loss.
   ```
 
 
-### How to build from sources
+## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmagent` is located in `vmutils-*` archives there.
 
 
-#### Development build
+### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make vmagent` from the root folder of the repository.
    It builds `vmagent` binary and puts it into the `bin` folder.
 
-#### Production build
+### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmagent-prod` from the root folder of the repository.
    It builds `vmagent-prod` binary and puts it into the `bin` folder.
 
-#### Building docker images
+### Building docker images
 
 Run `make package-vmagent`. It builds `victoriametrics/vmagent:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
@@ -352,24 +352,24 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ROOT_IMAGE=scratch make package-vmagent
 ```
 
-#### ARM build
+### ARM build
 
 ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
 
-#### Development ARM build
+### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of the repository.
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 
-#### Production ARM build
+### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of the repository.
    It builds `vmagent-arm-prod` or `vmagent-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 
-### Profiling
+## Profiling
 
 `vmagent` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
 
