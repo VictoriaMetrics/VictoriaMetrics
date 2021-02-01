@@ -259,7 +259,7 @@ func (a *ArrayInt) Set(value string) error {
 	return nil
 }
 
-// GetOptionalArg returns optional arg under the given argIdx.
+// GetOptionalArgOrDefault returns optional arg under the given argIdx.
 func (a *ArrayInt) GetOptionalArgOrDefault(argIdx int, defaultValue int) int {
 	x := *a
 	if argIdx < len(x) {
