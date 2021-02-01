@@ -29,6 +29,7 @@ const (
 	vmCompress           = "vm-compress"
 	vmBatchSize          = "vm-batch-size"
 	vmSignificantFigures = "vm-significant-figures"
+	vmRoundDigits        = "vm-round-digits"
 	vmExtraLabel         = "vm-extra-label"
 )
 
@@ -77,6 +78,13 @@ var (
 			Value: 0,
 			Usage: "The number of significant figures to leave in metric values before importing. " +
 				"See https://en.wikipedia.org/wiki/Significant_figures. Zero value saves all the significant figures. " +
+				"This option may be used for increasing on-disk compression level for the stored metrics. " +
+				"See also --vm-round-digits option",
+		},
+		&cli.IntFlag{
+			Name:  vmRoundDigits,
+			Value: 100,
+			Usage: "Round metric values to the given number of decimal digits after the point. " +
 				"This option may be used for increasing on-disk compression level for the stored metrics",
 		},
 		&cli.StringSliceFlag{

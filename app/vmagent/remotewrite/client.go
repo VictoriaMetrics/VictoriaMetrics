@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +21,7 @@ import (
 )
 
 var (
-	rateLimit = flagutil.NewArray("remoteWrite.rateLimit", "Optional rate limit in bytes per second for data sent to -remoteWrite.url. "+
+	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", "Optional rate limit in bytes per second for data sent to -remoteWrite.url. "+
 		"By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage")
 	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", "Timeout for sending a single block of data to -remoteWrite.url")
@@ -120,15 +119,9 @@ func newClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqu
 		},
 		stopCh: make(chan struct{}),
 	}
-	if bytesPerSec := rateLimit.GetOptionalArg(argIdx); bytesPerSec != "" {
-		limit, err := strconv.ParseInt(bytesPerSec, 10, 64)
-		if err != nil {
-			logger.Fatalf("cannot parse -remoteWrite.rateLimit=%q for -remoteWrite.url=%q: %s", bytesPerSec, sanitizedURL, err)
-		}
-		if limit > 0 {
-			logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", limit, sanitizedURL)
-			c.rl.perSecondLimit = limit
-		}
+	if bytesPerSec := rateLimit.GetOptionalArgOrDefault(argIdx, 0); bytesPerSec > 0 {
+		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
+		c.rl.perSecondLimit = int64(bytesPerSec)
 	}
 	c.rl.limitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remote_write_rate_limit_reached_total{url=%q}`, c.sanitizedURL))
 

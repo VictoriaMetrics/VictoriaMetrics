@@ -153,6 +153,7 @@ func initConfigVM(c *cli.Context) vm.Config {
 		AccountID:          c.String(vmAccountID),
 		BatchSize:          c.Int(vmBatchSize),
 		SignificantFigures: c.Int(vmSignificantFigures),
+		RoundDigits:        c.Int(vmRoundDigits),
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 	}
 }
