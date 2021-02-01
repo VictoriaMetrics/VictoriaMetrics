@@ -8,12 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/oauth2"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/oauth2"
 )
 
 // ExchangeToken performs an oauth2 token exchange with the provided endpoint.
@@ -40,11 +41,12 @@ func ExchangeToken(ctx context.Context, endpoint string, request *STSTokenExchan
 	authentication.InjectAuthentication(data, headers)
 	encodedData := data.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(encodedData))
+	req, err := http.NewRequest("POST", endpoint, strings.NewReader(encodedData))
 	if err != nil {
 		return nil, fmt.Errorf("oauth2/google: failed to properly build http request: %v", err)
 
 	}
+	req = req.WithContext(ctx)
 	for key, list := range headers {
 		for _, val := range list {
 			req.Header.Add(key, val)

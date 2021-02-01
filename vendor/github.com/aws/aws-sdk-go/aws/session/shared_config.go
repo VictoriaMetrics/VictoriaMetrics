@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -24,6 +25,12 @@ const (
 	mfaSerialKey           = `mfa_serial`        // optional
 	roleSessionNameKey     = `role_session_name` // optional
 	roleDurationSecondsKey = "duration_seconds"  // optional
+
+	// AWS Single Sign-On (AWS SSO) group
+	ssoAccountIDKey = "sso_account_id"
+	ssoRegionKey    = "sso_region"
+	ssoRoleNameKey  = "sso_role_name"
+	ssoStartURL     = "sso_start_url"
 
 	// CSM options
 	csmEnabledKey  = `csm_enabled`
@@ -77,6 +84,11 @@ type sharedConfig struct {
 	CredentialSource     string
 	CredentialProcess    string
 	WebIdentityTokenFile string
+
+	SSOAccountID string
+	SSORegion    string
+	SSORoleName  string
+	SSOStartURL  string
 
 	RoleARN            string
 	RoleSessionName    string
@@ -217,9 +229,9 @@ func (cfg *sharedConfig) setFromIniFiles(profiles map[string]struct{}, profile s
 		cfg.clearAssumeRoleOptions()
 	} else {
 		// First time a profile has been seen, It must either be a assume role
-		// or credentials. Assert if the credential type requires a role ARN,
-		// the ARN is also set.
-		if err := cfg.validateCredentialsRequireARN(profile); err != nil {
+		// credentials, or SSO. Assert if the credential type requires a role ARN,
+		// the ARN is also set, or validate that the SSO configuration is complete.
+		if err := cfg.validateCredentialsConfig(profile); err != nil {
 			return err
 		}
 	}
@@ -312,6 +324,12 @@ func (cfg *sharedConfig) setFromIniFile(profile string, file sharedConfigFile, e
 			}
 			cfg.S3UsEast1RegionalEndpoint = sre
 		}
+
+		// AWS Single Sign-On (AWS SSO)
+		updateString(&cfg.SSOAccountID, section, ssoAccountIDKey)
+		updateString(&cfg.SSORegion, section, ssoRegionKey)
+		updateString(&cfg.SSORoleName, section, ssoRoleNameKey)
+		updateString(&cfg.SSOStartURL, section, ssoStartURL)
 	}
 
 	updateString(&cfg.CredentialProcess, section, credentialProcessKey)
@@ -338,6 +356,18 @@ func (cfg *sharedConfig) setFromIniFile(profile string, file sharedConfigFile, e
 	updateString(&cfg.CSMClientID, section, csmClientIDKey)
 
 	updateBool(&cfg.S3UseARNRegion, section, s3UseARNRegionKey)
+
+	return nil
+}
+
+func (cfg *sharedConfig) validateCredentialsConfig(profile string) error {
+	if err := cfg.validateCredentialsRequireARN(profile); err != nil {
+		return err
+	}
+
+	if err := cfg.validateSSOConfiguration(profile); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -371,8 +401,39 @@ func (cfg *sharedConfig) validateCredentialType() error {
 		len(cfg.CredentialSource) != 0,
 		len(cfg.CredentialProcess) != 0,
 		len(cfg.WebIdentityTokenFile) != 0,
+		cfg.hasSSOConfiguration(),
 	) {
 		return ErrSharedConfigSourceCollision
+	}
+
+	return nil
+}
+
+func (cfg *sharedConfig) validateSSOConfiguration(profile string) error {
+	if !cfg.hasSSOConfiguration() {
+		return nil
+	}
+
+	var missing []string
+	if len(cfg.SSOAccountID) == 0 {
+		missing = append(missing, ssoAccountIDKey)
+	}
+
+	if len(cfg.SSORegion) == 0 {
+		missing = append(missing, ssoRegionKey)
+	}
+
+	if len(cfg.SSORoleName) == 0 {
+		missing = append(missing, ssoRoleNameKey)
+	}
+
+	if len(cfg.SSOStartURL) == 0 {
+		missing = append(missing, ssoStartURL)
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("profile %q is configured to use SSO but is missing required configuration: %s",
+			profile, strings.Join(missing, ", "))
 	}
 
 	return nil
@@ -384,6 +445,7 @@ func (cfg *sharedConfig) hasCredentials() bool {
 	case len(cfg.CredentialSource) != 0:
 	case len(cfg.CredentialProcess) != 0:
 	case len(cfg.WebIdentityTokenFile) != 0:
+	case cfg.hasSSOConfiguration():
 	case cfg.Creds.HasKeys():
 	default:
 		return false
@@ -405,6 +467,18 @@ func (cfg *sharedConfig) clearAssumeRoleOptions() {
 	cfg.MFASerial = ""
 	cfg.RoleSessionName = ""
 	cfg.SourceProfileName = ""
+}
+
+func (cfg *sharedConfig) hasSSOConfiguration() bool {
+	switch {
+	case len(cfg.SSOAccountID) != 0:
+	case len(cfg.SSORegion) != 0:
+	case len(cfg.SSORoleName) != 0:
+	case len(cfg.SSOStartURL) != 0:
+	default:
+		return false
+	}
+	return true
 }
 
 func oneOrNone(bs ...bool) bool {

@@ -35,7 +35,18 @@ func (c *Config) TokenSource(ctx context.Context) oauth2.TokenSource {
 		ctx:  ctx,
 		conf: c,
 	}
-	return oauth2.ReuseTokenSource(nil, ts)
+	if c.ServiceAccountImpersonationURL == "" {
+		return oauth2.ReuseTokenSource(nil, ts)
+	}
+	scopes := c.Scopes
+	ts.conf.Scopes = []string{"https://www.googleapis.com/auth/cloud-platform"}
+	imp := impersonateTokenSource{
+		ctx:    ctx,
+		url:    c.ServiceAccountImpersonationURL,
+		scopes: scopes,
+		ts: oauth2.ReuseTokenSource(nil, ts),
+	}
+	return oauth2.ReuseTokenSource(nil, imp)
 }
 
 // Subject token file types.
@@ -66,9 +77,11 @@ type CredentialSource struct {
 }
 
 // parse determines the type of CredentialSource needed
-func (c *Config) parse() baseCredentialSource {
+func (c *Config) parse(ctx context.Context) baseCredentialSource {
 	if c.CredentialSource.File != "" {
 		return fileCredentialSource{File: c.CredentialSource.File, Format: c.CredentialSource.Format}
+	} else if c.CredentialSource.URL != "" {
+		return urlCredentialSource{URL: c.CredentialSource.URL, Format: c.CredentialSource.Format, ctx: ctx}
 	}
 	return nil
 }
@@ -87,7 +100,7 @@ type tokenSource struct {
 func (ts tokenSource) Token() (*oauth2.Token, error) {
 	conf := ts.conf
 
-	credSource := conf.parse()
+	credSource := conf.parse(ts.ctx)
 	if credSource == nil {
 		return nil, fmt.Errorf("oauth2/google: unable to parse credential source")
 	}
@@ -128,6 +141,5 @@ func (ts tokenSource) Token() (*oauth2.Token, error) {
 	if stsResp.RefreshToken != "" {
 		accessToken.RefreshToken = stsResp.RefreshToken
 	}
-
 	return accessToken, nil
 }
