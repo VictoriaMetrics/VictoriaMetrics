@@ -41,10 +41,51 @@ Features:
 
 ## How to build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.12.
-2. Run `make build` from the root folder of the repository.
+It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.
+
+
+### Development build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmctl` from the root folder of the repository.
    It builds `vmctl` binary and puts it into the `bin` folder.
-   
+
+### Production build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmctl-prod` from the root folder of the repository.
+   It builds `vmctl-prod` binary and puts it into the `bin` folder.
+
+### Building docker images
+
+Run `make package-vmctl`. It builds `victoriametrics/vmctl:<PKG_TAG>` docker image locally.
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmctl`.
+
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
+
+```bash
+ROOT_IMAGE=scratch make package-vmctl
+```
+
+### ARM build
+
+ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
+
+#### Development ARM build
+
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+2. Run `make vmctl-arm` or `make vmctl-arm64` from the root folder of the repository.
+   It builds `vmctl-arm` or `vmctl-arm64` binary respectively and puts it into the `bin` folder.
+
+#### Production ARM build
+
+1. [Install docker](https://docs.docker.com/install/).
+2. Run `make vmctl-arm-prod` or `make vmctl-arm64-prod` from the root folder of the repository.
+   It builds `vmctl-arm-prod` or `vmctl-arm64-prod` binary respectively and puts it into the `bin` folder.
+
+
 ## Migrating data from InfluxDB (1.x)
 
 `vmctl` supports the `influx` mode to migrate data from InfluxDB to VictoriaMetrics time-series database.
