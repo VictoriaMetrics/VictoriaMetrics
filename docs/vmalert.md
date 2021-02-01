@@ -12,6 +12,7 @@ rules against configured address.
  support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager);
 * Keeps the alerts [state on restarts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmalert#alerts-state-on-restarts);
+* Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite) for details.
 * Lightweight without extra dependencies.
 
 ### Limitations:
@@ -105,7 +106,13 @@ The syntax for alerting rule is following:
 # The name of the alert. Must be a valid metric name.
 alert: <string>
 
-# The MetricsQL expression to evaluate.
+# Optional type for the rule. Supported values: "graphite", "prometheus".
+# By default "prometheus" rule type is used.
+[ type: <string> ]
+
+# The expression to evaluate. The expression language depends on the type value.
+# By default MetricsQL expression is used. If type="graphite", then the expression
+# must contain valid Graphite expression.
 expr: <string>
 
 # Alerts are considered firing once they have been returned for this long.
@@ -128,7 +135,13 @@ The syntax for recording rules is following:
 # The name of the time series to output to. Must be a valid metric name.
 record: <string>
 
-# The MetricsQL expression to evaluate.
+# Optional type for the rule. Supported values: "graphite", "prometheus".
+# By default "prometheus" rule type is used.
+[ type: <string> ]
+
+# The expression to evaluate. The expression language depends on the type value.
+# By default MetricsQL expression is used. If type="graphite", then the expression
+# must contain valid Graphite expression.
 expr: <string>
 
 # Labels to add or overwrite before storing the result.
@@ -164,6 +177,13 @@ rules configuration.
 Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
+
+
+### Graphite
+
+vmalert sends requests to `<-datasource.url>/render?format=json` during evaluation of alerting and recording rules
+if the corresponding rule contains `type: "graphite"` config option. It is expected that the `<-datasource.url>/render`
+implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) for `format=json`.
 
 
 ### Configuration
