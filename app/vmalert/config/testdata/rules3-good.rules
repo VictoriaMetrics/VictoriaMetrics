@@ -1,0 +1,30 @@
+groups:
+  - name: TestGroup
+    interval: 2s
+    concurrency: 2
+    type: graphite
+    rules:
+      - alert: Conns
+        expr: filterSeries(sumSeries(host.receiver.interface.cons),'last','>', 500)
+        for: 3m
+        annotations:
+          summary: Too high connection number for {{$labels.instance}}
+          description: "It is {{ $value }} connections for {{$labels.instance}}"
+  - name: TestGroupPromMixed
+    interval: 2s
+    concurrency: 2
+    type: prometheus
+    rules:
+      - alert: Conns
+        expr: sum(vm_tcplistener_conns) by (instance) > 1
+        for: 3m
+        annotations:
+          summary: Too high connection number for {{$labels.instance}}
+          description: "It is {{ $value }} connections for {{$labels.instance}}"
+      - alert: HostDown
+        type: graphite
+        expr: filterSeries(sumSeries(host.receiver.interface.up),'last','=', 0)
+        for: 3m
+        annotations:
+          summary: Too high connection number for {{$labels.instance}}
+          description: "It is {{ $value }} connections for {{$labels.instance}}"

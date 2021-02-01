@@ -21,6 +21,7 @@ type APIAlert struct {
 // APIGroup represents Group for WEB view
 type APIGroup struct {
 	Name           string             `json:"name"`
+	Type           string             `json:"type"`
 	ID             string             `json:"id"`
 	File           string             `json:"file"`
 	Interval       string             `json:"interval"`
@@ -33,6 +34,7 @@ type APIGroup struct {
 type APIAlertingRule struct {
 	ID          string            `json:"id"`
 	Name        string            `json:"name"`
+	Type        string            `json:"type"`
 	GroupID     string            `json:"group_id"`
 	Expression  string            `json:"expression"`
 	For         string            `json:"for"`
@@ -46,6 +48,7 @@ type APIAlertingRule struct {
 type APIRecordingRule struct {
 	ID         string            `json:"id"`
 	Name       string            `json:"name"`
+	Type       string            `json:"type"`
 	GroupID    string            `json:"group_id"`
 	Expression string            `json:"expression"`
 	LastError  string            `json:"last_error"`

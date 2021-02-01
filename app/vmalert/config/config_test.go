@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -52,6 +54,10 @@ func TestParseBad(t *testing.T) {
 		{
 			[]string{"testdata/dir/rules4-bad.rules"},
 			"either `record` or `alert` must be set",
+		},
+		{
+			[]string{"testdata/rules1-bad.rules"},
+			"bad graphite expr",
 		},
 	}
 	for _, tc := range testCases {
@@ -214,6 +220,75 @@ func TestGroup_Validate(t *testing.T) {
 				},
 			},
 			expErr: "",
+		},
+		{
+			group: &Group{Name: "test thanos",
+				Type: datasource.NewRawType("thanos"),
+				Rules: []Rule{
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"description": "{{ value|query }}",
+					}},
+				},
+			},
+			validateExpressions: true,
+			expErr:              "unknown datasource type",
+		},
+		{
+			group: &Group{Name: "test graphite",
+				Type: datasource.NewGraphiteType(),
+				Rules: []Rule{
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"description": "some-description",
+					}},
+				},
+			},
+			validateExpressions: true,
+			expErr:              "",
+		},
+		{
+			group: &Group{Name: "test prometheus",
+				Type: datasource.NewPrometheusType(),
+				Rules: []Rule{
+					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+						"description": "{{ value|query }}",
+					}},
+				},
+			},
+			validateExpressions: true,
+			expErr:              "",
+		},
+		{
+			group: &Group{
+				Name: "test graphite inherit",
+				Type: datasource.NewGraphiteType(),
+				Rules: []Rule{
+					{
+						Expr: "sumSeries(time('foo.bar',10))",
+						For:  PromDuration{milliseconds: 10},
+					},
+					{
+						Expr: "sum(up == 0 ) by (host)",
+						Type: datasource.NewPrometheusType(),
+					},
+				},
+			},
+		},
+		{
+			group: &Group{
+				Name: "test graphite prometheus bad expr",
+				Type: datasource.NewGraphiteType(),
+				Rules: []Rule{
+					{
+						Expr: "sum(up == 0 ) by (host)",
+						For:  PromDuration{milliseconds: 10},
+					},
+					{
+						Expr: "sumSeries(time('foo.bar',10))",
+						Type: datasource.NewPrometheusType(),
+					},
+				},
+			},
+			expErr: "invalid rule",
 		},
 	}
 	for _, tc := range testCases {

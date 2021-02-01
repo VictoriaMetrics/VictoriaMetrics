@@ -1,0 +1,13 @@
+groups:
+  - name: TestUpdateGroup
+    interval: 2s
+    concurrency: 2
+    type: prometheus
+    rules:
+      - alert: up
+        expr: up == 0
+        for: 30s
+      - alert: up graphite
+        expr: filterSeries(time('host.1',20),'>','0')
+        for: 30s
+        type: graphite

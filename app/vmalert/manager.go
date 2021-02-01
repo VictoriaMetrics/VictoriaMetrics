@@ -142,6 +142,7 @@ func (g *Group) toAPI() APIGroup {
 		// encode as string to avoid rounding
 		ID:          fmt.Sprintf("%d", g.ID()),
 		Name:        g.Name,
+		Type:        g.Type.String(),
 		File:        g.File,
 		Interval:    g.Interval.String(),
 		Concurrency: g.Concurrency,
