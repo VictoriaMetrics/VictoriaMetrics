@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
 
@@ -106,6 +108,18 @@ func TestManagerUpdate(t *testing.T) {
 			Name: "ExampleAlertAlwaysFiring",
 			Expr: "sum by(job) (up == 1)",
 		}
+		ExampleAlertGraphite = &AlertingRule{
+			Name: "up graphite",
+			Expr: "filterSeries(time('host.1',20),'>','0')",
+			Type: datasource.NewGraphiteType(),
+			For:  defaultEvalInterval,
+		}
+		ExampleAlertGraphite2 = &AlertingRule{
+			Name: "up",
+			Expr: "filterSeries(time('host.2',20),'>','0')",
+			Type: datasource.NewGraphiteType(),
+			For:  defaultEvalInterval,
+		}
 	)
 
 	testCases := []struct {
@@ -122,6 +136,7 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/dir/rules1-good.rules",
 					Name:     "duplicatedGroupDiffFiles",
+					Type:     datasource.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules: []Rule{
 						&AlertingRule{
@@ -146,12 +161,14 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
+					Type:     datasource.NewPrometheusType(),
 					Rules:    []Rule{VMRows},
 					Interval: defaultEvalInterval,
 				},
 				{
 					File:     "config/testdata/rules0-good.rules",
 					Interval: defaultEvalInterval,
+					Type:     datasource.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
@@ -166,13 +183,16 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
+					Type:     datasource.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
 				{
 					File:     "config/testdata/rules0-good.rules",
 					Interval: defaultEvalInterval,
-					Name:     "TestGroup", Rules: []Rule{
+					Name:     "TestGroup",
+					Type:     datasource.NewPrometheusType(),
+					Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
 					}},
@@ -186,15 +206,34 @@ func TestManagerUpdate(t *testing.T) {
 				{
 					File:     "config/testdata/rules0-good.rules",
 					Name:     "groupGorSingleAlert",
+					Type:     datasource.NewPrometheusType(),
 					Interval: defaultEvalInterval,
 					Rules:    []Rule{VMRows},
 				},
 				{
 					File:     "config/testdata/rules0-good.rules",
 					Interval: defaultEvalInterval,
+					Type:     datasource.NewPrometheusType(),
 					Name:     "TestGroup", Rules: []Rule{
 						Conns,
 						ExampleAlertAlwaysFiring,
+					},
+				},
+			},
+		},
+		{
+			name:       "update prometheus to graphite type",
+			initPath:   "config/testdata/dir/rules-update0-good.rules",
+			updatePath: "config/testdata/dir/rules-update1-good.rules",
+			want: []*Group{
+				{
+					File:     "config/testdata/dir/rules-update1-good.rules",
+					Interval: defaultEvalInterval,
+					Type:     datasource.NewGraphiteType(),
+					Name:     "TestUpdateGroup",
+					Rules: []Rule{
+						ExampleAlertGraphite2,
+						ExampleAlertGraphite,
 					},
 				},
 			},

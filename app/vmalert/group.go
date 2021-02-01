@@ -22,6 +22,7 @@ type Group struct {
 	Name        string
 	File        string
 	Rules       []Rule
+	Type        datasource.Type
 	Interval    time.Duration
 	Concurrency int
 	Checksum    string
@@ -50,6 +51,7 @@ func newGroupMetrics(name, file string) *groupMetrics {
 
 func newGroup(cfg config.Group, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
+		Type:        cfg.Type,
 		Name:        cfg.Name,
 		File:        cfg.File,
 		Interval:    cfg.Interval,
@@ -99,6 +101,7 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte(g.File))
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
+	hash.Write([]byte(g.Type.Get()))
 	return hash.Sum64()
 }
 
@@ -157,6 +160,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	for _, nr := range rulesRegistry {
 		newRules = append(newRules, nr)
 	}
+	g.Type = newGroup.Type
 	g.Concurrency = newGroup.Concurrency
 	g.Checksum = newGroup.Checksum
 	g.Rules = newRules

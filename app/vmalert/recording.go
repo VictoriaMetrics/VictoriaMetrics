@@ -18,6 +18,7 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
+	Type    datasource.Type
 	RuleID  uint64
 	Name    string
 	Expr    string
@@ -53,6 +54,7 @@ func (rr *RecordingRule) ID() uint64 {
 
 func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 	rr := &RecordingRule{
+		Type:    cfg.Type,
 		RuleID:  cfg.ID,
 		Name:    cfg.Record,
 		Expr:    cfg.Expr,
@@ -60,6 +62,7 @@ func newRecordingRule(group *Group, cfg config.Rule) *RecordingRule {
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
 	}
+
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
 	rr.metrics.errors = getOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
 		func() float64 {
@@ -84,8 +87,7 @@ func (rr *RecordingRule) Exec(ctx context.Context, q datasource.Querier, series 
 		return nil, nil
 	}
 
-	qMetrics, err := q.Query(ctx, rr.Expr)
-
+	qMetrics, err := q.Query(ctx, rr.Expr, rr.Type)
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
 
@@ -162,6 +164,7 @@ func (rr *RecordingRule) RuleAPI() APIRecordingRule {
 		ID:         fmt.Sprintf("%d", rr.ID()),
 		GroupID:    fmt.Sprintf("%d", rr.GroupID),
 		Name:       rr.Name,
+		Type:       rr.Type.String(),
 		Expression: rr.Expr,
 		LastError:  lastErr,
 		LastExec:   rr.lastExecTime,
