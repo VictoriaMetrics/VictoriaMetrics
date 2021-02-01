@@ -23,9 +23,9 @@ See also [vmbackuper](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/
 creation of hourly, daily, weekly and monthly backups.
 
 
-### Use cases
+## Use cases
 
-#### Regular backups
+### Regular backups
 
 Regular backup can be performed with the following command:
 
@@ -40,7 +40,7 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
 
-#### Regular backups with server-side copy from existing backup
+### Regular backups with server-side copy from existing backup
 
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be sped up
 with the following command:
@@ -52,7 +52,7 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
 
 
-#### Incremental backups
+### Incremental backups
 
 Incremental backups performed if `-dst` points to an already existing backup. In this case only new data uploaded to remote storage.
 It saves time and network bandwidth costs when working with big backups:
@@ -62,7 +62,7 @@ vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshotName=<local-
 ```
 
 
-#### Smart backups
+### Smart backups
 
 Smart backups mean storing full daily backups into `YYYYMMDD` folders and creating incremental hourly backup into `latest` folder:
 
@@ -92,7 +92,7 @@ Do not forget removing old snapshots and backups when they are no longer needed 
 See also [vmbackuper tool](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for automating smart backups.
 
 
-### How does it work?
+## How does it work?
 
 The backup algorithm is the following:
 
@@ -118,7 +118,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 `vmbackup` can work improperly or slowly when these properties are violated.
 
 
-### Troubleshooting
+## Troubleshooting
 
 * If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
 * If `vmbackup` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
@@ -127,7 +127,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   at [cluster VictoriaMetrics](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html) and vice versa.
 
 
-### Advanced usage
+## Advanced usage
 
 
 * Obtaining credentials from a file.
@@ -222,24 +222,24 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 ```
 
 
-### How to build from sources
+## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - see `vmutils-*` archives there.
 
 
-#### Development build
+### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make vmbackup` from the root folder of the repository.
    It builds `vmbackup` binary and puts it into the `bin` folder.
 
-#### Production build
+### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmbackup-prod` from the root folder of the repository.
    It builds `vmbackup-prod` binary and puts it into the `bin` folder.
 
-#### Building docker images
+### Building docker images
 
 Run `make package-vmbackup`. It builds `victoriametrics/vmbackup:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
