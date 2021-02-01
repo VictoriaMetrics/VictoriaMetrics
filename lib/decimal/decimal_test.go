@@ -7,10 +7,34 @@ import (
 	"testing"
 )
 
-func TestRoundInplace(t *testing.T) {
+func TestRoundToDecimalDigits(t *testing.T) {
 	f := func(f float64, digits int, resultExpected float64) {
 		t.Helper()
-		result := Round(f, digits)
+		result := RoundToDecimalDigits(f, digits)
+		if math.IsNaN(result) {
+			if !math.IsNaN(resultExpected) {
+				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+			}
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+	f(12.34, 0, 12)
+	f(12.57, 0, 13)
+	f(-1.578, 2, -1.58)
+	f(-1.578, 3, -1.578)
+	f(1234, -2, 1200)
+	f(1235, -1, 1240)
+	f(1234, 0, 1234)
+	f(1234.6, 0, 1235)
+	f(123.4e-99, 99, 123e-99)
+}
+
+func TestRoundToSignificantFigures(t *testing.T) {
+	f := func(f float64, digits int, resultExpected float64) {
+		t.Helper()
+		result := RoundToSignificantFigures(f, digits)
 		if math.IsNaN(result) {
 			if !math.IsNaN(resultExpected) {
 				t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)

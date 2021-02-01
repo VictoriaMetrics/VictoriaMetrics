@@ -154,6 +154,7 @@ Alphabetically sorted links to case studies:
 * [Tuning](#tuning)
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
+* [Data migration](#data-migration)
 * [Backfilling](#backfilling)
 * [Data updates](#data-updates)
 * [Replication](#replication)
@@ -547,10 +548,15 @@ These handlers can be queried from Prometheus-compatible clients such as Grafana
 
 ### Prometheus querying API enhancements
 
-Additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) VictoriaMetrics accepts relative times in `time`, `start` and `end` query args.
+VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
+`/api/v1/query_range?extra_label=user_id=123&query=<query>` would automatically add `{user_id="123"}` label filter to the given `<query>`. This functionality can be used
+for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
+in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
+
+VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
 
-By default, VictoriaMetrics returns time series for the last 5 minutes from /api/v1/series, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
+By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
 
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
 See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
@@ -1353,6 +1359,17 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
 
+## Data migration
+
+Use [vmctl](https://victoriametrics.github.io/vmctl.html) for data migration. It supports the following data migration types:
+
+* From Prometheus to VictoriaMetrics
+* From InfluxDB to VictoriaMetrics
+* From VictoriaMetrics to VictoriaMetrics
+
+See [vmctl docs](https://victoriametrics.github.io/vmctl.html) for more details.
+
+
 ## Backfilling
 
 VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
@@ -1420,7 +1437,6 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 * [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
 * [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
-* [vmctl tool for data migration to VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl).
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.

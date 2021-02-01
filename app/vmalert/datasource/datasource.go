@@ -1,12 +1,14 @@
 package datasource
 
-import "context"
+import (
+	"context"
+)
 
 // Querier interface wraps Query method which
 // executes given query and returns list of Metrics
 // as result
 type Querier interface {
-	Query(ctx context.Context, query string) ([]Metric, error)
+	Query(ctx context.Context, query string, engine Type) ([]Metric, error)
 }
 
 // Metric is the basic entity which should be return by datasource

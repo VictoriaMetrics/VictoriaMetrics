@@ -2,10 +2,12 @@ package prometheus
 
 import (
 	"math"
+	"net/http"
 	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
@@ -194,4 +196,76 @@ func TestAdjustLastPoints(t *testing.T) {
 			Values:     []float64{1, 2, 2},
 		},
 	})
+}
+
+// helper for tests
+func tfFromKV(k, v string) storage.TagFilter {
+	return storage.TagFilter{
+		Key:   []byte(k),
+		Value: []byte(v),
+	}
+}
+
+func Test_addEnforcedFiltersToTagFilterss(t *testing.T) {
+	f := func(t *testing.T, dstTfss [][]storage.TagFilter, enforcedFilters []storage.TagFilter, want [][]storage.TagFilter) {
+		t.Helper()
+		got := addEnforcedFiltersToTagFilterss(dstTfss, enforcedFilters)
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("unxpected result for addEnforcedFiltersToTagFilterss, \ngot: %v,\n want: %v", want, got)
+		}
+	}
+	f(t, [][]storage.TagFilter{{tfFromKV("label", "value")}},
+		nil,
+		[][]storage.TagFilter{{tfFromKV("label", "value")}})
+
+	f(t, nil,
+		[]storage.TagFilter{tfFromKV("ext-label", "ext-value")},
+		[][]storage.TagFilter{{tfFromKV("ext-label", "ext-value")}})
+
+	f(t, [][]storage.TagFilter{
+		{tfFromKV("l1", "v1")},
+		{tfFromKV("l2", "v2")},
+	},
+		[]storage.TagFilter{tfFromKV("ext-l1", "v2")},
+		[][]storage.TagFilter{
+			{tfFromKV("l1", "v1"), tfFromKV("ext-l1", "v2")},
+			{tfFromKV("l2", "v2"), tfFromKV("ext-l1", "v2")},
+		})
+}
+
+func Test_getEnforcedTagFiltersFromRequest(t *testing.T) {
+	httpReqWithForm := func(tfs []string) *http.Request {
+		return &http.Request{
+			Form: map[string][]string{
+				"extra_label": tfs,
+			},
+		}
+	}
+	f := func(t *testing.T, r *http.Request, want []storage.TagFilter, wantErr bool) {
+		t.Helper()
+		got, err := getEnforcedTagFiltersFromRequest(r)
+		if (err != nil) != wantErr {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("unxpected result for getEnforcedTagFiltersFromRequest, \ngot: %v,\n want: %v", want, got)
+		}
+	}
+
+	f(t, httpReqWithForm([]string{"label=value"}),
+		[]storage.TagFilter{
+			tfFromKV("label", "value"),
+		},
+		false)
+
+	f(t, httpReqWithForm([]string{"job=vmagent", "dc=gce"}),
+		[]storage.TagFilter{tfFromKV("job", "vmagent"), tfFromKV("dc", "gce")},
+		false,
+	)
+	f(t, httpReqWithForm([]string{"bad_filter"}),
+		nil,
+		true,
+	)
+	f(t, &http.Request{},
+		nil, false)
 }

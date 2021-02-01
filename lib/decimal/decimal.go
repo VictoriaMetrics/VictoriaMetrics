@@ -298,8 +298,21 @@ func maxUpExponent(v int64) int16 {
 	}
 }
 
-// Round f to value with the given number of significant figures.
-func Round(f float64, digits int) float64 {
+// RoundToDecimalDigits rounds f to the given number of decimal digits after the point.
+//
+// See also RoundToSignificantFigures.
+func RoundToDecimalDigits(f float64, digits int) float64 {
+	if digits <= -100 || digits >= 100 {
+		return f
+	}
+	m := math.Pow10(digits)
+	return math.Round(f*m) / m
+}
+
+// RoundToSignificantFigures rounds f to value with the given number of significant figures.
+//
+// See also RoundToDecimalDigits.
+func RoundToSignificantFigures(f float64, digits int) float64 {
 	if digits <= 0 || digits >= 18 {
 		return f
 	}
