@@ -100,6 +100,9 @@ type EvalConfig struct {
 
 	timestamps     []int64
 	timestampsOnce sync.Once
+
+	// EnforcedTagFilters used for apply additional label filters to query.
+	EnforcedTagFilters []storage.TagFilter
 }
 
 // newEvalConfig returns new EvalConfig copy from src.
@@ -111,6 +114,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
+	ec.EnforcedTagFilters = src.EnforcedTagFilters
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
@@ -647,6 +651,8 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 
 	// Fetch the remaining part of the result.
 	tfs := toTagFilters(me.LabelFilters)
+	// append external filters.
+	tfs = append(tfs, ec.EnforcedTagFilters...)
 	minTimestamp := start - maxSilenceInterval
 	if window > ec.Step {
 		minTimestamp -= window
