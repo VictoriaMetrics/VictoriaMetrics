@@ -30,6 +30,12 @@ func NewTagFilters() *TagFilters {
 	}
 }
 
+// AddGraphiteQuery adds the given Graphite query that matches the given paths to tfs.
+func (tfs *TagFilters) AddGraphiteQuery(query []byte, paths []string, isNegative bool) {
+	tf := tfs.addTagFilter()
+	tf.InitFromGraphiteQuery(tfs.commonPrefix, query, paths, isNegative)
+}
+
 // Add adds the given tag filter to tfs.
 //
 // MetricGroup must be encoded with nil key.
@@ -52,7 +58,7 @@ func (tfs *TagFilters) Add(key, value []byte, isNegative, isRegexp bool) error {
 		}
 
 		// Substitute negative tag filter matching anything with negative tag filter matching non-empty value
-		// in order to out all the time series with the given key.
+		// in order to filter out all the time series with the given key.
 		value = []byte(".+")
 	}
 
@@ -162,6 +168,8 @@ type tagFilter struct {
 	prefix []byte
 
 	// or values obtained from regexp suffix if it equals to "foo|bar|..."
+	//
+	// This array is also populated with matching Graphite metrics if key="__graphite__"
 	orSuffixes []string
 
 	// Matches regexp suffix.
@@ -228,6 +236,49 @@ func (tf *tagFilter) Marshal(dst []byte) []byte {
 	return dst
 }
 
+// InitFromGraphiteQuery initializes tf from the given graphite query expanded to the given paths.
+func (tf *tagFilter) InitFromGraphiteQuery(commonPrefix, query []byte, paths []string, isNegative bool) {
+	if len(paths) == 0 {
+		// explicitly add empty path in order match zero metric names.
+		paths = []string{""}
+	}
+	prefix, orSuffixes := getCommonPrefix(paths)
+	if len(orSuffixes) == 0 {
+		orSuffixes = append(orSuffixes, "")
+	}
+	tf.key = append(tf.key[:0], "__graphite__"...)
+	tf.value = append(tf.value[:0], query...)
+	tf.isNegative = isNegative
+	tf.isRegexp = true // this is needed for tagFilter.matchSuffix
+	tf.prefix = append(tf.prefix[:0], commonPrefix...)
+	tf.prefix = marshalTagValue(tf.prefix, nil)
+	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, []byte(prefix))
+	tf.orSuffixes = append(tf.orSuffixes[:0], orSuffixes...)
+	tf.reSuffixMatch, tf.matchCost = newMatchFuncForOrSuffixes(orSuffixes)
+}
+
+func getCommonPrefix(ss []string) (string, []string) {
+	if len(ss) == 0 {
+		return "", nil
+	}
+	prefix := ss[0]
+	for _, s := range ss[1:] {
+		i := 0
+		for i < len(s) && i < len(prefix) && s[i] == prefix[i] {
+			i++
+		}
+		prefix = prefix[:i]
+		if len(prefix) == 0 {
+			return "", ss
+		}
+	}
+	result := make([]string, len(ss))
+	for i, s := range ss {
+		result[i] = s[len(prefix):]
+	}
+	return prefix, result
+}
+
 // Init initializes the tag filter for the given commonPrefix, key and value.
 //
 // If isNegaitve is true, then the tag filter matches all the values
@@ -242,6 +293,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.value = append(tf.value[:0], value...)
 	tf.isNegative = isNegative
 	tf.isRegexp = isRegexp
+	tf.matchCost = 0
 
 	tf.prefix = tf.prefix[:0]
 
@@ -345,22 +397,7 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	var reCost uint64
 	var literalSuffix string
 	if len(orValues) > 0 {
-		if len(orValues) == 1 {
-			v := orValues[0]
-			reMatch = func(b []byte) bool {
-				return string(b) == v
-			}
-		} else {
-			reMatch = func(b []byte) bool {
-				for _, v := range orValues {
-					if string(b) == v {
-						return true
-					}
-				}
-				return false
-			}
-		}
-		reCost = uint64(len(orValues)) * literalMatchCost
+		reMatch, reCost = newMatchFuncForOrSuffixes(orValues)
 	} else {
 		reMatch, literalSuffix, reCost = getOptimizedReMatchFunc(re.Match, sExpr)
 	}
@@ -386,6 +423,26 @@ func getRegexpFromCache(expr []byte) (regexpCacheValue, error) {
 	regexpCacheLock.Unlock()
 
 	return rcv, nil
+}
+
+func newMatchFuncForOrSuffixes(orValues []string) (reMatch func(b []byte) bool, reCost uint64) {
+	if len(orValues) == 1 {
+		v := orValues[0]
+		reMatch = func(b []byte) bool {
+			return string(b) == v
+		}
+	} else {
+		reMatch = func(b []byte) bool {
+			for _, v := range orValues {
+				if string(b) == v {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	reCost = uint64(len(orValues)) * literalMatchCost
+	return reMatch, reCost
 }
 
 // getOptimizedReMatchFunc tries returning optimized function for matching the given expr.

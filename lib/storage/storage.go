@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -979,8 +980,119 @@ func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int, deadline uint
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+//
+// If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
 func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	return s.idb().SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+}
+
+// SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
+//
+// If more than maxPaths paths is found, then only the first maxPaths paths is returned.
+func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+	queryStr := string(query)
+	n := strings.IndexAny(queryStr, "*[{")
+	if n < 0 {
+		// Verify that the query matches a metric name.
+		suffixes, err := s.SearchTagValueSuffixes(tr, nil, query, '.', 1, deadline)
+		if err != nil {
+			return nil, err
+		}
+		if len(suffixes) == 0 {
+			// The query doesn't match anything.
+			return nil, nil
+		}
+		if len(suffixes[0]) > 0 {
+			// The query matches a metric name with additional suffix.
+			return nil, nil
+		}
+		return []string{queryStr}, nil
+	}
+	suffixes, err := s.SearchTagValueSuffixes(tr, nil, query[:n], '.', maxPaths, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(suffixes) == 0 {
+		return nil, nil
+	}
+	if len(suffixes) >= maxPaths {
+		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
+	}
+	qPrefixStr := queryStr[:n]
+	qNode := queryStr[n:]
+	qTail := ""
+	mustMatchLeafs := true
+	if m := strings.IndexByte(qNode, '.'); m >= 0 {
+		qNode = qNode[:m+1]
+		qTail = qNode[m+1:]
+		mustMatchLeafs = false
+	}
+	re, err := getRegexpForGraphiteNodeQuery(qNode)
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, suffix := range suffixes {
+		if len(paths) > maxPaths {
+			paths = paths[:maxPaths]
+			break
+		}
+		if !re.MatchString(suffix) {
+			continue
+		}
+		if mustMatchLeafs {
+			paths = append(paths, qPrefixStr+suffix)
+			continue
+		}
+		q := qPrefixStr + suffix + qTail
+		ps, err := s.SearchGraphitePaths(tr, []byte(q), maxPaths, deadline)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, ps...)
+	}
+	return paths, nil
+}
+
+func getRegexpForGraphiteNodeQuery(q string) (*regexp.Regexp, error) {
+	parts := getRegexpPartsForGraphiteNodeQuery(q)
+	reStr := "^" + strings.Join(parts, "") + "$"
+	return regexp.Compile(reStr)
+}
+
+func getRegexpPartsForGraphiteNodeQuery(q string) []string {
+	var parts []string
+	for {
+		n := strings.IndexAny(q, "*{[")
+		if n < 0 {
+			return append(parts, regexp.QuoteMeta(q))
+		}
+		parts = append(parts, regexp.QuoteMeta(q[:n]))
+		q = q[n:]
+		switch q[0] {
+		case '*':
+			parts = append(parts, "[^.]*")
+			q = q[1:]
+		case '{':
+			n := strings.IndexByte(q, '}')
+			if n < 0 {
+				return append(parts, regexp.QuoteMeta(q))
+			}
+			var tmp []string
+			for _, x := range strings.Split(q[1:n], ",") {
+				tmp = append(tmp, strings.Join(getRegexpPartsForGraphiteNodeQuery(x), ""))
+			}
+			parts = append(parts, "(?:"+strings.Join(tmp, "|")+")")
+			q = q[n+1:]
+		case '[':
+			n := strings.IndexByte(q, ']')
+			if n < 0 {
+				return append(parts, regexp.QuoteMeta(q))
+			}
+			parts = append(parts, q[:n+1])
+			q = q[n+1:]
+		}
+	}
 }
 
 // SearchTagEntries returns a list of (tagName -> tagValues)

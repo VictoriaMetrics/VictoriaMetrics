@@ -14,6 +14,28 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
+func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
+	f := func(q, expectedRegexp string) {
+		t.Helper()
+		re, err := getRegexpForGraphiteNodeQuery(q)
+		if err != nil {
+			t.Fatalf("unexpected error for query=%q: %s", q, err)
+		}
+		reStr := re.String()
+		if reStr != expectedRegexp {
+			t.Fatalf("unexpected regexp for query %q; got %q want %q", q, reStr, expectedRegexp)
+		}
+	}
+	f(``, `^$`)
+	f(`*`, `^[^.]*$`)
+	f(`foo.`, `^foo\.$`)
+	f(`foo.bar`, `^foo\.bar$`)
+	f(`{foo,b*ar,b[a-z]}`, `^(?:foo|b[^.]*ar|b[a-z])$`)
+	f(`[-a-zx.]`, `^[-a-zx.]$`)
+	f(`**`, `^[^.]*[^.]*$`)
+	f(`a*[de]{x,y}z`, `^a[^.]*[de](?:x|y)z$`)
+}
+
 func TestDateMetricIDCacheSerial(t *testing.T) {
 	c := newDateMetricIDCache()
 	if err := testDateMetricIDCache(c, false); err != nil {
