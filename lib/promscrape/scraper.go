@@ -180,6 +180,8 @@ func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrap
 		checkInterval: checkInterval,
 		cfgCh:         make(chan *Config, 1),
 		stopCh:        scs.stopCh,
+
+		discoveryDuration: metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_service_discovery_duration_seconds{type=%q}", name)),
 	}
 	scs.wg.Add(1)
 	go func() {
@@ -208,6 +210,8 @@ type scrapeConfig struct {
 	checkInterval time.Duration
 	cfgCh         chan *Config
 	stopCh        <-chan struct{}
+
+	discoveryDuration *metrics.Histogram
 }
 
 func (scfg *scrapeConfig) run() {
@@ -224,9 +228,11 @@ func (scfg *scrapeConfig) run() {
 	cfg := <-scfg.cfgCh
 	var swsPrev []*ScrapeWork
 	updateScrapeWork := func(cfg *Config) {
+		startTime := time.Now()
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
 		swsPrev = sws
+		scfg.discoveryDuration.UpdateDuration(startTime)
 	}
 	updateScrapeWork(cfg)
 	atomic.AddInt32(&PendingScrapeConfigs, -1)
