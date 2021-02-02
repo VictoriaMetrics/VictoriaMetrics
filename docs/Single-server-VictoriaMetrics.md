@@ -588,6 +588,10 @@ VictoriaMetrics supports the following Graphite APIs:
 * Metrics API - see [these docs](#graphite-metrics-api-usage).
 * Tags API - see [these docs](#graphite-tags-api-usage).
 
+VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
+and it is easier to use when migrating from Graphite to VictoriaMetrics.
+
 
 ### Graphite Metrics API usage
 
