@@ -31,7 +31,7 @@ func TagsDelSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseWr
 	totalDeleted := 0
 	var row graphiteparser.Row
 	var tagsPool []graphiteparser.Tag
-	ct := time.Now().UnixNano() / 1e6
+	ct := startTime.UnixNano() / 1e6
 	for _, path := range paths {
 		var err error
 		tagsPool, err = row.UnmarshalMetricAndTags(path, tagsPool[:0])
@@ -91,7 +91,7 @@ func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	var b []byte
 	var tagsPool []graphiteparser.Tag
 	mrs := make([]storage.MetricRow, len(paths))
-	ct := time.Now().UnixNano() / 1e6
+	ct := startTime.UnixNano() / 1e6
 	canonicalPaths := make([]string, len(paths))
 	for i, path := range paths {
 		var err error
@@ -190,7 +190,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(at, exprs)
+		sq, err := getSearchQueryForExprs(startTime, at, exprs)
 		if err != nil {
 			return err
 		}
@@ -275,7 +275,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(at, exprs)
+		sq, err := getSearchQueryForExprs(startTime, at, exprs)
 		if err != nil {
 			return err
 		}
@@ -339,7 +339,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 	if len(exprs) == 0 {
 		return fmt.Errorf("expecting at least one `expr` query arg")
 	}
-	sq, err := getSearchQueryForExprs(at, exprs)
+	sq, err := getSearchQueryForExprs(startTime, at, exprs)
 	if err != nil {
 		return err
 	}
@@ -467,12 +467,12 @@ func getInt(r *http.Request, argName string) (int, error) {
 	return n, nil
 }
 
-func getSearchQueryForExprs(at *auth.Token, exprs []string) (*storage.SearchQuery, error) {
+func getSearchQueryForExprs(startTime time.Time, at *auth.Token, exprs []string) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)
 	if err != nil {
 		return nil, err
 	}
-	ct := time.Now().UnixNano() / 1e6
+	ct := startTime.UnixNano() / 1e6
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, [][]storage.TagFilter{tfs})
 	return sq, nil
 }

@@ -763,7 +763,11 @@ func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 	}
 
 	// Setup ctx.tfss
-	if err := ctx.setupTfss(); err != nil {
+	tr := storage.TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: time.Now().UnixNano() / 1e6,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
 
@@ -954,6 +958,13 @@ func (s *Server) processVMSelectTagValueSuffixes(ctx *vmselectRequestCtx) error 
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
+	if len(suffixes) >= *maxTagValueSuffixesPerSearch {
+		err := fmt.Errorf("more than -search.maxTagValueSuffixesPerSearch=%d tag value suffixes found "+
+			"for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
+			"either narrow down the query or increase -search.maxTagValueSuffixesPerSearch command-line flag value",
+			*maxTagValueSuffixesPerSearch, tagKey, tagValuePrefix, delimiter, tr.String())
+		return ctx.writeErrorMessage(err)
+	}
 
 	// Send an empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
@@ -1128,12 +1139,12 @@ func (s *Server) processVMSelectSearchMetricNames(ctx *vmselectRequestCtx) error
 	}
 
 	// Search metric names.
-	if err := ctx.setupTfss(); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
 	tr := storage.TimeRange{
 		MinTimestamp: ctx.sq.MinTimestamp,
 		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
 	}
 	mns, err := s.storage.SearchMetricNames(ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
 	if err != nil {
@@ -1172,12 +1183,12 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 	}
 
 	// Setup search.
-	if err := ctx.setupTfss(); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
 	tr := storage.TimeRange{
 		MinTimestamp: ctx.sq.MinTimestamp,
 		MaxTimestamp: ctx.sq.MaxTimestamp,
+	}
+	if err := ctx.setupTfss(s.storage, tr); err != nil {
+		return ctx.writeErrorMessage(err)
 	}
 	if err := checkTimeRange(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -1252,12 +1263,27 @@ var (
 	vmselectMetricRowsRead   = metrics.NewCounter(`vm_vmselect_metric_rows_read_total`)
 )
 
-func (ctx *vmselectRequestCtx) setupTfss() error {
+func (ctx *vmselectRequestCtx) setupTfss(s *storage.Storage, tr storage.TimeRange) error {
 	tfss := ctx.tfss[:0]
+	accountID := ctx.sq.AccountID
+	projectID := ctx.sq.ProjectID
 	for _, tagFilters := range ctx.sq.TagFilterss {
-		tfs := storage.NewTagFilters(ctx.sq.AccountID, ctx.sq.ProjectID)
+		tfs := storage.NewTagFilters(accountID, projectID)
 		for i := range tagFilters {
 			tf := &tagFilters[i]
+			if string(tf.Key) == "__graphite__" {
+				query := tf.Value
+				paths, err := s.SearchGraphitePaths(accountID, projectID, tr, query, *maxMetricsPerSearch, ctx.deadline)
+				if err != nil {
+					return fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
+				}
+				if len(paths) >= *maxMetricsPerSearch {
+					return fmt.Errorf("more than -search.maxUniqueTimeseries=%d time series match Graphite query %q; "+
+						"either narrow down the query or increase -search.maxUniqueTimeseries command-line flag value", *maxMetricsPerSearch, query)
+				}
+				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
+				continue
+			}
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
 				return fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
 			}

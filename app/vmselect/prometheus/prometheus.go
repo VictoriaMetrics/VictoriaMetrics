@@ -445,18 +445,19 @@ var exportBlockPool = &sync.Pool{
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#delete-series
 func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
+	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
 	}
 	if r.FormValue("start") != "" || r.FormValue("end") != "" {
 		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
 	}
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	tagFilterss, err := getTagFilterssFromRequest(r)
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, 0, tagFilterss)
+	ct := startTime.UnixNano() / 1e6
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tagFilterss)
 	deletedCount, err := netstorage.DeleteSeries(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
