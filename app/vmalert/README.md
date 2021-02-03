@@ -188,12 +188,16 @@ Used as alert source in AlertManager.
 vmalert sends requests to `<-datasource.url>/render?format=json` during evaluation of alerting and recording rules
 if the corresponding group or rule contains `type: "graphite"` config option. It is expected that the `<-datasource.url>/render`
 implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) for `format=json`.
+When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VM do not forget
+to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on query type.
 
 
 ### Configuration
 
 The shortlist of configuration flags is the following:
 ```
+  -datasource.appendTypePrefix
+        Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to VMSelect URL.
   -datasource.basicAuth.password string
     	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
