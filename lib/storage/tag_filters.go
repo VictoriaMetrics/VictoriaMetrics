@@ -264,6 +264,9 @@ func (tf *tagFilter) InitFromGraphiteQuery(commonPrefix, query []byte, paths []s
 	if len(orSuffixes) == 0 {
 		orSuffixes = append(orSuffixes, "")
 	}
+	// Sort orSuffixes for faster seek later.
+	sort.Strings(orSuffixes)
+
 	tf.key = append(tf.key[:0], "__graphite__"...)
 	tf.value = append(tf.value[:0], query...)
 	tf.isNegative = isNegative
