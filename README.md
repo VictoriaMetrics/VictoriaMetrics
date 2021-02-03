@@ -449,7 +449,11 @@ The `/api/v1/export` endpoint should return the following response:
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
-* [Prometheus querying API](#prometheus-querying-api-usage)
+* [Prometheus querying API](#prometheus-querying-api-usage). Graphite metric names may special chars such as `-`, which may clash
+  with [MetricsQL operations](https://victoriametrics.github.io/MetricsQL.html). Such metrics can be queries via `{__name__="foo-bar.baz"}`.
+  VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+  For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
+  and it is easier to use when migrating from Graphite to VictoriaMetrics.
 * Metric names can be explored via [Graphite metrics API](#graphite-metrics-api-usage)
 * Tags can be explored via [Graphite tags API](#graphite-tags-api-usage)
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
