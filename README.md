@@ -1365,10 +1365,8 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
-* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `-search.treatDotsAsIsInRegexps` command-line flag could be useful.
-  By default `.` chars in regexps match any char. If you need matching only dots, then the `\\.` must be used in regexp filters.
-  When `-search.treatDotsAsIsInRegexps` option is enabled, then dots in regexps are automatically escaped in order to match only dots instead of arbitrary chars.
-  This may significantly increase performance when locating time series for the given label filters.
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then use `{__graphite__="foo.*.baz"}` syntax for selecting such metrics.
+  This expression is equivalent to `{__name__=~"foo[.][^.]*[.]baz"}`, but it works faster and it is easier to use when migrating from Graphite.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
 
