@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -338,7 +339,10 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 	if re := regexpCache[k]; re != nil {
 		return re.re, re.err
 	}
-	rs := getRegexpStringForQuery(query, delimiter, false)
+	rs, tail := getRegexpStringForQuery(query, delimiter, false)
+	if len(tail) > 0 {
+		return nil, fmt.Errorf("unexpected tail left after parsing query %q; tail: %q", query, tail)
+	}
 	re, err := regexp.Compile(rs)
 	regexpCache[k] = &regexpCacheEntry{
 		re:  re,
@@ -355,61 +359,73 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 	return re, err
 }
 
-func getRegexpStringForQuery(query string, delimiter byte, isSubquery bool) string {
+func getRegexpStringForQuery(query string, delimiter byte, isSubquery bool) (string, string) {
 	var a []string
+	var tail string
 	quotedDelimiter := regexp.QuoteMeta(string([]byte{delimiter}))
-	tillNextDelimiter := "[^" + quotedDelimiter + "]*"
-	j := 0
-	for i := 0; i < len(query); i++ {
-		switch query[i] {
-		case '*':
-			a = append(a, regexp.QuoteMeta(query[j:i]))
-			a = append(a, tillNextDelimiter)
-			j = i + 1
-		case '{':
+	for {
+		n := strings.IndexAny(query, "*{[,}")
+		if n < 0 {
+			a = append(a, regexp.QuoteMeta(query))
+			tail = ""
+			goto end
+		}
+		a = append(a, regexp.QuoteMeta(query[:n]))
+		query = query[n:]
+		switch query[0] {
+		case ',', '}':
 			if isSubquery {
-				break
+				tail = query
+				goto end
 			}
-			a = append(a, regexp.QuoteMeta(query[j:i]))
-			tmp := query[i+1:]
-			if n := strings.IndexByte(tmp, '}'); n < 0 {
-				rs := getRegexpStringForQuery(query[i:], delimiter, true)
-				a = append(a, rs)
-				i = len(query)
-			} else {
-				a = append(a, "(?:")
-				opts := strings.Split(tmp[:n], ",")
-				for j, opt := range opts {
-					opts[j] = getRegexpStringForQuery(opt, delimiter, true)
+			a = append(a, regexp.QuoteMeta(query[:1]))
+			query = query[1:]
+		case '*':
+			a = append(a, "[^"+quotedDelimiter+"]*")
+			query = query[1:]
+		case '{':
+			var opts []string
+			for {
+				var x string
+				x, tail = getRegexpStringForQuery(query[1:], delimiter, true)
+				opts = append(opts, x)
+				if len(tail) == 0 {
+					a = append(a, regexp.QuoteMeta("{"))
+					a = append(a, strings.Join(opts, ","))
+					goto end
 				}
-				a = append(a, strings.Join(opts, "|"))
-				a = append(a, ")")
-				i += n + 1
+				if tail[0] == ',' {
+					query = tail
+					continue
+				}
+				if tail[0] == '}' {
+					a = append(a, "(?:"+strings.Join(opts, "|")+")")
+					query = tail[1:]
+					break
+				}
+				logger.Panicf("BUG: unexpected first char at tail %q; want `.` or `}`", tail)
 			}
-			j = i + 1
 		case '[':
-			a = append(a, regexp.QuoteMeta(query[j:i]))
-			tmp := query[i:]
-			if n := strings.IndexByte(tmp, ']'); n < 0 {
-				a = append(a, regexp.QuoteMeta(query[i:]))
-				i = len(query)
-			} else {
-				a = append(a, tmp[:n+1])
-				i += n
+			n := strings.IndexByte(query, ']')
+			if n < 0 {
+				a = append(a, regexp.QuoteMeta(query))
+				tail = ""
+				goto end
 			}
-			j = i + 1
+			a = append(a, query[:n+1])
+			query = query[n+1:]
 		}
 	}
-	a = append(a, regexp.QuoteMeta(query[j:]))
+end:
 	s := strings.Join(a, "")
 	if isSubquery {
-		return s
+		return s, tail
 	}
 	if !strings.HasSuffix(s, quotedDelimiter) {
 		s += quotedDelimiter + "?"
 	}
-	s = "^(?:" + s + ")$"
-	return s
+	s = "^" + s + "$"
+	return s, tail
 }
 
 type regexpCacheEntry struct {
