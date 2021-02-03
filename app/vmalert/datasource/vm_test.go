@@ -69,7 +69,7 @@ func TestVMSelectQuery(t *testing.T) {
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, srv.Client())
+	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
 	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}

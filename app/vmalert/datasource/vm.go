@@ -74,26 +74,31 @@ func (r graphiteResponse) metrics() []Metric {
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
 type VMStorage struct {
-	c             *http.Client
-	datasourceURL string
-	basicAuthUser string
-	basicAuthPass string
-	lookBack      time.Duration
-	queryStep     time.Duration
+	c                *http.Client
+	datasourceURL    string
+	basicAuthUser    string
+	basicAuthPass    string
+	appendTypePrefix bool
+	lookBack         time.Duration
+	queryStep        time.Duration
 }
 
 const queryPath = "/api/v1/query"
 const graphitePath = "/render"
 
+const prometheusPrefix = "/prometheus"
+const graphitePrefix = "/graphite"
+
 // NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, queryStep time.Duration, c *http.Client) *VMStorage {
+func NewVMStorage(baseURL, basicAuthUser, basicAuthPass string, lookBack time.Duration, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
 	return &VMStorage{
-		c:             c,
-		basicAuthUser: basicAuthUser,
-		basicAuthPass: basicAuthPass,
-		datasourceURL: strings.TrimSuffix(baseURL, "/"),
-		lookBack:      lookBack,
-		queryStep:     queryStep,
+		c:                c,
+		basicAuthUser:    basicAuthUser,
+		basicAuthPass:    basicAuthPass,
+		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
+		appendTypePrefix: appendTypePrefix,
+		lookBack:         lookBack,
+		queryStep:        queryStep,
 	}
 }
 
@@ -137,6 +142,9 @@ func (s *VMStorage) queryDataSource(
 }
 
 func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
+	if s.appendTypePrefix {
+		r.URL.Path += prometheusPrefix
+	}
 	r.URL.Path += queryPath
 	q := r.URL.Query()
 	q.Set("query", query)
@@ -151,6 +159,9 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 }
 
 func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string) {
+	if s.appendTypePrefix {
+		r.URL.Path += graphitePrefix
+	}
 	r.URL.Path += graphitePath
 	q := r.URL.Query()
 	q.Set("format", "json")

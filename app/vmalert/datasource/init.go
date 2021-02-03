@@ -11,6 +11,7 @@ import (
 var (
 	addr = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
 		" E.g. http://127.0.0.1:8428")
+	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to VMSelect URL.")
 	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
 	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 
@@ -41,5 +42,5 @@ func Init() (Querier, error) {
 	}
 	tr.MaxIdleConns = *maxIdleConnections
 	c := &http.Client{Transport: tr}
-	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *lookBack, *queryStep, c), nil
+	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *lookBack, *queryStep, *appendTypePrefix, c), nil
 }
