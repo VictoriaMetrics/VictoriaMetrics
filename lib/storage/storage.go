@@ -1103,7 +1103,7 @@ func (s *Storage) SearchGraphitePaths(accountID, projectID uint32, tr TimeRange,
 		qNode = qNode[:m+1]
 		mustMatchLeafs = false
 	}
-	re, err := getRegexpForGraphiteNodeQuery(qNode)
+	re, err := getRegexpForGraphiteQuery(qNode)
 	if err != nil {
 		return nil, err
 	}
@@ -1130,40 +1130,61 @@ func (s *Storage) SearchGraphitePaths(accountID, projectID uint32, tr TimeRange,
 	return paths, nil
 }
 
-func getRegexpForGraphiteNodeQuery(q string) (*regexp.Regexp, error) {
-	parts := getRegexpPartsForGraphiteNodeQuery(q)
+func getRegexpForGraphiteQuery(q string) (*regexp.Regexp, error) {
+	parts, tail := getRegexpPartsForGraphiteQuery(q)
+	if len(tail) > 0 {
+		return nil, fmt.Errorf("unexpected tail left after parsing %q: %q", q, tail)
+	}
 	reStr := "^" + strings.Join(parts, "") + "$"
 	return regexp.Compile(reStr)
 }
 
-func getRegexpPartsForGraphiteNodeQuery(q string) []string {
+func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 	var parts []string
 	for {
-		n := strings.IndexAny(q, "*{[")
+		n := strings.IndexAny(q, "*{}[,")
 		if n < 0 {
-			return append(parts, regexp.QuoteMeta(q))
+			parts = append(parts, regexp.QuoteMeta(q))
+			return parts, ""
 		}
 		parts = append(parts, regexp.QuoteMeta(q[:n]))
 		q = q[n:]
 		switch q[0] {
+		case ',', '}':
+			return parts, q
 		case '*':
 			parts = append(parts, "[^.]*")
 			q = q[1:]
 		case '{':
-			n := strings.IndexByte(q, '}')
-			if n < 0 {
-				return append(parts, regexp.QuoteMeta(q))
-			}
 			var tmp []string
-			for _, x := range strings.Split(q[1:n], ",") {
-				tmp = append(tmp, strings.Join(getRegexpPartsForGraphiteNodeQuery(x), ""))
+			for {
+				a, tail := getRegexpPartsForGraphiteQuery(q[1:])
+				tmp = append(tmp, strings.Join(a, ""))
+				if len(tail) == 0 {
+					parts = append(parts, regexp.QuoteMeta("{"))
+					parts = append(parts, strings.Join(tmp, ","))
+					return parts, ""
+				}
+				if tail[0] == ',' {
+					q = tail
+					continue
+				}
+				if tail[0] == '}' {
+					if len(tmp) == 1 {
+						parts = append(parts, tmp[0])
+					} else {
+						parts = append(parts, "(?:"+strings.Join(tmp, "|")+")")
+					}
+					q = tail[1:]
+					break
+				}
+				logger.Panicf("BUG: unexpected first char at tail %q; want `.` or `}`", tail)
 			}
-			parts = append(parts, "(?:"+strings.Join(tmp, "|")+")")
-			q = q[n+1:]
 		case '[':
 			n := strings.IndexByte(q, ']')
 			if n < 0 {
-				return append(parts, regexp.QuoteMeta(q))
+				parts = append(parts, regexp.QuoteMeta(q))
+				return parts, ""
 			}
 			parts = append(parts, q[:n+1])
 			q = q[n+1:]
