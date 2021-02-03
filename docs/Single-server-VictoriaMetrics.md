@@ -449,9 +449,12 @@ The `/api/v1/export` endpoint should return the following response:
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
-* [Prometheus querying API](#prometheus-querying-api-usage)
-* Metric names can be explored via [Graphite metrics API](#graphite-metrics-api-usage)
-* Tags can be explored via [Graphite tags API](#graphite-tags-api-usage)
+* [Graphite API](#graphite-api-usage)
+* [Prometheus querying API](#prometheus-querying-api-usage). Graphite metric names may special chars such as `-`, which may clash
+  with [MetricsQL operations](https://victoriametrics.github.io/MetricsQL.html). Such metrics can be queries via `{__name__="foo-bar.baz"}`.
+  VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+  For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
+  and it is easier to use when migrating from Graphite to VictoriaMetrics.
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
 
 ## How to send data from OpenTSDB-compatible agents
@@ -583,14 +586,21 @@ Additionally VictoriaMetrics provides the following handlers:
 
 ## Graphite API usage
 
-VictoriaMetrics supports the following Graphite APIs:
+VictoriaMetrics supports the following Graphite APIs, which are needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/):
 
+* Render API - see [these docs](#graphite-render-api-usage).
 * Metrics API - see [these docs](#graphite-metrics-api-usage).
 * Tags API - see [these docs](#graphite-tags-api-usage).
 
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
 For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
 and it is easier to use when migrating from Graphite to VictoriaMetrics.
+
+
+### Graphite Render API usage
+
+[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset,
+which is needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 
 
 ### Graphite Metrics API usage
