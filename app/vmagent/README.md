@@ -388,3 +388,227 @@ curl -s http://<vmagent-host>:8429/debug/pprof/profile > cpu.pprof
 The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+
+
+## Advanced usage
+
+`vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their desciptions and default values:
+
+```
+./vmagent -help
+
+vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
+
+See the docs at https://victoriametrics.github.io/vmagent.html .
+
+  -csvTrimTimestamp duration
+    	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -dryRun
+    	Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
+  -enableTCP6
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
+  -envflag.enable
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+  -envflag.prefix string
+    	Prefix for environment variables if -envflag.enable is set
+  -fs.disableMmap
+    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -graphiteListenAddr string
+    	TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty
+  -graphiteTrimTimestamp duration
+    	Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
+  -http.connTimeout duration
+    	Incoming http connections are closed after the configured timeout. This may help spreading incoming load among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem (default 2m0s)
+  -http.disableResponseCompression
+    	Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth
+  -http.idleConnTimeout duration
+    	Timeout for incoming idle http connections (default 1m0s)
+  -http.maxGracefulShutdownDuration duration
+    	The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
+  -http.pathPrefix string
+    	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
+  -http.shutdownDelay duration
+    	Optional delay before http server shutdown. During this dealy the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+    	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+    	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpListenAddr string
+    	TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr='' (default ":8429")
+  -import.maxLineLen max_rows_per_line
+    	The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with max_rows_per_line query arg passed to /api/v1/export
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
+  -influx.maxLineSize value
+    	The maximum size in bytes for a single Influx line during parsing
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxListenAddr http://<vmagent>:8429/write
+    	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
+  -influxMeasurementFieldSeparator string
+    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
+  -influxSkipMeasurement
+    	Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
+  -influxSkipSingleField
+    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field
+  -influxTrimTimestamp duration
+    	Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -insert.maxQueueDuration duration
+    	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
+  -loggerDisableTimestamps
+    	Whether to disable writing timestamps in logs
+  -loggerErrorsPerSecondLimit int
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
+  -loggerLevel string
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
+  -loggerTimezone string
+    	Timezone to use for timestamps in logs. Local timezone can be used (default "UTC")
+  -loggerWarnsPerSecondLimit int
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
+  -maxConcurrentInserts int
+    	The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 16)
+  -maxInsertRequestSize value
+    	The maximum size in bytes of a single Prometheus remote_write API request
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -memory.allowedBytes value
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -memory.allowedPercent float
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+    	Auth key for /metrics. It overrides httpAuth settings
+  -opentsdbHTTPListenAddr string
+    	TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
+  -opentsdbListenAddr string
+    	TCP and UDP address to listen for OpentTSDB metrics. Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. Usually :4242 must be set. Doesn't work if empty
+  -opentsdbTrimTimestamp duration
+    	Trim timestamps for OpenTSDB 'telnet put' data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
+  -opentsdbhttp.maxInsertRequestSize value
+    	The maximum size of OpenTSDB HTTP put request
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -opentsdbhttpTrimTimestamp duration
+    	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -pprofAuthKey string
+    	Auth key for /debug/pprof. It overrides httpAuth settings
+  -promscrape.config string
+    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+  -promscrape.config.dryRun
+    	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
+  -promscrape.config.strictParse
+    	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
+  -promscrape.configCheckInterval duration
+    	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -promscrape.consulSDCheckInterval consul_sd_configs
+    	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+  -promscrape.disableCompression
+    	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+  -promscrape.disableKeepAlive disable_keepalive: true
+    	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set disable_keepalive: true individually per each 'scrape_config` section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
+  -promscrape.discovery.concurrency int
+    	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
+  -promscrape.discovery.concurrentWaitTime duration
+    	The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
+  -promscrape.dnsSDCheckInterval dns_sd_configs
+    	Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+  -promscrape.dockerswarmSDCheckInterval dockerswarm_sd_configs
+    	Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details (default 30s)
+  -promscrape.dropOriginalLabels
+    	Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
+  -promscrape.ec2SDCheckInterval ec2_sd_configs
+    	Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details (default 1m0s)
+  -promscrape.eurekaSDCheckInterval eureka_sd_configs
+    	Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
+  -promscrape.fileSDCheckInterval duration
+    	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
+  -promscrape.gceSDCheckInterval gce_sd_configs
+    	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
+  -promscrape.kubernetesSDCheckInterval kubernetes_sd_configs
+    	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
+  -promscrape.maxDroppedTargets droppedTargets
+    	The maximum number of droppedTargets shown at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+  -promscrape.maxScrapeSize value
+    	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.openstackSDCheckInterval openstack_sd_configs
+    	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
+  -promscrape.streamParse stream_parse: true
+    	Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set stream_parse: true individually per each `scrape_config` section in `-promscrape.config` for fine grained control
+  -promscrape.suppressDuplicateScrapeTargetErrors duplicate scrape target
+    	Whether to suppress duplicate scrape target errors; see https://victoriametrics.github.io/vmagent.html#troubleshooting for details
+  -promscrape.suppressScrapeErrors
+    	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
+  -remoteWrite.basicAuth.password array
+    	Optional basic auth password to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.basicAuth.username array
+    	Optional basic auth username to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.bearerToken array
+    	Optional bearer auth token to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.flushInterval duration
+    	Interval for flushing the data to remote storage. Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage. Minimum supported interval is 1 second (default 1s)
+  -remoteWrite.label array
+    	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.maxBlockSize value
+    	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
+  -remoteWrite.maxDiskUsagePerURL value
+    	The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. Disk usage is unlimited if the value is set to 0
+    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -remoteWrite.proxyURL array
+    	Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.queues int
+    	The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage (default 4)
+  -remoteWrite.rateLimit array
+    	Optional rate limit in bytes per second for data sent to -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.relabelConfig string
+    	Optional path to file with relabel_config entries. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://victoriametrics.github.io/vmagent.html#relabeling for details
+  -remoteWrite.roundDigits array
+    	Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.sendTimeout array
+    	Timeout for sending a single block of data to -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.showURL
+    	Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
+  -remoteWrite.significantFigures array
+    	The number of significant figures to leave in metric values before writing them to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.tlsCAFile array
+    	Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.tlsCertFile array
+    	Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.tlsInsecureSkipVerify array
+    	Whether to skip tls verification when connecting to -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.tlsKeyFile array
+    	Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.tlsServerName array
+    	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.tmpDataPath string
+    	Path to directory where temporary data for remote write component is stored (default "vmagent-remotewrite-data")
+  -remoteWrite.url array
+    	Remote storage URL to write data to. It must support Prometheus remote_write API. It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems
+    	Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.urlRelabelConfig array
+    	Optional path to relabel config for the corresponding -remoteWrite.url
+    	Supports array of values separated by comma or specified via multiple flags.
+  -tls
+    	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+  -tlsCertFile string
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
+  -tlsKeyFile string
+    	Path to file with TLS key. Used only if -tls is set
+  -version
+    	Show VictoriaMetrics version
+```
