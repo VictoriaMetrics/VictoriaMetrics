@@ -1019,12 +1019,12 @@ func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, 
 		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
 	}
 	qPrefixStr := queryStr[:n]
-	qNode := queryStr[n:]
 	qTail := ""
+	qNode := queryStr[n:]
 	mustMatchLeafs := true
 	if m := strings.IndexByte(qNode, '.'); m >= 0 {
-		qNode = qNode[:m+1]
 		qTail = qNode[m+1:]
+		qNode = qNode[:m+1]
 		mustMatchLeafs = false
 	}
 	re, err := getRegexpForGraphiteNodeQuery(qNode)
