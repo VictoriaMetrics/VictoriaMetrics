@@ -488,8 +488,12 @@ func (sbh *sortBlocksHeap) Pop() interface{} {
 }
 
 // DeleteSeries deletes time series matching the given tagFilterss.
-func DeleteSeries(sq *storage.SearchQuery) (int, error) {
-	tfss, err := setupTfss(sq.TagFilterss)
+func DeleteSeries(sq *storage.SearchQuery, deadline searchutils.Deadline) (int, error) {
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
 	if err != nil {
 		return 0, err
 	}
@@ -708,6 +712,11 @@ func GetTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix string, de
 		return nil, fmt.Errorf("error during search for suffixes for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s: %w",
 			tagKey, tagValuePrefix, delimiter, tr.String(), err)
 	}
+	if len(suffixes) >= *maxTagValueSuffixesPerSearch {
+		return nil, fmt.Errorf("more than -search.maxTagValueSuffixesPerSearch=%d tag value suffixes found for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
+			"either narrow down the query or increase -search.maxTagValueSuffixesPerSearch command-line flag value",
+			*maxTagValueSuffixesPerSearch, tagKey, tagValuePrefix, delimiter, tr.String())
+	}
 	return suffixes, nil
 }
 
@@ -790,15 +799,15 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 	if deadline.Exceeded() {
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
-	tfss, err := setupTfss(sq.TagFilterss)
-	if err != nil {
-		return err
-	}
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return err
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	if err != nil {
 		return err
 	}
 
@@ -896,15 +905,15 @@ func SearchMetricNames(sq *storage.SearchQuery, deadline searchutils.Deadline) (
 	}
 
 	// Setup search.
-	tfss, err := setupTfss(sq.TagFilterss)
-	if err != nil {
-		return nil, err
-	}
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return nil, err
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	if err != nil {
 		return nil, err
 	}
 
@@ -924,15 +933,15 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	}
 
 	// Setup search.
-	tfss, err := setupTfss(sq.TagFilterss)
-	if err != nil {
-		return nil, err
-	}
 	tr := storage.TimeRange{
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return nil, err
+	}
+	tfss, err := setupTfss(tr, sq.TagFilterss, deadline)
+	if err != nil {
 		return nil, err
 	}
 
@@ -1033,12 +1042,25 @@ type blockRef struct {
 	addr    tmpBlockAddr
 }
 
-func setupTfss(tagFilterss [][]storage.TagFilter) ([]*storage.TagFilters, error) {
+func setupTfss(tr storage.TimeRange, tagFilterss [][]storage.TagFilter, deadline searchutils.Deadline) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(tagFilterss))
 	for _, tagFilters := range tagFilterss {
 		tfs := storage.NewTagFilters()
 		for i := range tagFilters {
 			tf := &tagFilters[i]
+			if string(tf.Key) == "__graphite__" {
+				query := tf.Value
+				paths, err := vmstorage.SearchGraphitePaths(tr, query, *maxMetricsPerSearch, deadline.Deadline())
+				if err != nil {
+					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
+				}
+				if len(paths) >= *maxMetricsPerSearch {
+					return nil, fmt.Errorf("more than -search.maxUniqueTimeseries=%d time series match Graphite query %q; "+
+						"either narrow down the query or increase -search.maxUniqueTimeseries command-line flag value", *maxMetricsPerSearch, query)
+				}
+				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
+				continue
+			}
 			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
 				return nil, fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
 			}

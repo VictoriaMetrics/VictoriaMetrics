@@ -1101,6 +1101,8 @@ func (is *indexSearch) searchTagValues(tvs map[string]struct{}, tagKey []byte, m
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+//
+// If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	// TODO: cache results?
 
@@ -1111,19 +1113,24 @@ func (db *indexDB) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix [
 	if err != nil {
 		return nil, err
 	}
-	ok := db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		err = is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
-		extDB.putIndexSearch(is)
-	})
-	if ok && err != nil {
-		return nil, err
+	if len(tvss) < maxTagValueSuffixes {
+		ok := db.doExtDB(func(extDB *indexDB) {
+			is := extDB.getIndexSearch(deadline)
+			err = is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+			extDB.putIndexSearch(is)
+		})
+		if ok && err != nil {
+			return nil, err
+		}
 	}
 
 	suffixes := make([]string, 0, len(tvss))
 	for suffix := range tvss {
 		// Do not skip empty suffixes, since they may represent leaf tag values.
 		suffixes = append(suffixes, suffix)
+	}
+	if len(suffixes) > maxTagValueSuffixes {
+		suffixes = suffixes[:maxTagValueSuffixes]
 	}
 	// Do not sort suffixes, since they must be sorted by vmselect.
 	return suffixes, nil
@@ -1156,6 +1163,9 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 				errGlobal = err
 				return
 			}
+			if len(tvss) > maxTagValueSuffixes {
+				return
+			}
 			for k := range tvssLocal {
 				tvss[k] = struct{}{}
 			}
@@ -1174,7 +1184,7 @@ func (is *indexSearch) searchTagValueSuffixesAll(tvss map[string]struct{}, tagKe
 	kb.B = marshalTagValue(kb.B, tagValuePrefix)
 	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
 	prefix := append([]byte(nil), kb.B...)
-	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
 }
 
 func (is *indexSearch) searchTagValueSuffixesForDate(tvss map[string]struct{}, date uint64, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
@@ -1186,10 +1196,10 @@ func (is *indexSearch) searchTagValueSuffixesForDate(tvss map[string]struct{}, d
 	kb.B = marshalTagValue(kb.B, tagValuePrefix)
 	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
 	prefix := append([]byte(nil), kb.B...)
-	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
 }
 
-func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{}, nsPrefix byte, prefix, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
+func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{}, nsPrefix byte, prefix []byte, tagValuePrefixLen int, delimiter byte, maxTagValueSuffixes int) error {
 	kb := &is.kb
 	ts := &is.ts
 	mp := &is.mp
@@ -1215,10 +1225,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 			continue
 		}
 		tagValue := mp.Tag.Value
-		if !bytes.HasPrefix(tagValue, tagValuePrefix) {
-			continue
-		}
-		suffix := tagValue[len(tagValuePrefix):]
+		suffix := tagValue[tagValuePrefixLen:]
 		n := bytes.IndexByte(suffix, delimiter)
 		if n < 0 {
 			// Found leaf tag value that doesn't have delimiters after the given tagValuePrefix.
@@ -2118,7 +2125,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 
 	for i, tf := range tfs {
-		if len(tf.key) == 0 {
+		if len(tf.key) == 0 || string(tf.key) == "__graphite__" {
 			// Match against mn.MetricGroup.
 			b := marshalTagValue(kb.B, nil)
 			b = marshalTagValue(b, mn.MetricGroup)
