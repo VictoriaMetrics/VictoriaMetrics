@@ -812,10 +812,7 @@ The exported data can be imported to VictoriaMetrics via [/api/v1/import/native]
 
 ### How to export data in JSON line format
 
-Consider [exporting data in native format](#how-to-export-data-in-native-format) if big amounts of data must be migrated between VictoriaMetrics instances,
-since exporting in native format usually consumes lower amounts of CPU and memory resources, while the resulting exported data occupies lower amounts of disk space.
-
-In order to export data in JSON line format, send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
+Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
 The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
