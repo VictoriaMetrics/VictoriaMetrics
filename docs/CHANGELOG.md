@@ -22,7 +22,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   - `vm_promscrape_discovery_retries_total`
   - `vm_promscrape_scrape_retries_total`
   - `vm_promscrape_service_discovery_duration_seconds`
-* FEATURE: vmselect: initial implementation for [Graphite Render API](#graphite-render-api-usage).
+* FEATURE: vmselect: initial implementation for [Graphite Render API](https://victoriametrics.github.io/#graphite-render-api-usage).
 
 * BUGFIX: vmagent: reduce HTTP reconnection rate for scrape targets. Previously vmagent could errorneusly close HTTP keep-alive connections more frequently than needed.
 * BUGFIX: vmagent: retry scrape and service discovery requests when the remote server closes HTTP keep-alive connection. Previously `disable_keepalive: true` option could be used under `scrape_configs` section when working with such servers.
