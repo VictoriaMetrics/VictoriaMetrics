@@ -99,6 +99,11 @@ func addServicesLabels(services []service, networksLabels map[string]map[string]
 			commonLabels["__meta_dockerswarm_service_label_"+discoveryutils.SanitizeLabelName(k)] = v
 		}
 		for _, vip := range service.Endpoint.VirtualIPs {
+			// skip services without virtual address.
+			// usually its host services.
+			if vip.Addr == "" {
+				continue
+			}
 			ip, _, err := net.ParseCIDR(vip.Addr)
 			if err != nil {
 				logger.Errorf("cannot parse: %q as cidr for service label add, err: %v", vip.Addr, err)
