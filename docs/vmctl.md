@@ -1,4 +1,6 @@
-# vmctl - Victoria metrics command-line tool
+# vmctl
+
+Victoria metrics command-line tool
 
 Features:
 - [x] Prometheus: migrate data from Prometheus to VictoriaMetrics using snapshot API
