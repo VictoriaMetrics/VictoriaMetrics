@@ -533,6 +533,7 @@ The `/api/v1/export` endpoint should return the following response:
 Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
 For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
+
 ## Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
@@ -548,6 +549,8 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
+All the Prometheus querying API handlers can be prepended with `/prometheus` prefix. For example, both `/prometheus/api/v1/query` and `/api/v1/query` should work.
+
 
 ### Prometheus querying API enhancements
 
@@ -592,6 +595,8 @@ VictoriaMetrics supports the following Graphite APIs, which are needed for [Grap
 * Metrics API - see [these docs](#graphite-metrics-api-usage).
 * Tags API - see [these docs](#graphite-tags-api-usage).
 
+All the Graphite handlers can be pre-pended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
+
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
 For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
 and it is easier to use when migrating from Graphite to VictoriaMetrics.
@@ -599,8 +604,8 @@ and it is easier to use when migrating from Graphite to VictoriaMetrics.
 
 ### Graphite Render API usage
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset,
-which is needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
+[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+at `/render` endpoint. This subset is required for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 
 
 ### Graphite Metrics API usage
@@ -1449,7 +1454,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
-  See [this example](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+  See [this example](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml).
 * [Ansible role for installing single-node VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 * [Ansible role for installing cluster VictoriaMetrics](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
