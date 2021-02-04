@@ -1573,6 +1573,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		prevMetricID uint64
 	)
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrevDate := hmPrev.hour / 24
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
 	todayShare16bit := uint64((float64(fasttime.UnixTimestamp()%(3600*24)) / (3600 * 24)) * (1 << 16))
 	type pendingDateMetricID struct {
@@ -1613,6 +1615,10 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			s.pendingHourEntriesLock.Lock()
 			s.pendingHourEntries.Add(metricID)
 			s.pendingHourEntriesLock.Unlock()
+			if date == hmPrevDate && hmPrev.m.Has(metricID) {
+				// The metricID is already registered for the current day on the previous hour.
+				continue
+			}
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
