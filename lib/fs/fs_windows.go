@@ -18,7 +18,8 @@ var (
 	ntSetInformationProc = ntDLL.MustFindProc("NtSetInformationFile")
 )
 
-// panic at windows.
+// panic at windows, if file already open by another process.
+// one of possible solutions - change file open process with correct flags.
 // https://github.com/dgraph-io/badger/issues/699
 // https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
 func MustSyncPath(string) {
@@ -28,7 +29,6 @@ const (
 	lockfileExclusiveLock = 2
 	fileFlagNormal        = 0x00000080
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
-	FILE_DISPOSITION_DELETE                    = 0x00000001
 	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
 	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
 )
@@ -42,8 +42,6 @@ func CreateFlockFile(dir string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO share_delete is hack. need to fix posix  set
-	// or test it properly.
 	handle, err := windows.CreateFile(
 		name,
 		windows.GENERIC_READ|windows.DELETE,
@@ -126,29 +124,27 @@ type ioStatusBlock struct {
 	Status, Information uintptr
 }
 
+// UpdateFileHandle - changes file deletion semantic at windows to posix-like.
+func UpdateFileHandle(path string) error {
+	handle, err := windows.Open(path, windows.GENERIC_READ|windows.DELETE, windows.FILE_SHARE_READ|windows.FILE_SHARE_DELETE)
+	if err != nil {
+		return err
+	}
+	return setPosixDelete(handle)
+}
+
 // supported starting with Windows 10, version 1709.
+// supported by NTFS only.
 func setPosixDelete(handle windows.Handle) error {
 	var iosb ioStatusBlock
 	// class FileDispositionInformationEx,                   // 64
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class
 	flags := FILE_DISPOSITION_INFORMATION_EX{
-		Flags: FILE_DISPOSITION_DELETE | FILE_DISPOSITION_POSIX_SEMANTICS | FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
+		Flags: FILE_DISPOSITION_POSIX_SEMANTICS | FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
 	}
 	r0, _, err := ntSetInformationProc.Call(uintptr(handle), uintptr(unsafe.Pointer(&iosb)), uintptr(unsafe.Pointer(&flags)), unsafe.Sizeof(flags), uintptr(64))
 	if r0 == 0 {
-		return fmt.Errorf("cannot set file disposition information: %w", err)
+		return nil
 	}
-	if r0 == 0xC000000D {
-		logger.Infof("invalid parametr response from windows: %X, %v", r0, err)
-	}
-	return nil
-}
-
-// UpdateFileHandle - changes file deletion semantic at windows to posix-like.
-func UpdateFileHandle(path string) error {
-	handle, err := windows.Open(path, windows.GENERIC_READ, windows.FILE_SHARE_READ)
-	if err != nil {
-		return err
-	}
-	return setPosixDelete(handle)
+	return fmt.Errorf("cannot set file disposition information: NT_STATUS: 0x%X, error: %w", r0, err)
 }
