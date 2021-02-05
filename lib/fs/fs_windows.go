@@ -19,7 +19,7 @@ var (
 )
 
 // panic at windows, if file already open by another process.
-// one of possible solutions - change file open process with correct flags.
+// one of possible solutions - change files opening process with correct flags.
 // https://github.com/dgraph-io/badger/issues/699
 // https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
 func MustSyncPath(string) {
@@ -29,8 +29,8 @@ const (
 	lockfileExclusiveLock = 2
 	fileFlagNormal        = 0x00000080
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
-	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
-	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
+	fileDispositionPosixSemantics          = 0x00000002
+	fileDispositionIgnoreReadonlyAttribute = 0x00000010
 )
 
 // CreateFlockFile creates flock.lock file in the directory dir
@@ -84,12 +84,13 @@ func mustGetFreeSpace(path string) uint64 {
 	r, _, err := procDisk.Call(uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(path))),
 		uintptr(unsafe.Pointer(&freeBytes)))
 	if r == 0 {
-		logger.Errorf("cannot get free spacE: %v", err)
+		logger.Errorf("cannot get free space: %v", err)
 		return 0
 	}
 	return uint64(freeBytes)
 }
 
+// stub
 func fadviseSequentialRead(f *os.File, prefetch bool) error {
 	return nil
 }
@@ -115,11 +116,12 @@ func createEvent(sa *windows.SecurityAttributes, name *uint16) (windows.Handle, 
 	return handle, nil
 }
 
-// FILE_DISPOSITION_INFORMATION_EX windows information scheme
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
-type FILE_DISPOSITION_INFORMATION_EX struct {
+type fileDispositionInformationEx struct {
 	Flags uint32
 }
+
+// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_io_status_block
 type ioStatusBlock struct {
 	Status, Information uintptr
 }
@@ -137,11 +139,11 @@ func UpdateFileHandle(path string) error {
 // supported by NTFS only.
 func setPosixDelete(handle windows.Handle) error {
 	var iosb ioStatusBlock
+	flags := fileDispositionInformationEx{
+		Flags: fileDispositionPosixSemantics | fileDispositionIgnoreReadonlyAttribute,
+	}
 	// class FileDispositionInformationEx,                   // 64
 	// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class
-	flags := FILE_DISPOSITION_INFORMATION_EX{
-		Flags: FILE_DISPOSITION_POSIX_SEMANTICS | FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
-	}
 	r0, _, err := ntSetInformationProc.Call(uintptr(handle), uintptr(unsafe.Pointer(&iosb)), uintptr(unsafe.Pointer(&flags)), unsafe.Sizeof(flags), uintptr(64))
 	if r0 == 0 {
 		return nil
