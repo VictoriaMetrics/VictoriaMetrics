@@ -18,7 +18,8 @@ all: \
 	vmalert-prod \
 	vmauth-prod \
 	vmbackup-prod \
-	vmrestore-prod
+	vmrestore-prod \
+	vmctl-prod
 
 include app/*/Makefile
 include deployment/*/Makefile
@@ -32,7 +33,8 @@ publish: \
 	publish-vmalert \
 	publish-vmauth \
 	publish-vmbackup \
-	publish-vmrestore
+	publish-vmrestore \
+	publish-vmctl
 
 package: \
 	package-victoria-metrics \
@@ -40,21 +42,24 @@ package: \
 	package-vmalert \
 	package-vmauth \
 	package-vmbackup \
-	package-vmrestore
+	package-vmrestore \
+	package-vmctl
 
 vmutils: \
 	vmagent \
 	vmalert \
 	vmauth \
 	vmbackup \
-	vmrestore
+	vmrestore \
+	vmctl
 
 vmutils-arm64: \
 	vmagent-arm64 \
 	vmalert-arm64 \
 	vmauth-arm64 \
 	vmbackup-arm64 \
-	vmrestore-arm64
+	vmrestore-arm64 \
+	vmctl-arm64
 
 release-snap:
 	snapcraft
@@ -97,7 +102,8 @@ release-vmutils-generic: \
 	vmalert-$(GOARCH)-prod \
 	vmauth-$(GOARCH)-prod \
 	vmbackup-$(GOARCH)-prod \
-	vmrestore-$(GOARCH)-prod
+	vmrestore-$(GOARCH)-prod \
+	vmctl-$(GOARCH)-prod
 	cd bin && \
 		tar --transform="flags=r;s|-$(GOARCH)||" -czf vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOARCH)-prod \
@@ -105,12 +111,14 @@ release-vmutils-generic: \
 			vmauth-$(GOARCH)-prod \
 			vmbackup-$(GOARCH)-prod \
 			vmrestore-$(GOARCH)-prod \
+			vmctl-$(GOARCH)-prod \
 		&& sha256sum vmutils-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOARCH)-prod \
 			vmalert-$(GOARCH)-prod \
 			vmauth-$(GOARCH)-prod \
 			vmbackup-$(GOARCH)-prod \
 			vmrestore-$(GOARCH)-prod \
+			vmctl-$(GOARCH)-prod \
 			| sed s/-$(GOARCH)// > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
@@ -141,6 +149,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmauth/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
 	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
+	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
 
 install-errcheck:
 	which errcheck || go install github.com/kisielk/errcheck
@@ -204,4 +213,5 @@ docs-sync:
 	cp app/vmauth/README.md docs/vmauth.md
 	cp app/vmbackup/README.md docs/vmbackup.md
 	cp app/vmrestore/README.md docs/vmrestore.md
+	cp app/vmctl/README.md docs/vmctl.md
 	cp README.md docs/Single-server-VictoriaMetrics.md

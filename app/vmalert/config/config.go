@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -21,6 +23,7 @@ import (
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
+	Type        datasource.Type `yaml:"type,omitempty"`
 	File        string
 	Name        string        `yaml:"name"`
 	Interval    time.Duration `yaml:"interval,omitempty"`
@@ -44,6 +47,19 @@ func (g *Group) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal group configuration for checksum: %w", err)
 	}
+	// change default value to prometheus datasource.
+	if g.Type.Get() == "" {
+		g.Type.Set(datasource.NewPrometheusType())
+	}
+	// update rules with empty type.
+	for i, r := range g.Rules {
+		if r.Type.Get() == "" {
+			r.Type.Set(g.Type)
+			r.ID = HashRule(r)
+			g.Rules[i] = r
+		}
+	}
+
 	h := md5.New()
 	h.Write(b)
 	g.Checksum = fmt.Sprintf("%x", h.Sum(nil))
@@ -58,6 +74,7 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 	if len(g.Rules) == 0 {
 		return fmt.Errorf("group %q can't contain no rules", g.Name)
 	}
+
 	uniqueRules := map[uint64]struct{}{}
 	for _, r := range g.Rules {
 		ruleName := r.Record
@@ -72,7 +89,13 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 			return fmt.Errorf("invalid rule %q.%q: %w", g.Name, ruleName, err)
 		}
 		if validateExpressions {
-			if _, err := metricsql.Parse(r.Expr); err != nil {
+			// its needed only for tests.
+			// because correct types must be inherited after unmarshalling.
+			exprValidator := g.Type.ValidateExpr
+			if r.Type.Get() != "" {
+				exprValidator = r.Type.ValidateExpr
+			}
+			if err := exprValidator(r.Expr); err != nil {
 				return fmt.Errorf("invalid expression for rule %q.%q: %w", g.Name, ruleName, err)
 			}
 		}
@@ -92,6 +115,7 @@ func (g *Group) Validate(validateAnnotations, validateExpressions bool) error {
 // recording rule or alerting rule.
 type Rule struct {
 	ID          uint64
+	Type        datasource.Type   `yaml:"type,omitempty"`
 	Record      string            `yaml:"record,omitempty"`
 	Alert       string            `yaml:"alert,omitempty"`
 	Expr        string            `yaml:"expr"`
@@ -169,6 +193,7 @@ func HashRule(r Rule) uint64 {
 		h.Write([]byte("alerting"))
 		h.Write([]byte(r.Alert))
 	}
+	h.Write([]byte(r.Type.Get()))
 	kv := sortMap(r.Labels)
 	for _, i := range kv {
 		h.Write([]byte(i.key))

@@ -19,7 +19,9 @@ import (
 
 var (
 	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
-	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from the search")
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
+		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
+		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values significantly exceeding horizontal resoultion of the graph")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -98,6 +100,9 @@ type EvalConfig struct {
 
 	timestamps     []int64
 	timestampsOnce sync.Once
+
+	// EnforcedTagFilters used for apply additional label filters to query.
+	EnforcedTagFilters []storage.TagFilter
 }
 
 // newEvalConfig returns new EvalConfig copy from src.
@@ -109,6 +114,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
+	ec.EnforcedTagFilters = src.EnforcedTagFilters
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
@@ -645,6 +651,8 @@ func evalRollupFuncWithMetricExpr(ec *EvalConfig, name string, rf rollupFunc,
 
 	// Fetch the remaining part of the result.
 	tfs := toTagFilters(me.LabelFilters)
+	// append external filters.
+	tfs = append(tfs, ec.EnforcedTagFilters...)
 	minTimestamp := start - maxSilenceInterval
 	if window > ec.Step {
 		minTimestamp -= window

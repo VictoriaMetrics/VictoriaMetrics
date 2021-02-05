@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -979,8 +980,140 @@ func (s *Storage) SearchTagValues(tagKey []byte, maxTagValues int, deadline uint
 // SearchTagValueSuffixes returns all the tag value suffixes for the given tagKey and tagValuePrefix on the given tr.
 //
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
+//
+// If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
 func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
 	return s.idb().SearchTagValueSuffixes(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+}
+
+// SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
+//
+// If more than maxPaths paths is found, then only the first maxPaths paths is returned.
+func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
+	queryStr := string(query)
+	n := strings.IndexAny(queryStr, "*[{")
+	if n < 0 {
+		// Verify that the query matches a metric name.
+		suffixes, err := s.SearchTagValueSuffixes(tr, nil, query, '.', 1, deadline)
+		if err != nil {
+			return nil, err
+		}
+		if len(suffixes) == 0 {
+			// The query doesn't match anything.
+			return nil, nil
+		}
+		if len(suffixes[0]) > 0 {
+			// The query matches a metric name with additional suffix.
+			return nil, nil
+		}
+		return []string{queryStr}, nil
+	}
+	suffixes, err := s.SearchTagValueSuffixes(tr, nil, query[:n], '.', maxPaths, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(suffixes) == 0 {
+		return nil, nil
+	}
+	if len(suffixes) >= maxPaths {
+		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
+	}
+	qPrefixStr := queryStr[:n]
+	qTail := ""
+	qNode := queryStr[n:]
+	mustMatchLeafs := true
+	if m := strings.IndexByte(qNode, '.'); m >= 0 {
+		qTail = qNode[m+1:]
+		qNode = qNode[:m+1]
+		mustMatchLeafs = false
+	}
+	re, err := getRegexpForGraphiteQuery(qNode)
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, suffix := range suffixes {
+		if len(paths) > maxPaths {
+			paths = paths[:maxPaths]
+			break
+		}
+		if !re.MatchString(suffix) {
+			continue
+		}
+		if mustMatchLeafs {
+			paths = append(paths, qPrefixStr+suffix)
+			continue
+		}
+		q := qPrefixStr + suffix + qTail
+		ps, err := s.SearchGraphitePaths(tr, []byte(q), maxPaths, deadline)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, ps...)
+	}
+	return paths, nil
+}
+
+func getRegexpForGraphiteQuery(q string) (*regexp.Regexp, error) {
+	parts, tail := getRegexpPartsForGraphiteQuery(q)
+	if len(tail) > 0 {
+		return nil, fmt.Errorf("unexpected tail left after parsing %q: %q", q, tail)
+	}
+	reStr := "^" + strings.Join(parts, "") + "$"
+	return regexp.Compile(reStr)
+}
+
+func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
+	var parts []string
+	for {
+		n := strings.IndexAny(q, "*{}[,")
+		if n < 0 {
+			parts = append(parts, regexp.QuoteMeta(q))
+			return parts, ""
+		}
+		parts = append(parts, regexp.QuoteMeta(q[:n]))
+		q = q[n:]
+		switch q[0] {
+		case ',', '}':
+			return parts, q
+		case '*':
+			parts = append(parts, "[^.]*")
+			q = q[1:]
+		case '{':
+			var tmp []string
+			for {
+				a, tail := getRegexpPartsForGraphiteQuery(q[1:])
+				tmp = append(tmp, strings.Join(a, ""))
+				if len(tail) == 0 {
+					parts = append(parts, regexp.QuoteMeta("{"))
+					parts = append(parts, strings.Join(tmp, ","))
+					return parts, ""
+				}
+				if tail[0] == ',' {
+					q = tail
+					continue
+				}
+				if tail[0] == '}' {
+					if len(tmp) == 1 {
+						parts = append(parts, tmp[0])
+					} else {
+						parts = append(parts, "(?:"+strings.Join(tmp, "|")+")")
+					}
+					q = tail[1:]
+					break
+				}
+				logger.Panicf("BUG: unexpected first char at tail %q; want `.` or `}`", tail)
+			}
+		case '[':
+			n := strings.IndexByte(q, ']')
+			if n < 0 {
+				parts = append(parts, regexp.QuoteMeta(q))
+				return parts, ""
+			}
+			parts = append(parts, q[:n+1])
+			q = q[n+1:]
+		}
+	}
 }
 
 // SearchTagEntries returns a list of (tagName -> tagValues)
@@ -1440,6 +1573,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		prevMetricID uint64
 	)
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrevDate := hmPrev.hour / 24
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
 	todayShare16bit := uint64((float64(fasttime.UnixTimestamp()%(3600*24)) / (3600 * 24)) * (1 << 16))
 	type pendingDateMetricID struct {
@@ -1480,6 +1615,10 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			s.pendingHourEntriesLock.Lock()
 			s.pendingHourEntries.Add(metricID)
 			s.pendingHourEntriesLock.Unlock()
+			if date == hmPrevDate && hmPrev.m.Has(metricID) {
+				// The metricID is already registered for the current day on the previous hour.
+				continue
+			}
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.

@@ -2,8 +2,31 @@ package storage
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestGetCommonPrefix(t *testing.T) {
+	f := func(a []string, expectedPrefix string) {
+		t.Helper()
+		prefix, result := getCommonPrefix(a)
+		if prefix != expectedPrefix {
+			t.Fatalf("unexpected prefix; got %q; want %q", prefix, expectedPrefix)
+		}
+		for i, s := range a {
+			if !strings.HasPrefix(s, prefix) {
+				t.Fatalf("s=%q has no prefix %q", s, prefix)
+			}
+			if s[len(prefix):] != result[i] {
+				t.Fatalf("unexpected result[%d]; got %q; want %q", i, s[len(prefix):], result[i])
+			}
+		}
+	}
+	f(nil, "")
+	f([]string{"foo"}, "foo")
+	f([]string{"foo", "bar"}, "")
+	f([]string{"foo1", "foo2", "foo34"}, "foo")
+}
 
 func TestExtractRegexpPrefix(t *testing.T) {
 	f := func(s string, expectedPrefix, expectedSuffix string) {

@@ -7,7 +7,7 @@ Restore process can be interrupted at any time. It is automatically resumed from
 when restarting `vmrestore` with the same args.
 
 
-### Usage
+## Usage
 
 VictoriaMetrics must be stopped during the restore process.
 
@@ -25,13 +25,13 @@ The original `-storageDataPath` directory may contain old files. They will be su
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
 
 
-### Troubleshooting
+## Troubleshooting
 
 * If `vmrestore` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 
-### Advanced usage
+## Advanced usage
 
 * Obtaining credentials from a file.
 
@@ -118,24 +118,24 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
 ```
 
 
-### How to build from sources
+## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - see `vmutils-*` archives there.
 
 
-#### Development build
+### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
 2. Run `make vmrestore` from the root folder of the repository.
    It builds `vmrestore` binary and puts it into the `bin` folder.
 
-#### Production build
+### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmrestore-prod` from the root folder of the repository.
    It builds `vmrestore-prod` binary and puts it into the `bin` folder.
 
-#### Building docker images
+### Building docker images
 
 Run `make package-vmrestore`. It builds `victoriametrics/vmrestore:<PKG_TAG>` docker image locally.
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.

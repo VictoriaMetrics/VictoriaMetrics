@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/fasthttp"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -192,6 +193,7 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 }
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+	discoveryRequests.Inc()
 	for {
 		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
 		// across multiple retries.
@@ -199,12 +201,18 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		if err == nil {
 			return nil
 		}
-		if err != fasthttp.ErrConnectionClosed {
+		if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
 			return err
 		}
 		// Retry request if the server closes the keep-alive connection unless deadline exceeds.
 		if time.Since(deadline) >= 0 {
 			return fmt.Errorf("the server closes all the connection attempts: %w", err)
 		}
+		discoveryRetries.Inc()
 	}
 }
+
+var (
+	discoveryRetries  = metrics.NewCounter(`vm_promscrape_discovery_retries_total`)
+	discoveryRequests = metrics.NewCounter(`vm_promscrape_discovery_requests_total`)
+)

@@ -1,0 +1,12 @@
+groups:
+  - name: TestGraphiteBadGroup
+    interval: 2s
+    concurrency: 2
+    type: graphite
+    rules:
+      - alert: Conns
+        expr: filterSeries(sumSeries(host.receiver.interface.cons),'last','>', 500) by instance
+        for: 3m
+        annotations:
+          summary: Too high connection number for {{$labels.instance}}
+          description: "It is {{ $value }} connections for {{$labels.instance}}"

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -35,9 +36,11 @@ type pendingSeries struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingSeries(pushBlock func(block []byte)) *pendingSeries {
+func newPendingSeries(pushBlock func(block []byte), significantFigures, roundDigits int) *pendingSeries {
 	var ps pendingSeries
 	ps.wr.pushBlock = pushBlock
+	ps.wr.significantFigures = significantFigures
+	ps.wr.roundDigits = roundDigits
 	ps.stopCh = make(chan struct{})
 	ps.periodicFlusherWG.Add(1)
 	go func() {
@@ -85,8 +88,16 @@ type writeRequest struct {
 	// Move lastFlushTime to the top of the struct in order to guarantee atomic access on 32-bit architectures.
 	lastFlushTime uint64
 
-	wr        prompbmarshal.WriteRequest
+	// pushBlock is called when whe write request is ready to be sent.
 	pushBlock func(block []byte)
+
+	// How many significant figures must be left before sending the writeRequest to pushBlock.
+	significantFigures int
+
+	// How many decimal digits after point must be left before sending the writeRequest to pushBlock.
+	roundDigits int
+
+	wr prompbmarshal.WriteRequest
 
 	tss []prompbmarshal.TimeSeries
 
@@ -96,6 +107,8 @@ type writeRequest struct {
 }
 
 func (wr *writeRequest) reset() {
+	// Do not reset pushBlock, significantFigures and roundDigits, since they are re-used.
+
 	wr.wr.Timeseries = nil
 
 	for i := range wr.tss {
@@ -114,9 +127,26 @@ func (wr *writeRequest) reset() {
 
 func (wr *writeRequest) flush() {
 	wr.wr.Timeseries = wr.tss
+	wr.adjustSampleValues()
 	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
 	pushWriteRequest(&wr.wr, wr.pushBlock)
 	wr.reset()
+}
+
+func (wr *writeRequest) adjustSampleValues() {
+	samples := wr.samples
+	if n := wr.significantFigures; n > 0 {
+		for i := range samples {
+			s := &samples[i]
+			s.Value = decimal.RoundToSignificantFigures(s.Value, n)
+		}
+	}
+	if n := wr.roundDigits; n < 100 {
+		for i := range samples {
+			s := &samples[i]
+			s.Value = decimal.RoundToDecimalDigits(s.Value, n)
+		}
+	}
 }
 
 func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {

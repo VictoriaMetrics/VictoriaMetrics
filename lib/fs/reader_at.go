@@ -138,7 +138,7 @@ func (r *ReaderAt) MustClose() {
 
 	fname := r.f.Name()
 	if len(r.mmapData) > 0 {
-		if err := munMap(r.mmapData[:cap(r.mmapData)]); err != nil {
+		if err := mUnmap(r.mmapData[:cap(r.mmapData)]); err != nil {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
 		}
 		r.mmapData = nil
@@ -197,7 +197,7 @@ func MustOpenReaderAt(path string) *ReaderAt {
 }
 
 func pageCacheBitmapCleaner(pcbm *atomic.Value, stopCh <-chan struct{}) {
-	t := time.NewTimer(time.Minute)
+	t := time.NewTicker(time.Minute)
 	for {
 		select {
 		case <-stopCh:

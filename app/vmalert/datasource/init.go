@@ -11,6 +11,7 @@ import (
 var (
 	addr = flag.String("datasource.url", "", "Victoria Metrics or VMSelect url. Required parameter."+
 		" E.g. http://127.0.0.1:8428")
+	appendTypePrefix  = flag.Bool("datasource.appendTypePrefix", false, "Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to VMSelect URL.")
 	basicAuthUsername = flag.String("datasource.basicAuth.username", "", "Optional basic auth username for -datasource.url")
 	basicAuthPassword = flag.String("datasource.basicAuth.password", "", "Optional basic auth password for -datasource.url")
 
@@ -24,6 +25,8 @@ var (
 
 	lookBack = flag.Duration("datasource.lookback", 0, "Lookback defines how far to look into past when evaluating queries. "+
 		"For example, if datasource.lookback=5m then param \"time\" with value now()-5m will be added to every query.")
+	queryStep = flag.Duration("datasource.queryStep", 0, "queryStep defines how far a value can fallback to when evaluating queries. "+
+		"For example, if datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query.")
 	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, "Defines the number of idle (keep-alive connections) to configured datasource."+
 		"Consider to set this value equal to the value: groups_total * group.concurrency. Too low value may result into high number of sockets in TIME_WAIT state.")
 )
@@ -39,5 +42,5 @@ func Init() (Querier, error) {
 	}
 	tr.MaxIdleConns = *maxIdleConnections
 	c := &http.Client{Transport: tr}
-	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *lookBack, c), nil
+	return NewVMStorage(*addr, *basicAuthUsername, *basicAuthPassword, *lookBack, *queryStep, *appendTypePrefix, c), nil
 }

@@ -14,6 +14,7 @@ var (
 	basicAuthName = "foo"
 	basicAuthPass = "bar"
 	query         = "vm_rows"
+	queryRender   = "constantLine(10)"
 )
 
 func TestVMSelectQuery(t *testing.T) {
@@ -22,6 +23,13 @@ func TestVMSelectQuery(t *testing.T) {
 		t.Errorf("should not be called")
 	})
 	c := -1
+	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
+		c++
+		switch c {
+		case 7:
+			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
+		}
+	})
 	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
 		c++
 		if r.Method != http.MethodPost {
@@ -61,26 +69,26 @@ func TestVMSelectQuery(t *testing.T) {
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
-	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, srv.Client())
-	if _, err := am.Query(ctx, query); err == nil {
+	am := NewVMStorage(srv.URL, basicAuthName, basicAuthPass, time.Minute, 0, false, srv.Client())
+	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected invalid response status error got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected response body error got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected error status got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected unknown status got nil")
 	}
-	if _, err := am.Query(ctx, query); err == nil {
+	if _, err := am.Query(ctx, query, NewPrometheusType()); err == nil {
 		t.Fatalf("expected non-vector resultType error  got nil")
 	}
-	m, err := am.Query(ctx, query)
+	m, err := am.Query(ctx, query, NewPrometheusType())
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -91,6 +99,24 @@ func TestVMSelectQuery(t *testing.T) {
 		Labels:    []Label{{Value: "vm_rows", Name: "__name__"}},
 		Timestamp: 1583786142,
 		Value:     13763,
+	}
+	if m[0].Timestamp != expected.Timestamp &&
+		m[0].Value != expected.Value &&
+		m[0].Labels[0].Value != expected.Labels[0].Value &&
+		m[0].Labels[0].Name != expected.Labels[0].Name {
+		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
+	}
+	m, err = am.Query(ctx, queryRender, NewGraphiteType())
+	if err != nil {
+		t.Fatalf("unexpected %s", err)
+	}
+	if len(m) != 1 {
+		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
+	}
+	expected = Metric{
+		Labels:    []Label{{Value: "constantLine(10)", Name: "name"}},
+		Timestamp: 1611758403,
+		Value:     10,
 	}
 	if m[0].Timestamp != expected.Timestamp &&
 		m[0].Value != expected.Value &&

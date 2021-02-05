@@ -154,6 +154,7 @@ Alphabetically sorted links to case studies:
 * [Tuning](#tuning)
 * [Monitoring](#monitoring)
 * [Troubleshooting](#troubleshooting)
+* [Data migration](#data-migration)
 * [Backfilling](#backfilling)
 * [Data updates](#data-updates)
 * [Replication](#replication)
@@ -448,9 +449,12 @@ The `/api/v1/export` endpoint should return the following response:
 
 Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via the following APIs:
 
-* [Prometheus querying API](#prometheus-querying-api-usage)
-* Metric names can be explored via [Graphite metrics API](#graphite-metrics-api-usage)
-* Tags can be explored via [Graphite tags API](#graphite-tags-api-usage)
+* [Graphite API](#graphite-api-usage)
+* [Prometheus querying API](#prometheus-querying-api-usage). Graphite metric names may special chars such as `-`, which may clash
+  with [MetricsQL operations](https://victoriametrics.github.io/MetricsQL.html). Such metrics can be queries via `{__name__="foo-bar.baz"}`.
+  VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+  For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
+  and it is easier to use when migrating from Graphite to VictoriaMetrics.
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
 
 ## How to send data from OpenTSDB-compatible agents
@@ -529,6 +533,7 @@ The `/api/v1/export` endpoint should return the following response:
 Extra labels may be added to all the imported time series by passing `extra_label=name=value` query args.
 For example, `/api/put?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
+
 ## Prometheus querying API usage
 
 VictoriaMetrics supports the following handlers from [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/):
@@ -544,13 +549,20 @@ VictoriaMetrics supports the following handlers from [Prometheus querying API](h
 * [/api/v1/targets](https://prometheus.io/docs/prometheus/latest/querying/api/#targets) - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter) for more details.
 
 These handlers can be queried from Prometheus-compatible clients such as Grafana or curl.
+All the Prometheus querying API handlers can be prepended with `/prometheus` prefix. For example, both `/prometheus/api/v1/query` and `/api/v1/query` should work.
+
 
 ### Prometheus querying API enhancements
 
-Additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) VictoriaMetrics accepts relative times in `time`, `start` and `end` query args.
+VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
+`/api/v1/query_range?extra_label=user_id=123&query=<query>` would automatically add `{user_id="123"}` label filter to the given `<query>`. This functionality can be used
+for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting
+in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
+
+VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
 
-By default, VictoriaMetrics returns time series for the last 5 minutes from /api/v1/series, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
+By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
 
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
 See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
@@ -577,10 +589,23 @@ Additionally VictoriaMetrics provides the following handlers:
 
 ## Graphite API usage
 
-VictoriaMetrics supports the following Graphite APIs:
+VictoriaMetrics supports the following Graphite APIs, which are needed for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/):
 
+* Render API - see [these docs](#graphite-render-api-usage).
 * Metrics API - see [these docs](#graphite-metrics-api-usage).
 * Tags API - see [these docs](#graphite-tags-api-usage).
+
+All the Graphite handlers can be pre-pended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
+
+VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
+and it is easier to use when migrating from Graphite to VictoriaMetrics.
+
+
+### Graphite Render API usage
+
+[VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+at `/render` endpoint. This subset is required for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 
 
 ### Graphite Metrics API usage
@@ -792,10 +817,7 @@ The exported data can be imported to VictoriaMetrics via [/api/v1/import/native]
 
 ### How to export data in JSON line format
 
-Consider [exporting data in native format](#how-to-export-data-in-native-format) if big amounts of data must be migrated between VictoriaMetrics instances,
-since exporting in native format usually consumes lower amounts of CPU and memory resources, while the resulting exported data occupies lower amounts of disk space.
-
-In order to export data in JSON line format, send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
+Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
 The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
@@ -1345,12 +1367,21 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
 
-* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `-search.treatDotsAsIsInRegexps` command-line flag could be useful.
-  By default `.` chars in regexps match any char. If you need matching only dots, then the `\\.` must be used in regexp filters.
-  When `-search.treatDotsAsIsInRegexps` option is enabled, then dots in regexps are automatically escaped in order to match only dots instead of arbitrary chars.
-  This may significantly increase performance when locating time series for the given label filters.
+* If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then use `{__graphite__="foo.*.baz"}` syntax for selecting such metrics.
+  This expression is equivalent to `{__name__=~"foo[.][^.]*[.]baz"}`, but it works faster and it is easier to use when migrating from Graphite.
 
 * VictoriaMetrics ignores `NaN` values during data ingestion.
+
+
+## Data migration
+
+Use [vmctl](https://victoriametrics.github.io/vmctl.html) for data migration. It supports the following data migration types:
+
+* From Prometheus to VictoriaMetrics
+* From InfluxDB to VictoriaMetrics
+* From VictoriaMetrics to VictoriaMetrics
+
+See [vmctl docs](https://victoriametrics.github.io/vmctl.html) for more details.
 
 
 ## Backfilling
@@ -1420,11 +1451,10 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 
 * [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
 * [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
-* [vmctl tool for data migration to VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl).
 * [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
   See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
-  See [this example](https://github.com/go-graphite/carbonapi/blob/master/cmd/carbonapi/carbonapi.example.prometheus.yaml).
+  See [this example](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml).
 * [Ansible role for installing single-node VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 * [Ansible role for installing cluster VictoriaMetrics](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).

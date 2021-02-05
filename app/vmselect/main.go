@@ -118,8 +118,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	// Strip /prometheus and /graphite prefixes in order to provide path compatibility with cluster version
+	//
+	// See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
+	switch {
+	case strings.HasPrefix(path, "/prometheus"):
+		path = path[len("/prometheus"):]
+	case strings.HasPrefix(path, "/graphite"):
+		path = path[len("/graphite"):]
+	}
+
 	if strings.HasPrefix(path, "/api/v1/label/") {
-		s := r.URL.Path[len("/api/v1/label/"):]
+		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
 			labelValuesRequests.Inc()
 			labelName := s[:len(s)-len("/values")]
@@ -133,7 +143,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 	if strings.HasPrefix(path, "/tags/") && !isGraphiteTagsPath(path) {
-		tagName := r.URL.Path[len("/tags/"):]
+		tagName := path[len("/tags/"):]
 		graphiteTagValuesRequests.Inc()
 		if err := graphite.TagValuesHandler(startTime, tagName, w, r); err != nil {
 			graphiteTagValuesErrors.Inc()

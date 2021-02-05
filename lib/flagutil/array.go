@@ -35,6 +35,15 @@ func NewArrayBool(name, description string) *ArrayBool {
 	return &a
 }
 
+// NewArrayInt returns new ArrayInt with the given name and description.
+func NewArrayInt(name string, description string) *ArrayInt {
+	description += "\nSupports `array` of values separated by comma" +
+		" or specified via multiple flags."
+	var a ArrayInt
+	flag.Var(&a, name, description)
+	return &a
+}
+
 // Array is a flag that holds an array of values.
 //
 // It may be set either by specifying multiple flags with the given name
@@ -222,4 +231,42 @@ func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Du
 		return defaultValue
 	}
 	return x[argIdx]
+}
+
+// ArrayInt is flag that holds an array of ints.
+type ArrayInt []int
+
+// String implements flag.Value interface
+func (a *ArrayInt) String() string {
+	x := *a
+	formattedInts := make([]string, len(x))
+	for i, v := range x {
+		formattedInts[i] = strconv.Itoa(v)
+	}
+	return strings.Join(formattedInts, ",")
+}
+
+// Set implements flag.Value interface
+func (a *ArrayInt) Set(value string) error {
+	values := parseArrayValues(value)
+	for _, v := range values {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return err
+		}
+		*a = append(*a, n)
+	}
+	return nil
+}
+
+// GetOptionalArgOrDefault returns optional arg under the given argIdx.
+func (a *ArrayInt) GetOptionalArgOrDefault(argIdx int, defaultValue int) int {
+	x := *a
+	if argIdx < len(x) {
+		return x[argIdx]
+	}
+	if len(x) == 1 {
+		return x[0]
+	}
+	return defaultValue
 }

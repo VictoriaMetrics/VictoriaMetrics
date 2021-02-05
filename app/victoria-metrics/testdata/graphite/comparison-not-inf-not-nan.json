@@ -11,6 +11,6 @@
     "status":"success",
     "data":{"resultType":"matrix",
       "result":[
-	      {"metric":{"item":"y"},"values":[["{TIME_S-1m}","0.5"],["{TIME_S}","0.5"]]}
+	      {"metric":{"item":"y"},"values":[["{TIME_S-1m}","0.5"]]}
       ]}}
 }

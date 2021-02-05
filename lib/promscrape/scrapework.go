@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	xxhash "github.com/cespare/xxhash/v2"
 )
@@ -193,14 +194,15 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		randSleep += uint64(scrapeInterval)
 	}
 	randSleep -= sleepOffset
-	timer := time.NewTimer(time.Duration(randSleep))
+	timer := timerpool.Get(time.Duration(randSleep))
 	var timestamp int64
 	var ticker *time.Ticker
 	select {
 	case <-stopCh:
-		timer.Stop()
+		timerpool.Put(timer)
 		return
 	case <-timer.C:
+		timerpool.Put(timer)
 		ticker = time.NewTicker(scrapeInterval)
 		timestamp = time.Now().UnixNano() / 1e6
 		sw.scrapeAndLogError(timestamp, timestamp)
@@ -267,6 +269,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_failed_per_url_total{url=%q}`, sw.Config.ScrapeURL)).Inc()
 	} else {
 		bodyString := bytesutil.ToUnsafeString(body.B)
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
@@ -278,6 +281,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		srcRows = srcRows[:0]
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_skipped_by_sample_limit_per_url_total{url=%q}`, sw.Config.ScrapeURL)).Inc()
 	}
 	samplesPostRelabeling := 0
 	for i := range srcRows {

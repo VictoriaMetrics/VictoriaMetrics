@@ -1,0 +1,12 @@
+groups:
+  - name: TestUpdateGroup
+    interval: 30s
+    type: graphite
+    rules:
+      - alert: up
+        expr: filterSeries(time('host.2',20),'>','0')
+        for: 30s
+      - alert: up graphite
+        expr: filterSeries(time('host.1',20),'>','0')
+        for: 30s
+        type: graphite

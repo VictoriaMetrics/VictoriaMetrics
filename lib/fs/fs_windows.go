@@ -75,7 +75,7 @@ func mmap(fd int, offset int64, length int) ([]byte, error) {
 }
 
 // stub
-func munMap([]byte) error {
+func mUnmap([]byte) error {
 	return nil
 }
 
