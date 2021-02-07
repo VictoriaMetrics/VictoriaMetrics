@@ -17,10 +17,11 @@ import (
 )
 
 var (
-	loggerLevel       = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
-	loggerFormat      = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput      = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
-	loggerTimezone    = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Local timezone can be used")
+	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
+	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
+	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
+		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, "Per-second limit on the number of ERROR messages. If more than the given number of errors "+
@@ -47,8 +48,7 @@ func Init() {
 func initTimezone() {
 	tz, err := time.LoadLocation(*loggerTimezone)
 	if err != nil {
-		log.Printf("cannot load timezone %q, so using UTC; error: %s", *loggerTimezone, err)
-		tz = time.UTC
+		log.Fatalf("cannot load timezone %q: %s", *loggerTimezone, err)
 	}
 	timezone = tz
 }
