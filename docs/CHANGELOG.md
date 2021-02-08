@@ -8,6 +8,7 @@
 * FEATURE: remove dependency on external programs such as `cat`, `grep` and `cut` when detecting cpu and memory limits inside Docker or LXC container.
 
 * BUGFIX: do not spam error logs when discovering Docker Swarm targets without dedicated IP. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1028 .
+* BUGFIX: properly install timezone data inside base Docker image. This should fix `-loggerTimezone` usage inside Docker containers.
 
 
 # [v1.53.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.1)
