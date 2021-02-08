@@ -1670,6 +1670,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		projectID uint32
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
+	var pendingNextDayMetricIDs []uint64
+	var pendingHourEntries []pendingHourMetricIDEntry
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -1696,20 +1698,16 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 						accountID: r.TSID.AccountID,
 						projectID: r.TSID.ProjectID,
 					})
-					s.pendingNextDayMetricIDsLock.Lock()
-					s.pendingNextDayMetricIDs.Add(metricID)
-					s.pendingNextDayMetricIDsLock.Unlock()
+					pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 				}
 				continue
 			}
-			s.pendingHourEntriesLock.Lock()
 			e := pendingHourMetricIDEntry{
 				AccountID: r.TSID.AccountID,
 				ProjectID: r.TSID.ProjectID,
 				MetricID:  metricID,
 			}
-			s.pendingHourEntries = append(s.pendingHourEntries, e)
-			s.pendingHourEntriesLock.Unlock()
+			pendingHourEntries = append(pendingHourEntries, e)
 			if date == hmPrevDate && hmPrev.m.Has(metricID) {
 				// The metricID is already registered for the current day on the previous hour.
 				continue
@@ -1735,6 +1733,16 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 				projectID: r.TSID.ProjectID,
 			})
 		}
+	}
+	if len(pendingNextDayMetricIDs) > 0 {
+		s.pendingNextDayMetricIDsLock.Lock()
+		s.pendingNextDayMetricIDs.AddMulti(pendingNextDayMetricIDs)
+		s.pendingNextDayMetricIDsLock.Unlock()
+	}
+	if len(pendingHourEntries) > 0 {
+		s.pendingHourEntriesLock.Lock()
+		s.pendingHourEntries = append(s.pendingHourEntries, pendingHourEntries...)
+		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
 		// Fast path - there are no new (date, metricID) entires in rows.
