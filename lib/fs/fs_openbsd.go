@@ -12,7 +12,7 @@ func mmap(fd int, offset int64, length int) (data []byte, err error) {
 	return unix.Mmap(fd, 0, length, unix.PROT_READ, unix.MAP_SHARED)
 
 }
-func munMap(data []byte) error {
+func mUnmap(data []byte) error {
 	return unix.Munmap(data)
 }
 
