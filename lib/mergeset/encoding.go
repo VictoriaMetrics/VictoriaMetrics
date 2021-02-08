@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -26,6 +27,10 @@ type inmemoryBlock struct {
 	commonPrefix []byte
 	data         []byte
 	items        byteSliceSorter
+}
+
+func (ib *inmemoryBlock) SizeBytes() int {
+	return int(unsafe.Sizeof(*ib)) + cap(ib.commonPrefix) + cap(ib.data) + cap(ib.items)*int(unsafe.Sizeof([]byte{}))
 }
 
 func (ib *inmemoryBlock) Reset() {

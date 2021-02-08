@@ -526,6 +526,18 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheSizeBytes)
 	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/bigIndexBlocks"}`, func() float64 {
+		return float64(tm().BigIndexBlocksCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/smallIndexBlocks"}`, func() float64 {
+		return float64(tm().SmallIndexBlocksCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/dataBlocks"}`, func() float64 {
+		return float64(idbm().DataBlocksCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/indexBlocks"}`, func() float64 {
+		return float64(idbm().IndexBlocksCacheSizeBytes)
+	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/date_metricID"}`, func() float64 {
 		return float64(m().DateMetricIDCacheSizeBytes)
 	})
