@@ -3,6 +3,7 @@ package cgroup
 import (
 	"io/ioutil"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -40,8 +41,20 @@ func updateGOMAXPROCSToCPUQuota() {
 	runtime.GOMAXPROCS(gomaxprocs)
 }
 
+func getCPUStat(sysPath, cgroupPath, statName string) (int64, error) {
+	n, err := readInt64(path.Join(sysPath, statName))
+	if err == nil {
+		return n, nil
+	}
+	subPath, err := grepFirstMatch(cgroupPath, "cpu,", 2, ":")
+	if err != nil {
+		return 0, err
+	}
+	return readInt64(path.Join(sysPath, subPath, statName))
+}
+
 func getCPUQuota() float64 {
-	quotaUS, err := readInt64("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", "cat /sys/fs/cgroup/cpu$(cat /proc/self/cgroup | grep cpu, | cut -d: -f3)/cpu.cfs_quota_us")
+	quotaUS, err := getCPUStat("/sys/fs/cgroup/cpu", "/proc/self/cgroup", "cpu.cfs_quota_us")
 	if err != nil {
 		return 0
 	}
@@ -50,7 +63,7 @@ func getCPUQuota() float64 {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
 		return getOnlineCPUCount()
 	}
-	periodUS, err := readInt64("/sys/fs/cgroup/cpu/cpu.cfs_period_us", "cat /sys/fs/cgroup/cpu$(cat /proc/self/cgroup | grep cpu, | cut -d: -f3)/cpu.cfs_period_us")
+	periodUS, err := getCPUStat("/sys/fs/cgroup/cpu", "/proc/self/cgroup", "cpu.cfs_period_us")
 	if err != nil {
 		return 0
 	}
