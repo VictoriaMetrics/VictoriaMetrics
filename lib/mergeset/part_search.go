@@ -28,8 +28,6 @@ type partSearch struct {
 	// Pointer to inmemory block, which may be reused.
 	inmemoryBlockReuse *inmemoryBlock
 
-	shouldCacheBlock func(item []byte) bool
-
 	idxbCache *indexBlockCache
 	ibCache   *inmemoryBlockCache
 
@@ -54,7 +52,6 @@ func (ps *partSearch) reset() {
 		putInmemoryBlock(ps.inmemoryBlockReuse)
 		ps.inmemoryBlockReuse = nil
 	}
-	ps.shouldCacheBlock = nil
 	ps.idxbCache = nil
 	ps.ibCache = nil
 	ps.err = nil
@@ -71,13 +68,12 @@ func (ps *partSearch) reset() {
 // Init initializes ps for search in the p.
 //
 // Use Seek for search in p.
-func (ps *partSearch) Init(p *part, shouldCacheBlock func(item []byte) bool) {
+func (ps *partSearch) Init(p *part) {
 	ps.reset()
 
 	ps.p = p
 	ps.idxbCache = p.idxbCache
 	ps.ibCache = p.ibCache
-	ps.shouldCacheBlock = shouldCacheBlock
 }
 
 // Seek seeks for the first item greater or equal to k in ps.
@@ -306,16 +302,6 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 }
 
 func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, bool, error) {
-	if ps.shouldCacheBlock != nil {
-		if !ps.shouldCacheBlock(bh.firstItem) {
-			ib, err := ps.readInmemoryBlock(bh)
-			if err != nil {
-				return nil, false, err
-			}
-			return ib, true, nil
-		}
-	}
-
 	var ibKey inmemoryBlockCacheKey
 	ibKey.Init(bh)
 	ib := ps.ibCache.Get(ibKey)

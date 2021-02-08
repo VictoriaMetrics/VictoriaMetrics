@@ -9,6 +9,7 @@
 
 * BUGFIX: do not spam error logs when discovering Docker Swarm targets without dedicated IP. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1028 .
 * BUGFIX: properly install timezone data inside base Docker image. This should fix `-loggerTimezone` usage inside Docker containers.
+* BUGFIX: reduce CPU usage when performing queries with individual filters matching big number of time series.
 
 
 # [v1.53.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.53.1)

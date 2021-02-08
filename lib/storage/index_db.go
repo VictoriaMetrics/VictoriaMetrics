@@ -48,28 +48,6 @@ const (
 	nsPrefixDateTagToMetricIDs = 6
 )
 
-func shouldCacheBlock(item []byte) bool {
-	if len(item) == 0 {
-		return true
-	}
-	// Do not cache items starting from
-	switch item[0] {
-	case nsPrefixTagToMetricIDs, nsPrefixDateTagToMetricIDs:
-		// Do not cache blocks with tag->metricIDs and (date,tag)->metricIDs items, since:
-		// - these blocks are scanned sequentially, so the overhead
-		//   on their unmarshaling is amortized by the sequential scan.
-		// - these blocks can occupy high amounts of RAM in cache
-		//   and evict other frequently accessed blocks.
-		return false
-	case nsPrefixDeletedMetricID:
-		// Do not cache blocks with deleted metricIDs,
-		// since these metricIDs are loaded only once during app start.
-		return false
-	default:
-		return true
-	}
-}
-
 // indexDB represents an index db.
 type indexDB struct {
 	// Atomic counters must go at the top of the structure in order to properly align by 8 bytes on 32-bit archs.
@@ -549,7 +527,7 @@ func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(db.tb, shouldCacheBlock)
+	is.ts.Init(db.tb)
 	is.deadline = deadline
 	return is
 }

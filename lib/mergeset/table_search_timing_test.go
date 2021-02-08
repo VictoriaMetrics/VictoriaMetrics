@@ -81,7 +81,7 @@ func benchmarkTableSearchKeysExt(b *testing.B, tb *Table, keys [][]byte, stripSu
 	b.SetBytes(int64(searchKeysCount * rowsToScan))
 	b.RunParallel(func(pb *testing.PB) {
 		var ts TableSearch
-		ts.Init(tb, nil)
+		ts.Init(tb)
 		defer ts.MustClose()
 		for pb.Next() {
 			startIdx := rand.Intn(len(keys) - searchKeysCount)
