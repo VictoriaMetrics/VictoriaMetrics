@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -123,15 +122,13 @@ func getOpenFDsCount(path string) (uint64, error) {
 }
 
 func getMaxFilesLimit(path string) (uint64, error) {
-	f, err := os.Open(path)
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	prefix := "Max open files"
-	scan := bufio.NewScanner(f)
-	for scan.Scan() {
-		s := scan.Text()
+	lines := strings.Split(string(data), "\n")
+	const prefix = "Max open files"
+	for _, s := range lines {
 		if !strings.HasPrefix(s, prefix) {
 			continue
 		}
