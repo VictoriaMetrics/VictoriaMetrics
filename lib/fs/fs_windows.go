@@ -63,9 +63,6 @@ func CreateFlockFile(dir string) (*os.File, error) {
 	if r1 == 0 {
 		return nil, err
 	}
-	if err := setPosixDelete(handle); err != nil {
-		return nil, err
-	}
 	return os.NewFile(uintptr(handle), flockFile), nil
 }
 
