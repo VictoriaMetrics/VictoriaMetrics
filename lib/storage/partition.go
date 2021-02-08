@@ -307,13 +307,15 @@ func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs
 type partitionMetrics struct {
 	PendingRows uint64
 
-	BigIndexBlocksCacheSize     uint64
-	BigIndexBlocksCacheRequests uint64
-	BigIndexBlocksCacheMisses   uint64
+	BigIndexBlocksCacheSize      uint64
+	BigIndexBlocksCacheSizeBytes uint64
+	BigIndexBlocksCacheRequests  uint64
+	BigIndexBlocksCacheMisses    uint64
 
-	SmallIndexBlocksCacheSize     uint64
-	SmallIndexBlocksCacheRequests uint64
-	SmallIndexBlocksCacheMisses   uint64
+	SmallIndexBlocksCacheSize      uint64
+	SmallIndexBlocksCacheSizeBytes uint64
+	SmallIndexBlocksCacheRequests  uint64
+	SmallIndexBlocksCacheMisses    uint64
 
 	BigSizeBytes   uint64
 	SmallSizeBytes uint64
@@ -360,6 +362,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		p := pw.p
 
 		m.BigIndexBlocksCacheSize += p.ibCache.Len()
+		m.BigIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
 		m.BigIndexBlocksCacheRequests += p.ibCache.Requests()
 		m.BigIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.BigRowsCount += p.ph.RowsCount
@@ -372,6 +375,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		p := pw.p
 
 		m.SmallIndexBlocksCacheSize += p.ibCache.Len()
+		m.SmallIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
 		m.SmallIndexBlocksCacheRequests += p.ibCache.Requests()
 		m.SmallIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.SmallRowsCount += p.ph.RowsCount
