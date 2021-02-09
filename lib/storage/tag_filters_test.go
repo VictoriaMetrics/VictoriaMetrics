@@ -6,6 +6,284 @@ import (
 	"testing"
 )
 
+func TestConvertToCompositeTagFilters(t *testing.T) {
+	f := func(tfs, resultExpected []TagFilter) {
+		t.Helper()
+		result := ConvertToCompositeTagFilters(tfs)
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result;\ngot\n%+v\nwant\n%+v", result, resultExpected)
+		}
+	}
+	// Empty filters
+	f(nil, nil)
+
+	// A single non-name filter
+	f([]TagFilter{
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// Multiple non-name filters
+	f([]TagFilter{
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("x"),
+			Value:      []byte("yy"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("x"),
+			Value:      []byte("yy"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	})
+
+	// A single name filter
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// Two name filters
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        nil,
+			Value:      []byte("baz"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        nil,
+			Value:      []byte("baz"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// A name filter with non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// Two name filters with non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        nil,
+			Value:      []byte("baz"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("baz"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// A name filter with negative regexp non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   true,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   true,
+		},
+	})
+
+	// A name filter with graphite filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("__graphite__"),
+			Value:      []byte("foo.*.bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("__graphite__"),
+			Value:      []byte("foo.*.bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// A name filter with non-name filter and a graphite filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("__graphite__"),
+			Value:      []byte("foo.*.bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("__graphite__"),
+			Value:      []byte("foo.*.bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+	})
+
+	// Regexp name filter with non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	})
+}
+
 func TestGetCommonPrefix(t *testing.T) {
 	f := func(a []string, expectedPrefix string) {
 		t.Helper()

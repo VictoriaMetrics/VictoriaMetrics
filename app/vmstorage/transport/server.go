@@ -29,6 +29,8 @@ var (
 	maxTagValuesPerSearch        = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
 	maxMetricsPerSearch          = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series each search can scan")
+	disableCompositeTagFilters   = flag.Bool("search.disableCompositeTagFilters", false, "Whether to disable composite tag filters. This option is useful "+
+		"for querying old data, which is created before v1.54.0 release. Note that disabled composite tag filters may reduce query performance")
 
 	precisionBits         = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -1268,6 +1270,9 @@ func (ctx *vmselectRequestCtx) setupTfss(s *storage.Storage, tr storage.TimeRang
 	accountID := ctx.sq.AccountID
 	projectID := ctx.sq.ProjectID
 	for _, tagFilters := range ctx.sq.TagFilterss {
+		if !*disableCompositeTagFilters {
+			tagFilters = storage.ConvertToCompositeTagFilters(tagFilters)
+		}
 		tfs := storage.NewTagFilters(accountID, projectID)
 		for i := range tagFilters {
 			tf := &tagFilters[i]
