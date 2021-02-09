@@ -1910,6 +1910,10 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 	// sort srcMetricIDs in order to speed up Seek below.
 	sortedMetricIDs := srcMetricIDs.AppendTo(nil)
 
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+	tfs = fromCompositeTagFilters(tfs, kb.B)
+
 	metricName := kbPool.Get()
 	defer kbPool.Put(metricName)
 	mn := GetMetricName()
@@ -2140,6 +2144,7 @@ func fromCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
 		}
 		tagKey = tagKey[nameLen:]
 		tfNew := *tf
+		tfNew.key = append(tfNew.key[:0], tagKey...)
 		tfNew.prefix = append(tfNew.prefix[:0], prefix...)
 		tfNew.prefix = marshalTagValue(tfNew.prefix, tagKey)
 		tfNew.prefix = append(tfNew.prefix, tail...)
@@ -2150,7 +2155,6 @@ func fromCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
 
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs, mn.AccountID, mn.ProjectID)
-	tfs = fromCompositeTagFilters(tfs, kb.B)
 	for i, tf := range tfs {
 		if bytes.Equal(tf.key, graphiteReverseTagKey) {
 			// Skip artificial tag filter for Graphite-like metric names with dots,
