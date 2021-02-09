@@ -1680,6 +1680,12 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			prevTimestamp = r.Timestamp
 		}
 		metricID := r.TSID.MetricID
+		if metricID == prevMetricID && date == prevDate {
+			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
+			continue
+		}
+		prevDate = date
+		prevMetricID = metricID
 		if hour == hm.hour {
 			// The r belongs to the current hour. Check for the current hour cache.
 			if hm.m.Has(metricID) {
@@ -1715,24 +1721,16 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
-		if metricID == prevMetricID && date == prevDate {
-			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
+		if s.dateMetricIDCache.Has(date, metricID) {
 			continue
 		}
-		prevDate = date
-		prevMetricID = metricID
-
-		if !s.dateMetricIDCache.Has(date, metricID) {
-			// Slow path: store the (date, metricID) entry in the indexDB.
-			// It is OK if the (date, metricID) entry is added multiple times to db
-			// by concurrent goroutines.
-			pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-				date:      date,
-				metricID:  metricID,
-				accountID: r.TSID.AccountID,
-				projectID: r.TSID.ProjectID,
-			})
-		}
+		// Slow path: store the (date, metricID) entry in the indexDB.
+		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
+			date:      date,
+			metricID:  metricID,
+			accountID: r.TSID.AccountID,
+			projectID: r.TSID.ProjectID,
+		})
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
 		s.pendingNextDayMetricIDsLock.Lock()
@@ -1771,22 +1769,9 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	is := idb.getIndexSearch(0, 0, noDeadline)
 	defer idb.putIndexSearch(is)
 	var firstError error
-	prevMetricID = 0
-	prevDate = 0
 	for _, dateMetricID := range pendingDateMetricIDs {
 		date := dateMetricID.date
 		metricID := dateMetricID.metricID
-		if metricID == prevMetricID && date == prevDate {
-			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
-			continue
-		}
-		prevDate = date
-		prevMetricID = metricID
-
-		if s.dateMetricIDCache.Has(date, metricID) {
-			// The metricID has been already added to per-day inverted index.
-			continue
-		}
 		is.accountID = dateMetricID.accountID
 		is.projectID = dateMetricID.projectID
 		ok, err := is.hasDateMetricID(date, metricID)
@@ -1799,6 +1784,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		}
 		if !ok {
 			// The (date, metricID) entry is missing in the indexDB. Add it there.
+			// It is OK if the (date, metricID) entry is added multiple times to db
+			// by concurrent goroutines.
 			if err := is.storeDateMetricID(date, metricID); err != nil {
 				if firstError == nil {
 					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %w", date, metricID, err)
