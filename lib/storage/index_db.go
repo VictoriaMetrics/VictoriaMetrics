@@ -599,51 +599,34 @@ func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error {
 	// The order of index items is important.
 	// It guarantees index consistency.
 
-	items := getIndexItems()
+	ii := getIndexItems()
+	defer putIndexItems(ii)
 
 	// Create MetricName -> TSID index.
-	items.B = append(items.B, nsPrefixMetricNameToTSID)
-	items.B = mn.Marshal(items.B)
-	items.B = append(items.B, kvSeparatorChar)
-	items.B = tsid.Marshal(items.B)
-	items.Next()
+	ii.B = append(ii.B, nsPrefixMetricNameToTSID)
+	ii.B = mn.Marshal(ii.B)
+	ii.B = append(ii.B, kvSeparatorChar)
+	ii.B = tsid.Marshal(ii.B)
+	ii.Next()
 
 	// Create MetricID -> MetricName index.
-	items.B = marshalCommonPrefix(items.B, nsPrefixMetricIDToMetricName)
-	items.B = encoding.MarshalUint64(items.B, tsid.MetricID)
-	items.B = mn.Marshal(items.B)
-	items.Next()
+	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
+	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
+	ii.B = mn.Marshal(ii.B)
+	ii.Next()
 
 	// Create MetricID -> TSID index.
-	items.B = marshalCommonPrefix(items.B, nsPrefixMetricIDToTSID)
-	items.B = encoding.MarshalUint64(items.B, tsid.MetricID)
-	items.B = tsid.Marshal(items.B)
-	items.Next()
+	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToTSID)
+	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
+	ii.B = tsid.Marshal(ii.B)
+	ii.Next()
 
-	commonPrefix := kbPool.Get()
-	commonPrefix.B = marshalCommonPrefix(commonPrefix.B[:0], nsPrefixTagToMetricIDs)
+	prefix := kbPool.Get()
+	prefix.B = marshalCommonPrefix(prefix.B[:0], nsPrefixTagToMetricIDs)
+	ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)
+	kbPool.Put(prefix)
 
-	// Create MetricGroup -> MetricID index.
-	items.B = append(items.B, commonPrefix.B...)
-	items.B = marshalTagValue(items.B, nil)
-	items.B = marshalTagValue(items.B, mn.MetricGroup)
-	items.B = encoding.MarshalUint64(items.B, tsid.MetricID)
-	items.Next()
-	addReverseMetricGroupIfNeeded(items, commonPrefix.B, mn, tsid.MetricID)
-
-	// For each tag create tag -> MetricID index.
-	for i := range mn.Tags {
-		tag := &mn.Tags[i]
-		items.B = append(items.B, commonPrefix.B...)
-		items.B = tag.Marshal(items.B)
-		items.B = encoding.MarshalUint64(items.B, tsid.MetricID)
-		items.Next()
-	}
-
-	kbPool.Put(commonPrefix)
-	err := db.tb.AddItems(items.Items)
-	putIndexItems(items)
-	return err
+	return db.tb.AddItems(ii.Items)
 }
 
 type indexItems struct {
@@ -700,10 +683,6 @@ func (db *indexDB) SearchTagKeysOnTimeRange(tr TimeRange, maxTagKeys int, deadli
 
 	keys := make([]string, 0, len(tks))
 	for key := range tks {
-		if key == string(graphiteReverseTagKey) {
-			// Do not show artificially created graphiteReverseTagKey to the caller.
-			continue
-		}
 		// Do not skip empty keys, since they are converted to __name__
 		keys = append(keys, key)
 	}
@@ -774,16 +753,20 @@ func (is *indexSearch) searchTagKeysOnDate(tks map[string]struct{}, date uint64,
 		if mp.IsDeletedTag(dmis) {
 			continue
 		}
-
+		key := mp.Tag.Key
+		if isArtificialTagKey(key) {
+			// Skip artificially created tag key.
+			continue
+		}
 		// Store tag key.
-		tks[string(mp.Tag.Key)] = struct{}{}
+		tks[string(key)] = struct{}{}
 
 		// Search for the next tag key.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 		kb.B = encoding.MarshalUint64(kb.B, date)
-		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B = marshalTagValue(kb.B, key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -815,10 +798,6 @@ func (db *indexDB) SearchTagKeys(maxTagKeys int, deadline uint64) ([]string, err
 
 	keys := make([]string, 0, len(tks))
 	for key := range tks {
-		if key == string(graphiteReverseTagKey) {
-			// Do not show artificially created graphiteReverseTagKey to the caller.
-			continue
-		}
 		// Do not skip empty keys, since they are converted to __name__
 		keys = append(keys, key)
 	}
@@ -853,15 +832,19 @@ func (is *indexSearch) searchTagKeys(tks map[string]struct{}, maxTagKeys int) er
 		if mp.IsDeletedTag(dmis) {
 			continue
 		}
-
+		key := mp.Tag.Key
+		if isArtificialTagKey(key) {
+			// Skip artificailly created tag keys.
+			continue
+		}
 		// Store tag key.
-		tks[string(mp.Tag.Key)] = struct{}{}
+		tks[string(key)] = struct{}{}
 
 		// Search for the next tag key.
 		// The last char in kb.B must be tagSeparatorChar.
 		// Just increment it in order to jump to the next tag key.
 		kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-		kb.B = marshalTagValue(kb.B, mp.Tag.Key)
+		kb.B = marshalTagValue(kb.B, key)
 		kb.B[len(kb.B)-1]++
 		ts.Seek(kb.B)
 	}
@@ -1351,6 +1334,10 @@ func (is *indexSearch) getTSDBStatusForDate(date uint64, topN int) (*TSDBStatus,
 		tail, tmp, err = unmarshalTagValue(tmp[:0], tail)
 		if err != nil {
 			return nil, fmt.Errorf("cannot unmarshal tag key from line %q: %w", item, err)
+		}
+		if isArtificialTagKey(tmp) {
+			// Skip artificially created tag keys.
+			continue
 		}
 		if len(tmp) == 0 {
 			tmp = append(tmp, "__name__"...)
@@ -2099,16 +2086,58 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 	return nil, metricIDs, nil
 }
 
+func fromCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
+	tfsNew := make([]*tagFilter, 0, len(tfs))
+	for _, tf := range tfs {
+		if !bytes.HasPrefix(tf.prefix, prefix) {
+			tfsNew = append(tfsNew, tf)
+			continue
+		}
+		suffix := tf.prefix[len(prefix):]
+		var tagKey, tail []byte
+		var err error
+		tail, tagKey, err = unmarshalTagValue(tagKey[:0], suffix)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal tag key from suffix=%q: %s", suffix, err)
+		}
+		if len(tagKey) == 0 || tagKey[0] != compositeTagKeyPrefix {
+			tfsNew = append(tfsNew, tf)
+			continue
+		}
+		tagKey = tagKey[1:]
+		var nameLen uint64
+		tagKey, nameLen, err = encoding.UnmarshalVarUint64(tagKey)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q: %s", tagKey, err)
+		}
+		if uint64(len(tagKey)) < nameLen {
+			logger.Panicf("BUG: expecting at %d bytes for name in tagKey=%q; got %d bytes", nameLen, tagKey, len(tagKey))
+		}
+		tagKey = tagKey[nameLen:]
+		tfNew := *tf
+		tfNew.prefix = append(tfNew.prefix[:0], prefix...)
+		tfNew.prefix = marshalTagValue(tfNew.prefix, tagKey)
+		tfNew.prefix = append(tfNew.prefix, tail...)
+		tfsNew = append(tfsNew, &tfNew)
+	}
+	return tfsNew
+}
+
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-
+	tfs = fromCompositeTagFilters(tfs, kb.B)
 	for i, tf := range tfs {
+		if bytes.Equal(tf.key, graphiteReverseTagKey) {
+			// Skip artificial tag filter for Graphite-like metric names with dots,
+			// since mn doesn't contain the corresponding tag.
+			continue
+		}
 		if len(tf.key) == 0 || string(tf.key) == "__graphite__" {
 			// Match against mn.MetricGroup.
 			b := marshalTagValue(kb.B, nil)
 			b = marshalTagValue(b, mn.MetricGroup)
 			kb.B = b[:len(kb.B)]
-			ok, err := matchTagFilter(b, tf)
+			ok, err := tf.match(b)
 			if err != nil {
 				return false, fmt.Errorf("cannot match MetricGroup %q with tagFilter %s: %w", mn.MetricGroup, tf, err)
 			}
@@ -2122,17 +2151,10 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			}
 			continue
 		}
-		if bytes.Equal(tf.key, graphiteReverseTagKey) {
-			// Skip artificial tag filter for Graphite-like metric names with dots,
-			// since mn doesn't contain the corresponding tag.
-			continue
-		}
-
 		// Search for matching tag name.
 		tagMatched := false
 		tagSeen := false
-		for j := range mn.Tags {
-			tag := &mn.Tags[j]
+		for _, tag := range mn.Tags {
 			if string(tag.Key) != string(tf.key) {
 				continue
 			}
@@ -2141,7 +2163,7 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 			tagSeen = true
 			b := tag.Marshal(kb.B)
 			kb.B = b[:len(kb.B)]
-			ok, err := matchTagFilter(b, tf)
+			ok, err := tf.match(b)
 			if err != nil {
 				return false, fmt.Errorf("cannot match tag %q with tagFilter %s: %w", tag, tf, err)
 			}
@@ -2179,20 +2201,6 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 		return false, nil
 	}
 	return true, nil
-}
-
-func matchTagFilter(b []byte, tf *tagFilter) (bool, error) {
-	if !bytes.HasPrefix(b, tf.prefix) {
-		return tf.isNegative, nil
-	}
-	ok, err := tf.matchSuffix(b[len(tf.prefix):])
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		return tf.isNegative, nil
-	}
-	return !tf.isNegative, nil
 }
 
 func (is *indexSearch) searchMetricIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
@@ -2850,13 +2858,13 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 }
 
 func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
-	items := getIndexItems()
-	defer putIndexItems(items)
+	ii := getIndexItems()
+	defer putIndexItems(ii)
 
-	items.B = is.marshalCommonPrefix(items.B, nsPrefixDateToMetricID)
-	items.B = encoding.MarshalUint64(items.B, date)
-	items.B = encoding.MarshalUint64(items.B, metricID)
-	items.Next()
+	ii.B = is.marshalCommonPrefix(ii.B, nsPrefixDateToMetricID)
+	ii.B = encoding.MarshalUint64(ii.B, date)
+	ii.B = encoding.MarshalUint64(ii.B, metricID)
+	ii.Next()
 
 	// Create per-day inverted index entries for metricID.
 	kb := kbPool.Get()
@@ -2884,27 +2892,44 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	}
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
-
-	items.B = append(items.B, kb.B...)
-	items.B = marshalTagValue(items.B, nil)
-	items.B = marshalTagValue(items.B, mn.MetricGroup)
-	items.B = encoding.MarshalUint64(items.B, metricID)
-	items.Next()
-	addReverseMetricGroupIfNeeded(items, kb.B, mn, metricID)
-	for i := range mn.Tags {
-		tag := &mn.Tags[i]
-		items.B = append(items.B, kb.B...)
-		items.B = tag.Marshal(items.B)
-		items.B = encoding.MarshalUint64(items.B, metricID)
-		items.Next()
-	}
-	if err = is.db.tb.AddItems(items.Items); err != nil {
+	ii.registerTagIndexes(kb.B, mn, metricID)
+	if err = is.db.tb.AddItems(ii.Items); err != nil {
 		return fmt.Errorf("cannot add per-day entires for metricID %d: %w", metricID, err)
 	}
 	return nil
 }
 
-func addReverseMetricGroupIfNeeded(items *indexItems, prefix []byte, mn *MetricName, metricID uint64) {
+func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {
+	// Add index entry for MetricGroup -> MetricID
+	ii.B = append(ii.B, prefix...)
+	ii.B = marshalTagValue(ii.B, nil)
+	ii.B = marshalTagValue(ii.B, mn.MetricGroup)
+	ii.B = encoding.MarshalUint64(ii.B, metricID)
+	ii.Next()
+	ii.addReverseMetricGroupIfNeeded(prefix, mn, metricID)
+
+	// Add index entries for tags: tag -> MetricID
+	for _, tag := range mn.Tags {
+		ii.B = append(ii.B, prefix...)
+		ii.B = tag.Marshal(ii.B)
+		ii.B = encoding.MarshalUint64(ii.B, metricID)
+		ii.Next()
+	}
+
+	// Add index entries for composite tags: MetricGroup+tag -> MetricID
+	compositeKey := kbPool.Get()
+	for _, tag := range mn.Tags {
+		compositeKey.B = marshalCompositeTagKey(compositeKey.B[:0], mn.MetricGroup, tag.Key)
+		ii.B = append(ii.B, prefix...)
+		ii.B = marshalTagValue(ii.B, compositeKey.B)
+		ii.B = marshalTagValue(ii.B, tag.Value)
+		ii.B = encoding.MarshalUint64(ii.B, metricID)
+		ii.Next()
+	}
+	kbPool.Put(compositeKey)
+}
+
+func (ii *indexItems) addReverseMetricGroupIfNeeded(prefix []byte, mn *MetricName, metricID uint64) {
 	if bytes.IndexByte(mn.MetricGroup, '.') < 0 {
 		// The reverse metric group is needed only for Graphite-like metrics with points.
 		return
@@ -2912,14 +2937,24 @@ func addReverseMetricGroupIfNeeded(items *indexItems, prefix []byte, mn *MetricN
 	// This is most likely a Graphite metric like 'foo.bar.baz'.
 	// Store reverse metric name 'zab.rab.oof' in order to speed up search for '*.bar.baz'
 	// when the Graphite wildcard has a suffix matching small number of time series.
-	items.B = append(items.B, prefix...)
-	items.B = marshalTagValue(items.B, graphiteReverseTagKey)
+	ii.B = append(ii.B, prefix...)
+	ii.B = marshalTagValue(ii.B, graphiteReverseTagKey)
 	revBuf := kbPool.Get()
 	revBuf.B = reverseBytes(revBuf.B[:0], mn.MetricGroup)
-	items.B = marshalTagValue(items.B, revBuf.B)
+	ii.B = marshalTagValue(ii.B, revBuf.B)
 	kbPool.Put(revBuf)
-	items.B = encoding.MarshalUint64(items.B, metricID)
-	items.Next()
+	ii.B = encoding.MarshalUint64(ii.B, metricID)
+	ii.Next()
+}
+
+func isArtificialTagKey(key []byte) bool {
+	if bytes.Equal(key, graphiteReverseTagKey) {
+		return true
+	}
+	if len(key) > 0 && key[0] == compositeTagKeyPrefix {
+		return true
+	}
+	return false
 }
 
 // The tag key for reverse metric name used for speeding up searching
@@ -2928,6 +2963,20 @@ func addReverseMetricGroupIfNeeded(items *indexItems, prefix []byte, mn *MetricN
 //
 // It is expected that the given key isn't be used by users.
 var graphiteReverseTagKey = []byte("\xff")
+
+// The prefix for composite tag, which is used for speeding up searching
+// for composite filters, which contain `{__name__="<metric_name>"}` filter.
+//
+// It is expected that the given prefix isn't used by users.
+const compositeTagKeyPrefix = '\xfe'
+
+func marshalCompositeTagKey(dst, name, key []byte) []byte {
+	dst = append(dst, compositeTagKeyPrefix)
+	dst = encoding.MarshalVarUint64(dst, uint64(len(name)))
+	dst = append(dst, name...)
+	dst = append(dst, key...)
+	return dst
+}
 
 func reverseBytes(dst, src []byte) []byte {
 	for i := len(src) - 1; i >= 0; i-- {

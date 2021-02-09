@@ -14,6 +14,51 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
+// ConvertToCompositeTagFilters converts tfs to composite filters.
+//
+// This converts `foo{bar="baz",x=~"a.+"}` to `{foo=bar="baz",foo=x=~"a.+"} filter.
+func ConvertToCompositeTagFilters(tfs []TagFilter) []TagFilter {
+	// Search for metric name filter, which must be used for creating composite filters.
+	var name []byte
+	for _, tf := range tfs {
+		if len(tf.Key) == 0 && !tf.IsNegative && !tf.IsRegexp {
+			name = tf.Value
+			break
+		}
+	}
+	if len(name) == 0 {
+		// There is no metric name filter, so composite filters cannot be created.
+		return tfs
+	}
+	tfsNew := make([]TagFilter, 0, len(tfs))
+	var compositeKey []byte
+	compositeFilters := 0
+	for _, tf := range tfs {
+		if len(tf.Key) == 0 {
+			if tf.IsNegative || tf.IsRegexp || string(tf.Value) != string(name) {
+				tfsNew = append(tfsNew, tf)
+			}
+			continue
+		}
+		if string(tf.Key) == "__graphite__" {
+			tfsNew = append(tfsNew, tf)
+			continue
+		}
+		compositeKey = marshalCompositeTagKey(compositeKey[:0], name, tf.Key)
+		tfsNew = append(tfsNew, TagFilter{
+			Key:        append([]byte{}, compositeKey...),
+			Value:      append([]byte{}, tf.Value...),
+			IsNegative: tf.IsNegative,
+			IsRegexp:   tf.IsRegexp,
+		})
+		compositeFilters++
+	}
+	if compositeFilters == 0 {
+		return tfs
+	}
+	return tfsNew
+}
+
 // TagFilters represents filters used for filtering tags.
 type TagFilters struct {
 	tfs []tagFilter
@@ -339,6 +384,21 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		tf.graphiteReverseSuffix = reverseBytes(tf.graphiteReverseSuffix[:0], []byte(rcv.literalSuffix))
 	}
 	return nil
+}
+
+func (tf *tagFilter) match(b []byte) (bool, error) {
+	prefix := tf.prefix
+	if !bytes.HasPrefix(b, prefix) {
+		return tf.isNegative, nil
+	}
+	ok, err := tf.matchSuffix(b[len(prefix):])
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return tf.isNegative, nil
+	}
+	return !tf.isNegative, nil
 }
 
 func (tf *tagFilter) matchSuffix(b []byte) (bool, error) {
