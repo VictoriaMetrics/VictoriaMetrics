@@ -1666,9 +1666,10 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
 	var firstError error
-	for _, dateMetricID := range pendingDateMetricIDs {
-		date := dateMetricID.date
-		metricID := dateMetricID.metricID
+	dateMetricIDsForCache := make([]dateMetricID, 0, len(pendingDateMetricIDs))
+	for _, dmid := range pendingDateMetricIDs {
+		date := dmid.date
+		metricID := dmid.metricID
 		ok, err := is.hasDateMetricID(date, metricID)
 		if err != nil {
 			if firstError == nil {
@@ -1687,9 +1688,13 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 				continue
 			}
 		}
-		// The metric must be added to cache only after it has been successfully added to indexDB.
-		s.dateMetricIDCache.Set(date, metricID)
+		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
+			date:     date,
+			metricID: metricID,
+		})
 	}
+	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.
+	s.dateMetricIDCache.Store(dateMetricIDsForCache)
 	return firstError
 }
 
@@ -1770,6 +1775,34 @@ func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
 		dmc.sync()
 	}
 	return ok
+}
+
+type dateMetricID struct {
+	date     uint64
+	metricID uint64
+}
+
+func (dmc *dateMetricIDCache) Store(dmids []dateMetricID) {
+	var prevDate uint64
+	metricIDs := make([]uint64, 0, len(dmids))
+	dmc.mu.Lock()
+	for _, dmid := range dmids {
+		if prevDate == dmid.date {
+			metricIDs = append(metricIDs, dmid.metricID)
+			continue
+		}
+		if len(metricIDs) > 0 {
+			v := dmc.byDateMutable.getOrCreate(prevDate)
+			v.AddMulti(metricIDs)
+		}
+		metricIDs = append(metricIDs[:0], dmid.metricID)
+		prevDate = dmid.date
+	}
+	if len(metricIDs) > 0 {
+		v := dmc.byDateMutable.getOrCreate(prevDate)
+		v.AddMulti(metricIDs)
+	}
+	dmc.mu.Unlock()
 }
 
 func (dmc *dateMetricIDCache) Set(date, metricID uint64) {
