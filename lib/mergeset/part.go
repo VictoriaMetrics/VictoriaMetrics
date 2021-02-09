@@ -314,15 +314,10 @@ type inmemoryBlockCache struct {
 }
 
 type inmemoryBlockCacheKey struct {
-	firstItem        string
 	itemsBlockOffset uint64
 }
 
 func (ibck *inmemoryBlockCacheKey) Init(bh *blockHeader) {
-	ibck.firstItem = ""
-	if bh.itemsBlockSize == 0 {
-		ibck.firstItem = string(bh.firstItem)
-	}
 	ibck.itemsBlockOffset = bh.itemsBlockOffset
 }
 
