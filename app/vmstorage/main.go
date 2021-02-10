@@ -329,6 +329,9 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_index_blocks_with_metric_ids_incorrect_order_total`, func() float64 {
 		return float64(idbm().IndexBlocksWithMetricIDsIncorrectOrder)
 	})
+	metrics.NewGauge(`vm_composite_index_min_timestamp`, func() float64 {
+		return float64(idbm().MinTimestampForCompositeIndex) / 1e3
+	})
 
 	metrics.NewGauge(`vm_assisted_merges_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallAssistedMerges)
