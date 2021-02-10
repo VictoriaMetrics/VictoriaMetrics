@@ -2062,7 +2062,7 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 			continue
 		}
 
-		metricIDs, err := is.getMetricIDsForTagFilter(tf, nil, maxMetrics)
+		metricIDs, err := is.getMetricIDsForTagFilter(tf, maxMetrics)
 		if err != nil {
 			if err == errFallbackToMetricNameMatch {
 				// Skip tag filters requiring to scan for too many metrics.
@@ -2384,7 +2384,7 @@ const (
 
 var uselessTagFilterCacheValue = []byte("1")
 
-func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, filter *uint64set.Set, maxMetrics int) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, maxMetrics int) (*uint64set.Set, error) {
 	if tf.isNegative {
 		logger.Panicf("BUG: isNegative must be false")
 	}
@@ -2402,7 +2402,7 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, filter *uint64set
 
 	// Slow path - scan for all the rows with the given prefix.
 	maxLoops := maxMetrics * maxIndexScanSlowLoopsPerMetric
-	if err := is.getMetricIDsForTagFilterSlow(tf, filter, maxLoops, metricIDs.Add); err != nil {
+	if err := is.getMetricIDsForTagFilterSlow(tf, nil, maxLoops, metricIDs.Add); err != nil {
 		if err == errFallbackToMetricNameMatch {
 			return nil, err
 		}
@@ -2839,7 +2839,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			tfsRemainingWithCount = append(tfsRemainingWithCount, tfsWithCount[i])
 			continue
 		}
-		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, nil, maxDateMetrics)
+		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, maxDateMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -2892,7 +2892,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			break
 		}
 		tf := tfWithCount.tf
-		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, metricIDs, maxDateMetrics)
+		m, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, maxDateMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -3073,7 +3073,7 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) (bool, error) {
 	return true, nil
 }
 
-func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, commonPrefix []byte, filter *uint64set.Set, maxMetrics int) (*uint64set.Set, error) {
+func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, commonPrefix []byte, maxMetrics int) (*uint64set.Set, error) {
 	// Augument tag filter prefix for per-date search instead of global search.
 	if !bytes.HasPrefix(tf.prefix, commonPrefix) {
 		logger.Panicf("BUG: unexpected tf.prefix %q; must start with commonPrefix %q", tf.prefix, commonPrefix)
@@ -3087,12 +3087,7 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 	tfNew := *tf
 	tfNew.isNegative = false // isNegative for the original tf is handled by the caller.
 	tfNew.prefix = kb.B
-	metricIDs, err := is.getMetricIDsForTagFilter(&tfNew, filter, maxMetrics)
-	if filter != nil {
-		// Do not cache the number of matching metricIDs,
-		// since this number may be modified by filter.
-		return metricIDs, err
-	}
+	metricIDs, err := is.getMetricIDsForTagFilter(&tfNew, maxMetrics)
 	// Store the number of matching metricIDs in the cache in order to sort tag filters
 	// in ascending number of matching metricIDs on the next search.
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf, is.accountID, is.projectID)
