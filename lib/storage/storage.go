@@ -108,6 +108,9 @@ type Storage struct {
 	// which may be in the process of flushing to disk by concurrently running
 	// snapshot process.
 	snapshotLock sync.Mutex
+
+	// The minimum timestamp when composite index search can be used.
+	minTimestampForCompositeIndex int64
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
@@ -126,13 +129,8 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 
 		stop: make(chan struct{}),
 	}
-
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
-	}
-	snapshotsPath := path + "/snapshots"
-	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
 	}
 
 	// Protect from concurrent opens.
@@ -141,6 +139,12 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 		return nil, err
 	}
 	s.flockF = flockF
+
+	// Pre-create snapshots directory if it is missing.
+	snapshotsPath := path + "/snapshots"
+	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
+		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
+	}
 
 	// Load caches.
 	mem := memory.Allowed()
@@ -166,10 +170,11 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	// Load indexdb
 	idbPath := path + "/indexdb"
 	idbSnapshotsPath := idbPath + "/snapshots"
+	isEmptyDB := !fs.IsPathExist(idbPath)
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
-	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache)
+	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache, s.minTimestampForCompositeIndex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
 	}
@@ -184,6 +189,13 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
 	}
 	s.tb = tb
+
+	// Load metadata
+	metadataDir := path + "/metadata"
+	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
+		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
+	}
+	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
@@ -235,7 +247,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	}
 	fs.MustSyncPath(dstDataDir)
 
-	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
+	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
 	idb := s.idb()
 	currSnapshot := idbSnapshot + "/" + idb.name
 	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
@@ -253,8 +265,13 @@ func (s *Storage) CreateSnapshot() (string, error) {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
 	}
 
+	srcMetadataDir := srcDir + "/metadata"
+	dstMetadataDir := dstDir + "/metadata"
+	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
+		return "", fmt.Errorf("cannot copy metadata: %s", err)
+	}
+
 	fs.MustSyncPath(dstDir)
-	fs.MustSyncPath(srcDir + "/snapshots")
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 	return snapshotName, nil
@@ -537,7 +554,7 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache)
+	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache, s.minTimestampForCompositeIndex)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -756,6 +773,43 @@ func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
 		return true
 	})
 	return dst
+}
+
+func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {
+	path := metadataDir + "/minTimestampForCompositeIndex"
+	minTimestamp, err := loadMinTimestampForCompositeIndex(path)
+	if err == nil {
+		return minTimestamp
+	}
+	logger.Errorf("cannot read minTimestampForCompositeIndex, so trying to re-create it; error: %s", err)
+	date := time.Now().UnixNano() / 1e6 / msecPerDay
+	if !isEmptyDB {
+		// The current and the next day can already contain non-composite indexes,
+		// so they cannot be queried with composite indexes.
+		date += 2
+	} else {
+		date = 0
+	}
+	minTimestamp = date * msecPerDay
+	dateBuf := encoding.MarshalInt64(nil, minTimestamp)
+	if err := os.RemoveAll(path); err != nil {
+		logger.Fatalf("cannot remove a file with minTimestampForCompositeIndex: %s", err)
+	}
+	if err := fs.WriteFileAtomically(path, dateBuf); err != nil {
+		logger.Fatalf("cannot store minTimestampForCompositeIndex: %s", err)
+	}
+	return minTimestamp
+}
+
+func loadMinTimestampForCompositeIndex(path string) (int64, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	if len(data) != 8 {
+		return 0, fmt.Errorf("unexpected length of %q; got %d bytes; want 8 bytes", path, len(data))
+	}
+	return encoding.UnmarshalInt64(data), nil
 }
 
 func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
@@ -1948,7 +2002,7 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache) (curr, prev *indexDB, err error) {
+func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, minTimestampForCompositeIndex int64) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
@@ -2007,12 +2061,12 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *w
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache)
+	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache, minTimestampForCompositeIndex)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache)
+	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache, minTimestampForCompositeIndex)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)

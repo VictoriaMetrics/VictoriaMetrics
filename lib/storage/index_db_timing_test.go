@@ -50,7 +50,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	defer tsidCache.Stop()
 
 	const dbName = "bench-index-db-add-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -115,7 +115,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	defer tsidCache.Stop()
 
 	const dbName = "bench-head-posting-for-matchers"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}
@@ -294,7 +294,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	defer tsidCache.Stop()
 
 	const dbName = "bench-index-db-get-tsids"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 	if err != nil {
 		b.Fatalf("cannot open indexDB: %s", err)
 	}

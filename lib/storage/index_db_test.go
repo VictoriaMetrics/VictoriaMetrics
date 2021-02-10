@@ -456,7 +456,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	defer tsidCache.Stop()
 
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache)
+		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -479,7 +479,7 @@ func TestIndexDB(t *testing.T) {
 		defer tsidCache.Stop()
 
 		dbName := "test-index-db-serial"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -509,7 +509,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -533,7 +533,7 @@ func TestIndexDB(t *testing.T) {
 		defer tsidCache.Stop()
 
 		dbName := "test-index-db-concurrent"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -1465,7 +1465,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	defer tsidCache.Stop()
 
 	dbName := "test-index-db-ts-range"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)
 	}
