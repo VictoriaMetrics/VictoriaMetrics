@@ -781,7 +781,9 @@ func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) in
 	if err == nil {
 		return minTimestamp
 	}
-	logger.Errorf("cannot read minTimestampForCompositeIndex, so trying to re-create it; error: %s", err)
+	if !os.IsNotExist(err) {
+		logger.Errorf("cannot read minTimestampForCompositeIndex, so trying to re-create it; error: %s", err)
+	}
 	date := time.Now().UnixNano() / 1e6 / msecPerDay
 	if !isEmptyDB {
 		// The current and the next day can already contain non-composite indexes,
@@ -1530,7 +1532,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
-		logger.Errorf("warn occurred during rows addition: %s", firstWarn)
+		logger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 	rows = rows[:rowsLen+j]
 
