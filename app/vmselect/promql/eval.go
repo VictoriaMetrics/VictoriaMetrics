@@ -268,14 +268,45 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		return rv, nil
 	}
 	if be, ok := e.(*metricsql.BinaryOpExpr); ok {
-		left, err := evalExpr(ec, be.Left)
-		if err != nil {
-			return nil, err
+		// Execute left and right sides of the binary operation in parallel.
+		// This should reduce execution times for heavy queries.
+		// On the other side this can increase CPU and RAM usage when executing heavy queries.
+		// TODO: think on how to limit CPU and RAM usage while leaving short execution times.
+		var left, right []*timeseries
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+		var errGlobal error
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tss, err := evalExpr(ec, be.Left)
+			mu.Lock()
+			if err != nil {
+				if errGlobal == nil {
+					errGlobal = err
+				}
+			}
+			left = tss
+			mu.Unlock()
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tss, err := evalExpr(ec, be.Right)
+			mu.Lock()
+			if err != nil {
+				if errGlobal == nil {
+					errGlobal = err
+				}
+			}
+			right = tss
+			mu.Unlock()
+		}()
+		wg.Wait()
+		if errGlobal != nil {
+			return nil, errGlobal
 		}
-		right, err := evalExpr(ec, be.Right)
-		if err != nil {
-			return nil, err
-		}
+
 		bf := getBinaryOpFunc(be.Op)
 		if bf == nil {
 			return nil, fmt.Errorf(`unknown binary op %q`, be.Op)
