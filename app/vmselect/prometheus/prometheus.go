@@ -449,15 +449,20 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
 	}
-	if r.FormValue("start") != "" || r.FormValue("end") != "" {
-		return fmt.Errorf("start and end aren't supported. Remove these args from the query in order to delete all the matching metrics")
+	ct := startTime.UnixNano() / 1e6
+	end, err := searchutils.GetTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
+	start, err := searchutils.GetTime(r, "start", 0)
+	if err != nil {
+		return err
 	}
 	tagFilterss, err := getTagFilterssFromRequest(r)
 	if err != nil {
 		return err
 	}
-	ct := startTime.UnixNano() / 1e6
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, 0, ct, tagFilterss)
+	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, tagFilterss)
 	deletedCount, err := netstorage.DeleteSeries(at, sq, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
