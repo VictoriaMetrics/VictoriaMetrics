@@ -177,10 +177,17 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 
 	s.prefetchedMetricIDs.Store(&uint64set.Set{})
 
+	// Load metadata
+	metadataDir := path + "/metadata"
+	isEmptyDB := !fs.IsPathExist(path + "/indexdb")
+	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
+		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
+	}
+	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
+
 	// Load indexdb
 	idbPath := path + "/indexdb"
 	idbSnapshotsPath := idbPath + "/snapshots"
-	isEmptyDB := !fs.IsPathExist(idbPath)
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
@@ -199,13 +206,6 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
 	}
 	s.tb = tb
-
-	// Load metadata
-	metadataDir := path + "/metadata"
-	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
-	}
-	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
