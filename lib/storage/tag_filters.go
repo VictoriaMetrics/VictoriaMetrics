@@ -15,15 +15,23 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
-// ConvertToCompositeTagFilters converts tfs to composite filters.
+// convertToCompositeTagFilterss converts tfss to composite filters.
 //
 // This converts `foo{bar="baz",x=~"a.+"}` to `{foo=bar="baz",foo=x=~"a.+"} filter.
-func ConvertToCompositeTagFilters(tfs []TagFilter) []TagFilter {
+func convertToCompositeTagFilterss(tfss []*TagFilters) []*TagFilters {
+	tfssNew := make([]*TagFilters, len(tfss))
+	for i, tfs := range tfss {
+		tfssNew[i] = convertToCompositeTagFilters(tfs)
+	}
+	return tfssNew
+}
+
+func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	// Search for metric name filter, which must be used for creating composite filters.
 	var name []byte
-	for _, tf := range tfs {
-		if len(tf.Key) == 0 && !tf.IsNegative && !tf.IsRegexp {
-			name = tf.Value
+	for _, tf := range tfs.tfs {
+		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
+			name = tf.value
 			break
 		}
 	}
@@ -31,33 +39,34 @@ func ConvertToCompositeTagFilters(tfs []TagFilter) []TagFilter {
 		// There is no metric name filter, so composite filters cannot be created.
 		return tfs
 	}
-	tfsNew := make([]TagFilter, 0, len(tfs))
+	tfsNew := make([]tagFilter, 0, len(tfs.tfs))
 	var compositeKey []byte
 	compositeFilters := 0
-	for _, tf := range tfs {
-		if len(tf.Key) == 0 {
-			if tf.IsNegative || tf.IsRegexp || string(tf.Value) != string(name) {
+	for _, tf := range tfs.tfs {
+		if len(tf.key) == 0 {
+			if tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
 				tfsNew = append(tfsNew, tf)
 			}
 			continue
 		}
-		if string(tf.Key) == "__graphite__" {
+		if string(tf.key) == "__graphite__" {
 			tfsNew = append(tfsNew, tf)
 			continue
 		}
-		compositeKey = marshalCompositeTagKey(compositeKey[:0], name, tf.Key)
-		tfsNew = append(tfsNew, TagFilter{
-			Key:        append([]byte{}, compositeKey...),
-			Value:      append([]byte{}, tf.Value...),
-			IsNegative: tf.IsNegative,
-			IsRegexp:   tf.IsRegexp,
-		})
+		compositeKey = marshalCompositeTagKey(compositeKey[:0], name, tf.key)
+		var tfNew tagFilter
+		if err := tfNew.Init(tfs.commonPrefix, compositeKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
+			logger.Panicf("BUG: unexpected error when creating composite tag filter for name=%q and key=%q: %s", name, tf.key, err)
+		}
+		tfsNew = append(tfsNew, tfNew)
 		compositeFilters++
 	}
 	if compositeFilters == 0 {
 		return tfs
 	}
-	return tfsNew
+	tfsCompiled := NewTagFilters(tfs.accountID, tfs.projectID)
+	tfsCompiled.tfs = tfsNew
+	return tfsCompiled
 }
 
 // TagFilters represents filters used for filtering tags.

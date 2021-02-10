@@ -9,13 +9,37 @@ import (
 func TestConvertToCompositeTagFilters(t *testing.T) {
 	f := func(tfs, resultExpected []TagFilter) {
 		t.Helper()
-		result := ConvertToCompositeTagFilters(tfs)
+		accountID := uint32(123)
+		projectID := uint32(456)
+		tfsCompiled := NewTagFilters(accountID, projectID)
+		for _, tf := range tfs {
+			if err := tfsCompiled.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
+				t.Fatalf("cannot add tf=%s: %s", tf.String(), err)
+			}
+		}
+		resultCompiled := convertToCompositeTagFilters(tfsCompiled)
+		if resultCompiled.accountID != accountID {
+			t.Fatalf("unexpected accountID; got %d; want %d", resultCompiled.accountID, accountID)
+		}
+		if resultCompiled.projectID != projectID {
+			t.Fatalf("unexpected projectID; got %d; want %d", resultCompiled.projectID, projectID)
+		}
+		result := make([]TagFilter, len(resultCompiled.tfs))
+		for i, tf := range resultCompiled.tfs {
+			result[i] = TagFilter{
+				Key:        tf.key,
+				Value:      tf.value,
+				IsNegative: tf.isNegative,
+				IsRegexp:   tf.isRegexp,
+			}
+		}
 		if !reflect.DeepEqual(result, resultExpected) {
 			t.Fatalf("unexpected result;\ngot\n%+v\nwant\n%+v", result, resultExpected)
 		}
 	}
+
 	// Empty filters
-	f(nil, nil)
+	f(nil, []TagFilter{})
 
 	// A single non-name filter
 	f([]TagFilter{
@@ -167,7 +191,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		},
 	})
 
-	// A name filter with negative regexp non-name filter.
+	// A name filter with negative regexp non-name filter, which can be converted to non-regexp.
 	f([]TagFilter{
 		{
 			Key:        nil,
@@ -185,6 +209,29 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	})
+
+	// A name filter with negative regexp non-name filter.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc.+"),
+			IsNegative: true,
+			IsRegexp:   true,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc.+"),
 			IsNegative: true,
 			IsRegexp:   true,
 		},
@@ -244,7 +291,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc"),
 			IsNegative: true,
-			IsRegexp:   true,
+			IsRegexp:   false,
 		},
 		{
 			Key:        []byte("__graphite__"),
@@ -254,7 +301,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		},
 	})
 
-	// Regexp name filter with non-name filter.
+	// Regexp name filter, which can be converted to non-regexp, with non-name filter.
 	f([]TagFilter{
 		{
 			Key:        nil,
@@ -270,8 +317,18 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		},
 	}, []TagFilter{
 		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	})
+
+	// Regexp name filter with non-name filter.
+	f([]TagFilter{
+		{
 			Key:        nil,
-			Value:      []byte("bar"),
+			Value:      []byte("bar.+"),
 			IsNegative: false,
 			IsRegexp:   true,
 		},
@@ -279,6 +336,42 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			Key:        []byte("foo"),
 			Value:      []byte("abc"),
 			IsNegative: true,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar.+"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	})
+
+	// Regexp non-name filter, which matches anything.
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte(".*"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
 			IsRegexp:   false,
 		},
 	})

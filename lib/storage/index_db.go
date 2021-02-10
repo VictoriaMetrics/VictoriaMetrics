@@ -117,10 +117,13 @@ type indexDB struct {
 	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
+
+	// The minimum timestamp when queries with composite index can be used.
+	minTimestampForCompositeIndex int64
 }
 
 // openIndexDB opens index db from the given path with the given caches.
-func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache) (*indexDB, error) {
+func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, minTimestampForCompositeIndex int64) (*indexDB, error) {
 	if metricIDCache == nil {
 		logger.Panicf("BUG: metricIDCache must be non-nil")
 	}
@@ -152,6 +155,8 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		tsidCache:                      tsidCache,
 		uselessTagFiltersCache:         workingsetcache.New(mem/128, time.Hour),
 		metricIDsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
+
+		minTimestampForCompositeIndex: minTimestampForCompositeIndex,
 	}
 
 	is := db.getIndexSearch(0, 0, noDeadline)
@@ -1651,6 +1656,9 @@ func (db *indexDB) searchTSIDs(tfss []*TagFilters, tr TimeRange, maxMetrics int,
 	if len(tfss) == 0 {
 		return nil, nil
 	}
+	if tr.MinTimestamp >= db.minTimestampForCompositeIndex {
+		tfss = convertToCompositeTagFilterss(tfss)
+	}
 
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
@@ -1912,7 +1920,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
-	tfs = fromCompositeTagFilters(tfs, kb.B)
+	tfs = removeCompositeTagFilters(tfs, kb.B)
 
 	metricName := kbPool.Get()
 	defer kbPool.Put(metricName)
@@ -2115,17 +2123,21 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 	return nil, metricIDs, nil
 }
 
-func fromCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
-	tfsNew := make([]*tagFilter, 0, len(tfs))
+func removeCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
+	if !hasCompositeTagFilters(tfs, prefix) {
+		return tfs
+	}
+	var tagKey []byte
+	var name []byte
+	tfsNew := make([]*tagFilter, 0, len(tfs)+1)
 	for _, tf := range tfs {
 		if !bytes.HasPrefix(tf.prefix, prefix) {
 			tfsNew = append(tfsNew, tf)
 			continue
 		}
 		suffix := tf.prefix[len(prefix):]
-		var tagKey, tail []byte
 		var err error
-		tail, tagKey, err = unmarshalTagValue(tagKey[:0], suffix)
+		_, tagKey, err = unmarshalTagValue(tagKey[:0], suffix)
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal tag key from suffix=%q: %s", suffix, err)
 		}
@@ -2139,18 +2151,47 @@ func fromCompositeTagFilters(tfs []*tagFilter, prefix []byte) []*tagFilter {
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal nameLen from tagKey %q: %s", tagKey, err)
 		}
+		if nameLen == 0 {
+			logger.Panicf("BUG: nameLen must be greater than 0")
+		}
 		if uint64(len(tagKey)) < nameLen {
 			logger.Panicf("BUG: expecting at %d bytes for name in tagKey=%q; got %d bytes", nameLen, tagKey, len(tagKey))
 		}
+		name = append(name[:0], tagKey[:nameLen]...)
 		tagKey = tagKey[nameLen:]
-		tfNew := *tf
-		tfNew.key = append(tfNew.key[:0], tagKey...)
-		tfNew.prefix = append(tfNew.prefix[:0], prefix...)
-		tfNew.prefix = marshalTagValue(tfNew.prefix, tagKey)
-		tfNew.prefix = append(tfNew.prefix, tail...)
+		var tfNew tagFilter
+		if err := tfNew.Init(prefix, tagKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
+			logger.Panicf("BUG: cannot initialize {%s=%q} filter: %s", tagKey, tf.value, err)
+		}
+		tfsNew = append(tfsNew, &tfNew)
+	}
+	if len(name) > 0 {
+		var tfNew tagFilter
+		if err := tfNew.Init(prefix, nil, name, false, false); err != nil {
+			logger.Panicf("BUG: unexpected error when initializing {__name__=%q} filter: %s", name, err)
+		}
 		tfsNew = append(tfsNew, &tfNew)
 	}
 	return tfsNew
+}
+
+func hasCompositeTagFilters(tfs []*tagFilter, prefix []byte) bool {
+	var tagKey []byte
+	for _, tf := range tfs {
+		if !bytes.HasPrefix(tf.prefix, prefix) {
+			continue
+		}
+		suffix := tf.prefix[len(prefix):]
+		var err error
+		_, tagKey, err = unmarshalTagValue(tagKey[:0], suffix)
+		if err != nil {
+			logger.Panicf("BUG: cannot unmarshal tag key from suffix=%q: %s", suffix, err)
+		}
+		if len(tagKey) > 0 && tagKey[0] == compositeTagKeyPrefix {
+			return true
+		}
+	}
+	return false
 }
 
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
