@@ -54,14 +54,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ac := authConfig.Load().(map[string]*UserInfo)
-	info := ac[username]
-	if info == nil || info.Password != password {
+	ui := ac[username]
+	if ui == nil || ui.Password != password {
 		httpserver.Errorf(w, r, "cannot find the provided username %q or password in config", username)
 		return true
 	}
-	info.requests.Inc()
-
-	targetURL := createTargetURL(info.URLPrefix, r.URL)
+	ui.requests.Inc()
+	targetURL, err := createTargetURL(ui, r.URL)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
+		return true
+	}
 	if _, err := url.Parse(targetURL); err != nil {
 		httpserver.Errorf(w, r, "invalid targetURL=%q: %s", targetURL, err)
 		return true
