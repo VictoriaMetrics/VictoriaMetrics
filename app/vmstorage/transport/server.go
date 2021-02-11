@@ -764,8 +764,8 @@ func (s *Server) processVMSelectDeleteMetrics(ctx *vmselectRequestCtx) error {
 
 	// Setup ctx.tfss
 	tr := storage.TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: time.Now().UnixNano() / 1e6,
+		MinTimestamp: ctx.sq.MinTimestamp,
+		MaxTimestamp: ctx.sq.MaxTimestamp,
 	}
 	if err := ctx.setupTfss(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
