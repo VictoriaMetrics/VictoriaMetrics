@@ -279,8 +279,8 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ecCopy := *ec
-			tss, err := evalExpr(&ecCopy, be.Left)
+			ecCopy := newEvalConfig(ec)
+			tss, err := evalExpr(ecCopy, be.Left)
 			mu.Lock()
 			if err != nil {
 				if errGlobal == nil {
@@ -293,8 +293,8 @@ func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ecCopy := *ec
-			tss, err := evalExpr(&ecCopy, be.Right)
+			ecCopy := newEvalConfig(ec)
+			tss, err := evalExpr(ecCopy, be.Right)
 			mu.Lock()
 			if err != nil {
 				if errGlobal == nil {
