@@ -260,9 +260,9 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse request form values: %w", err)
 	}
-	matches, err := getMatchesFromRequest(r)
-	if err != nil {
-		return err
+	matches := getMatchesFromRequest(r)
+	if len(matches) == 0 {
+		return fmt.Errorf("missing `match[]` query arg")
 	}
 	start, err := searchutils.GetTime(r, "start", 0)
 	if err != nil {
@@ -481,8 +481,9 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 	if err != nil {
 		return err
 	}
+	matches := getMatchesFromRequest(r)
 	var labelValues []string
-	if len(r.Form["match[]"]) == 0 && len(etf) == 0 {
+	if len(matches) == 0 && len(etf) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
 			labelValues, err = netstorage.GetLabelValues(labelName, deadline)
@@ -513,7 +514,6 @@ func LabelValuesHandler(startTime time.Time, labelName string, w http.ResponseWr
 		// i.e. /api/v1/label/foo/values?match[]=foobar{baz="abc"}&start=...&end=...
 		// is equivalent to `label_values(foobar{baz="abc"}, foo)` call on the selected
 		// time range in Grafana templating.
-		matches := r.Form["match[]"]
 		if len(matches) == 0 {
 			matches = []string{fmt.Sprintf("{%s!=''}", labelName)}
 		}
@@ -696,8 +696,9 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return err
 	}
+	matches := getMatchesFromRequest(r)
 	var labels []string
-	if len(r.Form["match[]"]) == 0 && len(etf) == 0 {
+	if len(matches) == 0 && len(etf) == 0 {
 		if len(r.Form["start"]) == 0 && len(r.Form["end"]) == 0 {
 			var err error
 			labels, err = netstorage.GetLabels(deadline)
@@ -726,7 +727,6 @@ func LabelsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	} else {
 		// Extended functionality that allows filtering by label filters and time range
 		// i.e. /api/v1/labels?match[]=foobar{baz="abc"}&start=...&end=...
-		matches := r.Form["match[]"]
 		if len(matches) == 0 {
 			matches = []string{"{__name__!=''}"}
 		}
@@ -1279,9 +1279,9 @@ func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) 
 }
 
 func getTagFilterssFromRequest(r *http.Request) ([][]storage.TagFilter, error) {
-	matches, err := getMatchesFromRequest(r)
-	if err != nil {
-		return nil, err
+	matches := getMatchesFromRequest(r)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("missing `match[]` query arg")
 	}
 	tagFilterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
@@ -1295,16 +1295,11 @@ func getTagFilterssFromRequest(r *http.Request) ([][]storage.TagFilter, error) {
 	return tagFilterss, nil
 }
 
-func getMatchesFromRequest(r *http.Request) ([]string, error) {
+func getMatchesFromRequest(r *http.Request) []string {
 	matches := r.Form["match[]"]
-	if len(matches) > 0 {
-		return matches, nil
-	}
-	match := r.Form.Get("match")
-	if len(match) == 0 {
-		return nil, fmt.Errorf("missing `match[]` query arg")
-	}
-	return []string{match}, nil
+	// This is needed for backwards compatibility
+	matches = append(matches, r.Form["match"]...)
+	return matches
 }
 
 func getLatencyOffsetMilliseconds() int64 {
