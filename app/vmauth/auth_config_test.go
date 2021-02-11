@@ -46,6 +46,11 @@ users:
 - username: foo
   url_prefix: //bar
 `)
+	f(`
+users:
+- username: foo
+  url_prefix: http:///bar
+`)
 
 	// Duplicate users
 	f(`
@@ -56,6 +61,31 @@ users:
   url_prefix: http://xxx.yyy
 - username: foo
   url_prefix: https://sss.sss
+`)
+
+	// Missing url_prefix in url_map
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: ["/foo/bar"]
+`)
+
+	// Missing src_paths in url_map
+	f(`
+users:
+- username: a
+  url_map:
+  - url_prefix: http://foobar
+`)
+
+	// src_path not starting with `/`
+	f(`
+users:
+- username: a
+  url_map:
+  - src_paths: [foobar]
+    url_prefix: http://foobar
 `)
 }
 
@@ -101,6 +131,31 @@ users:
 		"bar": {
 			Username:  "bar",
 			URLPrefix: "https://bar/x",
+		},
+	})
+
+	// non-empty URLMap
+	f(`
+users:
+- username: foo
+  url_map:
+  - src_paths: ["/api/v1/query","/api/v1/query_range"]
+    url_prefix: http://vmselect/select/0/prometheus
+  - src_paths: ["/api/v1/write"]
+    url_prefix: http://vminsert/insert/0/prometheus
+`, map[string]*UserInfo{
+		"foo": {
+			Username: "foo",
+			URLMap: []URLMap{
+				{
+					SrcPaths:  []string{"/api/v1/query", "/api/v1/query_range"},
+					URLPrefix: "http://vmselect/select/0/prometheus",
+				},
+				{
+					SrcPaths:  []string{"/api/v1/write"},
+					URLPrefix: "http://vminsert/insert/0/prometheus",
+				},
+			},
 		},
 	})
 }

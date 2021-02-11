@@ -56,12 +56,25 @@ users:
 
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
   # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
-  # All the reuqests to http://vmauth:8427 with the given Basic Auth (username:password)
+  # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be routed to http://vminsert:8480/insert/42/prometheus .
   # For example, http://vmauth:8427/api/v1/write is routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "cluster-insert-account-42"
   password: "***"
   url_prefix: "http://vminsert:8480/insert/42/prometheus"
+
+
+  # A single user for querying and inserting data:
+  # - Requests to http://vmauth:8427/api/v1/query or http://vmauth:8427/api/v1/query_range
+  #   are routed to http://vmselect:8481/select/42/prometheus.
+  #   For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8480/select/42/prometheus/api/v1/query
+  # - Requests to http://vmauth:8427/api/v1/write are routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
+- username: "foobar"
+  url_map:
+  - src_paths: ["/api/v1/query", "/api/v1/query_range"]
+    url_prefix: "http://vmselect:8481/select/42/prometheus"
+  - src_paths: ["/api/v1/write"]
+    url_prefix: "http://vminsert:8480/insert/42/prometheus"
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
