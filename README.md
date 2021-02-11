@@ -179,7 +179,7 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
      - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` on `vmselect` (see below).
      - `prometheus/api/v1/import/native` - for importing data obtained via `api/v1/export/native` on `vmselect` (see below).
      - `prometheus/api/v1/import/csv` - for importing arbitrary CSV data. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-csv-data) for details.
-     - `prometheus/api/v1/import/prometheus` - for importing data in Prometheus exposition format. See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
+     - `prometheus/api/v1/import/prometheus` - for importing data in [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md). See [these docs](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-import-data-in-prometheus-exposition-format) for details.
 
 * URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
