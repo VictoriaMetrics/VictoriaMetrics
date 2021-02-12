@@ -6,7 +6,7 @@ ROOT_IMAGE ?= alpine:3.13.1
 CERTS_IMAGE := alpine:3.13.1
 GO_BUILDER_IMAGE := golang:1.15.8
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
-BASE_IMAGE := local/base:1.1.2-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
+BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
@@ -34,7 +34,7 @@ app-via-docker: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -mod=vendor -trimpath \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo nethttpomithttp2' \
+			-tags 'netgo osusergo nethttpomithttp2 timetzdata' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base
