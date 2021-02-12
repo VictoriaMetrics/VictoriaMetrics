@@ -2,11 +2,10 @@
 ARG certs_image
 ARG root_image
 FROM $certs_image as certs
-RUN apk --update --no-cache add ca-certificates tzdata
+RUN apk --update --no-cache add ca-certificates
 
 FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=certs /usr/share/zoneinfo /usr/share/zoneinfo/
 EXPOSE 8427
 ENTRYPOINT ["/vmauth-prod"]
 ARG TARGETARCH
