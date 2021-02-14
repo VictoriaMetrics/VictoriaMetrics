@@ -985,8 +985,9 @@ func TestTagFiltersString(t *testing.T) {
 	mustAdd("tag_re", "re.value", false, true)
 	mustAdd("tag_nre", "nre.value", true, true)
 	mustAdd("tag_n", "n_value", true, false)
+	mustAdd("tag_re_graphite", "foo\\.bar", false, true)
 	s := tfs.String()
-	sExpected := `AccountID=12, ProjectID=34 {__name__="metric_name", tag_re=~"re.value", tag_nre!~"nre.value", tag_n!="n_value"}`
+	sExpected := `AccountID=12, ProjectID=34 {__name__="metric_name", tag_re=~"re.value", tag_nre!~"nre.value", tag_n!="n_value", tag_re_graphite="foo.bar"}`
 	if s != sExpected {
 		t.Fatalf("unexpected TagFilters.String(); got %q; want %q", s, sExpected)
 	}
