@@ -565,7 +565,9 @@ func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b [
 	return reMatch, "", reMatchCost
 }
 
-// The following & default cost values are returned from BenchmarkOptimizedReMatchCost
+// These cost values are used for sorting tag filters in ascending order or the required CPU time for execution.
+//
+// These values are obtained from BenchmarkOptimizedReMatchCost benchmark.
 const (
 	fullMatchCost    = 1
 	prefixMatchCost  = 2
