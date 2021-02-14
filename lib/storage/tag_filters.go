@@ -48,7 +48,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 			}
 			continue
 		}
-		if string(tf.key) == "__graphite__" {
+		if string(tf.key) == "__graphite__" || bytes.Equal(tf.key, graphiteReverseTagKey) {
 			tfsNew = append(tfsNew, tf)
 			continue
 		}
@@ -367,6 +367,7 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	if tf.isRegexp {
 		prefix, expr = getRegexpPrefix(tf.value)
 		if len(expr) == 0 {
+			tf.value = append(tf.value[:0], prefix...)
 			tf.isRegexp = false
 		}
 	}
