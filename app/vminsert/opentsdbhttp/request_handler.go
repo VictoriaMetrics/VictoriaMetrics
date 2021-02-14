@@ -23,7 +23,7 @@ var (
 func InsertHandler(req *http.Request) error {
 	path := req.URL.Path
 	switch path {
-	case "/api/put":
+	case "/opentsdb/api/put", "/api/put":
 		extraLabels, err := parserCommon.GetExtraLabels(req)
 		if err != nil {
 			return err

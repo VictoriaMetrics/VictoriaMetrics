@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -136,6 +137,10 @@ type indexBlock struct {
 	bhs []blockHeader
 }
 
+func (idxb *indexBlock) SizeBytes() int {
+	return cap(idxb.bhs) * int(unsafe.Sizeof(blockHeader{}))
+}
+
 func getIndexBlock() *indexBlock {
 	v := indexBlockPool.Get()
 	if v == nil {
@@ -200,7 +205,7 @@ func (idxbc *indexBlockCache) MustClose() {
 
 // cleaner periodically cleans least recently used items.
 func (idxbc *indexBlockCache) cleaner() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -216,8 +221,8 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	idxbc.mu.Lock()
 	for k, idxbe := range idxbc.m {
-		// Delete items accessed more than a minute ago.
-		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 60 {
+		// Delete items accessed more than two minutes ago.
+		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 2*60 {
 			delete(idxbc.m, k)
 		}
 	}
@@ -276,6 +281,16 @@ func (idxbc *indexBlockCache) Len() uint64 {
 	return uint64(n)
 }
 
+func (idxbc *indexBlockCache) SizeBytes() uint64 {
+	n := 0
+	idxbc.mu.RLock()
+	for _, e := range idxbc.m {
+		n += e.idxb.SizeBytes()
+	}
+	idxbc.mu.RUnlock()
+	return uint64(n)
+}
+
 func (idxbc *indexBlockCache) Requests() uint64 {
 	return atomic.LoadUint64(&idxbc.requests)
 }
@@ -299,15 +314,10 @@ type inmemoryBlockCache struct {
 }
 
 type inmemoryBlockCacheKey struct {
-	firstItem        string
 	itemsBlockOffset uint64
 }
 
 func (ibck *inmemoryBlockCacheKey) Init(bh *blockHeader) {
-	ibck.firstItem = ""
-	if bh.itemsBlockSize == 0 {
-		ibck.firstItem = string(bh.firstItem)
-	}
 	ibck.itemsBlockOffset = bh.itemsBlockOffset
 }
 
@@ -347,7 +357,7 @@ func (ibc *inmemoryBlockCache) MustClose() {
 
 // cleaner periodically cleans least recently used items.
 func (ibc *inmemoryBlockCache) cleaner() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -363,8 +373,10 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
-		// Delete items accessed more than a minute ago.
-		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 60 {
+		// Delete items accessed more than a two minutes ago.
+		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 2*60 {
+			// do not call putInmemoryBlock(ibc.m[k]), since it
+			// may be used by concurrent goroutines.
 			delete(ibc.m, k)
 		}
 	}
@@ -420,6 +432,16 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
 func (ibc *inmemoryBlockCache) Len() uint64 {
 	ibc.mu.RLock()
 	n := len(ibc.m)
+	ibc.mu.RUnlock()
+	return uint64(n)
+}
+
+func (ibc *inmemoryBlockCache) SizeBytes() uint64 {
+	n := 0
+	ibc.mu.RLock()
+	for _, e := range ibc.m {
+		n += e.ib.SizeBytes()
+	}
 	ibc.mu.RUnlock()
 	return uint64(n)
 }

@@ -28,11 +28,18 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Username  string `yaml:"username"`
-	Password  string `yaml:"password"`
-	URLPrefix string `yaml:"url_prefix"`
+	Username  string   `yaml:"username"`
+	Password  string   `yaml:"password"`
+	URLPrefix string   `yaml:"url_prefix"`
+	URLMap    []URLMap `yaml:"url_map"`
 
 	requests *metrics.Counter
+}
+
+// URLMap is a mapping from source paths to target urls.
+type URLMap struct {
+	SrcPaths  []string `yaml:"src_paths"`
+	URLPrefix string   `yaml:"url_prefix"`
 }
 
 func initAuthConfig() {
@@ -109,23 +116,52 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if m[ui.Username] != nil {
 			return nil, fmt.Errorf("duplicate username found; username: %q", ui.Username)
 		}
-		urlPrefix := ui.URLPrefix
-		// Remove trailing '/' from urlPrefix
-		for strings.HasSuffix(urlPrefix, "/") {
-			urlPrefix = urlPrefix[:len(urlPrefix)-1]
+		if len(ui.URLPrefix) > 0 {
+			urlPrefix, err := sanitizeURLPrefix(ui.URLPrefix)
+			if err != nil {
+				return nil, err
+			}
+			ui.URLPrefix = urlPrefix
 		}
-		// Validate urlPrefix
-		target, err := url.Parse(urlPrefix)
-		if err != nil {
-			return nil, fmt.Errorf("invalid `url_prefix: %q`: %w", urlPrefix, err)
+		for _, e := range ui.URLMap {
+			if len(e.SrcPaths) == 0 {
+				return nil, fmt.Errorf("missing `src_paths`")
+			}
+			for _, path := range e.SrcPaths {
+				if !strings.HasPrefix(path, "/") {
+					return nil, fmt.Errorf("`src_path`=%q must start with `/`", path)
+				}
+			}
+			urlPrefix, err := sanitizeURLPrefix(e.URLPrefix)
+			if err != nil {
+				return nil, err
+			}
+			e.URLPrefix = urlPrefix
 		}
-		if target.Scheme != "http" && target.Scheme != "https" {
-			return nil, fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, target.Scheme)
+		if len(ui.URLMap) == 0 && len(ui.URLPrefix) == 0 {
+			return nil, fmt.Errorf("missing `url_prefix`")
 		}
-
-		ui.URLPrefix = urlPrefix
 		ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, ui.Username))
 		m[ui.Username] = ui
 	}
 	return m, nil
+}
+
+func sanitizeURLPrefix(urlPrefix string) (string, error) {
+	// Remove trailing '/' from urlPrefix
+	for strings.HasSuffix(urlPrefix, "/") {
+		urlPrefix = urlPrefix[:len(urlPrefix)-1]
+	}
+	// Validate urlPrefix
+	target, err := url.Parse(urlPrefix)
+	if err != nil {
+		return "", fmt.Errorf("invalid `url_prefix: %q`: %w", urlPrefix, err)
+	}
+	if target.Scheme != "http" && target.Scheme != "https" {
+		return "", fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, target.Scheme)
+	}
+	if target.Host == "" {
+		return "", fmt.Errorf("missing hostname in `url_prefix %q`", urlPrefix)
+	}
+	return urlPrefix, nil
 }

@@ -6,6 +6,9 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -81,3 +84,69 @@ func writeProcessMetrics(w io.Writer) {
 }
 
 var startTimeSeconds = time.Now().Unix()
+
+// WriteFDMetrics writes process_max_fds and process_open_fds metrics to w.
+func writeFDMetrics(w io.Writer) {
+	totalOpenFDs, err := getOpenFDsCount("/proc/self/fd")
+	if err != nil {
+		log.Printf("ERROR: cannot determine open file descriptors count: %s", err)
+		return
+	}
+	maxOpenFDs, err := getMaxFilesLimit("/proc/self/limits")
+	if err != nil {
+		log.Printf("ERROR: cannot determine the limit on open file descritors: %s", err)
+		return
+	}
+	fmt.Fprintf(w, "process_max_fds %d\n", maxOpenFDs)
+	fmt.Fprintf(w, "process_open_fds %d\n", totalOpenFDs)
+}
+
+func getOpenFDsCount(path string) (uint64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	var totalOpenFDs uint64
+	for {
+		names, err := f.Readdirnames(512)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return 0, fmt.Errorf("unexpected error at Readdirnames: %s", err)
+		}
+		totalOpenFDs += uint64(len(names))
+	}
+	return totalOpenFDs, nil
+}
+
+func getMaxFilesLimit(path string) (uint64, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	lines := strings.Split(string(data), "\n")
+	const prefix = "Max open files"
+	for _, s := range lines {
+		if !strings.HasPrefix(s, prefix) {
+			continue
+		}
+		text := strings.TrimSpace(s[len(prefix):])
+		// Extract soft limit.
+		n := strings.IndexByte(text, ' ')
+		if n < 0 {
+			return 0, fmt.Errorf("cannot extract soft limit from %q", s)
+		}
+		text = text[:n]
+		if text == "unlimited" {
+			return 1<<64 - 1, nil
+		}
+		limit, err := strconv.ParseUint(text, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse soft limit from %q: %s", s, err)
+		}
+		return limit, nil
+	}
+	return 0, fmt.Errorf("cannot find max open files limit")
+}

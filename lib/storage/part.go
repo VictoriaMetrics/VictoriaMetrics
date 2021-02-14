@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -140,6 +141,10 @@ type indexBlock struct {
 	bhs []blockHeader
 }
 
+func (idxb *indexBlock) SizeBytes() int {
+	return cap(idxb.bhs) * int(unsafe.Sizeof(blockHeader{}))
+}
+
 func getIndexBlock() *indexBlock {
 	v := indexBlockPool.Get()
 	if v == nil {
@@ -204,7 +209,7 @@ func (ibc *indexBlockCache) MustClose(isBig bool) {
 
 // cleaner periodically cleans least recently used items.
 func (ibc *indexBlockCache) cleaner() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -220,8 +225,8 @@ func (ibc *indexBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
-		// Delete items accessed more than a minute ago.
-		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 60 {
+		// Delete items accessed more than two minutes ago.
+		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 2*60 {
 			delete(ibc.m, k)
 		}
 	}
@@ -285,4 +290,14 @@ func (ibc *indexBlockCache) Len() uint64 {
 	n := uint64(len(ibc.m))
 	ibc.mu.Unlock()
 	return n
+}
+
+func (ibc *indexBlockCache) SizeBytes() uint64 {
+	n := 0
+	ibc.mu.Lock()
+	for _, e := range ibc.m {
+		n += e.ib.SizeBytes()
+	}
+	ibc.mu.Unlock()
+	return uint64(n)
 }

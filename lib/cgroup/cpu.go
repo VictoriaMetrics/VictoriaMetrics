@@ -41,7 +41,7 @@ func updateGOMAXPROCSToCPUQuota() {
 }
 
 func getCPUQuota() float64 {
-	quotaUS, err := readInt64("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", "cat /sys/fs/cgroup/cpu$(cat /proc/self/cgroup | grep cpu, | cut -d: -f3)/cpu.cfs_quota_us")
+	quotaUS, err := getCPUStat("cpu.cfs_quota_us")
 	if err != nil {
 		return 0
 	}
@@ -50,11 +50,15 @@ func getCPUQuota() float64 {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
 		return getOnlineCPUCount()
 	}
-	periodUS, err := readInt64("/sys/fs/cgroup/cpu/cpu.cfs_period_us", "cat /sys/fs/cgroup/cpu$(cat /proc/self/cgroup | grep cpu, | cut -d: -f3)/cpu.cfs_period_us")
+	periodUS, err := getCPUStat("cpu.cfs_period_us")
 	if err != nil {
 		return 0
 	}
 	return float64(quotaUS) / float64(periodUS)
+}
+
+func getCPUStat(statName string) (int64, error) {
+	return getStatGeneric(statName, "/sys/fs/cgroup/cpu", "/proc/self/cgroup", "cpu,")
 }
 
 func getOnlineCPUCount() float64 {

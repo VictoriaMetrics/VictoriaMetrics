@@ -1,5 +1,9 @@
 package cgroup
 
+import (
+	"strconv"
+)
+
 // GetMemoryLimit returns cgroup memory limit
 func GetMemoryLimit() int64 {
 	// Try determining the amount of memory inside docker container.
@@ -8,24 +12,36 @@ func GetMemoryLimit() int64 {
 	// Read memory limit according to https://unix.stackexchange.com/questions/242718/how-to-find-out-how-much-memory-lxc-container-is-allowed-to-consume
 	// This should properly determine the limit inside lxc container.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/84
-	n, err := readInt64("/sys/fs/cgroup/memory/memory.limit_in_bytes", "cat /sys/fs/cgroup/memory$(cat /proc/self/cgroup | grep memory | cut -d: -f3)/memory.limit_in_bytes")
+	n, err := getMemStat("memory.limit_in_bytes")
 	if err != nil {
 		return 0
 	}
 	return n
 }
 
+func getMemStat(statName string) (int64, error) {
+	return getStatGeneric(statName, "/sys/fs/cgroup/memory", "/proc/self/cgroup", "memory")
+}
+
 // GetHierarchicalMemoryLimit returns hierarchical memory limit
+// https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
 func GetHierarchicalMemoryLimit() int64 {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/699
-	n, err := readInt64FromCommand("cat /sys/fs/cgroup/memory/memory.stat | grep hierarchical_memory_limit | cut -d' ' -f 2")
-	if err == nil {
-		return n
-	}
-	n, err = readInt64FromCommand(
-		"cat /sys/fs/cgroup/memory$(cat /proc/self/cgroup | grep memory | cut -d: -f3)/memory.stat | grep hierarchical_memory_limit | cut -d' ' -f 2")
+	n, err := getHierarchicalMemoryLimit("/sys/fs/cgroup/memory", "/proc/self/cgroup")
 	if err != nil {
 		return 0
 	}
 	return n
+}
+
+func getHierarchicalMemoryLimit(sysfsPrefix, cgroupPath string) (int64, error) {
+	data, err := getFileContents("memory.stat", sysfsPrefix, cgroupPath, "memory")
+	if err != nil {
+		return 0, err
+	}
+	memStat, err := grepFirstMatch(data, "hierarchical_memory_limit", 1, " ")
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(memStat, 10, 64)
 }

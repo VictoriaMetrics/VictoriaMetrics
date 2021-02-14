@@ -43,6 +43,7 @@ import (
 	"cloud.google.com/go/internal/version"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
 )
@@ -105,41 +106,48 @@ type Client struct {
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
 	var host, readHost, scheme string
 
+	// In general, it is recommended to use raw.NewService instead of htransport.NewClient
+	// since raw.NewService configures the correct default endpoints when initializing the
+	// internal http client. However, in our case, "NewRangeReader" in reader.go needs to
+	// access the http client directly to make requests, so we create the client manually
+	// here so it can be re-used by both reader.go and raw.NewService. This means we need to
+	// manually configure the default endpoint options on the http client. Furthermore, we
+	// need to account for STORAGE_EMULATOR_HOST override when setting the default endpoints.
 	if host = os.Getenv("STORAGE_EMULATOR_HOST"); host == "" {
 		scheme = "https"
 		readHost = "storage.googleapis.com"
 
 		// Prepend default options to avoid overriding options passed by the user.
 		opts = append([]option.ClientOption{option.WithScopes(ScopeFullControl), option.WithUserAgent(userAgent)}, opts...)
+
+		opts = append(opts, internaloption.WithDefaultEndpoint("https://storage.googleapis.com/storage/v1/"))
+		opts = append(opts, internaloption.WithDefaultMTLSEndpoint("https://storage.mtls.googleapis.com/storage/v1/"))
 	} else {
 		scheme = "http"
 		readHost = host
 
 		opts = append([]option.ClientOption{option.WithoutAuthentication()}, opts...)
+
+		opts = append(opts, internaloption.WithDefaultEndpoint(host))
+		opts = append(opts, internaloption.WithDefaultMTLSEndpoint(host))
 	}
 
+	// htransport selects the correct endpoint among WithEndpoint (user override), WithDefaultEndpoint, and WithDefaultMTLSEndpoint.
 	hc, ep, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dialing: %v", err)
 	}
-	rawService, err := raw.NewService(ctx, option.WithHTTPClient(hc))
+	// RawService should be created with the chosen endpoint to take account of user override.
+	rawService, err := raw.NewService(ctx, option.WithEndpoint(ep), option.WithHTTPClient(hc))
 	if err != nil {
 		return nil, fmt.Errorf("storage client: %v", err)
 	}
-	if ep == "" {
-		// Override the default value for BasePath from the raw client.
-		// TODO: remove when the raw client uses this endpoint as its default (~end of 2020)
-		rawService.BasePath = "https://storage.googleapis.com/storage/v1/"
-	} else {
-		// If the endpoint has been set explicitly, use this for the BasePath
-		// as well as readHost
-		rawService.BasePath = ep
-		u, err := url.Parse(ep)
-		if err != nil {
-			return nil, fmt.Errorf("supplied endpoint %v is not valid: %v", ep, err)
-		}
-		readHost = u.Host
+	// Update readHost with the chosen endpoint.
+	u, err := url.Parse(ep)
+	if err != nil {
+		return nil, fmt.Errorf("supplied endpoint %q is not valid: %v", ep, err)
 	}
+	readHost = u.Host
 
 	return &Client{
 		hc:       hc,
@@ -821,8 +829,8 @@ func (o *ObjectHandle) Attrs(ctx context.Context) (attrs *ObjectAttrs, err error
 	return newObject(obj), nil
 }
 
-// Update updates an object with the provided attributes.
-// All zero-value attributes are ignored.
+// Update updates an object with the provided attributes. See
+// ObjectAttrsToUpdate docs for details on treatment of zero values.
 // ErrObjectNotExist will be returned if the object is not found.
 func (o *ObjectHandle) Update(ctx context.Context, uattrs ObjectAttrsToUpdate) (oa *ObjectAttrs, err error) {
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.Object.Update")
@@ -933,7 +941,8 @@ func (o *ObjectHandle) ObjectName() string {
 
 // ObjectAttrsToUpdate is used to update the attributes of an object.
 // Only fields set to non-nil values will be updated.
-// Set a field to its zero value to delete it.
+// For all fields except CustomTime, set the field to its zero value to delete
+// it. CustomTime cannot be deleted or changed to an earlier time once set.
 //
 // For example, to change ContentType and delete ContentEncoding and
 // Metadata, use
@@ -950,8 +959,8 @@ type ObjectAttrsToUpdate struct {
 	ContentEncoding    optional.String
 	ContentDisposition optional.String
 	CacheControl       optional.String
-	CustomTime         time.Time
-	Metadata           map[string]string // set to map[string]string{} to delete
+	CustomTime         time.Time         // Cannot be deleted or backdated from its current value.
+	Metadata           map[string]string // Set to map[string]string{} to delete.
 	ACL                []ACLRule
 
 	// If not empty, applies a predefined set of access controls. ACL must be nil.
@@ -1221,7 +1230,8 @@ type ObjectAttrs struct {
 	// LifecycleConditions to manage object lifecycles.
 	//
 	// CustomTime cannot be removed once set on an object. It can be updated to a
-	// later value but not to an earlier one.
+	// later value but not to an earlier one. For more information see
+	// https://cloud.google.com/storage/docs/metadata#custom-time .
 	CustomTime time.Time
 }
 
@@ -1298,6 +1308,31 @@ func encodeUint32(u uint32) string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
+// Projection is enumerated type for Query.Projection.
+type Projection int
+
+const (
+	// ProjectionDefault returns all fields of objects.
+	ProjectionDefault Projection = iota
+
+	// ProjectionFull returns all fields of objects.
+	ProjectionFull
+
+	// ProjectionNoACL returns all fields of objects except for Owner and ACL.
+	ProjectionNoACL
+)
+
+func (p Projection) String() string {
+	switch p {
+	case ProjectionFull:
+		return "full"
+	case ProjectionNoACL:
+		return "noAcl"
+	default:
+		return ""
+	}
+}
+
 // Query represents a query to filter objects from a bucket.
 type Query struct {
 	// Delimiter returns results in a directory-like fashion.
@@ -1333,6 +1368,11 @@ type Query struct {
 	// lexicographically before endOffset. If startOffset is also set, the objects
 	// listed will have names between startOffset (inclusive) and endOffset (exclusive).
 	EndOffset string
+
+	// Projection defines the set of properties to return. It will default to ProjectionFull,
+	// which returns all properties. Passing ProjectionNoACL will omit Owner and ACL,
+	// which may improve performance when listing many objects.
+	Projection Projection
 }
 
 // attrToFieldMap maps the field names of ObjectAttrs to the underlying field

@@ -108,6 +108,9 @@ type Storage struct {
 	// which may be in the process of flushing to disk by concurrently running
 	// snapshot process.
 	snapshotLock sync.Mutex
+
+	// The minimum timestamp when composite index search can be used.
+	minTimestampForCompositeIndex int64
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
@@ -126,13 +129,8 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 
 		stop: make(chan struct{}),
 	}
-
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
-	}
-	snapshotsPath := path + "/snapshots"
-	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
 	}
 
 	// Protect from concurrent opens.
@@ -141,6 +139,12 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 		return nil, err
 	}
 	s.flockF = flockF
+
+	// Pre-create snapshots directory if it is missing.
+	snapshotsPath := path + "/snapshots"
+	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
+		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
+	}
 
 	// Load caches.
 	mem := memory.Allowed()
@@ -163,13 +167,21 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 
 	s.prefetchedMetricIDs.Store(&uint64set.Set{})
 
+	// Load metadata
+	metadataDir := path + "/metadata"
+	isEmptyDB := !fs.IsPathExist(path + "/indexdb")
+	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
+		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
+	}
+	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
+
 	// Load indexdb
 	idbPath := path + "/indexdb"
 	idbSnapshotsPath := idbPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
-	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache)
+	idbCurr, idbPrev, err := openIndexDBTables(idbPath, s.metricIDCache, s.metricNameCache, s.tsidCache, s.minTimestampForCompositeIndex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
 	}
@@ -235,7 +247,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	}
 	fs.MustSyncPath(dstDataDir)
 
-	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
+	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
 	idb := s.idb()
 	currSnapshot := idbSnapshot + "/" + idb.name
 	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
@@ -253,8 +265,13 @@ func (s *Storage) CreateSnapshot() (string, error) {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
 	}
 
+	srcMetadataDir := srcDir + "/metadata"
+	dstMetadataDir := dstDir + "/metadata"
+	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
+		return "", fmt.Errorf("cannot copy metadata: %s", err)
+	}
+
 	fs.MustSyncPath(dstDir)
-	fs.MustSyncPath(srcDir + "/snapshots")
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 	return snapshotName, nil
@@ -537,7 +554,7 @@ func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
 	idbNewPath := s.path + "/indexdb/" + newTableName
-	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache)
+	idbNew, err := openIndexDB(idbNewPath, s.metricIDCache, s.metricNameCache, s.tsidCache, s.minTimestampForCompositeIndex)
 	if err != nil {
 		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
 	}
@@ -756,6 +773,45 @@ func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
 		return true
 	})
 	return dst
+}
+
+func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {
+	path := metadataDir + "/minTimestampForCompositeIndex"
+	minTimestamp, err := loadMinTimestampForCompositeIndex(path)
+	if err == nil {
+		return minTimestamp
+	}
+	if !os.IsNotExist(err) {
+		logger.Errorf("cannot read minTimestampForCompositeIndex, so trying to re-create it; error: %s", err)
+	}
+	date := time.Now().UnixNano() / 1e6 / msecPerDay
+	if !isEmptyDB {
+		// The current and the next day can already contain non-composite indexes,
+		// so they cannot be queried with composite indexes.
+		date += 2
+	} else {
+		date = 0
+	}
+	minTimestamp = date * msecPerDay
+	dateBuf := encoding.MarshalInt64(nil, minTimestamp)
+	if err := os.RemoveAll(path); err != nil {
+		logger.Fatalf("cannot remove a file with minTimestampForCompositeIndex: %s", err)
+	}
+	if err := fs.WriteFileAtomically(path, dateBuf); err != nil {
+		logger.Fatalf("cannot store minTimestampForCompositeIndex: %s", err)
+	}
+	return minTimestamp
+}
+
+func loadMinTimestampForCompositeIndex(path string) (int64, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	if len(data) != 8 {
+		return 0, fmt.Errorf("unexpected length of %q; got %d bytes; want 8 bytes", path, len(data))
+	}
+	return encoding.UnmarshalInt64(data), nil
 }
 
 func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
@@ -1476,7 +1532,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 		atomic.AddUint64(&s.slowRowInserts, slowInsertsCount)
 	}
 	if firstWarn != nil {
-		logger.Errorf("warn occurred during rows addition: %s", firstWarn)
+		logger.Warnf("warn occurred during rows addition: %s", firstWarn)
 	}
 	rows = rows[:rowsLen+j]
 
@@ -1573,6 +1629,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		prevMetricID uint64
 	)
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+	hmPrevDate := hmPrev.hour / 24
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().(*byDateMetricIDEntry).v
 	todayShare16bit := uint64((float64(fasttime.UnixTimestamp()%(3600*24)) / (3600 * 24)) * (1 << 16))
 	type pendingDateMetricID struct {
@@ -1580,6 +1638,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		metricID uint64
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
+	var pendingNextDayMetricIDs []uint64
+	var pendingHourEntries []uint64
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -1588,6 +1648,12 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 			prevTimestamp = r.Timestamp
 		}
 		metricID := r.TSID.MetricID
+		if metricID == prevMetricID && date == prevDate {
+			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
+			continue
+		}
+		prevDate = date
+		prevMetricID = metricID
 		if hour == hm.hour {
 			// The r belongs to the current hour. Check for the current hour cache.
 			if hm.m.Has(metricID) {
@@ -1604,34 +1670,36 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 						date:     date + 1,
 						metricID: metricID,
 					})
-					s.pendingNextDayMetricIDsLock.Lock()
-					s.pendingNextDayMetricIDs.Add(metricID)
-					s.pendingNextDayMetricIDsLock.Unlock()
+					pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 				}
 				continue
 			}
-			s.pendingHourEntriesLock.Lock()
-			s.pendingHourEntries.Add(metricID)
-			s.pendingHourEntriesLock.Unlock()
+			pendingHourEntries = append(pendingHourEntries, metricID)
+			if date == hmPrevDate && hmPrev.m.Has(metricID) {
+				// The metricID is already registered for the current day on the previous hour.
+				continue
+			}
 		}
 
 		// Slower path: check global cache for (date, metricID) entry.
-		if metricID == prevMetricID && date == prevDate {
-			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
+		if s.dateMetricIDCache.Has(date, metricID) {
 			continue
 		}
-		prevDate = date
-		prevMetricID = metricID
-
-		if !s.dateMetricIDCache.Has(date, metricID) {
-			// Slow path: store the (date, metricID) entry in the indexDB.
-			// It is OK if the (date, metricID) entry is added multiple times to db
-			// by concurrent goroutines.
-			pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-				date:     date,
-				metricID: metricID,
-			})
-		}
+		// Slow path: store the (date, metricID) entry in the indexDB.
+		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
+			date:     date,
+			metricID: metricID,
+		})
+	}
+	if len(pendingNextDayMetricIDs) > 0 {
+		s.pendingNextDayMetricIDsLock.Lock()
+		s.pendingNextDayMetricIDs.AddMulti(pendingNextDayMetricIDs)
+		s.pendingNextDayMetricIDsLock.Unlock()
+	}
+	if len(pendingHourEntries) > 0 {
+		s.pendingHourEntriesLock.Lock()
+		s.pendingHourEntries.AddMulti(pendingHourEntries)
+		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
 		// Fast path - there are no new (date, metricID) entires in rows.
@@ -1654,22 +1722,10 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
 	var firstError error
-	prevMetricID = 0
-	prevDate = 0
-	for _, dateMetricID := range pendingDateMetricIDs {
-		date := dateMetricID.date
-		metricID := dateMetricID.metricID
-		if metricID == prevMetricID && date == prevDate {
-			// Fast path for bulk import of multiple rows with the same (date, metricID) pairs.
-			continue
-		}
-		prevDate = date
-		prevMetricID = metricID
-
-		if s.dateMetricIDCache.Has(date, metricID) {
-			// The metricID has been already added to per-day inverted index.
-			continue
-		}
+	dateMetricIDsForCache := make([]dateMetricID, 0, len(pendingDateMetricIDs))
+	for _, dmid := range pendingDateMetricIDs {
+		date := dmid.date
+		metricID := dmid.metricID
 		ok, err := is.hasDateMetricID(date, metricID)
 		if err != nil {
 			if firstError == nil {
@@ -1679,6 +1735,8 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 		}
 		if !ok {
 			// The (date, metricID) entry is missing in the indexDB. Add it there.
+			// It is OK if the (date, metricID) entry is added multiple times to db
+			// by concurrent goroutines.
 			if err := is.storeDateMetricID(date, metricID); err != nil {
 				if firstError == nil {
 					firstError = fmt.Errorf("error when storing (date=%d, metricID=%d) in database: %w", date, metricID, err)
@@ -1686,9 +1744,13 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 				continue
 			}
 		}
-		// The metric must be added to cache only after it has been successfully added to indexDB.
-		s.dateMetricIDCache.Set(date, metricID)
+		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
+			date:     date,
+			metricID: metricID,
+		})
 	}
+	// The (date, metricID) entries must be added to cache only after they have been successfully added to indexDB.
+	s.dateMetricIDCache.Store(dateMetricIDsForCache)
 	return firstError
 }
 
@@ -1769,6 +1831,34 @@ func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
 		dmc.sync()
 	}
 	return ok
+}
+
+type dateMetricID struct {
+	date     uint64
+	metricID uint64
+}
+
+func (dmc *dateMetricIDCache) Store(dmids []dateMetricID) {
+	var prevDate uint64
+	metricIDs := make([]uint64, 0, len(dmids))
+	dmc.mu.Lock()
+	for _, dmid := range dmids {
+		if prevDate == dmid.date {
+			metricIDs = append(metricIDs, dmid.metricID)
+			continue
+		}
+		if len(metricIDs) > 0 {
+			v := dmc.byDateMutable.getOrCreate(prevDate)
+			v.AddMulti(metricIDs)
+		}
+		metricIDs = append(metricIDs[:0], dmid.metricID)
+		prevDate = dmid.date
+	}
+	if len(metricIDs) > 0 {
+		v := dmc.byDateMutable.getOrCreate(prevDate)
+		v.AddMulti(metricIDs)
+	}
+	dmc.mu.Unlock()
 }
 
 func (dmc *dateMetricIDCache) Set(date, metricID uint64) {
@@ -1914,7 +2004,7 @@ func (s *Storage) putTSIDToCache(tsid *TSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache) (curr, prev *indexDB, err error) {
+func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *workingsetcache.Cache, minTimestampForCompositeIndex int64) (curr, prev *indexDB, err error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
@@ -1973,12 +2063,12 @@ func openIndexDBTables(path string, metricIDCache, metricNameCache, tsidCache *w
 	// Open the last two tables.
 	currPath := path + "/" + tableNames[len(tableNames)-1]
 
-	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache)
+	curr, err = openIndexDB(currPath, metricIDCache, metricNameCache, tsidCache, minTimestampForCompositeIndex)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
 	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache)
+	prev, err = openIndexDB(prevPath, metricIDCache, metricNameCache, tsidCache, minTimestampForCompositeIndex)
 	if err != nil {
 		curr.MustClose()
 		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)

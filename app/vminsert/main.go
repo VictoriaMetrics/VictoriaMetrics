@@ -92,7 +92,7 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	switch path {
-	case "/api/v1/write":
+	case "/prometheus/api/v1/write", "/api/v1/write":
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(r); err != nil {
 			prometheusWriteErrors.Inc()
@@ -101,7 +101,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import":
+	case "/prometheus/api/v1/import", "/api/v1/import":
 		vmimportRequests.Inc()
 		if err := vmimport.InsertHandler(r); err != nil {
 			vmimportErrors.Inc()
@@ -110,7 +110,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import/csv":
+	case "/prometheus/api/v1/import/csv", "/api/v1/import/csv":
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(r); err != nil {
 			csvimportErrors.Inc()
@@ -119,7 +119,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import/prometheus":
+	case "/prometheus/api/v1/import/prometheus", "/api/v1/import/prometheus":
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(r); err != nil {
 			prometheusimportErrors.Inc()
@@ -128,7 +128,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import/native":
+	case "/prometheus/api/v1/import/native", "/api/v1/import/native":
 		nativeimportRequests.Inc()
 		if err := native.InsertHandler(r); err != nil {
 			nativeimportErrors.Inc()
@@ -137,7 +137,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/write", "/api/v2/write":
+	case "/influx/write", "/influx/api/v2/write", "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(r); err != nil {
 			influxWriteErrors.Inc()
@@ -146,23 +146,23 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/query":
+	case "/influx/query", "/query":
 		// Emulate fake response for influx query.
 		// This is required for TSBS benchmark.
 		influxQueryRequests.Inc()
 		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
 		return true
-	case "/targets":
+	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
 		return true
-	case "/api/v1/targets":
+	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		state := r.FormValue("state")
 		promscrape.WriteAPIV1Targets(w, state)
 		return true
-	case "/-/reload":
+	case "/prometheus/-/reload", "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusNoContent)

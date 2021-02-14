@@ -19,6 +19,7 @@ var versionRe = regexp.MustCompile(`v\d+\.\d+\.\d+`)
 // WritePrometheusMetrics writes all the registered metrics to w in Prometheus exposition format.
 func WritePrometheusMetrics(w io.Writer) {
 	metrics.WritePrometheus(w, true)
+	metrics.WriteFDMetrics(w)
 
 	fmt.Fprintf(w, "vm_app_version{version=%q, short_version=%q} 1\n", buildinfo.Version,
 		versionRe.FindString(buildinfo.Version))
