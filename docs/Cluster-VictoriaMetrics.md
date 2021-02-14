@@ -338,9 +338,15 @@ It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-cha
 
 ## Replication and data safety
 
-In order to enable application-level replication, `-replicationFactor=N` command-line flag must be passed to `vminsert`.
+By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
+
+The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`.
 This guarantees that all the data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
-For example, when `-replicationFactor=3` is passed to `vminsert`, then it replicates all the ingested data to 3 distinct `vmstorage` nodes.
+The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N`
+is replication factor, in order to maintain the given replication factor for newly ingested data when `N-1` of storage nodes are lost.
+For example, when `-replicationFactor=3` is passed to `vminsert`, then it replicates all the ingested data to 3 distinct `vmstorage` nodes,
+so up to 2 `vmstorage` nodes can be lost without data loss. The minimum number of `vmstorage` nodes should be equal to `2*3-1 = 5`, so when 2 `vmstorage` nodes are lost,
+the remaining 3 `vmstorage` nodes could provide the `-replicationFactor=3` for newly ingested data.
 
 When the replication is enabled, `-replicationFactor=N` and `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes.
 The `-replicationFactor=N` improves query performance when a part of vmstorage nodes respond slowly and/or temporarily unavailable.
@@ -350,9 +356,9 @@ when [deduplication](https://victoriametrics.github.io/Single-server-VictoriaMet
 Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883),
 so it is recommended performing regular backups. See [these docs](#backups) for details.
 
-By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath`.
-It is recommended storing data on [Google Compute Engine persistent disks](https://cloud.google.com/compute/docs/disks/#pdspecs),
-since they are protected from data loss and data corruption. They also provide consistently high performance
+Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor` times. So it may be worth
+offloading the replication to underlying storage pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs),
+which is protected from data loss and data corruption. It also provide consistently high performance
 and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime.
 HDD-based persistent disks should be enough for the majority of use cases.
 
