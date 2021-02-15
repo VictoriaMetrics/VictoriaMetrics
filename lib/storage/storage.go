@@ -907,9 +907,9 @@ func (s *Storage) mustSaveAndStopCache(c *workingsetcache.Cache, info, name stri
 
 func nextRetentionDuration(retentionMsecs int64) time.Duration {
 	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
-	retentionMsecs = ((retentionMsecs+msecPerDay-1)/msecPerDay)*msecPerDay
+	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
 	t := time.Now().UnixNano() / 1e6
-	deadline := ((t+retentionMsecs-1)/retentionMsecs)*retentionMsecs
+	deadline := ((t + retentionMsecs - 1) / retentionMsecs) * retentionMsecs
 	// Schedule the deadline to +4 hours from the next retention period start.
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
