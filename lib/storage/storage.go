@@ -133,6 +133,9 @@ func OpenStorage(path string, retentionMsecs int64) (*Storage, error) {
 	if retentionMsecs <= 0 {
 		retentionMsecs = maxRetentionMsecs
 	}
+	if retentionMsecs > maxRetentionMsecs {
+		retentionMsecs = maxRetentionMsecs
+	}
 	s := &Storage{
 		path:           path,
 		cachePath:      path + "/cache",
@@ -505,9 +508,8 @@ func (s *Storage) startRetentionWatcher() {
 }
 
 func (s *Storage) retentionWatcher() {
-	retentionMonths := int((s.retentionMsecs + (msecsPerMonth - 1)) / msecsPerMonth)
 	for {
-		d := nextRetentionDuration(retentionMonths)
+		d := nextRetentionDuration(s.retentionMsecs)
 		select {
 		case <-s.stop:
 			return
@@ -903,17 +905,16 @@ func (s *Storage) mustSaveAndStopCache(c *workingsetcache.Cache, info, name stri
 		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 }
 
-func nextRetentionDuration(retentionMonths int) time.Duration {
-	t := time.Now().UTC()
-	n := t.Year()*12 + int(t.Month()) - 1 + retentionMonths
-	n -= n % retentionMonths
-	y := n / 12
-	m := time.Month((n % 12) + 1)
+func nextRetentionDuration(retentionMsecs int64) time.Duration {
+	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
+	retentionMsecs = ((retentionMsecs+msecPerDay-1)/msecPerDay)*msecPerDay
+	t := time.Now().UnixNano() / 1e6
+	deadline := ((t+retentionMsecs-1)/retentionMsecs)*retentionMsecs
 	// Schedule the deadline to +4 hours from the next retention period start.
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
-	deadline := time.Date(y, m, 1, 4, 0, 0, 0, time.UTC)
-	return deadline.Sub(t)
+	deadline += 4 * 3600 * 1000
+	return time.Duration(deadline-t) * time.Millisecond
 }
 
 // SearchMetricNames returns metric names matching the given tfss on the given tr.

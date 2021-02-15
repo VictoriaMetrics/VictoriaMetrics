@@ -371,12 +371,12 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 }
 
 func TestNextRetentionDuration(t *testing.T) {
-	for retentionMonths := 1; retentionMonths < 360; retentionMonths++ {
-		d := nextRetentionDuration(retentionMonths)
+	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
+		d := nextRetentionDuration(int64(retentionMonths * msecsPerMonth))
 		if d <= 0 {
 			currTime := time.Now().UTC()
 			nextTime := time.Now().UTC().Add(d)
-			t.Fatalf("unexected retention duration for retentionMonths=%d; got %s; must be %s + %d months", retentionMonths, nextTime, currTime, retentionMonths)
+			t.Fatalf("unexected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
 		}
 	}
 }
