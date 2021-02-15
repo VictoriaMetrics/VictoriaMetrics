@@ -2829,7 +2829,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		if a.seconds != b.seconds {
 			return a.seconds < b.seconds
 		}
-		return a.tf.matchCost < b.tf.matchCost
+		return a.tf.Less(b.tf)
 	})
 
 	// Populate metricIDs for the first non-negative filter.

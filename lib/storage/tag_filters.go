@@ -252,6 +252,9 @@ type tagFilter struct {
 func (tf *tagFilter) Less(other *tagFilter) bool {
 	// Move regexp and negative filters to the end, since they require scanning
 	// all the entries for the given label.
+	if tf.matchCost != other.matchCost {
+		return tf.matchCost < other.matchCost
+	}
 	if tf.isRegexp != other.isRegexp {
 		return !tf.isRegexp
 	}
@@ -330,6 +333,9 @@ func (tf *tagFilter) InitFromGraphiteQuery(commonPrefix, query []byte, paths []s
 	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, []byte(prefix))
 	tf.orSuffixes = append(tf.orSuffixes[:0], orSuffixes...)
 	tf.reSuffixMatch, tf.matchCost = newMatchFuncForOrSuffixes(orSuffixes)
+	if isNegative {
+		tf.matchCost *= negativeMatchCostMultiplier
+	}
 }
 
 func getCommonPrefix(ss []string) (string, []string) {
@@ -397,6 +403,9 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		tf.orSuffixes = append(tf.orSuffixes[:0], "")
 		tf.isEmptyMatch = len(prefix) == 0
 		tf.matchCost = fullMatchCost
+		if isNegative {
+			tf.matchCost *= negativeMatchCostMultiplier
+		}
 		return nil
 	}
 	rcv, err := getRegexpFromCache(expr)
@@ -406,6 +415,9 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.orSuffixes = append(tf.orSuffixes[:0], rcv.orValues...)
 	tf.reSuffixMatch = rcv.reMatch
 	tf.matchCost = rcv.reCost
+	if isNegative {
+		tf.matchCost *= negativeMatchCostMultiplier
+	}
 	tf.isEmptyMatch = len(prefix) == 0 && tf.reSuffixMatch(nil)
 	if !tf.isNegative && len(key) == 0 && strings.IndexByte(rcv.literalSuffix, '.') >= 0 {
 		// Reverse suffix is needed only for non-negative regexp filters on __name__ that contains dots.
@@ -576,6 +588,8 @@ const (
 	middleMatchCost  = 6
 	reMatchCost      = 100
 )
+
+const negativeMatchCostMultiplier = 1000
 
 func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
 	if isDotStar(sre) {
