@@ -42,7 +42,13 @@ func TestParseEndpointsListSuccess(t *testing.T) {
         "selfLink": "/api/v1/namespaces/default/endpoints/kubernetes",
         "uid": "0972c7d9-c267-4b93-a090-a417eeb9b385",
         "resourceVersion": "150",
-        "creationTimestamp": "2020-03-16T20:44:25Z"
+        "creationTimestamp": "2020-03-16T20:44:25Z",
+        "labels": {
+          "foo": "bar"
+        },
+        "annotations": {
+            "x": "y"
+        }
       },
       "subsets": [
         {
@@ -91,15 +97,19 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.17.0.2:8443",
-			"__meta_kubernetes_endpoint_address_target_kind": "Pod",
-			"__meta_kubernetes_endpoint_address_target_name": "coredns-6955765f44-lnp6t",
-			"__meta_kubernetes_endpoint_hostname":            "aaa.bbb",
-			"__meta_kubernetes_endpoint_node_name":           "foobar",
-			"__meta_kubernetes_endpoint_port_name":           "https",
-			"__meta_kubernetes_endpoint_port_protocol":       "TCP",
-			"__meta_kubernetes_endpoint_ready":               "true",
-			"__meta_kubernetes_endpoints_name":               "kubernetes",
-			"__meta_kubernetes_namespace":                    "default",
+			"__meta_kubernetes_endpoint_address_target_kind":  "Pod",
+			"__meta_kubernetes_endpoint_address_target_name":  "coredns-6955765f44-lnp6t",
+			"__meta_kubernetes_endpoint_hostname":             "aaa.bbb",
+			"__meta_kubernetes_endpoint_node_name":            "foobar",
+			"__meta_kubernetes_endpoint_port_name":            "https",
+			"__meta_kubernetes_endpoint_port_protocol":        "TCP",
+			"__meta_kubernetes_endpoint_ready":                "true",
+			"__meta_kubernetes_endpoints_name":                "kubernetes",
+			"__meta_kubernetes_endpoints_annotation_x":        "y",
+			"__meta_kubernetes_endpoints_annotationpresent_x": "true",
+			"__meta_kubernetes_endpoints_label_foo":           "bar",
+			"__meta_kubernetes_endpoints_labelpresent_foo":    "true",
+			"__meta_kubernetes_namespace":                     "default",
 		}),
 	}
 	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
