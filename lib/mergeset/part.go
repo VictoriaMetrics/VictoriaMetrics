@@ -195,7 +195,7 @@ func (idxbc *indexBlockCache) MustClose() {
 	close(idxbc.cleanerStopCh)
 	idxbc.cleanerWG.Wait()
 
-	// It is safe returning idxbc.m to pool, since the Reset must be called
+	// It is safe returning idxbc.m to pool, since the MustClose can be called
 	// when the idxbc entries are no longer accessed by concurrent goroutines.
 	for _, idxbe := range idxbc.m {
 		putIndexBlock(idxbe.idxb)
@@ -223,6 +223,8 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	for k, idxbe := range idxbc.m {
 		// Delete items accessed more than two minutes ago.
 		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 2*60 {
+			// do not call putIndexBlock(ibxbc.m[k]), since it
+			// may be used by concurrent goroutines.
 			delete(idxbc.m, k)
 		}
 	}
@@ -255,8 +257,8 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
 		// Remove 10% of items from the cache.
 		overflow = int(float64(len(idxbc.m)) * 0.1)
 		for k := range idxbc.m {
-			// Do not return idxb to pool, since these entries may be used
-			// by concurrent goroutines.
+			// do not call putIndexBlock(ibxbc.m[k]), since it
+			// may be used by concurrent goroutines.
 			delete(idxbc.m, k)
 			overflow--
 			if overflow == 0 {
@@ -347,7 +349,7 @@ func (ibc *inmemoryBlockCache) MustClose() {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
 
-	// It is safe returning ibc.m entries to pool, since the Reset function may be called
+	// It is safe returning ibc.m entries to pool, since the MustClose can be called
 	// only if no other goroutines access ibc entries.
 	for _, ibe := range ibc.m {
 		putInmemoryBlock(ibe.ib)
