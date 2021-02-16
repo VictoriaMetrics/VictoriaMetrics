@@ -743,8 +743,10 @@ const (
 type bucket16 struct {
 	bits         *[wordsPerBucket]uint64
 	smallPoolLen int
-	smallPool    [56]uint16
+	smallPool    [smallPoolSize]uint16
 }
+
+const smallPoolSize = 56
 
 func (b *bucket16) isZero() bool {
 	return b.bits == nil && b.smallPoolLen == 0
@@ -927,22 +929,20 @@ func (b *bucket16) delFromSmallPool(x uint16) bool {
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	if b.bits == nil {
+		// Use smallPoolSorter instead of sort.Slice here in order to reduce memory allocations.
+		sps := smallPoolSorterPool.Get().(*smallPoolSorter)
 		// Sort a copy of b.smallPool, since b must be readonly in order to prevent from data races
 		// when b.appendTo is called from concurrent goroutines.
-		smallPool := b.smallPool
-
-		// Use uint16Sorter instead of sort.Slice here in order to reduce memory allocations.
-		a := uint16SorterPool.Get().(*uint16Sorter)
-		*a = uint16Sorter(smallPool[:b.smallPoolLen])
-		if len(*a) > 1 && !sort.IsSorted(a) {
-			sort.Sort(a)
+		sps.smallPool = b.smallPool
+		sps.a = sps.smallPool[:b.smallPoolLen]
+		if len(sps.a) > 1 && !sort.IsSorted(sps) {
+			sort.Sort(sps)
 		}
-		for _, v := range *a {
+		for _, v := range sps.a {
 			x := hi64 | uint64(v)
 			dst = append(dst, x)
 		}
-		*a = nil
-		uint16SorterPool.Put(a)
+		smallPoolSorterPool.Put(sps)
 		return dst
 	}
 	var wordNum uint64
@@ -966,20 +966,25 @@ func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	return dst
 }
 
-var uint16SorterPool = &sync.Pool{
+var smallPoolSorterPool = &sync.Pool{
 	New: func() interface{} {
-		return &uint16Sorter{}
+		return &smallPoolSorter{}
 	},
 }
 
-type uint16Sorter []uint16
-
-func (s uint16Sorter) Len() int { return len(s) }
-func (s uint16Sorter) Less(i, j int) bool {
-	return s[i] < s[j]
+type smallPoolSorter struct {
+	smallPool [smallPoolSize]uint16
+	a         []uint16
 }
-func (s uint16Sorter) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+
+func (sps *smallPoolSorter) Len() int { return len(sps.a) }
+func (sps *smallPoolSorter) Less(i, j int) bool {
+	a := sps.a
+	return a[i] < a[j]
+}
+func (sps *smallPoolSorter) Swap(i, j int) {
+	a := sps.a
+	a[i], a[j] = a[j], a[i]
 }
 
 func getWordNumBitMask(x uint16) (uint16, uint64) {
