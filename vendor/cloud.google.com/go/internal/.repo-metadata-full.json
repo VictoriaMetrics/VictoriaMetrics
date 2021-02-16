@@ -393,7 +393,7 @@
   },
   "cloud.google.com/go/errorreporting/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/errorreporting/apiv1beta1",
-    "description": "Cloud Error Reporting API",
+    "description": "Error Reporting API",
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/errorreporting/apiv1beta1",
@@ -445,6 +445,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/gaming/apiv1beta",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/gkehub/apiv1beta1": {
+    "distribution_name": "cloud.google.com/go/gkehub/apiv1beta1",
+    "description": "GKE Hub",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/gkehub/apiv1beta1",
     "release_level": "beta"
   },
   "cloud.google.com/go/iam": {
@@ -701,6 +709,14 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/recaptchaenterprise/apiv1beta1",
+    "release_level": "beta"
+  },
+  "cloud.google.com/go/recommendationengine/apiv1beta1": {
+    "distribution_name": "cloud.google.com/go/recommendationengine/apiv1beta1",
+    "description": "Recommendations AI",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://pkg.go.dev/cloud.google.com/go/recommendationengine/apiv1beta1",
     "release_level": "beta"
   },
   "cloud.google.com/go/recommender/apiv1": {

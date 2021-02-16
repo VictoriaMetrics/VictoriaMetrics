@@ -12,6 +12,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fatih/color"
+
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 
@@ -19,7 +21,7 @@ import (
 )
 
 // Version of ProgressBar library
-const Version = "3.0.5"
+const Version = "3.0.6"
 
 type key int
 
@@ -43,6 +45,9 @@ const (
 
 	// Color by default is true when output is tty, but you can set to false for disabling colors
 	Color
+
+	// Hide the progress bar when finished, rather than leaving it up. By default it's false.
+	CleanOnFinish
 )
 
 const (
@@ -140,6 +145,9 @@ func (pb *ProgressBar) configure() {
 	if pb.refreshRate == 0 {
 		pb.refreshRate = defaultRefreshRate
 	}
+	if pb.vars[CleanOnFinish] == nil {
+		pb.vars[CleanOnFinish] = false
+	}
 	if f, ok := pb.output.(*os.File); ok {
 		pb.coutput = colorable.NewColorable(f)
 	} else {
@@ -204,7 +212,12 @@ func (pb *ProgressBar) write(finish bool) {
 	if ret, ok := pb.Get(ReturnSymbol).(string); ok {
 		result = ret + result
 		if finish && ret == "\r" {
-			result += "\n"
+			if pb.GetBool(CleanOnFinish) {
+				// "Wipe out" progress bar by overwriting one line with blanks
+				result = "\r" + color.New(color.Reset).Sprintf(strings.Repeat(" ", width)) + "\r"
+			} else {
+				result += "\n"
+			}
 		}
 	}
 	if pb.GetBool(Color) {

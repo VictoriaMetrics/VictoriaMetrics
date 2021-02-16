@@ -3669,8 +3669,9 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`histogram(scalar)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(histogram(123)+(
-			label_set(0, "le", "1.0e2"),
-			label_set(0, "le", "1.5e2"),
+			label_set(0, "le", "1.000e+02"),
+			label_set(0, "le", "1.136e+02"),
+			label_set(0, "le", "1.292e+02"),
 			label_set(1, "le", "+Inf"),
 		))`
 		r1 := netstorage.Result{
@@ -3681,7 +3682,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.0e2"),
+				Value: []byte("1.136e+02"),
 			},
 		}
 		r2 := netstorage.Result{
@@ -3692,7 +3693,7 @@ func TestExecSuccess(t *testing.T) {
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.5e2"),
+				Value: []byte("1.292e+02"),
 			},
 		}
 		r3 := netstorage.Result{
@@ -3716,9 +3717,9 @@ func TestExecSuccess(t *testing.T) {
 			label_set(1.1, "xx", "yy"),
 			alias(1.15, "foobar"),
 		))+(
-			label_set(0, "le", "9.5e-1"),
-			label_set(0, "le", "1.0e0"),
-			label_set(0, "le", "1.5e0"),
+			label_set(0, "le", "8.799e-01"),
+			label_set(0, "le", "1.000e+00"),
+			label_set(0, "le", "1.292e+00"),
 			label_set(1, "le", "+Inf"),
 		))`
 		r1 := netstorage.Result{
@@ -3729,7 +3730,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("9.5e-1"),
+				Value: []byte("8.799e-01"),
 			},
 		}
 		r2 := netstorage.Result{
@@ -3740,7 +3741,7 @@ func TestExecSuccess(t *testing.T) {
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.0e0"),
+				Value: []byte("1.000e+00"),
 			},
 		}
 		r3 := netstorage.Result{
@@ -3751,7 +3752,7 @@ func TestExecSuccess(t *testing.T) {
 		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.5e0"),
+				Value: []byte("1.292e+00"),
 			},
 		}
 		r4 := netstorage.Result{
@@ -4021,10 +4022,10 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`histogram_over_time`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
+		q := `sort_by_label(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]), "vmrange")`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{14, 16, 12, 13, 15, 11},
+			Values:     []float64{1, 2, 2, 2, nan, 1},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.Tags = []storage.Tag{
@@ -4034,12 +4035,12 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("vmrange"),
-				Value: []byte("2.0e0...2.5e0"),
+				Value: []byte("1.000e+00...1.136e+00"),
 			},
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{13, 14, 12, 8, 12, 13},
+			Values:     []float64{3, 3, 4, 2, 8, 3},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{
@@ -4049,12 +4050,12 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("vmrange"),
-				Value: []byte("1.0e0...1.5e0"),
+				Value: []byte("1.136e+00...1.292e+00"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{13, 10, 16, 19, 13, 16},
+			Values:     []float64{7, 7, 5, 3, 3, 9},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{
@@ -4064,46 +4065,111 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("vmrange"),
-				Value: []byte("1.5e0...2.0e0"),
+				Value: []byte("1.292e+00...1.468e+00"),
 			},
 		}
-		resultExpected := []netstorage.Result{r1, r2, r3}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{7, 4, 6, 5, 6, 4},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("vmrange"),
+				Value: []byte("1.468e+00...1.668e+00"),
+			},
+		}
+		r5 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6, 6, 9, 13, 7, 7},
+			Timestamps: timestampsExpected,
+		}
+		r5.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("vmrange"),
+				Value: []byte("1.668e+00...1.896e+00"),
+			},
+		}
+		r6 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5, 9, 4, 6, 7, 9},
+			Timestamps: timestampsExpected,
+		}
+		r6.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("vmrange"),
+				Value: []byte("1.896e+00...2.154e+00"),
+			},
+		}
+		r7 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{11, 9, 10, 9, 9, 7},
+			Timestamps: timestampsExpected,
+		}
+		r7.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("vmrange"),
+				Value: []byte("2.154e+00...2.448e+00"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5, r6, r7}
 		f(q, resultExpected)
 	})
 	t.Run(`sum(histogram_over_time) by (vmrange)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(sum(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s])) by (vmrange))`
+		q := `sort_desc(
+			buckets_limit(
+				3,
+				sum(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s])) by (vmrange)
+			)
+		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{14, 16, 12, 13, 15, 11},
+			Values:     []float64{40, 40, 40, 40, 40, 40},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("vmrange"),
-				Value: []byte("2.0e0...2.5e0"),
+				Key:   []byte("le"),
+				Value: []byte("+Inf"),
 			},
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{13, 14, 12, 8, 12, 13},
+			Values:     []float64{24, 22, 26, 25, 24, 24},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("vmrange"),
-				Value: []byte("1.0e0...1.5e0"),
+				Key:   []byte("le"),
+				Value: []byte("1.896e+00"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{13, 10, 16, 19, 13, 16},
+			Values:     []float64{11, 12, 11, 7, 11, 13},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{
 			{
-				Key:   []byte("vmrange"),
-				Value: []byte("1.5e0...2.0e0"),
+				Key:   []byte("le"),
+				Value: []byte("1.468e+00"),
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3}
@@ -4125,7 +4191,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `topk_max(1, histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{13, 10, 16, 19, 13, 16},
+			Values:     []float64{6, 6, 9, 13, 7, 7},
 			Timestamps: timestampsExpected,
 		}
 		r.MetricName.Tags = []storage.Tag{
@@ -4135,7 +4201,7 @@ func TestExecSuccess(t *testing.T) {
 			},
 			{
 				Key:   []byte("vmrange"),
-				Value: []byte("1.5e0...2.0e0"),
+				Value: []byte("1.668e+00...1.896e+00"),
 			},
 		}
 		resultExpected := []netstorage.Result{r}

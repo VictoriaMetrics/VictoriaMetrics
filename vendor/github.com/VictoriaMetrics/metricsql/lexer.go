@@ -2,6 +2,7 @@ package metricsql
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -444,7 +445,7 @@ func DurationValue(s string, step int64) (int64, error) {
 	if len(s) == 0 {
 		return 0, fmt.Errorf("duration cannot be empty")
 	}
-	var d int64
+	var d float64
 	isMinus := false
 	for len(s) > 0 {
 		n := scanSingleDuration(s, true)
@@ -465,10 +466,13 @@ func DurationValue(s string, step int64) (int64, error) {
 			isMinus = true
 		}
 	}
-	return d, nil
+	if math.Abs(d) > 1<<63-1 {
+		return 0, fmt.Errorf("too big duration %.0fms", d)
+	}
+	return int64(d), nil
 }
 
-func parseSingleDuration(s string, step int64) (int64, error) {
+func parseSingleDuration(s string, step int64) (float64, error) {
 	numPart := s[:len(s)-1]
 	if strings.HasSuffix(numPart, "m") {
 		// Duration in ms
@@ -499,7 +503,7 @@ func parseSingleDuration(s string, step int64) (int64, error) {
 	default:
 		return 0, fmt.Errorf("invalid duration suffix in %q", s)
 	}
-	return int64(mp * f * 1e3), nil
+	return mp * f * 1e3, nil
 }
 
 // scanDuration scans duration, which must start with positive num.

@@ -19,7 +19,7 @@ Backed up data can be restored with [vmrestore](https://victoriametrics.github.i
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
-See also [vmbackuper](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) tool built on top of `vmbackup`. This tool simplifies
+See also [vmbackupmanager](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 
 
@@ -89,7 +89,7 @@ or from any day (`YYYYMMDD` backups). Note that hourly backup shouldn't run when
 
 Do not forget removing old snapshots and backups when they are no longer needed for saving storage costs.
 
-See also [vmbackuper tool](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for automating smart backups.
+See also [vmbackupmanager tool](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for automating smart backups.
 
 
 ## How does it work?
