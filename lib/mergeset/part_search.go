@@ -25,9 +25,6 @@ type partSearch struct {
 	// The remaining block headers to scan in the current metaindexRow.
 	bhs []blockHeader
 
-	// Pointer to inmemory block, which may be reused.
-	inmemoryBlockReuse *inmemoryBlock
-
 	idxbCache *indexBlockCache
 	ibCache   *inmemoryBlockCache
 
@@ -48,10 +45,6 @@ func (ps *partSearch) reset() {
 	ps.p = nil
 	ps.mrs = nil
 	ps.bhs = nil
-	if ps.inmemoryBlockReuse != nil {
-		putInmemoryBlock(ps.inmemoryBlockReuse)
-		ps.inmemoryBlockReuse = nil
-	}
 	ps.idxbCache = nil
 	ps.ibCache = nil
 	ps.err = nil
@@ -240,10 +233,6 @@ func (ps *partSearch) Error() error {
 }
 
 func (ps *partSearch) nextBlock() error {
-	if ps.inmemoryBlockReuse != nil {
-		putInmemoryBlock(ps.inmemoryBlockReuse)
-		ps.inmemoryBlockReuse = nil
-	}
 	if len(ps.bhs) == 0 {
 		// The current metaindexRow is over. Proceed to the next metaindexRow.
 		if err := ps.nextBHS(); err != nil {
@@ -252,12 +241,9 @@ func (ps *partSearch) nextBlock() error {
 	}
 	bh := &ps.bhs[0]
 	ps.bhs = ps.bhs[1:]
-	ib, mayReuseInmemoryBlock, err := ps.getInmemoryBlock(bh)
+	ib, err := ps.getInmemoryBlock(bh)
 	if err != nil {
 		return err
-	}
-	if mayReuseInmemoryBlock {
-		ps.inmemoryBlockReuse = ib
 	}
 	ps.ib = ib
 	ps.ibItemIdx = 0
@@ -301,19 +287,19 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	return idxb, nil
 }
 
-func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, bool, error) {
+func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) {
 	var ibKey inmemoryBlockCacheKey
 	ibKey.Init(bh)
 	ib := ps.ibCache.Get(ibKey)
 	if ib != nil {
-		return ib, false, nil
+		return ib, nil
 	}
 	ib, err := ps.readInmemoryBlock(bh)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	ps.ibCache.Put(ibKey, ib)
-	return ib, false, nil
+	return ib, nil
 }
 
 func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) {
