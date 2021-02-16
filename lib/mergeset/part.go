@@ -221,8 +221,8 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	idxbc.mu.Lock()
 	for k, idxbe := range idxbc.m {
-		// Delete items accessed more than two minutes ago.
-		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 2*60 {
+		// Delete items accessed more than 90 seconds ago.
+		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 90 {
 			// do not call putIndexBlock(ibxbc.m[k]), since it
 			// may be used by concurrent goroutines.
 			delete(idxbc.m, k)
@@ -375,8 +375,8 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 	currentTime := fasttime.UnixTimestamp()
 	ibc.mu.Lock()
 	for k, ibe := range ibc.m {
-		// Delete items accessed more than a two minutes ago.
-		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 2*60 {
+		// Delete items accessed more than 90 seconds ago.
+		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 90 {
 			// do not call putInmemoryBlock(ibc.m[k]), since it
 			// may be used by concurrent goroutines.
 			delete(ibc.m, k)
