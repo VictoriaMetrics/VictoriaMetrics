@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"sort"
@@ -334,7 +335,7 @@ func (cs awsCredentialSource) subjectToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(result), nil
+	return url.QueryEscape(string(result)), nil
 }
 
 func (cs *awsCredentialSource) getRegion() (string, error) {
