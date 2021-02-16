@@ -32,7 +32,7 @@ func WritePrometheusMetrics(w io.Writer) {
 	metricsCacheLock.Unlock()
 
 	bb := metricsCache.Load().(*bytesutil.ByteBuffer)
-	w.Write(bb.B)
+	_, _ = w.Write(bb.B)
 }
 
 var (
