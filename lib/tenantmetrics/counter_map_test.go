@@ -14,13 +14,16 @@ func TestCreateMetricNameError(t *testing.T) {
 			t.Fatal("expecting non-nil panic")
 		}
 	}()
-	_ = createMetricName("", &auth.Token{})
+	_ = createMetricName("", TenantID{})
 }
 
 func TestCreateMetricNameSuccess(t *testing.T) {
 	f := func(s string, at *auth.Token, metricExpected string) {
 		t.Helper()
-		metric := createMetricName(s, at)
+		metric := createMetricName(s, TenantID{
+			AccountID: at.AccountID,
+			ProjectID: at.ProjectID,
+		})
 		if metric != metricExpected {
 			t.Fatalf("unexpected result for createMetricName(%q, %v); got %q; want %q", s, at, metric, metricExpected)
 		}

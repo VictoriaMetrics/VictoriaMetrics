@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -203,6 +204,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func selectHandler(startTime time.Time, w http.ResponseWriter, r *http.Request, p *httpserver.Path, at *auth.Token) bool {
+	defer func() {
+		// Count per-tenant cumulative durations and total requests
+		httpRequests.Get(at).Inc()
+		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
+	}()
 	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/label/") {
 		s := p.Suffix[len("prometheus/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -568,6 +574,9 @@ var (
 	rulesRequests    = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
 	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
+
+	httpRequests         = tenantmetrics.NewCounterMap(`vm_vmselect_http_requests_total`)
+	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_vmselect_http_requests_duration_ms_total`)
 )
 
 func usage() {
