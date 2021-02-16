@@ -10,15 +10,17 @@ BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
-		|| docker build -t $(BASE_IMAGE) \
+		|| docker build \
 			--build-arg root_image=$(ROOT_IMAGE) \
 			--build-arg certs_image=$(CERTS_IMAGE) \
+			--tag $(BASE_IMAGE) \
 			deployment/docker/base
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
-		|| docker build -t $(BUILDER_IMAGE) \
+		|| docker build \
 			--build-arg go_builder_image=$(GO_BUILDER_IMAGE) \
+			--tag $(BUILDER_IMAGE) \
 			deployment/docker/builder
 
 app-via-docker: package-builder
@@ -43,7 +45,7 @@ package-via-docker: package-base
 		docker build \
 			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
 			--build-arg base_image=$(BASE_IMAGE) \
-			-t $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
+			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
 publish-via-docker: \
@@ -57,7 +59,8 @@ publish-via-docker: \
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
-		-t $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):latest$(RACE) \
 		-o type=image \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
