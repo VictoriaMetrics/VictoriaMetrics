@@ -255,11 +255,11 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 	if tf.matchCost != other.matchCost {
 		return tf.matchCost < other.matchCost
 	}
-	if tf.isRegexp != other.isRegexp {
-		return !tf.isRegexp
-	}
 	if tf.isNegative != other.isNegative {
 		return !tf.isNegative
+	}
+	if tf.isRegexp != other.isRegexp {
+		return !tf.isRegexp
 	}
 	if len(tf.orSuffixes) != len(other.orSuffixes) {
 		return len(tf.orSuffixes) < len(other.orSuffixes)
