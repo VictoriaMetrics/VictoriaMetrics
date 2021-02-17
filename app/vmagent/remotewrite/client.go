@@ -171,30 +171,35 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 func (c *client) runWorker() {
 	var ok bool
 	var block []byte
-	ch := make(chan struct{})
+	ch := make(chan bool, 1)
 	for {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
 			return
 		}
 		go func() {
-			if delivered := c.sendBlockOk(block); !delivered {
-				return
-			}
-			ch <- struct{}{}
+			ch <- c.sendBlock(block)
 		}()
 		select {
-		case <-ch:
-			// The block has been sent successfully
-			continue
+		case ok := <-ch:
+			if ok {
+				// The block has been sent successfully
+				continue
+			}
+			// Return unsent block to the queue.
+			c.fq.MustWriteBlock(block)
+			return
 		case <-c.stopCh:
 			// c must be stopped. Wait for a while in the hope the block will be sent.
 			graceDuration := 5 * time.Second
 			select {
-			case <-ch:
-				logger.Infof("stop ok")
-				// The block has been sent successfully.
+			case ok := <-ch:
+				if !ok {
+					// Return unsent block to the queue.
+					c.fq.MustWriteBlock(block)
+				}
 			case <-time.After(graceDuration):
+				// Return unsent block to the queue.
 				c.fq.MustWriteBlock(block)
 			}
 			return
@@ -202,7 +207,9 @@ func (c *client) runWorker() {
 	}
 }
 
-func (c *client) sendBlockOk(block []byte) bool {
+// sendBlock returns false only if c.stopCh is closed.
+// Otherwise it tries sending the block to remote storage indefinitely.
+func (c *client) sendBlock(block []byte) bool {
 	c.rl.register(len(block), c.stopCh)
 	retryDuration := time.Second
 	retriesCount := 0
