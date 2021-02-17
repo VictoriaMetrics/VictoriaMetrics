@@ -87,6 +87,20 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 2. Run `make vmctl-arm-prod` or `make vmctl-arm64-prod` from the root folder of the repository.
    It builds `vmctl-arm-prod` or `vmctl-arm64-prod` binary respectively and puts it into the `bin` folder.
 
+## Migrating data from OpenTSDB
+
+*OpenTSDB migration is not possible without a functioning `tsdb-meta` table to search for metrics/series.*
+
+OpenTSDB migration works like so:
+
+1. Find metrics based on selected filters (or the default filter set ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'])
+  * e.g. `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
+2. Find series associated with each returned metric
+  * e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
+3. Download data for each series in chunks defined in the CLI switches
+  * e.g. `-retention=1m:1h:90d` == `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+
+This means that we must stream data from OpenTSDB to VictoriaMetrics. Because OpenTSDB queries are likely to get stuck or otherwise fail, the progress is tracked in ...
 
 ## Migrating data from InfluxDB (1.x)
 
