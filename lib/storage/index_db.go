@@ -25,7 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	xxhash "github.com/cespare/xxhash/v2"
-	"github.com/valyala/fastrand"
 )
 
 const (
@@ -2786,36 +2785,18 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		lastQueryTimestamp uint64
 	}
 	tfws := make([]tagFilterWithWeight, len(tfs.tfs))
-	ct := fasttime.UnixTimestamp()
-	var tfwsEst []*tagFilterWithWeight
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		durationSeconds, lastQueryTimestamp := is.getDurationAndTimestampForDateFilter(date, tf)
+		if durationSeconds == 0 {
+			// Assume that unknown tag filters can take quite big amounts of time.
+			durationSeconds = 1.0
+		}
 		tfws[i] = tagFilterWithWeight{
 			tf:                 tf,
 			durationSeconds:    durationSeconds,
 			lastQueryTimestamp: lastQueryTimestamp,
 		}
-		if ct > lastQueryTimestamp+5*60+uint64(fastrand.Uint32n(5*60)) {
-			// Re-estimate the time required for tf execution.
-			tfwsEst = append(tfwsEst, &tfws[i])
-		}
-	}
-	maxDateMetrics := maxMetrics * 50
-	if len(tfwsEst) > 0 {
-		sort.Slice(tfwsEst, func(i, j int) bool {
-			return tfwsEst[i].tf.Less(tfwsEst[j].tf)
-		})
-		// Allocate up to one second for the estimation of tf execution in order to reduce
-		// possible negative impact on query duration.
-		// It is OK if the deadline is exceeded during the estimation - the corresponding filters
-		// will be re-estimated after the lastQueryTimestamp expiration.
-		isEst := is.db.getIndexSearch(ct + 1)
-		for _, tfw := range tfwsEst {
-			_, _ = isEst.getMetricIDsForDateTagFilter(tfw.tf, 0, date, tfs.commonPrefix, maxDateMetrics)
-			tfw.durationSeconds, tfw.lastQueryTimestamp = is.getDurationAndTimestampForDateFilter(date, tfw.tf)
-		}
-		is.db.putIndexSearch(isEst)
 	}
 	sort.Slice(tfws, func(i, j int) bool {
 		a, b := &tfws[i], &tfws[j]
@@ -2829,6 +2810,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	var tfsPostponed []*tagFilter
 	var metricIDs *uint64set.Set
 	tfwsRemaining := tfws[:0]
+	maxDateMetrics := maxMetrics * 50
 	for i := range tfws {
 		tfw := tfws[i]
 		tf := tfw.tf
