@@ -17,24 +17,25 @@ var (
 	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
 )
 
-func ModifyData(msg Metric, normalize bool) (Metric) {
+// This ensures any incoming data from OpenTSDB matches the Prometheus data model
+// https://prometheus.io/docs/concepts/data_model
+func ModifyData(msg Metric, normalize bool) (Metric, err) {
 	finalMsg := Metric{
-		Name: "", Tags: make(map[string]string)
+		Metric: "", Tags: make(map[string]string),
+		AggregateTags: [], Dps: &msg.Dps
 	}
-	if !allowedFirstChar.MatchString(msg.Name) {
-		DroppedMsgs.Inc()
-		log.WithFields(log.Fields{"threadNum": thread, "name": msg.Name, "metric": msg, "section": "filter"}).Warning("Dropped! Bad first character in name")
+	if !allowedFirstChar.MatchString(msg.Metric) {
+		return nil, fmt.Errorf("%s has a bad first character", msg.Metric)
 	}
-	name := msg.Name
+	name := msg.Metric
 	if normalize {
-		name = strings.ToLower(msg.Name)
+		name = strings.ToLower(name)
 	}
 	// replace bad characters in metric name with _ per the data model
 	if !allowedNames.MatchString(name) {
-		FilterSteps.Inc()
-		finalMsg.Name = replaceChars.ReplaceAllString(name, "_")
+		finalMsg.Metric = replaceChars.ReplaceAllString(name, "_")
 	} else {
-		finalMsg.Name = name
+		finalMsg.Metric = name
 	}
 	// replace bad characters in tag keys with _ per the data model
 	for key, value := range msg.Tags {
@@ -43,7 +44,6 @@ func ModifyData(msg Metric, normalize bool) (Metric) {
 			value = strings.ToLower(value)
 		}
 		if !allowedTagKeys.MatchString(key) {
-			FilterSteps.Inc()
 			key = replaceChars.ReplaceAllString(key, "_")
 		}
 		// tags that start with __ are considered custom stats for internal prometheus stuff, we should drop them
@@ -53,9 +53,10 @@ func ModifyData(msg Metric, normalize bool) (Metric) {
 			finalMsg.Tags[key] = value
 		}
 	}
-	return finalMsg
+	return finalMsg, nil
 }
 
+/*
 func Unmarshal(msg string) (
 type queryValues struct {
 	name   string
@@ -235,4 +236,4 @@ again:
 	}
 	s = s[nOrig+1:]
 	goto again
-}
+}*/

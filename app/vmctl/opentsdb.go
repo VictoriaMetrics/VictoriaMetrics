@@ -12,7 +12,7 @@ import (
 )
 
 type otsdbProcessor struct {
-	oc        *influx.Client
+	oc        *opentsdb.Client
 	im        *vm.Importer
 	cc        int
 }
@@ -38,12 +38,14 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return fmt.Errorf("found no timeseries to import")
 	}
 
-	question := fmt.Sprintf("Found %d timeseries to import. Continue?", len(series))
+	question := fmt.Sprintf("Found %d metrics to import. Continue?", len(metrics))
 	if !silent && !prompt(question) {
 		return nil
 	}
 
-	bar := pb.StartNew(len(series))
+	bar := pb.StartNew(len(metrics))
+
+	/*
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)
 	ip.im.ResetStats()
@@ -140,4 +142,4 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 			Values:     values,
 		}
 	}
-}
+}*/

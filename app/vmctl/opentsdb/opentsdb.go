@@ -100,6 +100,7 @@ func NewClient(cfg Config) (*Client, error) {
 	return client, nil
 }
 
+/*
 func timeFilter(start, end string) string {
 	if start == "" && end == "" {
 		return ""
@@ -339,4 +340,4 @@ func (c *Client) do(q influx.Query) ([]queryValues, error) {
 		return nil, fmt.Errorf("exploration query %q returned 0 results", q.Command)
 	}
 	return parseResult(res.Results[0])
-}
+}*/
