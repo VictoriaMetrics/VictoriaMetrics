@@ -967,15 +967,16 @@ func testStorageAddRows(s *Storage) error {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
 	ptws := s1.tb.GetPartitions(nil)
-	defer s1.tb.PutPartitions(ptws)
 	for _, ptw := range ptws {
 		pws := ptw.pt.GetParts(nil)
 		numParts := len(pws)
 		ptw.pt.PutParts(pws)
 		if numParts != 1 {
+			s1.tb.PutPartitions(ptws)
 			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want 1", ptw.pt.name, numParts)
 		}
 	}
+	s1.tb.PutPartitions(ptws)
 
 	s1.MustClose()
 
