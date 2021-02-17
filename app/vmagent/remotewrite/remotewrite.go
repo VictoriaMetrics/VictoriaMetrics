@@ -227,10 +227,10 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	}
 	rwctx.idx = 0
 	rwctx.pss = nil
-	rwctx.fq.MustClose()
-	rwctx.fq = nil
 	rwctx.c.MustStop()
 	rwctx.c = nil
+	rwctx.fq.MustClose()
+	rwctx.fq = nil
 
 	rwctx.relabelMetricsDropped = nil
 }
