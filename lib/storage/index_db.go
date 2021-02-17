@@ -205,7 +205,9 @@ type IndexDBMetrics struct {
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
 
-	MinTimestampForCompositeIndex uint64
+	MinTimestampForCompositeIndex     uint64
+	CompositeFilterSuccessConversions uint64
+	CompositeFilterMissingConversions uint64
 
 	mergeset.TableMetrics
 }
@@ -249,6 +251,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.IndexBlocksWithMetricIDsIncorrectOrder = atomic.LoadUint64(&indexBlocksWithMetricIDsIncorrectOrder)
 
 	m.MinTimestampForCompositeIndex = uint64(db.minTimestampForCompositeIndex)
+	m.CompositeFilterSuccessConversions = atomic.LoadUint64(&compositeFilterSuccessConversions)
+	m.CompositeFilterMissingConversions = atomic.LoadUint64(&compositeFilterMissingConversions)
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
