@@ -2811,23 +2811,21 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	}
 	tfws := make([]tagFilterWithWeight, len(tfs.tfs))
 	ct := fasttime.UnixTimestamp()
+	hasDurationReset := false
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		durationSeconds, lastQueryTimestamp := is.getDurationAndTimestampForDateFilter(date, tf)
-		if ct > lastQueryTimestamp+60 {
-			// It is time to update filter duration stats.
-			if tf.isNegative || tf.isRegexp && len(tf.orSuffixes) == 0 {
-				// Negative and regexp filters usually take the most time, so move them to the end of filters
-				// in the hope they won't be executed at all.
-				if durationSeconds == 0 {
-					durationSeconds = 10
-				}
-			} else {
-				// Reset duration stats for relatively fast {key="value"} and {key=~"foo|bar|baz"} filters, so it is re-populated below.
-				if durationSeconds < 0.5 {
-					durationSeconds = 0
-				}
-			}
+		if durationSeconds == 0 && (tf.isNegative || tf.isRegexp && len(tf.orSuffixes) == 0) {
+			// Negative and regexp filters usually take the most time, so move them to the end of filters
+			// in the hope they won't be executed at all.
+			durationSeconds = 10
+			is.storeDurationAndTimestampForDateFilter(date, tf, durationSeconds, 0)
+		}
+		if !hasDurationReset && ct > lastQueryTimestamp+10*60 && durationSeconds < 0.2 {
+			// Reset duration stats for relatively fast filters, so it is re-populated below.
+			// Reset duration for a single filter at a time in order to reduce negative impact on query time.
+			durationSeconds = 0
+			hasDurationReset = true
 		}
 		tfws[i] = tagFilterWithWeight{
 			tf:                 tf,
