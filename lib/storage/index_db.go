@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 	xxhash "github.com/cespare/xxhash/v2"
+	"github.com/valyala/fastrand"
 )
 
 const (
@@ -2335,7 +2336,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 	// Slow path - try searching over the whole inverted index.
 
 	// Sort tag filters for faster ts.Seek below.
-	sort.SliceStable(tfs.tfs, func(i, j int) bool {
+	sort.Slice(tfs.tfs, func(i, j int) bool {
 		return tfs.tfs[i].Less(&tfs.tfs[j])
 	})
 	minTf, minMetricIDs, err := is.getTagFilterWithMinMetricIDsCountOptimized(tfs, tr, maxMetrics)
@@ -2811,29 +2812,37 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	}
 	tfws := make([]tagFilterWithWeight, len(tfs.tfs))
 	ct := fasttime.UnixTimestamp()
-	hasDurationReset := false
+	var tfwsEst []*tagFilterWithWeight
 	for i := range tfs.tfs {
 		tf := &tfs.tfs[i]
 		durationSeconds, lastQueryTimestamp := is.getDurationAndTimestampForDateFilter(date, tf)
-		if durationSeconds == 0 && (tf.isNegative || tf.isRegexp && len(tf.orSuffixes) == 0) {
-			// Negative and regexp filters usually take the most time, so move them to the end of filters
-			// in the hope they won't be executed at all.
-			durationSeconds = 10
-			is.storeDurationAndTimestampForDateFilter(date, tf, durationSeconds, 0)
-		}
-		if !hasDurationReset && ct > lastQueryTimestamp+10*60 && durationSeconds < 0.2 {
-			// Reset duration stats for relatively fast filters, so it is re-populated below.
-			// Reset duration for a single filter at a time in order to reduce negative impact on query time.
-			durationSeconds = 0
-			hasDurationReset = true
-		}
 		tfws[i] = tagFilterWithWeight{
 			tf:                 tf,
 			durationSeconds:    durationSeconds,
 			lastQueryTimestamp: lastQueryTimestamp,
 		}
+		if ct > lastQueryTimestamp+5*60+uint64(fastrand.Uint32n(5*60)) {
+			// Re-estimate the time required for tf execution.
+			tfwsEst = append(tfwsEst, &tfws[i])
+		}
 	}
-	sort.SliceStable(tfws, func(i, j int) bool {
+	maxDateMetrics := maxMetrics * 50
+	if len(tfwsEst) > 0 {
+		sort.Slice(tfwsEst, func(i, j int) bool {
+			return tfwsEst[i].tf.Less(tfwsEst[j].tf)
+		})
+		// Allocate up to one second for the estimation of tf execution in order to reduce
+		// possible negative impact on query duration.
+		// It is OK if the deadline is exceeded during the estimation - the corresponding filters
+		// will be re-estimated after the lastQueryTimestamp expiration.
+		isEst := is.db.getIndexSearch(ct + 1)
+		for _, tfw := range tfwsEst {
+			_, _ = isEst.getMetricIDsForDateTagFilter(tfw.tf, 0, date, tfs.commonPrefix, maxDateMetrics)
+			tfw.durationSeconds, tfw.lastQueryTimestamp = is.getDurationAndTimestampForDateFilter(date, tfw.tf)
+		}
+		is.db.putIndexSearch(isEst)
+	}
+	sort.Slice(tfws, func(i, j int) bool {
 		a, b := &tfws[i], &tfws[j]
 		if a.durationSeconds != b.durationSeconds {
 			return a.durationSeconds < b.durationSeconds
@@ -2844,7 +2853,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	// Populate metricIDs for the first non-negative filter.
 	var tfsPostponed []*tagFilter
 	var metricIDs *uint64set.Set
-	maxDateMetrics := maxMetrics * 50
 	tfwsRemaining := tfws[:0]
 	for i := range tfws {
 		tfw := tfws[i]
@@ -3115,6 +3123,10 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, lastQueryTime
 	// Store the duration for tag filter execution in the cache in order to sort tag filters
 	// in ascending durations on the next search.
 	durationSeconds := time.Since(startTime).Seconds()
+	if err != nil && durationSeconds < 10 {
+		// Set high duration for failing filter, so it is moved to the end of filter list.
+		durationSeconds = 10
+	}
 	if metricIDs.Len() >= maxMetrics {
 		// Increase the duration for tag filter matching too many metrics,
 		// So next time it will be applied after filters matching lower number of metrics.
