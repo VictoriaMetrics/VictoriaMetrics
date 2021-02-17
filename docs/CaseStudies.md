@@ -105,13 +105,13 @@ See [Monitoring K8S with VictoriaMetrics](https://docs.google.com/presentation/d
 
 Numbers:
 
-* The number of active time series per VictoriaMetrics instance is 40M.
-* The total number of time series per VictoriaMetrics instance is 5000M+.
-* Ingestion rate per VictoriaMetrics instance is 1M data points per second.
+* The number of active time series per VictoriaMetrics instance is 50 millions.
+* The total number of time series per VictoriaMetrics instance is 5000 millions.
+* Ingestion rate per VictoriaMetrics instance is 1.1 millions data points per second.
 * The total number of datapoints per VictoriaMetrics instance is 8.5 trillions.
-* The average time series churn rate is ~80M per day.
-* The average query rate is ~100 per second (mostly alert queries).
-* Query duration: median is ~20ms, 99th percentile is ~1.5sec.
+* The average churn rate is 150 millions new time series per day.
+* The average query rate is ~150 per second (mostly alert queries).
+* Query duration: median is ~1ms, 99th percentile is ~1sec.
 * Retention: 3 months.
 
 > Alternatives that we’ve played with before choosing VictoriaMetrics are: federated Prometheus, Cortex, IronDB and Thanos.
