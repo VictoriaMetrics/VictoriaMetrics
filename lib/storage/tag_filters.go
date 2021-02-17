@@ -245,9 +245,19 @@ type tagFilter struct {
 	graphiteReverseSuffix []byte
 }
 
+func (tf *tagFilter) isComposite() bool {
+	k := tf.key
+	return len(k) > 0 && k[0] == compositeTagKeyPrefix
+}
+
 func (tf *tagFilter) Less(other *tagFilter) bool {
-	// Move regexp and negative filters to the end, since they require scanning
-	// all the entries for the given label.
+	// Move composite filters to the top, since they usually match lower number of time series.
+	// Move regexp filters to the bottom, since they require scanning all the entries for the given label.
+	isCompositeA := tf.isComposite()
+	isCompositeB := tf.isComposite()
+	if isCompositeA != isCompositeB {
+		return isCompositeA
+	}
 	if tf.matchCost != other.matchCost {
 		return tf.matchCost < other.matchCost
 	}
