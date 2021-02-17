@@ -37,6 +37,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	}
 	if len(name) == 0 {
 		// There is no metric name filter, so composite filters cannot be created.
+		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
 	tfsNew := make([]tagFilter, 0, len(tfs.tfs))
@@ -62,12 +63,19 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 		compositeFilters++
 	}
 	if compositeFilters == 0 {
+		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
 	tfsCompiled := NewTagFilters(tfs.accountID, tfs.projectID)
 	tfsCompiled.tfs = tfsNew
+	atomic.AddUint64(&compositeFilterSuccessConversions, 1)
 	return tfsCompiled
 }
+
+var (
+	compositeFilterSuccessConversions uint64
+	compositeFilterMissingConversions uint64
+)
 
 // TagFilters represents filters used for filtering tags.
 type TagFilters struct {
