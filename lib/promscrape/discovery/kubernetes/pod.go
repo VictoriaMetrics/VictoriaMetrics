@@ -6,15 +6,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // getPodsLabels returns labels for k8s pods obtained from the given cfg
 func getPodsLabels(cfg *apiConfig) ([]map[string]string, error) {
-	pods, err := getPods(cfg)
-	if err != nil {
-		return nil, err
-	}
+	var pods []Pod
+	cfg.podCache.Range(func(key, value interface{}) bool {
+		pods = append(pods, value.(Pod))
+		return true
+	})
+	//pods, err := getPods(cfg)
+	//if err != nil {
+	//	return nil, err
+	//}
 	var ms []map[string]string
 	for _, p := range pods {
 		ms = p.appendTargetLabels(ms)
@@ -70,6 +77,10 @@ type Pod struct {
 	Metadata ObjectMeta
 	Spec     PodSpec
 	Status   PodStatus
+}
+
+func (p *Pod) Key() string {
+	return p.Metadata.Namespace + "/" + p.Metadata.Name
 }
 
 // PodSpec implements k8s pod spec.
@@ -219,4 +230,22 @@ func getPod(pods []Pod, namespace, name string) *Pod {
 		}
 	}
 	return nil
+}
+
+func podsHandle(ac *apiConfig, resp *watchResponse) {
+	var p Pod
+	if err := json.Unmarshal(resp.Object, &p); err != nil {
+		logger.Errorf("cannot unmarshal pod: %v", err)
+		return
+	}
+	switch resp.Action {
+	case "ADDED":
+		ac.podCache.Store(p.Key(), p)
+	case "DELETED":
+		ac.podCache.Delete(p.Key())
+	case "MODIFIED":
+		ac.podCache.Store(p.Key(), p)
+	default:
+		logger.Infof("default action: %s", resp.Action)
+	}
 }

@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -14,6 +17,8 @@ type apiConfig struct {
 	client     *discoveryutils.Client
 	namespaces []string
 	selectors  []Selector
+	wc         *watchClient
+	podCache   sync.Map
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -60,10 +65,48 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
+	wc, err := newWatchClient(sdc, "")
+	if err != nil {
+		return nil, err
+	}
 	cfg := &apiConfig{
 		client:     client,
+		wc:         wc,
 		namespaces: sdc.Namespaces.Names,
 		selectors:  sdc.Selectors,
+	}
+	switch sdc.Role {
+	case "pod":
+		if len(sdc.Namespaces.Names) > 0 {
+			for _, ns := range cfg.namespaces {
+				path := fmt.Sprintf("/api/v1/watch/namespaces/%s/pods", ns)
+				query := joinSelectors(sdc.Role, nil, sdc.Selectors)
+				if len(query) > 0 {
+					path += "?" + query
+				}
+				logger.Infof("path: %v", path)
+				err = startWatchForPods(cfg.wc, path, func(resp *watchResponse) {
+					podsHandle(cfg, resp)
+				})
+				if err != nil {
+					return nil, err
+				}
+			}
+			break
+		}
+		path := "/api/v1/watch/pods"
+		query := joinSelectors(sdc.Role, sdc.Namespaces.Names, sdc.Selectors)
+		if len(query) > 0 {
+			path += "?" + query
+		}
+		err = startWatchForPods(cfg.wc, path, func(resp *watchResponse) {
+			podsHandle(cfg, resp)
+		})
+	default:
+		err = fmt.Errorf("not implemented role: %s", sdc.Role)
+	}
+	if err != nil {
+		return nil, err
 	}
 	return cfg, nil
 }
