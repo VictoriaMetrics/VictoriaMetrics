@@ -303,7 +303,7 @@ It may be useful for performing `vmagent` rolling update without scrape loss.
 
   ```yml
   scrape_configs:
-  - job: foo
+  - job_name: foo
     scrape_interval: 1h
     scrape_align_interval: 10m
   ```
