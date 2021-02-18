@@ -36,13 +36,16 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 		}
 	}
 	if len(name) == 0 {
-		// There is no metric name filter, so composite filters cannot be created.
+		// Composite filters cannot be created in the following cases:
+		// - if there is no filter on metric name
+		// - if there is no at least a single positive filter.
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
 	tfsNew := make([]tagFilter, 0, len(tfs.tfs))
 	var compositeKey []byte
 	compositeFilters := 0
+	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 {
 			if tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
@@ -59,10 +62,13 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 		if err := tfNew.Init(tfs.commonPrefix, compositeKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
 			logger.Panicf("BUG: unexpected error when creating composite tag filter for name=%q and key=%q: %s", name, tf.key, err)
 		}
+		if !tfNew.isNegative {
+			hasPositiveFilter = true
+		}
 		tfsNew = append(tfsNew, tfNew)
 		compositeFilters++
 	}
-	if compositeFilters == 0 {
+	if compositeFilters == 0 || !hasPositiveFilter {
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
