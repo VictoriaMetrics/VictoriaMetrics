@@ -170,7 +170,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 			IsRegexp:   false,
 		},
 		{
-			Key:        []byte("foo"),
+			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc"),
 			IsNegative: true,
 			IsRegexp:   false,
@@ -235,12 +235,12 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 	}, []TagFilter{
 		{
 			Key:        nil,
-			Value:      []byte("baz"),
+			Value:      []byte("bar"),
 			IsNegative: false,
 			IsRegexp:   false,
 		},
 		{
-			Key:        []byte("\xfe\x03barfoo"),
+			Key:        []byte("\xfe\x03bazfoo"),
 			Value:      []byte("abc"),
 			IsNegative: false,
 			IsRegexp:   false,

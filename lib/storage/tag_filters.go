@@ -28,26 +28,24 @@ func convertToCompositeTagFilterss(tfss []*TagFilters) []*TagFilters {
 func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	// Search for metric name filter, which must be used for creating composite filters.
 	var name []byte
+	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
 			name = tf.value
-			break
+		} else if !tf.isNegative {
+			hasPositiveFilter = true
 		}
 	}
 	if len(name) == 0 {
-		// Composite filters cannot be created in the following cases:
-		// - if there is no filter on metric name
-		// - if there is no at least a single positive filter.
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
 	tfsNew := make([]tagFilter, 0, len(tfs.tfs))
 	var compositeKey []byte
 	compositeFilters := 0
-	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 {
-			if tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
+			if !hasPositiveFilter || tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
 				tfsNew = append(tfsNew, tf)
 			}
 			continue
@@ -61,13 +59,10 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 		if err := tfNew.Init(tfs.commonPrefix, compositeKey, tf.value, tf.isNegative, tf.isRegexp); err != nil {
 			logger.Panicf("BUG: unexpected error when creating composite tag filter for name=%q and key=%q: %s", name, tf.key, err)
 		}
-		if !tfNew.isNegative {
-			hasPositiveFilter = true
-		}
 		tfsNew = append(tfsNew, tfNew)
 		compositeFilters++
 	}
-	if compositeFilters == 0 || !hasPositiveFilter {
+	if compositeFilters == 0 {
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
