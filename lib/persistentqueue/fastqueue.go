@@ -52,16 +52,24 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int
 	return fq
 }
 
-// MustClose unblocks all the readers.
-//
-// It is expected no new writers during and after the call.
-func (fq *FastQueue) MustClose() {
+// UnblockAllReaders unblocks all the readers.
+func (fq *FastQueue) UnblockAllReaders() {
 	fq.mu.Lock()
 	defer fq.mu.Unlock()
 
 	// Unblock blocked readers
 	fq.mustStop = true
 	fq.cond.Broadcast()
+}
+
+// MustClose unblocks all the readers.
+//
+// It is expected no new writers during and after the call.
+func (fq *FastQueue) MustClose() {
+	fq.UnblockAllReaders()
+
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
 
 	// flush blocks from fq.ch to fq.pq, so they can be persisted
 	fq.flushInmemoryBlocksToFileLocked()
