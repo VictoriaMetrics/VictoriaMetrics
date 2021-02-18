@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -23,6 +24,43 @@ func main() {
 		Usage:   "Victoria metrics command-line tool",
 		Version: buildinfo.Version,
 		Commands: []*cli.Command{
+			{
+				Name:  "opentsdb",
+				Usage: "Migrate timeseries from OpenTSDB",
+				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
+				Action: func(c *cli.Context) error {
+					fmt.Println("OpenTSDB import mode")
+					/*
+					iCfg := influx.Config{
+						Addr:      c.String(influxAddr),
+						Username:  c.String(influxUser),
+						Password:  c.String(influxPassword),
+						Database:  c.String(influxDB),
+						Retention: c.String(influxRetention),
+						Filter: influx.Filter{
+							Series:    c.String(influxFilterSeries),
+							TimeStart: c.String(influxFilterTimeStart),
+							TimeEnd:   c.String(influxFilterTimeEnd),
+						},
+						ChunkSize: c.Int(influxChunkSize),
+					}
+					influxClient, err := influx.NewClient(iCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create influx client: %s", err)
+					}
+
+					vmCfg := initConfigVM(c)
+					importer, err := vm.NewImporter(vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					processor := newInfluxProcessor(influxClient, importer,
+						c.Int(influxConcurrency), c.String(influxMeasurementFieldSeparator))
+					return processor.run(c.Bool(globalSilent))
+					*/
+				},
+			},
 			{
 				Name:  "influx",
 				Usage: "Migrate timeseries from InfluxDB",

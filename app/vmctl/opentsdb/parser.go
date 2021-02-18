@@ -47,9 +47,7 @@ func ModifyData(msg Metric, normalize bool) (Metric, err) {
 			key = replaceChars.ReplaceAllString(key, "_")
 		}
 		// tags that start with __ are considered custom stats for internal prometheus stuff, we should drop them
-		if strings.HasPrefix(key, "__") {
-			FilterSteps.Inc()
-		} else {
+		if !strings.HasPrefix(key, "__") {
 			finalMsg.Tags[key] = value
 		}
 	}
