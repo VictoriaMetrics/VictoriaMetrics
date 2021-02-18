@@ -106,7 +106,6 @@ func startWatchForObject(cfg *apiConfig, sdc *SDConfig, objectName string, handl
 			if len(query) > 0 {
 				path += "?" + query
 			}
-			logger.Infof("path: %v", path)
 			go func(path string) {
 				err := cfg.wc.startWatchForResource(path, func(object *watchResponse) {
 					handleFunc(cfg, object)
