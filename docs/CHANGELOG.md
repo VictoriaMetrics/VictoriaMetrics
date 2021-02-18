@@ -4,6 +4,7 @@
 
 * FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
 
+* BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065
 * BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
 
 
