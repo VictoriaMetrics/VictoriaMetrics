@@ -1,0 +1,16 @@
+{
+  "name": "name-plus-negative-filter",
+  "issue": "",
+  "data": [
+    "name-plus-negative-filter;foo=123 1 {TIME_S-1m}",
+    "name-plus-negative-filter;bar=123 2 {TIME_S-1m}",
+    "name-plus-negative-filter;foo=qwe 3 {TIME_S-1m}"
+  ],
+  "query": ["/api/v1/query?query={__name__='name-plus-negative-filter',foo!='123'}&time={TIME_S-1m}"],
+  "result_query": {
+    "status":"success",
+    "data":{"resultType":"vector","result":[
+	    {"metric":{"__name__":"name-plus-negative-filter","foo":"qwe"},"value":["{TIME_S-1m}","3"]}
+    ]}
+  }
+}

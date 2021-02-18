@@ -148,6 +148,70 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		},
 	})
 
+	// A name filter with a single negative filter
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	}, []TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+	})
+
+	// A name filter with a negative and a positive filter
+	f([]TagFilter{
+		{
+			Key:        nil,
+			Value:      []byte("bar"),
+			IsNegative: false,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("foo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("a"),
+			Value:      []byte("b.+"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+	}, []TagFilter{
+		{
+			Key:        []byte("\xfe\x03barfoo"),
+			Value:      []byte("abc"),
+			IsNegative: true,
+			IsRegexp:   false,
+		},
+		{
+			Key:        []byte("\xfe\x03bara"),
+			Value:      []byte("b.+"),
+			IsNegative: false,
+			IsRegexp:   true,
+		},
+	})
+
 	// Two name filters with non-name filter.
 	f([]TagFilter{
 		{
@@ -183,7 +247,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		},
 	})
 
-	// A name filter with negative regexp non-name filter, which can be converted to non-regexp.
+	// A name filter with regexp non-name filter, which can be converted to non-regexp.
 	f([]TagFilter{
 		{
 			Key:        nil,
@@ -194,19 +258,19 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			Key:        []byte("foo"),
 			Value:      []byte("abc"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   true,
 		},
 	}, []TagFilter{
 		{
 			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   false,
 		},
 	})
 
-	// A name filter with negative regexp non-name filter.
+	// A name filter with regexp non-name filter.
 	f([]TagFilter{
 		{
 			Key:        nil,
@@ -217,14 +281,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			Key:        []byte("foo"),
 			Value:      []byte("abc.+"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   true,
 		},
 	}, []TagFilter{
 		{
 			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc.+"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   true,
 		},
 	})
@@ -269,7 +333,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			Key:        []byte("foo"),
 			Value:      []byte("abc"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   true,
 		},
 		{
@@ -282,7 +346,7 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   false,
 		},
 		{
@@ -304,14 +368,14 @@ func TestConvertToCompositeTagFilters(t *testing.T) {
 		{
 			Key:        []byte("foo"),
 			Value:      []byte("abc"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   false,
 		},
 	}, []TagFilter{
 		{
 			Key:        []byte("\xfe\x03barfoo"),
 			Value:      []byte("abc"),
-			IsNegative: true,
+			IsNegative: false,
 			IsRegexp:   false,
 		},
 	})
