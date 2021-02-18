@@ -193,7 +193,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		// for a target with the same ScrapeURL and labels.
 		key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
 		h := uint32(xxhash.Sum64([]byte(key)))
-		randSleep := uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
+		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
 		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
 		if randSleep < sleepOffset {
 			randSleep += uint64(scrapeInterval)
