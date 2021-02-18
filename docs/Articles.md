@@ -25,6 +25,7 @@
 * [High-performance Graphite storage solution on top of VictoriaMetrics](https://golangexample.com/a-high-performance-graphite-storage-solution/)
 * [Cloud Native Model Driven Telemetry Stack on OpenShift](https://cer6erus.medium.com/cloud-native-model-driven-telemetry-stack-on-openshift-80712621f5bc)
 * [Observability, Availability & DORA’s Research Program](https://medium.com/alteos-tech-blog/observability-availability-and-doras-research-program-85deb6680e78)
+* [Tame Kubernetes Costs with Percona Monitoring and Management and Prometheus Operator](https://www.percona.com/blog/2021/02/12/tame-kubernetes-costs-with-percona-monitoring-and-management-and-prometheus-operator/)
 
 
 ## Our articles
