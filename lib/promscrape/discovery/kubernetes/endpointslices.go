@@ -198,6 +198,10 @@ type EndpointSlice struct {
 	Ports       []EndpointPort
 }
 
+func (eps EndpointSlice) key() string {
+	return eps.Metadata.Namespace + "/" + eps.Metadata.Name
+}
+
 // Endpoint implements kubernetes object endpoint for endpoint slice.
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpoint-v1beta1-discovery-k8s-io
 type Endpoint struct {

@@ -7,14 +7,20 @@ import (
 
 // getIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
 func getIngressesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	igs, err := getIngresses(cfg)
-	if err != nil {
-		return nil, err
-	}
+
+	//igs, err := getIngresses(cfg)
+	//if err != nil {
+	//	return nil, err
+	//}
 	var ms []map[string]string
-	for _, ig := range igs {
-		ms = ig.appendTargetLabels(ms)
-	}
+	cfg.watchCache.Range(func(key, value interface{}) bool {
+		ingress := value.(Ingress)
+		ms = ingress.appendTargetLabels(ms)
+		return true
+	})
+	//for _, ig := range igs {
+	//	ms = ig.appendTargetLabels(ms)
+	//}
 	return ms, nil
 }
 
@@ -65,6 +71,10 @@ type IngressList struct {
 type Ingress struct {
 	Metadata ObjectMeta
 	Spec     IngressSpec
+}
+
+func (i Ingress) key() string {
+	return i.Metadata.Namespace + "/" + i.Metadata.Name
 }
 
 // IngressSpec represents ingress spec in k8s.

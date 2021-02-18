@@ -69,6 +69,10 @@ type Service struct {
 	Spec     ServiceSpec
 }
 
+func (svc Service) key() string {
+	return svc.Metadata.Namespace + "/" + svc.Metadata.Name
+}
+
 // ServiceSpec is k8s service spec.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#servicespec-v1-core

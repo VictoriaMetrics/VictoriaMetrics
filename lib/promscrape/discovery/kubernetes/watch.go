@@ -1,20 +1,21 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 type watchResponse struct {
@@ -22,22 +23,123 @@ type watchResponse struct {
 	Object json.RawMessage `json:"object"`
 }
 
-func startWatchForPods(client *watchClient, path string, handleFunc func(resp *watchResponse)) error {
-	errCh := make(chan error, 1)
-	go func() {
-
-		err := client.startWatchForResource(path, handleFunc)
+func startWatcherByRole(role string, cfg *apiConfig, sdc *SDConfig) error {
+	var err error
+	switch role {
+	case "pod":
+		err = startWatchForObject(cfg, sdc, "pods", podsHandle)
+	case "node":
+		err = startWatchForObject(cfg, sdc, "nodes", nodesHandle)
+	case "endpoints":
+		err = startWatchForObject(cfg, sdc, "endpoints", func(config *apiConfig, response *watchResponse) {
+			updateEndpointsCache(&config.watchCache, Endpoints{}, response)
+		})
 		if err != nil {
-			logger.Errorf("got error: %v", err)
-			if len(errCh) < cap(errCh) {
-				errCh <- err
+			return err
+		}
+		err = startWatchForObject(cfg, sdc, "pods", func(config *apiConfig, response *watchResponse) {
+			updatePodCache(nil, &podsCache, Pod{}, response)
+		})
+		if err != nil {
+			return err
+		}
+		err = startWatchForObject(cfg, sdc, "services", func(config *apiConfig, response *watchResponse) {
+			updateServiceCache(nil, &servicesCache, Service{}, response)
+		})
+	case "service":
+		err = startWatchForObject(cfg, sdc, "services", func(config *apiConfig, response *watchResponse) {
+			updateServiceCache(&config.watchCache, &servicesCache, Service{}, response)
+		})
+	case "ingress":
+		err = startWatchForObject(cfg, sdc, "ingresses", func(config *apiConfig, response *watchResponse) {
+			updateIngressCache(&config.watchCache, Ingress{}, response)
+		})
+	case "endpointslices":
+		err = startWatchForObject(cfg, sdc, "endpointslices", func(config *apiConfig, response *watchResponse) {
+			updateEndpointSlicesCache(&config.watchCache, EndpointSlice{}, response)
+		})
+		if err != nil {
+			return err
+		}
+
+		err = startWatchForObject(cfg, sdc, "pods", func(config *apiConfig, response *watchResponse) {
+			updatePodCache(nil, &podsCache, Pod{}, response)
+		})
+		if err != nil {
+			return err
+		}
+
+		err = startWatchForObject(cfg, sdc, "services", func(config *apiConfig, response *watchResponse) {
+			updateServiceCache(nil, &servicesCache, Service{}, response)
+		})
+	default:
+		err = fmt.Errorf("bug, unexpected role: %s", role)
+	}
+	return err
+}
+
+func stopWatcher(cfg *apiConfig) {
+	t := time.NewTicker(time.Second * 2)
+	for {
+		select {
+		case <-t.C:
+			cfg.mu.Lock()
+			lt := cfg.servicesLastAccessTime
+			cfg.mu.Unlock()
+			if time.Since(lt) > *SDCheckInterval*3 {
+				startTime := time.Now()
+				logger.Infof("stopping kubernetes watcher")
+				cfg.wc.stop()
+				logger.Infof("kubernetes watcher was stopped after: in %.3f seconds", time.Since(startTime).Seconds())
+				return
 			}
 		}
-	}()
+	}
+}
+
+func startWatchForObject(cfg *apiConfig, sdc *SDConfig, objectName string, handleFunc func(config *apiConfig, response *watchResponse)) error {
+	errCh := make(chan error, len(sdc.Namespaces.Names)*3+1)
+	if len(sdc.Namespaces.Names) > 0 {
+		for _, ns := range cfg.namespaces {
+			path := fmt.Sprintf("/api/v1/watch/namespaces/%s/%s", ns, objectName)
+			query := joinSelectors(sdc.Role, nil, sdc.Selectors)
+			if len(query) > 0 {
+				path += "?" + query
+			}
+			logger.Infof("path: %v", path)
+			go func(path string) {
+				err := cfg.wc.startWatchForResource(path, func(object *watchResponse) {
+					handleFunc(cfg, object)
+				})
+				if err != nil {
+					errCh <- err
+				}
+			}(path)
+		}
+	} else {
+		path := "/api/v1/watch/" + objectName
+		query := joinSelectors(sdc.Role, sdc.Namespaces.Names, sdc.Selectors)
+		if len(query) > 0 {
+			path += "?" + query
+		}
+		go func() {
+			err := cfg.wc.startWatchForResource(path, func(object *watchResponse) {
+				handleFunc(cfg, object)
+			})
+			if err != nil {
+				if !errors.Is(err, context.Canceled) {
+					logger.Errorf("got unexpected error: %v", err)
+				}
+				if len(errCh) < cap(errCh) {
+					errCh <- err
+				}
+			}
+		}()
+	}
 	select {
 	case err := <-errCh:
 		return err
-	case <-time.After(time.Second * 2):
+	case <-time.After(time.Millisecond * 200):
 	}
 	return nil
 }
@@ -47,18 +149,31 @@ type watchClient struct {
 	ac        *promauth.Config
 	apiServer string
 	hostPort  string
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+}
+
+func (wc *watchClient) stop() {
+	if wc.cancel != nil {
+		wc.cancel()
+	}
+	wc.wg.Wait()
 }
 
 func (wc *watchClient) startWatchForResource(path string, watchFunc func(object *watchResponse)) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	wc.cancel = cancel
 	for {
-		err := wc.getStreamAPIResponse(path, watchFunc)
+		wc.wg.Add(1)
+		err := wc.getStreamAPIResponse(ctx, path, watchFunc)
 		if err != io.EOF {
 			return err
 		}
 	}
 }
-func (wc *watchClient) getStreamAPIResponse(path string, watchFunc func(object *watchResponse)) error {
-	req, err := http.NewRequest("GET", wc.apiServer+path, nil)
+func (wc *watchClient) getStreamAPIResponse(ctx context.Context, path string, watchFunc func(object *watchResponse)) error {
+	defer wc.wg.Done()
+	req, err := http.NewRequestWithContext(ctx, "GET", wc.apiServer+path, nil)
 	if err != nil {
 		return err
 	}
@@ -76,7 +191,7 @@ func (wc *watchClient) getStreamAPIResponse(path string, watchFunc func(object *
 	r := NewJSONFramedReader(resp.Body)
 	for {
 		b := make([]byte, 1024, 1024)
-		b, err := readJsonObject(r, b)
+		b, err := readJSONObject(r, b)
 		if err != nil {
 			logger.Errorf("got error: %v", err)
 			return err
@@ -91,7 +206,7 @@ func (wc *watchClient) getStreamAPIResponse(path string, watchFunc func(object *
 	}
 }
 
-func readJsonObject(r io.Reader, b []byte) ([]byte, error) {
+func readJSONObject(r io.Reader, b []byte) ([]byte, error) {
 	offset := 0
 	for {
 		n, err := r.Read(b[offset:])
@@ -147,7 +262,7 @@ func newWatchClient(sdc *SDConfig, baseDir string) (*watchClient, error) {
 	if proxyURL := sdc.ProxyURL.URL(); proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	sc := &http.Client{
+	c := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig:     ac.NewTLSConfig(),
 			Proxy:               proxy,
@@ -156,7 +271,7 @@ func newWatchClient(sdc *SDConfig, baseDir string) (*watchClient, error) {
 		},
 	}
 	wc := watchClient{
-		c:         sc,
+		c:         c,
 		apiServer: apiServer,
 		ac:        ac,
 	}

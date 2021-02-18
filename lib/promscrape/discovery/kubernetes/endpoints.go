@@ -9,21 +9,26 @@ import (
 
 // getEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
 func getEndpointsLabels(cfg *apiConfig) ([]map[string]string, error) {
-	eps, err := getEndpoints(cfg)
-	if err != nil {
-		return nil, err
-	}
-	pods, err := getPods(cfg)
-	if err != nil {
-		return nil, err
-	}
-	svcs, err := getServices(cfg)
-	if err != nil {
-		return nil, err
-	}
+	var eps []Endpoints
+	cfg.watchCache.Range(func(key, value interface{}) bool {
+		eps = append(eps, value.(Endpoints))
+		return true
+	})
+	//eps, err := getEndpoints(cfg)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//pods, err := getPods(cfg)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//svcs, err := getServices(cfg)
+	//if err != nil {
+	//	return nil, err
+	//}
 	var ms []map[string]string
 	for _, ep := range eps {
-		ms = ep.appendTargetLabels(ms, pods, svcs)
+		ms = ep.appendTargetLabels(ms, nil, nil)
 	}
 	return ms, nil
 }
@@ -77,6 +82,10 @@ type Endpoints struct {
 	Subsets  []EndpointSubset
 }
 
+func (eps *Endpoints) key() string {
+	return eps.Metadata.Namespace + "/" + eps.Metadata.Name
+}
+
 // EndpointSubset implements k8s endpoint subset.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointsubset-v1-core
@@ -105,6 +114,10 @@ type ObjectReference struct {
 	Namespace string
 }
 
+func (or ObjectReference) key() string {
+	return or.Namespace + "/" + or.Name
+}
+
 // EndpointPort implements k8s endpoint port.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointport-v1beta1-discovery-k8s-io
@@ -128,7 +141,11 @@ func parseEndpointsList(data []byte) (*EndpointsList, error) {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
 func (eps *Endpoints) appendTargetLabels(ms []map[string]string, pods []Pod, svcs []Service) []map[string]string {
-	svc := getService(svcs, eps.Metadata.Namespace, eps.Metadata.Name)
+	var svc *Service
+	if svco, ok := servicesCache.Load(eps.key()); ok {
+		s := svco.(Service)
+		svc = &s
+	}
 	podPortsSeen := make(map[*Pod][]int)
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
@@ -171,7 +188,12 @@ func (eps *Endpoints) appendTargetLabels(ms []map[string]string, pods []Pod, svc
 func appendEndpointLabelsForAddresses(ms []map[string]string, podPortsSeen map[*Pod][]int, eps *Endpoints, eas []EndpointAddress, epp EndpointPort,
 	pods []Pod, svc *Service, ready string) []map[string]string {
 	for _, ea := range eas {
-		p := getPod(pods, ea.TargetRef.Namespace, ea.TargetRef.Name)
+		var p *Pod
+		if po, ok := podsCache.Load(ea.TargetRef.key()); ok {
+			pd := po.(Pod)
+			p = &pd
+		}
+		//p := getPod(pods, ea.TargetRef.Namespace, ea.TargetRef.Name)
 		m := getEndpointLabelsForAddressAndPort(podPortsSeen, eps, ea, epp, p, svc, ready)
 		ms = append(ms, m)
 	}

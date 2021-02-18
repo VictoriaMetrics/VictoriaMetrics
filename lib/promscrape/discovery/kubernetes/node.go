@@ -9,19 +9,20 @@ import (
 
 // getNodesLabels returns labels for k8s nodes obtained from the given cfg.
 func getNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain nodes data from API server: %w", err)
-	}
-	nl, err := parseNodeList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse nodes response from API server: %w", err)
-	}
+	//data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
+	//if err != nil {
+	//	return nil, fmt.Errorf("cannot obtain nodes data from API server: %w", err)
+	//}
+	//nl, err := parseNodeList(data)
+	//if err != nil {
+	//	return nil, fmt.Errorf("cannot parse nodes response from API server: %w", err)
+	//}
 	var ms []map[string]string
-	for _, n := range nl.Items {
-		// Do not apply namespaces, since they are missing in nodes.
+	cfg.watchCache.Range(func(key, value interface{}) bool {
+		n := value.(Node)
 		ms = n.appendTargetLabels(ms)
-	}
+		return true
+	})
 	return ms, nil
 }
 
@@ -38,6 +39,10 @@ type NodeList struct {
 type Node struct {
 	Metadata ObjectMeta
 	Status   NodeStatus
+}
+
+func (n Node) key() string {
+	return n.Metadata.Name
 }
 
 // NodeStatus represents NodeStatus from k8s API.

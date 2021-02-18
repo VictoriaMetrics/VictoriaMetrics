@@ -1,11 +1,17 @@
 package kubernetes
 
 import (
+	"flag"
 	"fmt"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
+
+var SDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
+	"This works only if `kubernetes_sd_configs` is configured in '-promscrape.config' file. "+
+	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details")
 
 // SDConfig represents kubernetes-based service discovery config.
 //
@@ -43,6 +49,9 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
+	cfg.mu.Lock()
+	cfg.servicesLastAccessTime = time.Now()
+	cfg.mu.Unlock()
 	switch sdc.Role {
 	case "node":
 		return getNodesLabels(cfg)
