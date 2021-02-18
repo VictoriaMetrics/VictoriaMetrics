@@ -2,6 +2,8 @@
 
 # tip
 
+* BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
+
 
 # [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)
 
