@@ -89,9 +89,10 @@ type ScrapeConfig struct {
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression bool `yaml:"disable_compression,omitempty"`
-	DisableKeepAlive   bool `yaml:"disable_keepalive,omitempty"`
-	StreamParse        bool `yaml:"stream_parse,omitempty"`
+	DisableCompression  bool          `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive    bool          `yaml:"disable_keepalive,omitempty"`
+	StreamParse         bool          `yaml:"stream_parse,omitempty"`
+	ScrapeAlignInterval time.Duration `yaml:"scrape_align_interval,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -508,6 +509,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
+		scrapeAlignInterval:  sc.ScrapeAlignInterval,
 	}
 	return swc, nil
 }
@@ -530,6 +532,7 @@ type scrapeWorkConfig struct {
 	disableCompression   bool
 	disableKeepAlive     bool
 	streamParse          bool
+	scrapeAlignInterval  time.Duration
 }
 
 func appendKubernetesScrapeWork(dst []*ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
@@ -761,6 +764,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          swc.streamParse,
+		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 
 		jobNameOriginal: swc.jobName,
 	})

@@ -1275,6 +1275,7 @@ scrape_configs:
     disable_keepalive: true
     disable_compression: true
     stream_parse: true
+    scrape_align_interval: 1s
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1323,12 +1324,13 @@ scrape_configs:
 					Value: "snmp",
 				},
 			},
-			AuthConfig:         &promauth.Config{},
-			SampleLimit:        100,
-			DisableKeepAlive:   true,
-			DisableCompression: true,
-			StreamParse:        true,
-			jobNameOriginal:    "snmp",
+			AuthConfig:          &promauth.Config{},
+			SampleLimit:         100,
+			DisableKeepAlive:    true,
+			DisableCompression:  true,
+			StreamParse:         true,
+			ScrapeAlignInterval: time.Second,
+			jobNameOriginal:     "snmp",
 		},
 	})
 	f(`

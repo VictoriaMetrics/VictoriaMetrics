@@ -298,6 +298,16 @@ It may be useful for performing `vmagent` rolling update without scrape loss.
   the url may contain sensitive information such as auth tokens or passwords.
   Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
 
+* If scrapes must be aligned in time (for instance, if they must be performed at the beginning of every hour), then set `scrape_align_interval` option
+  in the corresponding scrape config. For example, the following config aligns hourly scrapes to the nearest 10 minutes:
+
+  ```yml
+  scrape_configs:
+  - job: foo
+    scrape_interval: 1h
+    scrape_align_interval: 10m
+  ```
+
 * If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen multiple ports
   or they use init container. These errors can be either fixed or suppressed with `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag.
   See available options below if you prefer fixing the root cause of the error:

@@ -2,6 +2,8 @@
 
 # tip
 
+* FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+
 * BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
 
 
