@@ -1,0 +1,17 @@
+{
+  "name": "graphite-selector",
+  "issue": "",
+  "data": [
+    "graphite-selector.bar.baz 1 {TIME_S-1m}",
+    "graphite-selector.xxx.yy  2 {TIME_S-1m}",
+    "graphite-selector.bb.cc 3 {TIME_S-1m}",
+    "graphite-selector.a.baz 4 {TIME_S-1m}"],
+  "query": ["/api/v1/query?query=sort({__graphite__='graphite-selector.*.baz'})&time={TIME_S-1m}"],
+  "result_query": {
+    "status":"success",
+    "data":{"resultType":"vector","result":[
+	    {"metric":{"__name__":"graphite-selector.bar.baz"},"value":["{TIME_S-1m}","1"]},
+	    {"metric":{"__name__":"graphite-selector.a.baz"},"value":["{TIME_S-1m}","4"]}
+    ]}
+  }
+}

@@ -171,36 +171,45 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 func (c *client) runWorker() {
 	var ok bool
 	var block []byte
-	ch := make(chan struct{})
+	ch := make(chan bool, 1)
 	for {
 		block, ok = c.fq.MustReadBlock(block[:0])
 		if !ok {
 			return
 		}
 		go func() {
-			c.sendBlock(block)
-			ch <- struct{}{}
+			ch <- c.sendBlock(block)
 		}()
 		select {
-		case <-ch:
-			// The block has been sent successfully
-			continue
+		case ok := <-ch:
+			if ok {
+				// The block has been sent successfully
+				continue
+			}
+			// Return unsent block to the queue.
+			c.fq.MustWriteBlock(block)
+			return
 		case <-c.stopCh:
 			// c must be stopped. Wait for a while in the hope the block will be sent.
 			graceDuration := 5 * time.Second
 			select {
-			case <-ch:
-				// The block has been sent successfully.
+			case ok := <-ch:
+				if !ok {
+					// Return unsent block to the queue.
+					c.fq.MustWriteBlock(block)
+				}
 			case <-time.After(graceDuration):
-				logger.Errorf("couldn't sent block with size %d bytes to %q in %.3f seconds during shutdown; dropping it",
-					len(block), c.sanitizedURL, graceDuration.Seconds())
+				// Return unsent block to the queue.
+				c.fq.MustWriteBlock(block)
 			}
 			return
 		}
 	}
 }
 
-func (c *client) sendBlock(block []byte) {
+// sendBlock returns false only if c.stopCh is closed.
+// Otherwise it tries sending the block to remote storage indefinitely.
+func (c *client) sendBlock(block []byte) bool {
 	c.rl.register(len(block), c.stopCh)
 	retryDuration := time.Second
 	retriesCount := 0
@@ -236,7 +245,7 @@ again:
 		select {
 		case <-c.stopCh:
 			timerpool.Put(t)
-			return
+			return false
 		case <-t.C:
 			timerpool.Put(t)
 		}
@@ -247,7 +256,7 @@ again:
 	if statusCode/100 == 2 {
 		_ = resp.Body.Close()
 		c.requestsOKCount.Inc()
-		return
+		return true
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
 	if statusCode == 409 {
@@ -258,7 +267,7 @@ again:
 		logger.Errorf("unexpected status code received when sending a block with size %d bytes to %q: #%d; dropping the block like Prometheus does; "+
 			"response body=%q", len(block), c.sanitizedURL, statusCode, body)
 		c.packetsDropped.Inc()
-		return
+		return true
 	}
 
 	// Unexpected status code returned
@@ -279,7 +288,7 @@ again:
 	select {
 	case <-c.stopCh:
 		timerpool.Put(t)
-		return
+		return false
 	case <-t.C:
 		timerpool.Put(t)
 	}
