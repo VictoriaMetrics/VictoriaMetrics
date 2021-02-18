@@ -221,7 +221,9 @@ type tagFilter struct {
 	value      []byte
 	isNegative bool
 	isRegexp   bool
-	matchCost  uint64
+
+	// matchCost is a cost for matching a filter against a single string.
+	matchCost uint64
 
 	// Prefix always contains {nsPrefixTagToMetricIDs, key}.
 	// Additionally it contains:

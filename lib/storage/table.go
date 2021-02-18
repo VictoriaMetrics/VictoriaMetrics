@@ -203,7 +203,7 @@ func (tb *table) MustClose() {
 		if n := atomic.LoadUint64(&ptw.refCount); n != 1 {
 			logger.Panicf("BUG: unexpected refCount=%d when closing the partition; probably there are pending searches", n)
 		}
-		ptw.pt.MustClose()
+		ptw.decRef()
 	}
 
 	// Release exclusive lock on the table.
