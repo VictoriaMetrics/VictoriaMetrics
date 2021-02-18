@@ -90,6 +90,9 @@ type ScrapeWork struct {
 	// Whether to parse target responses in a streaming manner.
 	StreamParse bool
 
+	// The interval for aligning the first scrape.
+	ScrapeAlignInterval time.Duration
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
@@ -100,9 +103,9 @@ type ScrapeWork struct {
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v",
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, ScrapeAlignInterval=%s",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse)
+		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse, sw.ScrapeAlignInterval)
 	return key
 }
 
@@ -180,20 +183,27 @@ type scrapeWork struct {
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
-	// Calculate start time for the first scrape from ScrapeURL and labels.
-	// This should spread load when scraping many targets with different
-	// scrape urls and labels.
-	// This also makes consistent scrape times across restarts
-	// for a target with the same ScrapeURL and labels.
 	scrapeInterval := sw.Config.ScrapeInterval
-	key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
-	h := uint32(xxhash.Sum64([]byte(key)))
-	randSleep := uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
-	sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
-	if randSleep < sleepOffset {
-		randSleep += uint64(scrapeInterval)
+	var randSleep uint64
+	if sw.Config.ScrapeAlignInterval <= 0 {
+		// Calculate start time for the first scrape from ScrapeURL and labels.
+		// This should spread load when scraping many targets with different
+		// scrape urls and labels.
+		// This also makes consistent scrape times across restarts
+		// for a target with the same ScrapeURL and labels.
+		key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
+		h := uint32(xxhash.Sum64([]byte(key)))
+		randSleep := uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(scrapeInterval)
+		}
+		randSleep -= sleepOffset
+	} else {
+		d := uint64(sw.Config.ScrapeAlignInterval)
+		randSleep = d - uint64(time.Now().UnixNano())%d
+		randSleep %= uint64(scrapeInterval)
 	}
-	randSleep -= sleepOffset
 	timer := timerpool.Get(time.Duration(randSleep))
 	var timestamp int64
 	var ticker *time.Ticker
