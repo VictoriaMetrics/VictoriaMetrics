@@ -101,7 +101,12 @@ func startWatchForObject(cfg *apiConfig, sdc *SDConfig, objectName string, handl
 	errCh := make(chan error, len(sdc.Namespaces.Names)*3+1)
 	if len(sdc.Namespaces.Names) > 0 {
 		for _, ns := range cfg.namespaces {
+			// "/apis/discovery.k8s.io/v1beta1/
 			path := fmt.Sprintf("/api/v1/watch/namespaces/%s/%s", ns, objectName)
+			if objectName == "endpointslices" {
+				path = fmt.Sprintf("/apis/discovery.k8s.io/v1beta1/watch/namespaces/%s/%s", ns, objectName)
+			}
+
 			query := joinSelectors(sdc.Role, nil, sdc.Selectors)
 			if len(query) > 0 {
 				path += "?" + query
@@ -117,6 +122,9 @@ func startWatchForObject(cfg *apiConfig, sdc *SDConfig, objectName string, handl
 		}
 	} else {
 		path := "/api/v1/watch/" + objectName
+		if objectName == "endpointslices" {
+			path = fmt.Sprintf("/apis/discovery.k8s.io/v1beta1/watch/%s", objectName)
+		}
 		query := joinSelectors(sdc.Role, sdc.Namespaces.Names, sdc.Selectors)
 		if len(query) > 0 {
 			path += "?" + query
@@ -192,7 +200,7 @@ func (wc *watchClient) getStreamAPIResponse(ctx context.Context, path string, wa
 		b := make([]byte, 1024, 1024)
 		b, err := readJSONObject(r, b)
 		if err != nil {
-			logger.Errorf("got error: %v", err)
+			logger.Errorf("got unexpected reading response frame error: %v", err)
 			return err
 		}
 		var rObject watchResponse

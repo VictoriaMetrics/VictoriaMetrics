@@ -14,57 +14,11 @@ func getEndpointsLabels(cfg *apiConfig) ([]map[string]string, error) {
 		eps = append(eps, value.(Endpoints))
 		return true
 	})
-	//eps, err := getEndpoints(cfg)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//pods, err := getPods(cfg)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//svcs, err := getServices(cfg)
-	//if err != nil {
-	//	return nil, err
-	//}
 	var ms []map[string]string
 	for _, ep := range eps {
 		ms = ep.appendTargetLabels(ms, nil, nil)
 	}
 	return ms, nil
-}
-
-func getEndpoints(cfg *apiConfig) ([]Endpoints, error) {
-	if len(cfg.namespaces) == 0 {
-		return getEndpointsByPath(cfg, "/api/v1/endpoints")
-	}
-	// Query /api/v1/namespaces/* for each namespace.
-	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
-	cfgCopy := *cfg
-	namespaces := cfgCopy.namespaces
-	cfgCopy.namespaces = nil
-	cfg = &cfgCopy
-	var result []Endpoints
-	for _, ns := range namespaces {
-		path := fmt.Sprintf("/api/v1/namespaces/%s/endpoints", ns)
-		eps, err := getEndpointsByPath(cfg, path)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, eps...)
-	}
-	return result, nil
-}
-
-func getEndpointsByPath(cfg *apiConfig, path string) ([]Endpoints, error) {
-	data, err := getAPIResponse(cfg, "endpoints", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %w", err)
-	}
-	epl, err := parseEndpointsList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse endpoints response from API server: %w", err)
-	}
-	return epl.Items, nil
 }
 
 // EndpointsList implements k8s endpoints list.

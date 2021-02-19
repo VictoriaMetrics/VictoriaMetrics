@@ -10,21 +10,14 @@ import (
 
 // getEndpointSlicesLabels returns labels for k8s endpointSlices obtained from the given cfg.
 func getEndpointSlicesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	eps, err := getEndpointSlices(cfg)
-	if err != nil {
-		return nil, err
-	}
-	pods, err := getPods(cfg)
-	if err != nil {
-		return nil, err
-	}
-	svcs, err := getServices(cfg)
-	if err != nil {
-		return nil, err
-	}
+	var eps []EndpointSlice
+	cfg.watchCache.Range(func(key, value interface{}) bool {
+		eps = append(eps, value.(EndpointSlice))
+		return true
+	})
 	var ms []map[string]string
 	for _, ep := range eps {
-		ms = ep.appendTargetLabels(ms, pods, svcs)
+		ms = ep.appendTargetLabels(ms, nil, nil)
 	}
 
 	return ms, nil
@@ -80,10 +73,18 @@ func parseEndpointSlicesList(data []byte) (*EndpointSliceList, error) {
 // appendTargetLabels injects labels for endPointSlice to slice map
 // follows TargetRef for enrich labels with pod and service metadata
 func (eps *EndpointSlice) appendTargetLabels(ms []map[string]string, pods []Pod, svcs []Service) []map[string]string {
-	svc := getService(svcs, eps.Metadata.Namespace, eps.Metadata.Name)
+	var svc *Service
+	if s, ok := servicesCache.Load(eps.key()); ok {
+		so := s.(Service)
+		svc = &so
+	}
 	podPortsSeen := make(map[*Pod][]int)
 	for _, ess := range eps.Endpoints {
-		pod := getPod(pods, ess.TargetRef.Namespace, ess.TargetRef.Name)
+		var pod *Pod
+		if p, ok := podsCache.Load(ess.TargetRef.key()); ok {
+			po := p.(Pod)
+			pod = &po
+		}
 		for _, epp := range eps.Ports {
 			for _, addr := range ess.Addresses {
 				ms = append(ms, getEndpointSliceLabelsForAddressAndPort(podPortsSeen, addr, eps, ess, epp, pod, svc))
