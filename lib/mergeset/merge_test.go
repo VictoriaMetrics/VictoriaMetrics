@@ -157,10 +157,12 @@ func testCheckItems(dstIP *inmemoryPart, items []string) error {
 		if bh.itemsCount <= 0 {
 			return fmt.Errorf("unexpected empty block")
 		}
-		if string(bh.firstItem) != string(dstBsr.Block.items[0]) {
-			return fmt.Errorf("unexpected blockHeader.firstItem; got %q; want %q", bh.firstItem, dstBsr.Block.items[0])
+		item := dstBsr.Block.items[0].Bytes(dstBsr.Block.data)
+		if string(bh.firstItem) != string(item) {
+			return fmt.Errorf("unexpected blockHeader.firstItem; got %q; want %q", bh.firstItem, item)
 		}
-		for _, item := range dstBsr.Block.items {
+		for _, it := range dstBsr.Block.items {
+			item := it.Bytes(dstBsr.Block.data)
 			dstItems = append(dstItems, string(item))
 		}
 	}

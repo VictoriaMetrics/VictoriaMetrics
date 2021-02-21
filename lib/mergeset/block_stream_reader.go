@@ -195,7 +195,8 @@ func (bsr *blockStreamReader) Next() bool {
 		if err := bsr.readNextBHS(); err != nil {
 			if err == io.EOF {
 				// Check the last item.
-				lastItem := bsr.Block.items[len(bsr.Block.items)-1]
+				b := &bsr.Block
+				lastItem := b.items[len(b.items)-1].Bytes(b.data)
 				if string(bsr.ph.lastItem) != string(lastItem) {
 					err = fmt.Errorf("unexpected last item; got %X; want %X", lastItem, bsr.ph.lastItem)
 				}
@@ -240,12 +241,13 @@ func (bsr *blockStreamReader) Next() bool {
 	}
 	if !bsr.firstItemChecked {
 		bsr.firstItemChecked = true
-		if string(bsr.ph.firstItem) != string(bsr.Block.items[0]) {
-			bsr.err = fmt.Errorf("unexpected first item; got %X; want %X", bsr.Block.items[0], bsr.ph.firstItem)
+		b := &bsr.Block
+		firstItem := b.items[0].Bytes(b.data)
+		if string(bsr.ph.firstItem) != string(firstItem) {
+			bsr.err = fmt.Errorf("unexpected first item; got %X; want %X", firstItem, bsr.ph.firstItem)
 			return false
 		}
 	}
-
 	return true
 }
 
