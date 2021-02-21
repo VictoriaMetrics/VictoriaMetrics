@@ -138,23 +138,13 @@ type indexBlock struct {
 }
 
 func (idxb *indexBlock) SizeBytes() int {
-	return cap(idxb.bhs) * int(unsafe.Sizeof(blockHeader{}))
-}
-
-func getIndexBlock() *indexBlock {
-	v := indexBlockPool.Get()
-	if v == nil {
-		return &indexBlock{}
+	bhs := idxb.bhs[:cap(idxb.bhs)]
+	n := int(unsafe.Sizeof(*idxb))
+	for i := range bhs {
+		n += bhs[i].SizeBytes()
 	}
-	return v.(*indexBlock)
+	return n
 }
-
-func putIndexBlock(idxb *indexBlock) {
-	idxb.bhs = idxb.bhs[:0]
-	indexBlockPool.Put(idxb)
-}
-
-var indexBlockPool sync.Pool
 
 type indexBlockCache struct {
 	// Atomically updated counters must go first in the struct, so they are properly
@@ -194,12 +184,6 @@ func newIndexBlockCache() *indexBlockCache {
 func (idxbc *indexBlockCache) MustClose() {
 	close(idxbc.cleanerStopCh)
 	idxbc.cleanerWG.Wait()
-
-	// It is safe returning idxbc.m to pool, since the MustClose can be called
-	// when the idxbc entries are no longer accessed by concurrent goroutines.
-	for _, idxbe := range idxbc.m {
-		putIndexBlock(idxbe.idxb)
-	}
 	idxbc.m = nil
 }
 
@@ -223,8 +207,6 @@ func (idxbc *indexBlockCache) cleanByTimeout() {
 	for k, idxbe := range idxbc.m {
 		// Delete items accessed more than two minutes ago.
 		if currentTime-atomic.LoadUint64(&idxbe.lastAccessTime) > 2*60 {
-			// do not call putIndexBlock(ibxbc.m[k]), since it
-			// may be used by concurrent goroutines.
 			delete(idxbc.m, k)
 		}
 	}
@@ -257,8 +239,6 @@ func (idxbc *indexBlockCache) Put(k uint64, idxb *indexBlock) {
 		// Remove 10% of items from the cache.
 		overflow = int(float64(len(idxbc.m)) * 0.1)
 		for k := range idxbc.m {
-			// do not call putIndexBlock(ibxbc.m[k]), since it
-			// may be used by concurrent goroutines.
 			delete(idxbc.m, k)
 			overflow--
 			if overflow == 0 {
@@ -348,12 +328,6 @@ func newInmemoryBlockCache() *inmemoryBlockCache {
 func (ibc *inmemoryBlockCache) MustClose() {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
-
-	// It is safe returning ibc.m entries to pool, since the MustClose can be called
-	// only if no other goroutines access ibc entries.
-	for _, ibe := range ibc.m {
-		putInmemoryBlock(ibe.ib)
-	}
 	ibc.m = nil
 }
 
@@ -377,8 +351,6 @@ func (ibc *inmemoryBlockCache) cleanByTimeout() {
 	for k, ibe := range ibc.m {
 		// Delete items accessed more than a two minutes ago.
 		if currentTime-atomic.LoadUint64(&ibe.lastAccessTime) > 2*60 {
-			// do not call putInmemoryBlock(ibc.m[k]), since it
-			// may be used by concurrent goroutines.
 			delete(ibc.m, k)
 		}
 	}
@@ -412,8 +384,6 @@ func (ibc *inmemoryBlockCache) Put(k inmemoryBlockCacheKey, ib *inmemoryBlock) {
 		// Remove 10% of items from the cache.
 		overflow = int(float64(len(ibc.m)) * 0.1)
 		for k := range ibc.m {
-			// do not call putInmemoryBlock(ib), since the ib
-			// may be used by concurrent goroutines.
 			delete(ibc.m, k)
 			overflow--
 			if overflow == 0 {
