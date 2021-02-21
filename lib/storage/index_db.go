@@ -2797,9 +2797,12 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		tf := &tfs.tfs[i]
 		loopsCount, lastQueryTimestamp := is.getLoopsCountAndTimestampForDateFilter(date, tf)
 		origLoopsCount := loopsCount
-		if currentTime > lastQueryTimestamp+60*60 {
-			// Reset loopsCount to 0 every hour for collecting updated stats for the tf.
-			loopsCount = 0
+		if currentTime > lastQueryTimestamp+3*3600 {
+			// Update stats once per 3 hours only for relatively fast tag filters.
+			// There is no need in spending CPU resources on updating stats for slow tag filters.
+			if loopsCount <= 10e6 {
+				loopsCount = 0
+			}
 		}
 		if loopsCount == 0 {
 			// Prevent from possible thundering herd issue when heavy tf is executed from multiple concurrent queries
