@@ -218,7 +218,7 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot decompress index block: %w", err)
 	}
-	ib := getIndexBlock()
+	ib := &indexBlock{}
 	ib.bhs, err = unmarshalBlockHeaders(ib.bhs[:0], ps.indexBuf, int(mr.BlockHeadersCount))
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal index block: %w", err)
