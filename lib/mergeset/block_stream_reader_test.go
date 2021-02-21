@@ -44,8 +44,10 @@ func testBlockStreamReaderRead(ip *inmemoryPart, items []string) error {
 	bsr := newTestBlockStreamReader(ip)
 	i := 0
 	for bsr.Next() {
-		for _, item := range bsr.Block.items {
-			if string(item) != items[i] {
+		data := bsr.Block.data
+		for _, it := range bsr.Block.items {
+			item := it.String(data)
+			if item != items[i] {
 				return fmt.Errorf("unexpected item[%d]; got %q; want %q", i, item, items[i])
 			}
 			i++

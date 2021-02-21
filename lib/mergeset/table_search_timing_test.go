@@ -46,7 +46,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	b.Run("sequential-keys-exact", func(b *testing.B) {
 		benchmarkTableSearchKeys(b, tb, keys, 0)
 	})
-	b.Run("sequential-keys-without-siffux", func(b *testing.B) {
+	b.Run("sequential-keys-without-suffix", func(b *testing.B) {
 		benchmarkTableSearchKeys(b, tb, keys, 4)
 	})
 
@@ -57,7 +57,7 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	b.Run("random-keys-exact", func(b *testing.B) {
 		benchmarkTableSearchKeys(b, tb, randKeys, 0)
 	})
-	b.Run("random-keys-without-siffux", func(b *testing.B) {
+	b.Run("random-keys-without-suffix", func(b *testing.B) {
 		benchmarkTableSearchKeys(b, tb, randKeys, 4)
 	})
 }

@@ -37,8 +37,10 @@ func TestInmemoryBlockAdd(t *testing.T) {
 		if len(ib.data) != totalLen {
 			t.Fatalf("unexpected ib.data len; got %d; want %d", len(ib.data), totalLen)
 		}
-		for j, item := range ib.items {
-			if items[j] != string(item) {
+		data := ib.data
+		for j, it := range ib.items {
+			item := it.String(data)
+			if items[j] != item {
 				t.Fatalf("unexpected item at index %d out of %d, loop %d\ngot\n%X\nwant\n%X", j, len(items), i, item, items[j])
 			}
 		}
@@ -75,8 +77,10 @@ func TestInmemoryBlockSort(t *testing.T) {
 		if len(ib.data) != totalLen {
 			t.Fatalf("unexpected ib.data len; got %d; want %d", len(ib.data), totalLen)
 		}
-		for j, item := range ib.items {
-			if items[j] != string(item) {
+		data := ib.data
+		for j, it := range ib.items {
+			item := it.String(data)
+			if items[j] != item {
 				t.Fatalf("unexpected item at index %d out of %d, loop %d\ngot\n%X\nwant\n%X", j, len(items), i, item, items[j])
 			}
 		}
@@ -122,8 +126,9 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 		if int(itemsLen) != len(ib.items) {
 			t.Fatalf("unexpected number of items marshaled; got %d; want %d", itemsLen, len(ib.items))
 		}
-		if string(firstItem) != string(ib.items[0]) {
-			t.Fatalf("unexpected the first item\ngot\n%q\nwant\n%q", firstItem, ib.items[0])
+		firstItemExpected := ib.items[0].String(ib.data)
+		if string(firstItem) != firstItemExpected {
+			t.Fatalf("unexpected the first item\ngot\n%q\nwant\n%q", firstItem, firstItemExpected)
 		}
 		if err := checkMarshalType(mt); err != nil {
 			t.Fatalf("invalid mt: %s", err)
@@ -143,12 +148,15 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected ib.data len; got %d; want %d", len(ib2.data), totalLen)
 		}
 		for j := range items {
-			if len(items[j]) != len(ib2.items[j]) {
+			it2 := ib2.items[j]
+			item2 := it2.String(ib2.data)
+			if len(items[j]) != len(item2) {
 				t.Fatalf("items length mismatch at index %d out of %d, loop %d\ngot\n(len=%d) %X\nwant\n(len=%d) %X",
-					j, len(items), i, len(ib2.items[j]), ib2.items[j], len(items[j]), items[j])
+					j, len(items), i, len(item2), item2, len(items[j]), items[j])
 			}
 		}
-		for j, item := range ib2.items {
+		for j, it := range ib2.items {
+			item := it.String(ib2.data)
 			if items[j] != string(item) {
 				t.Fatalf("unexpected item at index %d out of %d, loop %d\ngot\n(len=%d) %X\nwant\n(len=%d) %X",
 					j, len(items), i, len(item), item, len(items[j]), items[j])
