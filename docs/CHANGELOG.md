@@ -3,6 +3,14 @@
 # tip
 
 * FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+* FEATURE: expose io-related metrics at `/metrics` page for every VictoriaMetrics component:
+  * `process_io_read_bytes_total` - the number of bytes read via io syscalls such as read and pread
+  * `process_io_written_bytes_total` - the number of bytes written via io syscalls such as write and pwrite
+  * `process_io_read_syscalls_total` - the number of read syscalls such as read and pread
+  * `process_io_write_syscalls_total` - the number of write syscalls such as write and pwrite
+  * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
+  * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
+
 
 * BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065
 * BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
