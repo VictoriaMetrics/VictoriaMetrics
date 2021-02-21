@@ -26,9 +26,11 @@ func TestAppendPartsToMerge(t *testing.T) {
 	testAppendPartsToMerge(t, 2, []uint64{4, 2, 4}, []uint64{4, 4})
 	testAppendPartsToMerge(t, 2, []uint64{1, 3, 7, 2}, nil)
 	testAppendPartsToMerge(t, 3, []uint64{1, 3, 7, 2}, []uint64{1, 2, 3})
-	testAppendPartsToMerge(t, 4, []uint64{1, 3, 7, 2}, nil)
+	testAppendPartsToMerge(t, 4, []uint64{1, 3, 7, 2}, []uint64{1, 2, 3})
+	testAppendPartsToMerge(t, 5, []uint64{1, 3, 7, 2}, nil)
 	testAppendPartsToMerge(t, 4, []uint64{1e6, 3e6, 7e6, 2e6}, []uint64{1e6, 2e6, 3e6})
-	testAppendPartsToMerge(t, 4, []uint64{2, 3, 7, 2}, []uint64{2, 2, 3, 7})
+	testAppendPartsToMerge(t, 4, []uint64{2, 3, 7, 2}, []uint64{2, 2, 3})
+	testAppendPartsToMerge(t, 5, []uint64{2, 3, 7, 2}, nil)
 	testAppendPartsToMerge(t, 3, []uint64{11, 1, 10, 100, 10}, []uint64{10, 10, 11})
 }
 
