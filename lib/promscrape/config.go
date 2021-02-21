@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
 
@@ -608,6 +609,7 @@ func appendGCEScrapeWork(dst []*ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkCo
 }
 
 func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []*ScrapeWork {
+	startTime := time.Now()
 	for _, metaLabels := range targetLabels {
 		target := metaLabels["__address__"]
 		var err error
@@ -617,6 +619,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 			continue
 		}
 	}
+	metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_target_relabel_duration_seconds{type=%q}", sectionName)).UpdateDuration(startTime)
 	return dst
 }
 
