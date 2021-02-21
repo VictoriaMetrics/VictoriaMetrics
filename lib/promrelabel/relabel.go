@@ -115,12 +115,23 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 	case "replace":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		if len(bb.B) == 0 && prc.Regex == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInReplacement && !prc.hasCaptureGroupInTargetLabel {
-			// Fast path for the following rule that just sets label value:
-			// - target_label: foobar
-			//   replacement: something-here
-			relabelBufPool.Put(bb)
-			return setLabelValue(labels, labelsOffset, prc.TargetLabel, prc.Replacement)
+		if prc.Regex == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInTargetLabel {
+			if prc.Replacement == "$1" {
+				// Fast path for the rule that copies source label values to destination:
+				// - source_labels: [...]
+				//   target_label: foobar
+				valueStr := string(bb.B)
+				relabelBufPool.Put(bb)
+				return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
+			}
+			if !prc.hasCaptureGroupInReplacement {
+				// Fast path for the rule that sets label value:
+				// - target_label: foobar
+				//   replacement: something-here
+				relabelBufPool.Put(bb)
+				labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, prc.Replacement)
+				return labels
+			}
 		}
 		match := prc.Regex.FindSubmatchIndex(bb.B)
 		if match == nil {
@@ -139,6 +150,13 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 	case "replace_all":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		if prefix, complete := prc.Regex.LiteralPrefix(); complete && !prc.hasCaptureGroupInReplacement {
+			// Fast path - string replacement without regexp.
+			sourceStr := string(bb.B)
+			relabelBufPool.Put(bb)
+			valueStr := strings.ReplaceAll(sourceStr, prefix, prc.Replacement)
+			return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
+		}
 		if !prc.Regex.Match(bb.B) {
 			// Fast path - nothing to replace.
 			relabelBufPool.Put(bb)
@@ -175,7 +193,14 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 	case "keep":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		keep := prc.Regex.Match(bb.B)
+		keep := false
+		if prefix, complete := prc.Regex.LiteralPrefix(); complete {
+			// Fast path - simple string match
+			keep = prefix == string(bb.B)
+		} else {
+			// Slow path - match by regexp
+			keep = prc.Regex.Match(bb.B)
+		}
 		relabelBufPool.Put(bb)
 		if !keep {
 			return labels[:labelsOffset]
@@ -184,7 +209,14 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 	case "drop":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		drop := prc.Regex.Match(bb.B)
+		drop := false
+		if prefix, complete := prc.Regex.LiteralPrefix(); complete {
+			// Fast path - simple string match
+			drop = prefix == string(bb.B)
+		} else {
+			// Slow path - match by regexp
+			drop = prc.Regex.Match(bb.B)
+		}
 		relabelBufPool.Put(bb)
 		if drop {
 			return labels[:labelsOffset]
@@ -214,16 +246,28 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 	case "labelmap_all":
 		for i := range src {
 			label := &src[i]
-			if !prc.Regex.MatchString(label.Name) {
-				continue
+			if prefix, complete := prc.Regex.LiteralPrefix(); complete && !prc.hasCaptureGroupInReplacement {
+				// Fast path - replace without regexp
+				label.Name = strings.ReplaceAll(label.Name, prefix, prc.Replacement)
+			} else {
+				// Slow path - replace with regexp.
+				if !prc.Regex.MatchString(label.Name) {
+					continue
+				}
+				label.Name = prc.Regex.ReplaceAllString(label.Name, prc.Replacement)
 			}
-			label.Name = prc.Regex.ReplaceAllString(label.Name, prc.Replacement)
 		}
 		return labels
 	case "labeldrop":
 		keepSrc := true
 		for i := range src {
-			if prc.Regex.MatchString(src[i].Name) {
+			label := &src[i]
+			if prefix, complete := prc.Regex.LiteralPrefix(); complete {
+				if prefix == label.Name {
+					keepSrc = false
+					break
+				}
+			} else if prc.Regex.MatchString(label.Name) {
 				keepSrc = false
 				break
 			}
@@ -234,7 +278,11 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
-			if !prc.Regex.MatchString(label.Name) {
+			if prefix, complete := prc.Regex.LiteralPrefix(); complete {
+				if prefix != label.Name {
+					dst = append(dst, *label)
+				}
+			} else if !prc.Regex.MatchString(label.Name) {
 				dst = append(dst, *label)
 			}
 		}
@@ -242,7 +290,13 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 	case "labelkeep":
 		keepSrc := true
 		for i := range src {
-			if !prc.Regex.MatchString(src[i].Name) {
+			label := &src[i]
+			if prefix, complete := prc.Regex.LiteralPrefix(); complete {
+				if prefix != label.Name {
+					keepSrc = false
+					break
+				}
+			} else if !prc.Regex.MatchString(src[i].Name) {
 				keepSrc = false
 				break
 			}
@@ -253,7 +307,11 @@ func applyRelabelConfig(labels []prompbmarshal.Label, labelsOffset int, prc *Par
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
-			if prc.Regex.MatchString(label.Name) {
+			if prefix, complete := prc.Regex.LiteralPrefix(); complete {
+				if prefix == label.Name {
+					dst = append(dst, *label)
+				}
+			} else if prc.Regex.MatchString(label.Name) {
 				dst = append(dst, *label)
 			}
 		}

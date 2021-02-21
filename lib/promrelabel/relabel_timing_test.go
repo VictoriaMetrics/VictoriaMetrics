@@ -183,7 +183,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			}
 		})
 	})
-	b.Run("replace-match", func(b *testing.B) {
+	b.Run("replace-match-regex", func(b *testing.B) {
 		prcs := []ParsedRelabelConfig{
 			{
 				Action:       "replace",
@@ -276,6 +276,37 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			{
 				Action:       "drop",
 				SourceLabels: []string{"id"},
+				Regex:        regexp.MustCompile("yes"),
+			},
+		}
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "metric",
+			},
+			{
+				Name:  "id",
+				Value: "yes",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = ApplyRelabelConfigs(labels, 0, prcs, true)
+				if len(labels) != 0 {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 0, labels))
+				}
+			}
+		})
+	})
+	b.Run("drop-match-regexp", func(b *testing.B) {
+		prcs := []ParsedRelabelConfig{
+			{
+				Action:       "drop",
+				SourceLabels: []string{"id"},
 				Regex:        regexp.MustCompile("(foobar)-.*"),
 			},
 		}
@@ -334,6 +365,49 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		})
 	})
 	b.Run("keep-match", func(b *testing.B) {
+		prcs := []ParsedRelabelConfig{
+			{
+				Action:       "keep",
+				SourceLabels: []string{"id"},
+				Regex:        regexp.MustCompile("yes"),
+			},
+		}
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "metric",
+			},
+			{
+				Name:  "id",
+				Value: "yes",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = ApplyRelabelConfigs(labels, 0, prcs, true)
+				if len(labels) != len(labelsOrig) {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
+				}
+				if labels[0].Name != "__name__" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[0].Name, "__name__"))
+				}
+				if labels[0].Value != "metric" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "metric"))
+				}
+				if labels[1].Name != "id" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[1].Name, "id"))
+				}
+				if labels[1].Value != "yes" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[1].Value, "yes"))
+				}
+			}
+		})
+	})
+	b.Run("keep-match-regexp", func(b *testing.B) {
 		prcs := []ParsedRelabelConfig{
 			{
 				Action:       "keep",
@@ -454,6 +528,42 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			}
 		})
 	})
+	b.Run("labeldrop-match-regexp", func(b *testing.B) {
+		prcs := []ParsedRelabelConfig{
+			{
+				Action: "labeldrop",
+				Regex:  regexp.MustCompile("id.*"),
+			},
+		}
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "metric",
+			},
+			{
+				Name:  "id",
+				Value: "foobar-random-string-here",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = ApplyRelabelConfigs(labels, 0, prcs, true)
+				if len(labels) != 1 {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
+				}
+				if labels[0].Name != "__name__" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[0].Name, "__name__"))
+				}
+				if labels[0].Value != "metric" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "metric"))
+				}
+			}
+		})
+	})
 	b.Run("labelkeep-mismatch", func(b *testing.B) {
 		prcs := []ParsedRelabelConfig{
 			{
@@ -516,6 +626,91 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 				}
 				if labels[0].Value != "foobar-random-string-here" {
 					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "foobar-random-string-here"))
+				}
+			}
+		})
+	})
+	b.Run("labelkeep-match-regexp", func(b *testing.B) {
+		prcs := []ParsedRelabelConfig{
+			{
+				Action: "labelkeep",
+				Regex:  regexp.MustCompile("id.*"),
+			},
+		}
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "metric",
+			},
+			{
+				Name:  "id",
+				Value: "foobar-random-string-here",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = ApplyRelabelConfigs(labels, 0, prcs, true)
+				if len(labels) != 1 {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
+				}
+				if labels[0].Name != "id" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[0].Name, "id"))
+				}
+				if labels[0].Value != "foobar-random-string-here" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "foobar-random-string-here"))
+				}
+			}
+		})
+	})
+	b.Run("labelmap", func(b *testing.B) {
+		prcs := []ParsedRelabelConfig{
+			{
+				Action:      "labelmap",
+				Regex:       regexp.MustCompile("a(.*)"),
+				Replacement: "$1",
+			},
+		}
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "aabc",
+				Value: "foobar-random-string-here",
+			},
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = ApplyRelabelConfigs(labels, 0, prcs, true)
+				if len(labels) != 3 {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 3, labels))
+				}
+				if labels[0].Name != "aabc" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[0].Name, "aabc"))
+				}
+				if labels[0].Value != "foobar-random-string-here" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "foobar-random-string-here"))
+				}
+				if labels[1].Name != "abc" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[1].Name, "abc"))
+				}
+				if labels[1].Value != "foobar-random-string-here" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[1].Value, "foobar-random-string-here"))
+				}
+				if labels[2].Name != "foo" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[2].Name, "foo"))
+				}
+				if labels[2].Value != "bar" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[2].Value, "bar"))
 				}
 			}
 		})
