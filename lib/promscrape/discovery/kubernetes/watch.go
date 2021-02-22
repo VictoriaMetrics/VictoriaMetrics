@@ -320,7 +320,7 @@ func (wc *watchClient) getBlockingAPIResponse(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept-Encoding", "gzip")
+	//req.Header.Set("Accept-Encoding", "gzip")
 	if wc.ac != nil && wc.ac.Authorization != "" {
 		req.Header.Set("Authorization", wc.ac.Authorization)
 	}
@@ -342,7 +342,7 @@ func (wc *watchClient) getStreamAPIResponse(ctx context.Context, path, resouceVe
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Accept-Encoding", "gzip")
+	//req.Header.Set("Accept-Encoding", "gzip")
 	if wc.ac != nil && wc.ac.Authorization != "" {
 		req.Header.Set("Authorization", wc.ac.Authorization)
 	}
