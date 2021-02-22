@@ -65,12 +65,14 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "pods", func(wr *watchResponse) {
 			var p Pod
 			if err := json.Unmarshal(wr.Object, &p); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			processPods(cfg, &p, wr.Action)
 		}, func(bytes []byte) (string, error) {
 			pods, err := parsePodList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, pod := range pods.Items {
@@ -83,12 +85,14 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "nodes", func(wr *watchResponse) {
 			var n Node
 			if err := json.Unmarshal(wr.Object, &n); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			processNode(cfg, &n, wr.Action)
 		}, func(bytes []byte) (string, error) {
 			nodes, err := parseNodeList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, node := range nodes.Items {
@@ -101,6 +105,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "pods", func(wr *watchResponse) {
 			var p Pod
 			if err := json.Unmarshal(wr.Object, &p); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			updatePodCache(sc.Pods, &p, wr.Action)
@@ -124,6 +129,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "services", func(wr *watchResponse) {
 			var svc Service
 			if err := json.Unmarshal(wr.Object, &svc); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			updateServiceCache(sc.Services, &svc, wr.Action)
@@ -147,6 +153,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "endpoints", func(wr *watchResponse) {
 			var eps Endpoints
 			if err := json.Unmarshal(wr.Object, &eps); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			processEndpoints(cfg, sc, &eps, wr.Action)
@@ -154,6 +161,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		}, func(bytes []byte) (string, error) {
 			eps, err := parseEndpointsList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, ep := range eps.Items {
@@ -167,12 +175,14 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "services", func(wr *watchResponse) {
 			var svc Service
 			if err := json.Unmarshal(wr.Object, &svc); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			processService(cfg, &svc, wr.Action)
 		}, func(bytes []byte) (string, error) {
 			svcs, err := parseServiceList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, svc := range svcs.Items {
@@ -185,12 +195,14 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "ingresses", func(wr *watchResponse) {
 			var ig Ingress
 			if err := json.Unmarshal(wr.Object, &ig); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			processIngress(cfg, &ig, wr.Action)
 		}, func(bytes []byte) (string, error) {
 			igs, err := parseIngressList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, ig := range igs.Items {
@@ -203,6 +215,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "pods", func(wr *watchResponse) {
 			var p Pod
 			if err := json.Unmarshal(wr.Object, &p); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			updatePodCache(sc.Pods, &p, wr.Action)
@@ -216,6 +229,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		}, func(bytes []byte) (string, error) {
 			pods, err := parsePodList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, pod := range pods.Items {
@@ -226,6 +240,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "services", func(wr *watchResponse) {
 			var svc Service
 			if err := json.Unmarshal(wr.Object, &svc); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			updateServiceCache(sc.Services, &svc, wr.Action)
@@ -239,6 +254,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		}, func(bytes []byte) (string, error) {
 			svcs, err := parseServiceList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, svc := range svcs.Items {
@@ -249,6 +265,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		startWatchForObject(ctx, cfg, "endpointslices", func(wr *watchResponse) {
 			var eps EndpointSlice
 			if err := json.Unmarshal(wr.Object, &eps); err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return
 			}
 			processEndpointSlices(cfg, sc, &eps, wr.Action)
@@ -256,6 +273,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *Sh
 		}, func(bytes []byte) (string, error) {
 			epss, err := parseEndpointSlicesList(bytes)
 			if err != nil {
+				logger.Errorf("failed to parse object, err: %v", err)
 				return "", err
 			}
 			for _, eps := range epss.Items {
