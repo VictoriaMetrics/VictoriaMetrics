@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/bits"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -76,7 +75,7 @@ type ScrapeWork struct {
 	ProxyURL proxy.URL
 
 	// Optional `metric_relabel_configs`.
-	MetricRelabelConfigs []promrelabel.ParsedRelabelConfig
+	MetricRelabelConfigs *promrelabel.ParsedConfigs
 
 	// The maximum number of metrics to scrape after relabeling.
 	SampleLimit int
@@ -105,16 +104,8 @@ func (sw *ScrapeWork) key() string {
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
 		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, ScrapeAlignInterval=%s",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse, sw.ScrapeAlignInterval)
+		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse, sw.ScrapeAlignInterval)
 	return key
-}
-
-func (sw *ScrapeWork) metricRelabelConfigsString() string {
-	var sb strings.Builder
-	for _, prc := range sw.MetricRelabelConfigs {
-		fmt.Fprintf(&sb, "%s", prc.String())
-	}
-	return sb.String()
 }
 
 // Job returns job for the ScrapeWork
@@ -503,7 +494,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	labelsLen := len(wc.labels)
 	wc.labels = appendLabels(wc.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
 	if needRelabel {
-		wc.labels = promrelabel.ApplyRelabelConfigs(wc.labels, labelsLen, sw.Config.MetricRelabelConfigs, true)
+		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, true)
 	} else {
 		wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
 		promrelabel.SortLabels(wc.labels[labelsLen:])

@@ -142,8 +142,8 @@ func Stop() {
 func Push(wr *prompbmarshal.WriteRequest) {
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
-	prcsGlobal := rcs.global
-	if len(prcsGlobal) > 0 || len(labelsGlobal) > 0 {
+	pcsGlobal := rcs.global
+	if pcsGlobal.Len() > 0 || len(labelsGlobal) > 0 {
 		rctx = getRelabelCtx()
 	}
 	tss := wr.Timeseries
@@ -167,7 +167,7 @@ func Push(wr *prompbmarshal.WriteRequest) {
 		}
 		if rctx != nil {
 			tssBlockLen := len(tssBlock)
-			tssBlock = rctx.applyRelabeling(tssBlock, labelsGlobal, prcsGlobal)
+			tssBlock = rctx.applyRelabeling(tssBlock, labelsGlobal, pcsGlobal)
 			globalRelabelMetricsDropped.Add(tssBlockLen - len(tssBlock))
 		}
 		for _, rwctx := range rwctxs {
@@ -240,8 +240,8 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
-	prcs := rcs.perURL[rwctx.idx]
-	if len(prcs) > 0 {
+	pcs := rcs.perURL[rwctx.idx]
+	if pcs.Len() > 0 {
 		rctx = getRelabelCtx()
 		// Make a copy of tss before applying relabeling in order to prevent
 		// from affecting time series for other remoteWrite.url configs.
@@ -250,7 +250,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		v = tssRelabelPool.Get().(*[]prompbmarshal.TimeSeries)
 		tss = append(*v, tss...)
 		tssLen := len(tss)
-		tss = rctx.applyRelabeling(tss, nil, prcs)
+		tss = rctx.applyRelabeling(tss, nil, pcs)
 		rwctx.relabelMetricsDropped.Add(tssLen - len(tss))
 	}
 	pss := rwctx.pss

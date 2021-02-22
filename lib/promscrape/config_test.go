@@ -4,13 +4,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"reflect"
-	"regexp"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 func TestLoadStaticConfigs(t *testing.T) {
@@ -1034,13 +1032,6 @@ scrape_configs:
 		},
 	})
 
-	prcs, err := promrelabel.ParseRelabelConfigs(nil, []promrelabel.RelabelConfig{{
-		SourceLabels: []string{"foo"},
-		TargetLabel:  "abc",
-	}})
-	if err != nil {
-		t.Fatalf("unexpected error when parsing relabel configs: %s", err)
-	}
 	f(`
 scrape_configs:
 - job_name: foo
@@ -1076,9 +1067,12 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig:           &promauth.Config{},
-			MetricRelabelConfigs: prcs,
-			jobNameOriginal:      "foo",
+			AuthConfig: &promauth.Config{},
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+- source_labels: [foo]
+  target_label: abc
+`),
+			jobNameOriginal: "foo",
 		},
 	})
 	f(`
@@ -1373,8 +1367,6 @@ scrape_configs:
 		},
 	})
 }
-
-var defaultRegexForRelabelConfig = regexp.MustCompile("^(.*)$")
 
 func equalStaticConfigForScrapeWorks(a, b []*ScrapeWork) bool {
 	if len(a) != len(b) {
