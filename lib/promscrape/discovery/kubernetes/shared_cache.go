@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -14,111 +13,10 @@ import (
 // watch should be executed for each namespace ?
 // multi namespace ?
 
-var servicesCache, podsCache sync.Map
+var servicesCache, podsCache, endpointsCache, endpointSlicesCache sync.Map
 
-type cacheKey interface {
-	key() string
-}
-
-func updatePodCache(mainCache, sharedCache *sync.Map, p Pod, resp *watchResponse) {
-	//var p Pod
-	if err := json.Unmarshal(resp.Object, &p); err != nil {
-		logger.Errorf("cannot unmarshal object: %v", err)
-		return
-	}
-	switch resp.Action {
-	case "ADDED":
-		if mainCache != nil {
-			mainCache.Store(p.key(), p)
-		}
-		sharedCache.Store(p.key(), p)
-	case "DELETED":
-		if mainCache != nil {
-			mainCache.Delete(p.key())
-		}
-		sharedCache.Delete(p.key())
-
-	case "MODIFIED":
-		if mainCache != nil {
-			mainCache.Store(p.key(), p)
-		}
-		sharedCache.Store(p.key(), p)
-	default:
-		logger.Infof("default action: %s", resp.Action)
-	}
-}
-
-func updateServiceCache(mainCache, sharedCache *sync.Map, p Service, resp *watchResponse) {
-	//var p Pod
-	if err := json.Unmarshal(resp.Object, &p); err != nil {
-		logger.Errorf("cannot unmarshal object: %v", err)
-		return
-	}
-	switch resp.Action {
-	case "ADDED":
-		if mainCache != nil {
-			mainCache.Store(p.key(), p)
-		}
-		sharedCache.Store(p.key(), p)
-	case "DELETED":
-		if mainCache != nil {
-			mainCache.Delete(p.key())
-		}
-		sharedCache.Delete(p.key())
-
-	case "MODIFIED":
-		if mainCache != nil {
-			mainCache.Store(p.key(), p)
-		}
-		sharedCache.Store(p.key(), p)
-	default:
-		logger.Infof("default action: %s", resp.Action)
-	}
-}
-
-func updateIngressCache(cache *sync.Map, p Ingress, resp *watchResponse) {
-	if err := json.Unmarshal(resp.Object, &p); err != nil {
-		logger.Errorf("cannot unmarshal object: %v", err)
-		return
-	}
-	switch resp.Action {
-	case "ADDED":
-		cache.Store(p.key(), p)
-	case "DELETED":
-		cache.Delete(p.key())
-
-	case "MODIFIED":
-		cache.Store(p.key(), p)
-	default:
-		logger.Infof("default action: %s", resp.Action)
-	}
-}
-
-func nodesHandle(ac *apiConfig, resp *watchResponse) {
-	//var p Pod
-	var obj Node
-	if err := json.Unmarshal(resp.Object, &obj); err != nil {
-		logger.Errorf("cannot unmarshal object: %v", err)
-		return
-	}
-	switch resp.Action {
-	case "ADDED":
-		ac.watchCache.Store(obj.key(), obj)
-	case "DELETED":
-		ac.watchCache.Delete(obj.key())
-	case "MODIFIED":
-		ac.watchCache.Store(obj.key(), obj)
-	default:
-		logger.Infof("default action: %s", resp.Action)
-	}
-}
-
-func updateEndpointsCache(cache *sync.Map, p Endpoints, resp *watchResponse) {
-	if err := json.Unmarshal(resp.Object, &p); err != nil {
-		logger.Errorf("cannot unmarshal object: %v", err)
-		return
-	}
-	switch resp.Action {
+func updatePodCache(cache *sync.Map, p *Pod, action string) {
+	switch action {
 	case "ADDED":
 		cache.Store(p.key(), p)
 	case "DELETED":
@@ -126,23 +24,135 @@ func updateEndpointsCache(cache *sync.Map, p Endpoints, resp *watchResponse) {
 	case "MODIFIED":
 		cache.Store(p.key(), p)
 	default:
-		logger.Infof("default action: %s", resp.Action)
+		logger.Infof("unexpected action: %s", action)
 	}
 }
 
-func updateEndpointSlicesCache(cache *sync.Map, p EndpointSlice, resp *watchResponse) {
-	if err := json.Unmarshal(resp.Object, &p); err != nil {
-		logger.Errorf("cannot unmarshal object: %v", err)
-		return
+func processService(cfg *apiConfig, svc *Service, action string) {
+	key := "service/" + cfg.setName + svc.key()
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- K8sSyncEvent{
+			Labels:           svc.appendTargetLabels(nil),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- K8sSyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
 	}
-	switch resp.Action {
-	case "ADDED":
+}
+
+func updateServiceCache(cache *sync.Map, p *Service, action string) {
+	switch action {
+	case "ADDED", "MODIFIED":
 		cache.Store(p.key(), p)
 	case "DELETED":
 		cache.Delete(p.key())
-	case "MODIFIED":
-		cache.Store(p.key(), p)
 	default:
-		logger.Infof("default action: %s", resp.Action)
+		logger.Infof("default action: %s", action)
+	}
+}
+
+func updateEndpointsCache(cache *sync.Map, p *Endpoints, action string) {
+	switch action {
+	case "ADDED", "MODIFIED":
+		cache.Store(p.key(), p)
+	case "DELETED":
+		cache.Delete(p.key())
+	default:
+		logger.Infof("default action: %s", action)
+	}
+}
+
+func updateEndpointsSliceCache(cache *sync.Map, p *EndpointSlice, action string) {
+	switch action {
+	case "ADDED", "MODIFIED":
+		cache.Store(p.key(), p)
+	case "DELETED":
+		cache.Delete(p.key())
+	default:
+		logger.Infof("default action: %s", action)
+	}
+}
+
+func processIngress(cfg *apiConfig, p *Ingress, action string) {
+
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- K8sSyncEvent{
+			Labels:           p.appendTargetLabels(nil),
+			Key:              p.key(),
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- K8sSyncEvent{
+			Key:              p.key(),
+			ConfigSectionSet: cfg.setName,
+		}
+	default:
+		logger.Infof("default action: %s", action)
+	}
+}
+
+func processNode(cfg *apiConfig, n *Node, action string) {
+	key := "node/" + cfg.setName + n.key()
+	switch action {
+	case "ADDED", "MODIFIED":
+		lbs := n.appendTargetLabels(nil)
+		cfg.targetChan <- K8sSyncEvent{
+			Labels:           lbs,
+			ConfigSectionSet: cfg.setName,
+			Key:              key,
+		}
+	case "DELETED":
+		cfg.targetChan <- K8sSyncEvent{
+			ConfigSectionSet: cfg.setName,
+			Key:              key,
+		}
+	default:
+		logger.Infof("default action: %s", action)
+	}
+}
+
+func processEndpoints(cfg *apiConfig, p *Endpoints, action string) {
+
+	key := "endpoint/" + cfg.setName + p.key()
+	switch action {
+	case "ADDED", "MODIFIED":
+		lbs := p.appendTargetLabels(nil, &podsCache, &servicesCache)
+		cfg.targetChan <- K8sSyncEvent{
+			Labels:           lbs,
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- K8sSyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	default:
+		logger.Infof("default action: %s", action)
+	}
+}
+
+func processEndpointSlices(cfg *apiConfig, p *EndpointSlice, action string) {
+	key := "endpointslice/" + cfg.setName + p.key()
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- K8sSyncEvent{
+			Labels:           p.appendTargetLabels(nil, &podsCache, &servicesCache),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- K8sSyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	default:
+		logger.Infof("default action: %s", action)
 	}
 }

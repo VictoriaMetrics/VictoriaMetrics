@@ -7,30 +7,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getNodesLabels returns labels for k8s nodes obtained from the given cfg.
-func getNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	//data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
-	//if err != nil {
-	//	return nil, fmt.Errorf("cannot obtain nodes data from API server: %w", err)
-	//}
-	//nl, err := parseNodeList(data)
-	//if err != nil {
-	//	return nil, fmt.Errorf("cannot parse nodes response from API server: %w", err)
-	//}
-	var ms []map[string]string
-	cfg.watchCache.Range(func(key, value interface{}) bool {
-		n := value.(Node)
-		ms = n.appendTargetLabels(ms)
-		return true
-	})
-	return ms, nil
-}
-
 // NodeList represents NodeList from k8s API.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodelist-v1-core
 type NodeList struct {
-	Items []Node
+	Items    []Node
+	Metadata listMetadata `json:"metadata"`
 }
 
 // Node represents Node from k8s API.

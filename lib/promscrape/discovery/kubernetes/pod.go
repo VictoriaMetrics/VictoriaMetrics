@@ -9,59 +9,40 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getPodsLabels returns labels for k8s pods obtained from the given cfg
-func getPodsLabels(cfg *apiConfig) ([]map[string]string, error) {
-	var pods []Pod
-	cfg.watchCache.Range(func(key, value interface{}) bool {
-		pods = append(pods, value.(Pod))
-		return true
-	})
-	var ms []map[string]string
-	for _, p := range pods {
-		ms = p.appendTargetLabels(ms)
-	}
-	return ms, nil
+// K8sSyncEvent represent kubernetes resource watch event.
+type K8sSyncEvent struct {
+	// object type + set name + ns + name
+	// must be unique.
+	Key string
+	// Labels targets labels for given resource
+	Labels []map[string]string
+	// job name + position id
+	ConfigSectionSet string
 }
 
-func getPods(cfg *apiConfig) ([]Pod, error) {
-	if len(cfg.namespaces) == 0 {
-		return getPodsByPath(cfg, "/api/v1/pods")
-	}
-	// Query /api/v1/namespaces/* for each namespace.
-	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
-	cfgCopy := *cfg
-	namespaces := cfgCopy.namespaces
-	cfgCopy.namespaces = nil
-	cfg = &cfgCopy
-	var result []Pod
-	for _, ns := range namespaces {
-		path := fmt.Sprintf("/api/v1/namespaces/%s/pods", ns)
-		pods, err := getPodsByPath(cfg, path)
-		if err != nil {
-			return nil, err
+func processPods(cfg *apiConfig, p *Pod, action string) {
+	key := "pods/" + cfg.setName + p.key()
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- K8sSyncEvent{
+			Labels:           p.appendTargetLabels(nil),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
 		}
-		result = append(result, pods...)
+	case "DELETED":
+		cfg.targetChan <- K8sSyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
 	}
-	return result, nil
-}
-
-func getPodsByPath(cfg *apiConfig, path string) ([]Pod, error) {
-	data, err := getAPIResponse(cfg, "pod", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain pods data from API server: %w", err)
-	}
-	pl, err := parsePodList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse pods response from API server: %w", err)
-	}
-	return pl.Items, nil
 }
 
 // PodList implements k8s pod list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podlist-v1-core
 type PodList struct {
-	Items []Pod
+	Items    []Pod
+	Metadata listMetadata `json:"metadata"`
 }
 
 // Pod implements k8s pod.
@@ -214,18 +195,4 @@ func getPodReadyStatus(conds []PodCondition) string {
 		}
 	}
 	return "unknown"
-}
-
-func getPod(pods []Pod, namespace, name string) *Pod {
-	for i := range pods {
-		pod := &pods[i]
-		if pod.Metadata.Name == name && pod.Metadata.Namespace == namespace {
-			return pod
-		}
-	}
-	return nil
-}
-
-func podsHandle(ac *apiConfig, resp *watchResponse) {
-	updatePodCache(&ac.watchCache, &podsCache, Pod{}, resp)
 }

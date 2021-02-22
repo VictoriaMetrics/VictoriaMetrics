@@ -7,58 +7,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getServicesLabels returns labels for k8s services obtained from the given cfg.
-func getServicesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	svcs, err := getServices(cfg)
-	if err != nil {
-		return nil, err
-	}
-	var ms []map[string]string
-	for _, svc := range svcs {
-		ms = svc.appendTargetLabels(ms)
-	}
-	return ms, nil
-}
-
-func getServices(cfg *apiConfig) ([]Service, error) {
-	if len(cfg.namespaces) == 0 {
-		return getServicesByPath(cfg, "/api/v1/services")
-	}
-	// Query /api/v1/namespaces/* for each namespace.
-	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
-	cfgCopy := *cfg
-	namespaces := cfgCopy.namespaces
-	cfgCopy.namespaces = nil
-	cfg = &cfgCopy
-	var result []Service
-	for _, ns := range namespaces {
-		path := fmt.Sprintf("/api/v1/namespaces/%s/services", ns)
-		svcs, err := getServicesByPath(cfg, path)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, svcs...)
-	}
-	return result, nil
-}
-
-func getServicesByPath(cfg *apiConfig, path string) ([]Service, error) {
-	data, err := getAPIResponse(cfg, "service", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain services data from API server: %w", err)
-	}
-	sl, err := parseServiceList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse services response from API server: %w", err)
-	}
-	return sl.Items, nil
-}
-
 // ServiceList is k8s service list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#servicelist-v1-core
 type ServiceList struct {
-	Items []Service
+	Items    []Service
+	Metadata listMetadata `json:"metadata"`
 }
 
 // Service is k8s service.
@@ -69,8 +23,8 @@ type Service struct {
 	Spec     ServiceSpec
 }
 
-func (svc Service) key() string {
-	return svc.Metadata.Namespace + "/" + svc.Metadata.Name
+func (s Service) key() string {
+	return s.Metadata.Namespace + "/" + s.Metadata.Name
 }
 
 // ServiceSpec is k8s service spec.
@@ -129,14 +83,4 @@ func (s *Service) appendCommonLabels(m map[string]string) {
 		m["__meta_kubernetes_service_external_name"] = s.Spec.ExternalName
 	}
 	s.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_service", m)
-}
-
-func getService(svcs []Service, namespace, name string) *Service {
-	for i := range svcs {
-		svc := &svcs[i]
-		if svc.Metadata.Name == name && svc.Metadata.Namespace == namespace {
-			return svc
-		}
-	}
-	return nil
 }
