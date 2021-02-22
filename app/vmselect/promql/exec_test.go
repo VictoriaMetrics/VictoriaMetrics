@@ -5252,6 +5252,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`increase_pure(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `increase_pure(time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{200, 200, 200, 200, 200, 200},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`increase(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `increase(time())`

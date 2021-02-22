@@ -72,6 +72,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `start()` and `end()` functions for returning the start and end timestamps of the `[start ... end]` range used in the query.
 - `integrate(m[d])` for returning integral over the given duration `d` for the given metric `m`.
 - `ideriv(m[d])` - for calculating `instant` derivative for the metric `m` over the duration `d`.
+- `increase_pure(m[d])` - for calculating increase of `m` over `d` without edge-case handling compared to `increase(m[d])`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.
 - `deriv_fast(m[d])` - for calculating `fast` derivative for `m` based on the first and the last points from duration `d`.
 - `running_` functions - `running_sum`, `running_min`, `running_max`, `running_avg` - for calculating [running values](https://en.wikipedia.org/wiki/Running_total) on the selected time range.
 - `range_` functions - `range_sum`, `range_min`, `range_max`, `range_avg`, `range_first`, `range_last`, `range_median`, `range_quantile` - for calculating global value over the selected time range. Note that global value is based on calculated datapoints for the inner query. The calculated datapoints can differ from raw datapoints stored in the database. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness) for details.

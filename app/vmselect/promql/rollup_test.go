@@ -476,6 +476,7 @@ func TestRollupNewRollupFuncSuccess(t *testing.T) {
 	f("ideriv", 0)
 	f("decreases_over_time", 5)
 	f("increases_over_time", 5)
+	f("increase_pure", 398)
 	f("ascent_over_time", 142)
 	f("descent_over_time", 231)
 	f("zscore_over_time", -0.4254336383156416)

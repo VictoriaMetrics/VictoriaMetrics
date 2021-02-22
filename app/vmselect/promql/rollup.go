@@ -53,6 +53,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"distinct_over_time":    newRollupFuncOneArg(rollupDistinct),
 	"increases_over_time":   newRollupFuncOneArg(rollupIncreases),
 	"decreases_over_time":   newRollupFuncOneArg(rollupDecreases),
+	"increase_pure":         newRollupFuncOneArg(rollupIncreasePure), // + rollupFuncsRemoveCounterResets
 	"integrate":             newRollupFuncOneArg(rollupIntegrate),
 	"ideriv":                newRollupFuncOneArg(rollupIderiv),
 	"lifetime":              newRollupFuncOneArg(rollupLifetime),
@@ -123,6 +124,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"distinct_over_time":  rollupDistinct,
 	"increases_over_time": rollupIncreases,
 	"decreases_over_time": rollupDecreases,
+	"increase_pure":       rollupIncreasePure,
 	"integrate":           rollupIntegrate,
 	"ideriv":              rollupIderiv,
 	"lifetime":            rollupLifetime,
@@ -160,6 +162,7 @@ var rollupFuncsCannotAdjustWindow = map[string]bool{
 	"distinct_over_time":  true,
 	"increases_over_time": true,
 	"decreases_over_time": true,
+	"increase_pure":       true,
 	"integrate":           true,
 	"ascent_over_time":    true,
 	"descent_over_time":   true,
@@ -172,6 +175,7 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 	"rate":            true,
 	"rollup_rate":     true,
 	"rollup_increase": true,
+	"increase_pure":   true,
 }
 
 var rollupFuncsKeepMetricGroup = map[string]bool{
@@ -1321,6 +1325,25 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 		avg = avgNew
 	}
 	return q / count
+}
+
+func rollupIncreasePure(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+	values := rfa.values
+	prevValue := rfa.prevValue
+	if math.IsNaN(prevValue) {
+		if len(values) == 0 {
+			return nan
+		}
+		// Assume the counter starts from 0.
+		prevValue = 0
+	}
+	if len(values) == 0 {
+		// Assume the counter didsn't change since prevValue.
+		return 0
+	}
+	return values[len(values)-1] - prevValue
 }
 
 func rollupDelta(rfa *rollupFuncArg) float64 {
