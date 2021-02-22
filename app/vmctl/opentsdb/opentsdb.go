@@ -12,9 +12,24 @@ import (
 
 type Client struct {
 	Addr	string
-	Username  string
-	Password  string
+	// The meta query limit for series returned
 	Limit	int
+	/*
+	OpenTSDB has two levels of aggregation,
+	First, we aggregate any un-mentioned tags into the last result
+	Second, we aggregate into buckets over time
+	To simulate this with config, we have
+	FirstOrder (e.g. sum/avg/max/etc.)
+	SecondOrder (e.g. sum/avg/max/etc.)
+	AggTime	(e.g. 1m/10m/1d/etc.)
+	This will build into m=<FirstOrder>:<AggTime>-<SecondOrder>-none:
+	Or an example: m=sum:1m-avg-none
+	*/
+	FirstOrder	string
+	SecondOrder	string
+	AggTime	string
+	RowSize	string
+	TTL	string
 }
 
 // Config contains fields required
@@ -27,7 +42,14 @@ type Config struct {
 	Filters	[]string
 }
 
+// data about time ranges to query
+type TimeRange struct {
+	Start	int64
+	End	int64
+}
+
 // A meta object about a metric
+// only contain the tags/etc. and no data
 type Meta struct {
 	tsuid	string
 	Metric	string
@@ -42,6 +64,8 @@ type Metric struct {
 	Dps	map[string]float64
 }
 
+// Find all metrics that OpenTSDB knows about with a filter
+// e.g. /api/suggest?type=metrics&q=system
 func (c Client) FindMetrics(filter string) ([]string, error) {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/suggest?type=metrics&q=%q", c.Addr, filter)
@@ -62,6 +86,8 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 	return metriclist
 }
 
+// Find all series associated with a metric
+// e.g. /api/search/lookup?m=system.load5&limit=1000000
 func (c Client) FindSeries(metric string) []Meta {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/search/lookup?m=%q&limit=%q", c.Addr, metric, c.limit)
@@ -80,6 +106,29 @@ func (c Client) FindSeries(metric string) []Meta {
 		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
 	return serieslist
+}
+
+// Get data for series
+func (c Client) GetData(series string, start int, end int) Metric {
+	q := &strings.Builder{}
+	fmt.Fprintf(q, "%q/api/query?start=%q&end=%q&m=%q:%q-%q-none:%q",
+					c.Addr, start, end, c.FirstOrder, c.AggTime, c.SecondOrder,
+					series)
+	resp, err := http.Get(q)
+	if err != nil {
+		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
+	}
+	var data Metric
+	err := json.Unmarshal(body, &data)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+	}
+	return data
 }
 
 // NewClient creates and returns influx client

@@ -98,12 +98,6 @@ var (
 
 const (
 	otsdbAddr                      = "otsdb-addr"
-	influxRetention                 = "influx-retention-policy"
-	influxChunkSize                 = "influx-chunk-size"
-	influxConcurrency               = "influx-concurrency"
-	influxFilterSeries              = "influx-filter-series"
-	influxFilterTimeStart           = "influx-filter-time-start"
-	influxFilterTimeEnd             = "influx-filter-time-end"
 )
 
 var (

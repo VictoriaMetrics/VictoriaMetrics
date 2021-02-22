@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -16,6 +15,36 @@ var (
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
 	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
 )
+
+// Convert an incoming retention "string" into the component parts
+func ConvertRetention(retention string) (string, string, string, []timeChunks) {
+	/*
+	A retention string coming in looks like
+	sum-1m-avg:1h:30d
+	So we:
+	1. split on the :
+	2. split on the - in slice 0
+	3. create the time ranges we actually need
+	*/
+	chunks := strings.Split(retention, ":")
+	aggregates := strings.Split(chunks[0], "-")
+	rowLength, err := time.ParseDuration(chunks[1])
+	if err != nil {
+		panic
+	}
+	ttl, err := time.ParseDuration(chunks[2])
+	if err != nil {
+		panic
+	}
+	rowSecs := rowLength.Seconds()
+	ttlSecs := ttl.Seconds()
+	var timeChunks []TimeRange
+	for i := 0; i < ttlSecs; i+rowSecs {
+		append(timeChunks, {Start: i+rowSecs, End: i})
+	}
+	// FirstOrder, AggTime, SecondOrder, RowSize, TTL
+	return aggregates[0], aggregates[1], aggregates[2], timeChunks
+}
 
 // This ensures any incoming data from OpenTSDB matches the Prometheus data model
 // https://prometheus.io/docs/concepts/data_model
