@@ -13,6 +13,7 @@ Features:
 
 * [Articles](#articles)
 * [How to build](#how-to-build)
+* [Migrating data from OpenTSDB](#migrating-data-from-opentsdb)
 * [Migrating data from InfluxDB 1.x](#migrating-data-from-influxdb-1x)
    * [Data mapping](#data-mapping)
    * [Configuration](#configuration)

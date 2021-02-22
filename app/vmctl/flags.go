@@ -97,7 +97,10 @@ var (
 )
 
 const (
-	otsdbAddr                      = "otsdb-addr"
+	otsdbAddr        = "otsdb-addr"
+	otsdbConcurrency = "otsdb-concurrency"
+	otsdbRetentions  = "otsdb-retentions"
+	otsdbFilters	 = "otsdb-filters"
 )
 
 var (
@@ -107,40 +110,23 @@ var (
 			Value: "http://localhost:4242",
 			Usage: "OpenTSDB server addr",
 		},
-		/*
-		&cli.StringFlag{
-			Name:     influxDB,
-			Usage:    "Influx database",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:  influxRetention,
-			Usage: "Influx retention policy",
-			Value: "autogen",
-		},
 		&cli.IntFlag{
-			Name:  influxChunkSize,
-			Usage: "The chunkSize defines max amount of series to be returned in one chunk",
-			Value: 10e3,
-		},
-		&cli.IntFlag{
-			Name:  influxConcurrency,
-			Usage: "Number of concurrently running fetch queries to InfluxDB",
+			Name:  otsdbConcurrency,
+			Usage: "Number of concurrently running fetch queries to OpenTSDB",
 			Value: 1,
 		},
-		&cli.StringFlag{
-			Name: influxFilterSeries,
-			Usage: "Influx filter expression to select series. E.g. \"from cpu where arch='x86' AND hostname='host_2753'\".\n" +
-				"See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series",
+		&cli.StringSliceFlag{
+			Name:  otsdbRetentions,
+			Value: nil,
+			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed" +
+				"for the query, the row size (in HBase) that will define how long each individual query is," +
+				"and the time range to query for. e.g. sum-1m-avg:1h:30d",
 		},
-		&cli.StringFlag{
-			Name:  influxFilterTimeStart,
-			Usage: "The time filter to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+		&cli.StringSliceFlag{
+			Name:  otsdbFilters,
+			Value: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"],
+			Usage: "Filters to process for discovering metrics in OpenTSDB",
 		},
-		&cli.StringFlag{
-			Name:  influxFilterTimeEnd,
-			Usage: "The time filter to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
-		},*/
 	}
 )
 

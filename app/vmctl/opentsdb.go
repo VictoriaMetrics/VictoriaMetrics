@@ -14,17 +14,22 @@ import (
 type otsdbProcessor struct {
 	oc        *opentsdb.Client
 	im        *vm.Importer
-	cc        int
+	otsdbcc	int
+	vmcc        int
 }
 
-func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, cc int) *otsdbProcessor {
-	if cc < 1 {
-		cc = 1
+func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc int) *otsdbProcessor {
+	if otsdbcc < 1 {
+		otsdbcc = 1
+	}
+	if vmcc < 1 {
+		vmcc = 1
 	}
 	return &otsdbProcessor{
 		oc:        oc,
 		im:        im,
-		cc:        cc,
+		otsdbcc:        otsdbcc,
+		vmcc:        vmcc,
 	}
 }
 
@@ -44,6 +49,9 @@ func (op *otsdbProcessor) run(silent bool) error {
 	}
 
 	bar := pb.StartNew(len(metrics))
+
+	for metric := range metrics {
+	}
 
 	/*
 	seriesCh := make(chan *influx.Series)

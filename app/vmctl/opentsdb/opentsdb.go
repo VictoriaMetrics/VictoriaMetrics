@@ -10,10 +10,7 @@ import (
 	"time"
 )
 
-type Client struct {
-	Addr	string
-	// The meta query limit for series returned
-	Limit	int
+type Retention struct {
 	/*
 	OpenTSDB has two levels of aggregation,
 	First, we aggregate any un-mentioned tags into the last result
@@ -28,16 +25,22 @@ type Client struct {
 	FirstOrder	string
 	SecondOrder	string
 	AggTime	string
-	RowSize	string
-	TTL	string
+	// The actual ranges will will attempt to query (as offsets from now)
+	QueryRanges	[]TimeRange
+}
+
+type Client struct {
+	Addr	string
+	// The meta query limit for series returned
+	Limit	int
+	Retentions	[]Retention
 }
 
 // Config contains fields required
 // for Client configuration
 type Config struct {
 	Addr      string
-	Username  string
-	Password  string
+	Limit	int
 	Retentions	[]string
 	Filters	[]string
 }
@@ -90,7 +93,7 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 // e.g. /api/search/lookup?m=system.load5&limit=1000000
 func (c Client) FindSeries(metric string) []Meta {
 	q := &strings.Builder{}
-	fmt.Fprintf(q, "%q/api/search/lookup?m=%q&limit=%q", c.Addr, metric, c.limit)
+	fmt.Fprintf(q, "%q/api/search/lookup?m=%q&limit=%q", c.Addr, metric, c.Limit)
 	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
@@ -137,34 +140,19 @@ func NewClient(cfg Config) (*Client, error) {
 	if _, _, err := hc.Ping(time.Second); err != nil {
 		return nil, fmt.Errorf("ping failed: %s", err)
 	}
-
+	var retentions []Retention
+	for r := range cfg.Retentions {
+		first, aggTime, second, tr := ConverRetention(r)
+		append(retentions, Retention{FirstOrder: first, SecondOrder: second,
+			AggTime: aggTime, TimeRanges: tr})
+	}
 	client := &Client{
 		Addr:	cfg.Addr,
-		database:     cfg.Database,
-		retention:    cfg.Retention,
-		chunkSize:    chunkSize,
-		filterTime:   timeFilter(cfg.Filter.TimeStart, cfg.Filter.TimeEnd),
-		filterSeries: cfg.Filter.Series,
+		Retentions:	retentions,
+		Limit:	cfg.Limit,
+		Filters: cfg.Filters,
 	}
 	return client, nil
-}
-
-/*
-func timeFilter(start, end string) string {
-	if start == "" && end == "" {
-		return ""
-	}
-	var tf string
-	if start != "" {
-		tf = fmt.Sprintf("time >= '%s'", start)
-	}
-	if end != "" {
-		if tf != "" {
-			tf += " and "
-		}
-		tf += fmt.Sprintf("time <= '%s'", end)
-	}
-	return tf
 }
 
 // Explore checks the existing data schema in influx

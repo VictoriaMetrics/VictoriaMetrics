@@ -30,30 +30,26 @@ func main() {
 				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
-					/*
-					iCfg := influx.Config{
-						Addr:      c.String(influxAddr),
-						Username:  c.String(influxUser),
-						Password:  c.String(influxPassword),
-						Database:  c.String(influxDB),
-						Retention: c.String(influxRetention),
-						Filter: influx.Filter{
-							Series:    c.String(influxFilterSeries),
-							TimeStart: c.String(influxFilterTimeStart),
-							TimeEnd:   c.String(influxFilterTimeEnd),
-						},
-						ChunkSize: c.Int(influxChunkSize),
-					}
-					influxClient, err := influx.NewClient(iCfg)
-					if err != nil {
-						return fmt.Errorf("failed to create influx client: %s", err)
-					}
 
 					vmCfg := initConfigVM(c)
 					importer, err := vm.NewImporter(vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
+
+					oCfg := opentsdb.Config{
+						Addr:		 c.String(otsdbAddr),
+						Retentions:	 c.StringSlice(otsdbRetentions),
+						Filters:	 c.StringSlice(otsdbFilters),
+					}
+					otsdbClient, err := opentsdb.NewClient(oCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create opentsdb client: %s", err)
+					}
+
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, cc)
+					return otsdbProcessor.run(c.Bool(globalSilent))
+					/*
 
 					processor := newInfluxProcessor(influxClient, importer,
 						c.Int(influxConcurrency), c.String(influxMeasurementFieldSeparator))
