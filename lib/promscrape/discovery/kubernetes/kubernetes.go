@@ -1,9 +1,7 @@
 package kubernetes
 
 import (
-	"context"
 	"fmt"
-	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
@@ -39,16 +37,16 @@ type Selector struct {
 	Field string `yaml:"field"`
 }
 
-// StartWatchOnce returns labels for the given sdc and baseDir.
+// StartWatchOnce returns init labels for the given sdc and baseDir.
 // and starts watching for changes.
-func StartWatchOnce(ctx context.Context, wg *sync.WaitGroup, workChan chan K8sSyncEvent, setName string, sdc *SDConfig, baseDir string) ([]map[string]string, error) {
-	cfg, err := getAPIConfig(ctx, wg, workChan, setName, sdc, baseDir)
+func StartWatchOnce(watchCfg *WatchConfig, setName string, sdc *SDConfig, baseDir string) ([]map[string]string, error) {
+	cfg, err := getAPIConfig(watchCfg, setName, sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
 	var ms []map[string]string
 	cfg.watchOnce.Do(func() {
-		ms = startWatcherByRole(ctx, sdc.Role, cfg)
+		ms = startWatcherByRole(watchCfg.Ctx, sdc.Role, cfg, watchCfg.SC)
 	})
 	return ms, nil
 }

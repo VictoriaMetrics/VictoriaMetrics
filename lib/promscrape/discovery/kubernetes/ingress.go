@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // IngressList represents ingress list in k8s.
@@ -121,4 +123,24 @@ func getIngressRulePaths(paths []HTTPIngressPath) []string {
 		result = append(result, path)
 	}
 	return result
+}
+
+func processIngress(cfg *apiConfig, p *Ingress, action string) {
+	key := buildSyncKey("ingress", cfg.setName, p.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- SyncEvent{
+			Labels:           p.appendTargetLabels(nil),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Infof("unexpected action: %s", action)
+	}
 }

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,12 +20,45 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
+// SyncEvent represent kubernetes resource watch event.
+type SyncEvent struct {
+	// object type + set name + ns + name
+	// must be unique.
+	Key string
+	// Labels targets labels for given resource
+	Labels []map[string]string
+	// job name + position id
+	ConfigSectionSet string
+}
+
 type watchResponse struct {
 	Action string          `json:"type"`
 	Object json.RawMessage `json:"object"`
 }
 
-func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[string]string {
+// WatchConfig holds objects for watch handler start.
+type WatchConfig struct {
+	Ctx       context.Context
+	SC        *SharedKubernetesCache
+	WG        *sync.WaitGroup
+	WatchChan chan SyncEvent
+}
+
+// NewWatchConfig returns new config with given context.
+func NewWatchConfig(ctx context.Context) *WatchConfig {
+	return &WatchConfig{
+		Ctx:       ctx,
+		SC:        NewSharedKubernetesCache(),
+		WG:        new(sync.WaitGroup),
+		WatchChan: make(chan SyncEvent, 100),
+	}
+}
+
+func buildSyncKey(objType string, setName string, objKey string) string {
+	return objType + "/" + setName + "/" + objKey
+}
+
+func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig, sc *SharedKubernetesCache) []map[string]string {
 	var ms []map[string]string
 	switch role {
 	case "pod":
@@ -69,12 +103,12 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 			if err := json.Unmarshal(wr.Object, &p); err != nil {
 				return
 			}
-			updatePodCache(&podsCache, &p, wr.Action)
+			updatePodCache(sc.Pods, &p, wr.Action)
 			if wr.Action == "MODIFIED" {
-				eps, ok := endpointsCache.Load(p.key())
+				eps, ok := sc.Endpoints.Load(p.key())
 				if ok {
 					ep := eps.(*Endpoints)
-					processEndpoints(cfg, ep, wr.Action)
+					processEndpoints(cfg, sc, ep, wr.Action)
 				}
 			}
 		}, func(bytes []byte) (string, error) {
@@ -83,7 +117,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 				return "", err
 			}
 			for _, pod := range pods.Items {
-				updatePodCache(&podsCache, &pod, "ADDED")
+				updatePodCache(sc.Pods, &pod, "ADDED")
 			}
 			return pods.Metadata.ResourceVersion, nil
 		})
@@ -92,12 +126,12 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 			if err := json.Unmarshal(wr.Object, &svc); err != nil {
 				return
 			}
-			updateServiceCache(&servicesCache, &svc, wr.Action)
+			updateServiceCache(sc.Services, &svc, wr.Action)
 			if wr.Action == "MODIFIED" {
-				linkedEps, ok := endpointsCache.Load(svc.key())
+				linkedEps, ok := sc.Endpoints.Load(svc.key())
 				if ok {
 					ep := linkedEps.(*Endpoints)
-					processEndpoints(cfg, ep, wr.Action)
+					processEndpoints(cfg, sc, ep, wr.Action)
 				}
 			}
 		}, func(bytes []byte) (string, error) {
@@ -106,7 +140,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 				return "", err
 			}
 			for _, svc := range svcs.Items {
-				updateServiceCache(&servicesCache, &svc, "ADDED")
+				updateServiceCache(sc.Services, &svc, "ADDED")
 			}
 			return svcs.Metadata.ResourceVersion, nil
 		})
@@ -115,17 +149,17 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 			if err := json.Unmarshal(wr.Object, &eps); err != nil {
 				return
 			}
-			processEndpoints(cfg, &eps, wr.Action)
-			updateEndpointsCache(&endpointsCache, &eps, wr.Action)
+			processEndpoints(cfg, sc, &eps, wr.Action)
+			updateEndpointsCache(sc.Endpoints, &eps, wr.Action)
 		}, func(bytes []byte) (string, error) {
 			eps, err := parseEndpointsList(bytes)
 			if err != nil {
 				return "", err
 			}
 			for _, ep := range eps.Items {
-				ms = ep.appendTargetLabels(ms, &podsCache, &servicesCache)
-				processEndpoints(cfg, &ep, "ADDED")
-				updateEndpointsCache(&endpointsCache, &ep, "ADDED")
+				ms = ep.appendTargetLabels(ms, sc.Pods, sc.Services)
+				processEndpoints(cfg, sc, &ep, "ADDED")
+				updateEndpointsCache(sc.Endpoints, &ep, "ADDED")
 			}
 			return eps.Metadata.ResourceVersion, nil
 		})
@@ -171,12 +205,12 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 			if err := json.Unmarshal(wr.Object, &p); err != nil {
 				return
 			}
-			updatePodCache(&podsCache, &p, wr.Action)
+			updatePodCache(sc.Pods, &p, wr.Action)
 			if wr.Action == "MODIFIED" {
-				eps, ok := endpointSlicesCache.Load(p.key())
+				eps, ok := sc.EndpointsSlices.Load(p.key())
 				if ok {
 					ep := eps.(*EndpointSlice)
-					processEndpointSlices(cfg, ep, wr.Action)
+					processEndpointSlices(cfg, sc, ep, wr.Action)
 				}
 			}
 		}, func(bytes []byte) (string, error) {
@@ -185,7 +219,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 				return "", err
 			}
 			for _, pod := range pods.Items {
-				updatePodCache(&podsCache, &pod, "ADDED")
+				updatePodCache(sc.Pods, &pod, "ADDED")
 			}
 			return pods.Metadata.ResourceVersion, nil
 		})
@@ -194,12 +228,12 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 			if err := json.Unmarshal(wr.Object, &svc); err != nil {
 				return
 			}
-			updateServiceCache(&servicesCache, &svc, wr.Action)
+			updateServiceCache(sc.Services, &svc, wr.Action)
 			if wr.Action == "MODIFIED" {
-				linkedEps, ok := endpointSlicesCache.Load(svc.key())
+				linkedEps, ok := sc.EndpointsSlices.Load(svc.key())
 				if ok {
 					ep := linkedEps.(*EndpointSlice)
-					processEndpointSlices(cfg, ep, wr.Action)
+					processEndpointSlices(cfg, sc, ep, wr.Action)
 				}
 			}
 		}, func(bytes []byte) (string, error) {
@@ -208,7 +242,7 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 				return "", err
 			}
 			for _, svc := range svcs.Items {
-				updateServiceCache(&servicesCache, &svc, "ADDED")
+				updateServiceCache(sc.Services, &svc, "ADDED")
 			}
 			return svcs.Metadata.ResourceVersion, nil
 		})
@@ -217,16 +251,16 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 			if err := json.Unmarshal(wr.Object, &eps); err != nil {
 				return
 			}
-			processEndpointSlices(cfg, &eps, wr.Action)
-			updateEndpointsSliceCache(&endpointSlicesCache, &eps, wr.Action)
+			processEndpointSlices(cfg, sc, &eps, wr.Action)
+			updateEndpointsSliceCache(sc.EndpointsSlices, &eps, wr.Action)
 		}, func(bytes []byte) (string, error) {
 			epss, err := parseEndpointSlicesList(bytes)
 			if err != nil {
 				return "", err
 			}
 			for _, eps := range epss.Items {
-				ms = eps.appendTargetLabels(ms, &podsCache, &servicesCache)
-				processEndpointSlices(cfg, &eps, "ADDED")
+				ms = eps.appendTargetLabels(ms, sc.Pods, sc.Services)
+				processEndpointSlices(cfg, sc, &eps, "ADDED")
 			}
 			return epss.Metadata.ResourceVersion, nil
 		})
@@ -239,8 +273,8 @@ func startWatcherByRole(ctx context.Context, role string, cfg *apiConfig) []map[
 func startWatchForObject(ctx context.Context, cfg *apiConfig, objectName string, wh func(wr *watchResponse), getSync func([]byte) (string, error)) {
 	if len(cfg.namespaces) > 0 {
 		for _, ns := range cfg.namespaces {
-			// "/apis/discovery.k8s.io/v1beta1/
 			path := fmt.Sprintf("/api/v1/namespaces/%s/%s", ns, objectName)
+			// special case.
 			if objectName == "endpointslices" {
 				path = fmt.Sprintf("/apis/discovery.k8s.io/v1beta1/namespaces/%s/%s", ns, objectName)
 			}
@@ -257,13 +291,14 @@ func startWatchForObject(ctx context.Context, cfg *apiConfig, objectName string,
 				logger.Errorf("cannot get latest resource version: %v", err)
 			}
 			cfg.wc.wg.Add(1)
-			go func(path string) {
+			go func(path, version string) {
 				cfg.wc.startWatchForResource(ctx, path, wh, version)
-			}(path)
+			}(path, version)
 		}
 	} else {
 		path := "/api/v1/" + objectName
 		if objectName == "endpointslices" {
+			// special case.
 			path = fmt.Sprintf("/apis/discovery.k8s.io/v1beta1/%s", objectName)
 		}
 		query := joinSelectors(objectName, nil, cfg.selectors)
@@ -283,7 +318,6 @@ func startWatchForObject(ctx context.Context, cfg *apiConfig, objectName string,
 			cfg.wc.startWatchForResource(ctx, path, wh, version)
 		}()
 	}
-	return
 }
 
 type watchClient struct {
@@ -296,20 +330,20 @@ type watchClient struct {
 func (wc *watchClient) startWatchForResource(ctx context.Context, path string, wh func(wr *watchResponse), initResourceVersion string) {
 	defer wc.wg.Done()
 	path += "?watch=1"
-	maxBackOff := time.Minute
+	maxBackOff := time.Second * 30
 	backoff := time.Second
 	for {
 		err := wc.getStreamAPIResponse(ctx, path, initResourceVersion, wh)
 		if errors.Is(err, context.Canceled) {
-			logger.Infof("context canceled")
 			return
 		}
 		if !errors.Is(err, io.EOF) {
-			logger.Errorf("got unexpected error: %v", err)
+			logger.Errorf("got unexpected error : %v", err)
 		}
+		// reset version.
 		initResourceVersion = ""
 		if backoff < maxBackOff {
-			backoff += time.Second * 3
+			backoff += time.Second * 5
 		}
 		time.Sleep(backoff)
 	}
@@ -320,7 +354,7 @@ func (wc *watchClient) getBlockingAPIResponse(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	//req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 	if wc.ac != nil && wc.ac.Authorization != "" {
 		req.Header.Set("Authorization", wc.ac.Authorization)
 	}
@@ -330,6 +364,13 @@ func (wc *watchClient) getBlockingAPIResponse(path string) ([]byte, error) {
 	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("get unexpected code: %d, at blocking api request path: %q", resp.StatusCode, path)
+	}
+	if ce := resp.Header.Get("Content-Encoding"); ce == "gzip" {
+		gr, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create gzip reader: %w", err)
+		}
+		return ioutil.ReadAll(gr)
 	}
 	return ioutil.ReadAll(resp.Body)
 }
@@ -342,7 +383,7 @@ func (wc *watchClient) getStreamAPIResponse(ctx context.Context, path, resouceVe
 	if err != nil {
 		return err
 	}
-	//req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip")
 	if wc.ac != nil && wc.ac.Authorization != "" {
 		req.Header.Set("Authorization", wc.ac.Authorization)
 	}
@@ -353,7 +394,14 @@ func (wc *watchClient) getStreamAPIResponse(ctx context.Context, path, resouceVe
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	r := NewJSONFramedReader(resp.Body)
+	br := resp.Body
+	if ce := resp.Header.Get("Content-Encoding"); ce == "gzip" {
+		br, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return fmt.Errorf("cannot create gzip reader: %w", err)
+		}
+	}
+	r := newJSONFramedReader(br)
 	for {
 		b := make([]byte, 1024)
 		b, err := readJSONObject(r, b)

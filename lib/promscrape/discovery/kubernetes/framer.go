@@ -11,12 +11,7 @@ type jsonFrameReader struct {
 	remaining []byte
 }
 
-// NewJSONFramedReader returns an io.Reader that will decode individual JSON objects off
-// of a wire.
-//
-// The boundaries between each frame are valid JSON objects. A JSON parsing error will terminate
-// the read.
-func NewJSONFramedReader(r io.ReadCloser) io.ReadCloser {
+func newJSONFramedReader(r io.ReadCloser) io.ReadCloser {
 	return &jsonFrameReader{
 		r:       r,
 		decoder: json.NewDecoder(r),

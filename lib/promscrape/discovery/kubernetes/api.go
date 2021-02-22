@@ -1,17 +1,10 @@
 package kubernetes
 
 import (
-	"context"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
-
-// listMetadata kubernetes list metadata
-// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#listmeta-v1-meta
-type listMetadata struct {
-	ResourceVersion string `json:"resourceVersion"`
-}
 
 // apiConfig contains config for API server
 type apiConfig struct {
@@ -19,28 +12,28 @@ type apiConfig struct {
 	namespaces []string
 	selectors  []Selector
 	wc         *watchClient
-	targetChan chan K8sSyncEvent
+	targetChan chan SyncEvent
 	watchOnce  sync.Once
 }
 
 var configMap = discoveryutils.NewConfigMap()
 
-func getAPIConfig(ctx context.Context, wg *sync.WaitGroup, workChan chan K8sSyncEvent, setName string, sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(ctx, wg, workChan, setName, sdc, baseDir) })
+func getAPIConfig(watchCfg *WatchConfig, setName string, sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(watchCfg, setName, sdc, baseDir) })
 	if err != nil {
 		return nil, err
 	}
 	return v.(*apiConfig), nil
 }
 
-func newAPIConfig(ctx context.Context, wg *sync.WaitGroup, workChan chan K8sSyncEvent, setName string, sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	wc, err := newWatchClient(wg, sdc, baseDir)
+func newAPIConfig(watchCfg *WatchConfig, setName string, sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	wc, err := newWatchClient(watchCfg.WG, sdc, baseDir)
 	if err != nil {
 		return nil, err
 	}
 	cfg := &apiConfig{
 		setName:    setName,
-		targetChan: workChan,
+		targetChan: watchCfg.WatchChan,
 		wc:         wc,
 		namespaces: sdc.Namespaces.Names,
 		selectors:  sdc.Selectors,

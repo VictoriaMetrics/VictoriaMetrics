@@ -1,7 +1,6 @@
 package promscrape
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -47,51 +46,8 @@ type Config struct {
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
-	// used for data sync.
-	k8sSync *k8sSyncCache
-}
-
-type k8sSyncCache struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
-	startOnce sync.Once
-	workChan  chan kubernetes.K8sSyncEvent
-	// guards cache and set
-	mu             sync.Mutex
-	lastAccessTime time.Time
-	cached         map[string][]*ScrapeWork
-	sectionSet     map[string]*scrapeWorkConfig
-}
-
-func newK8sSyncCache() *k8sSyncCache {
-	ctx, cancel := context.WithCancel(context.Background())
-	ksc := &k8sSyncCache{
-		ctx:        ctx,
-		cancel:     cancel,
-		workChan:   make(chan kubernetes.K8sSyncEvent, 100),
-		cached:     map[string][]*ScrapeWork{},
-		sectionSet: map[string]*scrapeWorkConfig{},
-	}
-	go ksc.waitForStop()
-	return ksc
-}
-
-func (ksc *k8sSyncCache) waitForStop() {
-	t := time.NewTicker(time.Second * 5)
-	for range t.C {
-		ksc.mu.Lock()
-		lastTime := time.Since(ksc.lastAccessTime)
-		ksc.mu.Unlock()
-		if lastTime > *kubernetesSDCheckInterval*30 {
-			ksc.cancel()
-			ksc.wg.Wait()
-			close(ksc.workChan)
-			logger.Infof("stopped k8s config sync")
-			t.Stop()
-			return
-		}
-	}
+	// used for data sync with kubernetes.
+	kwh *kubernetesWatchHandler
 }
 
 // GlobalConfig represents essential parts for `global` section of Prometheus config.
@@ -182,7 +138,7 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	if err := cfgObj.parse(data, path); err != nil {
 		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
-	cfgObj.k8sSync = newK8sSyncCache()
+	cfgObj.kwh = newK8sSyncCache()
 	return &cfgObj, data, nil
 }
 
@@ -230,60 +186,26 @@ func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
 	return m
 }
 
-func watchk8sEvents(cfg *Config) {
-	for {
-		select {
-		case <-cfg.k8sSync.ctx.Done():
-			return
-		case tg, ok := <-cfg.k8sSync.workChan:
-			if !ok {
-				return
-			}
-			if tg.Labels == nil {
-				cfg.k8sSync.mu.Lock()
-				delete(cfg.k8sSync.cached, tg.Key)
-				cfg.k8sSync.mu.Unlock()
-				// deleted event, remove it from cache
-				continue
-			}
-			cfg.k8sSync.mu.Lock()
-			swc, ok := cfg.k8sSync.sectionSet[tg.ConfigSectionSet]
-			cfg.k8sSync.mu.Unlock()
-			if !ok {
-				logger.Fatalf("bug section not found: %v", tg.ConfigSectionSet)
-			}
-			ms := appendScrapeWorkForTargetLabels(nil, swc, tg.Labels, "kubernetes_sd_config")
-			cfg.k8sSync.mu.Lock()
-			cfg.k8sSync.cached[tg.Key] = ms
-			cfg.k8sSync.mu.Unlock()
-		}
-	}
-}
-
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
 func getKubernetesSDScrapeWorkStream(cfg *Config, prev []*ScrapeWork) []*ScrapeWork {
-	cfg.k8sSync.startOnce.Do(func() {
-		go watchk8sEvents(cfg)
+	cfg.kwh.startOnce.Do(func() {
+		go processKubernetesSyncEvents(cfg)
 	})
 	dst := make([]*ScrapeWork, 0, len(prev))
-	// we need chan with updates.
-	// chan returns *ScrapeWork error key
-	// once start watcher.
-	// todo reconcile new config sections.
-	// todo use dedicated channel and pass it directly.
-	cfg.k8sSync.mu.Lock()
-	cfg.k8sSync.lastAccessTime = time.Now()
-	cfg.k8sSync.mu.Unlock()
+	// updated access time.
+	cfg.kwh.mu.Lock()
+	cfg.kwh.lastAccessTime = time.Now()
+	cfg.kwh.mu.Unlock()
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
 		for j := range sc.KubernetesSDConfigs {
-			// generated set
+			// generate set name
 			setKey := fmt.Sprintf("%d/%d/%s", i, j, sc.JobName)
-			cfg.k8sSync.mu.Lock()
-			cfg.k8sSync.sectionSet[setKey] = sc.swc
-			cfg.k8sSync.mu.Unlock()
+			cfg.kwh.mu.Lock()
+			cfg.kwh.sdcSet[setKey] = sc.swc
+			cfg.kwh.mu.Unlock()
 			sdc := &sc.KubernetesSDConfigs[j]
-			ms, err := kubernetes.StartWatchOnce(cfg.k8sSync.ctx, &cfg.k8sSync.wg, cfg.k8sSync.workChan, setKey, sdc, cfg.baseDir)
+			ms, err := kubernetes.StartWatchOnce(cfg.kwh.watchCfg, setKey, sdc, cfg.baseDir)
 			if err != nil {
 				logger.Errorf("got unexpected error: %v", err)
 			}
@@ -295,11 +217,11 @@ func getKubernetesSDScrapeWorkStream(cfg *Config, prev []*ScrapeWork) []*ScrapeW
 		return dst
 	}
 	// result from cache
-	cfg.k8sSync.mu.Lock()
-	for _, v := range cfg.k8sSync.cached {
+	cfg.kwh.mu.Lock()
+	for _, v := range cfg.kwh.swCache {
 		dst = append(dst, v...)
 	}
-	cfg.k8sSync.mu.Unlock()
+	cfg.kwh.mu.Unlock()
 	return dst
 }
 

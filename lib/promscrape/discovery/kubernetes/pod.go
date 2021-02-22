@@ -6,36 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
-
-// K8sSyncEvent represent kubernetes resource watch event.
-type K8sSyncEvent struct {
-	// object type + set name + ns + name
-	// must be unique.
-	Key string
-	// Labels targets labels for given resource
-	Labels []map[string]string
-	// job name + position id
-	ConfigSectionSet string
-}
-
-func processPods(cfg *apiConfig, p *Pod, action string) {
-	key := "pods/" + cfg.setName + p.key()
-	switch action {
-	case "ADDED", "MODIFIED":
-		cfg.targetChan <- K8sSyncEvent{
-			Labels:           p.appendTargetLabels(nil),
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "DELETED":
-		cfg.targetChan <- K8sSyncEvent{
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	}
-}
 
 // PodList implements k8s pod list.
 //
@@ -195,4 +169,23 @@ func getPodReadyStatus(conds []PodCondition) string {
 		}
 	}
 	return "unknown"
+}
+
+func processPods(cfg *apiConfig, p *Pod, action string) {
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- SyncEvent{
+			Labels:           p.appendTargetLabels(nil),
+			Key:              buildSyncKey("pods", cfg.setName, p.key()),
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              buildSyncKey("pods", cfg.setName, p.key()),
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Warnf("unexpected action: %s", action)
+	}
 }

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -165,4 +167,24 @@ type Endpoint struct {
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointconditions-v1beta1-discovery-k8s-io
 type EndpointConditions struct {
 	Ready bool
+}
+
+func processEndpointSlices(cfg *apiConfig, sc *SharedKubernetesCache, p *EndpointSlice, action string) {
+	key := buildSyncKey("endpointslices", cfg.setName, p.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- SyncEvent{
+			Labels:           p.appendTargetLabels(nil, sc.Pods, sc.Services),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Warnf("unexpected action: %s", action)
+	}
 }

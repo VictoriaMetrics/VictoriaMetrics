@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -117,4 +119,25 @@ func getAddrByType(nas []NodeAddress, typ string) string {
 		}
 	}
 	return ""
+}
+
+func processNode(cfg *apiConfig, n *Node, action string) {
+	key := buildSyncKey("nodes", cfg.setName, n.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		lbs := n.appendTargetLabels(nil)
+		cfg.targetChan <- SyncEvent{
+			Labels:           lbs,
+			ConfigSectionSet: cfg.setName,
+			Key:              key,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			ConfigSectionSet: cfg.setName,
+			Key:              key,
+		}
+	case "ERROR":
+	default:
+		logger.Warnf("unexpected action: %s", action)
+	}
 }

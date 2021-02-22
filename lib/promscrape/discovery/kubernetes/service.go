@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -83,4 +85,24 @@ func (s *Service) appendCommonLabels(m map[string]string) {
 		m["__meta_kubernetes_service_external_name"] = s.Spec.ExternalName
 	}
 	s.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_service", m)
+}
+
+func processService(cfg *apiConfig, svc *Service, action string) {
+	key := buildSyncKey("service", cfg.setName, svc.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- SyncEvent{
+			Labels:           svc.appendTargetLabels(nil),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Warnf("unexpected action: %s", action)
+	}
 }

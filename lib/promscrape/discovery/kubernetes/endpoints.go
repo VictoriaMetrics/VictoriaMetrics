@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -184,4 +186,25 @@ func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, read
 		m["__meta_kubernetes_endpoint_hostname"] = ea.Hostname
 	}
 	return m
+}
+
+func processEndpoints(cfg *apiConfig, sc *SharedKubernetesCache, p *Endpoints, action string) {
+	key := buildSyncKey("endpoints", cfg.setName, p.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		lbs := p.appendTargetLabels(nil, sc.Pods, sc.Services)
+		cfg.targetChan <- SyncEvent{
+			Labels:           lbs,
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Warnf("unexpected action: %s", action)
+	}
 }
