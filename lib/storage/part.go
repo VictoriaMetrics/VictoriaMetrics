@@ -145,21 +145,6 @@ func (idxb *indexBlock) SizeBytes() int {
 	return cap(idxb.bhs) * int(unsafe.Sizeof(blockHeader{}))
 }
 
-func getIndexBlock() *indexBlock {
-	v := indexBlockPool.Get()
-	if v == nil {
-		return &indexBlock{}
-	}
-	return v.(*indexBlock)
-}
-
-func putIndexBlock(ib *indexBlock) {
-	ib.bhs = ib.bhs[:0]
-	indexBlockPool.Put(ib)
-}
-
-var indexBlockPool sync.Pool
-
 type indexBlockCache struct {
 	// Put atomic counters to the top of struct in order to align them to 8 bytes on 32-bit architectures.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
@@ -198,12 +183,6 @@ func newIndexBlockCache() *indexBlockCache {
 func (ibc *indexBlockCache) MustClose(isBig bool) {
 	close(ibc.cleanerStopCh)
 	ibc.cleanerWG.Wait()
-
-	// It is safe returning ibc.m itemst to the pool, since Reset must
-	// be called only when no other goroutines access ibc entries.
-	for _, ibe := range ibc.m {
-		putIndexBlock(ibe.ib)
-	}
 	ibc.m = nil
 }
 
@@ -259,7 +238,6 @@ func (ibc *indexBlockCache) Put(k uint64, ib *indexBlock) {
 		// Remove 10% of items from the cache.
 		overflow = int(float64(len(ibc.m)) * 0.1)
 		for k := range ibc.m {
-			// Do not call putIndexBlock on ibc.m entries, since they may be used by concurrent goroutines.
 			delete(ibc.m, k)
 			overflow--
 			if overflow == 0 {

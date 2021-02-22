@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
 
@@ -89,9 +90,10 @@ type ScrapeConfig struct {
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression bool `yaml:"disable_compression,omitempty"`
-	DisableKeepAlive   bool `yaml:"disable_keepalive,omitempty"`
-	StreamParse        bool `yaml:"stream_parse,omitempty"`
+	DisableCompression  bool          `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive    bool          `yaml:"disable_keepalive,omitempty"`
+	StreamParse         bool          `yaml:"stream_parse,omitempty"`
+	ScrapeAlignInterval time.Duration `yaml:"scrape_align_interval,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -480,13 +482,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
-	var relabelConfigs []promrelabel.ParsedRelabelConfig
-	relabelConfigs, err = promrelabel.ParseRelabelConfigs(relabelConfigs[:0], sc.RelabelConfigs)
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	var metricRelabelConfigs []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs, err = promrelabel.ParseRelabelConfigs(metricRelabelConfigs[:0], sc.MetricRelabelConfigs)
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
@@ -508,6 +508,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
+		scrapeAlignInterval:  sc.ScrapeAlignInterval,
 	}
 	return swc, nil
 }
@@ -524,12 +525,13 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	externalLabels       map[string]string
-	relabelConfigs       []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
+	relabelConfigs       *promrelabel.ParsedConfigs
+	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
 	disableCompression   bool
 	disableKeepAlive     bool
 	streamParse          bool
+	scrapeAlignInterval  time.Duration
 }
 
 func appendKubernetesScrapeWork(dst []*ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
@@ -605,6 +607,7 @@ func appendGCEScrapeWork(dst []*ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkCo
 }
 
 func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []*ScrapeWork {
+	startTime := time.Now()
 	for _, metaLabels := range targetLabels {
 		target := metaLabels["__address__"]
 		var err error
@@ -614,6 +617,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 			continue
 		}
 	}
+	metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_target_relabel_duration_seconds{type=%q}", sectionName)).UpdateDuration(startTime)
 	return dst
 }
 
@@ -689,7 +693,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		// Reduce memory usage by interning all the strings in originalLabels.
 		internLabelStrings(originalLabels)
 	}
-	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
+	labels = swc.relabelConfigs.Apply(labels, 0, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
@@ -761,6 +765,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          swc.streamParse,
+		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 
 		jobNameOriginal: swc.jobName,
 	})

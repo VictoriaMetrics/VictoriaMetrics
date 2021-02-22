@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/bits"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -76,7 +75,7 @@ type ScrapeWork struct {
 	ProxyURL proxy.URL
 
 	// Optional `metric_relabel_configs`.
-	MetricRelabelConfigs []promrelabel.ParsedRelabelConfig
+	MetricRelabelConfigs *promrelabel.ParsedConfigs
 
 	// The maximum number of metrics to scrape after relabeling.
 	SampleLimit int
@@ -90,6 +89,9 @@ type ScrapeWork struct {
 	// Whether to parse target responses in a streaming manner.
 	StreamParse bool
 
+	// The interval for aligning the first scrape.
+	ScrapeAlignInterval time.Duration
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
@@ -100,18 +102,10 @@ type ScrapeWork struct {
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v",
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, ScrapeAlignInterval=%s",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.metricRelabelConfigsString(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse)
+		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse, sw.ScrapeAlignInterval)
 	return key
-}
-
-func (sw *ScrapeWork) metricRelabelConfigsString() string {
-	var sb strings.Builder
-	for _, prc := range sw.MetricRelabelConfigs {
-		fmt.Fprintf(&sb, "%s", prc.String())
-	}
-	return sb.String()
 }
 
 // Job returns job for the ScrapeWork
@@ -180,20 +174,27 @@ type scrapeWork struct {
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
-	// Calculate start time for the first scrape from ScrapeURL and labels.
-	// This should spread load when scraping many targets with different
-	// scrape urls and labels.
-	// This also makes consistent scrape times across restarts
-	// for a target with the same ScrapeURL and labels.
 	scrapeInterval := sw.Config.ScrapeInterval
-	key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
-	h := uint32(xxhash.Sum64([]byte(key)))
-	randSleep := uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
-	sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
-	if randSleep < sleepOffset {
-		randSleep += uint64(scrapeInterval)
+	var randSleep uint64
+	if sw.Config.ScrapeAlignInterval <= 0 {
+		// Calculate start time for the first scrape from ScrapeURL and labels.
+		// This should spread load when scraping many targets with different
+		// scrape urls and labels.
+		// This also makes consistent scrape times across restarts
+		// for a target with the same ScrapeURL and labels.
+		key := fmt.Sprintf("ScrapeURL=%s, Labels=%s", sw.Config.ScrapeURL, sw.Config.LabelsString())
+		h := uint32(xxhash.Sum64([]byte(key)))
+		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 32)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(scrapeInterval)
+		}
+		randSleep -= sleepOffset
+	} else {
+		d := uint64(sw.Config.ScrapeAlignInterval)
+		randSleep = d - uint64(time.Now().UnixNano())%d
+		randSleep %= uint64(scrapeInterval)
 	}
-	randSleep -= sleepOffset
 	timer := timerpool.Get(time.Duration(randSleep))
 	var timestamp int64
 	var ticker *time.Ticker
@@ -493,7 +494,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	labelsLen := len(wc.labels)
 	wc.labels = appendLabels(wc.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
 	if needRelabel {
-		wc.labels = promrelabel.ApplyRelabelConfigs(wc.labels, labelsLen, sw.Config.MetricRelabelConfigs, true)
+		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, true)
 	} else {
 		wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
 		promrelabel.SortLabels(wc.labels[labelsLen:])

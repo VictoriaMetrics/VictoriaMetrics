@@ -16,7 +16,7 @@ import (
 //
 // The callback must return sorted items. The first and the last item must be unchanged.
 // The callback can re-use data and items for storing the result.
-type PrepareBlockCallback func(data []byte, items [][]byte) ([]byte, [][]byte)
+type PrepareBlockCallback func(data []byte, items []Item) ([]byte, []Item)
 
 // mergeBlockStreams merges bsrs and writes result to bsw.
 //
@@ -122,8 +122,10 @@ again:
 		nextItem = bsm.bsrHeap[0].bh.firstItem
 		hasNextItem = true
 	}
+	items := bsr.Block.items
+	data := bsr.Block.data
 	for bsr.blockItemIdx < len(bsr.Block.items) {
-		item := bsr.Block.items[bsr.blockItemIdx]
+		item := items[bsr.blockItemIdx].Bytes(data)
 		if hasNextItem && string(item) > string(nextItem) {
 			break
 		}
@@ -148,32 +150,36 @@ again:
 
 	// The next item in the bsr.Block exceeds nextItem.
 	// Adjust bsr.bh.firstItem and return bsr to heap.
-	bsr.bh.firstItem = append(bsr.bh.firstItem[:0], bsr.Block.items[bsr.blockItemIdx]...)
+	bsr.bh.firstItem = append(bsr.bh.firstItem[:0], bsr.Block.items[bsr.blockItemIdx].String(bsr.Block.data)...)
 	heap.Push(&bsm.bsrHeap, bsr)
 	goto again
 }
 
 func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *uint64) {
-	if len(bsm.ib.items) == 0 {
+	items := bsm.ib.items
+	data := bsm.ib.data
+	if len(items) == 0 {
 		// Nothing to flush.
 		return
 	}
-	atomic.AddUint64(itemsMerged, uint64(len(bsm.ib.items)))
+	atomic.AddUint64(itemsMerged, uint64(len(items)))
 	if bsm.prepareBlock != nil {
-		bsm.firstItem = append(bsm.firstItem[:0], bsm.ib.items[0]...)
-		bsm.lastItem = append(bsm.lastItem[:0], bsm.ib.items[len(bsm.ib.items)-1]...)
-		bsm.ib.data, bsm.ib.items = bsm.prepareBlock(bsm.ib.data, bsm.ib.items)
-		if len(bsm.ib.items) == 0 {
+		bsm.firstItem = append(bsm.firstItem[:0], items[0].String(data)...)
+		bsm.lastItem = append(bsm.lastItem[:0], items[len(items)-1].String(data)...)
+		data, items = bsm.prepareBlock(data, items)
+		bsm.ib.data = data
+		bsm.ib.items = items
+		if len(items) == 0 {
 			// Nothing to flush
 			return
 		}
 		// Consistency checks after prepareBlock call.
-		firstItem := bsm.ib.items[0]
-		if string(firstItem) != string(bsm.firstItem) {
+		firstItem := items[0].String(data)
+		if firstItem != string(bsm.firstItem) {
 			logger.Panicf("BUG: prepareBlock must return first item equal to the original first item;\ngot\n%X\nwant\n%X", firstItem, bsm.firstItem)
 		}
-		lastItem := bsm.ib.items[len(bsm.ib.items)-1]
-		if string(lastItem) != string(bsm.lastItem) {
+		lastItem := items[len(items)-1].String(data)
+		if lastItem != string(bsm.lastItem) {
 			logger.Panicf("BUG: prepareBlock must return last item equal to the original last item;\ngot\n%X\nwant\n%X", lastItem, bsm.lastItem)
 		}
 		// Verify whether the bsm.ib.items are sorted only in tests, since this
@@ -182,12 +188,12 @@ func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, it
 			logger.Panicf("BUG: prepareBlock must return sorted items;\ngot\n%s", bsm.ib.debugItemsString())
 		}
 	}
-	ph.itemsCount += uint64(len(bsm.ib.items))
+	ph.itemsCount += uint64(len(items))
 	if !bsm.phFirstItemCaught {
-		ph.firstItem = append(ph.firstItem[:0], bsm.ib.items[0]...)
+		ph.firstItem = append(ph.firstItem[:0], items[0].String(data)...)
 		bsm.phFirstItemCaught = true
 	}
-	ph.lastItem = append(ph.lastItem[:0], bsm.ib.items[len(bsm.ib.items)-1]...)
+	ph.lastItem = append(ph.lastItem[:0], items[len(items)-1].String(data)...)
 	bsw.WriteBlock(&bsm.ib)
 	bsm.ib.Reset()
 	ph.blocksCount++

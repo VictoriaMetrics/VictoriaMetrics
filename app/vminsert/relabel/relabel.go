@@ -19,11 +19,11 @@ var relabelConfig = flag.String("relabelConfig", "", "Optional path to a file wi
 
 // Init must be called after flag.Parse and before using the relabel package.
 func Init() {
-	prcs, err := loadRelabelConfig()
+	pcs, err := loadRelabelConfig()
 	if err != nil {
 		logger.Fatalf("cannot load relabelConfig: %s", err)
 	}
-	prcsGlobal.Store(&prcs)
+	pcsGlobal.Store(pcs)
 	if len(*relabelConfig) == 0 {
 		return
 	}
@@ -31,34 +31,34 @@ func Init() {
 	go func() {
 		for range sighupCh {
 			logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)
-			prcs, err := loadRelabelConfig()
+			pcs, err := loadRelabelConfig()
 			if err != nil {
 				logger.Errorf("cannot load the updated relabelConfig: %s; preserving the previous config", err)
 				continue
 			}
-			prcsGlobal.Store(&prcs)
+			pcsGlobal.Store(pcs)
 			logger.Infof("successfully reloaded -relabelConfig=%q", *relabelConfig)
 		}
 	}()
 }
 
-var prcsGlobal atomic.Value
+var pcsGlobal atomic.Value
 
-func loadRelabelConfig() ([]promrelabel.ParsedRelabelConfig, error) {
+func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 	if len(*relabelConfig) == 0 {
 		return nil, nil
 	}
-	prcs, err := promrelabel.LoadRelabelConfigs(*relabelConfig)
+	pcs, err := promrelabel.LoadRelabelConfigs(*relabelConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error when reading -relabelConfig=%q: %w", *relabelConfig, err)
 	}
-	return prcs, nil
+	return pcs, nil
 }
 
 // HasRelabeling returns true if there is global relabeling.
 func HasRelabeling() bool {
-	prcs := prcsGlobal.Load().(*[]promrelabel.ParsedRelabelConfig)
-	return len(*prcs) > 0
+	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
+	return pcs.Len() > 0
 }
 
 // Ctx holds relabeling context.
@@ -77,8 +77,8 @@ func (ctx *Ctx) Reset() {
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
 func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
-	prcs := prcsGlobal.Load().(*[]promrelabel.ParsedRelabelConfig)
-	if len(*prcs) == 0 {
+	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
+	if pcs.Len() == 0 {
 		// There are no relabeling rules.
 		return labels
 	}
@@ -97,7 +97,7 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	}
 
 	// Apply relabeling
-	tmpLabels = promrelabel.ApplyRelabelConfigs(tmpLabels, 0, *prcs, true)
+	tmpLabels = pcs.Apply(tmpLabels, 0, true)
 	ctx.tmpLabels = tmpLabels
 	if len(tmpLabels) == 0 {
 		metricsDropped.Inc()

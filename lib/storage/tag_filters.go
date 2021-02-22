@@ -28,14 +28,15 @@ func convertToCompositeTagFilterss(tfss []*TagFilters) []*TagFilters {
 func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	// Search for metric name filter, which must be used for creating composite filters.
 	var name []byte
+	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
 			name = tf.value
-			break
+		} else if !tf.isNegative {
+			hasPositiveFilter = true
 		}
 	}
 	if len(name) == 0 {
-		// There is no metric name filter, so composite filters cannot be created.
 		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
@@ -44,7 +45,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	compositeFilters := 0
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 {
-			if tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
+			if !hasPositiveFilter || tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
 				tfsNew = append(tfsNew, tf)
 			}
 			continue
@@ -221,7 +222,9 @@ type tagFilter struct {
 	value      []byte
 	isNegative bool
 	isRegexp   bool
-	matchCost  uint64
+
+	// matchCost is a cost for matching a filter against a single string.
+	matchCost uint64
 
 	// Prefix always contains {nsPrefixTagToMetricIDs, key}.
 	// Additionally it contains:

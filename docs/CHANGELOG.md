@@ -2,6 +2,30 @@
 
 # tip
 
+* FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+* FEATURE: expose io-related metrics at `/metrics` page for every VictoriaMetrics component:
+  * `process_io_read_bytes_total` - the number of bytes read via io syscalls such as read and pread
+  * `process_io_written_bytes_total` - the number of bytes written via io syscalls such as write and pwrite
+  * `process_io_read_syscalls_total` - the number of read syscalls such as read and pread
+  * `process_io_write_syscalls_total` - the number of write syscalls such as write and pwrite
+  * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
+  * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
+* FEATURE: vmagent: export `vm_promscrape_target_relabel_duration_seconds` metric, which can be used for monitoring the time spend on relabeling for discovered targets.
+* FEATURE: vmagent: optimize [relabeling](https://victoriametrics.github.io/vmagent.html#relabeling) performance for common cases.
+* FEATURE: add `increase_pure(m[d])` function to MetricsQL. It works the same as `increase(m[d])` except of various edge cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.
+
+
+* BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065
+* BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
+
+
+# [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)
+
+* BUGFIX: properly handle queries containing a filter on metric name plus any number of negative filters and zero non-negative filters. For example, `node_cpu_seconds_total{mode!="idle"}`. The bug was introduced in [v1.54.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.0).
+
+
+# [v1.54.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.0)
+
 * FEATURE: optimize searching for matching metrics for `metric{<label_filters>}` queries if `<label_filters>` contains at least a single filter. For example, the query `up{job="foobar"}` should find the matching time series much faster than previously.
 * FEATURE: reduce execution times for `q1 <binary_op> q2` queries by executing `q1` and `q2` in parallel.
 * FEATURE: switch from Go1.15 to [Go1.16](https://golang.org/doc/go1.16) for building prod binaries.

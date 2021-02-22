@@ -56,8 +56,8 @@ func (ip *inmemoryPart) Init(ib *inmemoryBlock) {
 
 	ip.ph.itemsCount = uint64(len(ib.items))
 	ip.ph.blocksCount = 1
-	ip.ph.firstItem = append(ip.ph.firstItem[:0], ib.items[0]...)
-	ip.ph.lastItem = append(ip.ph.lastItem[:0], ib.items[len(ib.items)-1]...)
+	ip.ph.firstItem = append(ip.ph.firstItem[:0], ib.items[0].String(ib.data)...)
+	ip.ph.lastItem = append(ip.ph.lastItem[:0], ib.items[len(ib.items)-1].String(ib.data)...)
 
 	fs.MustWriteData(&ip.itemsData, ip.sb.itemsData)
 	ip.bh.itemsBlockOffset = 0
