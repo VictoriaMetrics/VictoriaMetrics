@@ -482,13 +482,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
-	var relabelConfigs []promrelabel.ParsedRelabelConfig
-	relabelConfigs, err = promrelabel.ParseRelabelConfigs(relabelConfigs[:0], sc.RelabelConfigs)
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	var metricRelabelConfigs []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs, err = promrelabel.ParseRelabelConfigs(metricRelabelConfigs[:0], sc.MetricRelabelConfigs)
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
@@ -527,8 +525,8 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	externalLabels       map[string]string
-	relabelConfigs       []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
+	relabelConfigs       *promrelabel.ParsedConfigs
+	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
 	disableCompression   bool
 	disableKeepAlive     bool
@@ -695,7 +693,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		// Reduce memory usage by interning all the strings in originalLabels.
 		internLabelStrings(originalLabels)
 	}
-	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
+	labels = swc.relabelConfigs.Apply(labels, 0, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
