@@ -138,7 +138,7 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	if err := cfgObj.parse(data, path); err != nil {
 		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
-	cfgObj.kwh = newK8sSyncCache()
+	cfgObj.kwh = newKubernetesWatchHandler()
 	return &cfgObj, data, nil
 }
 
@@ -608,18 +608,6 @@ func appendGCEScrapeWork(dst []*ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkCo
 	}
 	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config"), true
 }
-
-//func pollKubernetesTargets(recv chan ScrapeWorkResult, swc *scrapeWorkConfig) {
-//	cache := map[string]*scrapeWork{}
-//	for {
-//		select {
-//		case target := <-recv:
-//			tn := target.TargetLabels["__address__"]
-//			nt, err := appendScrapeWork(nil, swc, tn, nil, target.TargetLabels)
-//			nt[0].LabelsString()
-//		}
-//	}
-//}
 
 func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []*ScrapeWork {
 	for _, metaLabels := range targetLabels {

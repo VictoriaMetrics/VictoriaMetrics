@@ -21,17 +21,17 @@ type kubernetesWatchHandler struct {
 	sdcSet         map[string]*scrapeWorkConfig
 }
 
-func newK8sSyncCache() *kubernetesWatchHandler {
+func newKubernetesWatchHandler() *kubernetesWatchHandler {
 	ctx, cancel := context.WithCancel(context.Background())
-	ksc := &kubernetesWatchHandler{
+	kwh := &kubernetesWatchHandler{
 		ctx:      ctx,
 		cancel:   cancel,
 		swCache:  map[string][]*ScrapeWork{},
 		sdcSet:   map[string]*scrapeWorkConfig{},
 		watchCfg: kubernetes.NewWatchConfig(ctx),
 	}
-	go ksc.waitForStop()
-	return ksc
+	go kwh.waitForStop()
+	return kwh
 }
 
 func (ksc *kubernetesWatchHandler) waitForStop() {
@@ -41,10 +41,11 @@ func (ksc *kubernetesWatchHandler) waitForStop() {
 		lastTime := time.Since(ksc.lastAccessTime)
 		ksc.mu.Unlock()
 		if lastTime > *kubernetesSDCheckInterval*30 {
+			t1 := time.Now()
 			ksc.cancel()
 			ksc.watchCfg.WG.Wait()
 			close(ksc.watchCfg.WatchChan)
-			logger.Infof("stopped k8s config sync")
+			logger.Infof("stopped kubernetes api watcher handler, after: %.3f seconds", time.Since(t1).Seconds())
 			ksc.watchCfg.SC = nil
 			t.Stop()
 			return

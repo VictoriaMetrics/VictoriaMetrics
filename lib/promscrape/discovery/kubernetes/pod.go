@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -172,16 +171,17 @@ func getPodReadyStatus(conds []PodCondition) string {
 }
 
 func processPods(cfg *apiConfig, p *Pod, action string) {
+	key := buildSyncKey("pods", cfg.setName, p.key())
 	switch action {
 	case "ADDED", "MODIFIED":
 		cfg.targetChan <- SyncEvent{
 			Labels:           p.appendTargetLabels(nil),
-			Key:              buildSyncKey("pods", cfg.setName, p.key()),
+			Key:              key,
 			ConfigSectionSet: cfg.setName,
 		}
 	case "DELETED":
 		cfg.targetChan <- SyncEvent{
-			Key:              buildSyncKey("pods", cfg.setName, p.key()),
+			Key:              key,
 			ConfigSectionSet: cfg.setName,
 		}
 	case "ERROR":

@@ -69,6 +69,7 @@ func updateEndpointsSliceCache(cache *sync.Map, p *EndpointSlice, action string)
 		cache.Store(p.key(), p)
 	case "DELETED":
 		cache.Delete(p.key())
+	case "ERROR":
 	default:
 		logger.Infof("unexpected action: %s", action)
 	}
