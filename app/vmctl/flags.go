@@ -108,6 +108,7 @@ var (
 		&cli.StringFlag{
 			Name:  otsdbAddr,
 			Value: "http://localhost:4242",
+			Required: true,
 			Usage: "OpenTSDB server addr",
 		},
 		&cli.IntFlag{
@@ -118,13 +119,14 @@ var (
 		&cli.StringSliceFlag{
 			Name:  otsdbRetentions,
 			Value: nil,
+			Required: true,
 			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed" +
 				"for the query, the row size (in HBase) that will define how long each individual query is," +
 				"and the time range to query for. e.g. sum-1m-avg:1h:30d",
 		},
 		&cli.StringSliceFlag{
 			Name:  otsdbFilters,
-			Value: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"],
+			Value: cli.StringSlice{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"},
 			Usage: "Filters to process for discovering metrics in OpenTSDB",
 		},
 	}

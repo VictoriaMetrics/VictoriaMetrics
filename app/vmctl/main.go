@@ -47,7 +47,7 @@ func main() {
 						return fmt.Errorf("failed to create opentsdb client: %s", err)
 					}
 
-					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, cc)
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Int(vmConcurrency))
 					return otsdbProcessor.run(c.Bool(globalSilent))
 					/*
 

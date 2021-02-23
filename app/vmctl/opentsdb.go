@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -35,9 +33,15 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc i
 
 
 func (op *otsdbProcessor) run(silent bool) error {
-	metrics, err := op.oc.FindMetrics()
-	if err != nil {
-		return fmt.Errorf("explore query failed: %s", err)
+	var metrics []string
+	for _, filter := range op.oc.Filters {
+		m, err := op.oc.FindMetrics(filter)
+		if err != nil {
+			return fmt.Errorf("metric discovery failed: %s", err)
+		}
+		for _, mt := range m {
+			metrics = append(metrics, mt)
+		}
 	}
 	if len(metrics) < 1 {
 		return fmt.Errorf("found no timeseries to import")
@@ -50,9 +54,14 @@ func (op *otsdbProcessor) run(silent bool) error {
 
 	bar := pb.StartNew(len(metrics))
 
-	for metric := range metrics {
+	seriesCh := make(chan *opentsdb.Meta)
+	errCh := make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(op.otsdbcc)
+	for _, metric := range metrics {
 	}
-
+	return nil
+}
 	/*
 	seriesCh := make(chan *influx.Series)
 	errCh := make(chan error)
