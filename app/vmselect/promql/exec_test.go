@@ -2757,6 +2757,26 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantile(single-value-inf-le)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.6, label_set(100, "le", "+Inf"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(single-value-inf-le)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.6, (
+			label_set(100, "le", "+Inf"),
+			label_set(0, "le", "42"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{42, 42, 42, 42, 42, 42},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_quantile(single-value-valid-le)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(0.6, label_set(100, "le", "200"))`
