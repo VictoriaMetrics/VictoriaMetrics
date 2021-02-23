@@ -85,12 +85,12 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid metric data from %s: %s", c.Addr, err)
 	}
-	return metriclist
+	return metriclist, nil
 }
 
 // Find all series associated with a metric
 // e.g. /api/search/lookup?m=system.load5&limit=1000000
-func (c Client) FindSeries(metric string) []Meta {
+func (c Client) FindSeries(metric string) ([]Meta, error) {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/search/lookup?m=%q&limit=%q", c.Addr, metric, c.Limit)
 	resp, err := http.Get(q.String())
@@ -107,11 +107,11 @@ func (c Client) FindSeries(metric string) []Meta {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
-	return serieslist
+	return serieslist, nil
 }
 
 // Get data for series
-func (c Client) GetData(series string, start int, end int) Metric {
+func (c Client) GetData(series string, start int, end int) (Metric, error) {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/query?start=%q&end=%q&m=%q:%q-%q-none:%q",
 					c.Addr, start, end, c.FirstOrder, c.AggTime, c.SecondOrder,
@@ -130,7 +130,7 @@ func (c Client) GetData(series string, start int, end int) Metric {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
-	return data
+	return data, nil
 }
 
 // NewClient creates and returns influx client
