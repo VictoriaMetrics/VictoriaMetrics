@@ -35,7 +35,7 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc i
 
 
 func (op *otsdbProcessor) run(silent bool) error {
-	log.Println("Loading all metrics from OpenTSDB for filters: %s", op.oc.Filters)
+	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
 		m, err := op.oc.FindMetrics(filter)
