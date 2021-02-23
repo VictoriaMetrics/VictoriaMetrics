@@ -126,9 +126,10 @@ var (
 			Name:  otsdbRetentions,
 			Value: nil,
 			Required: true,
-			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed" +
-				"for the query, the row size (in HBase) that will define how long each individual query is," +
-				"and the time range to query for. e.g. sum-1m-avg:1h:30d",
+			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed " +
+				"for the query, the row size (in HBase) that will define how long each individual query is, " +
+				"and the time range to query for. e.g. sum-1m-avg:1h:720h. Golang doesn't support durations larger " +
+				"than h, so referencing days will require 24 * (days) to format correctly",
 		},
 		&cli.StringSliceFlag{
 			Name:  otsdbFilters,

@@ -53,6 +53,17 @@ type TimeRange struct {
 	End	int64
 }
 
+type MetaResults struct {
+	Type	string	`json:"type"`
+	metric	string	`json:"metric"`
+	tags	interface{}	`json:"tags"`
+	limit	int	`json:"limit"`
+	time	int	`json:"time"`
+	Results []Meta	`json:"results"`
+	startIndex	int	`json:"startIndex"`
+	totalResults	int	`json:"totalResults"`
+}
+
 // A meta object about a metric
 // only contain the tags/etc. and no data
 type Meta struct {
@@ -140,9 +151,7 @@ type OutputObj struct {
 // Find all metrics that OpenTSDB knows about with a filter
 // e.g. /api/suggest?type=metrics&q=system
 func (c Client) FindMetrics(filter string) ([]string, error) {
-	q := &strings.Builder{}
-	fmt.Fprintf(q, "%q/api/suggest?type=metrics&q=%q", c.Addr, filter)
-	resp, err := http.Get(q.String())
+	resp, err := http.Get(fmt.Sprintf("%s/api/suggest?type=metrics&q=%s", c.Addr, filter))
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
@@ -162,9 +171,7 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 // Find all series associated with a metric
 // e.g. /api/search/lookup?m=system.load5&limit=1000000
 func (c Client) FindSeries(metric string) ([]Meta, error) {
-	q := &strings.Builder{}
-	fmt.Fprintf(q, "%q/api/search/lookup?m=%q&limit=%q", c.Addr, metric, c.Limit)
-	resp, err := http.Get(q.String())
+	resp, err := http.Get(fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit))
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
@@ -173,12 +180,12 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
 	}
-	var serieslist []Meta
-	err = json.Unmarshal(body, &serieslist)
+	var results MetaResults
+	err = json.Unmarshal(body, &results)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
-	return serieslist, nil
+	return results.Results, nil
 }
 
 // Get data for series
