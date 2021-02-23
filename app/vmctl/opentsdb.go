@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"sync"
+	//"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -57,23 +57,31 @@ func (op *otsdbProcessor) run(silent bool) error {
 
 	bar := pb.StartNew(len(metrics))
 
-	seriesCh := make(chan *opentsdb.Meta)
-	errCh := make(chan error)
-	var wg sync.WaitGroup
-	wg.Add(op.otsdbcc)
+	//seriesCh := make(chan *opentsdb.Meta)
+	//errCh := make(chan error)
+	//var wg sync.WaitGroup
+	//wg.Add(op.otsdbcc)
 	startTime := time.Now().Unix()
 	for _, metric := range metrics {
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
 			return fmt.Errorf("Couldn't retrieve series for %s : %s", metric, err)
 		}
-		log.Println(fmt.Sprintf("Processing series for %s", metric))
+		/*for _, series := range serieslist {
+			seriesCh <- series
+		}*/
 		bar2 := pb.StartNew(len(serieslist))
-		for _, rt := range op.oc.Retentions {
-			for _, tr := range rt.QueryRanges {
-				for i := 0; i < op.otsdbcc; i++ {
-					defer wg.Done()
+		for _, series := range serieslist {
+			for _, rt := range op.oc.Retentions {
+				for _, tr := range rt.QueryRanges {
+					err = op.do(series, rt, tr, startTime)
+					if err != nil {
+						return fmt.Errorf("Couldn't retrieve series for %s : %s", metric, err)
+					}
+					/*for i := 0; i < op.otsdbcc; i++ {
+						defer wg.Done()
 
+					}*/
 				}
 			}
 			bar2.Increment()
@@ -87,6 +95,22 @@ func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr
 	start := now - tr.Start
 	end := now - tr.End
 	data, err := op.oc.GetData(seriesMeta, rt, start, end)
+	if err != nil {
+		return fmt.Errorf("Failed to collect data for %s in %s:%s", seriesMeta, rt, tr)
+	}
+	if len(data.Timestamps) < 1 {
+		return nil
+	}
+	labels := make([]vm.LabelPair, len(data.Tags))
+	for k, v := range data.Tags {
+		labels = append(labels, vm.LabelPair{Name: k, Value: v})
+	}
+	op.im.Input() <- &vm.TimeSeries{
+		Name:       data.Metric,
+		LabelPairs: labels,
+		Timestamps: data.Timestamps,
+		Values:     data.Values,
+	}
 	return nil
 }
 	/*
