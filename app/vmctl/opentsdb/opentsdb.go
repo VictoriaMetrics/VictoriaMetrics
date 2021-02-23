@@ -3,8 +3,7 @@ package opentsdb
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -72,17 +71,17 @@ type Metric struct {
 func (c Client) FindMetrics(filter string) ([]string, error) {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/suggest?type=metrics&q=%q", c.Addr, filter)
-	resp, err := http.Get(q)
+	resp, err := http.Get(q.String())
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve metric data from %s: %s", c.Addr, err)
 	}
 	var metriclist []string
-	err := json.Unmarshal(body, &metriclist)
+	err = json.Unmarshal(body, &metriclist)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid metric data from %s: %s", c.Addr, err)
 	}
@@ -94,17 +93,17 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 func (c Client) FindSeries(metric string) []Meta {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/search/lookup?m=%q&limit=%q", c.Addr, metric, c.Limit)
-	resp, err := http.Get(q)
+	resp, err := http.Get(q.String())
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
 	}
 	var serieslist []Meta
-	err := json.Unmarshal(body, &serieslist)
+	err = json.Unmarshal(body, &serieslist)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
@@ -117,17 +116,17 @@ func (c Client) GetData(series string, start int, end int) Metric {
 	fmt.Fprintf(q, "%q/api/query?start=%q&end=%q&m=%q:%q-%q-none:%q",
 					c.Addr, start, end, c.FirstOrder, c.AggTime, c.SecondOrder,
 					series)
-	resp, err := http.Get(q)
+	resp, err := http.Get(q.String())
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
 	}
 	var data Metric
-	err := json.Unmarshal(body, &data)
+	err = json.Unmarshal(body, &data)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
@@ -154,7 +153,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 	return client, nil
 }
-
+/*
 // Explore checks the existing data schema in influx
 // by checking available fields and series,
 // which unique combination represents all possible

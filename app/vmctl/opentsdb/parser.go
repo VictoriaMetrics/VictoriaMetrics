@@ -40,7 +40,7 @@ func ConvertRetention(retention string) (string, string, string, []timeChunks) {
 	ttlSecs := ttl.Seconds()
 	var timeChunks []TimeRange
 	for i := 0; i < ttlSecs; i+rowSecs {
-		append(timeChunks, {Start: i+rowSecs, End: i})
+		append(timeChunks, TimeRange{Start: i+rowSecs, End: i})
 	}
 	// FirstOrder, AggTime, SecondOrder, RowSize, TTL
 	return aggregates[0], aggregates[1], aggregates[2], timeChunks
@@ -51,7 +51,7 @@ func ConvertRetention(retention string) (string, string, string, []timeChunks) {
 func ModifyData(msg Metric, normalize bool) (Metric, err) {
 	finalMsg := Metric{
 		Metric: "", Tags: make(map[string]string),
-		AggregateTags: [], Dps: &msg.Dps
+		AggregateTags: make([]string), Dps: &msg.Dps,
 	}
 	if !allowedFirstChar.MatchString(msg.Metric) {
 		return nil, fmt.Errorf("%s has a bad first character", msg.Metric)
