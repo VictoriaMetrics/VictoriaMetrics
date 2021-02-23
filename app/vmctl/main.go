@@ -41,6 +41,7 @@ func main() {
 						Addr:		 c.String(otsdbAddr),
 						Retentions:	 c.StringSlice(otsdbRetentions),
 						Filters:	 c.StringSlice(otsdbFilters),
+						Normalize:	 c.Bool(otsdbNormalize),
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {

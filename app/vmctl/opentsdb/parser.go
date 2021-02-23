@@ -16,7 +16,7 @@ var (
 )
 
 // Convert an incoming retention "string" into the component parts
-func ConvertRetention(retention string) (string, string, string, []TimeRange) {
+func convertRetention(retention string) (string, string, string, []TimeRange) {
 	/*
 	A retention string coming in looks like
 	sum-1m-avg:1h:30d
@@ -48,7 +48,7 @@ func ConvertRetention(retention string) (string, string, string, []TimeRange) {
 
 // This ensures any incoming data from OpenTSDB matches the Prometheus data model
 // https://prometheus.io/docs/concepts/data_model
-func ModifyData(msg Metric, normalize bool) (Metric, error) {
+func modifyData(msg Metric, normalize bool) (Metric, error) {
 	finalMsg := Metric{
 		Metric: "", Tags: make(map[string]string),
 		AggregateTags: nil, Dps: msg.Dps,

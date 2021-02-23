@@ -33,6 +33,7 @@ type Client struct {
 	Limit	int
 	Retentions	[]Retention
 	Filters []string
+	Normalize	bool
 }
 
 // Config contains fields required
@@ -42,6 +43,7 @@ type Config struct {
 	Limit	int
 	Retentions	[]string
 	Filters	[]string
+	Normalize	bool
 }
 
 // data about time ranges to query
@@ -111,11 +113,11 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 }
 
 // Get data for series
-func (c Client) GetData(series string, idx int, start int64, end int64) (Metric, error) {
+func (c Client) GetData(series string, rt Retention, start int64, end int64) (Metric, error) {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/query?start=%q&end=%q&m=%q:%q-%q-none:%q",
-					c.Addr, start, end, c.Retentions[idx].FirstOrder, c.Retentions[idx].AggTime,
-					c.Retentions[idx].SecondOrder,
+					c.Addr, start, end, rt.FirstOrder, rt.AggTime,
+					rt.SecondOrder,
 					series)
 	resp, err := http.Get(q.String())
 	if err != nil {
@@ -128,6 +130,10 @@ func (c Client) GetData(series string, idx int, start int64, end int64) (Metric,
 	}
 	var data Metric
 	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+	}
+	data, err = modifyData(data, c.Normalize)
 	if err != nil {
 		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
@@ -144,7 +150,7 @@ func NewClient(cfg Config) (*Client, error) {
 	*/
 	var retentions []Retention
 	for _, r := range cfg.Retentions {
-		first, aggTime, second, tr := ConvertRetention(r)
+		first, aggTime, second, tr := convertRetention(r)
 		retentions = append(retentions, Retention{FirstOrder: first, SecondOrder: second,
 							AggTime: aggTime, QueryRanges: tr})
 	}
@@ -153,6 +159,7 @@ func NewClient(cfg Config) (*Client, error) {
 		Retentions:	retentions,
 		Limit:	cfg.Limit,
 		Filters: cfg.Filters,
+		Normalize:	cfg.Normalize,
 	}
 	return client, nil
 }

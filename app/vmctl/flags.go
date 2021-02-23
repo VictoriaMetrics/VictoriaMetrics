@@ -101,6 +101,7 @@ const (
 	otsdbConcurrency = "otsdb-concurrency"
 	otsdbRetentions  = "otsdb-retentions"
 	otsdbFilters	 = "otsdb-filters"
+	otsdbNormalize	 = "otsdb-normalize"
 )
 
 var (
@@ -115,6 +116,11 @@ var (
 			Name:  otsdbConcurrency,
 			Usage: "Number of concurrently running fetch queries to OpenTSDB",
 			Value: 1,
+		},
+		&cli.BoolFlag{
+			Name:  otsdbNormalize,
+			Value: false,
+			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
 		},
 		&cli.StringSliceFlag{
 			Name:  otsdbRetentions,

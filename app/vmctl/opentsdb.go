@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
@@ -33,6 +35,7 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc i
 
 
 func (op *otsdbProcessor) run(silent bool) error {
+	log.Println("Loading all metrics from OpenTSDB for filters: %s", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
 		m, err := op.oc.FindMetrics(filter)
@@ -58,8 +61,33 @@ func (op *otsdbProcessor) run(silent bool) error {
 	errCh := make(chan error)
 	var wg sync.WaitGroup
 	wg.Add(op.otsdbcc)
+	startTime := time.Now().Unix()
 	for _, metric := range metrics {
+		serieslist, err := op.oc.FindSeries(metric)
+		if err != nil {
+			return fmt.Errorf("Couldn't retrieve series for %s : %s", metric, err)
+		}
+		log.Println(fmt.Sprintf("Processing series for %s", metric))
+		bar2 := pb.StartNew(len(serieslist))
+		for _, rt := range op.oc.Retentions {
+			for _, tr := range rt.QueryRanges {
+				for i := 0; i < op.otsdbcc; i++ {
+					defer wg.Done()
+
+				}
+			}
+			bar2.Increment()
+		}
+		bar.Increment()
 	}
+	return nil
+}
+
+func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr opentsdb.TimeRange, now int64) error {
+	start := now - tr.Start
+	end := now - tr.End
+	series := 
+	data, err := op.oc.GetData(series, rt, start, end)
 	return nil
 }
 	/*
