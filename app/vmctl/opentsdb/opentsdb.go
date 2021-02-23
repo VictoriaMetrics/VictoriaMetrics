@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 )
 
 type Retention struct {
@@ -206,9 +205,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	expr.Filters = append(expr.Filters, FilterObj{Id: "f1", Tags: TagList})
 
 	inputData, err := json.Marshal(expr)
-	q := &strings.Builder{}
-	fmt.Fprintf(q, "%q/api/query/exp", c.Addr)
-	resp, err := http.Post(q.String(), "application/json", bytes.NewBuffer(inputData))
+	resp, err := http.Post(fmt.Sprintf("%s/api/query/exp", c.Addr), "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
