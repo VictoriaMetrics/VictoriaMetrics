@@ -104,9 +104,9 @@ type indexDB struct {
 	// matching low number of metrics.
 	uselessTagFiltersCache *workingsetcache.Cache
 
-	// Cache for (date, tagFilter) -> filterDuration, which is used for reducing
+	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
-	durationsPerDateTagFilterCache *workingsetcache.Cache
+	loopsPerDateTagFilterCache *workingsetcache.Cache
 
 	indexSearchPool sync.Pool
 
@@ -150,12 +150,12 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		tb:       tb,
 		name:     name,
 
-		tagCache:                       workingsetcache.New(mem/32, time.Hour),
-		metricIDCache:                  metricIDCache,
-		metricNameCache:                metricNameCache,
-		tsidCache:                      tsidCache,
-		uselessTagFiltersCache:         workingsetcache.New(mem/128, time.Hour),
-		durationsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
+		tagCache:                   workingsetcache.New(mem/32, time.Hour),
+		metricIDCache:              metricIDCache,
+		metricNameCache:            metricNameCache,
+		tsidCache:                  tsidCache,
+		uselessTagFiltersCache:     workingsetcache.New(mem/128, 3*time.Hour),
+		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, 3*time.Hour),
 
 		minTimestampForCompositeIndex: minTimestampForCompositeIndex,
 	}
@@ -320,14 +320,14 @@ func (db *indexDB) decRef() {
 	// Free space occupied by caches owned by db.
 	db.tagCache.Stop()
 	db.uselessTagFiltersCache.Stop()
-	db.durationsPerDateTagFilterCache.Stop()
+	db.loopsPerDateTagFilterCache.Stop()
 
 	db.tagCache = nil
 	db.metricIDCache = nil
 	db.metricNameCache = nil
 	db.tsidCache = nil
 	db.uselessTagFiltersCache = nil
-	db.durationsPerDateTagFilterCache = nil
+	db.loopsPerDateTagFilterCache = nil
 
 	if atomic.LoadUint64(&db.mustDrop) == 0 {
 		return
@@ -3130,7 +3130,7 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf, is.accountID, is.projectID)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = is.db.durationsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
+	kb.B = is.db.loopsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
 	if len(kb.B) != 16 {
 		return 0, 0
 	}
@@ -3150,7 +3150,7 @@ func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, 
 	kb := kbPool.Get()
 	kb.B = encoding.MarshalUint64(kb.B[:0], loopsCount)
 	kb.B = encoding.MarshalUint64(kb.B, currentTimestamp)
-	is.db.durationsPerDateTagFilterCache.Set(is.kb.B, kb.B)
+	is.db.loopsPerDateTagFilterCache.Set(is.kb.B, kb.B)
 	kbPool.Put(kb)
 }
 
