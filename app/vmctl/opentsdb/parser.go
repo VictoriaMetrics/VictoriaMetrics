@@ -51,7 +51,7 @@ func convertRetention(retention string) (string, string, string, []TimeRange) {
 func modifyData(msg Metric, normalize bool) (Metric, error) {
 	finalMsg := Metric{
 		Metric: "", Tags: make(map[string]string),
-		AggregateTags: nil, Dps: msg.Dps,
+		Timestamps: msg.Timestamps, Values: msg.Values,
 	}
 	if !allowedFirstChar.MatchString(msg.Metric) {
 		return Metric{}, fmt.Errorf("%s has a bad first character", msg.Metric)

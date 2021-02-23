@@ -1,6 +1,7 @@
 package opentsdb
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -55,18 +56,86 @@ type TimeRange struct {
 // A meta object about a metric
 // only contain the tags/etc. and no data
 type Meta struct {
-	tsuid	string
-	Metric	string
-	Tags	map[string]string
+	tsuid	string	`json:"tsuid"`
+	Metric	string	`json:"metric"`
+	Tags	map[string]string	`json:"tags"`
 }
 
 // Metric holds the time series data
 type Metric struct {
 	Metric	string
 	Tags	map[string]string
-	AggregateTags	[]string
-	Dps	map[string]float64
+	Timestamps []int64
+	Values []float64
 }
+
+type ExpressionOutput struct {
+	Outputs	[]QoObj		`json:"outputs"`
+	Query	interface{}	`json:"query"`
+}
+
+type QoObj struct {
+	Id	string		`json:"id"`
+	Alias	string	`json:"alias"`
+	Dps	[][]float64	`json:"dps"`
+	dpsMeta	interface{}	`json:"dpsMeta"`
+	meta	interface{}	`json:"meta"`
+}
+
+/*
+All of the following structs are to build a OpenTSDB expression object
+*/
+type Expression struct {
+	Time TimeObj
+	Filters	[]FilterObj
+	Metrics	[]MetricObj
+	// this just needs to be an empty object, so the value doesn't matter
+	expressions []int
+	Outputs	[]OutputObj
+}
+
+type TimeObj struct {
+	Start	int64
+	End	int64
+	Aggregator string
+	Downsampler DSObj
+}
+
+type DSObj struct {
+	Interval string
+	Aggregator string
+	FillPolicy FillObj
+}
+
+type FillObj struct {
+	// we'll always hard-code to NaN here, so we don't need value
+	Policy string
+}
+
+type FilterObj struct {
+	Tags []TagObj
+	Id	string
+}
+
+type TagObj struct {
+	Type string
+	Tagk string
+	Filter string
+	GroupBy bool
+}
+
+type MetricObj struct {
+	Id	string
+	Metric	string
+	Filter	string
+	FillPolicy FillObj
+}
+
+type OutputObj struct {
+	Id	string
+	Alias	string
+}
+/* End expression object structs */
 
 // Find all metrics that OpenTSDB knows about with a filter
 // e.g. /api/suggest?type=metrics&q=system
@@ -113,13 +182,26 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 }
 
 // Get data for series
-func (c Client) GetData(series string, rt Retention, start int64, end int64) (Metric, error) {
+func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
+	expr := Expression{}
+	expr.Outputs = append(expr.Outputs, OutputObj{Id: "a", Alias: "query"})
+	expr.Metrics = append(expr.Metrics, MetricObj{Id: "a", Metric: series.Metric,
+						  Filter: "f1", FillPolicy: FillObj{Policy: "nan"}})
+	expr.Time = TimeObj{Start: start, End: end, Aggregator: rt.FirstOrder,
+						Downsampler: DSObj{Interval: rt.AggTime,
+											Aggregator: rt.SecondOrder,
+											FillPolicy: FillObj{Policy: "nan"}}}
+	var TagList []TagObj
+	for k, v := range series.Tags {
+		TagList = append(TagList, TagObj{Type: "literal_or", Tagk: k,
+										  Filter: v, GroupBy: true})
+	}
+	expr.Filters = append(expr.Filters, FilterObj{Id: "f1", Tags: TagList})
+
+	inputData, err := json.Marshal(expr)
 	q := &strings.Builder{}
-	fmt.Fprintf(q, "%q/api/query?start=%q&end=%q&m=%q:%q-%q-none:%q",
-					c.Addr, start, end, rt.FirstOrder, rt.AggTime,
-					rt.SecondOrder,
-					series)
-	resp, err := http.Get(q.String())
+	fmt.Fprintf(q, "%q/api/query/exp", c.Addr)
+	resp, err := http.Post(q.String(), "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
@@ -128,10 +210,17 @@ func (c Client) GetData(series string, rt Retention, start int64, end int64) (Me
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
 	}
-	var data Metric
-	err = json.Unmarshal(body, &data)
+	var output ExpressionOutput
+	err = json.Unmarshal(body, &output)
 	if err != nil {
 		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+	}
+	data := Metric{}
+	data.Metric = series.Metric
+	data.Tags = series.Tags
+	for _, tsobj := range output.Outputs[0].Dps {
+		data.Timestamps = append(data.Timestamps, int64(tsobj[0]))
+		data.Values = append(data.Values, tsobj[1])
 	}
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {

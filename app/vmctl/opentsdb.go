@@ -86,8 +86,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr opentsdb.TimeRange, now int64) error {
 	start := now - tr.Start
 	end := now - tr.End
-	series := 
-	data, err := op.oc.GetData(series, rt, start, end)
+	data, err := op.oc.GetData(seriesMeta, rt, start, end)
 	return nil
 }
 	/*
