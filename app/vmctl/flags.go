@@ -126,7 +126,7 @@ var (
 		},
 		&cli.StringSliceFlag{
 			Name:  otsdbFilters,
-			Value: cli.StringSlice{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"},
+			Value: cli.NewStringSlice([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}...),
 			Usage: "Filters to process for discovering metrics in OpenTSDB",
 		},
 	}
