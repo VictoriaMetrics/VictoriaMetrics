@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type Retention struct {
@@ -111,24 +110,25 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 }
 
 // Get data for series
-func (c Client) GetData(series string, start int, end int) (Metric, error) {
+func (c Client) GetData(series string, idx int, start int64, end int64) (Metric, error) {
 	q := &strings.Builder{}
 	fmt.Fprintf(q, "%q/api/query?start=%q&end=%q&m=%q:%q-%q-none:%q",
-					c.Addr, start, end, c.FirstOrder, c.AggTime, c.SecondOrder,
+					c.Addr, start, end, c.Retentions[idx].FirstOrder, c.Retentions[idx].AggTime,
+					c.Retentions[idx].SecondOrder,
 					series)
 	resp, err := http.Get(q.String())
 	if err != nil {
-		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
 	}
 	var data Metric
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
 	return data, nil
 }
@@ -136,12 +136,14 @@ func (c Client) GetData(series string, start int, end int) (Metric, error) {
 // NewClient creates and returns influx client
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
+	/*
 	if _, _, err := hc.Ping(time.Second); err != nil {
 		return nil, fmt.Errorf("ping failed: %s", err)
 	}
+	*/
 	var retentions []Retention
-	for r := range cfg.Retentions {
-		first, aggTime, second, tr := ConverRetention(r)
+	for _, r := range cfg.Retentions {
+		first, aggTime, second, tr := ConvertRetention(r)
 		append(retentions, Retention{FirstOrder: first, SecondOrder: second,
 			AggTime: aggTime, TimeRanges: tr})
 	}
