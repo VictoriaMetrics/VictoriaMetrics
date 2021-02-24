@@ -165,7 +165,7 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close()}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve metric data from %s: %s", c.Addr, err)
@@ -186,7 +186,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close()}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
@@ -224,7 +224,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close()}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
