@@ -59,19 +59,19 @@ type TimeRange struct {
 // MetaResults contains return data from search series lookup queries
 type MetaResults struct {
 	Type         string      `json:"type"`
-	metric       string
-	tags         interface{}
-	limit        int
-	time         int
+	//metric       string
+	//tags         interface{}
+	//limit        int
+	//time         int
 	Results      []Meta      `json:"results"`
-	startIndex   int
-	totalResults int
+	//startIndex   int
+	//totalResults int
 }
 
 // Meta A meta object about a metric
 // only contain the tags/etc. and no data
 type Meta struct {
-	tsuid  string
+	//tsuid  string
 	Metric string            `json:"metric"`
 	Tags   map[string]string `json:"tags"`
 }
@@ -95,8 +95,8 @@ type qoObj struct {
 	ID      string      `json:"id"`
 	Alias   string      `json:"alias"`
 	Dps     [][]float64 `json:"dps"`
-	dpsMeta interface{}
-	meta    interface{}
+	//dpsMeta interface{}
+	//meta    interface{}
 }
 
 // Expression objects format our data queries
@@ -218,6 +218,9 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	// "expressions" is required in the query object or we get a 5xx, so force it to exist
 	expr.Expressions = make([]int, 0)
 	inputData, err := json.Marshal(expr)
+	if err != nil {
+		return Metric{}, fmt.Errorf("Failed to marshal query results %v", err)
+	}
 	// log.Println("Query: ", string(inputData))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))

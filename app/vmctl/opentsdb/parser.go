@@ -11,7 +11,6 @@ import (
 var (
 	allowedNames     = regexp.MustCompile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
 	allowedFirstChar = regexp.MustCompile("[a-zA-Z]")
-	allowedFields    = regexp.MustCompile("^[a-zA-Z0-9_:]*$")
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
 	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
 )

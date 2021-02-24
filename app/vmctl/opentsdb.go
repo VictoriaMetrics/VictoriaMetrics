@@ -41,9 +41,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 		if err != nil {
 			return fmt.Errorf("metric discovery failed: %s", err)
 		}
-		for _, mt := range m {
-			metrics = append(metrics, mt)
-		}
+		metrics = append(metrics, m...)
 	}
 	if len(metrics) < 1 {
 		return fmt.Errorf("found no timeseries to import")
