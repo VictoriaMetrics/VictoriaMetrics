@@ -445,6 +445,15 @@ func registerStorageMetrics() {
 	metrics.NewGauge(`vm_index_blocks_with_metric_ids_incorrect_order_total`, func() float64 {
 		return float64(idbm().IndexBlocksWithMetricIDsIncorrectOrder)
 	})
+	metrics.NewGauge(`vm_composite_index_min_timestamp`, func() float64 {
+		return float64(idbm().MinTimestampForCompositeIndex) / 1e3
+	})
+	metrics.NewGauge(`vm_composite_filter_success_conversions_total`, func() float64 {
+		return float64(idbm().CompositeFilterSuccessConversions)
+	})
+	metrics.NewGauge(`vm_composite_filter_missing_conversions_total`, func() float64 {
+		return float64(idbm().CompositeFilterMissingConversions)
+	})
 
 	metrics.NewGauge(`vm_assisted_merges_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallAssistedMerges)
@@ -641,6 +650,18 @@ func registerStorageMetrics() {
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/metricName"}`, func() float64 {
 		return float64(m().MetricNameCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/bigIndexBlocks"}`, func() float64 {
+		return float64(tm().BigIndexBlocksCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="storage/smallIndexBlocks"}`, func() float64 {
+		return float64(tm().SmallIndexBlocksCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/dataBlocks"}`, func() float64 {
+		return float64(idbm().DataBlocksCacheSizeBytes)
+	})
+	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/indexBlocks"}`, func() float64 {
+		return float64(idbm().IndexBlocksCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/date_metricID"}`, func() float64 {
 		return float64(m().DateMetricIDCacheSizeBytes)

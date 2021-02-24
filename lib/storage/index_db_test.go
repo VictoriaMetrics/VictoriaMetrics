@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
@@ -36,33 +37,38 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	f := func(items []string, expectedItems []string) {
 		t.Helper()
 		var data []byte
-		var itemsB [][]byte
+		var itemsB []mergeset.Item
 		for _, item := range items {
 			data = append(data, item...)
-			itemsB = append(itemsB, data[len(data)-len(item):])
+			itemsB = append(itemsB, mergeset.Item{
+				Start: uint32(len(data) - len(item)),
+				End:   uint32(len(data)),
+			})
 		}
-		if !checkItemsSorted(itemsB) {
+		if !checkItemsSorted(data, itemsB) {
 			t.Fatalf("source items aren't sorted; items:\n%q", itemsB)
 		}
 		resultData, resultItemsB := mergeTagToMetricIDsRows(data, itemsB)
 		if len(resultItemsB) != len(expectedItems) {
 			t.Fatalf("unexpected len(resultItemsB); got %d; want %d", len(resultItemsB), len(expectedItems))
 		}
-		if !checkItemsSorted(resultItemsB) {
+		if !checkItemsSorted(resultData, resultItemsB) {
 			t.Fatalf("result items aren't sorted; items:\n%q", resultItemsB)
 		}
-		for i, item := range resultItemsB {
-			if !bytes.HasPrefix(resultData, item) {
-				t.Fatalf("unexpected prefix for resultData #%d;\ngot\n%X\nwant\n%X", i, resultData, item)
+		buf := resultData
+		for i, it := range resultItemsB {
+			item := it.Bytes(resultData)
+			if !bytes.HasPrefix(buf, item) {
+				t.Fatalf("unexpected prefix for resultData #%d;\ngot\n%X\nwant\n%X", i, buf, item)
 			}
-			resultData = resultData[len(item):]
+			buf = buf[len(item):]
 		}
-		if len(resultData) != 0 {
-			t.Fatalf("unexpected tail left in resultData: %X", resultData)
+		if len(buf) != 0 {
+			t.Fatalf("unexpected tail left in resultData: %X", buf)
 		}
 		var resultItems []string
-		for _, item := range resultItemsB {
-			resultItems = append(resultItems, string(item))
+		for _, it := range resultItemsB {
+			resultItems = append(resultItems, string(it.Bytes(resultData)))
 		}
 		if !reflect.DeepEqual(expectedItems, resultItems) {
 			t.Fatalf("unexpected items;\ngot\n%X\nwant\n%X", resultItems, expectedItems)
@@ -456,7 +462,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	defer tsidCache.Stop()
 
 	for i := 0; i < 5; i++ {
-		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache)
+		db, err := openIndexDB("test-index-db", metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -479,7 +485,7 @@ func TestIndexDB(t *testing.T) {
 		defer tsidCache.Stop()
 
 		dbName := "test-index-db-serial"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -509,7 +515,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+		db, err = openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -533,7 +539,7 @@ func TestIndexDB(t *testing.T) {
 		defer tsidCache.Stop()
 
 		dbName := "test-index-db-concurrent"
-		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+		db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
@@ -1465,7 +1471,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	defer tsidCache.Stop()
 
 	dbName := "test-index-db-ts-range"
-	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache)
+	db, err := openIndexDB(dbName, metricIDCache, metricNameCache, tsidCache, 0)
 	if err != nil {
 		t.Fatalf("cannot open indexDB: %s", err)
 	}

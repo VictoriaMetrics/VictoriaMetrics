@@ -183,6 +183,7 @@ func getEndpointLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, eps *Endpoi
 	if svc != nil {
 		svc.appendCommonLabels(m)
 	}
+	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}

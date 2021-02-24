@@ -307,13 +307,15 @@ func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs
 type partitionMetrics struct {
 	PendingRows uint64
 
-	BigIndexBlocksCacheSize     uint64
-	BigIndexBlocksCacheRequests uint64
-	BigIndexBlocksCacheMisses   uint64
+	BigIndexBlocksCacheSize      uint64
+	BigIndexBlocksCacheSizeBytes uint64
+	BigIndexBlocksCacheRequests  uint64
+	BigIndexBlocksCacheMisses    uint64
 
-	SmallIndexBlocksCacheSize     uint64
-	SmallIndexBlocksCacheRequests uint64
-	SmallIndexBlocksCacheMisses   uint64
+	SmallIndexBlocksCacheSize      uint64
+	SmallIndexBlocksCacheSizeBytes uint64
+	SmallIndexBlocksCacheRequests  uint64
+	SmallIndexBlocksCacheMisses    uint64
 
 	BigSizeBytes   uint64
 	SmallSizeBytes uint64
@@ -360,6 +362,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		p := pw.p
 
 		m.BigIndexBlocksCacheSize += p.ibCache.Len()
+		m.BigIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
 		m.BigIndexBlocksCacheRequests += p.ibCache.Requests()
 		m.BigIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.BigRowsCount += p.ph.RowsCount
@@ -372,6 +375,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 		p := pw.p
 
 		m.SmallIndexBlocksCacheSize += p.ibCache.Len()
+		m.SmallIndexBlocksCacheSizeBytes += p.ibCache.SizeBytes()
 		m.SmallIndexBlocksCacheRequests += p.ibCache.Requests()
 		m.SmallIndexBlocksCacheMisses += p.ibCache.Misses()
 		m.SmallRowsCount += p.ph.RowsCount
@@ -1465,12 +1469,6 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 				continue
 			}
 			rowsCount := getRowsCount(a)
-			if rowsCount < 1e6 && len(a) < maxPartsToMerge {
-				// Do not merge parts with too small number of rows if the number of source parts
-				// isn't equal to maxPartsToMerge. This should reduce CPU usage and disk IO usage
-				// for small parts merge.
-				continue
-			}
 			if rowsCount > maxRows {
 				// There is no need in verifying remaining parts with higher number of rows
 				needFreeSpace = true

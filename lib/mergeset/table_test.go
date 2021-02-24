@@ -176,10 +176,10 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	defer tb2.MustClose()
 
 	var ts, ts1, ts2 TableSearch
-	ts.Init(tb, nil)
-	ts1.Init(tb1, nil)
+	ts.Init(tb)
+	ts1.Init(tb1)
 	defer ts1.MustClose()
-	ts2.Init(tb2, nil)
+	ts2.Init(tb2)
 	defer ts2.MustClose()
 	for i := 0; i < itemsCount; i++ {
 		key := []byte(fmt.Sprintf("item %d", i))
@@ -218,7 +218,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 		atomic.AddUint64(&flushes, 1)
 	}
 	var itemsMerged uint64
-	prepareBlock := func(data []byte, items [][]byte) ([]byte, [][]byte) {
+	prepareBlock := func(data []byte, items []Item) ([]byte, []Item) {
 		atomic.AddUint64(&itemsMerged, uint64(len(items)))
 		return data, items
 	}

@@ -128,10 +128,13 @@ type bar struct {
 
 func (p *bar) write(state *State, eln, width int) int {
 	repeat := width / p.cc[eln]
+	remainder := width % p.cc[eln]
 	for i := 0; i < repeat; i++ {
 		p.buf.Write(p.eb[eln])
 	}
-	StripStringToBuffer(string(p.eb[eln]), width%p.cc[eln], p.buf)
+	if remainder > 0 {
+		StripStringToBuffer(string(p.eb[eln]), remainder, p.buf)
+	}
 	return width
 }
 

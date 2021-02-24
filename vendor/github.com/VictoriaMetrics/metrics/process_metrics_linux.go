@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -12,8 +11,6 @@ import (
 	"strings"
 	"time"
 )
-
-const statFilepath = "/proc/self/stat"
 
 // See https://github.com/prometheus/procfs/blob/a4ac0826abceb44c40fc71daed2b301db498b93e/proc_stat.go#L40 .
 const userHZ = 100
@@ -45,6 +42,7 @@ type procStat struct {
 }
 
 func writeProcessMetrics(w io.Writer) {
+	statFilepath := "/proc/self/stat"
 	data, err := ioutil.ReadFile(statFilepath)
 	if err != nil {
 		log.Printf("ERROR: cannot open %s: %s", statFilepath, err)
@@ -69,7 +67,8 @@ func writeProcessMetrics(w io.Writer) {
 	}
 
 	// It is expensive obtaining `process_open_fds` when big number of file descriptors is opened,
-	// don't do it here.
+	// so don't do it here.
+	// See writeFDMetrics instead.
 
 	utime := float64(p.Utime) / userHZ
 	stime := float64(p.Stime) / userHZ
@@ -82,6 +81,54 @@ func writeProcessMetrics(w io.Writer) {
 	fmt.Fprintf(w, "process_resident_memory_bytes %d\n", p.Rss*4096)
 	fmt.Fprintf(w, "process_start_time_seconds %d\n", startTimeSeconds)
 	fmt.Fprintf(w, "process_virtual_memory_bytes %d\n", p.Vsize)
+
+	writeIOMetrics(w)
+}
+
+func writeIOMetrics(w io.Writer) {
+	ioFilepath := "/proc/self/io"
+	data, err := ioutil.ReadFile(ioFilepath)
+	if err != nil {
+		log.Printf("ERROR: cannot open %q: %s", ioFilepath, err)
+	}
+	getInt := func(s string) int64 {
+		n := strings.IndexByte(s, ' ')
+		if n < 0 {
+			log.Printf("ERROR: cannot find whitespace in %q at %q", s, ioFilepath)
+			return 0
+		}
+		v, err := strconv.ParseInt(s[n+1:], 10, 64)
+		if err != nil {
+			log.Printf("ERROR: cannot parse %q at %q: %s", s, ioFilepath, err)
+			return 0
+		}
+		return v
+	}
+	var rchar, wchar, syscr, syscw, readBytes, writeBytes int64
+	lines := strings.Split(string(data), "\n")
+	for _, s := range lines {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "rchar: "):
+			rchar = getInt(s)
+		case strings.HasPrefix(s, "wchar: "):
+			wchar = getInt(s)
+		case strings.HasPrefix(s, "syscr: "):
+			syscr = getInt(s)
+		case strings.HasPrefix(s, "syscw: "):
+			syscw = getInt(s)
+		case strings.HasPrefix(s, "read_bytes: "):
+			readBytes = getInt(s)
+		case strings.HasPrefix(s, "write_bytes: "):
+			writeBytes = getInt(s)
+		}
+	}
+	fmt.Fprintf(w, "process_io_read_bytes_total %d\n", rchar)
+	fmt.Fprintf(w, "process_io_written_bytes_total %d\n", wchar)
+	fmt.Fprintf(w, "process_io_read_syscalls_total %d\n", syscr)
+	fmt.Fprintf(w, "process_io_write_syscalls_total %d\n", syscw)
+	fmt.Fprintf(w, "process_io_storage_read_bytes_total %d\n", readBytes)
+	fmt.Fprintf(w, "process_io_storage_written_bytes_total %d\n", writeBytes)
 }
 
 var startTimeSeconds = time.Now().Unix()
@@ -123,15 +170,13 @@ func getOpenFDsCount(path string) (uint64, error) {
 }
 
 func getMaxFilesLimit(path string) (uint64, error) {
-	f, err := os.Open(path)
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	prefix := "Max open files"
-	scan := bufio.NewScanner(f)
-	for scan.Scan() {
-		s := scan.Text()
+	lines := strings.Split(string(data), "\n")
+	const prefix = "Max open files"
+	for _, s := range lines {
 		if !strings.HasPrefix(s, prefix) {
 			continue
 		}

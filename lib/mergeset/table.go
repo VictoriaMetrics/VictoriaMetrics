@@ -294,13 +294,15 @@ type TableMetrics struct {
 	ItemsCount  uint64
 	SizeBytes   uint64
 
-	DataBlocksCacheSize     uint64
-	DataBlocksCacheRequests uint64
-	DataBlocksCacheMisses   uint64
+	DataBlocksCacheSize      uint64
+	DataBlocksCacheSizeBytes uint64
+	DataBlocksCacheRequests  uint64
+	DataBlocksCacheMisses    uint64
 
-	IndexBlocksCacheSize     uint64
-	IndexBlocksCacheRequests uint64
-	IndexBlocksCacheMisses   uint64
+	IndexBlocksCacheSize      uint64
+	IndexBlocksCacheSizeBytes uint64
+	IndexBlocksCacheRequests  uint64
+	IndexBlocksCacheMisses    uint64
 
 	PartsRefCount uint64
 }
@@ -328,10 +330,12 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 		m.SizeBytes += p.size
 
 		m.DataBlocksCacheSize += p.ibCache.Len()
+		m.DataBlocksCacheSizeBytes += p.ibCache.SizeBytes()
 		m.DataBlocksCacheRequests += p.ibCache.Requests()
 		m.DataBlocksCacheMisses += p.ibCache.Misses()
 
 		m.IndexBlocksCacheSize += p.idxbCache.Len()
+		m.IndexBlocksCacheSizeBytes += p.idxbCache.SizeBytes()
 		m.IndexBlocksCacheRequests += p.idxbCache.Requests()
 		m.IndexBlocksCacheMisses += p.idxbCache.Misses()
 
@@ -1328,12 +1332,6 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 			itemsSum := uint64(0)
 			for _, pw := range a {
 				itemsSum += pw.p.ph.itemsCount
-			}
-			if itemsSum < 1e6 && len(a) < maxPartsToMerge {
-				// Do not merge parts with too small number of items if the number of source parts
-				// isn't equal to maxPartsToMerge. This should reduce CPU usage and disk IO usage
-				// for small parts merge.
-				continue
 			}
 			if itemsSum > maxItems {
 				// There is no sense in checking the remaining bigger parts.

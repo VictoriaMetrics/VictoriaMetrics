@@ -70,6 +70,8 @@ const (
 
 // sharedConfig represents the configuration fields of the SDK config files.
 type sharedConfig struct {
+	Profile string
+
 	// Credentials values from the config file. Both aws_access_key_id and
 	// aws_secret_access_key must be provided together in the same file to be
 	// considered valid. The values will be ignored if not a complete group.
@@ -201,6 +203,8 @@ func loadSharedConfigIniFiles(filenames []string) ([]sharedConfigFile, error) {
 }
 
 func (cfg *sharedConfig) setFromIniFiles(profiles map[string]struct{}, profile string, files []sharedConfigFile, exOpts bool) error {
+	cfg.Profile = profile
+
 	// Trim files from the list that don't exist.
 	var skippedFiles int
 	var profileNotFoundErr error
@@ -365,10 +369,6 @@ func (cfg *sharedConfig) validateCredentialsConfig(profile string) error {
 		return err
 	}
 
-	if err := cfg.validateSSOConfiguration(profile); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -409,7 +409,7 @@ func (cfg *sharedConfig) validateCredentialType() error {
 	return nil
 }
 
-func (cfg *sharedConfig) validateSSOConfiguration(profile string) error {
+func (cfg *sharedConfig) validateSSOConfiguration() error {
 	if !cfg.hasSSOConfiguration() {
 		return nil
 	}
@@ -433,7 +433,7 @@ func (cfg *sharedConfig) validateSSOConfiguration(profile string) error {
 
 	if len(missing) > 0 {
 		return fmt.Errorf("profile %q is configured to use SSO but is missing required configuration: %s",
-			profile, strings.Join(missing, ", "))
+			cfg.Profile, strings.Join(missing, ", "))
 	}
 
 	return nil

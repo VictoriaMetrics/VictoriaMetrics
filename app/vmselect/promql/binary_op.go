@@ -252,16 +252,21 @@ func mergeNonOverlappingTimeseries(dst, src *timeseries) bool {
 	// Verify whether the time series can be merged.
 	srcValues := src.Values
 	dstValues := dst.Values
+	overlaps := 0
 	_ = dstValues[len(srcValues)-1]
 	for i, v := range srcValues {
 		if math.IsNaN(v) {
 			continue
 		}
 		if !math.IsNaN(dstValues[i]) {
-			return false
+			overlaps++
 		}
 	}
-
+	// Allow up to two overlapping datapoints, which can appear due to staleness algorithm,
+	// which can add a few datapoints in the end of time series.
+	if overlaps > 2 {
+		return false
+	}
 	// Time series can be merged. Merge them.
 	for i, v := range srcValues {
 		if math.IsNaN(v) {

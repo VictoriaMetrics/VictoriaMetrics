@@ -25,8 +25,6 @@ To install the packages on your system, *do not clone the repo*. Instead:
 **NOTE:** Some of these packages are under development, and may occasionally
 make backwards-incompatible changes.
 
-**NOTE:** Github repo is a mirror of [https://code.googlesource.com/gocloud](https://code.googlesource.com/gocloud).
-
 ## Supported APIs
 
 | Google API                                      | Status | Package                                                                                                                       |

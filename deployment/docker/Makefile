@@ -4,24 +4,26 @@ DOCKER_NAMESPACE := victoriametrics
 
 ROOT_IMAGE ?= alpine:3.13.1
 CERTS_IMAGE := alpine:3.13.1
-GO_BUILDER_IMAGE := golang:1.15.7
+GO_BUILDER_IMAGE := golang:1.16.0
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
-BASE_IMAGE := local/base:1.1.1-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
+BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
-		|| docker build -t $(BASE_IMAGE) \
+		|| docker build \
 			--build-arg root_image=$(ROOT_IMAGE) \
 			--build-arg certs_image=$(CERTS_IMAGE) \
+			--tag $(BASE_IMAGE) \
 			deployment/docker/base
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
-		|| docker build -t $(BUILDER_IMAGE) \
+		|| docker build \
 			--build-arg go_builder_image=$(GO_BUILDER_IMAGE) \
+			--tag $(BUILDER_IMAGE) \
 			deployment/docker/builder
 
-app-via-docker: package-base package-builder
+app-via-docker: package-builder
 	mkdir -p gocache-for-docker
 	docker run --rm \
 		--user $(shell id -u):$(shell id -g) \
@@ -37,54 +39,32 @@ app-via-docker: package-base package-builder
 			-tags 'netgo osusergo nethttpomithttp2' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
-package-via-docker:
+package-via-docker: package-base
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE)$$') || (\
 		$(MAKE) app-via-docker && \
 		docker build \
 			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
 			--build-arg base_image=$(BASE_IMAGE) \
-			-t $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
+			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
-package-manifest: \
-		package-via-docker-amd64 \
-		package-via-docker-arm \
-		package-via-docker-arm64 \
-		package-via-docker-ppc64le \
-		package-via-docker-386
-	$(MAKE) package-manifest-internal
-
-package-manifest-internal:
-	docker push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-amd64$(RACE)
-	docker push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-arm$(RACE)
-	docker push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-arm64$(RACE)
-	docker push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-ppc64le$(RACE)
-	docker push $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-386$(RACE)
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest create --amend $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-				$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-amd64$(RACE) \
-				$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-arm$(RACE) \
-				$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-arm64$(RACE) \
-				$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-ppc64le$(RACE) \
-				$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-386$(RACE)
-	GOARCH=amd64 $(MAKE) package-manifest-annotate-goarch
-	GOARCH=arm $(MAKE) package-manifest-annotate-goarch
-	GOARCH=arm64 $(MAKE) package-manifest-annotate-goarch
-	GOARCH=ppc64le $(MAKE) package-manifest-annotate-goarch
-	GOARCH=386 $(MAKE) package-manifest-annotate-goarch
-
-package-manifest-annotate-goarch:
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest annotate $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-				$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-$(GOARCH)$(RACE) --os linux --arch $(GOARCH)
-
-publish-via-docker: package-manifest
-	docker tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-amd64$(RACE) $(DOCKER_NAMESPACE)/$(APP_NAME):latest-amd64$(RACE)
-	docker tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-arm$(RACE) $(DOCKER_NAMESPACE)/$(APP_NAME):latest-arm$(RACE)
-	docker tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-arm64$(RACE) $(DOCKER_NAMESPACE)/$(APP_NAME):latest-arm64$(RACE)
-	docker tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-ppc64le$(RACE) $(DOCKER_NAMESPACE)/$(APP_NAME):latest-ppc64le$(RACE)
-	docker tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-386$(RACE) $(DOCKER_NAMESPACE)/$(APP_NAME):latest-386$(RACE)
-	PKG_TAG=latest $(MAKE) package-manifest-internal
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push --purge $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)
-	DOCKER_CLI_EXPERIMENTAL=enabled docker manifest push --purge $(DOCKER_NAMESPACE)/$(APP_NAME):latest$(RACE)
+publish-via-docker: \
+	app-via-docker-amd64 \
+	app-via-docker-arm \
+	app-via-docker-arm64 \
+	app-via-docker-ppc64le \
+	app-via-docker-386
+	docker buildx build \
+		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
+		--build-arg certs_image=$(CERTS_IMAGE) \
+		--build-arg root_image=$(ROOT_IMAGE) \
+		--build-arg APP_NAME=$(APP_NAME) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):latest$(RACE) \
+		-o type=image \
+		-f app/$(APP_NAME)/multiarch/Dockerfile \
+		--push \
+		bin
 
 run-via-docker: package-via-docker
 	docker run -it --rm \

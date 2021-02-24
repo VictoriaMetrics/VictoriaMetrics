@@ -3,6 +3,7 @@ package fs
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -244,6 +245,48 @@ func SymlinkRelative(srcPath, dstPath string) error {
 		return fmt.Errorf("cannot make relative path for srcPath=%q: %w", srcPath, err)
 	}
 	return os.Symlink(srcPathRel, dstPath)
+}
+
+// CopyDirectory copies all the files in srcPath to dstPath.
+func CopyDirectory(srcPath, dstPath string) error {
+	fis, err := ioutil.ReadDir(srcPath)
+	if err != nil {
+		return err
+	}
+	if err := MkdirAllIfNotExist(dstPath); err != nil {
+		return err
+	}
+	for _, fi := range fis {
+		if !fi.Mode().IsRegular() {
+			// Skip non-files
+			continue
+		}
+		src := filepath.Join(srcPath, fi.Name())
+		dst := filepath.Join(dstPath, fi.Name())
+		if err := copyFile(src, dst); err != nil {
+			return err
+		}
+	}
+	MustSyncPath(dstPath)
+	return nil
+}
+
+func copyFile(srcPath, dstPath string) error {
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer MustClose(src)
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer MustClose(dst)
+	if _, err := io.Copy(dst, src); err != nil {
+		return err
+	}
+	MustSyncPath(dstPath)
+	return nil
 }
 
 // ReadFullData reads len(data) bytes from r.

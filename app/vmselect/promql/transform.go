@@ -649,14 +649,9 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	m := groupLeTimeseries(tss)
 
 	// Calculate quantile for each group in m
-
 	lastNonInf := func(i int, xss []leTimeseries) float64 {
 		for len(xss) > 0 {
 			xsLast := xss[len(xss)-1]
-			v := xsLast.ts.Values[i]
-			if v == 0 {
-				return nan
-			}
 			if !math.IsInf(xsLast.le, 0) {
 				return xsLast.le
 			}
@@ -700,8 +695,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			if math.IsInf(le, 0) {
-				vv := lastNonInf(i, xss)
-				return vv, vv, inf
+				break
 			}
 			if v == vPrev {
 				return lePrev, lePrev, v

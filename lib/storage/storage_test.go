@@ -335,12 +335,12 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 }
 
 func TestNextRetentionDuration(t *testing.T) {
-	for retentionMonths := 1; retentionMonths < 360; retentionMonths++ {
-		d := nextRetentionDuration(retentionMonths)
+	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
+		d := nextRetentionDuration(int64(retentionMonths * msecsPerMonth))
 		if d <= 0 {
 			currTime := time.Now().UTC()
 			nextTime := time.Now().UTC().Add(d)
-			t.Fatalf("unexected retention duration for retentionMonths=%d; got %s; must be %s + %d months", retentionMonths, nextTime, currTime, retentionMonths)
+			t.Fatalf("unexected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
 		}
 	}
 }
@@ -967,15 +967,16 @@ func testStorageAddRows(s *Storage) error {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
 	ptws := s1.tb.GetPartitions(nil)
-	defer s1.tb.PutPartitions(ptws)
 	for _, ptw := range ptws {
 		pws := ptw.pt.GetParts(nil)
 		numParts := len(pws)
 		ptw.pt.PutParts(pws)
 		if numParts != 1 {
+			s1.tb.PutPartitions(ptws)
 			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want 1", ptw.pt.name, numParts)
 		}
 	}
+	s1.tb.PutPartitions(ptws)
 
 	s1.MustClose()
 

@@ -4,9 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
@@ -16,6 +13,7 @@ var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread(
 	"By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
 	"mmap() is usually faster for reading small data chunks than pread()")
 
+// Disable mmap for architectures with 32-bit pointers in order to be able to work with files exceeding 2^32 bytes.
 const is32BitPtr = (^uintptr(0) >> 32) == 0
 
 // MustReadAtCloser is rand-access read interface.
@@ -31,18 +29,6 @@ type MustReadAtCloser interface {
 type ReaderAt struct {
 	f        *os.File
 	mmapData []byte
-
-	// pageCacheBitmap holds a bitmap for recently touched pages in mmapData.
-	// This bitmap allows using simple copy() instead of copyMmap() for reading recently touched pages,
-	// which is up to 4x faster when reading small chunks of data via MustReadAt.
-	pageCacheBitmap   atomic.Value
-	pageCacheBitmapWG sync.WaitGroup
-
-	stopCh chan struct{}
-}
-
-type pageCacheBitmap struct {
-	m []uint64
 }
 
 // MustReadAt reads len(p) bytes at off from r.
@@ -53,11 +39,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 	if off < 0 {
 		logger.Panicf("off=%d cannot be negative", off)
 	}
-	end := off + int64(len(p))
-	if len(r.mmapData) == 0 || (len(p) > 8*1024 && !r.isInPageCache(off, end)) {
-		// Read big blocks directly from file.
-		// This could be faster than reading these blocks from mmap,
-		// since it triggers less page faults.
+	if len(r.mmapData) == 0 {
 		n, err := r.f.ReadAt(p, off)
 		if err != nil {
 			logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, r.f.Name(), err)
@@ -65,77 +47,21 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		if n != len(p) {
 			logger.Panicf("FATAL: unexpected number of bytes read; got %d; want %d", n, len(p))
 		}
-		if len(r.mmapData) > 0 {
-			r.markInPageCache(off, end)
-		}
 	} else {
 		if off > int64(len(r.mmapData)-len(p)) {
 			logger.Panicf("off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(r.mmapData)-len(p), len(p))
 		}
 		src := r.mmapData[off:]
-		if r.isInPageCache(off, end) {
-			// It is safe copying the data with copy(), since it is likely it is in the page cache.
-			// This is up to 4x faster than copyMmap() below.
-			copy(p, src)
-		} else {
-			// The data may be missing in the page cache, so it is better to copy it via cgo trick
-			// in order to avoid P stalls in Go runtime.
-			// See https://medium.com/@valyala/mmap-in-go-considered-harmful-d92a25cb161d for details.
-			copyMmap(p, src)
-			r.markInPageCache(off, end)
-		}
+		// The copy() below may result in thread block as described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d .
+		// But production workload proved this is OK in most cases, so use it without fear :)
+		copy(p, src)
 	}
 	readCalls.Inc()
 	readBytes.Add(len(p))
 }
 
-func (r *ReaderAt) isInPageCache(start, end int64) bool {
-	if int64(len(r.mmapData))-end < 4096 {
-		// If standard copy(dst, src) from Go may read beyond len(src), then this should help
-		// fixing SIGBUS panic from https://github.com/VictoriaMetrics/VictoriaMetrics/issues/581
-		return false
-	}
-	startBit := uint64(start) / pageSize
-	endBit := uint64(end) / pageSize
-	m := r.pageCacheBitmap.Load().(*pageCacheBitmap).m
-	for startBit <= endBit {
-		idx := startBit / 64
-		off := startBit % 64
-		if idx >= uint64(len(m)) {
-			return true
-		}
-		n := atomic.LoadUint64(&m[idx])
-		if (n>>off)&1 != 1 {
-			return false
-		}
-		startBit++
-	}
-	return true
-}
-
-func (r *ReaderAt) markInPageCache(start, end int64) {
-	startBit := uint64(start) / pageSize
-	endBit := uint64(end) / pageSize
-	m := r.pageCacheBitmap.Load().(*pageCacheBitmap).m
-	for startBit <= endBit {
-		idx := startBit / 64
-		off := startBit % 64
-		n := atomic.LoadUint64(&m[idx])
-		n |= 1 << off
-		// It is OK if multiple concurrent goroutines store the same m[idx].
-		atomic.StoreUint64(&m[idx], n)
-		startBit++
-	}
-}
-
-// Assume page size is 4KB
-const pageSize = 4 * 1024
-
 // MustClose closes r.
 func (r *ReaderAt) MustClose() {
-	close(r.stopCh)
-	r.pageCacheBitmapWG.Wait()
-
 	fname := r.f.Name()
 	if len(r.mmapData) > 0 {
 		if err := mUnmap(r.mmapData[:cap(r.mmapData)]); err != nil {
@@ -167,7 +93,6 @@ func MustOpenReaderAt(path string) *ReaderAt {
 	}
 	var r ReaderAt
 	r.f = f
-	r.stopCh = make(chan struct{})
 	if !*disableMmap {
 		fi, err := f.Stat()
 		if err != nil {
@@ -175,16 +100,6 @@ func MustOpenReaderAt(path string) *ReaderAt {
 			logger.Panicf("FATAL: error in fstat(%q): %s", path, err)
 		}
 		size := fi.Size()
-		bm := &pageCacheBitmap{
-			m: make([]uint64, 1+size/pageSize/64),
-		}
-		r.pageCacheBitmap.Store(bm)
-		r.pageCacheBitmapWG.Add(1)
-		go func() {
-			defer r.pageCacheBitmapWG.Done()
-			pageCacheBitmapCleaner(&r.pageCacheBitmap, r.stopCh)
-		}()
-
 		data, err := mmapFile(f, size)
 		if err != nil {
 			MustClose(f)
@@ -194,23 +109,6 @@ func MustOpenReaderAt(path string) *ReaderAt {
 	}
 	readersCount.Inc()
 	return &r
-}
-
-func pageCacheBitmapCleaner(pcbm *atomic.Value, stopCh <-chan struct{}) {
-	t := time.NewTicker(time.Minute)
-	for {
-		select {
-		case <-stopCh:
-			t.Stop()
-			return
-		case <-t.C:
-		}
-		bmOld := pcbm.Load().(*pageCacheBitmap)
-		bm := &pageCacheBitmap{
-			m: make([]uint64, len(bmOld.m)),
-		}
-		pcbm.Store(bm)
-	}
 }
 
 var (
