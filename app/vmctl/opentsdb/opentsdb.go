@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	// "log"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -152,7 +152,8 @@ type OutputObj struct {
 // Find all metrics that OpenTSDB knows about with a filter
 // e.g. /api/suggest?type=metrics&q=system
 func (c Client) FindMetrics(filter string) ([]string, error) {
-	q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s", c.Addr, filter)
+	q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", c.Addr, filter, c.Limit)
+	log.Println(q)
 	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)

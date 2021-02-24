@@ -99,6 +99,7 @@ var (
 const (
 	otsdbAddr        = "otsdb-addr"
 	otsdbConcurrency = "otsdb-concurrency"
+	otsdbQueryLimit  = "otsdb-query-limit"
 	otsdbRetentions  = "otsdb-retentions"
 	otsdbFilters	 = "otsdb-filters"
 	otsdbNormalize	 = "otsdb-normalize"
@@ -116,6 +117,11 @@ var (
 			Name:  otsdbConcurrency,
 			Usage: "Number of concurrently running fetch queries to OpenTSDB",
 			Value: 1,
+		},
+		&cli.IntFlag{
+			Name:  otsdbQueryLimit,
+			Usage: "Result limit on meta queries to OpenTSDB",
+			Value: 100000,
 		},
 		&cli.BoolFlag{
 			Name:  otsdbNormalize,

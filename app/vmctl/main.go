@@ -39,6 +39,7 @@ func main() {
 
 					oCfg := opentsdb.Config{
 						Addr:		 c.String(otsdbAddr),
+						Limit:		 c.Int(otsdbQueryLimit),
 						Retentions:	 c.StringSlice(otsdbRetentions),
 						Filters:	 c.StringSlice(otsdbFilters),
 						Normalize:	 c.Bool(otsdbNormalize),
