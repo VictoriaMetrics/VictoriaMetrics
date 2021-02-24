@@ -673,6 +673,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("clamp(time(), 1400, 1800)", func(t *testing.T) {
+		t.Parallel()
+		q := `clamp(time(), 1400, 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1400, 1400, 1400, 1600, 1800, 1800},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("clamp_max(time(), 1400)", func(t *testing.T) {
 		t.Parallel()
 		q := `clamp_max(time(), 1400)`
@@ -1716,6 +1727,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`sign(time()-1400)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sign(time()-1400)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-1, -1, 0, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`round(time()/1e3)`, func(t *testing.T) {
 		t.Parallel()
 		q := `round(time()/1e3)`
@@ -2755,6 +2777,26 @@ func TestExecSuccess(t *testing.T) {
 		t.Parallel()
 		q := `histogram_share(50, label_set(100, "le", "foobar"))`
 		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(single-value-inf-le)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.6, label_set(100, "le", "+Inf"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_quantile(zero-value-inf-le)`, func(t *testing.T) {
+		t.Parallel()
+		q := `histogram_quantile(0.6, (
+			label_set(100, "le", "+Inf"),
+			label_set(0, "le", "42"),
+		))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{42, 42, 42, 42, 42, 42},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`histogram_quantile(single-value-valid-le)`, func(t *testing.T) {
@@ -6287,6 +6329,7 @@ func TestExecError(t *testing.T) {
 	f(`abs()`)
 	f(`abs(1,2)`)
 	f(`absent(1, 2)`)
+	f(`clamp()`)
 	f(`clamp_max()`)
 	f(`clamp_min(1,2,3)`)
 	f(`hour(1,2)`)
@@ -6303,6 +6346,7 @@ func TestExecError(t *testing.T) {
 	f(`label_mismatch()`)
 	f(`round()`)
 	f(`round(1,2,3)`)
+	f(`sign()`)
 	f(`scalar()`)
 	f(`sort(1,2)`)
 	f(`sort_desc()`)

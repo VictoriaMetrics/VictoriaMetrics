@@ -495,10 +495,44 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			}
 		})
 	})
-	b.Run("labeldrop-match-regexp", func(b *testing.B) {
+	b.Run("labeldrop-match-prefix", func(b *testing.B) {
 		pcs := mustParseRelabelConfigs(`
 - action: labeldrop
   regex: "id.*"
+`)
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "metric",
+			},
+			{
+				Name:  "id",
+				Value: "foobar-random-string-here",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = pcs.Apply(labels, 0, true)
+				if len(labels) != 1 {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
+				}
+				if labels[0].Name != "__name__" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[0].Name, "__name__"))
+				}
+				if labels[0].Value != "metric" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "metric"))
+				}
+			}
+		})
+	})
+	b.Run("labeldrop-match-regexp", func(b *testing.B) {
+		pcs := mustParseRelabelConfigs(`
+- action: labeldrop
+  regex: ".*id.*"
 `)
 		labelsOrig := []prompbmarshal.Label{
 			{
@@ -591,10 +625,44 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			}
 		})
 	})
-	b.Run("labelkeep-match-regexp", func(b *testing.B) {
+	b.Run("labelkeep-match-prefix", func(b *testing.B) {
 		pcs := mustParseRelabelConfigs(`
 - action: labelkeep
   regex: "id.*"
+`)
+		labelsOrig := []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "metric",
+			},
+			{
+				Name:  "id",
+				Value: "foobar-random-string-here",
+			},
+		}
+		b.ReportAllocs()
+		b.SetBytes(1)
+		b.RunParallel(func(pb *testing.PB) {
+			var labels []prompbmarshal.Label
+			for pb.Next() {
+				labels = append(labels[:0], labelsOrig...)
+				labels = pcs.Apply(labels, 0, true)
+				if len(labels) != 1 {
+					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
+				}
+				if labels[0].Name != "id" {
+					panic(fmt.Errorf("unexpected label name; got %q; want %q", labels[0].Name, "id"))
+				}
+				if labels[0].Value != "foobar-random-string-here" {
+					panic(fmt.Errorf("unexpected label value; got %q; want %q", labels[0].Value, "foobar-random-string-here"))
+				}
+			}
+		})
+	})
+	b.Run("labelkeep-match-regexp", func(b *testing.B) {
+		pcs := mustParseRelabelConfigs(`
+- action: labelkeep
+  regex: ".*id.*"
 `)
 		labelsOrig := []prompbmarshal.Label{
 			{

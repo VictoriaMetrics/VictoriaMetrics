@@ -334,7 +334,21 @@ func (prc *parsedRelabelConfig) matchString(s string) bool {
 	if complete {
 		return prefix == s
 	}
-	return strings.HasPrefix(s, prefix) && prc.Regex.MatchString(s)
+	if !strings.HasPrefix(s, prefix) {
+		return false
+	}
+	reStr := prc.regexOriginal.String()
+	if strings.HasPrefix(reStr, prefix) {
+		// Fast path for `foo.*` and `bar.+` regexps
+		reSuffix := reStr[len(prefix):]
+		switch reSuffix {
+		case ".+", "(.+)":
+			return len(s) > len(prefix)
+		case ".*", "(.*)":
+			return true
+		}
+	}
+	return prc.Regex.MatchString(s)
 }
 
 func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, match []int) string {

@@ -713,7 +713,7 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
-	t.Run("labeldrop-regexp", func(t *testing.T) {
+	t.Run("labeldrop-prefix", func(t *testing.T) {
 		f(`
 - action: labeldrop
   regex: "dropme.*"
@@ -730,7 +730,49 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 		f(`
 - action: labeldrop
-  regex: "dropme.*"
+  regex: "dropme(.+)"
+`, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+			{
+				Name:  "dropme-please",
+				Value: "aaa",
+			},
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("labeldrop-regexp", func(t *testing.T) {
+		f(`
+- action: labeldrop
+  regex: ".*dropme.*"
+`, []prompbmarshal.Label{
+			{
+				Name:  "aaa",
+				Value: "bbb",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "aaa",
+				Value: "bbb",
+			},
+		})
+		f(`
+- action: labeldrop
+  regex: ".*dropme.*"
 `, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
