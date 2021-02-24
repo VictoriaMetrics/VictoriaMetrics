@@ -70,7 +70,6 @@ func (op *otsdbProcessor) run(silent bool) error {
 		/*for _, series := range serieslist {
 			seriesCh <- series
 		}*/
-		bar2 := pb.StartNew(len(serieslist))
 		for _, series := range serieslist {
 			for _, rt := range op.oc.Retentions {
 				for _, tr := range rt.QueryRanges {
@@ -84,7 +83,6 @@ func (op *otsdbProcessor) run(silent bool) error {
 					}*/
 				}
 			}
-			bar2.Increment()
 		}
 		bar.Increment()
 	}

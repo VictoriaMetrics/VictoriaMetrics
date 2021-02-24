@@ -27,7 +27,7 @@ func convertRetention(retention string) (string, string, string, []TimeRange) {
 	3. create the time ranges we actually need
 	*/
 	chunks := strings.Split(retention, ":")
-	log.Println("Chunks! %v", chunks)
+	log.Println("Retention strings to process: ", chunks)
 	aggregates := strings.Split(chunks[0], "-")
 	rowLength, err := time.ParseDuration(chunks[1])
 	if err != nil {
