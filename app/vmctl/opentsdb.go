@@ -52,7 +52,6 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return nil
 	}
 
-
 	//seriesCh := make(chan *opentsdb.Meta)
 	//errCh := make(chan error)
 	//var wg sync.WaitGroup
