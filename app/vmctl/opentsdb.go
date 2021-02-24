@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	//"github.com/cheggaaa/pb/v3"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type otsdbProcessor struct {
@@ -55,7 +55,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return nil
 	}
 
-	// bar := pb.StartNew(len(metrics))
+	bar := pb.StartNew(len(metrics))
 
 	//seriesCh := make(chan *opentsdb.Meta)
 	//errCh := make(chan error)
@@ -67,7 +67,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 		if err != nil {
 			return fmt.Errorf("Couldn't retrieve series list for %s : %s", metric, err)
 		}
-		log.Println("Found %d series for %s", len(serieslist), metric)
+		log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
 		/*for _, series := range serieslist {
 			seriesCh <- series
 		}*/
@@ -85,8 +85,10 @@ func (op *otsdbProcessor) run(silent bool) error {
 				}
 			}
 		}
-		//bar.Increment()
+		bar.Increment()
 	}
+	bar.Finish()
+	log.Println("Import finished!")
 	return nil
 }
 
@@ -100,7 +102,7 @@ func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr
 	if len(data.Timestamps) < 1 {
 		return nil
 	}
-	log.Println("Found %d stats for %v", len(data.Timestamps), seriesMeta)
+	// log.Println("Found %d stats for %v", len(data.Timestamps), seriesMeta)
 	labels := make([]vm.LabelPair, len(data.Tags))
 	for k, v := range data.Tags {
 		labels = append(labels, vm.LabelPair{Name: k, Value: v})

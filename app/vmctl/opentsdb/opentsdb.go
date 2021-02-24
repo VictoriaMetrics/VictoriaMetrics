@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	// "log"
 	"net/http"
 	"strings"
 )
@@ -209,9 +209,8 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	expr.Filters = append(expr.Filters, FilterObj{Id: "f1", Tags: TagList})
 	// "expressions" is required in the query object or we get a 5xx, so force it to exist
 	expr.Expressions = make([]int, 0)
-
 	inputData, err := json.Marshal(expr)
-	log.Println("Query: ", string(inputData))
+	// log.Println("Query: ", string(inputData))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
@@ -225,14 +224,14 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	var output ExpressionOutput
 	err = json.Unmarshal(body, &output)
 	if err != nil {
-		log.Println("Incoming data: ", string(body))
+		// log.Println("Incoming data: ", string(body))
 		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
 	if len(output.Outputs) < 1 {
-		log.Println("Incoming data: ", string(body))
+		// log.Println("Incoming data: ", string(body))
 		return Metric{}, nil
 	}
-	log.Println("De-serialized: ", output)
+	// log.Println("De-serialized: ", output)
 	data := Metric{}
 	data.Metric = series.Metric
 	data.Tags = series.Tags
