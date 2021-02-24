@@ -1704,16 +1704,14 @@ func (sn *storageNode) processSearchMetricNames(requestData []byte, deadline sea
 }
 
 func (sn *storageNode) processSearchQuery(requestData []byte, fetchData bool, processBlock func(mb *storage.MetricBlock) error, deadline searchutils.Deadline) error {
-	var blocksRead int
 	f := func(bc *handshake.BufferedConn) error {
-		n, err := sn.processSearchQueryOnConn(bc, requestData, fetchData, processBlock)
+		_, err := sn.processSearchQueryOnConn(bc, requestData, fetchData, processBlock)
 		if err != nil {
 			return err
 		}
-		blocksRead = n
 		return nil
 	}
-	if err := sn.execOnConn("search_v4", f, deadline); err != nil && blocksRead == 0 {
+	if err := sn.execOnConn("search_v4", f, deadline); err != nil {
 		// Try again before giving up if zero blocks read on the previous attempt.
 		if err = sn.execOnConn("search_v4", f, deadline); err != nil {
 			return err
