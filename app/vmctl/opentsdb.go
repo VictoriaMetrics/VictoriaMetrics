@@ -12,10 +12,10 @@ import (
 )
 
 type otsdbProcessor struct {
-	oc        *opentsdb.Client
-	im        *vm.Importer
-	otsdbcc	int
-	vmcc        int
+	oc      *opentsdb.Client
+	im      *vm.Importer
+	otsdbcc int
+	vmcc    int
 }
 
 func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc int) *otsdbProcessor {
@@ -26,13 +26,12 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc i
 		vmcc = 1
 	}
 	return &otsdbProcessor{
-		oc:        oc,
-		im:        im,
-		otsdbcc:        otsdbcc,
-		vmcc:        vmcc,
+		oc:      oc,
+		im:      im,
+		otsdbcc: otsdbcc,
+		vmcc:    vmcc,
 	}
 }
-
 
 func (op *otsdbProcessor) run(silent bool) error {
 	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
@@ -97,7 +96,7 @@ func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr
 	end := now - tr.End
 	data, err := op.oc.GetData(seriesMeta, rt, start, end)
 	if err != nil {
-		return fmt.Errorf("Failed to collect data for %s in %s:%s", seriesMeta, rt, tr)
+		return fmt.Errorf("Failed to collect data for %v in %v:%v", seriesMeta, rt, tr)
 	}
 	if len(data.Timestamps) < 1 {
 		return nil

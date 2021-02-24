@@ -19,12 +19,12 @@ var (
 // Convert an incoming retention "string" into the component parts
 func convertRetention(retention string) (string, string, string, []TimeRange) {
 	/*
-	A retention string coming in looks like
-	sum-1m-avg:1h:30d
-	So we:
-	1. split on the :
-	2. split on the - in slice 0
-	3. create the time ranges we actually need
+		A retention string coming in looks like
+		sum-1m-avg:1h:30d
+		So we:
+		1. split on the :
+		2. split on the - in slice 0
+		3. create the time ranges we actually need
 	*/
 	chunks := strings.Split(retention, ":")
 	log.Println("Retention strings to process: ", chunks)
@@ -41,8 +41,8 @@ func convertRetention(retention string) (string, string, string, []TimeRange) {
 	ttlSecs := ttl.Seconds()
 	var timeChunks []TimeRange
 	var i int64
-	for i = 0; i < int64(ttlSecs); i = i+int64(rowSecs) {
-		timeChunks = append(timeChunks, TimeRange{Start: i+int64(rowSecs), End: i})
+	for i = 0; i < int64(ttlSecs); i = i + int64(rowSecs) {
+		timeChunks = append(timeChunks, TimeRange{Start: i + int64(rowSecs), End: i})
 	}
 	// FirstOrder, AggTime, SecondOrder, RowSize, TTL
 	return aggregates[0], aggregates[1], aggregates[2], timeChunks
