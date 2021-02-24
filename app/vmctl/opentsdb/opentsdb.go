@@ -86,23 +86,23 @@ type Metric struct {
 
 // ExpressionOutput contains results from actual data queries
 type ExpressionOutput struct {
-	Outputs []QoObj     `json:"outputs"`
+	Outputs []qoObj     `json:"outputs"`
 	Query   interface{} `json:"query"`
 }
 
 // QoObj contains actual timeseries data from the returned data query
-type QoObj struct {
-	Id      string      `json:"id"`
+type qoObj struct {
+	ID      string      `json:"id"`
 	Alias   string      `json:"alias"`
 	Dps     [][]float64 `json:"dps"`
 	dpsMeta interface{}
 	meta    interface{}
 }
 
+// Expression objects format our data queries
 /*
 All of the following structs are to build a OpenTSDB expression object
 */
-// Expression objects format our data queries
 type Expression struct {
 	Time    timeObj     `json:"time"`
 	Filters []filterObj `json:"filters"`
@@ -132,7 +132,7 @@ type fillObj struct {
 
 type filterObj struct {
 	Tags []tagObj `json:"tags"`
-	Id   string   `json:"id"`
+	ID   string   `json:"id"`
 }
 
 type tagObj struct {
@@ -143,21 +143,21 @@ type tagObj struct {
 }
 
 type metricObj struct {
-	Id         string  `json:"id"`
+	ID         string  `json:"id"`
 	Metric     string  `json:"metric"`
 	Filter     string  `json:"filter"`
 	FillPolicy fillObj `json:"fillPolicy"`
 }
 
 type outputObj struct {
-	Id    string `json:"id"`
+	ID    string `json:"id"`
 	Alias string `json:"alias"`
 }
 
 /* End expression object structs */
 
-// Find all metrics that OpenTSDB knows about with a filter
-// e.g. /api/suggest?type=metrics&q=system
+// FindMetrics discovers all metrics that OpenTSDB knows about (given a filter)
+// e.g. /api/suggest?type=metrics&q=system&max=100000
 func (c Client) FindMetrics(filter string) ([]string, error) {
 	q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", c.Addr, filter, c.Limit)
 	log.Println(q)
@@ -178,7 +178,7 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 	return metriclist, nil
 }
 
-// Find all series associated with a metric
+// FindSeries discovers all series associated with a metric
 // e.g. /api/search/lookup?m=system.load5&limit=1000000
 func (c Client) FindSeries(metric string) ([]Meta, error) {
 	q := fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit)
@@ -199,7 +199,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	return results.Results, nil
 }
 
-// Get data for series
+// GetData actually retrieves data for a series at a specified time range
 func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
 	expr := Expression{}
 	expr.Outputs = append(expr.Outputs, outputObj{Id: "a", Alias: "query"})
