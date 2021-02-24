@@ -1,6 +1,6 @@
 package opentsdb
 
-import "testing"
+//import "testing"
 /*
 func TestFetchQuery(t *testing.T) {
 	testCases := []struct {
