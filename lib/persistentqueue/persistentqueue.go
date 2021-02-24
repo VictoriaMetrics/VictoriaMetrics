@@ -213,6 +213,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		if !os.IsNotExist(err) {
 			logger.Errorf("cannot read metainfo for persistent queue from %q: %s; re-creating %q", metainfoPath, err, path)
 		}
+
 		// path contents is broken or missing. Re-create it from scratch.
 		fs.RemoveDirContents(path)
 		mi.Reset()

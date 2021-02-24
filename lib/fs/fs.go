@@ -16,6 +16,11 @@ import (
 
 var tmpFileNum uint64
 
+// MustSyncPath syncs contents of the given path.
+func MustSyncPath(path string) {
+	mustSyncPath(path)
+}
+
 // WriteFileAtomically atomically writes data to the given file path.
 //
 // WriteFileAtomically returns only after the file is fully written and synced
@@ -268,6 +273,12 @@ func MustWriteData(w io.Writer, data []byte) {
 	if n != len(data) {
 		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes", n, len(data))
 	}
+}
+
+// CreateFlockFile creates flock.lock file in the directory dir
+// and returns the handler to the file.
+func CreateFlockFile(dir string) (*os.File, error) {
+	return createFlockFile(dir)
 }
 
 // MustGetFreeSpace returns free space for the given directory path.

@@ -22,7 +22,7 @@ var (
 // one of possible solutions - change files opening process with correct flags.
 // https://github.com/dgraph-io/badger/issues/699
 // https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
-func MustSyncPath(string) {
+func mustSyncPath(string) {
 }
 
 const (
@@ -33,10 +33,10 @@ const (
 	fileDispositionIgnoreReadonlyAttribute = 0x00000010
 )
 
-// CreateFlockFile creates flock.lock file in the directory dir
+// createFlockFile creates flock.lock file in the directory dir
 // and returns the handler to the file.
 // https://github.com/juju/fslock/blob/master/fslock_windows.go
-func CreateFlockFile(dir string) (*os.File, error) {
+func createFlockFile(dir string) (*os.File, error) {
 	flockFile := dir + "/flock.lock"
 	name, err := windows.UTF16PtrFromString(flockFile)
 	if err != nil {
