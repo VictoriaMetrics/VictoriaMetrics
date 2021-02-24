@@ -19,6 +19,7 @@ import (
 
 var transformFuncsKeepMetricGroup = map[string]bool{
 	"ceil":               true,
+	"clamp":              true,
 	"clamp_max":          true,
 	"clamp_min":          true,
 	"floor":              true,
@@ -44,6 +45,7 @@ var transformFuncs = map[string]transformFunc{
 	"abs":                newTransformFuncOneArg(transformAbs),
 	"absent":             transformAbsent,
 	"ceil":               newTransformFuncOneArg(transformCeil),
+	"clamp":              transformClamp,
 	"clamp_max":          transformClampMax,
 	"clamp_min":          transformClampMin,
 	"day_of_month":       newTransformFuncDateTime(transformDayOfMonth),
@@ -61,6 +63,7 @@ var transformFuncs = map[string]transformFunc{
 	"minute":             newTransformFuncDateTime(transformMinute),
 	"month":              newTransformFuncDateTime(transformMonth),
 	"round":              transformRound,
+	"sign":               transformSign,
 	"scalar":             transformScalar,
 	"sort":               newTransformFuncSort(false),
 	"sort_desc":          newTransformFuncSort(true),
@@ -213,6 +216,31 @@ func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
 
 func transformCeil(v float64) float64 {
 	return math.Ceil(v)
+}
+
+func transformClamp(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
+		return nil, err
+	}
+	mins, err := getScalar(args[1], 1)
+	if err != nil {
+		return nil, err
+	}
+	maxs, err := getScalar(args[2], 2)
+	if err != nil {
+		return nil, err
+	}
+	tf := func(values []float64) {
+		for i, v := range values {
+			if v > maxs[i] {
+				values[i] = maxs[i]
+			} else if v < mins[i] {
+				values[i] = mins[i]
+			}
+		}
+	}
+	return doTransformValues(args[0], tf, tfa.fe)
 }
 
 func transformClampMax(tfa *transformFuncArg) ([]*timeseries, error) {
@@ -1564,6 +1592,25 @@ func transformRound(tfa *transformFuncArg) ([]*timeseries, error) {
 			v -= math.Mod(v, n)
 			v, _ = math.Modf(v * p10)
 			values[i] = v / p10
+		}
+	}
+	return doTransformValues(args[0], tf, tfa.fe)
+}
+
+func transformSign(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	tf := func(values []float64) {
+		for i, v := range values {
+			sign := float64(0)
+			if v < 0 {
+				sign = -1
+			} else if v > 0 {
+				sign = 1
+			}
+			values[i] = sign
 		}
 	}
 	return doTransformValues(args[0], tf, tfa.fe)
