@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"strings"
 )
 
 type Retention struct {
@@ -150,7 +152,8 @@ type OutputObj struct {
 // Find all metrics that OpenTSDB knows about with a filter
 // e.g. /api/suggest?type=metrics&q=system
 func (c Client) FindMetrics(filter string) ([]string, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/suggest?type=metrics&q=%s", c.Addr, filter))
+	q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s", c.Addr, filter)
+	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
@@ -170,7 +173,8 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 // Find all series associated with a metric
 // e.g. /api/search/lookup?m=system.load5&limit=1000000
 func (c Client) FindSeries(metric string) ([]Meta, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit))
+	q := fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit)
+	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
@@ -205,7 +209,8 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	expr.Filters = append(expr.Filters, FilterObj{Id: "f1", Tags: TagList})
 
 	inputData, err := json.Marshal(expr)
-	resp, err := http.Post(fmt.Sprintf("%s/api/query/exp", c.Addr), "application/json", bytes.NewBuffer(inputData))
+	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
+	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
@@ -217,8 +222,13 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	var output ExpressionOutput
 	err = json.Unmarshal(body, &output)
 	if err != nil {
+		log.Println("Incoming data: ", string(body))
 		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
+	if len(output.Outputs) < 1 {
+		return Metric{}, nil
+	}
+	log.Println("De-serialized: ", output)
 	data := Metric{}
 	data.Metric = series.Metric
 	data.Tags = series.Tags
@@ -248,7 +258,7 @@ func NewClient(cfg Config) (*Client, error) {
 							AggTime: aggTime, QueryRanges: tr})
 	}
 	client := &Client{
-		Addr:	cfg.Addr,
+		Addr:	strings.Trim(cfg.Addr, "/"),
 		Retentions:	retentions,
 		Limit:	cfg.Limit,
 		Filters: cfg.Filters,

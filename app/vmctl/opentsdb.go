@@ -65,7 +65,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 	for _, metric := range metrics {
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
-			return fmt.Errorf("Couldn't retrieve series for %s : %s", metric, err)
+			return fmt.Errorf("Couldn't retrieve series list for %s : %s", metric, err)
 		}
 		/*for _, series := range serieslist {
 			seriesCh <- series
