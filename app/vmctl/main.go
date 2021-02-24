@@ -38,11 +38,11 @@ func main() {
 					}
 
 					oCfg := opentsdb.Config{
-						Addr:		c.String(otsdbAddr),
-						Limit:		c.Int(otsdbQueryLimit),
+						Addr:       c.String(otsdbAddr),
+						Limit:      c.Int(otsdbQueryLimit),
 						Retentions: c.StringSlice(otsdbRetentions),
-						Filters:	c.StringSlice(otsdbFilters),
-						Normalize:	c.Bool(otsdbNormalize),
+						Filters:    c.StringSlice(otsdbFilters),
+						Normalize:  c.Bool(otsdbNormalize),
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {
