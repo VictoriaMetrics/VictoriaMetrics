@@ -232,6 +232,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
 	}
+	// log.Println(fmt.Sprintf("Initial Output: %v", string(body)))
 	var output ExpressionOutput
 	err = json.Unmarshal(body, &output)
 	if err != nil {
@@ -260,11 +261,6 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 // NewClient creates and returns influx client
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
-	/*
-		if _, _, err := hc.Ping(time.Second); err != nil {
-			return nil, fmt.Errorf("ping failed: %s", err)
-		}
-	*/
 	var retentions []Retention
 	for _, r := range cfg.Retentions {
 		first, aggTime, second, tr := convertRetention(r)

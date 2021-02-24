@@ -52,7 +52,6 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return nil
 	}
 
-	bar := pb.StartNew(len(metrics))
 
 	//seriesCh := make(chan *opentsdb.Meta)
 	//errCh := make(chan error)
@@ -60,10 +59,12 @@ func (op *otsdbProcessor) run(silent bool) error {
 	//wg.Add(op.otsdbcc)
 	startTime := time.Now().Unix()
 	for _, metric := range metrics {
+		log.Println(fmt.Sprintf("Starting work on %s", metric))
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
 			return fmt.Errorf("Couldn't retrieve series list for %s : %s", metric, err)
 		}
+		bar := pb.StartNew(len(serieslist))
 		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
 		/*for _, series := range serieslist {
 			seriesCh <- series
@@ -75,16 +76,17 @@ func (op *otsdbProcessor) run(silent bool) error {
 					if err != nil {
 						return fmt.Errorf("Couldn't retrieve series for %s : %s", metric, err)
 					}
+					// log.Println(fmt.Sprintf("Processed %d-%d for %s", tr.Start, tr.End, series))
 					/*for i := 0; i < op.otsdbcc; i++ {
 						defer wg.Done()
 
 					}*/
 				}
 			}
+			bar.Increment()
 		}
-		bar.Increment()
+		bar.Finish()
 	}
-	bar.Finish()
 	log.Println("Import finished!")
 	return nil
 }
