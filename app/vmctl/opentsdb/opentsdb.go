@@ -202,8 +202,8 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 // GetData actually retrieves data for a series at a specified time range
 func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
 	expr := Expression{}
-	expr.Outputs = append(expr.Outputs, outputObj{Id: "a", Alias: "query"})
-	expr.Metrics = append(expr.Metrics, metricObj{Id: "a", Metric: series.Metric,
+	expr.Outputs = append(expr.Outputs, outputObj{ID: "a", Alias: "query"})
+	expr.Metrics = append(expr.Metrics, metricObj{ID: "a", Metric: series.Metric,
 		Filter: "f1", FillPolicy: fillObj{Policy: "nan"}})
 	expr.Time = timeObj{Start: start, End: end, Aggregator: rt.FirstOrder,
 		Downsampler: dSObj{Interval: rt.AggTime,
@@ -214,7 +214,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 		TagList = append(TagList, tagObj{Type: "literal_or", Tagk: k,
 			Filter: v, GroupBy: true})
 	}
-	expr.Filters = append(expr.Filters, filterObj{Id: "f1", Tags: TagList})
+	expr.Filters = append(expr.Filters, filterObj{ID: "f1", Tags: TagList})
 	// "expressions" is required in the query object or we get a 5xx, so force it to exist
 	expr.Expressions = make([]int, 0)
 	inputData, err := json.Marshal(expr)
