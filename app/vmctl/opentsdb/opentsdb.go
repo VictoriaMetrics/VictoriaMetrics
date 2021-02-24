@@ -56,19 +56,19 @@ type TimeRange struct {
 
 type MetaResults struct {
 	Type         string      `json:"type"`
-	metric       string      `json:"metric"`
-	tags         interface{} `json:"tags"`
-	limit        int         `json:"limit"`
-	time         int         `json:"time"`
+	metric       string
+	tags         interface{}
+	limit        int
+	time         int
 	Results      []Meta      `json:"results"`
-	startIndex   int         `json:"startIndex"`
-	totalResults int         `json:"totalResults"`
+	startIndex   int
+	totalResults int
 }
 
 // A meta object about a metric
 // only contain the tags/etc. and no data
 type Meta struct {
-	tsuid  string            `json:"tsuid"`
+	tsuid  string
 	Metric string            `json:"metric"`
 	Tags   map[string]string `json:"tags"`
 }
@@ -90,8 +90,8 @@ type QoObj struct {
 	Id      string      `json:"id"`
 	Alias   string      `json:"alias"`
 	Dps     [][]float64 `json:"dps"`
-	dpsMeta interface{} `json:"dpsMeta"`
-	meta    interface{} `json:"meta"`
+	dpsMeta interface{}
+	meta    interface{}
 }
 
 /*
