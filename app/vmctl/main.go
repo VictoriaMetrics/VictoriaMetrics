@@ -38,11 +38,11 @@ func main() {
 					}
 
 					oCfg := opentsdb.Config{
-						Addr:		 c.String(otsdbAddr),
-						Limit:		 c.Int(otsdbQueryLimit),
-						Retentions:	 c.StringSlice(otsdbRetentions),
-						Filters:	 c.StringSlice(otsdbFilters),
-						Normalize:	 c.Bool(otsdbNormalize),
+						Addr:		c.String(otsdbAddr),
+						Limit:		c.Int(otsdbQueryLimit),
+						Retentions: c.StringSlice(otsdbRetentions),
+						Filters:	c.StringSlice(otsdbFilters),
+						Normalize:	c.Bool(otsdbNormalize),
 					}
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {
@@ -51,12 +51,6 @@ func main() {
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Int(vmConcurrency))
 					return otsdbProcessor.run(c.Bool(globalSilent))
-					/*
-
-					processor := newInfluxProcessor(influxClient, importer,
-						c.Int(influxConcurrency), c.String(influxMeasurementFieldSeparator))
-					return processor.run(c.Bool(globalSilent))
-					*/
 				},
 			},
 			{

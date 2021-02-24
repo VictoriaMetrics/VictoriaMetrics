@@ -101,17 +101,17 @@ const (
 	otsdbConcurrency = "otsdb-concurrency"
 	otsdbQueryLimit  = "otsdb-query-limit"
 	otsdbRetentions  = "otsdb-retentions"
-	otsdbFilters	 = "otsdb-filters"
-	otsdbNormalize	 = "otsdb-normalize"
+	otsdbFilters     = "otsdb-filters"
+	otsdbNormalize   = "otsdb-normalize"
 )
 
 var (
 	otsdbFlags = []cli.Flag{
 		&cli.StringFlag{
-			Name:  otsdbAddr,
-			Value: "http://localhost:4242",
+			Name:     otsdbAddr,
+			Value:    "http://localhost:4242",
 			Required: true,
-			Usage: "OpenTSDB server addr",
+			Usage:    "OpenTSDB server addr",
 		},
 		&cli.IntFlag{
 			Name:  otsdbConcurrency,
@@ -129,8 +129,8 @@ var (
 			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
 		},
 		&cli.StringSliceFlag{
-			Name:  otsdbRetentions,
-			Value: nil,
+			Name:     otsdbRetentions,
+			Value:    nil,
 			Required: true,
 			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed " +
 				"for the query, the row size (in HBase) that will define how long each individual query is, " +

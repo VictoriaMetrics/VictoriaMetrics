@@ -58,12 +58,12 @@ type TimeRange struct {
 
 // MetaResults contains return data from search series lookup queries
 type MetaResults struct {
-	Type         string      `json:"type"`
+	Type    string `json:"type"`
+	Results []Meta `json:"results"`
 	//metric       string
 	//tags         interface{}
 	//limit        int
 	//time         int
-	Results      []Meta      `json:"results"`
 	//startIndex   int
 	//totalResults int
 }
@@ -92,9 +92,9 @@ type ExpressionOutput struct {
 
 // QoObj contains actual timeseries data from the returned data query
 type qoObj struct {
-	ID      string      `json:"id"`
-	Alias   string      `json:"alias"`
-	Dps     [][]float64 `json:"dps"`
+	ID    string      `json:"id"`
+	Alias string      `json:"alias"`
+	Dps   [][]float64 `json:"dps"`
 	//dpsMeta interface{}
 	//meta    interface{}
 }
@@ -165,7 +165,7 @@ func (c Client) FindMetrics(filter string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
-	defer func() { _ = resp.Body.Close()}()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve metric data from %s: %s", c.Addr, err)
@@ -186,7 +186,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
-	defer func() { _ = resp.Body.Close()}()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
@@ -227,7 +227,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
 	}
-	defer func() { _ = resp.Body.Close()}()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return Metric{}, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
