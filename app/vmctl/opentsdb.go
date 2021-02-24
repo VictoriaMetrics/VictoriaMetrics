@@ -67,7 +67,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 		if err != nil {
 			return fmt.Errorf("Couldn't retrieve series list for %s : %s", metric, err)
 		}
-		log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
+		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
 		/*for _, series := range serieslist {
 			seriesCh <- series
 		}*/
