@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Retention objects contain meta data about what to query for our run
 type Retention struct {
 	/*
 		OpenTSDB has two levels of aggregation,
@@ -29,6 +30,7 @@ type Retention struct {
 	QueryRanges []TimeRange
 }
 
+// Client object holds general config about how queries should be performed
 type Client struct {
 	Addr string
 	// The meta query limit for series returned
@@ -48,12 +50,13 @@ type Config struct {
 	Normalize  bool
 }
 
-// data about time ranges to query
+// TimeRange contains data about time ranges to query
 type TimeRange struct {
 	Start int64
 	End   int64
 }
 
+// MetaResults contains return data from search series lookup queries
 type MetaResults struct {
 	Type         string      `json:"type"`
 	metric       string
@@ -65,7 +68,7 @@ type MetaResults struct {
 	totalResults int
 }
 
-// A meta object about a metric
+// Meta A meta object about a metric
 // only contain the tags/etc. and no data
 type Meta struct {
 	tsuid  string
@@ -81,11 +84,13 @@ type Metric struct {
 	Values     []float64
 }
 
+// ExpressionOutput contains results from actual data queries
 type ExpressionOutput struct {
 	Outputs []QoObj     `json:"outputs"`
 	Query   interface{} `json:"query"`
 }
 
+// QoObj contains actual timeseries data from the returned data query
 type QoObj struct {
 	Id      string      `json:"id"`
 	Alias   string      `json:"alias"`
@@ -97,53 +102,54 @@ type QoObj struct {
 /*
 All of the following structs are to build a OpenTSDB expression object
 */
+// Expression objects format our data queries
 type Expression struct {
-	Time    TimeObj     `json:"time"`
-	Filters []FilterObj `json:"filters"`
-	Metrics []MetricObj `json:"metrics"`
+	Time    timeObj     `json:"time"`
+	Filters []filterObj `json:"filters"`
+	Metrics []metricObj `json:"metrics"`
 	// this just needs to be an empty object, so the value doesn't matter
 	Expressions []int       `json:"expressions"`
-	Outputs     []OutputObj `json:"outputs"`
+	Outputs     []outputObj `json:"outputs"`
 }
 
-type TimeObj struct {
+type timeObj struct {
 	Start       int64  `json:"start"`
 	End         int64  `json:"end"`
 	Aggregator  string `json:"aggregator"`
-	Downsampler DSObj  `json:"downsampler"`
+	Downsampler dSObj  `json:"downsampler"`
 }
 
-type DSObj struct {
+type dSObj struct {
 	Interval   string  `json:"interval"`
 	Aggregator string  `json:"aggregator"`
-	FillPolicy FillObj `json:"fillPolicy"`
+	FillPolicy fillObj `json:"fillPolicy"`
 }
 
-type FillObj struct {
+type fillObj struct {
 	// we'll always hard-code to NaN here, so we don't need value
 	Policy string `json:"policy"`
 }
 
-type FilterObj struct {
-	Tags []TagObj `json:"tags"`
+type filterObj struct {
+	Tags []tagObj `json:"tags"`
 	Id   string   `json:"id"`
 }
 
-type TagObj struct {
+type tagObj struct {
 	Type    string `json:"type"`
 	Tagk    string `json:"tagk"`
 	Filter  string `json:"filter"`
 	GroupBy bool   `json:"groupBy"`
 }
 
-type MetricObj struct {
+type metricObj struct {
 	Id         string  `json:"id"`
 	Metric     string  `json:"metric"`
 	Filter     string  `json:"filter"`
-	FillPolicy FillObj `json:"fillPolicy"`
+	FillPolicy fillObj `json:"fillPolicy"`
 }
 
-type OutputObj struct {
+type outputObj struct {
 	Id    string `json:"id"`
 	Alias string `json:"alias"`
 }
@@ -196,19 +202,19 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 // Get data for series
 func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
 	expr := Expression{}
-	expr.Outputs = append(expr.Outputs, OutputObj{Id: "a", Alias: "query"})
-	expr.Metrics = append(expr.Metrics, MetricObj{Id: "a", Metric: series.Metric,
-		Filter: "f1", FillPolicy: FillObj{Policy: "nan"}})
-	expr.Time = TimeObj{Start: start, End: end, Aggregator: rt.FirstOrder,
-		Downsampler: DSObj{Interval: rt.AggTime,
+	expr.Outputs = append(expr.Outputs, outputObj{Id: "a", Alias: "query"})
+	expr.Metrics = append(expr.Metrics, metricObj{Id: "a", Metric: series.Metric,
+		Filter: "f1", FillPolicy: fillObj{Policy: "nan"}})
+	expr.Time = timeObj{Start: start, End: end, Aggregator: rt.FirstOrder,
+		Downsampler: dSObj{Interval: rt.AggTime,
 			Aggregator: rt.SecondOrder,
-			FillPolicy: FillObj{Policy: "nan"}}}
-	var TagList []TagObj
+			FillPolicy: fillObj{Policy: "nan"}}}
+	var TagList []tagObj
 	for k, v := range series.Tags {
-		TagList = append(TagList, TagObj{Type: "literal_or", Tagk: k,
+		TagList = append(TagList, tagObj{Type: "literal_or", Tagk: k,
 			Filter: v, GroupBy: true})
 	}
-	expr.Filters = append(expr.Filters, FilterObj{Id: "f1", Tags: TagList})
+	expr.Filters = append(expr.Filters, filterObj{Id: "f1", Tags: TagList})
 	// "expressions" is required in the query object or we get a 5xx, so force it to exist
 	expr.Expressions = make([]int, 0)
 	inputData, err := json.Marshal(expr)
