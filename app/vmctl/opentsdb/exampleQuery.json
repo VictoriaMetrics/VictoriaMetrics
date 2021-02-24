@@ -56,7 +56,7 @@
        }
    ],
    "expressions": [],
-    "outputs":[
-      {"id":"a", "alias":"query"}
-    ]
+   "outputs":[
+     {"id":"a", "alias":"query"}
+   ]
 }

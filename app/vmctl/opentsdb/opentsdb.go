@@ -98,54 +98,54 @@ type QoObj struct {
 All of the following structs are to build a OpenTSDB expression object
 */
 type Expression struct {
-	Time TimeObj
-	Filters	[]FilterObj
-	Metrics	[]MetricObj
+	Time TimeObj	`json:"time"`
+	Filters	[]FilterObj	`json:"filters"`
+	Metrics	[]MetricObj	`json:"metrics"`
 	// this just needs to be an empty object, so the value doesn't matter
-	expressions []int
-	Outputs	[]OutputObj
+	Expressions []int	`json:"expressions"`
+	Outputs	[]OutputObj	`json:"outputs"`
 }
 
 type TimeObj struct {
-	Start	int64
-	End	int64
-	Aggregator string
-	Downsampler DSObj
+	Start	int64	`json:"start"`
+	End	int64	`json:"end"`
+	Aggregator string	`json:"aggregator"`
+	Downsampler DSObj	`json:"downsampler"`
 }
 
 type DSObj struct {
-	Interval string
-	Aggregator string
-	FillPolicy FillObj
+	Interval string	`json:"interval"`
+	Aggregator string	`json:"aggregator"`
+	FillPolicy FillObj	`json:"fillPolicy"`
 }
 
 type FillObj struct {
 	// we'll always hard-code to NaN here, so we don't need value
-	Policy string
+	Policy string	`json:"policy"`
 }
 
 type FilterObj struct {
-	Tags []TagObj
-	Id	string
+	Tags []TagObj	`json:"tags"`
+	Id	string	`json:"id"`
 }
 
 type TagObj struct {
-	Type string
-	Tagk string
-	Filter string
-	GroupBy bool
+	Type string	`json:"type"`
+	Tagk string	`json:"tagk"`
+	Filter string	`json:"filter"`
+	GroupBy bool	`json:"groupBy"`
 }
 
 type MetricObj struct {
-	Id	string
-	Metric	string
-	Filter	string
-	FillPolicy FillObj
+	Id	string	`json:"id"`
+	Metric	string	`json:"metric"`
+	Filter	string	`json:"filter"`
+	FillPolicy FillObj	`json:"fillPolicy"`
 }
 
 type OutputObj struct {
-	Id	string
-	Alias	string
+	Id	string	`json:"id"`
+	Alias	string	`json:"alias"`
 }
 /* End expression object structs */
 
@@ -207,8 +207,11 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 										  Filter: v, GroupBy: true})
 	}
 	expr.Filters = append(expr.Filters, FilterObj{Id: "f1", Tags: TagList})
+	// "expressions" is required in the query object or we get a 5xx, so force it to exist
+	expr.Expressions = make([]int, 0)
 
 	inputData, err := json.Marshal(expr)
+	log.Println("Query: ", string(inputData))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
@@ -226,6 +229,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
 	}
 	if len(output.Outputs) < 1 {
+		log.Println("Incoming data: ", string(body))
 		return Metric{}, nil
 	}
 	log.Println("De-serialized: ", output)
