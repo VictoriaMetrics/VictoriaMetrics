@@ -45,6 +45,7 @@ type Client struct {
 type Config struct {
 	Addr       string
 	Limit      int
+	Offset     int
 	Retentions []string
 	Filters    []string
 	Normalize  bool
@@ -263,7 +264,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
 	for _, r := range cfg.Retentions {
-		first, aggTime, second, tr := convertRetention(r)
+		first, aggTime, second, tr := convertRetention(r, cfg.Offset)
 		retentions = append(retentions, Retention{FirstOrder: first, SecondOrder: second,
 			AggTime: aggTime, QueryRanges: tr})
 	}

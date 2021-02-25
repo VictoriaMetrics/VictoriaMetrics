@@ -16,7 +16,12 @@ var (
 )
 
 // Convert an incoming retention "string" into the component parts
-func convertRetention(retention string) (string, string, string, []TimeRange) {
+func convertRetention(retention string, offset int) (string, string, string, []TimeRange) {
+	/*
+		Our "offset" is the number of days we should step
+		back before starting to scan for data
+	*/
+	offset = offset * 24 * 60 * 60
 	/*
 		A retention string coming in looks like
 		sum-1m-avg:1h:30d
@@ -40,7 +45,7 @@ func convertRetention(retention string) (string, string, string, []TimeRange) {
 	ttlSecs := ttl.Seconds()
 	var timeChunks []TimeRange
 	var i int64
-	for i = 0; i < int64(ttlSecs); i = i + int64(rowSecs) {
+	for i = int64(offset); i <= int64(ttlSecs); i = i + int64(rowSecs) {
 		timeChunks = append(timeChunks, TimeRange{Start: i + int64(rowSecs), End: i})
 	}
 	// FirstOrder, AggTime, SecondOrder, RowSize, TTL

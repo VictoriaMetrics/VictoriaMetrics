@@ -100,6 +100,7 @@ const (
 	otsdbAddr        = "otsdb-addr"
 	otsdbConcurrency = "otsdb-concurrency"
 	otsdbQueryLimit  = "otsdb-query-limit"
+	otsdbOffsetDays  = "otsdb-offset-days"
 	otsdbRetentions  = "otsdb-retentions"
 	otsdbFilters     = "otsdb-filters"
 	otsdbNormalize   = "otsdb-normalize"
@@ -122,6 +123,11 @@ var (
 			Name:  otsdbQueryLimit,
 			Usage: "Result limit on meta queries to OpenTSDB",
 			Value: 100000,
+		},
+		&cli.IntFlag{
+			Name:  otsdbOffsetDays,
+			Usage: "Days to offset our 'starting' point for collecting data from OpenTSDB",
+			Value: 0,
 		},
 		&cli.BoolFlag{
 			Name:  otsdbNormalize,
