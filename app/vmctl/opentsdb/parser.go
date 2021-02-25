@@ -42,7 +42,8 @@ func convertRetention(retention string, offset int) (string, string, string, []T
 		panic(fmt.Sprintf("Failed to parse duration: %v", err))
 	}
 	rowSecs := rowLength.Seconds()
-	ttlSecs := ttl.Seconds()
+	// bump by the offset so we don't look at empty ranges any time offset > ttl
+	ttlSecs := ttl.Seconds() + float64(offset)
 	var timeChunks []TimeRange
 	var i int64
 	for i = int64(offset); i <= int64(ttlSecs); i = i + int64(rowSecs) {

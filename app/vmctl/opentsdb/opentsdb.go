@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	//"log"
 	"net/http"
 	"strings"
 )
@@ -93,9 +93,9 @@ type ExpressionOutput struct {
 
 // QoObj contains actual timeseries data from the returned data query
 type qoObj struct {
-	ID    string          `json:"id"`
-	Alias string          `json:"alias"`
-	Dps   [][]interface{} `json:"dps"`
+	ID    string      `json:"id"`
+	Alias string      `json:"alias"`
+	Dps   [][]float64 `json:"dps"`
 	//dpsMeta interface{}
 	//meta    interface{}
 }
@@ -161,7 +161,7 @@ type outputObj struct {
 // e.g. /api/suggest?type=metrics&q=system&max=100000
 func (c Client) FindMetrics(filter string) ([]string, error) {
 	q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", c.Addr, filter, c.Limit)
-	log.Println(q)
+	//log.Println(q)
 	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
@@ -249,8 +249,8 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	data.Metric = series.Metric
 	data.Tags = series.Tags
 	for _, tsobj := range output.Outputs[0].Dps {
-		data.Timestamps = append(data.Timestamps, tsobj[0].(int64))
-		data.Values = append(data.Values, tsobj[1].(float64))
+		data.Timestamps = append(data.Timestamps, int64(tsobj[0]))
+		data.Values = append(data.Values, tsobj[1])
 	}
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
