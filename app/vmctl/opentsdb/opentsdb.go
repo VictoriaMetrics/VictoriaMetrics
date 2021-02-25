@@ -93,9 +93,9 @@ type ExpressionOutput struct {
 
 // QoObj contains actual timeseries data from the returned data query
 type qoObj struct {
-	ID    string      `json:"id"`
-	Alias string      `json:"alias"`
-	Dps   [][]float64 `json:"dps"`
+	ID    string          `json:"id"`
+	Alias string          `json:"alias"`
+	Dps   [][]interface{} `json:"dps"`
 	//dpsMeta interface{}
 	//meta    interface{}
 }
@@ -249,8 +249,8 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	data.Metric = series.Metric
 	data.Tags = series.Tags
 	for _, tsobj := range output.Outputs[0].Dps {
-		data.Timestamps = append(data.Timestamps, int64(tsobj[0]))
-		data.Values = append(data.Values, tsobj[1])
+		data.Timestamps = append(data.Timestamps, tsobj[0].(int64))
+		data.Values = append(data.Values, tsobj[1].(float64))
 	}
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
