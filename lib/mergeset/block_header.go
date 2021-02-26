@@ -3,6 +3,7 @@ package mergeset
 import (
 	"fmt"
 	"sort"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -32,6 +33,10 @@ type blockHeader struct {
 
 	// The size of the lens block.
 	lensBlockSize uint32
+}
+
+func (bh *blockHeader) SizeBytes() int {
+	return int(unsafe.Sizeof(*bh)) + cap(bh.commonPrefix) + cap(bh.firstItem)
 }
 
 func (bh *blockHeader) Reset() {

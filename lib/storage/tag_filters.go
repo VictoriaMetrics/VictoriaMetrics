@@ -28,14 +28,16 @@ func convertToCompositeTagFilterss(tfss []*TagFilters) []*TagFilters {
 func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	// Search for metric name filter, which must be used for creating composite filters.
 	var name []byte
+	hasPositiveFilter := false
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 && !tf.isNegative && !tf.isRegexp {
 			name = tf.value
-			break
+		} else if !tf.isNegative {
+			hasPositiveFilter = true
 		}
 	}
 	if len(name) == 0 {
-		// There is no metric name filter, so composite filters cannot be created.
+		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
 	tfsNew := make([]tagFilter, 0, len(tfs.tfs))
@@ -43,7 +45,7 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 	compositeFilters := 0
 	for _, tf := range tfs.tfs {
 		if len(tf.key) == 0 {
-			if tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
+			if !hasPositiveFilter || tf.isNegative || tf.isRegexp || string(tf.value) != string(name) {
 				tfsNew = append(tfsNew, tf)
 			}
 			continue
@@ -61,12 +63,19 @@ func convertToCompositeTagFilters(tfs *TagFilters) *TagFilters {
 		compositeFilters++
 	}
 	if compositeFilters == 0 {
+		atomic.AddUint64(&compositeFilterMissingConversions, 1)
 		return tfs
 	}
 	tfsCompiled := NewTagFilters()
 	tfsCompiled.tfs = tfsNew
+	atomic.AddUint64(&compositeFilterSuccessConversions, 1)
 	return tfsCompiled
 }
+
+var (
+	compositeFilterSuccessConversions uint64
+	compositeFilterMissingConversions uint64
+)
 
 // TagFilters represents filters used for filtering tags.
 type TagFilters struct {
@@ -213,7 +222,9 @@ type tagFilter struct {
 	value      []byte
 	isNegative bool
 	isRegexp   bool
-	matchCost  uint64
+
+	// matchCost is a cost for matching a filter against a single string.
+	matchCost uint64
 
 	// Prefix always contains {nsPrefixTagToMetricIDs, key}.
 	// Additionally it contains:
@@ -237,20 +248,30 @@ type tagFilter struct {
 	graphiteReverseSuffix []byte
 }
 
+func (tf *tagFilter) isComposite() bool {
+	k := tf.key
+	return len(k) > 0 && k[0] == compositeTagKeyPrefix
+}
+
 func (tf *tagFilter) Less(other *tagFilter) bool {
-	// Move regexp and negative filters to the end, since they require scanning
-	// all the entries for the given label.
+	// Move composite filters to the top, since they usually match lower number of time series.
+	// Move regexp filters to the bottom, since they require scanning all the entries for the given label.
+	isCompositeA := tf.isComposite()
+	isCompositeB := tf.isComposite()
+	if isCompositeA != isCompositeB {
+		return isCompositeA
+	}
 	if tf.matchCost != other.matchCost {
 		return tf.matchCost < other.matchCost
-	}
-	if tf.isNegative != other.isNegative {
-		return !tf.isNegative
 	}
 	if tf.isRegexp != other.isRegexp {
 		return !tf.isRegexp
 	}
 	if len(tf.orSuffixes) != len(other.orSuffixes) {
 		return len(tf.orSuffixes) < len(other.orSuffixes)
+	}
+	if tf.isNegative != other.isNegative {
+		return !tf.isNegative
 	}
 	return bytes.Compare(tf.prefix, other.prefix) < 0
 }
@@ -315,9 +336,6 @@ func (tf *tagFilter) InitFromGraphiteQuery(commonPrefix, query []byte, paths []s
 	tf.prefix = marshalTagValueNoTrailingTagSeparator(tf.prefix, []byte(prefix))
 	tf.orSuffixes = append(tf.orSuffixes[:0], orSuffixes...)
 	tf.reSuffixMatch, tf.matchCost = newMatchFuncForOrSuffixes(orSuffixes)
-	if isNegative {
-		tf.matchCost *= negativeMatchCostMultiplier
-	}
 }
 
 func getCommonPrefix(ss []string) (string, []string) {
@@ -385,9 +403,6 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 		tf.orSuffixes = append(tf.orSuffixes[:0], "")
 		tf.isEmptyMatch = len(prefix) == 0
 		tf.matchCost = fullMatchCost
-		if isNegative {
-			tf.matchCost *= negativeMatchCostMultiplier
-		}
 		return nil
 	}
 	rcv, err := getRegexpFromCache(expr)
@@ -397,9 +412,6 @@ func (tf *tagFilter) Init(commonPrefix, key, value []byte, isNegative, isRegexp 
 	tf.orSuffixes = append(tf.orSuffixes[:0], rcv.orValues...)
 	tf.reSuffixMatch = rcv.reMatch
 	tf.matchCost = rcv.reCost
-	if isNegative {
-		tf.matchCost *= negativeMatchCostMultiplier
-	}
 	tf.isEmptyMatch = len(prefix) == 0 && tf.reSuffixMatch(nil)
 	if !tf.isNegative && len(key) == 0 && strings.IndexByte(rcv.literalSuffix, '.') >= 0 {
 		// Reverse suffix is needed only for non-negative regexp filters on __name__ that contains dots.
@@ -570,8 +582,6 @@ const (
 	middleMatchCost  = 6
 	reMatchCost      = 100
 )
-
-const negativeMatchCostMultiplier = 1000
 
 func getOptimizedReMatchFuncExt(reMatch func(b []byte) bool, sre *syntax.Regexp) (func(b []byte) bool, string, uint64) {
 	if isDotStar(sre) {

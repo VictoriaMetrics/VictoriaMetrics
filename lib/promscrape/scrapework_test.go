@@ -2,7 +2,6 @@ package promscrape
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -102,7 +101,8 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		sw.PushData = func(wr *prompbmarshal.WriteRequest) {
 			pushDataCalls++
 			if len(wr.Timeseries) > len(timeseriesExpected) {
-				pushDataErr = fmt.Errorf("too many time series obtained; got %d; want %d", len(wr.Timeseries), len(timeseriesExpected))
+				pushDataErr = fmt.Errorf("too many time series obtained; got %d; want %d\ngot\n%+v\nwant\n%+v",
+					len(wr.Timeseries), len(timeseriesExpected), wr.Timeseries, timeseriesExpected)
 				return
 			}
 			tsExpected := timeseriesExpected[:len(wr.Timeseries)]
@@ -271,20 +271,14 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 				Value: "foo.com",
 			},
 		},
-		MetricRelabelConfigs: []promrelabel.ParsedRelabelConfig{
-			{
-				SourceLabels: []string{"__address__", "job"},
-				Separator:    "/",
-				TargetLabel:  "instance",
-				Regex:        defaultRegexForRelabelConfig,
-				Replacement:  "$1",
-				Action:       "replace",
-			},
-			{
-				Action: "labeldrop",
-				Regex:  regexp.MustCompile("^c$"),
-			},
-		},
+		MetricRelabelConfigs: mustParseRelabelConfigs(`
+- action: replace
+  source_labels: ["__address__", "job"]
+  separator: "/"
+  target_label: "instance"
+- action: labeldrop
+  regex: c
+`),
 	}, `
 		foo{bar="baz",job="xx",instance="foo.com/xx"} 34.44 123
 		bar{a="b",job="xx",instance="foo.com/xx"} -3e4 123
@@ -311,18 +305,15 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 				Value: "foo.com",
 			},
 		},
-		MetricRelabelConfigs: []promrelabel.ParsedRelabelConfig{
-			{
-				Action:       "drop",
-				SourceLabels: []string{"a", "c"},
-				Regex:        regexp.MustCompile("^bd$"),
-			},
-			{
-				Action:       "drop",
-				SourceLabels: []string{"__name__"},
-				Regex:        regexp.MustCompile("^(dropme|up)$"),
-			},
-		},
+		MetricRelabelConfigs: mustParseRelabelConfigs(`
+- action: drop
+  separator: ""
+  source_labels: [a, c]
+  regex: "^bd$"
+- action: drop
+  source_labels: [__name__]
+  regex: "dropme|up"
+`),
 	}, `
 		foo{bar="baz",job="xx",instance="foo.com"} 34.44 123
 		up{job="xx",instance="foo.com"} 1 123
@@ -439,4 +430,12 @@ func timeseriesToString(ts *prompbmarshal.TimeSeries) string {
 	s := ts.Samples[0]
 	fmt.Fprintf(&sb, "%g %d", s.Value, s.Timestamp)
 	return sb.String()
+}
+
+func mustParseRelabelConfigs(config string) *promrelabel.ParsedConfigs {
+	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(config))
+	if err != nil {
+		panic(fmt.Errorf("cannot parse %q: %w", config, err))
+	}
+	return pcs
 }

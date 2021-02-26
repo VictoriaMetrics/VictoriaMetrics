@@ -31,7 +31,7 @@ type Filter struct {
 }
 
 // GetLabels returns ec2 labels according to sdc.
-func GetLabels(sdc *SDConfig) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

@@ -24,7 +24,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns DNS labels according to sdc.
-func GetLabels(sdc *SDConfig) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	if len(sdc.Names) == 0 {
 		return nil, fmt.Errorf("`names` cannot be empty in `dns_sd_config`")
 	}

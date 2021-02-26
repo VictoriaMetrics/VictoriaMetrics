@@ -2,24 +2,27 @@ package promrelabel
 
 import (
 	"reflect"
-	"regexp"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func TestApplyRelabelConfigs(t *testing.T) {
-	f := func(prcs []ParsedRelabelConfig, labels []prompbmarshal.Label, isFinalize bool, resultExpected []prompbmarshal.Label) {
+	f := func(config string, labels []prompbmarshal.Label, isFinalize bool, resultExpected []prompbmarshal.Label) {
 		t.Helper()
-		result := ApplyRelabelConfigs(labels, 0, prcs, isFinalize)
+		pcs, err := ParseRelabelConfigsData([]byte(config))
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", config, err)
+		}
+		result := pcs.Apply(labels, 0, isFinalize)
 		if !reflect.DeepEqual(result, resultExpected) {
 			t.Fatalf("unexpected result; got\n%v\nwant\n%v", result, resultExpected)
 		}
 	}
 	t.Run("empty_relabel_configs", func(t *testing.T) {
-		f(nil, nil, false, nil)
-		f(nil, nil, true, nil)
-		f(nil, []prompbmarshal.Label{
+		f("", nil, false, nil)
+		f("", nil, true, nil)
+		f("", []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "bar",
@@ -30,7 +33,7 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "bar",
 			},
 		})
-		f(nil, []prompbmarshal.Label{
+		f("", []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "bar",
@@ -55,35 +58,20 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, nil, false, []prompbmarshal.Label{})
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, nil, false, []prompbmarshal.Label{})
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace
+  target_label: bar
+`, nil, false, []prompbmarshal.Label{})
+		f(`
+- action: replace
+  source_labels: ["foo"]
+  target_label: bar
+`, nil, false, []prompbmarshal.Label{})
+		f(`
+- action: replace
+  source_labels: ["foo"]
+  target_label: "bar"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -94,16 +82,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "yyy",
 			},
 		})
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "bar",
-				Regex:                        regexp.MustCompile(".+"),
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace
+  source_labels: ["foo"]
+  target_label: "bar"
+  regex: ".+"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -116,17 +100,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"xxx", "foo"},
-				Separator:                    ";",
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "a-$1-b",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace
+  source_labels: ["xxx", "foo"]
+  target_label: "bar"
+  replacement: "a-$1-b"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -143,18 +122,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace-hit-target-label-with-capture-group", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"xxx", "foo"},
-				Separator:                    ";",
-				TargetLabel:                  "bar-$1",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "a-$1-b",
-				hasCaptureGroupInTargetLabel: true,
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace
+  source_labels: ["xxx", "foo"]
+  target_label: "bar-$1"
+  replacement: "a-$1-b"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -171,35 +144,21 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace_all-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace_all",
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, nil, false, []prompbmarshal.Label{})
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace_all",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, nil, false, []prompbmarshal.Label{})
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace_all",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace_all
+  source_labels: [foo]
+  target_label: "bar"
+`, nil, false, []prompbmarshal.Label{})
+		f(`
+- action: replace_all
+  source_labels: ["foo"]
+  target_label: "bar"
+`, nil, false, []prompbmarshal.Label{})
+		f(`
+- action: replace_all
+  source_labels: ["foo"]
+  target_label: "bar"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -210,16 +169,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "yyy",
 			},
 		})
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace_all",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "bar",
-				Regex:                        regexp.MustCompile(".+"),
-				Replacement:                  "$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace_all
+  source_labels: ["foo"]
+  target_label: "bar"
+  regex: ".+"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -232,17 +187,32 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace_all-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
+		f(`
+- action: replace_all
+  source_labels: ["xxx"]
+  target_label: "xxx"
+  regex: "-"
+  replacement: "."
+`, []prompbmarshal.Label{
 			{
-				Action:                       "replace_all",
-				SourceLabels:                 []string{"xxx", "foo"},
-				Separator:                    ";",
-				TargetLabel:                  "xxx",
-				Regex:                        regexp.MustCompile("(;)"),
-				Replacement:                  "-$1-",
-				hasCaptureGroupInReplacement: true,
+				Name:  "xxx",
+				Value: "a-b-c",
 			},
-		}, []prompbmarshal.Label{
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "a.b.c",
+			},
+		})
+	})
+	t.Run("replace_all-regex-hit", func(t *testing.T) {
+		f(`
+- action: replace_all
+  source_labels: ["xxx", "foo"]
+  target_label: "xxx"
+  regex: "(;)"
+  replacement: "-$1-"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "y;y",
@@ -255,23 +225,16 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace-add-multi-labels", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"xxx"},
-				TargetLabel:                  "bar",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "a-$1",
-				hasCaptureGroupInReplacement: true,
-			},
-			{
-				Action:       "replace",
-				SourceLabels: []string{"bar"},
-				TargetLabel:  "zar",
-				Regex:        defaultRegexForRelabelConfig,
-				Replacement:  "b-$1",
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace
+  source_labels: ["xxx"]
+  target_label: "bar"
+  replacement: "a-$1"
+- action: replace
+  source_labels: ["bar"]
+  target_label: "zar"
+  replacement: "b-$1"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -300,16 +263,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace-self", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:                       "replace",
-				SourceLabels:                 []string{"foo"},
-				TargetLabel:                  "foo",
-				Regex:                        defaultRegexForRelabelConfig,
-				Replacement:                  "a-$1",
-				hasCaptureGroupInReplacement: true,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: replace
+  source_labels: ["foo"]
+  target_label: "foo"
+  replacement: "a-$1"
+`, []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "aaxx",
@@ -322,14 +281,11 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("replace-missing-source", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:      "replace",
-				TargetLabel: "foo",
-				Regex:       defaultRegexForRelabelConfig,
-				Replacement: "foobar",
-			},
-		}, []prompbmarshal.Label{}, true, []prompbmarshal.Label{
+		f(`
+- action: replace
+  target_label: foo
+  replacement: "foobar"
+`, []prompbmarshal.Label{}, true, []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "foobar",
@@ -337,18 +293,14 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("keep_if_equal-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "keep_if_equal",
-				SourceLabels: []string{"foo", "bar"},
-			},
-		}, nil, true, nil)
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "keep_if_equal",
-				SourceLabels: []string{"xxx", "bar"},
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: keep_if_equal
+  source_labels: ["foo", "bar"]
+`, nil, true, nil)
+		f(`
+- action: keep_if_equal
+  source_labels: ["xxx", "bar"]
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -356,12 +308,10 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		}, true, []prompbmarshal.Label{})
 	})
 	t.Run("keep_if_equal-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "keep_if_equal",
-				SourceLabels: []string{"xxx", "bar"},
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: keep_if_equal
+  source_labels: ["xxx", "bar"]
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -382,18 +332,14 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("drop_if_equal-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "drop_if_equal",
-				SourceLabels: []string{"foo", "bar"},
-			},
-		}, nil, true, nil)
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "drop_if_equal",
-				SourceLabels: []string{"xxx", "bar"},
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: drop_if_equal
+  source_labels: ["foo", "bar"]
+`, nil, true, nil)
+		f(`
+- action: drop_if_equal
+  source_labels: ["xxx", "bar"]
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -406,12 +352,10 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("drop_if_equal-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "drop_if_equal",
-				SourceLabels: []string{"xxx", "bar"},
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: drop_if_equal
+  source_labels: [xxx, bar]
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -423,20 +367,16 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		}, true, []prompbmarshal.Label{})
 	})
 	t.Run("keep-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "keep",
-				SourceLabels: []string{"foo"},
-				Regex:        regexp.MustCompile(".+"),
-			},
-		}, nil, true, nil)
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "keep",
-				SourceLabels: []string{"foo"},
-				Regex:        regexp.MustCompile(".+"),
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: keep
+  source_labels: [foo]
+  regex: ".+"
+`, nil, true, nil)
+		f(`
+- action: keep
+  source_labels: [foo]
+  regex: ".+"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -444,13 +384,28 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		}, true, []prompbmarshal.Label{})
 	})
 	t.Run("keep-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
+		f(`
+- action: keep
+  source_labels: [foo]
+  regex: "yyy"
+`, []prompbmarshal.Label{
 			{
-				Action:       "keep",
-				SourceLabels: []string{"foo"},
-				Regex:        regexp.MustCompile(".+"),
+				Name:  "foo",
+				Value: "yyy",
 			},
-		}, []prompbmarshal.Label{
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("keep-hit-regexp", func(t *testing.T) {
+		f(`
+- action: keep
+  source_labels: ["foo"]
+  regex: ".+"
+`, []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "yyy",
@@ -463,20 +418,16 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("drop-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "drop",
-				SourceLabels: []string{"foo"},
-				Regex:        regexp.MustCompile(".+"),
-			},
-		}, nil, false, nil)
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "drop",
-				SourceLabels: []string{"foo"},
-				Regex:        regexp.MustCompile(".+"),
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: drop
+  source_labels: [foo]
+  regex: ".+"
+`, nil, false, nil)
+		f(`
+- action: drop
+  source_labels: [foo]
+  regex: ".+"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -489,13 +440,23 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("drop-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
+		f(`
+- action: drop
+  source_labels: [foo]
+  regex: yyy
+`, []prompbmarshal.Label{
 			{
-				Action:       "drop",
-				SourceLabels: []string{"foo"},
-				Regex:        regexp.MustCompile(".+"),
+				Name:  "foo",
+				Value: "yyy",
 			},
-		}, []prompbmarshal.Label{
+		}, true, []prompbmarshal.Label{})
+	})
+	t.Run("drop-hit-regexp", func(t *testing.T) {
+		f(`
+- action: drop
+  source_labels: [foo]
+  regex: ".+"
+`, []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "yyy",
@@ -503,14 +464,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		}, true, []prompbmarshal.Label{})
 	})
 	t.Run("hashmod-miss", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "hashmod",
-				SourceLabels: []string{"foo"},
-				TargetLabel:  "aaa",
-				Modulus:      123,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: hashmod
+  source_labels: [foo]
+  target_label: aaa
+  modulus: 123
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -527,14 +486,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("hashmod-hit", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:       "hashmod",
-				SourceLabels: []string{"foo"},
-				TargetLabel:  "aaa",
-				Modulus:      123,
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: hashmod
+  source_labels: [foo]
+  target_label: aaa
+  modulus: 123
+`, []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "yyy",
@@ -550,14 +507,97 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
-	t.Run("labelmap", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
+	t.Run("labelmap-copy-label", func(t *testing.T) {
+		f(`
+- action: labelmap
+  regex: "foo"
+  replacement: "bar"
+`, []prompbmarshal.Label{
 			{
-				Action:      "labelmap",
-				Regex:       regexp.MustCompile("foo(.+)"),
-				Replacement: "$1-x",
+				Name:  "foo",
+				Value: "yyy",
 			},
-		}, []prompbmarshal.Label{
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "bar",
+				Value: "yyy",
+			},
+			{
+				Name:  "foo",
+				Value: "yyy",
+			},
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
+		})
+	})
+	t.Run("labelmap-remove-prefix-dot-star", func(t *testing.T) {
+		f(`
+- action: labelmap
+  regex: "foo(.*)"
+`, []prompbmarshal.Label{
+			{
+				Name:  "xoo",
+				Value: "yyy",
+			},
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "bar",
+				Value: "aaa",
+			},
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
+			{
+				Name:  "xoo",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("labelmap-remove-prefix-dot-plus", func(t *testing.T) {
+		f(`
+- action: labelmap
+  regex: "foo(.+)"
+`, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "yyy",
+			},
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "bar",
+				Value: "aaa",
+			},
+			{
+				Name:  "foo",
+				Value: "yyy",
+			},
+			{
+				Name:  "foobar",
+				Value: "aaa",
+			},
+		})
+	})
+	t.Run("labelmap-regex", func(t *testing.T) {
+		f(`
+- action: labelmap
+  regex: "foo(.+)"
+  replacement: "$1-x"
+`, []prompbmarshal.Label{
 			{
 				Name:  "foo",
 				Value: "yyy",
@@ -582,13 +622,11 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("labelmap_all", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action:      "labelmap_all",
-				Regex:       regexp.MustCompile(`\.`),
-				Replacement: "-",
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: labelmap_all
+  regex: "\\."
+  replacement: "-"
+`, []prompbmarshal.Label{
 			{
 				Name:  "foo.bar.baz",
 				Value: "yyy",
@@ -608,13 +646,36 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			},
 		})
 	})
-	t.Run("labeldrop", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
+	t.Run("labelmap_all-regexp", func(t *testing.T) {
+		f(`
+- action: labelmap_all
+  regex: "ba(.)"
+  replacement: "${1}ss"
+`, []prompbmarshal.Label{
 			{
-				Action: "labeldrop",
-				Regex:  regexp.MustCompile("dropme.*"),
+				Name:  "foo.bar.baz",
+				Value: "yyy",
 			},
-		}, []prompbmarshal.Label{
+			{
+				Name:  "foozar",
+				Value: "aaa",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "foo.rss.zss",
+				Value: "yyy",
+			},
+			{
+				Name:  "foozar",
+				Value: "aaa",
+			},
+		})
+	})
+	t.Run("labeldrop", func(t *testing.T) {
+		f(`
+- action: labeldrop
+  regex: dropme
+`, []prompbmarshal.Label{
 			{
 				Name:  "aaa",
 				Value: "bbb",
@@ -625,12 +686,94 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "bbb",
 			},
 		})
-		f([]ParsedRelabelConfig{
+		f(`
+- action: labeldrop
+  regex: dropme
+`, []prompbmarshal.Label{
 			{
-				Action: "labeldrop",
-				Regex:  regexp.MustCompile("dropme.*"),
+				Name:  "xxx",
+				Value: "yyy",
 			},
-		}, []prompbmarshal.Label{
+			{
+				Name:  "dropme",
+				Value: "aaa",
+			},
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("labeldrop-prefix", func(t *testing.T) {
+		f(`
+- action: labeldrop
+  regex: "dropme.*"
+`, []prompbmarshal.Label{
+			{
+				Name:  "aaa",
+				Value: "bbb",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "aaa",
+				Value: "bbb",
+			},
+		})
+		f(`
+- action: labeldrop
+  regex: "dropme(.+)"
+`, []prompbmarshal.Label{
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+			{
+				Name:  "dropme-please",
+				Value: "aaa",
+			},
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+			{
+				Name:  "xxx",
+				Value: "yyy",
+			},
+		})
+	})
+	t.Run("labeldrop-regexp", func(t *testing.T) {
+		f(`
+- action: labeldrop
+  regex: ".*dropme.*"
+`, []prompbmarshal.Label{
+			{
+				Name:  "aaa",
+				Value: "bbb",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "aaa",
+				Value: "bbb",
+			},
+		})
+		f(`
+- action: labeldrop
+  regex: ".*dropme.*"
+`, []prompbmarshal.Label{
 			{
 				Name:  "xxx",
 				Value: "yyy",
@@ -655,12 +798,10 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		})
 	})
 	t.Run("labelkeep", func(t *testing.T) {
-		f([]ParsedRelabelConfig{
-			{
-				Action: "labelkeep",
-				Regex:  regexp.MustCompile("keepme.*"),
-			},
-		}, []prompbmarshal.Label{
+		f(`
+- action: labelkeep
+  regex: "keepme"
+`, []prompbmarshal.Label{
 			{
 				Name:  "keepme",
 				Value: "aaa",
@@ -671,12 +812,48 @@ func TestApplyRelabelConfigs(t *testing.T) {
 				Value: "aaa",
 			},
 		})
-		f([]ParsedRelabelConfig{
+		f(`
+- action: labelkeep
+  regex: keepme
+`, []prompbmarshal.Label{
 			{
-				Action: "labelkeep",
-				Regex:  regexp.MustCompile("keepme.*"),
+				Name:  "keepme",
+				Value: "aaa",
 			},
-		}, []prompbmarshal.Label{
+			{
+				Name:  "aaaa",
+				Value: "awef",
+			},
+			{
+				Name:  "keepme-aaa",
+				Value: "234",
+			},
+		}, false, []prompbmarshal.Label{
+			{
+				Name:  "keepme",
+				Value: "aaa",
+			},
+		})
+	})
+	t.Run("labelkeep-regexp", func(t *testing.T) {
+		f(`
+- action: labelkeep
+  regex: "keepme.*"
+`, []prompbmarshal.Label{
+			{
+				Name:  "keepme",
+				Value: "aaa",
+			},
+		}, true, []prompbmarshal.Label{
+			{
+				Name:  "keepme",
+				Value: "aaa",
+			},
+		})
+		f(`
+- action: labelkeep
+  regex: "keepme.*"
+`, []prompbmarshal.Label{
 			{
 				Name:  "keepme",
 				Value: "aaa",

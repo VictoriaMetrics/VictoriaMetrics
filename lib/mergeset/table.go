@@ -1333,12 +1333,6 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxItems u
 			for _, pw := range a {
 				itemsSum += pw.p.ph.itemsCount
 			}
-			if itemsSum < 1e6 && len(a) < maxPartsToMerge {
-				// Do not merge parts with too small number of items if the number of source parts
-				// isn't equal to maxPartsToMerge. This should reduce CPU usage and disk IO usage
-				// for small parts merge.
-				continue
-			}
 			if itemsSum > maxItems {
 				// There is no sense in checking the remaining bigger parts.
 				break

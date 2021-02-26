@@ -588,6 +588,8 @@ func (s *Storage) mustRotateIndexDB() {
 }
 
 // MustClose closes the storage.
+//
+// It is expected that the s is no longer used during the close.
 func (s *Storage) MustClose() {
 	close(s.stop)
 

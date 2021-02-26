@@ -38,6 +38,7 @@ var rollupFuncs = map[string]bool{
 	"distinct_over_time":    true,
 	"increases_over_time":   true,
 	"decreases_over_time":   true,
+	"increase_pure":         true,
 	"integrate":             true,
 	"ideriv":                true,
 	"lifetime":              true,

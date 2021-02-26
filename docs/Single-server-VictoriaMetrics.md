@@ -605,7 +605,8 @@ and it is easier to use when migrating from Graphite to VictoriaMetrics.
 ### Graphite Render API usage
 
 [VictoriaMetrics Enterprise](https://victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
-at `/render` endpoint. This subset is required for [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
+at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
+It supports `Storage-Step` http request header, which must be set to a step between data points stored in VictoriaMetrics when configuring Graphite datasource in Grafana.
 
 
 ### Graphite Metrics API usage

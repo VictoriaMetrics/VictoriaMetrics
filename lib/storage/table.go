@@ -189,6 +189,7 @@ func (tb *table) addPartitionNolock(pt *partition) {
 }
 
 // MustClose closes the table.
+// It is expected that all the pending searches on the table are finished before calling MustClose.
 func (tb *table) MustClose() {
 	close(tb.stop)
 	tb.retentionWatcherWG.Wait()
@@ -198,9 +199,10 @@ func (tb *table) MustClose() {
 	tb.ptws = nil
 	tb.ptwsLock.Unlock()
 
-	// Decrement references to partitions, so they may be eventually closed after
-	// pending searches are done.
 	for _, ptw := range ptws {
+		if n := atomic.LoadUint64(&ptw.refCount); n != 1 {
+			logger.Panicf("BUG: unexpected refCount=%d when closing the partition; probably there are pending searches", n)
+		}
 		ptw.decRef()
 	}
 
@@ -271,10 +273,10 @@ func (tb *table) AddRows(rows []rawRow) error {
 
 	ptwsX.a = tb.GetPartitions(ptwsX.a[:0])
 	ptws := ptwsX.a
-	for _, ptw := range ptws {
+	for i, ptw := range ptws {
 		singlePt := true
-		for i := range rows {
-			if !ptw.pt.HasTimestamp(rows[i].Timestamp) {
+		for j := range rows {
+			if !ptw.pt.HasTimestamp(rows[j].Timestamp) {
 				singlePt = false
 				break
 			}
@@ -283,16 +285,18 @@ func (tb *table) AddRows(rows []rawRow) error {
 			continue
 		}
 
-		// Move the partition with the matching rows to the front of tb.ptws,
-		// so it will be detected faster next time.
-		tb.ptwsLock.Lock()
-		for i := range tb.ptws {
-			if ptw == tb.ptws[i] {
-				tb.ptws[0], tb.ptws[i] = tb.ptws[i], tb.ptws[0]
-				break
+		if i != 0 {
+			// Move the partition with the matching rows to the front of tb.ptws,
+			// so it will be detected faster next time.
+			tb.ptwsLock.Lock()
+			for j := range tb.ptws {
+				if ptw == tb.ptws[j] {
+					tb.ptws[0], tb.ptws[j] = tb.ptws[j], tb.ptws[0]
+					break
+				}
 			}
+			tb.ptwsLock.Unlock()
 		}
-		tb.ptwsLock.Unlock()
 
 		// Fast path - add all the rows into the ptw.
 		ptw.pt.AddRows(rows)

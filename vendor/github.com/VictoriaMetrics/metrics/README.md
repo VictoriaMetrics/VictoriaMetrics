@@ -93,7 +93,7 @@ exposed from your application.
 #### How to implement [CounterVec](https://godoc.org/github.com/prometheus/client_golang/prometheus#CounterVec) in `metrics`?
 
 Just use [GetOrCreateCounter](http://godoc.org/github.com/VictoriaMetrics/metrics#GetOrCreateCounter)
-instead of `CounterVec.With`. See [this example](https://godoc.org/github.com/VictoriaMetrics/metrics#example-Counter--Vec) for details.
+instead of `CounterVec.With`. See [this example](https://pkg.go.dev/github.com/VictoriaMetrics/metrics#example-Counter-Vec) for details.
 
 
 #### Why [Histogram](http://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) buckets contain `vmrange` labels instead of `le` labels like in Prometheus histograms?

@@ -1469,12 +1469,6 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxRows ui
 				continue
 			}
 			rowsCount := getRowsCount(a)
-			if rowsCount < 1e6 && len(a) < maxPartsToMerge {
-				// Do not merge parts with too small number of rows if the number of source parts
-				// isn't equal to maxPartsToMerge. This should reduce CPU usage and disk IO usage
-				// for small parts merge.
-				continue
-			}
 			if rowsCount > maxRows {
 				// There is no need in verifying remaining parts with higher number of rows
 				needFreeSpace = true
