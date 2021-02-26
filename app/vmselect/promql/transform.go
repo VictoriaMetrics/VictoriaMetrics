@@ -343,6 +343,11 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
+	if limit < 3 {
+		// Preserve the first and the last bucket for better accuracy,
+		// since these buckets are usually `[0...leMin]` and `(leMax ... +Inf]`
+		limit = 3
+	}
 	tss := vmrangeBucketsToLE(args[1])
 	if len(tss) == 0 {
 		return nil, nil
@@ -404,15 +409,18 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 			}
 		}
 		for len(leGroup) > limit {
+			// Preserve the first and the last bucket for better accuracy,
+			// since these buckets are usually `[0...leMin]` and `(leMax ... +Inf]`
 			xxMinIdx := 0
-			for i, xx := range leGroup {
+			for i, xx := range leGroup[1 : len(leGroup)-1] {
 				if xx.hits < leGroup[xxMinIdx].hits {
 					xxMinIdx = i
 				}
 			}
+			xxMinIdx++
 			// Merge the leGroup[xxMinIdx] bucket with the smallest adjacent bucket in order to preserve
 			// the maximum accuracy.
-			if xxMinIdx+1 == len(leGroup) || (xxMinIdx > 0 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits) {
+			if xxMinIdx > 1 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits {
 				xxMinIdx--
 			}
 			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
@@ -578,7 +586,6 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 	m := groupLeTimeseries(tss)
 
 	// Calculate share for les
-
 	share := func(i int, les []float64, xss []leTimeseries) (q, lower, upper float64) {
 		leReq := les[i]
 		if math.IsNaN(leReq) || len(xss) == 0 {
