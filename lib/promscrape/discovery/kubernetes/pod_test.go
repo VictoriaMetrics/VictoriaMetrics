@@ -11,12 +11,12 @@ import (
 func TestParsePodListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nls, err := parsePodList([]byte(s))
+		objectsByKey, _, err := parsePodList([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if nls != nil {
-			t.Fatalf("unexpected non-nil PodList: %v", nls)
+		if len(objectsByKey) != 0 {
+			t.Fatalf("unexpected non-empty objectsByKey: %v", objectsByKey)
 		}
 	}
 	f(``)
@@ -228,22 +228,18 @@ func TestParsePodListSuccess(t *testing.T) {
   ]
 }
 `
-	pls, err := parsePodList([]byte(data))
+	objectsByKey, meta, err := parsePodList([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if len(pls.Items) != 1 {
-		t.Fatalf("unexpected length of PodList.Items; got %d; want %d", len(pls.Items), 1)
+	expectedResourceVersion := "72425"
+	if meta.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	pod := pls.Items[0]
-
-	// Check pod.appendTargetLabels()
-	labelss := pod.appendTargetLabels(nil)
-	var sortedLabelss [][]prompbmarshal.Label
-	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-	}
-	expectedLabels := [][]prompbmarshal.Label{
+	sortedLabelss := getSortedLabelss(objectsByKey, func(o object) []map[string]string {
+		return o.(*Pod).appendTargetLabels(nil)
+	})
+	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.17.0.2:1234",
 
@@ -280,7 +276,7 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_pod_annotationpresent_kubernetes_io_config_source": "true",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabels) {
-		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabels)
+	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
+		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
 	}
 }

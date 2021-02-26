@@ -11,6 +11,7 @@
   * `process_io_write_syscalls_total` - the number of write syscalls such as write and pwrite
   * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
   * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
+* FEATURE: vmagent: use watch API for Kuberntes service discovery. This should reduce load on Kuberntes API server when it tracks big number of objects (for example, 10K pods). This should also reduce the time needed for k8s targets discovery.
 * FEATURE: vmagent: export `vm_promscrape_target_relabel_duration_seconds` metric, which can be used for monitoring the time spend on relabeling for discovered targets.
 * FEATURE: vmagent: optimize [relabeling](https://victoriametrics.github.io/vmagent.html#relabeling) performance for common cases.
 * FEATURE: add `increase_pure(m[d])` function to MetricsQL. It works the same as `increase(m[d])` except of various edge cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.

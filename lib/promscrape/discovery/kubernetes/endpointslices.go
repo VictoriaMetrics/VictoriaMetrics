@@ -4,38 +4,70 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// parseEndpointsList parses EndpointSliceList from data.
-func parseEndpointSlicesList(data []byte) (*EndpointSliceList, error) {
-	var esl EndpointSliceList
-	if err := json.Unmarshal(data, &esl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal EndpointSliceList from %q: %w", data, err)
+// getEndpointSlicesLabels returns labels for k8s endpointSlices obtained from the given cfg.
+func getEndpointSlicesLabels(cfg *apiConfig) []map[string]string {
+	epss := getEndpointSlices(cfg)
+	var ms []map[string]string
+	for _, eps := range epss {
+		ms = eps.appendTargetLabels(ms, cfg.aw)
 	}
+	return ms
+}
 
-	return &esl, nil
+// getEndpointSlices retrieves endpointSlice with given apiConfig
+func getEndpointSlices(cfg *apiConfig) []*EndpointSlice {
+	os := cfg.aw.getObjectsByRole("endpointslices")
+	epss := make([]*EndpointSlice, len(os))
+	for i, o := range os {
+		epss[i] = o.(*EndpointSlice)
+	}
+	return epss
+}
+
+func (eps *EndpointSlice) key() string {
+	return eps.Metadata.key()
+}
+
+func parseEndpointSliceList(data []byte) (map[string]object, ListMeta, error) {
+	var epsl EndpointSliceList
+	if err := json.Unmarshal(data, &epsl); err != nil {
+		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointSliceList from %q: %w", data, err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, eps := range epsl.Items {
+		objectsByKey[eps.key()] = eps
+	}
+	return objectsByKey, epsl.Metadata, nil
+}
+
+func parseEndpointSlice(data []byte) (object, error) {
+	var eps EndpointSlice
+	if err := json.Unmarshal(data, &eps); err != nil {
+		return nil, err
+	}
+	return &eps, nil
 }
 
 // appendTargetLabels injects labels for endPointSlice to slice map
 // follows TargetRef for enrich labels with pod and service metadata
-func (eps *EndpointSlice) appendTargetLabels(ms []map[string]string, podsCache, servicesCache *sync.Map) []map[string]string {
+func (eps *EndpointSlice) appendTargetLabels(ms []map[string]string, aw *apiWatcher) []map[string]string {
 	var svc *Service
-	if s, ok := servicesCache.Load(eps.key()); ok {
-		svc = s.(*Service)
+	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
 	for _, ess := range eps.Endpoints {
-		var pod *Pod
-		if p, ok := podsCache.Load(ess.TargetRef.key()); ok {
-			pod = p.(*Pod)
+		var p *Pod
+		if o := aw.getObjectByRole("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {
+			p = o.(*Pod)
 		}
 		for _, epp := range eps.Ports {
 			for _, addr := range ess.Addresses {
-				ms = append(ms, getEndpointSliceLabelsForAddressAndPort(podPortsSeen, addr, eps, ess, epp, pod, svc))
+				ms = append(ms, getEndpointSliceLabelsForAddressAndPort(podPortsSeen, addr, eps, ess, epp, p, svc))
 			}
 
 		}
@@ -70,13 +102,12 @@ func (eps *EndpointSlice) appendTargetLabels(ms []map[string]string, podsCache, 
 		}
 	}
 	return ms
-
 }
 
 // getEndpointSliceLabelsForAddressAndPort gets labels for endpointSlice
 // from  address, Endpoint and EndpointPort
 // enriches labels with TargetRef
-// pod appended to seen Ports
+// p appended to seen Ports
 // if TargetRef matches
 func getEndpointSliceLabelsForAddressAndPort(podPortsSeen map[*Pod][]int, addr string, eps *EndpointSlice, ea Endpoint, epp EndpointPort, p *Pod, svc *Service) map[string]string {
 	m := getEndpointSliceLabels(eps, addr, ea, epp)
@@ -135,8 +166,8 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 // that groups service endpoints slices.
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointslice-v1beta1-discovery-k8s-io
 type EndpointSliceList struct {
-	Items    []EndpointSlice
-	Metadata listMetadata `json:"metadata"`
+	Metadata ListMeta
+	Items    []*EndpointSlice
 }
 
 // EndpointSlice - implements kubernetes endpoint slice.
@@ -146,10 +177,6 @@ type EndpointSlice struct {
 	Endpoints   []Endpoint
 	AddressType string
 	Ports       []EndpointPort
-}
-
-func (eps EndpointSlice) key() string {
-	return eps.Metadata.Namespace + "/" + eps.Metadata.Name
 }
 
 // Endpoint implements kubernetes object endpoint for endpoint slice.
@@ -166,24 +193,4 @@ type Endpoint struct {
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointconditions-v1beta1-discovery-k8s-io
 type EndpointConditions struct {
 	Ready bool
-}
-
-func processEndpointSlices(cfg *apiConfig, sc *SharedKubernetesCache, p *EndpointSlice, action string) {
-	key := buildSyncKey("endpointslices", cfg.setName, p.key())
-	switch action {
-	case "ADDED", "MODIFIED":
-		cfg.targetChan <- SyncEvent{
-			Labels:           p.appendTargetLabels(nil, sc.Pods, sc.Services),
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "DELETED":
-		cfg.targetChan <- SyncEvent{
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "ERROR":
-	default:
-		logger.Warnf("unexpected action: %s", action)
-	}
 }
