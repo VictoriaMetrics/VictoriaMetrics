@@ -19,6 +19,7 @@ import (
 
 var transformFuncsKeepMetricGroup = map[string]bool{
 	"ceil":               true,
+	"clamp":              true,
 	"clamp_max":          true,
 	"clamp_min":          true,
 	"floor":              true,
@@ -44,6 +45,7 @@ var transformFuncs = map[string]transformFunc{
 	"abs":                newTransformFuncOneArg(transformAbs),
 	"absent":             transformAbsent,
 	"ceil":               newTransformFuncOneArg(transformCeil),
+	"clamp":              transformClamp,
 	"clamp_max":          transformClampMax,
 	"clamp_min":          transformClampMin,
 	"day_of_month":       newTransformFuncDateTime(transformDayOfMonth),
@@ -61,6 +63,7 @@ var transformFuncs = map[string]transformFunc{
 	"minute":             newTransformFuncDateTime(transformMinute),
 	"month":              newTransformFuncDateTime(transformMonth),
 	"round":              transformRound,
+	"sign":               transformSign,
 	"scalar":             transformScalar,
 	"sort":               newTransformFuncSort(false),
 	"sort_desc":          newTransformFuncSort(true),
@@ -215,6 +218,31 @@ func transformCeil(v float64) float64 {
 	return math.Ceil(v)
 }
 
+func transformClamp(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 3); err != nil {
+		return nil, err
+	}
+	mins, err := getScalar(args[1], 1)
+	if err != nil {
+		return nil, err
+	}
+	maxs, err := getScalar(args[2], 2)
+	if err != nil {
+		return nil, err
+	}
+	tf := func(values []float64) {
+		for i, v := range values {
+			if v > maxs[i] {
+				values[i] = maxs[i]
+			} else if v < mins[i] {
+				values[i] = mins[i]
+			}
+		}
+	}
+	return doTransformValues(args[0], tf, tfa.fe)
+}
+
 func transformClampMax(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 2); err != nil {
@@ -315,6 +343,11 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
+	if limit < 3 {
+		// Preserve the first and the last bucket for better accuracy,
+		// since these buckets are usually `[0...leMin]` and `(leMax ... +Inf]`
+		limit = 3
+	}
 	tss := vmrangeBucketsToLE(args[1])
 	if len(tss) == 0 {
 		return nil, nil
@@ -376,15 +409,18 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 			}
 		}
 		for len(leGroup) > limit {
+			// Preserve the first and the last bucket for better accuracy,
+			// since these buckets are usually `[0...leMin]` and `(leMax ... +Inf]`
 			xxMinIdx := 0
-			for i, xx := range leGroup {
+			for i, xx := range leGroup[1 : len(leGroup)-1] {
 				if xx.hits < leGroup[xxMinIdx].hits {
 					xxMinIdx = i
 				}
 			}
+			xxMinIdx++
 			// Merge the leGroup[xxMinIdx] bucket with the smallest adjacent bucket in order to preserve
 			// the maximum accuracy.
-			if xxMinIdx+1 == len(leGroup) || (xxMinIdx > 0 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits) {
+			if xxMinIdx > 1 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits {
 				xxMinIdx--
 			}
 			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
@@ -550,7 +586,6 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 	m := groupLeTimeseries(tss)
 
 	// Calculate share for les
-
 	share := func(i int, les []float64, xss []leTimeseries) (q, lower, upper float64) {
 		leReq := les[i]
 		if math.IsNaN(leReq) || len(xss) == 0 {
@@ -649,14 +684,9 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	m := groupLeTimeseries(tss)
 
 	// Calculate quantile for each group in m
-
 	lastNonInf := func(i int, xss []leTimeseries) float64 {
 		for len(xss) > 0 {
 			xsLast := xss[len(xss)-1]
-			v := xsLast.ts.Values[i]
-			if v == 0 {
-				return nan
-			}
 			if !math.IsInf(xsLast.le, 0) {
 				return xsLast.le
 			}
@@ -700,8 +730,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 				continue
 			}
 			if math.IsInf(le, 0) {
-				vv := lastNonInf(i, xss)
-				return vv, vv, inf
+				break
 			}
 			if v == vPrev {
 				return lePrev, lePrev, v
@@ -1570,6 +1599,25 @@ func transformRound(tfa *transformFuncArg) ([]*timeseries, error) {
 			v -= math.Mod(v, n)
 			v, _ = math.Modf(v * p10)
 			values[i] = v / p10
+		}
+	}
+	return doTransformValues(args[0], tf, tfa.fe)
+}
+
+func transformSign(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	tf := func(values []float64) {
+		for i, v := range values {
+			sign := float64(0)
+			if v < 0 {
+				sign = -1
+			} else if v > 0 {
+				sign = 1
+			}
+			values[i] = sign
 		}
 	}
 	return doTransformValues(args[0], tf, tfa.fe)

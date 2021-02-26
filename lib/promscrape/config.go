@@ -6,11 +6,15 @@ import (
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -24,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
 
@@ -89,9 +94,10 @@ type ScrapeConfig struct {
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression bool `yaml:"disable_compression,omitempty"`
-	DisableKeepAlive   bool `yaml:"disable_keepalive,omitempty"`
-	StreamParse        bool `yaml:"stream_parse,omitempty"`
+	DisableCompression  bool          `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive    bool          `yaml:"disable_keepalive,omitempty"`
+	StreamParse         bool          `yaml:"stream_parse,omitempty"`
+	ScrapeAlignInterval time.Duration `yaml:"scrape_align_interval,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -194,7 +200,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "kubernetes_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -222,7 +228,7 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.OpenStackSDConfigs {
 			sdc := &sc.OpenStackSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendOpenstackScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "openstack_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -250,7 +256,7 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 		for j := range sc.DockerSwarmConfigs {
 			sdc := &sc.DockerSwarmConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendDockerSwarmScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dockerswarm_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -278,7 +284,7 @@ func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.ConsulSDConfigs {
 			sdc := &sc.ConsulSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendConsulScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consul_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -306,7 +312,7 @@ func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.EurekaSDConfigs {
 			sdc := &sc.EurekaSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendEurekaScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "eureka_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -334,7 +340,7 @@ func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.DNSSDConfigs {
 			sdc := &sc.DNSSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendDNSScrapeWork(dst, sdc, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dns_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -362,7 +368,7 @@ func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.EC2SDConfigs {
 			sdc := &sc.EC2SDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendEC2ScrapeWork(dst, sdc, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "ec2_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -390,7 +396,7 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.GCESDConfigs {
 			sdc := &sc.GCESDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendGCEScrapeWork(dst, sdc, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "gce_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -480,13 +486,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
-	var relabelConfigs []promrelabel.ParsedRelabelConfig
-	relabelConfigs, err = promrelabel.ParseRelabelConfigs(relabelConfigs[:0], sc.RelabelConfigs)
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	var metricRelabelConfigs []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs, err = promrelabel.ParseRelabelConfigs(metricRelabelConfigs[:0], sc.MetricRelabelConfigs)
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
@@ -508,6 +512,9 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableCompression:   sc.DisableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
+		scrapeAlignInterval:  sc.ScrapeAlignInterval,
+
+		cache: newScrapeWorkCache(),
 	}
 	return swc, nil
 }
@@ -524,96 +531,114 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	externalLabels       map[string]string
-	relabelConfigs       []promrelabel.ParsedRelabelConfig
-	metricRelabelConfigs []promrelabel.ParsedRelabelConfig
+	relabelConfigs       *promrelabel.ParsedConfigs
+	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
 	disableCompression   bool
 	disableKeepAlive     bool
 	streamParse          bool
+	scrapeAlignInterval  time.Duration
+
+	cache *scrapeWorkCache
 }
 
-func appendKubernetesScrapeWork(dst []*ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := kubernetes.GetLabels(sdc, baseDir)
+type scrapeWorkCache struct {
+	mu              sync.Mutex
+	m               map[string]*scrapeWorkEntry
+	lastCleanupTime uint64
+}
+
+type scrapeWorkEntry struct {
+	sw             *ScrapeWork
+	lastAccessTime uint64
+}
+
+func newScrapeWorkCache() *scrapeWorkCache {
+	return &scrapeWorkCache{
+		m: make(map[string]*scrapeWorkEntry),
+	}
+}
+
+func (swc *scrapeWorkCache) Get(key string) *ScrapeWork {
+	currentTime := fasttime.UnixTimestamp()
+	swc.mu.Lock()
+	swe := swc.m[key]
+	swe.lastAccessTime = currentTime
+	swc.mu.Unlock()
+	return swe.sw
+}
+
+func (swc *scrapeWorkCache) Set(key string, sw *ScrapeWork) {
+	currentTime := fasttime.UnixTimestamp()
+	swc.mu.Lock()
+	swc.m[key] = &scrapeWorkEntry{
+		sw:             sw,
+		lastAccessTime: currentTime,
+	}
+	if currentTime > swc.lastCleanupTime+10*60 {
+		for k, swe := range swc.m {
+			if currentTime > swe.lastAccessTime+2*60 {
+				delete(swc.m, k)
+			}
+		}
+		swc.lastCleanupTime = currentTime
+	}
+	swc.mu.Unlock()
+}
+
+type targetLabelsGetter interface {
+	GetLabels(baseDir string) ([]map[string]string, error)
+}
+
+func appendSDScrapeWork(dst []*ScrapeWork, sdc targetLabelsGetter, baseDir string, swc *scrapeWorkConfig, discoveryType string) ([]*ScrapeWork, bool) {
+	targetLabels, err := sdc.GetLabels(baseDir)
 	if err != nil {
-		logger.Errorf("error when discovering kubernetes targets for `job_name` %q: %s; skipping it", swc.jobName, err)
+		logger.Errorf("skipping %s targets for job_name %q because of error: %s", discoveryType, swc.jobName, err)
 		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config"), true
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, discoveryType), true
 }
 
-func appendOpenstackScrapeWork(dst []*ScrapeWork, sdc *openstack.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := openstack.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering openstack targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
+func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, discoveryType string) []*ScrapeWork {
+	startTime := time.Now()
+	// Process targetLabels in parallel in order to reduce processing time for big number of targetLabels.
+	type result struct {
+		sw  *ScrapeWork
+		err error
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "openstack_sd_config"), true
-}
-
-func appendDockerSwarmScrapeWork(dst []*ScrapeWork, sdc *dockerswarm.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := dockerswarm.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering dockerswarm targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
+	resultCh := make(chan result)
+	workCh := make(chan map[string]string)
+	goroutines := cgroup.AvailableCPUs()
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			for metaLabels := range workCh {
+				target := metaLabels["__address__"]
+				sw, err := swc.getScrapeWork(target, nil, metaLabels)
+				if err != nil {
+					err = fmt.Errorf("skipping %s target %q for job_name %q because of error: %w", discoveryType, target, swc.jobName, err)
+				}
+				resultCh <- result{
+					sw:  sw,
+					err: err,
+				}
+			}
+		}()
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dockerswarm_sd_config"), true
-}
-
-func appendConsulScrapeWork(dst []*ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := consul.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering consul targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config"), true
-}
-
-func appendEurekaScrapeWork(dst []*ScrapeWork, sdc *eureka.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := eureka.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering eureka targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "eureka_sd_config"), true
-}
-
-func appendDNSScrapeWork(dst []*ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := dns.GetLabels(sdc)
-	if err != nil {
-		logger.Errorf("error when discovering dns targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dns_sd_config"), true
-}
-
-func appendEC2ScrapeWork(dst []*ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := ec2.GetLabels(sdc)
-	if err != nil {
-		logger.Errorf("error when discovering ec2 targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config"), true
-}
-
-func appendGCEScrapeWork(dst []*ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := gce.GetLabels(sdc)
-	if err != nil {
-		logger.Errorf("error when discovering gce targets for `job_name` %q: %s; skippint it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config"), true
-}
-
-func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []*ScrapeWork {
 	for _, metaLabels := range targetLabels {
-		target := metaLabels["__address__"]
-		var err error
-		dst, err = appendScrapeWork(dst, swc, target, nil, metaLabels)
-		if err != nil {
-			logger.Errorf("error when parsing `%s` target %q for `job_name` %q: %s; skipping it", sectionName, target, swc.jobName, err)
+		workCh <- metaLabels
+	}
+	close(workCh)
+	for range targetLabels {
+		r := <-resultCh
+		if r.err != nil {
+			logger.Errorf("%s", r.err)
 			continue
 		}
+		if r.sw != nil {
+			dst = append(dst, r.sw)
+		}
 	}
+	metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_target_relabel_duration_seconds{type=%q}", discoveryType)).UpdateDuration(startTime)
 	return dst
 }
 
@@ -669,18 +694,55 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 			logger.Errorf("`static_configs` target for `job_name` %q cannot be empty; skipping it", swc.jobName)
 			continue
 		}
-		var err error
-		dst, err = appendScrapeWork(dst, swc, target, stc.Labels, metaLabels)
+		sw, err := swc.getScrapeWork(target, stc.Labels, metaLabels)
 		if err != nil {
 			// Do not return this error, since other targets may be valid
 			logger.Errorf("error when parsing `static_configs` target %q for `job_name` %q: %s; skipping it", target, swc.jobName, err)
 			continue
 		}
+		if sw != nil {
+			dst = append(dst, sw)
+		}
 	}
 	return dst
 }
 
-func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) ([]*ScrapeWork, error) {
+func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
+	key := getScrapeWorkKey(extraLabels, metaLabels)
+	if sw := swc.cache.Get(key); sw != nil {
+		return sw, nil
+	}
+	sw, err := swc.getScrapeWorkReal(target, extraLabels, metaLabels)
+	if err != nil {
+		swc.cache.Set(key, sw)
+	}
+	return sw, err
+}
+
+func getScrapeWorkKey(extraLabels, metaLabels map[string]string) string {
+	var b []byte
+	b = appendSortedKeyValuePairs(b, extraLabels)
+	b = appendSortedKeyValuePairs(b, metaLabels)
+	return string(b)
+}
+
+func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		dst = strconv.AppendQuote(dst, k)
+		dst = append(dst, ':')
+		dst = strconv.AppendQuote(dst, m[k])
+		dst = append(dst, ',')
+	}
+	dst = append(dst, '\n')
+	return dst
+}
+
+func (swc *scrapeWorkConfig) getScrapeWorkReal(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
@@ -689,7 +751,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		// Reduce memory usage by interning all the strings in originalLabels.
 		internLabelStrings(originalLabels)
 	}
-	labels = promrelabel.ApplyRelabelConfigs(labels, 0, swc.relabelConfigs, false)
+	labels = swc.relabelConfigs.Apply(labels, 0, false)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
@@ -699,7 +761,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 	if len(labels) == 0 {
 		// Drop target without labels.
 		droppedTargetsMap.Register(originalLabels)
-		return dst, nil
+		return nil, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
 	schemeRelabeled := promrelabel.GetLabelValueByName(labels, "__scheme__")
@@ -710,12 +772,12 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 	if len(addressRelabeled) == 0 {
 		// Drop target without scrape address.
 		droppedTargetsMap.Register(originalLabels)
-		return dst, nil
+		return nil, nil
 	}
 	if strings.Contains(addressRelabeled, "/") {
 		// Drop target with '/'
 		droppedTargetsMap.Register(originalLabels)
-		return dst, nil
+		return nil, nil
 	}
 	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
 	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
@@ -733,7 +795,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 	paramsStr := url.Values(paramsRelabeled).Encode()
 	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, addressRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
 	if _, err := url.Parse(scrapeURL); err != nil {
-		return dst, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %w",
+		return nil, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %w",
 			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
 	}
 	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
@@ -746,7 +808,7 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 	}
 	// Reduce memory usage by interning all the strings in labels.
 	internLabelStrings(labels)
-	dst = append(dst, &ScrapeWork{
+	sw := &ScrapeWork{
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       swc.scrapeInterval,
 		ScrapeTimeout:        swc.scrapeTimeout,
@@ -761,10 +823,11 @@ func appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConfig, target string, e
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          swc.streamParse,
+		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 
 		jobNameOriginal: swc.jobName,
-	})
-	return dst, nil
+	}
+	return sw, nil
 }
 
 func internLabelStrings(labels []prompbmarshal.Label) {

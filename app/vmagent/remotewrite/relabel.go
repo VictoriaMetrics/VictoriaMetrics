@@ -41,7 +41,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
 			len(*relabelConfigPaths), len(*remoteWriteURLs))
 	}
-	rcs.perURL = make([][]promrelabel.ParsedRelabelConfig, len(*remoteWriteURLs))
+	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
 			// Skip empty relabel config.
@@ -57,8 +57,8 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 }
 
 type relabelConfigs struct {
-	global []promrelabel.ParsedRelabelConfig
-	perURL [][]promrelabel.ParsedRelabelConfig
+	global *promrelabel.ParsedConfigs
+	perURL []*promrelabel.ParsedConfigs
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.
@@ -79,8 +79,8 @@ func initLabelsGlobal() {
 	}
 }
 
-func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label, prcs []promrelabel.ParsedRelabelConfig) []prompbmarshal.TimeSeries {
-	if len(extraLabels) == 0 && len(prcs) == 0 {
+func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
+	if len(extraLabels) == 0 && pcs.Len() == 0 {
 		// Nothing to change.
 		return tss
 	}
@@ -100,7 +100,7 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 				labels = append(labels, *extraLabel)
 			}
 		}
-		labels = promrelabel.ApplyRelabelConfigs(labels, labelsLen, prcs, true)
+		labels = pcs.Apply(labels, labelsLen, true)
 		if len(labels) == labelsLen {
 			// Drop the current time series, since relabeling removed all the labels.
 			continue

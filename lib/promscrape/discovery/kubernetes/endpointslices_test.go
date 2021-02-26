@@ -8,14 +8,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-func Test_parseEndpointSlicesListFail(t *testing.T) {
+func TestParseEndpointSliceListFail(t *testing.T) {
 	f := func(data string) {
-		eslList, err := parseEndpointSlicesList([]byte(data))
+		objectsByKey, _, err := parseEndpointSliceList([]byte(data))
 		if err == nil {
 			t.Errorf("unexpected result, test must fail! data: %s", data)
 		}
-		if eslList != nil {
-			t.Errorf("endpointSliceList must be nil, got: %v", eslList)
+		if len(objectsByKey) != 0 {
+			t.Errorf("EndpointSliceList must be emptry, got: %v", objectsByKey)
 		}
 	}
 
@@ -28,7 +28,7 @@ func Test_parseEndpointSlicesListFail(t *testing.T) {
 
 }
 
-func Test_parseEndpointSlicesListSuccess(t *testing.T) {
+func TestParseEndpointSliceListSuccess(t *testing.T) {
 	data := `{
   "kind": "EndpointSliceList",
   "apiVersion": "discovery.k8s.io/v1beta1",
@@ -176,22 +176,17 @@ func Test_parseEndpointSlicesListSuccess(t *testing.T) {
     }
   ]
 }`
-	esl, err := parseEndpointSlicesList([]byte(data))
+	objectsByKey, meta, err := parseEndpointSliceList([]byte(data))
 	if err != nil {
 		t.Errorf("cannot parse data for EndpointSliceList: %v", err)
 		return
 	}
-	if len(esl.Items) != 2 {
-		t.Fatalf("expected 2 items at endpointSliceList, got: %d", len(esl.Items))
+	expectedResourceVersion := "1177"
+	if meta.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-
-	firstEsl := esl.Items[0]
-	got := firstEsl.appendTargetLabels(nil, nil, nil)
-	sortedLables := [][]prompbmarshal.Label{}
-	for _, labels := range got {
-		sortedLables = append(sortedLables, discoveryutils.GetSortedLabels(labels))
-	}
-	expectedLabels := [][]prompbmarshal.Label{
+	sortedLabelss := getSortedLabelss(objectsByKey)
+	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.18.0.2:6443",
 			"__meta_kubernetes_endpointslice_address_type":              "IPv4",
@@ -201,253 +196,94 @@ func Test_parseEndpointSlicesListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_port_name":                 "https",
 			"__meta_kubernetes_endpointslice_port_protocol":             "TCP",
 			"__meta_kubernetes_namespace":                               "default",
-		})}
-	if !reflect.DeepEqual(sortedLables, expectedLabels) {
-		t.Fatalf("unexpected labels,\ngot:\n%v,\nwant:\n%v", sortedLables, expectedLabels)
+		}),
+		discoveryutils.GetSortedLabels(map[string]string{
+			"__address__": "10.244.0.3:53",
+			"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+			"__meta_kubernetes_endpointslice_address_target_name":                              "coredns-66bff467f8-z8czk",
+			"__meta_kubernetes_endpointslice_address_type":                                     "IPv4",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "kind-control-plane",
+			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+			"__meta_kubernetes_endpointslice_name":                                             "kube-dns-22mvb",
+			"__meta_kubernetes_endpointslice_port":                                             "53",
+			"__meta_kubernetes_endpointslice_port_name":                                        "dns-tcp",
+			"__meta_kubernetes_endpointslice_port_protocol":                                    "TCP",
+			"__meta_kubernetes_namespace":                                                      "kube-system",
+		}),
+		discoveryutils.GetSortedLabels(map[string]string{
+			"__address__": "10.244.0.3:9153",
+			"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+			"__meta_kubernetes_endpointslice_address_target_name":                              "coredns-66bff467f8-z8czk",
+			"__meta_kubernetes_endpointslice_address_type":                                     "IPv4",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "kind-control-plane",
+			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+			"__meta_kubernetes_endpointslice_name":                                             "kube-dns-22mvb",
+			"__meta_kubernetes_endpointslice_port":                                             "9153",
+			"__meta_kubernetes_endpointslice_port_name":                                        "metrics",
+			"__meta_kubernetes_endpointslice_port_protocol":                                    "TCP",
+			"__meta_kubernetes_namespace":                                                      "kube-system",
+		}),
+		discoveryutils.GetSortedLabels(map[string]string{
+			"__address__": "10.244.0.3:53",
+			"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+			"__meta_kubernetes_endpointslice_address_target_name":                              "coredns-66bff467f8-z8czk",
+			"__meta_kubernetes_endpointslice_address_type":                                     "IPv4",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "kind-control-plane",
+			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+			"__meta_kubernetes_endpointslice_name":                                             "kube-dns-22mvb",
+			"__meta_kubernetes_endpointslice_port":                                             "53",
+			"__meta_kubernetes_endpointslice_port_name":                                        "dns",
+			"__meta_kubernetes_endpointslice_port_protocol":                                    "UDP",
+			"__meta_kubernetes_namespace":                                                      "kube-system",
+		}),
+		discoveryutils.GetSortedLabels(map[string]string{
+			"__address__": "10.244.0.4:53",
+			"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+			"__meta_kubernetes_endpointslice_address_target_name":                              "coredns-66bff467f8-kpbhk",
+			"__meta_kubernetes_endpointslice_address_type":                                     "IPv4",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "kind-control-plane",
+			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+			"__meta_kubernetes_endpointslice_name":                                             "kube-dns-22mvb",
+			"__meta_kubernetes_endpointslice_port":                                             "53",
+			"__meta_kubernetes_endpointslice_port_name":                                        "dns-tcp",
+			"__meta_kubernetes_endpointslice_port_protocol":                                    "TCP",
+			"__meta_kubernetes_namespace":                                                      "kube-system",
+		}),
+		discoveryutils.GetSortedLabels(map[string]string{
+			"__address__": "10.244.0.4:9153",
+			"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+			"__meta_kubernetes_endpointslice_address_target_name":                              "coredns-66bff467f8-kpbhk",
+			"__meta_kubernetes_endpointslice_address_type":                                     "IPv4",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "kind-control-plane",
+			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+			"__meta_kubernetes_endpointslice_name":                                             "kube-dns-22mvb",
+			"__meta_kubernetes_endpointslice_port":                                             "9153",
+			"__meta_kubernetes_endpointslice_port_name":                                        "metrics",
+			"__meta_kubernetes_endpointslice_port_protocol":                                    "TCP",
+			"__meta_kubernetes_namespace":                                                      "kube-system",
+		}),
+		discoveryutils.GetSortedLabels(map[string]string{
+			"__address__": "10.244.0.4:53",
+			"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+			"__meta_kubernetes_endpointslice_address_target_name":                              "coredns-66bff467f8-kpbhk",
+			"__meta_kubernetes_endpointslice_address_type":                                     "IPv4",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "kind-control-plane",
+			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+			"__meta_kubernetes_endpointslice_name":                                             "kube-dns-22mvb",
+			"__meta_kubernetes_endpointslice_port":                                             "53",
+			"__meta_kubernetes_endpointslice_port_name":                                        "dns",
+			"__meta_kubernetes_endpointslice_port_protocol":                                    "UDP",
+			"__meta_kubernetes_namespace":                                                      "kube-system",
+		}),
+	}
+	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
+		t.Fatalf("unexpected labels,\ngot:\n%v,\nwant:\n%v", sortedLabelss, expectedLabelss)
 	}
 
-}
-
-func TestEndpointSlice_appendTargetLabels(t *testing.T) {
-	type fields struct {
-		Metadata    ObjectMeta
-		Endpoints   []Endpoint
-		AddressType string
-		Ports       []EndpointPort
-	}
-	type args struct {
-		ms   []map[string]string
-		pods []Pod
-		svcs []Service
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   [][]prompbmarshal.Label
-	}{
-		{
-			name: "simple eps",
-			args: args{},
-			fields: fields{
-				Metadata: ObjectMeta{
-					Name:      "fake-esl",
-					Namespace: "default",
-				},
-				AddressType: "ipv4",
-				Endpoints: []Endpoint{
-					{Addresses: []string{"127.0.0.1"},
-						Hostname:   "node-1",
-						Topology:   map[string]string{"kubernetes.topoligy.io/zone": "gce-1"},
-						Conditions: EndpointConditions{Ready: true},
-						TargetRef: ObjectReference{
-							Kind:      "Pod",
-							Namespace: "default",
-							Name:      "main-pod",
-						},
-					},
-				},
-				Ports: []EndpointPort{
-					{
-						Name:        "http",
-						Port:        8085,
-						AppProtocol: "http",
-						Protocol:    "tcp",
-					},
-				},
-			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
-					"__address__": "127.0.0.1:8085",
-					"__meta_kubernetes_endpointslice_address_target_kind":                                   "Pod",
-					"__meta_kubernetes_endpointslice_address_target_name":                                   "main-pod",
-					"__meta_kubernetes_endpointslice_address_type":                                          "ipv4",
-					"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                             "true",
-					"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_topoligy_io_zone":         "gce-1",
-					"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_topoligy_io_zone": "true",
-					"__meta_kubernetes_endpointslice_endpoint_hostname":                                     "node-1",
-					"__meta_kubernetes_endpointslice_name":                                                  "fake-esl",
-					"__meta_kubernetes_endpointslice_port":                                                  "8085",
-					"__meta_kubernetes_endpointslice_port_app_protocol":                                     "http",
-					"__meta_kubernetes_endpointslice_port_name":                                             "http",
-					"__meta_kubernetes_endpointslice_port_protocol":                                         "tcp",
-					"__meta_kubernetes_namespace":                                                           "default",
-				}),
-			},
-		},
-		{
-			name: "eps with pods and services",
-			args: args{
-				pods: []Pod{
-					{
-						Metadata: ObjectMeta{
-							UID:       "some-pod-uuid",
-							Namespace: "monitoring",
-							Name:      "main-pod",
-							Labels: discoveryutils.GetSortedLabels(map[string]string{
-								"pod-label-1": "pod-value-1",
-								"pod-label-2": "pod-value-2",
-							}),
-							Annotations: discoveryutils.GetSortedLabels(map[string]string{
-								"pod-annotations-1": "annotation-value-1",
-							}),
-						},
-						Status: PodStatus{PodIP: "192.168.11.5", HostIP: "172.15.1.1"},
-						Spec: PodSpec{NodeName: "node-2", Containers: []Container{
-							{
-								Name: "container-1",
-								Ports: []ContainerPort{
-									{
-										ContainerPort: 8085,
-										Protocol:      "tcp",
-										Name:          "http",
-									},
-									{
-										ContainerPort: 8011,
-										Protocol:      "udp",
-										Name:          "dns",
-									},
-								},
-							},
-						}},
-					},
-				},
-				svcs: []Service{
-					{
-						Spec: ServiceSpec{Type: "ClusterIP", Ports: []ServicePort{
-							{
-								Name:     "http",
-								Protocol: "tcp",
-								Port:     8085,
-							},
-						}},
-						Metadata: ObjectMeta{
-							Name:      "custom-esl",
-							Namespace: "monitoring",
-							Labels: discoveryutils.GetSortedLabels(map[string]string{
-								"service-label-1": "value-1",
-								"service-label-2": "value-2",
-							}),
-						},
-					},
-				},
-			},
-			fields: fields{
-				Metadata: ObjectMeta{
-					Name:      "custom-esl",
-					Namespace: "monitoring",
-				},
-				AddressType: "ipv4",
-				Endpoints: []Endpoint{
-					{Addresses: []string{"127.0.0.1"},
-						Hostname:   "node-1",
-						Topology:   map[string]string{"kubernetes.topoligy.io/zone": "gce-1"},
-						Conditions: EndpointConditions{Ready: true},
-						TargetRef: ObjectReference{
-							Kind:      "Pod",
-							Namespace: "monitoring",
-							Name:      "main-pod",
-						},
-					},
-				},
-				Ports: []EndpointPort{
-					{
-						Name:        "http",
-						Port:        8085,
-						AppProtocol: "http",
-						Protocol:    "tcp",
-					},
-				},
-			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
-					"__address__": "127.0.0.1:8085",
-					"__meta_kubernetes_endpointslice_address_target_kind":                                   "Pod",
-					"__meta_kubernetes_endpointslice_address_target_name":                                   "main-pod",
-					"__meta_kubernetes_endpointslice_address_type":                                          "ipv4",
-					"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                             "true",
-					"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_topoligy_io_zone":         "gce-1",
-					"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_topoligy_io_zone": "true",
-					"__meta_kubernetes_endpointslice_endpoint_hostname":                                     "node-1",
-					"__meta_kubernetes_endpointslice_name":                                                  "custom-esl",
-					"__meta_kubernetes_endpointslice_port":                                                  "8085",
-					"__meta_kubernetes_endpointslice_port_app_protocol":                                     "http",
-					"__meta_kubernetes_endpointslice_port_name":                                             "http",
-					"__meta_kubernetes_endpointslice_port_protocol":                                         "tcp",
-					"__meta_kubernetes_namespace":                                                           "monitoring",
-					"__meta_kubernetes_pod_annotation_pod_annotations_1":                                    "annotation-value-1",
-					"__meta_kubernetes_pod_annotationpresent_pod_annotations_1":                             "true",
-					"__meta_kubernetes_pod_container_name":                                                  "container-1",
-					"__meta_kubernetes_pod_container_port_name":                                             "http",
-					"__meta_kubernetes_pod_container_port_number":                                           "8085",
-					"__meta_kubernetes_pod_container_port_protocol":                                         "tcp",
-					"__meta_kubernetes_pod_host_ip":                                                         "172.15.1.1",
-					"__meta_kubernetes_pod_ip":                                                              "192.168.11.5",
-					"__meta_kubernetes_pod_label_pod_label_1":                                               "pod-value-1",
-					"__meta_kubernetes_pod_label_pod_label_2":                                               "pod-value-2",
-					"__meta_kubernetes_pod_labelpresent_pod_label_1":                                        "true",
-					"__meta_kubernetes_pod_labelpresent_pod_label_2":                                        "true",
-					"__meta_kubernetes_pod_name":                                                            "main-pod",
-					"__meta_kubernetes_pod_node_name":                                                       "node-2",
-					"__meta_kubernetes_pod_phase":                                                           "",
-					"__meta_kubernetes_pod_ready":                                                           "unknown",
-					"__meta_kubernetes_pod_uid":                                                             "some-pod-uuid",
-					"__meta_kubernetes_service_cluster_ip":                                                  "",
-					"__meta_kubernetes_service_label_service_label_1":                                       "value-1",
-					"__meta_kubernetes_service_label_service_label_2":                                       "value-2",
-					"__meta_kubernetes_service_labelpresent_service_label_1":                                "true",
-					"__meta_kubernetes_service_labelpresent_service_label_2":                                "true",
-					"__meta_kubernetes_service_name":                                                        "custom-esl",
-					"__meta_kubernetes_service_type":                                                        "ClusterIP",
-				}),
-				discoveryutils.GetSortedLabels(map[string]string{
-					"__address__":                 "192.168.11.5:8011",
-					"__meta_kubernetes_namespace": "monitoring",
-					"__meta_kubernetes_pod_annotation_pod_annotations_1":        "annotation-value-1",
-					"__meta_kubernetes_pod_annotationpresent_pod_annotations_1": "true",
-					"__meta_kubernetes_pod_container_name":                      "container-1",
-					"__meta_kubernetes_pod_container_port_name":                 "dns",
-					"__meta_kubernetes_pod_container_port_number":               "8011",
-					"__meta_kubernetes_pod_container_port_protocol":             "udp",
-					"__meta_kubernetes_pod_host_ip":                             "172.15.1.1",
-					"__meta_kubernetes_pod_ip":                                  "192.168.11.5",
-					"__meta_kubernetes_pod_label_pod_label_1":                   "pod-value-1",
-					"__meta_kubernetes_pod_label_pod_label_2":                   "pod-value-2",
-					"__meta_kubernetes_pod_labelpresent_pod_label_1":            "true",
-					"__meta_kubernetes_pod_labelpresent_pod_label_2":            "true",
-					"__meta_kubernetes_pod_name":                                "main-pod",
-					"__meta_kubernetes_pod_node_name":                           "node-2",
-					"__meta_kubernetes_pod_phase":                               "",
-					"__meta_kubernetes_pod_ready":                               "unknown",
-					"__meta_kubernetes_pod_uid":                                 "some-pod-uuid",
-					"__meta_kubernetes_service_cluster_ip":                      "",
-					"__meta_kubernetes_service_label_service_label_1":           "value-1",
-					"__meta_kubernetes_service_label_service_label_2":           "value-2",
-					"__meta_kubernetes_service_labelpresent_service_label_1":    "true",
-					"__meta_kubernetes_service_labelpresent_service_label_2":    "true",
-					"__meta_kubernetes_service_name":                            "custom-esl",
-					"__meta_kubernetes_service_type":                            "ClusterIP",
-				}),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			eps := &EndpointSlice{
-				Metadata:    tt.fields.Metadata,
-				Endpoints:   tt.fields.Endpoints,
-				AddressType: tt.fields.AddressType,
-				Ports:       tt.fields.Ports,
-			}
-			got := eps.appendTargetLabels(tt.args.ms, tt.args.pods, tt.args.svcs)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("got unxpected labels: \ngot:\n %v, \nexpect:\n %v", sortedLabelss, tt.want)
-			}
-		})
-	}
 }

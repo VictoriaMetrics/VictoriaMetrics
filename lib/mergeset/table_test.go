@@ -218,7 +218,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 		atomic.AddUint64(&flushes, 1)
 	}
 	var itemsMerged uint64
-	prepareBlock := func(data []byte, items [][]byte) ([]byte, [][]byte) {
+	prepareBlock := func(data []byte, items []Item) ([]byte, []Item) {
 		atomic.AddUint64(&itemsMerged, uint64(len(items)))
 		return data, items
 	}

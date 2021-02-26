@@ -76,6 +76,6 @@ func testBlockHeaderMarshalUnmarshal(t *testing.T, bh *blockHeader) {
 		t.Fatalf("unexpected tail after unmarshaling bh=%+v; got\n%x; want\n%x", bh, tail, suffix)
 	}
 	if !reflect.DeepEqual(bh, &bh2) {
-		t.Fatalf("unexpected bh unmarshaled after adding siffux; got\n%+v; want\n%+v", &bh2, bh)
+		t.Fatalf("unexpected bh unmarshaled after adding suffix; got\n%+v; want\n%+v", &bh2, bh)
 	}
 }

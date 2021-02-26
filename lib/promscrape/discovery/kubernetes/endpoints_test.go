@@ -11,12 +11,12 @@ import (
 func TestParseEndpointsListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		els, err := parseEndpointsList([]byte(s))
+		objectsByKey, _, err := parseEndpointsList([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if els != nil {
-			t.Fatalf("unexpected non-nil EnpointsList: %v", els)
+		if len(objectsByKey) != 0 {
+			t.Fatalf("unexpected non-empty objectsByKey: %v", objectsByKey)
 		}
 	}
 	f(``)
@@ -79,21 +79,16 @@ func TestParseEndpointsListSuccess(t *testing.T) {
   ]
 }
 `
-	els, err := parseEndpointsList([]byte(data))
+	objectsByKey, meta, err := parseEndpointsList([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if len(els.Items) != 1 {
-		t.Fatalf("unexpected length of EndpointsList.Items; got %d; want %d", len(els.Items), 1)
+	expectedResourceVersion := "128055"
+	if meta.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	endpoint := els.Items[0]
 
-	// Check endpoint.appendTargetLabels()
-	labelss := endpoint.appendTargetLabels(nil, nil, nil)
-	var sortedLabelss [][]prompbmarshal.Label
-	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-	}
+	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.17.0.2:8443",

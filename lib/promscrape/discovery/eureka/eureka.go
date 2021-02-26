@@ -82,7 +82,7 @@ type DataCenterInfo struct {
 }
 
 // GetLabels returns Eureka labels according to sdc.
-func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)

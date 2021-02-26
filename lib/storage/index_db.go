@@ -104,9 +104,9 @@ type indexDB struct {
 	// matching low number of metrics.
 	uselessTagFiltersCache *workingsetcache.Cache
 
-	// Cache for (date, tagFilter) -> filterDuration, which is used for reducing
+	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
-	durationsPerDateTagFilterCache *workingsetcache.Cache
+	loopsPerDateTagFilterCache *workingsetcache.Cache
 
 	indexSearchPool sync.Pool
 
@@ -150,12 +150,12 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		tb:       tb,
 		name:     name,
 
-		tagCache:                       workingsetcache.New(mem/32, time.Hour),
-		metricIDCache:                  metricIDCache,
-		metricNameCache:                metricNameCache,
-		tsidCache:                      tsidCache,
-		uselessTagFiltersCache:         workingsetcache.New(mem/128, time.Hour),
-		durationsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
+		tagCache:                   workingsetcache.New(mem/32, time.Hour),
+		metricIDCache:              metricIDCache,
+		metricNameCache:            metricNameCache,
+		tsidCache:                  tsidCache,
+		uselessTagFiltersCache:     workingsetcache.New(mem/128, 3*time.Hour),
+		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, 3*time.Hour),
 
 		minTimestampForCompositeIndex: minTimestampForCompositeIndex,
 	}
@@ -320,14 +320,14 @@ func (db *indexDB) decRef() {
 	// Free space occupied by caches owned by db.
 	db.tagCache.Stop()
 	db.uselessTagFiltersCache.Stop()
-	db.durationsPerDateTagFilterCache.Stop()
+	db.loopsPerDateTagFilterCache.Stop()
 
 	db.tagCache = nil
 	db.metricIDCache = nil
 	db.metricNameCache = nil
 	db.tsidCache = nil
 	db.uselessTagFiltersCache = nil
-	db.durationsPerDateTagFilterCache = nil
+	db.loopsPerDateTagFilterCache = nil
 
 	if atomic.LoadUint64(&db.mustDrop) == 0 {
 		return
@@ -2458,7 +2458,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint6
 		}
 		// Slow path: need tf.matchSuffix call.
 		ok, err := tf.matchSuffix(suffix)
-		loopsCount += reMatchCost
+		loopsCount += tf.matchCost
 		if err != nil {
 			return loopsCount, fmt.Errorf("error when matching %s against suffix %q: %w", tf, suffix, err)
 		}
@@ -2797,9 +2797,12 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		tf := &tfs.tfs[i]
 		loopsCount, lastQueryTimestamp := is.getLoopsCountAndTimestampForDateFilter(date, tf)
 		origLoopsCount := loopsCount
-		if currentTime > lastQueryTimestamp+60*60 {
-			// Reset loopsCount to 0 every hour for collecting updated stats for the tf.
-			loopsCount = 0
+		if currentTime > lastQueryTimestamp+3*3600 {
+			// Update stats once per 3 hours only for relatively fast tag filters.
+			// There is no need in spending CPU resources on updating stats for slow tag filters.
+			if loopsCount <= 10e6 {
+				loopsCount = 0
+			}
 		}
 		if loopsCount == 0 {
 			// Prevent from possible thundering herd issue when heavy tf is executed from multiple concurrent queries
@@ -3102,7 +3105,7 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = is.db.durationsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
+	kb.B = is.db.loopsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
 	if len(kb.B) != 16 {
 		return 0, 0
 	}
@@ -3122,7 +3125,7 @@ func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, 
 	kb := kbPool.Get()
 	kb.B = encoding.MarshalUint64(kb.B[:0], loopsCount)
 	kb.B = encoding.MarshalUint64(kb.B, currentTimestamp)
-	is.db.durationsPerDateTagFilterCache.Set(is.kb.B, kb.B)
+	is.db.loopsPerDateTagFilterCache.Set(is.kb.B, kb.B)
 	kbPool.Put(kb)
 }
 
@@ -3458,24 +3461,24 @@ func (mp *tagToMetricIDsRowParser) IsDeletedTag(dmis *uint64set.Set) bool {
 	return true
 }
 
-func mergeTagToMetricIDsRows(data []byte, items [][]byte) ([]byte, [][]byte) {
+func mergeTagToMetricIDsRows(data []byte, items []mergeset.Item) ([]byte, []mergeset.Item) {
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixTagToMetricIDs)
 	data, items = mergeTagToMetricIDsRowsInternal(data, items, nsPrefixDateTagToMetricIDs)
 	return data, items
 }
 
-func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte) ([]byte, [][]byte) {
+func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefix byte) ([]byte, []mergeset.Item) {
 	// Perform quick checks whether items contain rows starting from nsPrefix
 	// based on the fact that items are sorted.
 	if len(items) <= 2 {
 		// The first and the last row must remain unchanged.
 		return data, items
 	}
-	firstItem := items[0]
+	firstItem := items[0].Bytes(data)
 	if len(firstItem) > 0 && firstItem[0] > nsPrefix {
 		return data, items
 	}
-	lastItem := items[len(items)-1]
+	lastItem := items[len(items)-1].Bytes(data)
 	if len(lastItem) > 0 && lastItem[0] < nsPrefix {
 		return data, items
 	}
@@ -3488,14 +3491,18 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte)
 	mpPrev := &tmm.mpPrev
 	dstData := data[:0]
 	dstItems := items[:0]
-	for i, item := range items {
+	for i, it := range items {
+		item := it.Bytes(data)
 		if len(item) == 0 || item[0] != nsPrefix || i == 0 || i == len(items)-1 {
 			// Write rows not starting with nsPrefix as-is.
 			// Additionally write the first and the last row as-is in order to preserve
 			// sort order for adjancent blocks.
 			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 			dstData = append(dstData, item...)
-			dstItems = append(dstItems, dstData[len(dstData)-len(item):])
+			dstItems = append(dstItems, mergeset.Item{
+				Start: uint32(len(dstData) - len(item)),
+				End:   uint32(len(dstData)),
+			})
 			continue
 		}
 		if err := mp.Init(item, nsPrefix); err != nil {
@@ -3504,7 +3511,10 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte)
 		if mp.MetricIDsLen() >= maxMetricIDsPerRow {
 			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 			dstData = append(dstData, item...)
-			dstItems = append(dstItems, dstData[len(dstData)-len(item):])
+			dstItems = append(dstItems, mergeset.Item{
+				Start: uint32(len(dstData) - len(item)),
+				End:   uint32(len(dstData)),
+			})
 			continue
 		}
 		if !mp.EqualPrefix(mpPrev) {
@@ -3520,7 +3530,7 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte)
 	if len(tmm.pendingMetricIDs) > 0 {
 		logger.Panicf("BUG: tmm.pendingMetricIDs must be empty at this point; got %d items: %d", len(tmm.pendingMetricIDs), tmm.pendingMetricIDs)
 	}
-	if !checkItemsSorted(dstItems) {
+	if !checkItemsSorted(dstData, dstItems) {
 		// Items could become unsorted if initial items contain duplicate metricIDs:
 		//
 		//   item1: 1, 1, 5
@@ -3538,15 +3548,8 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte)
 		// into the same new time series from multiple concurrent goroutines.
 		atomic.AddUint64(&indexBlocksWithMetricIDsIncorrectOrder, 1)
 		dstData = append(dstData[:0], tmm.dataCopy...)
-		dstItems = dstItems[:0]
-		// tmm.itemsCopy can point to overwritten data, so it must be updated
-		// to point to real data from tmm.dataCopy.
-		buf := dstData
-		for _, item := range tmm.itemsCopy {
-			dstItems = append(dstItems, buf[:len(item)])
-			buf = buf[len(item):]
-		}
-		if !checkItemsSorted(dstItems) {
+		dstItems = append(dstItems[:0], tmm.itemsCopy...)
+		if !checkItemsSorted(dstData, dstItems) {
 			logger.Panicf("BUG: the original items weren't sorted; items=%q", dstItems)
 		}
 	}
@@ -3558,13 +3561,14 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items [][]byte, nsPrefix byte)
 var indexBlocksWithMetricIDsIncorrectOrder uint64
 var indexBlocksWithMetricIDsProcessed uint64
 
-func checkItemsSorted(items [][]byte) bool {
+func checkItemsSorted(data []byte, items []mergeset.Item) bool {
 	if len(items) == 0 {
 		return true
 	}
-	prevItem := items[0]
-	for _, currItem := range items[1:] {
-		if string(prevItem) > string(currItem) {
+	prevItem := items[0].String(data)
+	for _, it := range items[1:] {
+		currItem := it.String(data)
+		if prevItem > currItem {
 			return false
 		}
 		prevItem = currItem
@@ -3592,7 +3596,7 @@ type tagToMetricIDsRowsMerger struct {
 	mp               tagToMetricIDsRowParser
 	mpPrev           tagToMetricIDsRowParser
 
-	itemsCopy [][]byte
+	itemsCopy []mergeset.Item
 	dataCopy  []byte
 }
 
@@ -3605,7 +3609,7 @@ func (tmm *tagToMetricIDsRowsMerger) Reset() {
 	tmm.dataCopy = tmm.dataCopy[:0]
 }
 
-func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstItems [][]byte, mp *tagToMetricIDsRowParser) ([]byte, [][]byte) {
+func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstItems []mergeset.Item, mp *tagToMetricIDsRowParser) ([]byte, []mergeset.Item) {
 	if len(tmm.pendingMetricIDs) == 0 {
 		// Nothing to flush
 		return dstData, dstItems
@@ -3620,7 +3624,10 @@ func (tmm *tagToMetricIDsRowsMerger) flushPendingMetricIDs(dstData []byte, dstIt
 	for _, metricID := range tmm.pendingMetricIDs {
 		dstData = encoding.MarshalUint64(dstData, metricID)
 	}
-	dstItems = append(dstItems, dstData[dstDataLen:])
+	dstItems = append(dstItems, mergeset.Item{
+		Start: uint32(dstDataLen),
+		End:   uint32(len(dstData)),
+	})
 	tmm.pendingMetricIDs = tmm.pendingMetricIDs[:0]
 	return dstData, dstItems
 }

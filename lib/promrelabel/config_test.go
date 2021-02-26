@@ -7,12 +7,12 @@ import (
 
 func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	path := "testdata/relabel_configs_valid.yml"
-	prcs, err := LoadRelabelConfigs(path)
+	pcs, err := LoadRelabelConfigs(path)
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
-	if len(prcs) != 9 {
-		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, len(prcs), 9)
+	if n := pcs.Len(); n != 9 {
+		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, 9)
 	}
 }
 
@@ -23,7 +23,7 @@ func TestLoadRelabelConfigsFailure(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if len(rcs) != 0 {
+		if rcs.Len() != 0 {
 			t.Fatalf("unexpected non-empty rcs: %#v", rcs)
 		}
 	}
@@ -36,14 +36,14 @@ func TestLoadRelabelConfigsFailure(t *testing.T) {
 }
 
 func TestParseRelabelConfigsSuccess(t *testing.T) {
-	f := func(rcs []RelabelConfig, prcsExpected []ParsedRelabelConfig) {
+	f := func(rcs []RelabelConfig, pcsExpected *ParsedConfigs) {
 		t.Helper()
-		prcs, err := ParseRelabelConfigs(nil, rcs)
+		pcs, err := ParseRelabelConfigs(rcs)
 		if err != nil {
 			t.Fatalf("unexected error: %s", err)
 		}
-		if !reflect.DeepEqual(prcs, prcsExpected) {
-			t.Fatalf("unexpected prcs; got\n%#v\nwant\n%#v", prcs, prcsExpected)
+		if !reflect.DeepEqual(pcs, pcsExpected) {
+			t.Fatalf("unexpected pcs; got\n%#v\nwant\n%#v", pcs, pcsExpected)
 		}
 	}
 	f(nil, nil)
@@ -52,16 +52,19 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 			SourceLabels: []string{"foo", "bar"},
 			TargetLabel:  "xxx",
 		},
-	}, []ParsedRelabelConfig{
-		{
-			SourceLabels: []string{"foo", "bar"},
-			Separator:    ";",
-			TargetLabel:  "xxx",
-			Regex:        defaultRegexForRelabelConfig,
-			Replacement:  "$1",
-			Action:       "replace",
+	}, &ParsedConfigs{
+		prcs: []*parsedRelabelConfig{
+			{
+				SourceLabels: []string{"foo", "bar"},
+				Separator:    ";",
+				TargetLabel:  "xxx",
+				Regex:        defaultRegexForRelabelConfig,
+				Replacement:  "$1",
+				Action:       "replace",
 
-			hasCaptureGroupInReplacement: true,
+				regexOriginal:                defaultOriginalRegexForRelabelConfig,
+				hasCaptureGroupInReplacement: true,
+			},
 		},
 	})
 }
@@ -69,12 +72,12 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 func TestParseRelabelConfigsFailure(t *testing.T) {
 	f := func(rcs []RelabelConfig) {
 		t.Helper()
-		prcs, err := ParseRelabelConfigs(nil, rcs)
+		pcs, err := ParseRelabelConfigs(rcs)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if len(prcs) > 0 {
-			t.Fatalf("unexpected non-empty prcs: %#v", prcs)
+		if pcs.Len() > 0 {
+			t.Fatalf("unexpected non-empty pcs: %#v", pcs)
 		}
 	}
 	t.Run("invalid-regex", func(t *testing.T) {

@@ -2,6 +2,27 @@
 
 # tip
 
+* FEATURE: add `sign(q)` and `clamp(q, min, max)` functions, which are planned to be added in [the upcoming Prometheus release](https://twitter.com/roidelapluie/status/1363428376162295811) . The `last_over_time(m[d])` function is already supported in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+* FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+* FEATURE: expose io-related metrics at `/metrics` page for every VictoriaMetrics component:
+  * `process_io_read_bytes_total` - the number of bytes read via io syscalls such as read and pread
+  * `process_io_written_bytes_total` - the number of bytes written via io syscalls such as write and pwrite
+  * `process_io_read_syscalls_total` - the number of read syscalls such as read and pread
+  * `process_io_write_syscalls_total` - the number of write syscalls such as write and pwrite
+  * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
+  * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
+* FEATURE: vmagent: use watch API for Kuberntes service discovery. This should reduce load on Kuberntes API server when it tracks big number of objects (for example, 10K pods). This should also reduce the time needed for k8s targets discovery.
+* FEATURE: vmagent: export `vm_promscrape_target_relabel_duration_seconds` metric, which can be used for monitoring the time spend on relabeling for discovered targets.
+* FEATURE: vmagent: optimize [relabeling](https://victoriametrics.github.io/vmagent.html#relabeling) performance for common cases.
+* FEATURE: add `increase_pure(m[d])` function to MetricsQL. It works the same as `increase(m[d])` except of various edge cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.
+* FEATURE: increase accuracy for `buckets_limit(limit, buckets)` results for small `limit` values. See [MetricsQL docs](https://victoriametrics.github.io/MetricsQL.html) for details.
+
+
+* BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065
+* BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
+* BUGFIX: properly calculate `histogram_quantile()` over time series with only a single non-zero bucket with `{le="+Inf"}`. Previously `NaN` was returned, now the value for the last bucket before `{le="+Inf"}` is returned like Prometheus does.
+* BUGFIX: vmselect: do not cache partial query results on timeout when receiving data from `vmstorage` nodes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1085
+
 
 # [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)
 
