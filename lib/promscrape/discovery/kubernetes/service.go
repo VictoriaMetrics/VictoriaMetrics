@@ -26,8 +26,8 @@ func getServices(cfg *apiConfig) []*Service {
 	return svcs
 }
 
-func (svc *Service) key() string {
-	return svc.Metadata.key()
+func (s *Service) key() string {
+	return s.Metadata.key()
 }
 
 func parseServiceList(data []byte) (map[string]object, ListMeta, error) {
@@ -36,18 +36,18 @@ func parseServiceList(data []byte) (map[string]object, ListMeta, error) {
 		return nil, sl.Metadata, fmt.Errorf("cannot unmarshal ServiceList from %q: %w", data, err)
 	}
 	objectsByKey := make(map[string]object)
-	for _, svc := range sl.Items {
-		objectsByKey[svc.key()] = svc
+	for _, s := range sl.Items {
+		objectsByKey[s.key()] = s
 	}
 	return objectsByKey, sl.Metadata, nil
 }
 
 func parseService(data []byte) (object, error) {
-	var svc Service
-	if err := json.Unmarshal(data, &svc); err != nil {
+	var s Service
+	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
-	return &svc, nil
+	return &s, nil
 }
 
 // ServiceList is k8s service list.
