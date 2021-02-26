@@ -11,12 +11,12 @@ import (
 func TestParseServiceListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nls, err := parseServiceList([]byte(s))
+		objectsByKey, _, err := parseServiceList([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if nls != nil {
-			t.Fatalf("unexpected non-nil ServiceList: %v", nls)
+		if len(objectsByKey) != 0 {
+			t.Fatalf("unexpected non-empty objectsByKey: %v", objectsByKey)
 		}
 	}
 	f(``)
@@ -89,68 +89,17 @@ func TestParseServiceListSuccess(t *testing.T) {
   ]
 }
 `
-	sls, err := parseServiceList([]byte(data))
+	objectsByKey, meta, err := parseServiceList([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if len(sls.Items) != 1 {
-		t.Fatalf("unexpected length of ServiceList.Items; got %d; want %d", len(sls.Items), 1)
+	expectedResourceVersion := "60485"
+	if meta.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	service := sls.Items[0]
-	meta := service.Metadata
-	if meta.Name != "kube-dns" {
-		t.Fatalf("unexpected ObjectMeta.Name; got %q; want %q", meta.Name, "kube-dns")
-	}
-	expectedLabels := discoveryutils.GetSortedLabels(map[string]string{
-		"k8s-app":                       "kube-dns",
-		"kubernetes.io/cluster-service": "true",
-		"kubernetes.io/name":            "KubeDNS",
+	sortedLabelss := getSortedLabelss(objectsByKey, func(o object) []map[string]string {
+		return o.(*Service).appendTargetLabels(nil)
 	})
-	if !reflect.DeepEqual(meta.Labels, expectedLabels) {
-		t.Fatalf("unexpected ObjectMeta.Labels\ngot\n%v\nwant\n%v", meta.Labels, expectedLabels)
-	}
-	expectedAnnotations := discoveryutils.GetSortedLabels(map[string]string{
-		"prometheus.io/port":   "9153",
-		"prometheus.io/scrape": "true",
-	})
-	if !reflect.DeepEqual(meta.Annotations, expectedAnnotations) {
-		t.Fatalf("unexpected ObjectMeta.Annotations\ngot\n%v\nwant\n%v", meta.Annotations, expectedAnnotations)
-	}
-	spec := service.Spec
-	expectedClusterIP := "10.96.0.10"
-	if spec.ClusterIP != expectedClusterIP {
-		t.Fatalf("unexpected clusterIP; got %q; want %q", spec.ClusterIP, expectedClusterIP)
-	}
-	if spec.Type != "ClusterIP" {
-		t.Fatalf("unexpected type; got %q; want %q", spec.Type, "ClusterIP")
-	}
-	expectedPorts := []ServicePort{
-		{
-			Name:     "dns",
-			Protocol: "UDP",
-			Port:     53,
-		},
-		{
-			Name:     "dns-tcp",
-			Protocol: "TCP",
-			Port:     53,
-		},
-		{
-			Name:     "metrics",
-			Protocol: "TCP",
-			Port:     9153,
-		},
-	}
-	if !reflect.DeepEqual(spec.Ports, expectedPorts) {
-		t.Fatalf("unexpected ports\ngot\n%v\nwant\n%v", spec.Ports, expectedPorts)
-	}
-
-	// Check service.appendTargetLabels()
-	labelss := service.appendTargetLabels(nil)
-	var sortedLabelss [][]prompbmarshal.Label
-	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-	}
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:53",

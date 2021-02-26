@@ -1,9 +1,6 @@
 package kubernetes
 
 import (
-	"net/url"
-	"strings"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -19,10 +16,14 @@ type ObjectMeta struct {
 	OwnerReferences []OwnerReference
 }
 
-// listMetadata kubernetes list metadata
+func (om *ObjectMeta) key() string {
+	return om.Namespace + "/" + om.Name
+}
+
+// ListMeta is a Kubernetes list metadata
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#listmeta-v1-meta
-type listMetadata struct {
-	ResourceVersion string `json:"resourceVersion"`
+type ListMeta struct {
+	ResourceVersion string
 }
 
 func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m map[string]string) {
@@ -52,30 +53,4 @@ type OwnerReference struct {
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#daemonendpoint-v1-core
 type DaemonEndpoint struct {
 	Port int
-}
-
-func joinSelectors(role string, namespaces []string, selectors []Selector) string {
-	var labelSelectors, fieldSelectors []string
-	for _, ns := range namespaces {
-		fieldSelectors = append(fieldSelectors, "metadata.namespace="+ns)
-	}
-	for _, s := range selectors {
-		if s.Role != role {
-			continue
-		}
-		if s.Label != "" {
-			labelSelectors = append(labelSelectors, s.Label)
-		}
-		if s.Field != "" {
-			fieldSelectors = append(fieldSelectors, s.Field)
-		}
-	}
-	var args []string
-	if len(labelSelectors) > 0 {
-		args = append(args, "labelSelector="+url.QueryEscape(strings.Join(labelSelectors, ",")))
-	}
-	if len(fieldSelectors) > 0 {
-		args = append(args, "fieldSelector="+url.QueryEscape(strings.Join(fieldSelectors, ",")))
-	}
-	return strings.Join(args, "&")
 }

@@ -3,18 +3,59 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
+
+// getEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
+func getEndpointsLabels(cfg *apiConfig) []map[string]string {
+	epss := getEndpoints(cfg)
+	var ms []map[string]string
+	for _, eps := range epss {
+		ms = eps.appendTargetLabels(ms, cfg.aw)
+	}
+	return ms
+}
+
+func getEndpoints(cfg *apiConfig) []*Endpoints {
+	os := cfg.aw.getObjectsByRole("endpoint")
+	epss := make([]*Endpoints, len(os))
+	for i, o := range os {
+		epss[i] = o.(*Endpoints)
+	}
+	return epss
+}
+
+func (eps *Endpoints) key() string {
+	return eps.Metadata.key()
+}
+
+func parseEndpointsList(data []byte) (map[string]object, ListMeta, error) {
+	var epsl EndpointsList
+	if err := json.Unmarshal(data, &epsl); err != nil {
+		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointsList from %q: %w", data, err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, eps := range epsl.Items {
+		objectsByKey[eps.key()] = eps
+	}
+	return objectsByKey, epsl.Metadata, nil
+}
+
+func parseEndpoints(data []byte) (object, error) {
+	var eps Endpoints
+	if err := json.Unmarshal(data, &eps); err != nil {
+		return nil, err
+	}
+	return &eps, nil
+}
 
 // EndpointsList implements k8s endpoints list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointslist-v1-core
 type EndpointsList struct {
-	Items    []Endpoints
-	Metadata listMetadata `json:"metadata"`
+	Metadata ListMeta
+	Items    []*Endpoints
 }
 
 // Endpoints implements k8s endpoints.
@@ -23,10 +64,6 @@ type EndpointsList struct {
 type Endpoints struct {
 	Metadata ObjectMeta
 	Subsets  []EndpointSubset
-}
-
-func (eps *Endpoints) key() string {
-	return eps.Metadata.Namespace + "/" + eps.Metadata.Name
 }
 
 // EndpointSubset implements k8s endpoint subset.
@@ -57,10 +94,6 @@ type ObjectReference struct {
 	Namespace string
 }
 
-func (or ObjectReference) key() string {
-	return or.Namespace + "/" + or.Name
-}
-
 // EndpointPort implements k8s endpoint port.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointport-v1beta1-discovery-k8s-io
@@ -71,28 +104,19 @@ type EndpointPort struct {
 	Protocol    string
 }
 
-// parseEndpointsList parses EndpointsList from data.
-func parseEndpointsList(data []byte) (*EndpointsList, error) {
-	var esl EndpointsList
-	if err := json.Unmarshal(data, &esl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal EndpointsList from %q: %w", data, err)
-	}
-	return &esl, nil
-}
-
 // appendTargetLabels appends labels for each endpoint in eps to ms and returns the result.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-func (eps *Endpoints) appendTargetLabels(ms []map[string]string, podsCache, servicesCache *sync.Map) []map[string]string {
+func (eps *Endpoints) appendTargetLabels(ms []map[string]string, aw *apiWatcher) []map[string]string {
 	var svc *Service
-	if svco, ok := servicesCache.Load(eps.key()); ok {
-		svc = svco.(*Service)
+	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
-			ms = appendEndpointLabelsForAddresses(ms, podPortsSeen, eps, ess.Addresses, epp, podsCache, svc, "true")
-			ms = appendEndpointLabelsForAddresses(ms, podPortsSeen, eps, ess.NotReadyAddresses, epp, podsCache, svc, "false")
+			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
+			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.NotReadyAddresses, epp, svc, "false")
 		}
 	}
 
@@ -127,14 +151,13 @@ func (eps *Endpoints) appendTargetLabels(ms []map[string]string, podsCache, serv
 	return ms
 }
 
-func appendEndpointLabelsForAddresses(ms []map[string]string, podPortsSeen map[*Pod][]int, eps *Endpoints, eas []EndpointAddress, epp EndpointPort,
-	podsCache *sync.Map, svc *Service, ready string) []map[string]string {
+func appendEndpointLabelsForAddresses(ms []map[string]string, aw *apiWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
+	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []map[string]string {
 	for _, ea := range eas {
 		var p *Pod
-		if po, ok := podsCache.Load(ea.TargetRef.key()); ok {
-			p = po.(*Pod)
+		if o := aw.getObjectByRole("pod", ea.TargetRef.Namespace, ea.TargetRef.Name); o != nil {
+			p = o.(*Pod)
 		}
-		//p := getPod(pods, ea.TargetRef.Namespace, ea.TargetRef.Name)
 		m := getEndpointLabelsForAddressAndPort(podPortsSeen, eps, ea, epp, p, svc, ready)
 		ms = append(ms, m)
 	}
@@ -185,25 +208,4 @@ func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, read
 		m["__meta_kubernetes_endpoint_hostname"] = ea.Hostname
 	}
 	return m
-}
-
-func processEndpoints(cfg *apiConfig, sc *SharedKubernetesCache, p *Endpoints, action string) {
-	key := buildSyncKey("endpoints", cfg.setName, p.key())
-	switch action {
-	case "ADDED", "MODIFIED":
-		lbs := p.appendTargetLabels(nil, sc.Pods, sc.Services)
-		cfg.targetChan <- SyncEvent{
-			Labels:           lbs,
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "DELETED":
-		cfg.targetChan <- SyncEvent{
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "ERROR":
-	default:
-		logger.Warnf("unexpected action: %s", action)
-	}
 }

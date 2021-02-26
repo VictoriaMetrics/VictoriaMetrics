@@ -6,16 +6,58 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
+
+// getPodsLabels returns labels for k8s pods obtained from the given cfg
+func getPodsLabels(cfg *apiConfig) []map[string]string {
+	pods := getPods(cfg)
+	var ms []map[string]string
+	for _, p := range pods {
+		ms = p.appendTargetLabels(ms)
+	}
+	return ms
+}
+
+func getPods(cfg *apiConfig) []*Pod {
+	os := cfg.aw.getObjectsByRole("pod")
+	ps := make([]*Pod, len(os))
+	for i, o := range os {
+		ps[i] = o.(*Pod)
+	}
+	return ps
+}
+
+func (p *Pod) key() string {
+	return p.Metadata.key()
+}
+
+func parsePodList(data []byte) (map[string]object, ListMeta, error) {
+	var pl PodList
+	if err := json.Unmarshal(data, &pl); err != nil {
+		return nil, pl.Metadata, fmt.Errorf("cannot unmarshal PodList from %q: %w", data, err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, p := range pl.Items {
+		objectsByKey[p.key()] = p
+	}
+	return objectsByKey, pl.Metadata, nil
+}
+
+func parsePod(data []byte) (object, error) {
+	var p Pod
+	if err := json.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
 
 // PodList implements k8s pod list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podlist-v1-core
 type PodList struct {
-	Items    []Pod
-	Metadata listMetadata `json:"metadata"`
+	Metadata ListMeta
+	Items    []*Pod
 }
 
 // Pod implements k8s pod.
@@ -25,10 +67,6 @@ type Pod struct {
 	Metadata ObjectMeta
 	Spec     PodSpec
 	Status   PodStatus
-}
-
-func (p Pod) key() string {
-	return p.Metadata.Namespace + "/" + p.Metadata.Name
 }
 
 // PodSpec implements k8s pod spec.
@@ -71,15 +109,6 @@ type PodStatus struct {
 type PodCondition struct {
 	Type   string
 	Status string
-}
-
-// parsePodList parses PodList from data.
-func parsePodList(data []byte) (*PodList, error) {
-	var pl PodList
-	if err := json.Unmarshal(data, &pl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal PodList from %q: %w", data, err)
-	}
-	return &pl, nil
 }
 
 // appendTargetLabels appends labels for each port of the given Pod p to ms and returns the result.
@@ -168,24 +197,4 @@ func getPodReadyStatus(conds []PodCondition) string {
 		}
 	}
 	return "unknown"
-}
-
-func processPods(cfg *apiConfig, p *Pod, action string) {
-	key := buildSyncKey("pods", cfg.setName, p.key())
-	switch action {
-	case "ADDED", "MODIFIED":
-		cfg.targetChan <- SyncEvent{
-			Labels:           p.appendTargetLabels(nil),
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "DELETED":
-		cfg.targetChan <- SyncEvent{
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "ERROR":
-	default:
-		logger.Warnf("unexpected action: %s", action)
-	}
 }

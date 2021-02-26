@@ -37,16 +37,26 @@ type Selector struct {
 	Field string `yaml:"field"`
 }
 
-// StartWatchOnce returns init labels for the given sdc and baseDir.
-// and starts watching for changes.
-func StartWatchOnce(watchCfg *WatchConfig, setName string, sdc *SDConfig, baseDir string) ([]map[string]string, error) {
-	cfg, err := getAPIConfig(watchCfg, setName, sdc, baseDir)
+// GetLabels returns labels for the given sdc and baseDir.
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
-	var ms []map[string]string
-	cfg.watchOnce.Do(func() {
-		ms = startWatcherByRole(watchCfg.Ctx, sdc.Role, cfg, watchCfg.SC)
-	})
-	return ms, nil
+	switch sdc.Role {
+	case "node":
+		return getNodesLabels(cfg), nil
+	case "pod":
+		return getPodsLabels(cfg), nil
+	case "service":
+		return getServicesLabels(cfg), nil
+	case "endpoints":
+		return getEndpointsLabels(cfg), nil
+	case "endpointslices":
+		return getEndpointSlicesLabels(cfg), nil
+	case "ingress":
+		return getIngressesLabels(cfg), nil
+	default:
+		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`; skipping it", sdc.Role)
+	}
 }

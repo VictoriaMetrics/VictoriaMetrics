@@ -4,16 +4,58 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
+
+// getNodesLabels returns labels for k8s nodes obtained from the given cfg
+func getNodesLabels(cfg *apiConfig) []map[string]string {
+	nodes := getNodes(cfg)
+	var ms []map[string]string
+	for _, n := range nodes {
+		ms = n.appendTargetLabels(ms)
+	}
+	return ms
+}
+
+func getNodes(cfg *apiConfig) []*Node {
+	os := cfg.aw.getObjectsByRole("node")
+	ns := make([]*Node, len(os))
+	for i, o := range os {
+		ns[i] = o.(*Node)
+	}
+	return ns
+}
+
+func (n *Node) key() string {
+	return n.Metadata.key()
+}
+
+func parseNodeList(data []byte) (map[string]object, ListMeta, error) {
+	var nl NodeList
+	if err := json.Unmarshal(data, &nl); err != nil {
+		return nil, nl.Metadata, fmt.Errorf("cannot unmarshal NodeList from %q: %w", data, err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, n := range nl.Items {
+		objectsByKey[n.key()] = n
+	}
+	return objectsByKey, nl.Metadata, nil
+}
+
+func parseNode(data []byte) (object, error) {
+	var n Node
+	if err := json.Unmarshal(data, &n); err != nil {
+		return nil, err
+	}
+	return &n, nil
+}
 
 // NodeList represents NodeList from k8s API.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodelist-v1-core
 type NodeList struct {
-	Items    []Node
-	Metadata listMetadata `json:"metadata"`
+	Metadata ListMeta
+	Items    []*Node
 }
 
 // Node represents Node from k8s API.
@@ -22,10 +64,6 @@ type NodeList struct {
 type Node struct {
 	Metadata ObjectMeta
 	Status   NodeStatus
-}
-
-func (n Node) key() string {
-	return n.Metadata.Name
 }
 
 // NodeStatus represents NodeStatus from k8s API.
@@ -49,15 +87,6 @@ type NodeAddress struct {
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodedaemonendpoints-v1-core
 type NodeDaemonEndpoints struct {
 	KubeletEndpoint DaemonEndpoint
-}
-
-// parseNodeList parses NodeList from data.
-func parseNodeList(data []byte) (*NodeList, error) {
-	var nl NodeList
-	if err := json.Unmarshal(data, &nl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal NodeList from %q: %w", data, err)
-	}
-	return &nl, nil
 }
 
 // appendTargetLabels appends labels for the given Node n to ms and returns the result.
@@ -118,25 +147,4 @@ func getAddrByType(nas []NodeAddress, typ string) string {
 		}
 	}
 	return ""
-}
-
-func processNode(cfg *apiConfig, n *Node, action string) {
-	key := buildSyncKey("nodes", cfg.setName, n.key())
-	switch action {
-	case "ADDED", "MODIFIED":
-		lbs := n.appendTargetLabels(nil)
-		cfg.targetChan <- SyncEvent{
-			Labels:           lbs,
-			ConfigSectionSet: cfg.setName,
-			Key:              key,
-		}
-	case "DELETED":
-		cfg.targetChan <- SyncEvent{
-			ConfigSectionSet: cfg.setName,
-			Key:              key,
-		}
-	case "ERROR":
-	default:
-		logger.Warnf("unexpected action: %s", action)
-	}
 }

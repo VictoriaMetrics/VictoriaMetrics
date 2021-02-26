@@ -3,16 +3,57 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
+
+// getIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
+func getIngressesLabels(cfg *apiConfig) []map[string]string {
+	igs := getIngresses(cfg)
+	var ms []map[string]string
+	for _, ig := range igs {
+		ms = ig.appendTargetLabels(ms)
+	}
+	return ms
+}
+
+func getIngresses(cfg *apiConfig) []*Ingress {
+	os := cfg.aw.getObjectsByRole("ingress")
+	igs := make([]*Ingress, len(os))
+	for i, o := range os {
+		igs[i] = o.(*Ingress)
+	}
+	return igs
+}
+
+func (ig *Ingress) key() string {
+	return ig.Metadata.key()
+}
+
+func parseIngressList(data []byte) (map[string]object, ListMeta, error) {
+	var igl IngressList
+	if err := json.Unmarshal(data, &igl); err != nil {
+		return nil, igl.Metadata, fmt.Errorf("cannot unmarshal IngressList from %q: %w", data, err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, ig := range igl.Items {
+		objectsByKey[ig.key()] = ig
+	}
+	return objectsByKey, igl.Metadata, nil
+}
+
+func parseIngress(data []byte) (object, error) {
+	var ig Ingress
+	if err := json.Unmarshal(data, &ig); err != nil {
+		return nil, err
+	}
+	return &ig, nil
+}
 
 // IngressList represents ingress list in k8s.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#ingresslist-v1beta1-extensions
 type IngressList struct {
-	Items    []Ingress
-	Metadata listMetadata `json:"metadata"`
+	Metadata ListMeta
+	Items    []*Ingress
 }
 
 // Ingress represents ingress in k8s.
@@ -21,10 +62,6 @@ type IngressList struct {
 type Ingress struct {
 	Metadata ObjectMeta
 	Spec     IngressSpec
-}
-
-func (ig Ingress) key() string {
-	return ig.Metadata.Namespace + "/" + ig.Metadata.Name
 }
 
 // IngressSpec represents ingress spec in k8s.
@@ -62,15 +99,6 @@ type HTTPIngressRuleValue struct {
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#httpingresspath-v1beta1-extensions
 type HTTPIngressPath struct {
 	Path string
-}
-
-// parseIngressList parses IngressList from data.
-func parseIngressList(data []byte) (*IngressList, error) {
-	var il IngressList
-	if err := json.Unmarshal(data, &il); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal IngressList from %q: %w", data, err)
-	}
-	return &il, nil
 }
 
 // appendTargetLabels appends labels for Ingress ig to ms and returns the result.
@@ -123,24 +151,4 @@ func getIngressRulePaths(paths []HTTPIngressPath) []string {
 		result = append(result, path)
 	}
 	return result
-}
-
-func processIngress(cfg *apiConfig, p *Ingress, action string) {
-	key := buildSyncKey("ingress", cfg.setName, p.key())
-	switch action {
-	case "ADDED", "MODIFIED":
-		cfg.targetChan <- SyncEvent{
-			Labels:           p.appendTargetLabels(nil),
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "DELETED":
-		cfg.targetChan <- SyncEvent{
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "ERROR":
-	default:
-		logger.Infof("unexpected action: %s", action)
-	}
 }

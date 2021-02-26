@@ -4,16 +4,58 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
+
+// getServicesLabels returns labels for k8s services obtained from the given cfg
+func getServicesLabels(cfg *apiConfig) []map[string]string {
+	svcs := getServices(cfg)
+	var ms []map[string]string
+	for _, svc := range svcs {
+		ms = svc.appendTargetLabels(ms)
+	}
+	return ms
+}
+
+func getServices(cfg *apiConfig) []*Service {
+	os := cfg.aw.getObjectsByRole("service")
+	svcs := make([]*Service, len(os))
+	for i, o := range os {
+		svcs[i] = o.(*Service)
+	}
+	return svcs
+}
+
+func (svc *Service) key() string {
+	return svc.Metadata.key()
+}
+
+func parseServiceList(data []byte) (map[string]object, ListMeta, error) {
+	var sl ServiceList
+	if err := json.Unmarshal(data, &sl); err != nil {
+		return nil, sl.Metadata, fmt.Errorf("cannot unmarshal ServiceList from %q: %w", data, err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, svc := range sl.Items {
+		objectsByKey[svc.key()] = svc
+	}
+	return objectsByKey, sl.Metadata, nil
+}
+
+func parseService(data []byte) (object, error) {
+	var svc Service
+	if err := json.Unmarshal(data, &svc); err != nil {
+		return nil, err
+	}
+	return &svc, nil
+}
 
 // ServiceList is k8s service list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#servicelist-v1-core
 type ServiceList struct {
-	Items    []Service
-	Metadata listMetadata `json:"metadata"`
+	Metadata ListMeta
+	Items    []*Service
 }
 
 // Service is k8s service.
@@ -22,10 +64,6 @@ type ServiceList struct {
 type Service struct {
 	Metadata ObjectMeta
 	Spec     ServiceSpec
-}
-
-func (s Service) key() string {
-	return s.Metadata.Namespace + "/" + s.Metadata.Name
 }
 
 // ServiceSpec is k8s service spec.
@@ -45,15 +83,6 @@ type ServicePort struct {
 	Name     string
 	Protocol string
 	Port     int
-}
-
-// parseServiceList parses ServiceList from data.
-func parseServiceList(data []byte) (*ServiceList, error) {
-	var sl ServiceList
-	if err := json.Unmarshal(data, &sl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal ServiceList from %q: %w", data, err)
-	}
-	return &sl, nil
 }
 
 // appendTargetLabels appends labels for each port of the given Service s to ms and returns the result.
@@ -84,24 +113,4 @@ func (s *Service) appendCommonLabels(m map[string]string) {
 		m["__meta_kubernetes_service_external_name"] = s.Spec.ExternalName
 	}
 	s.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_service", m)
-}
-
-func processService(cfg *apiConfig, svc *Service, action string) {
-	key := buildSyncKey("service", cfg.setName, svc.key())
-	switch action {
-	case "ADDED", "MODIFIED":
-		cfg.targetChan <- SyncEvent{
-			Labels:           svc.appendTargetLabels(nil),
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "DELETED":
-		cfg.targetChan <- SyncEvent{
-			Key:              key,
-			ConfigSectionSet: cfg.setName,
-		}
-	case "ERROR":
-	default:
-		logger.Warnf("unexpected action: %s", action)
-	}
 }
