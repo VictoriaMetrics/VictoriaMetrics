@@ -19,6 +19,12 @@ type ObjectMeta struct {
 	OwnerReferences []OwnerReference
 }
 
+// listMetadata kubernetes list metadata
+// https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#listmeta-v1-meta
+type listMetadata struct {
+	ResourceVersion string `json:"resourceVersion"`
+}
+
 func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m map[string]string) {
 	for _, lb := range om.Labels {
 		ln := discoveryutils.SanitizeLabelName(lb.Name)
