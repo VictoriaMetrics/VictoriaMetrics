@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func mmap(fd int, offset int64, length int) (data []byte, err error) {
+func mmap(fd int, length int) (data []byte, err error) {
 	return unix.Mmap(fd, 0, length, unix.PROT_READ, unix.MAP_SHARED)
 
 }
@@ -32,8 +32,7 @@ func mustSyncPath(path string) {
 	}
 }
 
-func createFlockFile(dir string) (*os.File, error) {
-	flockFile := dir + "/flock.lock"
+func createFlockFile(flockFile string) (*os.File, error) {
 	flockF, err := os.Create(flockFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create lock file %q: %w", flockFile, err)
@@ -42,4 +41,19 @@ func createFlockFile(dir string) (*os.File, error) {
 		return nil, fmt.Errorf("cannot acquire lock on file %q: %w", flockFile, err)
 	}
 	return flockF, nil
+}
+
+func mustGetFreeSpace(path string) uint64 {
+	d, err := os.Open(path)
+	if err != nil {
+		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
+	}
+	defer MustClose(d)
+
+	fd := d.Fd()
+	var stat unix.Statfs_t
+	if err := unix.Fstatfs(int(fd), &stat); err != nil {
+		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
+	}
+	return freeSpace(stat)
 }

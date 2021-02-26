@@ -33,11 +33,8 @@ const (
 	fileDispositionIgnoreReadonlyAttribute = 0x00000010
 )
 
-// createFlockFile creates flock.lock file in the directory dir
-// and returns the handler to the file.
 // https://github.com/juju/fslock/blob/master/fslock_windows.go
-func createFlockFile(dir string) (*os.File, error) {
-	flockFile := dir + "/flock.lock"
+func createFlockFile(flockFile string) (*os.File, error) {
 	name, err := windows.UTF16PtrFromString(flockFile)
 	if err != nil {
 		return nil, err
@@ -67,7 +64,7 @@ func createFlockFile(dir string) (*os.File, error) {
 }
 
 // stub
-func mmap(fd int, offset int64, length int) ([]byte, error) {
+func mmap(fd int, length int) ([]byte, error) {
 	return nil, nil
 }
 

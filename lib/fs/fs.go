@@ -321,7 +321,8 @@ func MustWriteData(w io.Writer, data []byte) {
 // CreateFlockFile creates flock.lock file in the directory dir
 // and returns the handler to the file.
 func CreateFlockFile(dir string) (*os.File, error) {
-	return createFlockFile(dir)
+	flockFile := dir + "/flock.lock"
+	return createFlockFile(flockFile)
 }
 
 // MustGetFreeSpace returns free space for the given directory path.

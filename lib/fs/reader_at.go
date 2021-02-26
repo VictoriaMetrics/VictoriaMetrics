@@ -134,7 +134,7 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	if size%4096 != 0 {
 		size += 4096 - size%4096
 	}
-	data, err := mmap(int(f.Fd()), 0, int(size))
+	data, err := mmap(int(f.Fd()), int(size))
 	if err != nil {
 		return nil, fmt.Errorf("cannot mmap file with size %d: %w", size, err)
 	}
