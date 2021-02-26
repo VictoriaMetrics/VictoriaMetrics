@@ -38,7 +38,7 @@ type Selector struct {
 }
 
 // GetLabels returns labels for the given sdc and baseDir.
-func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
