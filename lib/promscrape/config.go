@@ -563,7 +563,9 @@ func (swc *scrapeWorkCache) Get(key string) *ScrapeWork {
 	currentTime := fasttime.UnixTimestamp()
 	swc.mu.Lock()
 	swe := swc.m[key]
-	swe.lastAccessTime = currentTime
+	if swe != nil {
+		swe.lastAccessTime = currentTime
+	}
 	swc.mu.Unlock()
 	return swe.sw
 }
