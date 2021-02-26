@@ -6,12 +6,15 @@ import (
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -510,6 +513,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval,
+
+		cache: newScrapeWorkCache(),
 	}
 	return swc, nil
 }
@@ -533,6 +538,52 @@ type scrapeWorkConfig struct {
 	disableKeepAlive     bool
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
+
+	cache *scrapeWorkCache
+}
+
+type scrapeWorkCache struct {
+	mu              sync.Mutex
+	m               map[string]*scrapeWorkEntry
+	lastCleanupTime uint64
+}
+
+type scrapeWorkEntry struct {
+	sw             *ScrapeWork
+	lastAccessTime uint64
+}
+
+func newScrapeWorkCache() *scrapeWorkCache {
+	return &scrapeWorkCache{
+		m: make(map[string]*scrapeWorkEntry),
+	}
+}
+
+func (swc *scrapeWorkCache) Get(key string) *ScrapeWork {
+	currentTime := fasttime.UnixTimestamp()
+	swc.mu.Lock()
+	swe := swc.m[key]
+	swe.lastAccessTime = currentTime
+	swc.mu.Unlock()
+	return swe.sw
+}
+
+func (swc *scrapeWorkCache) Set(key string, sw *ScrapeWork) {
+	currentTime := fasttime.UnixTimestamp()
+	swc.mu.Lock()
+	swc.m[key] = &scrapeWorkEntry{
+		sw:             sw,
+		lastAccessTime: currentTime,
+	}
+	if currentTime > swc.lastCleanupTime+10*60 {
+		for k, swe := range swc.m {
+			if currentTime > swe.lastAccessTime+2*60 {
+				delete(swc.m, k)
+			}
+		}
+		swc.lastCleanupTime = currentTime
+	}
+	swc.mu.Unlock()
 }
 
 type targetLabelsGetter interface {
@@ -562,7 +613,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 		go func() {
 			for metaLabels := range workCh {
 				target := metaLabels["__address__"]
-				sw, err := getScrapeWork(swc, target, nil, metaLabels)
+				sw, err := swc.getScrapeWork(target, nil, metaLabels)
 				if err != nil {
 					err = fmt.Errorf("skipping %s target %q for job_name %q because of error: %w", discoveryType, target, swc.jobName, err)
 				}
@@ -643,7 +694,7 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 			logger.Errorf("`static_configs` target for `job_name` %q cannot be empty; skipping it", swc.jobName)
 			continue
 		}
-		sw, err := getScrapeWork(swc, target, stc.Labels, metaLabels)
+		sw, err := swc.getScrapeWork(target, stc.Labels, metaLabels)
 		if err != nil {
 			// Do not return this error, since other targets may be valid
 			logger.Errorf("error when parsing `static_configs` target %q for `job_name` %q: %s; skipping it", target, swc.jobName, err)
@@ -656,7 +707,42 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func getScrapeWork(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
+func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
+	key := getScrapeWorkKey(extraLabels, metaLabels)
+	if sw := swc.cache.Get(key); sw != nil {
+		return sw, nil
+	}
+	sw, err := swc.getScrapeWorkReal(target, extraLabels, metaLabels)
+	if err != nil {
+		swc.cache.Set(key, sw)
+	}
+	return sw, err
+}
+
+func getScrapeWorkKey(extraLabels, metaLabels map[string]string) string {
+	var b []byte
+	b = appendSortedKeyValuePairs(b, extraLabels)
+	b = appendSortedKeyValuePairs(b, metaLabels)
+	return string(b)
+}
+
+func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		dst = strconv.AppendQuote(dst, k)
+		dst = append(dst, ':')
+		dst = strconv.AppendQuote(dst, m[k])
+		dst = append(dst, ',')
+	}
+	dst = append(dst, '\n')
+	return dst
+}
+
+func (swc *scrapeWorkConfig) getScrapeWorkReal(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
