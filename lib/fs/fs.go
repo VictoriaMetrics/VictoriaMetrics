@@ -13,25 +13,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"golang.org/x/sys/unix"
 )
+
+var tmpFileNum uint64
 
 // MustSyncPath syncs contents of the given path.
 func MustSyncPath(path string) {
-	d, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open %q: %s", path, err)
-	}
-	if err := d.Sync(); err != nil {
-		_ = d.Close()
-		logger.Panicf("FATAL: cannot flush %q to storage: %s", path, err)
-	}
-	if err := d.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close %q: %s", path, err)
-	}
+	mustSyncPath(path)
 }
-
-var tmpFileNum uint64
 
 // WriteFileAtomically atomically writes data to the given file path.
 //
@@ -332,15 +321,7 @@ func MustWriteData(w io.Writer, data []byte) {
 // CreateFlockFile creates flock.lock file in the directory dir
 // and returns the handler to the file.
 func CreateFlockFile(dir string) (*os.File, error) {
-	flockFile := dir + "/flock.lock"
-	flockF, err := os.Create(flockFile)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file %q: %w", flockFile, err)
-	}
-	if err := unix.Flock(int(flockF.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		return nil, fmt.Errorf("cannot acquire lock on file %q: %w", flockFile, err)
-	}
-	return flockF, nil
+	return createFlockFile(dir)
 }
 
 // MustGetFreeSpace returns free space for the given directory path.
@@ -371,19 +352,4 @@ var (
 type freeSpaceEntry struct {
 	updateTime uint64
 	freeSpace  uint64
-}
-
-func mustGetFreeSpace(path string) uint64 {
-	d, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
-	}
-	defer MustClose(d)
-
-	fd := d.Fd()
-	var stat unix.Statfs_t
-	if err := unix.Fstatfs(int(fd), &stat); err != nil {
-		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
-	}
-	return freeSpace(stat)
 }
