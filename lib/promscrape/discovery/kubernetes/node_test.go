@@ -235,9 +235,7 @@ func TestParseNodeListSuccess(t *testing.T) {
 	if meta.ResourceVersion != expectedResourceVersion {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	sortedLabelss := getSortedLabelss(objectsByKey, func(o object) []map[string]string {
-		return o.(*Node).appendTargetLabels(nil)
-	})
+	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"instance":                    "m01",
@@ -283,10 +281,10 @@ func TestParseNodeListSuccess(t *testing.T) {
 	}
 }
 
-func getSortedLabelss(objectsByKey map[string]object, getLabelss func(o object) []map[string]string) [][]prompbmarshal.Label {
+func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
 	var result [][]prompbmarshal.Label
 	for _, o := range objectsByKey {
-		labelss := getLabelss(o)
+		labelss := o.getTargetLabels(nil)
 		for _, labels := range labelss {
 			result = append(result, discoveryutils.GetSortedLabels(labels))
 		}

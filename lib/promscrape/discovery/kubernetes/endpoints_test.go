@@ -88,9 +88,7 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 
-	sortedLabelss := getSortedLabelss(objectsByKey, func(o object) []map[string]string {
-		return o.(*Endpoints).appendTargetLabels(nil, nil)
-	})
+	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.17.0.2:8443",

@@ -9,25 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getPodsLabels returns labels for k8s pods obtained from the given cfg
-func getPodsLabels(cfg *apiConfig) []map[string]string {
-	pods := getPods(cfg)
-	var ms []map[string]string
-	for _, p := range pods {
-		ms = p.appendTargetLabels(ms)
-	}
-	return ms
-}
-
-func getPods(cfg *apiConfig) []*Pod {
-	os := cfg.aw.getObjectsByRole("pod")
-	ps := make([]*Pod, len(os))
-	for i, o := range os {
-		ps[i] = o.(*Pod)
-	}
-	return ps
-}
-
 func (p *Pod) key() string {
 	return p.Metadata.key()
 }
@@ -111,14 +92,15 @@ type PodCondition struct {
 	Status string
 }
 
-// appendTargetLabels appends labels for each port of the given Pod p to ms and returns the result.
+// getTargetLabels returns labels for each port of the given p.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#pod
-func (p *Pod) appendTargetLabels(ms []map[string]string) []map[string]string {
+func (p *Pod) getTargetLabels(aw *apiWatcher) []map[string]string {
 	if len(p.Status.PodIP) == 0 {
 		// Skip pod without IP
-		return ms
+		return nil
 	}
+	var ms []map[string]string
 	ms = appendPodLabels(ms, p, p.Spec.Containers, "false")
 	ms = appendPodLabels(ms, p, p.Spec.InitContainers, "true")
 	return ms

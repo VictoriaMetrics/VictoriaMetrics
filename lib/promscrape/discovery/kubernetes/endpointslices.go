@@ -8,26 +8,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getEndpointSlicesLabels returns labels for k8s endpointSlices obtained from the given cfg.
-func getEndpointSlicesLabels(cfg *apiConfig) []map[string]string {
-	epss := getEndpointSlices(cfg)
-	var ms []map[string]string
-	for _, eps := range epss {
-		ms = eps.appendTargetLabels(ms, cfg.aw)
-	}
-	return ms
-}
-
-// getEndpointSlices retrieves endpointSlice with given apiConfig
-func getEndpointSlices(cfg *apiConfig) []*EndpointSlice {
-	os := cfg.aw.getObjectsByRole("endpointslices")
-	epss := make([]*EndpointSlice, len(os))
-	for i, o := range os {
-		epss[i] = o.(*EndpointSlice)
-	}
-	return epss
-}
-
 func (eps *EndpointSlice) key() string {
 	return eps.Metadata.key()
 }
@@ -52,14 +32,16 @@ func parseEndpointSlice(data []byte) (object, error) {
 	return &eps, nil
 }
 
-// appendTargetLabels injects labels for endPointSlice to slice map
-// follows TargetRef for enrich labels with pod and service metadata
-func (eps *EndpointSlice) appendTargetLabels(ms []map[string]string, aw *apiWatcher) []map[string]string {
+// getTargetLabels returns labels for eps.
+//
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpointslices
+func (eps *EndpointSlice) getTargetLabels(aw *apiWatcher) []map[string]string {
 	var svc *Service
 	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
+	var ms []map[string]string
 	for _, ess := range eps.Endpoints {
 		var p *Pod
 		if o := aw.getObjectByRole("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {

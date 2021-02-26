@@ -7,25 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getServicesLabels returns labels for k8s services obtained from the given cfg
-func getServicesLabels(cfg *apiConfig) []map[string]string {
-	svcs := getServices(cfg)
-	var ms []map[string]string
-	for _, svc := range svcs {
-		ms = svc.appendTargetLabels(ms)
-	}
-	return ms
-}
-
-func getServices(cfg *apiConfig) []*Service {
-	os := cfg.aw.getObjectsByRole("service")
-	svcs := make([]*Service, len(os))
-	for i, o := range os {
-		svcs[i] = o.(*Service)
-	}
-	return svcs
-}
-
 func (s *Service) key() string {
 	return s.Metadata.key()
 }
@@ -85,11 +66,12 @@ type ServicePort struct {
 	Port     int
 }
 
-// appendTargetLabels appends labels for each port of the given Service s to ms and returns the result.
+// getTargetLabels returns labels for each port of the given s.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#service
-func (s *Service) appendTargetLabels(ms []map[string]string) []map[string]string {
+func (s *Service) getTargetLabels(aw *apiWatcher) []map[string]string {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
+	var ms []map[string]string
 	for _, sp := range s.Spec.Ports {
 		addr := discoveryutils.JoinHostPort(host, sp.Port)
 		m := map[string]string{
