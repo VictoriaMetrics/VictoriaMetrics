@@ -197,7 +197,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendKubernetesScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "kubernetes_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -225,7 +225,7 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.OpenStackSDConfigs {
 			sdc := &sc.OpenStackSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendOpenstackScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "openstack_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -253,7 +253,7 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 		for j := range sc.DockerSwarmConfigs {
 			sdc := &sc.DockerSwarmConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendDockerSwarmScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dockerswarm_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -281,7 +281,7 @@ func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.ConsulSDConfigs {
 			sdc := &sc.ConsulSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendConsulScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consul_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -309,7 +309,7 @@ func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.EurekaSDConfigs {
 			sdc := &sc.EurekaSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendEurekaScrapeWork(dst, sdc, cfg.baseDir, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "eureka_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -337,7 +337,7 @@ func (cfg *Config) getDNSSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.DNSSDConfigs {
 			sdc := &sc.DNSSDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendDNSScrapeWork(dst, sdc, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dns_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -365,7 +365,7 @@ func (cfg *Config) getEC2SDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.EC2SDConfigs {
 			sdc := &sc.EC2SDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendEC2ScrapeWork(dst, sdc, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "ec2_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -393,7 +393,7 @@ func (cfg *Config) getGCESDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		for j := range sc.GCESDConfigs {
 			sdc := &sc.GCESDConfigs[j]
 			var okLocal bool
-			dst, okLocal = appendGCEScrapeWork(dst, sdc, sc.swc)
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "gce_sd_config")
 			if ok {
 				ok = okLocal
 			}
@@ -535,79 +535,20 @@ type scrapeWorkConfig struct {
 	scrapeAlignInterval  time.Duration
 }
 
-func appendKubernetesScrapeWork(dst []*ScrapeWork, sdc *kubernetes.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := kubernetes.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering kubernetes targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "kubernetes_sd_config"), true
+type targetLabelsGetter interface {
+	GetLabels(baseDir string) ([]map[string]string, error)
 }
 
-func appendOpenstackScrapeWork(dst []*ScrapeWork, sdc *openstack.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := openstack.GetLabels(sdc, baseDir)
+func appendSDScrapeWork(dst []*ScrapeWork, sdc targetLabelsGetter, baseDir string, swc *scrapeWorkConfig, discoveryType string) ([]*ScrapeWork, bool) {
+	targetLabels, err := sdc.GetLabels(baseDir)
 	if err != nil {
-		logger.Errorf("error when discovering openstack targets for `job_name` %q: %s; skipping it", swc.jobName, err)
+		logger.Errorf("skipping %s targets for job_name %q because of error: %s", discoveryType, swc.jobName, err)
 		return dst, false
 	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "openstack_sd_config"), true
+	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, discoveryType), true
 }
 
-func appendDockerSwarmScrapeWork(dst []*ScrapeWork, sdc *dockerswarm.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := dockerswarm.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering dockerswarm targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dockerswarm_sd_config"), true
-}
-
-func appendConsulScrapeWork(dst []*ScrapeWork, sdc *consul.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := consul.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering consul targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "consul_sd_config"), true
-}
-
-func appendEurekaScrapeWork(dst []*ScrapeWork, sdc *eureka.SDConfig, baseDir string, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := eureka.GetLabels(sdc, baseDir)
-	if err != nil {
-		logger.Errorf("error when discovering eureka targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "eureka_sd_config"), true
-}
-
-func appendDNSScrapeWork(dst []*ScrapeWork, sdc *dns.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := dns.GetLabels(sdc)
-	if err != nil {
-		logger.Errorf("error when discovering dns targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "dns_sd_config"), true
-}
-
-func appendEC2ScrapeWork(dst []*ScrapeWork, sdc *ec2.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := ec2.GetLabels(sdc)
-	if err != nil {
-		logger.Errorf("error when discovering ec2 targets for `job_name` %q: %s; skipping it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "ec2_sd_config"), true
-}
-
-func appendGCEScrapeWork(dst []*ScrapeWork, sdc *gce.SDConfig, swc *scrapeWorkConfig) ([]*ScrapeWork, bool) {
-	targetLabels, err := gce.GetLabels(sdc)
-	if err != nil {
-		logger.Errorf("error when discovering gce targets for `job_name` %q: %s; skippint it", swc.jobName, err)
-		return dst, false
-	}
-	return appendScrapeWorkForTargetLabels(dst, swc, targetLabels, "gce_sd_config"), true
-}
-
-func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, sectionName string) []*ScrapeWork {
+func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, targetLabels []map[string]string, discoveryType string) []*ScrapeWork {
 	startTime := time.Now()
 	// Process targetLabels in parallel in order to reduce processing time for big number of targetLabels.
 	type result struct {
@@ -623,7 +564,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 				target := metaLabels["__address__"]
 				sw, err := getScrapeWork(swc, target, nil, metaLabels)
 				if err != nil {
-					err = fmt.Errorf("skipping target %q for job_name %q in %s because of error: %w", target, swc.jobName, sectionName, err)
+					err = fmt.Errorf("skipping %s target %q for job_name %q because of error: %w", discoveryType, target, swc.jobName, err)
 				}
 				resultCh <- result{
 					sw:  sw,
@@ -646,7 +587,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 			dst = append(dst, r.sw)
 		}
 	}
-	metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_target_relabel_duration_seconds{type=%q}", sectionName)).UpdateDuration(startTime)
+	metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_target_relabel_duration_seconds{type=%q}", discoveryType)).UpdateDuration(startTime)
 	return dst
 }
 
