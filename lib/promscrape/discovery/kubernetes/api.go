@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -143,7 +144,7 @@ type apiWatcher struct {
 
 	// The last time the apiWatcher was queried for cached objects.
 	// It is used for stopping unused watchers.
-	lastAccessTime time.Time
+	lastAccessTime uint64
 }
 
 func newAPIWatcher(client *http.Client, apiServer, authorization string, namespaces []string, selectors []Selector) *apiWatcher {
@@ -156,7 +157,7 @@ func newAPIWatcher(client *http.Client, apiServer, authorization string, namespa
 
 		watchersByURL: make(map[string]*urlWatcher),
 
-		lastAccessTime: time.Now(),
+		lastAccessTime: fasttime.UnixTimestamp(),
 	}
 }
 
@@ -174,6 +175,8 @@ func (aw *apiWatcher) getLabelsForRole(role string) []map[string]string {
 		}
 		uw.mu.Unlock()
 	}
+	aw.lastAccessTime = fasttime.UnixTimestamp()
+	aw.mu.Unlock()
 	return ms
 }
 
@@ -197,7 +200,7 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 			break
 		}
 	}
-	aw.lastAccessTime = time.Now()
+	aw.lastAccessTime = fasttime.UnixTimestamp()
 	aw.mu.Unlock()
 	return o
 }
@@ -233,7 +236,7 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseO
 func (aw *apiWatcher) needStop() bool {
 	aw.mu.Lock()
 	defer aw.mu.Unlock()
-	return time.Since(aw.lastAccessTime) > 5*time.Minute
+	return fasttime.UnixTimestamp() > aw.lastAccessTime+5*60
 }
 
 // doRequest performs http request to the given requestURL.
