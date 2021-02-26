@@ -50,7 +50,7 @@ func (sn *sigHUPNotifier) subscribe(sub chan<- os.Signal) {
 
 func (sn *sigHUPNotifier) notify(sig os.Signal) {
 	sn.lock.Lock()
-	sn.lock.Unlock()
+	defer sn.lock.Unlock()
 	for _, sub := range sn.subscribers {
 		select {
 		case sub <- sig:
