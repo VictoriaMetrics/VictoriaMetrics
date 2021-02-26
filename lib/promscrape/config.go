@@ -48,6 +48,8 @@ type Config struct {
 
 	// This is set to the directory from where the config has been loaded.
 	baseDir string
+	// used for data sync with kubernetes.
+	kwh *kubernetesWatchHandler
 }
 
 // GlobalConfig represents essential parts for `global` section of Prometheus config.
@@ -139,6 +141,7 @@ func loadConfig(path string) (cfg *Config, data []byte, err error) {
 	if err := cfgObj.parse(data, path); err != nil {
 		return nil, nil, fmt.Errorf("cannot parse Prometheus config from %q: %w", path, err)
 	}
+	cfgObj.kwh = newKubernetesWatchHandler()
 	return &cfgObj, data, nil
 }
 
@@ -187,30 +190,41 @@ func getSWSByJob(sws []*ScrapeWork) map[string][]*ScrapeWork {
 }
 
 // getKubernetesSDScrapeWork returns `kubernetes_sd_configs` ScrapeWork from cfg.
-func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	swsPrevByJob := getSWSByJob(prev)
+func getKubernetesSDScrapeWorkStream(cfg *Config, prev []*ScrapeWork) []*ScrapeWork {
+	cfg.kwh.startOnce.Do(func() {
+		go processKubernetesSyncEvents(cfg)
+	})
 	dst := make([]*ScrapeWork, 0, len(prev))
+	// updated access time.
+	cfg.kwh.mu.Lock()
+	cfg.kwh.lastAccessTime = time.Now()
+	cfg.kwh.mu.Unlock()
 	for i := range cfg.ScrapeConfigs {
 		sc := &cfg.ScrapeConfigs[i]
-		dstLen := len(dst)
-		ok := true
 		for j := range sc.KubernetesSDConfigs {
+			// generate set name
+			setKey := fmt.Sprintf("%d/%d/%s", i, j, sc.JobName)
+			cfg.kwh.mu.Lock()
+			cfg.kwh.sdcSet[setKey] = sc.swc
+			cfg.kwh.mu.Unlock()
 			sdc := &sc.KubernetesSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "kubernetes_sd_config")
-			if ok {
-				ok = okLocal
+			ms, err := kubernetes.StartWatchOnce(cfg.kwh.watchCfg, setKey, sdc, cfg.baseDir)
+			if err != nil {
+				logger.Errorf("got unexpected error: %v", err)
 			}
-		}
-		if ok {
-			continue
-		}
-		swsPrev := swsPrevByJob[sc.swc.jobName]
-		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering kubernetes targets for job %q, so preserving the previous targets", sc.swc.jobName)
-			dst = append(dst[:dstLen], swsPrev...)
+			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, ms, "kubernetes_sd_config")
 		}
 	}
+	// dst will
+	if len(dst) > 0 {
+		return dst
+	}
+	// result from cache
+	cfg.kwh.mu.Lock()
+	for _, v := range cfg.kwh.swCache {
+		dst = append(dst, v...)
+	}
+	cfg.kwh.mu.Unlock()
 	return dst
 }
 

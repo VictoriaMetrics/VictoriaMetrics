@@ -3,60 +3,16 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
-
-// getIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
-func getIngressesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	igs, err := getIngresses(cfg)
-	if err != nil {
-		return nil, err
-	}
-	var ms []map[string]string
-	for _, ig := range igs {
-		ms = ig.appendTargetLabels(ms)
-	}
-	return ms, nil
-}
-
-func getIngresses(cfg *apiConfig) ([]Ingress, error) {
-	if len(cfg.namespaces) == 0 {
-		return getIngressesByPath(cfg, "/apis/extensions/v1beta1/ingresses")
-	}
-	// Query /api/v1/namespaces/* for each namespace.
-	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
-	cfgCopy := *cfg
-	namespaces := cfgCopy.namespaces
-	cfgCopy.namespaces = nil
-	cfg = &cfgCopy
-	var result []Ingress
-	for _, ns := range namespaces {
-		path := fmt.Sprintf("/apis/extensions/v1beta1/namespaces/%s/ingresses", ns)
-		igs, err := getIngressesByPath(cfg, path)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, igs...)
-	}
-	return result, nil
-}
-
-func getIngressesByPath(cfg *apiConfig, path string) ([]Ingress, error) {
-	data, err := getAPIResponse(cfg, "ingress", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain ingresses data from API server: %w", err)
-	}
-	igl, err := parseIngressList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse ingresses response from API server: %w", err)
-	}
-	return igl.Items, nil
-}
 
 // IngressList represents ingress list in k8s.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#ingresslist-v1beta1-extensions
 type IngressList struct {
-	Items []Ingress
+	Items    []Ingress
+	Metadata listMetadata `json:"metadata"`
 }
 
 // Ingress represents ingress in k8s.
@@ -65,6 +21,10 @@ type IngressList struct {
 type Ingress struct {
 	Metadata ObjectMeta
 	Spec     IngressSpec
+}
+
+func (ig Ingress) key() string {
+	return ig.Metadata.Namespace + "/" + ig.Metadata.Name
 }
 
 // IngressSpec represents ingress spec in k8s.
@@ -163,4 +123,24 @@ func getIngressRulePaths(paths []HTTPIngressPath) []string {
 		result = append(result, path)
 	}
 	return result
+}
+
+func processIngress(cfg *apiConfig, p *Ingress, action string) {
+	key := buildSyncKey("ingress", cfg.setName, p.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- SyncEvent{
+			Labels:           p.appendTargetLabels(nil),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Infof("unexpected action: %s", action)
+	}
 }

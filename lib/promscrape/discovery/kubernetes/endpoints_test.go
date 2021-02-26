@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -89,7 +90,8 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 	endpoint := els.Items[0]
 
 	// Check endpoint.appendTargetLabels()
-	labelss := endpoint.appendTargetLabels(nil, nil, nil)
+	var pc, sc sync.Map
+	labelss := endpoint.appendTargetLabels(nil, &pc, &sc)
 	var sortedLabelss [][]prompbmarshal.Label
 	for _, labels := range labelss {
 		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))

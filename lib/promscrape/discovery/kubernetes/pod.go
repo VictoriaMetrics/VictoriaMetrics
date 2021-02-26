@@ -6,61 +6,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
-
-// getPodsLabels returns labels for k8s pods obtained from the given cfg
-func getPodsLabels(cfg *apiConfig) ([]map[string]string, error) {
-	pods, err := getPods(cfg)
-	if err != nil {
-		return nil, err
-	}
-	var ms []map[string]string
-	for _, p := range pods {
-		ms = p.appendTargetLabels(ms)
-	}
-	return ms, nil
-}
-
-func getPods(cfg *apiConfig) ([]Pod, error) {
-	if len(cfg.namespaces) == 0 {
-		return getPodsByPath(cfg, "/api/v1/pods")
-	}
-	// Query /api/v1/namespaces/* for each namespace.
-	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
-	cfgCopy := *cfg
-	namespaces := cfgCopy.namespaces
-	cfgCopy.namespaces = nil
-	cfg = &cfgCopy
-	var result []Pod
-	for _, ns := range namespaces {
-		path := fmt.Sprintf("/api/v1/namespaces/%s/pods", ns)
-		pods, err := getPodsByPath(cfg, path)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, pods...)
-	}
-	return result, nil
-}
-
-func getPodsByPath(cfg *apiConfig, path string) ([]Pod, error) {
-	data, err := getAPIResponse(cfg, "pod", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain pods data from API server: %w", err)
-	}
-	pl, err := parsePodList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse pods response from API server: %w", err)
-	}
-	return pl.Items, nil
-}
 
 // PodList implements k8s pod list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podlist-v1-core
 type PodList struct {
-	Items []Pod
+	Items    []Pod
+	Metadata listMetadata `json:"metadata"`
 }
 
 // Pod implements k8s pod.
@@ -70,6 +25,10 @@ type Pod struct {
 	Metadata ObjectMeta
 	Spec     PodSpec
 	Status   PodStatus
+}
+
+func (p Pod) key() string {
+	return p.Metadata.Namespace + "/" + p.Metadata.Name
 }
 
 // PodSpec implements k8s pod spec.
@@ -211,12 +170,22 @@ func getPodReadyStatus(conds []PodCondition) string {
 	return "unknown"
 }
 
-func getPod(pods []Pod, namespace, name string) *Pod {
-	for i := range pods {
-		pod := &pods[i]
-		if pod.Metadata.Name == name && pod.Metadata.Namespace == namespace {
-			return pod
+func processPods(cfg *apiConfig, p *Pod, action string) {
+	key := buildSyncKey("pods", cfg.setName, p.key())
+	switch action {
+	case "ADDED", "MODIFIED":
+		cfg.targetChan <- SyncEvent{
+			Labels:           p.appendTargetLabels(nil),
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
 		}
+	case "DELETED":
+		cfg.targetChan <- SyncEvent{
+			Key:              key,
+			ConfigSectionSet: cfg.setName,
+		}
+	case "ERROR":
+	default:
+		logger.Warnf("unexpected action: %s", action)
 	}
-	return nil
 }
