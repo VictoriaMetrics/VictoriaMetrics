@@ -7,25 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
-func getEndpointsLabels(cfg *apiConfig) []map[string]string {
-	epss := getEndpoints(cfg)
-	var ms []map[string]string
-	for _, eps := range epss {
-		ms = eps.appendTargetLabels(ms, cfg.aw)
-	}
-	return ms
-}
-
-func getEndpoints(cfg *apiConfig) []*Endpoints {
-	os := cfg.aw.getObjectsByRole("endpoint")
-	epss := make([]*Endpoints, len(os))
-	for i, o := range os {
-		epss[i] = o.(*Endpoints)
-	}
-	return epss
-}
-
 func (eps *Endpoints) key() string {
 	return eps.Metadata.key()
 }
@@ -104,15 +85,16 @@ type EndpointPort struct {
 	Protocol    string
 }
 
-// appendTargetLabels appends labels for each endpoint in eps to ms and returns the result.
+// getTargetLabels returns labels for each endpoint in eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-func (eps *Endpoints) appendTargetLabels(ms []map[string]string, aw *apiWatcher) []map[string]string {
+func (eps *Endpoints) getTargetLabels(aw *apiWatcher) []map[string]string {
 	var svc *Service
 	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
+	var ms []map[string]string
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
 			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")

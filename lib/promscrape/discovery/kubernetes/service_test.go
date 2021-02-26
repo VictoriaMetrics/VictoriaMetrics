@@ -97,9 +97,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 	if meta.ResourceVersion != expectedResourceVersion {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	sortedLabelss := getSortedLabelss(objectsByKey, func(o object) []map[string]string {
-		return o.(*Service).appendTargetLabels(nil)
-	})
+	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:53",

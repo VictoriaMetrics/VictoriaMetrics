@@ -8,24 +8,6 @@ import (
 )
 
 // getNodesLabels returns labels for k8s nodes obtained from the given cfg
-func getNodesLabels(cfg *apiConfig) []map[string]string {
-	nodes := getNodes(cfg)
-	var ms []map[string]string
-	for _, n := range nodes {
-		ms = n.appendTargetLabels(ms)
-	}
-	return ms
-}
-
-func getNodes(cfg *apiConfig) []*Node {
-	os := cfg.aw.getObjectsByRole("node")
-	ns := make([]*Node, len(os))
-	for i, o := range os {
-		ns[i] = o.(*Node)
-	}
-	return ns
-}
-
 func (n *Node) key() string {
 	return n.Metadata.key()
 }
@@ -89,14 +71,14 @@ type NodeDaemonEndpoints struct {
 	KubeletEndpoint DaemonEndpoint
 }
 
-// appendTargetLabels appends labels for the given Node n to ms and returns the result.
+// getTargetLabels returs labels for the given n.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#node
-func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
+func (n *Node) getTargetLabels(aw *apiWatcher) []map[string]string {
 	addr := getNodeAddr(n.Status.Addresses)
 	if len(addr) == 0 {
 		// Skip node without address
-		return ms
+		return nil
 	}
 	addr = discoveryutils.JoinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
 	m := map[string]string{
@@ -114,8 +96,7 @@ func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
 		ln := discoveryutils.SanitizeLabelName(a.Type)
 		m["__meta_kubernetes_node_address_"+ln] = a.Address
 	}
-	ms = append(ms, m)
-	return ms
+	return []map[string]string{m}
 }
 
 func getNodeAddr(nas []NodeAddress) string {

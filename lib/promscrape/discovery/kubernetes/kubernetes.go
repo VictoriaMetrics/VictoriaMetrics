@@ -44,18 +44,8 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
 	switch sdc.Role {
-	case "node":
-		return getNodesLabels(cfg), nil
-	case "pod":
-		return getPodsLabels(cfg), nil
-	case "service":
-		return getServicesLabels(cfg), nil
-	case "endpoints":
-		return getEndpointsLabels(cfg), nil
-	case "endpointslices":
-		return getEndpointSlicesLabels(cfg), nil
-	case "ingress":
-		return getIngressesLabels(cfg), nil
+	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
+		return cfg.aw.getLabelsForRole(sdc.Role), nil
 	default:
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`; skipping it", sdc.Role)
 	}

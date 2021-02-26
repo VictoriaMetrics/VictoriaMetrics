@@ -185,9 +185,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 	if meta.ResourceVersion != expectedResourceVersion {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	sortedLabelss := getSortedLabelss(objectsByKey, func(o object) []map[string]string {
-		return o.(*EndpointSlice).appendTargetLabels(nil, nil)
-	})
+	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "172.18.0.2:6443",

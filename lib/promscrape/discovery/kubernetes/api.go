@@ -109,6 +109,7 @@ type WatchEvent struct {
 // object is any Kubernetes object.
 type object interface {
 	key() string
+	getTargetLabels(aw *apiWatcher) []map[string]string
 }
 
 // parseObjectFunc must parse object from the given data.
@@ -159,6 +160,23 @@ func newAPIWatcher(client *http.Client, apiServer, authorization string, namespa
 	}
 }
 
+// getLabelsForRole returns all the sets of labels for the given role.
+func (aw *apiWatcher) getLabelsForRole(role string) []map[string]string {
+	var ms []map[string]string
+	aw.mu.Lock()
+	for _, uw := range aw.watchersByURL {
+		if uw.role != role {
+			continue
+		}
+		uw.mu.Lock()
+		for _, labels := range uw.labelsByKey {
+			ms = append(ms, labels...)
+		}
+		uw.mu.Unlock()
+	}
+	return ms
+}
+
 // getObjectByRole returns an object with the given (namespace, name) key and the given role.
 func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 	if aw == nil {
@@ -182,26 +200,6 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 	aw.lastAccessTime = time.Now()
 	aw.mu.Unlock()
 	return o
-}
-
-// getObjectsByRole returns all the objects for the given role.
-func (aw *apiWatcher) getObjectsByRole(role string) []object {
-	aw.startWatchersForRole(role)
-	var os []object
-	aw.mu.Lock()
-	for _, uw := range aw.watchersByURL {
-		if uw.role != role {
-			continue
-		}
-		uw.mu.Lock()
-		for _, o := range uw.objectsByKey {
-			os = append(os, o)
-		}
-		uw.mu.Unlock()
-	}
-	aw.lastAccessTime = time.Now()
-	aw.mu.Unlock()
-	return os
 }
 
 func (aw *apiWatcher) startWatchersForRole(role string) {
@@ -258,11 +256,12 @@ type urlWatcher struct {
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
 
-	// mu protects objectsByKey
+	// mu protects objectsByKey and labelsByKey
 	mu sync.Mutex
 
 	// objectsByKey contains the latest state for objects obtained from apiURL
 	objectsByKey map[string]object
+	labelsByKey  map[string][]map[string]string
 
 	// the parent apiWatcher
 	aw *apiWatcher
@@ -277,6 +276,7 @@ func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObject
 		parseObjectList: parseObjectList,
 
 		objectsByKey: make(map[string]object),
+		labelsByKey:  make(map[string][]map[string]string),
 
 		aw: aw,
 	}
@@ -394,9 +394,14 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			uw.mu.Lock()
 			uw.objectsByKey[key] = o
 			uw.mu.Unlock()
+			labels := o.getTargetLabels(uw.aw)
+			uw.mu.Lock()
+			uw.labelsByKey[key] = labels
+			uw.mu.Unlock()
 		case "DELETED":
 			uw.mu.Lock()
 			delete(uw.objectsByKey, key)
+			delete(uw.labelsByKey, key)
 			uw.mu.Unlock()
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q for role %q", we.Type, uw.role)

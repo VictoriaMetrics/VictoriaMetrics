@@ -5,25 +5,6 @@ import (
 	"fmt"
 )
 
-// getIngressesLabels returns labels for k8s ingresses obtained from the given cfg.
-func getIngressesLabels(cfg *apiConfig) []map[string]string {
-	igs := getIngresses(cfg)
-	var ms []map[string]string
-	for _, ig := range igs {
-		ms = ig.appendTargetLabels(ms)
-	}
-	return ms
-}
-
-func getIngresses(cfg *apiConfig) []*Ingress {
-	os := cfg.aw.getObjectsByRole("ingress")
-	igs := make([]*Ingress, len(os))
-	for i, o := range os {
-		igs[i] = o.(*Ingress)
-	}
-	return igs
-}
-
 func (ig *Ingress) key() string {
 	return ig.Metadata.key()
 }
@@ -101,16 +82,17 @@ type HTTPIngressPath struct {
 	Path string
 }
 
-// appendTargetLabels appends labels for Ingress ig to ms and returns the result.
+// getTargetLabels returns labels for ig.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
-func (ig *Ingress) appendTargetLabels(ms []map[string]string) []map[string]string {
+func (ig *Ingress) getTargetLabels(aw *apiWatcher) []map[string]string {
 	tlsHosts := make(map[string]bool)
 	for _, tls := range ig.Spec.TLS {
 		for _, host := range tls.Hosts {
 			tlsHosts[host] = true
 		}
 	}
+	var ms []map[string]string
 	for _, r := range ig.Spec.Rules {
 		paths := getIngressRulePaths(r.HTTP.Paths)
 		scheme := "http"
