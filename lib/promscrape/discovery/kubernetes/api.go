@@ -22,7 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 2*time.Minute, "Timeout for requests to Kuberntes API server")
+var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 10*time.Minute, "How frequently to reload the full state from Kuberntes API server")
 
 // apiConfig contains config for API server
 type apiConfig struct {
@@ -345,7 +345,7 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 		if err != nil {
 			logger.Errorf("error when performing a request to %q: %s", requestURL, err)
 			backoffSleep()
-			// There is no sense in reloading resources on non-http errors.
+			resourceVersion = uw.reloadObjects()
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -353,27 +353,23 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 			_ = resp.Body.Close()
 			logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 			if resp.StatusCode == 410 {
-				// Update stale resourceVersion. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
-				resourceVersion = uw.reloadObjects()
+				// There is no need for sleep on 410 error. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
 				backoffDelay = time.Second
 			} else {
 				backoffSleep()
-				// There is no sense in reloading resources on non-410 status codes.
 			}
+			resourceVersion = uw.reloadObjects()
 			continue
 		}
 		backoffDelay = time.Second
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				// The stream has been closed (probably due to timeout)
-				backoffSleep()
-				continue
+			if !errors.Is(err, io.EOF) {
+				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 			}
-			logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 			backoffSleep()
-			// There is no sense in reloading resources on non-http errors.
+			resourceVersion = uw.reloadObjects()
 			continue
 		}
 	}
