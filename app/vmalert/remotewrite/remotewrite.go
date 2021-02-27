@@ -94,7 +94,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 			Timeout:   cfg.WriteTimeout,
 			Transport: cfg.Transport,
 		},
-		addr:          strings.TrimSuffix(cfg.Addr, "/") + writePath,
+		addr:          strings.TrimSuffix(cfg.Addr, "/"),
 		baUser:        cfg.BasicAuthUser,
 		baPass:        cfg.BasicAuthPass,
 		flushInterval: cfg.FlushInterval,
@@ -231,6 +231,7 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	if c.baPass != "" {
 		req.SetBasicAuth(c.baUser, c.baPass)
 	}
+	req.URL.Path += writePath
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
