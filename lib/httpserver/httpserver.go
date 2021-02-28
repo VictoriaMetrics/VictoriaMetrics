@@ -403,7 +403,7 @@ func (zrw *gzipResponseWriter) writeHeader() {
 // Implements http.Flusher
 func (zrw *gzipResponseWriter) Flush() {
 	if !zrw.firstWriteDone {
-		zrw.Write(nil)
+		_, _ = zrw.Write(nil)
 	}
 	if !zrw.disableCompression {
 		if err := zrw.bw.Flush(); err != nil && !isTrivialNetworkError(err) {
@@ -420,7 +420,7 @@ func (zrw *gzipResponseWriter) Flush() {
 
 func (zrw *gzipResponseWriter) Close() error {
 	if !zrw.firstWriteDone {
-		zrw.Write(nil)
+		_, _ = zrw.Write(nil)
 	}
 	zrw.Flush()
 	var err error
