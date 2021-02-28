@@ -307,7 +307,7 @@ func (uw *urlWatcher) reloadObjects() string {
 	}
 	labelsByKey := make(map[string][]map[string]string, len(objectsByKey))
 	for k, o := range objectsByKey {
-		labelsByKey[k] = o.getTargetLabels(uw)
+		labelsByKey[k] = o.getTargetLabels(uw.aw)
 	}
 	uw.mu.Lock()
 	uw.objectsByKey = objectsByKey
