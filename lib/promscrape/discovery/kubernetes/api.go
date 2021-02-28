@@ -232,6 +232,11 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseO
 	resourceVersion := uw.reloadObjects()
 	go func() {
 		uw.watchForUpdates(resourceVersion)
+		uw.mu.Lock()
+		uw.objectsCount.Add(-len(uw.objectsByKey))
+		uw.objectsRemoved.Add(len(uw.objectsByKey))
+		uw.mu.Unlock()
+
 		aw.mu.Lock()
 		delete(aw.watchersByURL, apiURL)
 		aw.mu.Unlock()
