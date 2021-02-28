@@ -231,6 +231,16 @@ func Test_addEnforcedFiltersToTagFilterss(t *testing.T) {
 			{tfFromKV("l1", "v1"), tfFromKV("ext-l1", "v2")},
 			{tfFromKV("l2", "v2"), tfFromKV("ext-l1", "v2")},
 		})
+	f(t, [][]storage.TagFilter{
+		{tfFromKV("l1", "v1")},
+		{tfFromKV("ext-l1", "v5"), tfFromKV("l2", "v12"), tfFromKV("ext-l1", "v7")},
+	},
+		[]storage.TagFilter{tfFromKV("ext-l1", "v2")},
+		[][]storage.TagFilter{
+			{tfFromKV("l1", "v1"), tfFromKV("ext-l1", "v2")},
+			{tfFromKV("l2", "v12"), tfFromKV("ext-l1", "v2")},
+		})
+
 }
 
 func Test_getEnforcedTagFiltersFromRequest(t *testing.T) {

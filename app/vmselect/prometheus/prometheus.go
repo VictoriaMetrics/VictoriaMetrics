@@ -1255,8 +1255,27 @@ func addEnforcedFiltersToTagFilterss(dstTfss [][]storage.TagFilter, enforcedFilt
 			enforcedFilters,
 		}
 	}
+	if len(enforcedFilters) == 0 {
+		return dstTfss
+	}
+	etfByKey := make(map[string]struct{})
+	for _, etf := range enforcedFilters {
+		etfByKey[string(etf.Key)] = struct{}{}
+	}
+	// filter in place tag filters with the same key,
+	// as enforced tag filter.
 	for i := range dstTfss {
-		dstTfss[i] = append(dstTfss[i], enforcedFilters...)
+		dstTf := dstTfss[i]
+		n := 0
+		for x := range dstTf {
+			tf := dstTf[x]
+			if _, ok := etfByKey[string(tf.Key)]; !ok {
+				dstTf[n] = tf
+				n++
+			}
+		}
+		dstTf = dstTf[:n]
+		dstTfss[i] = append(dstTf, enforcedFilters...)
 	}
 	return dstTfss
 }
