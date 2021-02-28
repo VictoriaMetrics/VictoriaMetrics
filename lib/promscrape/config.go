@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -29,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
+	xxhash "github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -42,6 +44,11 @@ var (
 	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
+	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 0, "The number of members in a cluster of scrapers. "+
+		"Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
+		"Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
+	clusterMemberNum = flag.Int("promscrape.cluster.memberNum", 0, "The number of number in the cluster of scrapers. "+
+		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -714,6 +721,9 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
 	key := getScrapeWorkKey(extraLabels, metaLabels)
+	if needSkipScrapeWork(key) {
+		return nil, nil
+	}
 	if sw := swc.cache.Get(key); sw != nil {
 		return sw, nil
 	}
@@ -729,6 +739,14 @@ func getScrapeWorkKey(extraLabels, metaLabels map[string]string) string {
 	b = appendSortedKeyValuePairs(b, extraLabels)
 	b = appendSortedKeyValuePairs(b, metaLabels)
 	return string(b)
+}
+
+func needSkipScrapeWork(key string) bool {
+	if *clusterMembersCount <= 0 {
+		return false
+	}
+	h := int(xxhash.Sum64(bytesutil.ToUnsafeBytes(key)))
+	return (h % *clusterMembersCount) != *clusterMemberNum
 }
 
 func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {

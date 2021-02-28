@@ -34,6 +34,7 @@ to `vmagent` (like the ability to push metrics instead of pulling them). We did 
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as connection
   to remote storage is recovered. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 * Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared to Prometheus.
+* Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets) for details.
 
 
 ## Quick Start
@@ -225,6 +226,21 @@ Read more about relabeling in the following articles:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
+
+
+## Scraping big number of targets
+
+A single `vmagent` instance can scrape tens of thousands of scrape targets. Sometimes this isn't enough due to limitations on CPU, network, RAM, etc.
+In this case scrape targets can be split among multiple `vmagent` instances (aka `vmagent` clustering).
+Each `vmagent` instance in the cluster must have identical configs, including identical `-promscrape.config` files, except of a single command-line flag:
+`-promscrape.cluster.memberNum`. The flag value must be in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster.
+The number of `vmagent` instances in the cluster must be passed to `-promscrape.cluster.membersCount` command-line flag. For example, the following commands
+spread scrape targets among a cluster of two `vmagent` instances:
+
+```
+/path/to/vmagent ... -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0
+/path/to/vmagent ... -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1
+```
 
 
 ## Monitoring
