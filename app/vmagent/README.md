@@ -232,14 +232,14 @@ Read more about relabeling in the following articles:
 
 A single `vmagent` instance can scrape tens of thousands of scrape targets. Sometimes this isn't enough due to limitations on CPU, network, RAM, etc.
 In this case scrape targets can be split among multiple `vmagent` instances (aka `vmagent` clustering).
-Each `vmagent` instance in the cluster must have identical configs, including identical `-promscrape.config` files, except of a single command-line flag:
-`-promscrape.cluster.memberNum`. The flag value must be in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster.
+Each `vmagent` instance in the cluster must use identical `-promscrape.config` files with distinct `-promscrape.cluster.memberNum` values.
+The flag value must be in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster.
 The number of `vmagent` instances in the cluster must be passed to `-promscrape.cluster.membersCount` command-line flag. For example, the following commands
 spread scrape targets among a cluster of two `vmagent` instances:
 
 ```
-/path/to/vmagent ... -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0
-/path/to/vmagent ... -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1
+/path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
+/path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
 
 
