@@ -299,6 +299,9 @@ again:
 type rateLimiter struct {
 	perSecondLimit int64
 
+	// mu protects budget and deadline from concurrent access.
+	mu sync.Mutex
+
 	// The current budget. It is increased by perSecondLimit every second.
 	budget int64
 
@@ -313,6 +316,10 @@ func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
 	if limit <= 0 {
 		return
 	}
+
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
 	for rl.budget <= 0 {
 		now := time.Now()
 		if d := rl.deadline.Sub(now); d > 0 {
