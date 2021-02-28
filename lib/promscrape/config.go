@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -720,25 +719,29 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 }
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	key := getScrapeWorkKey(extraLabels, metaLabels)
-	if needSkipScrapeWork(key) {
+	bb := scrapeWorkKeyBufPool.Get()
+	defer scrapeWorkKeyBufPool.Put(bb)
+	bb.B = appendScrapeWorkKey(bb.B[:0], extraLabels, metaLabels)
+	keyStrUnsafe := bytesutil.ToUnsafeString(bb.B)
+	if needSkipScrapeWork(keyStrUnsafe) {
 		return nil, nil
 	}
-	if sw := swc.cache.Get(key); sw != nil {
+	if sw := swc.cache.Get(keyStrUnsafe); sw != nil {
 		return sw, nil
 	}
 	sw, err := swc.getScrapeWorkReal(target, extraLabels, metaLabels)
 	if err != nil {
-		swc.cache.Set(key, sw)
+		swc.cache.Set(string(bb.B), sw)
 	}
 	return sw, err
 }
 
-func getScrapeWorkKey(extraLabels, metaLabels map[string]string) string {
-	var b []byte
-	b = appendSortedKeyValuePairs(b, extraLabels)
-	b = appendSortedKeyValuePairs(b, metaLabels)
-	return string(b)
+var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
+
+func appendScrapeWorkKey(dst []byte, extraLabels, metaLabels map[string]string) []byte {
+	dst = appendSortedKeyValuePairs(dst, extraLabels)
+	dst = appendSortedKeyValuePairs(dst, metaLabels)
+	return dst
 }
 
 func needSkipScrapeWork(key string) bool {
@@ -756,9 +759,10 @@ func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		dst = strconv.AppendQuote(dst, k)
-		dst = append(dst, ':')
-		dst = strconv.AppendQuote(dst, m[k])
+		// Do not use strconv.AppendQuote, since it is slow according to CPU profile.
+		dst = append(dst, k...)
+		dst = append(dst, '=')
+		dst = append(dst, m[k]...)
 		dst = append(dst, ',')
 	}
 	dst = append(dst, '\n')
