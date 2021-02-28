@@ -305,8 +305,13 @@ func (uw *urlWatcher) reloadObjects() string {
 		logger.Errorf("cannot parse response from %q: %s", requestURL, err)
 		return ""
 	}
+	labelsByKey := make(map[string][]map[string]string, len(objectsByKey))
+	for k, o := range objectsByKey {
+		labelsByKey[k] = o.getTargetLabels(uw)
+	}
 	uw.mu.Lock()
 	uw.objectsByKey = objectsByKey
+	uw.labelsByKey = labelsByKey
 	uw.mu.Unlock()
 	return metadata.ResourceVersion
 }
