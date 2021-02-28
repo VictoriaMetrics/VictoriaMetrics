@@ -347,7 +347,7 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 		}
 		requestURL := apiURL
 		if resourceVersion != "" {
-			requestURL += "&resourceVersion=" + url.QueryEscape(resourceVersion) + "&resourceVersionMatch=NotOlderThan"
+			requestURL += "&resourceVersion=" + url.QueryEscape(resourceVersion)
 		}
 		resp, err := aw.doRequest(requestURL)
 		if err != nil {
