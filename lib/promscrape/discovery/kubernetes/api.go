@@ -217,14 +217,16 @@ func (aw *apiWatcher) startWatchersForRole(role string) {
 
 func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseObjectFunc, parseObjectList parseObjectListFunc) {
 	aw.mu.Lock()
-	defer aw.mu.Unlock()
 	if aw.watchersByURL[apiURL] != nil {
 		// Watcher for the given path already exists.
+		aw.mu.Unlock()
 		return
 	}
 	uw := aw.newURLWatcher(role, apiURL, parseObject, parseObjectList)
-	resourceVersion := uw.reloadObjects()
 	aw.watchersByURL[apiURL] = uw
+	aw.mu.Unlock()
+
+	resourceVersion := uw.reloadObjects()
 	go func() {
 		uw.watchForUpdates(resourceVersion)
 		aw.mu.Lock()
