@@ -328,9 +328,9 @@ func maybeGzipResponseWriter(w http.ResponseWriter, r *http.Request) http.Respon
 	zw := getGzipWriter(w)
 	bw := getBufioWriter(zw)
 	zrw := &gzipResponseWriter{
-		ResponseWriter: w,
-		zw:             zw,
-		bw:             bw,
+		rw: w,
+		zw: zw,
+		bw: bw,
 	}
 	return zrw
 }
@@ -376,7 +376,7 @@ func putGzipWriter(zw *gzip.Writer) {
 var gzipWriterPool sync.Pool
 
 type gzipResponseWriter struct {
-	http.ResponseWriter
+	rw         http.ResponseWriter
 	zw         *gzip.Writer
 	bw         *bufio.Writer
 	statusCode int
@@ -385,6 +385,12 @@ type gzipResponseWriter struct {
 	disableCompression bool
 }
 
+// Implements http.ResponseWriter.Header method.
+func (zrw *gzipResponseWriter) Header() http.Header {
+	return zrw.rw.Header()
+}
+
+// Implements http.ResponseWriter.Write method.
 func (zrw *gzipResponseWriter) Write(p []byte) (int, error) {
 	if !zrw.firstWriteDone {
 		h := zrw.Header()
@@ -407,11 +413,12 @@ func (zrw *gzipResponseWriter) Write(p []byte) (int, error) {
 		zrw.firstWriteDone = true
 	}
 	if zrw.disableCompression {
-		return zrw.ResponseWriter.Write(p)
+		return zrw.rw.Write(p)
 	}
 	return zrw.bw.Write(p)
 }
 
+// Implements http.ResponseWriter.WriteHeader method.
 func (zrw *gzipResponseWriter) WriteHeader(statusCode int) {
 	zrw.statusCode = statusCode
 }
@@ -420,11 +427,14 @@ func (zrw *gzipResponseWriter) writeHeader() {
 	if zrw.statusCode == 0 {
 		zrw.statusCode = http.StatusOK
 	}
-	zrw.ResponseWriter.WriteHeader(zrw.statusCode)
+	zrw.rw.WriteHeader(zrw.statusCode)
 }
 
 // Implements http.Flusher
 func (zrw *gzipResponseWriter) Flush() {
+	if !zrw.firstWriteDone {
+		zrw.Write(nil)
+	}
 	if !zrw.disableCompression {
 		if err := zrw.bw.Flush(); err != nil && !isTrivialNetworkError(err) {
 			logger.Warnf("gzipResponseWriter.Flush (buffer): %s", err)
@@ -433,15 +443,14 @@ func (zrw *gzipResponseWriter) Flush() {
 			logger.Warnf("gzipResponseWriter.Flush (gzip): %s", err)
 		}
 	}
-	if fw, ok := zrw.ResponseWriter.(http.Flusher); ok {
+	if fw, ok := zrw.rw.(http.Flusher); ok {
 		fw.Flush()
 	}
 }
 
 func (zrw *gzipResponseWriter) Close() error {
 	if !zrw.firstWriteDone {
-		zrw.writeHeader()
-		return nil
+		zrw.Write(nil)
 	}
 	zrw.Flush()
 	var err error
