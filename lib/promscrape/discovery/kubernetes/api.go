@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 10*time.Minute, "How frequently to reload the full state from Kuberntes API server")
@@ -226,12 +227,16 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseO
 	aw.watchersByURL[apiURL] = uw
 	aw.mu.Unlock()
 
+	uw.watchersCount.Inc()
+	uw.watchersCreated.Inc()
 	resourceVersion := uw.reloadObjects()
 	go func() {
 		uw.watchForUpdates(resourceVersion)
 		aw.mu.Lock()
 		delete(aw.watchersByURL, apiURL)
 		aw.mu.Unlock()
+		uw.watchersCount.Dec()
+		uw.watchersStopped.Inc()
 	}()
 }
 
@@ -271,6 +276,14 @@ type urlWatcher struct {
 
 	// the parent apiWatcher
 	aw *apiWatcher
+
+	watchersCount   *metrics.Counter
+	watchersCreated *metrics.Counter
+	watchersStopped *metrics.Counter
+
+	objectsCount   *metrics.Counter
+	objectsAdded   *metrics.Counter
+	objectsRemoved *metrics.Counter
 }
 
 func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObjectFunc, parseObjectList parseObjectListFunc) *urlWatcher {
@@ -285,6 +298,14 @@ func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObject
 		labelsByKey:  make(map[string][]map[string]string),
 
 		aw: aw,
+
+		watchersCount:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers{role=%q}`, role)),
+		watchersCreated: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers_created_total{role=%q}`, role)),
+		watchersStopped: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers_stopped_total{role=%q}`, role)),
+
+		objectsCount:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects{role=%q}`, role)),
+		objectsAdded:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_added_total{role=%q}`, role)),
+		objectsRemoved: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_removed_total{role=%q}`, role)),
 	}
 }
 
@@ -312,6 +333,9 @@ func (uw *urlWatcher) reloadObjects() string {
 		labelsByKey[k] = o.getTargetLabels(uw.aw)
 	}
 	uw.mu.Lock()
+	uw.objectsRemoved.Add(-len(uw.objectsByKey))
+	uw.objectsAdded.Add(len(objectsByKey))
+	uw.objectsCount.Add(len(objectsByKey) - len(uw.objectsByKey))
 	uw.objectsByKey = objectsByKey
 	uw.labelsByKey = labelsByKey
 	uw.mu.Unlock()
@@ -399,6 +423,10 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 		switch we.Type {
 		case "ADDED", "MODIFIED":
 			uw.mu.Lock()
+			if uw.objectsByKey[key] == nil {
+				uw.objectsAdded.Inc()
+				uw.objectsCount.Inc()
+			}
 			uw.objectsByKey[key] = o
 			uw.mu.Unlock()
 			labels := o.getTargetLabels(uw.aw)
@@ -407,6 +435,10 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			uw.mu.Unlock()
 		case "DELETED":
 			uw.mu.Lock()
+			if uw.objectsByKey[key] != nil {
+				uw.objectsRemoved.Inc()
+				uw.objectsCount.Dec()
+			}
 			delete(uw.objectsByKey, key)
 			delete(uw.labelsByKey, key)
 			uw.mu.Unlock()
