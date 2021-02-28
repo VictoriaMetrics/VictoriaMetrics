@@ -611,9 +611,9 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 		sw  *ScrapeWork
 		err error
 	}
-	resultCh := make(chan result)
-	workCh := make(chan map[string]string)
 	goroutines := cgroup.AvailableCPUs()
+	resultCh := make(chan result, len(targetLabels))
+	workCh := make(chan map[string]string, goroutines)
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			for metaLabels := range workCh {
