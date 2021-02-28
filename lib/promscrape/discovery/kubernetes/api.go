@@ -163,6 +163,7 @@ func newAPIWatcher(client *http.Client, apiServer, authorization string, namespa
 
 // getLabelsForRole returns all the sets of labels for the given role.
 func (aw *apiWatcher) getLabelsForRole(role string) []map[string]string {
+	aw.startWatchersForRole(role)
 	var ms []map[string]string
 	aw.mu.Lock()
 	for _, uw := range aw.watchersByURL {
