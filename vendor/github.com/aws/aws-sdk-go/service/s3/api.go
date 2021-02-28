@@ -2852,9 +2852,12 @@ func (c *S3) GetBucketEncryptionRequest(input *GetBucketEncryptionInput) (req *r
 
 // GetBucketEncryption API operation for Amazon Simple Storage Service.
 //
-// Returns the default encryption configuration for an Amazon S3 bucket. For
-// information about the Amazon S3 default encryption feature, see Amazon S3
-// Default Bucket Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html).
+// Returns the default encryption configuration for an Amazon S3 bucket. If
+// the bucket does not have a default encryption configuration, GetBucketEncryption
+// returns ServerSideEncryptionConfigurationNotFoundError.
+//
+// For information about the Amazon S3 default encryption feature, see Amazon
+// S3 Default Bucket Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html).
 //
 // To use this operation, you must have permission to perform the s3:GetEncryptionConfiguration
 // action. The bucket owner has this permission by default. The bucket owner
@@ -5042,6 +5045,8 @@ func (c *S3) GetObjectTaggingRequest(input *GetObjectTaggingInput) (req *request
 //
 //    * PutObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
 //
+//    * DeleteObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html)
+//
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
 // the error.
@@ -5302,8 +5307,12 @@ func (c *S3) HeadBucketRequest(input *HeadBucketInput) (req *request.Request, ou
 //
 // This operation is useful to determine if a bucket exists and you have permission
 // to access it. The operation returns a 200 OK if the bucket exists and you
-// have permission to access it. Otherwise, the operation might return responses
-// such as 404 Not Found and 403 Forbidden.
+// have permission to access it.
+//
+// If the bucket does not exist or you do not have permission to access it,
+// the HEAD request returns a generic 404 Not Found or 403 Forbidden code. A
+// message body is not included, so you cannot determine the exception beyond
+// these error codes.
 //
 // To use this operation, you must have permissions to perform the s3:ListBucket
 // action. The bucket owner has this permission by default and can grant this
@@ -5394,7 +5403,9 @@ func (c *S3) HeadObjectRequest(input *HeadObjectInput) (req *request.Request, ou
 //
 // A HEAD request has the same options as a GET operation on an object. The
 // response is identical to the GET response except that there is no response
-// body.
+// body. Because of this, if the HEAD request generates an error, it returns
+// a generic 404 Not Found or 403 Forbidden code. It is not possible to retrieve
+// the exact exception beyond these error codes.
 //
 // If you encrypt an object by using server-side encryption with customer-provided
 // encryption keys (SSE-C) when you store the object in Amazon S3, then when
@@ -5409,11 +5420,14 @@ func (c *S3) HeadObjectRequest(input *HeadObjectInput) (req *request.Request, ou
 // For more information about SSE-C, see Server-Side Encryption (Using Customer-Provided
 // Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html).
 //
-// Encryption request headers, like x-amz-server-side-encryption, should not
-// be sent for GET requests if your object uses server-side encryption with
-// CMKs stored in AWS KMS (SSE-KMS) or server-side encryption with Amazon S3–managed
-// encryption keys (SSE-S3). If your object does use these types of keys, you’ll
-// get an HTTP 400 BadRequest error.
+//    * Encryption request headers, like x-amz-server-side-encryption, should
+//    not be sent for GET requests if your object uses server-side encryption
+//    with CMKs stored in AWS KMS (SSE-KMS) or server-side encryption with Amazon
+//    S3–managed encryption keys (SSE-S3). If your object does use these types
+//    of keys, you’ll get an HTTP 400 BadRequest error.
+//
+//    * The last modified property in this case is the creation date of the
+//    object.
 //
 // Request headers are limited to 8 KB in size. For more information, see Common
 // Request Headers (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonRequestHeaders.html).
@@ -6482,7 +6496,8 @@ func (c *S3) ListObjectsV2Request(input *ListObjectsV2Input) (req *request.Reque
 // the request parameters as selection criteria to return a subset of the objects
 // in a bucket. A 200 OK response can contain valid or invalid XML. Make sure
 // to design your application to parse the contents of the response and handle
-// it appropriately.
+// it appropriately. Objects are returned sorted in an ascending order of the
+// respective key names in the list.
 //
 // To use this operation, you must have READ access to the bucket.
 //
@@ -7415,7 +7430,8 @@ func (c *S3) PutBucketIntelligentTieringConfigurationRequest(input *PutBucketInt
 
 // PutBucketIntelligentTieringConfiguration API operation for Amazon Simple Storage Service.
 //
-// Puts a S3 Intelligent-Tiering configuration to the specified bucket.
+// Puts a S3 Intelligent-Tiering configuration to the specified bucket. You
+// can have up to 1,000 S3 Intelligent-Tiering configurations per bucket.
 //
 // The S3 Intelligent-Tiering storage class is designed to optimize storage
 // costs by automatically moving data to the most cost-effective storage access
@@ -7441,6 +7457,22 @@ func (c *S3) PutBucketIntelligentTieringConfigurationRequest(input *PutBucketInt
 //    * GetBucketIntelligentTieringConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketIntelligentTieringConfiguration.html)
 //
 //    * ListBucketIntelligentTieringConfigurations (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketIntelligentTieringConfigurations.html)
+//
+// You only need S3 Intelligent-Tiering enabled on a bucket if you want to automatically
+// move objects stored in the S3 Intelligent-Tiering storage class to the Archive
+// Access or Deep Archive Access tier.
+//
+// Special Errors
+//
+//    * HTTP 400 Bad Request Error Code: InvalidArgument Cause: Invalid Argument
+//
+//    * HTTP 400 Bad Request Error Code: TooManyConfigurations Cause: You are
+//    attempting to create a new configuration but have already reached the
+//    1,000-configuration limit.
+//
+//    * HTTP 403 Forbidden Error Code: AccessDenied Cause: You are not the owner
+//    of the specified bucket, or you do not have the s3:PutIntelligentTieringConfiguration
+//    bucket permission to set the configuration on the bucket.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -9750,6 +9782,8 @@ func (c *S3) PutObjectTaggingRequest(input *PutObjectTaggingInput) (req *request
 // Related Resources
 //
 //    * GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+//
+//    * DeleteObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html)
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -12341,6 +12375,10 @@ type Condition struct {
 	// the parent element Condition is specified and sibling HttpErrorCodeReturnedEquals
 	// is not specified. If both conditions are specified, both must be true for
 	// the redirect to be applied.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	KeyPrefixEquals *string `type:"string"`
 }
 
@@ -13083,10 +13121,10 @@ type CopyObjectResult struct {
 
 	// Returns the ETag of the new object. The ETag reflects only changes to the
 	// contents of an object, not its metadata. The source and destination ETag
-	// is identical for a successfully copied object.
+	// is identical for a successfully copied non-multipart object.
 	ETag *string `type:"string"`
 
-	// Returns the date that the object was last modified.
+	// Creation date of the object.
 	LastModified *time.Time `type:"timestamp"`
 }
 
@@ -15667,7 +15705,8 @@ type DeleteObjectTaggingInput struct {
 	// error.
 	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
-	// Name of the object key.
+	// The key that identifies the object in the bucket from which to remove all
+	// tags.
 	//
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
@@ -16820,6 +16859,10 @@ type ErrorDocument struct {
 	_ struct{} `type:"structure"`
 
 	// The object key name to use when a 4XX class error occurs.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	//
 	// Key is a required field
 	Key *string `min:"1" type:"string" required:"true"`
@@ -19565,14 +19608,14 @@ type GetObjectInput struct {
 	// Sets the Expires header of the response.
 	ResponseExpires *time.Time `location:"querystring" locationName:"response-expires" type:"timestamp" timestampFormat:"rfc822"`
 
-	// Specifies the algorithm to use to when encrypting the object (for example,
+	// Specifies the algorithm to use to when decrypting the object (for example,
 	// AES256).
 	SSECustomerAlgorithm *string `location:"header" locationName:"x-amz-server-side-encryption-customer-algorithm" type:"string"`
 
-	// Specifies the customer-provided encryption key for Amazon S3 to use in encrypting
-	// data. This value is used to store the object and then it is discarded; Amazon
-	// S3 does not store the encryption key. The key must be appropriate for use
-	// with the algorithm specified in the x-amz-server-side-encryption-customer-algorithm
+	// Specifies the customer-provided encryption key for Amazon S3 used to encrypt
+	// the data. This value is used to decrypt the object when recovering it and
+	// must match the one used when storing the data. The key must be appropriate
+	// for use with the algorithm specified in the x-amz-server-side-encryption-customer-algorithm
 	// header.
 	SSECustomerKey *string `marshal-as:"blob" location:"header" locationName:"x-amz-server-side-encryption-customer-key" type:"string" sensitive:"true"`
 
@@ -20103,7 +20146,7 @@ type GetObjectOutput struct {
 	// The date and time at which the object is no longer cacheable.
 	Expires *string `location:"header" locationName:"Expires" type:"string"`
 
-	// Last modified date of the object
+	// Creation date of the object.
 	LastModified *time.Time `location:"header" locationName:"Last-Modified" type:"timestamp"`
 
 	// A map of metadata to store with the object in S3.
@@ -20570,6 +20613,13 @@ type GetObjectTaggingInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in the Amazon S3 Developer Guide.
+	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
+
 	// The versionId of the object for which to get the tagging information.
 	VersionId *string `location:"querystring" locationName:"versionId" type:"string"`
 }
@@ -20628,6 +20678,12 @@ func (s *GetObjectTaggingInput) SetExpectedBucketOwner(v string) *GetObjectTaggi
 // SetKey sets the Key field's value.
 func (s *GetObjectTaggingInput) SetKey(v string) *GetObjectTaggingInput {
 	s.Key = &v
+	return s
+}
+
+// SetRequestPayer sets the RequestPayer field's value.
+func (s *GetObjectTaggingInput) SetRequestPayer(v string) *GetObjectTaggingInput {
+	s.RequestPayer = &v
 	return s
 }
 
@@ -21555,7 +21611,7 @@ type HeadObjectOutput struct {
 	// The date and time at which the object is no longer cacheable.
 	Expires *string `location:"header" locationName:"Expires" type:"string"`
 
-	// Last modified date of the object
+	// Creation date of the object.
 	LastModified *time.Time `location:"header" locationName:"Last-Modified" type:"timestamp"`
 
 	// A map of metadata to store with the object in S3.
@@ -21881,6 +21937,10 @@ type IndexDocument struct {
 	// with the key name images/index.html) The suffix must not be empty and must
 	// not include a slash character.
 	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	//
 	// Suffix is a required field
 	Suffix *string `type:"string" required:"true"`
 }
@@ -22164,6 +22224,10 @@ type IntelligentTieringFilter struct {
 
 	// An object key name prefix that identifies the subset of objects to which
 	// the rule applies.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	Prefix *string `type:"string"`
 
 	// A container of a key value name pair.
@@ -22911,6 +22975,10 @@ type LifecycleRule struct {
 	// Prefix identifying one or more objects to which the rule applies. This is
 	// No longer used; use Filter instead.
 	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	//
 	// Deprecated: Prefix has been deprecated
 	Prefix *string `deprecated:"true" type:"string"`
 
@@ -23073,6 +23141,10 @@ type LifecycleRuleFilter struct {
 	And *LifecycleRuleAndOperator `type:"structure"`
 
 	// Prefix identifying one or more objects to which the rule applies.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	Prefix *string `type:"string"`
 
 	// This tag must exist in the object's tag set in order for the rule to apply.
@@ -24579,8 +24651,8 @@ func (s ListObjectsInput) updateArnableField(v string) (interface{}, error) {
 type ListObjectsOutput struct {
 	_ struct{} `type:"structure"`
 
-	// All of the keys rolled up in a common prefix count as a single return when
-	// calculating the number of returns.
+	// All of the keys (up to 1,000) rolled up in a common prefix count as a single
+	// return when calculating the number of returns.
 	//
 	// A response can contain CommonPrefixes only if you specify a delimiter.
 	//
@@ -24891,8 +24963,8 @@ func (s ListObjectsV2Input) updateArnableField(v string) (interface{}, error) {
 type ListObjectsV2Output struct {
 	_ struct{} `type:"structure"`
 
-	// All of the keys rolled up into a common prefix count as a single return when
-	// calculating the number of returns.
+	// All of the keys (up to 1,000) rolled up into a common prefix count as a single
+	// return when calculating the number of returns.
 	//
 	// A response can contain CommonPrefixes only if you specify a delimiter.
 	//
@@ -24936,8 +25008,8 @@ type ListObjectsV2Output struct {
 	IsTruncated *bool `type:"boolean"`
 
 	// KeyCount is the number of keys returned with this request. KeyCount will
-	// always be less than equals to MaxKeys field. Say you ask for 50 keys, your
-	// result will include less than equals 50 keys
+	// always be less than or equals to MaxKeys field. Say you ask for 50 keys,
+	// your result will include less than equals 50 keys
 	KeyCount *int64 `type:"integer"`
 
 	// Sets the maximum number of keys returned in the response. By default the
@@ -26195,7 +26267,7 @@ type Object struct {
 	// the object.
 	Key *string `min:"1" type:"string"`
 
-	// The date the Object was Last Modified
+	// Creation date of the object.
 	LastModified *time.Time `type:"timestamp"`
 
 	// The owner of the object
@@ -26258,7 +26330,11 @@ func (s *Object) SetStorageClass(v string) *Object {
 type ObjectIdentifier struct {
 	_ struct{} `type:"structure"`
 
-	// Key name of the object to delete.
+	// Key name of the object.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	//
 	// Key is a required field
 	Key *string `min:"1" type:"string" required:"true"`
@@ -30815,6 +30891,13 @@ type PutObjectTaggingInput struct {
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
 
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from requester pays buckets, see Downloading Objects
+	// in Requestor Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in the Amazon S3 Developer Guide.
+	RequestPayer *string `location:"header" locationName:"x-amz-request-payer" type:"string" enum:"RequestPayer"`
+
 	// Container for the TagSet and Tag elements
 	//
 	// Tagging is a required field
@@ -30886,6 +30969,12 @@ func (s *PutObjectTaggingInput) SetExpectedBucketOwner(v string) *PutObjectTaggi
 // SetKey sets the Key field's value.
 func (s *PutObjectTaggingInput) SetKey(v string) *PutObjectTaggingInput {
 	s.Key = &v
+	return s
+}
+
+// SetRequestPayer sets the RequestPayer field's value.
+func (s *PutObjectTaggingInput) SetRequestPayer(v string) *PutObjectTaggingInput {
+	s.RequestPayer = &v
 	return s
 }
 
@@ -31275,11 +31364,19 @@ type Redirect struct {
 	// and in the Redirect set ReplaceKeyPrefixWith to /documents. Not required
 	// if one of the siblings is present. Can be present only if ReplaceKeyWith
 	// is not provided.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	ReplaceKeyPrefixWith *string `type:"string"`
 
 	// The specific object key to use in the redirect request. For example, redirect
 	// request to error.html. Not required if one of the siblings is present. Can
 	// be present only if ReplaceKeyPrefixWith is not provided.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	ReplaceKeyWith *string `type:"string"`
 }
 
@@ -31529,6 +31626,10 @@ type ReplicationRule struct {
 	// the rule applies. The maximum prefix length is 1,024 characters. To include
 	// all objects in a bucket, specify an empty string.
 	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	//
 	// Deprecated: Prefix has been deprecated
 	Prefix *string `deprecated:"true" type:"string"`
 
@@ -31737,6 +31838,10 @@ type ReplicationRuleFilter struct {
 
 	// An object key name prefix that identifies the subset of objects to which
 	// the rule applies.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	Prefix *string `type:"string"`
 
 	// A container for specifying a tag key and value.
@@ -32331,6 +32436,10 @@ type Rule struct {
 
 	// Object key prefix that identifies one or more objects to which this rule
 	// applies.
+	//
+	// Replacement must be made for object keys containing special characters (such
+	// as carriage returns) when using XML requests. For more information, see XML
+	// related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
 	//
 	// Prefix is a required field
 	Prefix *string `type:"string" required:"true"`
