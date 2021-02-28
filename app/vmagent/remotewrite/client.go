@@ -321,8 +321,7 @@ func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
 	defer rl.mu.Unlock()
 
 	for rl.budget <= 0 {
-		now := time.Now()
-		if d := rl.deadline.Sub(now); d > 0 {
+		if d := time.Until(rl.deadline); d > 0 {
 			rl.limitReached.Inc()
 			t := timerpool.Get(d)
 			select {
@@ -334,7 +333,7 @@ func (rl *rateLimiter) register(dataLen int, stopCh <-chan struct{}) {
 			}
 		}
 		rl.budget += limit
-		rl.deadline = now.Add(time.Second)
+		rl.deadline = time.Now().Add(time.Second)
 	}
 	rl.budget -= int64(dataLen)
 }
