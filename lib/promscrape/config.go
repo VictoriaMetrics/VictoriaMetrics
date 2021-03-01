@@ -728,7 +728,7 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
 	bb := scrapeWorkKeyBufPool.Get()
 	defer scrapeWorkKeyBufPool.Put(bb)
-	bb.B = appendScrapeWorkKey(bb.B[:0], extraLabels, metaLabels)
+	bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
 	keyStrUnsafe := bytesutil.ToUnsafeString(bb.B)
 	if needSkipScrapeWork(keyStrUnsafe) {
 		return nil, nil
@@ -745,7 +745,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
-func appendScrapeWorkKey(dst []byte, extraLabels, metaLabels map[string]string) []byte {
+func appendScrapeWorkKey(dst []byte, target string, extraLabels, metaLabels map[string]string) []byte {
+	dst = append(dst, target...)
+	dst = append(dst, ',')
 	dst = appendSortedKeyValuePairs(dst, extraLabels)
 	dst = appendSortedKeyValuePairs(dst, metaLabels)
 	return dst
