@@ -490,7 +490,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
-    	Timezone to use for timestamps in logs. Local timezone can be used (default "UTC")
+    	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
   -maxConcurrentInserts int
@@ -518,6 +518,10 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
     	Auth key for /debug/pprof. It overrides httpAuth settings
+  -promscrape.cluster.memberNum int
+    	The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster
+  -promscrape.cluster.membersCount int
+    	The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
   -promscrape.config string
     	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
@@ -550,6 +554,8 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
   -promscrape.gceSDCheckInterval gce_sd_configs
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
+  -promscrape.kubernetes.apiServerTimeout duration
+    	How frequently to reload the full state from Kuberntes API server (default 10m0s)
   -promscrape.kubernetesSDCheckInterval kubernetes_sd_configs
     	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
   -promscrape.maxDroppedTargets droppedTargets
@@ -575,7 +581,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Optional bearer auth token to use for -remoteWrite.url. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
-    	Interval for flushing the data to remote storage. Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage. Minimum supported interval is 1 second (default 1s)
+    	Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.label array
     	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage
     	Supports array of values separated by comma or specified via multiple flags.
