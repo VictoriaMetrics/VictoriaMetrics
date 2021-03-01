@@ -737,7 +737,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		return sw, nil
 	}
 	sw, err := swc.getScrapeWorkReal(target, extraLabels, metaLabels)
-	if err != nil {
+	if err == nil {
 		swc.cache.Set(string(bb.B), sw)
 	}
 	return sw, err
