@@ -253,13 +253,24 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	data := Metric{}
 	data.Metric = series.Metric
 	data.Tags = series.Tags
-	for _, tsobj := range output.Outputs[0].Dps {
-		data.Timestamps = append(data.Timestamps, int64(tsobj[0]))
-		data.Values = append(data.Values, tsobj[1])
-	}
+	/*
+	We evaluate data for correctness before formatting the actual values
+	to skip a little bit of time if the series has invalid formatting
+	*/
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
 		return Metric{}, fmt.Errorf("invalid series data from %q: %s", q, err)
+	}
+	/*
+	Convert data from OpenTSDB's output format ([[ts,val],[ts,val]...])
+	to VictoriaMetrics format: {"timestamps": [ts,ts,ts...], "values": [val,val,val...]}
+	The nasty part here is that because on object in each array
+	can be a float64, we have to initially cast _all_ objects that way
+	then convert the timestamp back to something reasonable.
+	*/
+	for _, tsobj := range output.Outputs[0].Dps {
+		data.Timestamps = append(data.Timestamps, int64(tsobj[0]))
+		data.Values = append(data.Values, tsobj[1])
 	}
 	return data, nil
 }

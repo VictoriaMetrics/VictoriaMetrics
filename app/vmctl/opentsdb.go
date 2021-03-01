@@ -38,7 +38,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 	var metrics []string
 	for _, filter := range op.oc.Filters {
 		q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", op.oc.Addr, filter, op.oc.Limit)
-		m, err := op.oc.FindMetrics(filter)
+		m, err := op.oc.FindMetrics(q)
 		if err != nil {
 			return fmt.Errorf("metric discovery failed for %q: %s", q, err)
 		}
