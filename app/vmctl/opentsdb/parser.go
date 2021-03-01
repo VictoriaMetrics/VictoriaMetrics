@@ -2,7 +2,7 @@ package opentsdb
 
 import (
 	"fmt"
-	"log"
+	// "log"
 	"regexp"
 	"strings"
 	"time"
@@ -16,7 +16,7 @@ var (
 )
 
 // Convert an incoming retention "string" into the component parts
-func convertRetention(retention string, offset int) (string, string, string, []TimeRange) {
+func convertRetention(retention string, offset int) (Retention, error) {
 	/*
 		Our "offset" is the number of days we should step
 		back before starting to scan for data
@@ -31,15 +31,18 @@ func convertRetention(retention string, offset int) (string, string, string, []T
 		3. create the time ranges we actually need
 	*/
 	chunks := strings.Split(retention, ":")
-	log.Println("Retention strings to process: ", chunks)
+	if len(chunks) < 3 {
+		return Retention{}, fmt.Errorf("invalid retention string: %s", retention)
+	}
+	// log.Println("Retention strings to process: ", chunks)
 	aggregates := strings.Split(chunks[0], "-")
 	rowLength, err := time.ParseDuration(chunks[1])
 	if err != nil {
-		panic(fmt.Sprintf("Failed to parse duration, %v", err))
+		return Retention{}, fmt.Errorf("failed to parse duration, %v", err)
 	}
 	ttl, err := time.ParseDuration(chunks[2])
 	if err != nil {
-		panic(fmt.Sprintf("Failed to parse duration: %v", err))
+		return Retention{}, fmt.Errorf("failed to parse duration: %v", err)
 	}
 	rowSecs := rowLength.Seconds()
 	// bump by the offset so we don't look at empty ranges any time offset > ttl
@@ -50,7 +53,11 @@ func convertRetention(retention string, offset int) (string, string, string, []T
 		timeChunks = append(timeChunks, TimeRange{Start: i + int64(rowSecs), End: i})
 	}
 	// FirstOrder, AggTime, SecondOrder, RowSize, TTL
-	return aggregates[0], aggregates[1], aggregates[2], timeChunks
+	ret := Retention{FirstOrder: aggregates[0],
+					 SecondOrder: aggregates[2],
+					 AggTime: aggregates[1],
+					 QueryRanges: timeChunks}
+	return ret, nil
 }
 
 // This ensures any incoming data from OpenTSDB matches the Prometheus data model

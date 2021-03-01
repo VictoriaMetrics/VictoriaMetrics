@@ -157,24 +157,28 @@ type outputObj struct {
 
 /* End expression object structs */
 
+var (
+	exprOutput     = outputObj{ID: "a", Alias: "query"}
+	exprFillPolicy = fillObj{Policy: "nan"}
+)
+
 // FindMetrics discovers all metrics that OpenTSDB knows about (given a filter)
 // e.g. /api/suggest?type=metrics&q=system&max=100000
-func (c Client) FindMetrics(filter string) ([]string, error) {
-	q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", c.Addr, filter, c.Limit)
+func (c Client) FindMetrics(q string) ([]string, error) {
 	//log.Println(q)
 	resp, err := http.Get(q)
 	if err != nil {
-		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
+		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Could not retrieve metric data from %s: %s", c.Addr, err)
+		return nil, fmt.Errorf("could not retrieve metric data from %q: %s", q, err)
 	}
 	var metriclist []string
 	err = json.Unmarshal(body, &metriclist)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid metric data from %s: %s", c.Addr, err)
+		return nil, fmt.Errorf("failed to read response from %q: %s", q, err)
 	}
 	return metriclist, nil
 }
@@ -185,17 +189,17 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	q := fmt.Sprintf("%s/api/search/lookup?m=%s&limit=%d", c.Addr, metric, c.Limit)
 	resp, err := http.Get(q)
 	if err != nil {
-		return nil, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
+		return nil, fmt.Errorf("failed to set GET request to %q: %s", q, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
+		return nil, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
 	}
 	var results MetaResults
 	err = json.Unmarshal(body, &results)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+		return nil, fmt.Errorf("failed to read response from %q: %s", q, err)
 	}
 	return results.Results, nil
 }
@@ -203,13 +207,13 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 // GetData actually retrieves data for a series at a specified time range
 func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
 	expr := Expression{}
-	expr.Outputs = append(expr.Outputs, outputObj{ID: "a", Alias: "query"})
+	expr.Outputs = []outputObj{exprOutput}
 	expr.Metrics = append(expr.Metrics, metricObj{ID: "a", Metric: series.Metric,
-		Filter: "f1", FillPolicy: fillObj{Policy: "nan"}})
+		Filter: "f1", FillPolicy: exprFillPolicy})
 	expr.Time = timeObj{Start: start, End: end, Aggregator: rt.FirstOrder,
 		Downsampler: dSObj{Interval: rt.AggTime,
 			Aggregator: rt.SecondOrder,
-			FillPolicy: fillObj{Policy: "nan"}}}
+			FillPolicy: exprFillPolicy}}
 	var TagList []tagObj
 	for k, v := range series.Tags {
 		TagList = append(TagList, tagObj{Type: "literal_or", Tagk: k,
@@ -220,25 +224,25 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	expr.Expressions = make([]int, 0)
 	inputData, err := json.Marshal(expr)
 	if err != nil {
-		return Metric{}, fmt.Errorf("Failed to marshal query results %v", err)
+		return Metric{}, fmt.Errorf("failed to marshal query results %v", err)
 	}
 	// log.Println("Query: ", string(inputData))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
-		return Metric{}, fmt.Errorf("Could not properly make request to %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return Metric{}, fmt.Errorf("Could not retrieve series data from %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
 	}
 	// log.Println(fmt.Sprintf("Initial Output: %v", string(body)))
 	var output ExpressionOutput
 	err = json.Unmarshal(body, &output)
 	if err != nil {
 		// log.Println("Incoming data: ", string(body))
-		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("failed to unmarshal response from %q: %s", q, err)
 	}
 	if len(output.Outputs) < 1 {
 		// log.Println("Incoming data: ", string(body))
@@ -254,7 +258,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	}
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
-		return Metric{}, fmt.Errorf("Invalid series data from %s: %s", c.Addr, err)
+		return Metric{}, fmt.Errorf("invalid series data from %q: %s", q, err)
 	}
 	return data, nil
 }
@@ -264,9 +268,8 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
 	for _, r := range cfg.Retentions {
-		first, aggTime, second, tr := convertRetention(r, cfg.Offset)
-		retentions = append(retentions, Retention{FirstOrder: first, SecondOrder: second,
-			AggTime: aggTime, QueryRanges: tr})
+		ret, _ := convertRetention(r, cfg.Offset)
+		retentions = append(retentions, ret)
 	}
 	client := &Client{
 		Addr:       strings.Trim(cfg.Addr, "/"),

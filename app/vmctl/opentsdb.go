@@ -37,14 +37,15 @@ func (op *otsdbProcessor) run(silent bool) error {
 	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
+		q := fmt.Sprintf("%s/api/suggest?type=metrics&q=%s&max=%d", op.oc.Addr, filter, op.oc.Limit)
 		m, err := op.oc.FindMetrics(filter)
 		if err != nil {
-			return fmt.Errorf("metric discovery failed: %s", err)
+			return fmt.Errorf("metric discovery failed for %q: %s", q, err)
 		}
 		metrics = append(metrics, m...)
 	}
 	if len(metrics) < 1 {
-		return fmt.Errorf("found no timeseries to import")
+		return fmt.Errorf("found no timeseries to import with filters %q", op.oc.Filters)
 	}
 
 	question := fmt.Sprintf("Found %d metrics to import. Continue?", len(metrics))
@@ -61,7 +62,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 		log.Println(fmt.Sprintf("Starting work on %s", metric))
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
-			return fmt.Errorf("Couldn't retrieve series list for %s : %s", metric, err)
+			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
 		}
 		bar := pb.StartNew(len(serieslist))
 		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
@@ -73,7 +74,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 				for _, tr := range rt.QueryRanges {
 					err = op.do(series, rt, tr, startTime)
 					if err != nil {
-						return fmt.Errorf("Couldn't retrieve series for %s : %s", metric, err)
+						return fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
 					}
 					// log.Println(fmt.Sprintf("Processed %d-%d for %s", tr.Start, tr.End, series))
 					/*for i := 0; i < op.otsdbcc; i++ {
@@ -95,7 +96,7 @@ func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr
 	end := now - tr.End
 	data, err := op.oc.GetData(seriesMeta, rt, start, end)
 	if err != nil {
-		return fmt.Errorf("Failed to collect data for %v in %v:%v", seriesMeta, rt, tr)
+		return fmt.Errorf("failed to collect data for %v in %v:%v", seriesMeta, rt, tr)
 	}
 	if len(data.Timestamps) < 1 {
 		return nil

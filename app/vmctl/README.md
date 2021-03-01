@@ -90,7 +90,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ## Migrating data from OpenTSDB
 
-*OpenTSDB migration is not possible without a functioning `tsdb-meta` table to search for metrics/series.*
+*OpenTSDB migration is not possible without a functioning [meta](http://opentsdb.net/docs/build/html/user_guide/metadata.html) table to search for metrics/series.*
 
 OpenTSDB migration works like so:
 
