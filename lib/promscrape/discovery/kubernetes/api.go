@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -28,6 +28,10 @@ var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 1
 // apiConfig contains config for API server
 type apiConfig struct {
 	aw *apiWatcher
+}
+
+func (ac *apiConfig) mustStop() {
+	ac.aw.mustStop()
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -137,18 +141,24 @@ type apiWatcher struct {
 	// Selectors to apply during watch
 	selectors []Selector
 
-	// mu protects watchersByURL and lastAccessTime
+	// mu protects watchersByURL
 	mu sync.Mutex
 
-	// a map of watchers keyed by request paths
+	// a map of watchers keyed by request urls
 	watchersByURL map[string]*urlWatcher
 
-	// The last time the apiWatcher was queried for cached objects.
-	// It is used for stopping unused watchers.
-	lastAccessTime uint64
+	stopFunc func()
+	stopCtx  context.Context
+	wg       sync.WaitGroup
+}
+
+func (aw *apiWatcher) mustStop() {
+	aw.stopFunc()
+	aw.wg.Wait()
 }
 
 func newAPIWatcher(client *http.Client, apiServer, authorization string, namespaces []string, selectors []Selector) *apiWatcher {
+	stopCtx, stopFunc := context.WithCancel(context.Background())
 	return &apiWatcher{
 		apiServer:     apiServer,
 		authorization: authorization,
@@ -158,7 +168,8 @@ func newAPIWatcher(client *http.Client, apiServer, authorization string, namespa
 
 		watchersByURL: make(map[string]*urlWatcher),
 
-		lastAccessTime: fasttime.UnixTimestamp(),
+		stopFunc: stopFunc,
+		stopCtx:  stopCtx,
 	}
 }
 
@@ -177,7 +188,6 @@ func (aw *apiWatcher) getLabelsForRole(role string) []map[string]string {
 		}
 		uw.mu.Unlock()
 	}
-	aw.lastAccessTime = fasttime.UnixTimestamp()
 	aw.mu.Unlock()
 	return ms
 }
@@ -202,7 +212,6 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 			break
 		}
 	}
-	aw.lastAccessTime = fasttime.UnixTimestamp()
 	aw.mu.Unlock()
 	return o
 }
@@ -230,8 +239,12 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseO
 	uw.watchersCount.Inc()
 	uw.watchersCreated.Inc()
 	resourceVersion := uw.reloadObjects()
+	aw.wg.Add(1)
 	go func() {
+		defer aw.wg.Done()
+		logger.Infof("started watcher for %q", apiURL)
 		uw.watchForUpdates(resourceVersion)
+		logger.Infof("stopped watcher for %q", apiURL)
 		uw.mu.Lock()
 		uw.objectsCount.Add(-len(uw.objectsByKey))
 		uw.objectsRemoved.Add(len(uw.objectsByKey))
@@ -245,16 +258,19 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseO
 	}()
 }
 
-// needStop returns true if aw wasn't used for long time.
+// needStop returns true if aw must be stopped.
 func (aw *apiWatcher) needStop() bool {
-	aw.mu.Lock()
-	defer aw.mu.Unlock()
-	return fasttime.UnixTimestamp() > aw.lastAccessTime+5*60
+	select {
+	case <-aw.stopCtx.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // doRequest performs http request to the given requestURL.
 func (aw *apiWatcher) doRequest(requestURL string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequestWithContext(aw.stopCtx, "GET", requestURL, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
 	}
@@ -316,10 +332,13 @@ func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObject
 
 // reloadObjects reloads objects to the latest state and returns resourceVersion for the latest state.
 func (uw *urlWatcher) reloadObjects() string {
+	aw := uw.aw
 	requestURL := uw.apiURL
-	resp, err := uw.aw.doRequest(requestURL)
+	resp, err := aw.doRequest(requestURL)
 	if err != nil {
-		logger.Errorf("error when performing a request to %q: %s", requestURL, err)
+		if !aw.needStop() {
+			logger.Errorf("error when performing a request to %q: %s", requestURL, err)
+		}
 		return ""
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -330,12 +349,14 @@ func (uw *urlWatcher) reloadObjects() string {
 	}
 	objectsByKey, metadata, err := uw.parseObjectList(body)
 	if err != nil {
-		logger.Errorf("cannot parse response from %q: %s", requestURL, err)
+		if !aw.needStop() {
+			logger.Errorf("cannot parse response from %q: %s", requestURL, err)
+		}
 		return ""
 	}
 	labelsByKey := make(map[string][]map[string]string, len(objectsByKey))
 	for k, o := range objectsByKey {
-		labelsByKey[k] = o.getTargetLabels(uw.aw)
+		labelsByKey[k] = o.getTargetLabels(aw)
 	}
 	uw.mu.Lock()
 	uw.objectsRemoved.Add(-len(uw.objectsByKey))
@@ -368,10 +389,8 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 	}
 	timeoutSeconds := time.Duration(0.9 * float64(aw.client.Timeout)).Seconds()
 	apiURL += delimiter + "watch=1&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
-	logger.Infof("started watcher for %q", apiURL)
 	for {
 		if aw.needStop() {
-			logger.Infof("stopped unused watcher for %q", apiURL)
 			return
 		}
 		requestURL := apiURL
@@ -380,6 +399,9 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 		}
 		resp, err := aw.doRequest(requestURL)
 		if err != nil {
+			if aw.needStop() {
+				return
+			}
 			logger.Errorf("error when performing a request to %q: %s", requestURL, err)
 			backoffSleep()
 			resourceVersion = uw.reloadObjects()
@@ -402,6 +424,9 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
+			if aw.needStop() {
+				return
+			}
 			if !errors.Is(err, io.EOF) {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 			}

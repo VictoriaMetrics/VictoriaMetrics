@@ -102,6 +102,11 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	return addInstanceLabels(apps, port), nil
 }
 
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
+}
+
 func addInstanceLabels(apps *applications, port int) []map[string]string {
 	var ms []map[string]string
 	for _, app := range apps.Applications {

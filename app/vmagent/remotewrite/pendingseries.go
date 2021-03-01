@@ -19,8 +19,7 @@ import (
 
 var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
-		"Higher value reduces network bandwidth usage at the cost of delayed push of scraped data to remote storage. "+
-		"Minimum supported interval is 1 second")
+		"This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url")
 	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum size in bytes of unpacked request to send to remote storage. "+
 		"It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics")
 )
