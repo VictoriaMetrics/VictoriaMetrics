@@ -11,15 +11,26 @@
   * `process_io_write_syscalls_total` - the number of write syscalls such as write and pwrite
   * `process_io_storage_read_bytes_total` - the number of bytes read from storage layer
   * `process_io_storage_written_bytes_total` - the number of bytes written to storage layer
+* FEATURE: vmagent: add ability to spread scrape targets among multiple `vmagent` instances. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1084) for details.
+* FEATURE: vmagent: use watch API for Kuberntes service discovery. This should reduce load on Kuberntes API server when it tracks big number of objects (for example, 10K pods). This should also reduce the time needed for k8s targets discovery. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1057) for details.
 * FEATURE: vmagent: export `vm_promscrape_target_relabel_duration_seconds` metric, which can be used for monitoring the time spend on relabeling for discovered targets.
 * FEATURE: vmagent: optimize [relabeling](https://victoriametrics.github.io/vmagent.html#relabeling) performance for common cases.
 * FEATURE: add `increase_pure(m[d])` function to MetricsQL. It works the same as `increase(m[d])` except of various edge cases. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) for details.
+* FEATURE: increase accuracy for `buckets_limit(limit, buckets)` results for small `limit` values. See [MetricsQL docs](https://victoriametrics.github.io/MetricsQL.html) for details.
+* FEATURE: vmagent: initial support for Windows build with `CGO_ENABLED=0 GOOS=windows go build -mod=vendor ./app/vmagent`. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1036).
+* FEATURE: vmalert: properly process query params in `-datasource.url` and `-remoteRead.url` command-line flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1087) for details.
 
-
+* BUGFIX: vmagent: properly apply `-remoteWrite.rateLimit` when `-remoteWrite.queues` is greater than 1. Previously there was a data race, which could prevent from proper rate limiting.
 * BUGFIX: vmagent: properly perform graceful shutdown on `SIGINT` and `SIGTERM` signals. The graceful shutdown has been broken in `v1.54.0`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1065
 * BUGFIX: reduce the probability of `duplicate time series` errors when querying Kubernetes metrics.
 * BUGFIX: properly calculate `histogram_quantile()` over time series with only a single non-zero bucket with `{le="+Inf"}`. Previously `NaN` was returned, now the value for the last bucket before `{le="+Inf"}` is returned like Prometheus does.
 * BUGFIX: vmselect: do not cache partial query results on timeout when receiving data from `vmstorage` nodes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1085
+* BUGFIX: properly handle `stale NFS file handle` error.
+* BUGFIX: properly cache query results when `extra_label` query arg is used. Previously the cached results could clash for different `extra_label` values. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1095
+* BUGFIX: fix `http: superfluous response.WriteHeader call` issue. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1078
+* BUGFIX: fix arm64 builds due to the issue in `github.com/golang/snappy`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1074
+* BUGFIX: fix `index out of range [1024819115206086200] with length 27` panic, which could occur when `1e-9` value is passed to VictoriaMetrics histogram. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1096
+* BUGFIX: fix parsing for Graphite line with empty tags such as `foo; 123 456`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
 
 
 # [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)

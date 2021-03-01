@@ -38,25 +38,25 @@ type Selector struct {
 }
 
 // GetLabels returns labels for the given sdc and baseDir.
-func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
 	switch sdc.Role {
-	case "node":
-		return getNodesLabels(cfg)
-	case "service":
-		return getServicesLabels(cfg)
-	case "pod":
-		return getPodsLabels(cfg)
-	case "endpoints":
-		return getEndpointsLabels(cfg)
-	case "endpointslices":
-		return getEndpointSlicesLabels(cfg)
-	case "ingress":
-		return getIngressesLabels(cfg)
+	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
+		return cfg.aw.getLabelsForRole(sdc.Role), nil
 	default:
-		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `service`, `pod`, `endpoints` or `ingress`; skipping it", sdc.Role)
+		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`; skipping it", sdc.Role)
+	}
+}
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	v := configMap.Delete(sdc)
+	if v != nil {
+		// v can be nil if GetLabels wasn't called yet.
+		cfg := v.(*apiConfig)
+		cfg.mustStop()
 	}
 }

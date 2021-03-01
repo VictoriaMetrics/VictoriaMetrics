@@ -31,7 +31,7 @@ type Filter struct {
 }
 
 // GetLabels returns dockerswarm labels according to sdc.
-func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -46,4 +46,9 @@ func GetLabels(sdc *SDConfig, baseDir string) ([]map[string]string, error) {
 	default:
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `tasks`, `services` or `nodes`; skipping it", sdc.Role)
 	}
+}
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
 }

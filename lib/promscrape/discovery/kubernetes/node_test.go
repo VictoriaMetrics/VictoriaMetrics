@@ -2,20 +2,23 @@ package kubernetes
 
 import (
 	"reflect"
+	"sort"
+	"strconv"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 func TestParseNodeListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nls, err := parseNodeList([]byte(s))
+		objectsByKey, _, err := parseNodeList([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if nls != nil {
-			t.Fatalf("unexpected non-nil NodeList: %v", nls)
+		if len(objectsByKey) != 0 {
+			t.Fatalf("unexpected non-empty objectsByKey: %v", objectsByKey)
 		}
 	}
 	f(``)
@@ -226,97 +229,90 @@ func TestParseNodeListSuccess(t *testing.T) {
   ]
 }
 `
-	nls, err := parseNodeList([]byte(data))
+	objectsByKey, meta, err := parseNodeList([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if len(nls.Items) != 1 {
-		t.Fatalf("unexpected length of NodeList.Items; got %d; want %d", len(nls.Items), 1)
+	expectedResourceVersion := "22627"
+	if meta.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	node := nls.Items[0]
-	meta := node.Metadata
-	if meta.Name != "m01" {
-		t.Fatalf("unexpected ObjectMeta.Name; got %q; want %q", meta.Name, "m01")
+	sortedLabelss := getSortedLabelss(objectsByKey)
+	expectedLabelss := [][]prompbmarshal.Label{
+		discoveryutils.GetSortedLabels(map[string]string{
+			"instance":                    "m01",
+			"__address__":                 "172.17.0.2:10250",
+			"__meta_kubernetes_node_name": "m01",
+
+			"__meta_kubernetes_node_label_beta_kubernetes_io_arch":        "amd64",
+			"__meta_kubernetes_node_label_beta_kubernetes_io_os":          "linux",
+			"__meta_kubernetes_node_label_kubernetes_io_arch":             "amd64",
+			"__meta_kubernetes_node_label_kubernetes_io_hostname":         "m01",
+			"__meta_kubernetes_node_label_kubernetes_io_os":               "linux",
+			"__meta_kubernetes_node_label_minikube_k8s_io_commit":         "eb13446e786c9ef70cb0a9f85a633194e62396a1",
+			"__meta_kubernetes_node_label_minikube_k8s_io_name":           "minikube",
+			"__meta_kubernetes_node_label_minikube_k8s_io_updated_at":     "2020_03_16T22_44_27_0700",
+			"__meta_kubernetes_node_label_minikube_k8s_io_version":        "v1.8.2",
+			"__meta_kubernetes_node_label_node_role_kubernetes_io_master": "",
+
+			"__meta_kubernetes_node_labelpresent_beta_kubernetes_io_arch":        "true",
+			"__meta_kubernetes_node_labelpresent_beta_kubernetes_io_os":          "true",
+			"__meta_kubernetes_node_labelpresent_kubernetes_io_arch":             "true",
+			"__meta_kubernetes_node_labelpresent_kubernetes_io_hostname":         "true",
+			"__meta_kubernetes_node_labelpresent_kubernetes_io_os":               "true",
+			"__meta_kubernetes_node_labelpresent_minikube_k8s_io_commit":         "true",
+			"__meta_kubernetes_node_labelpresent_minikube_k8s_io_name":           "true",
+			"__meta_kubernetes_node_labelpresent_minikube_k8s_io_updated_at":     "true",
+			"__meta_kubernetes_node_labelpresent_minikube_k8s_io_version":        "true",
+			"__meta_kubernetes_node_labelpresent_node_role_kubernetes_io_master": "true",
+
+			"__meta_kubernetes_node_annotation_kubeadm_alpha_kubernetes_io_cri_socket":                 "/var/run/dockershim.sock",
+			"__meta_kubernetes_node_annotation_node_alpha_kubernetes_io_ttl":                           "0",
+			"__meta_kubernetes_node_annotation_volumes_kubernetes_io_controller_managed_attach_detach": "true",
+
+			"__meta_kubernetes_node_annotationpresent_kubeadm_alpha_kubernetes_io_cri_socket":                 "true",
+			"__meta_kubernetes_node_annotationpresent_node_alpha_kubernetes_io_ttl":                           "true",
+			"__meta_kubernetes_node_annotationpresent_volumes_kubernetes_io_controller_managed_attach_detach": "true",
+
+			"__meta_kubernetes_node_address_InternalIP": "172.17.0.2",
+			"__meta_kubernetes_node_address_Hostname":   "m01",
+		}),
 	}
-	expectedLabels := discoveryutils.GetSortedLabels(map[string]string{
-		"beta.kubernetes.io/arch":        "amd64",
-		"beta.kubernetes.io/os":          "linux",
-		"kubernetes.io/arch":             "amd64",
-		"kubernetes.io/hostname":         "m01",
-		"kubernetes.io/os":               "linux",
-		"minikube.k8s.io/commit":         "eb13446e786c9ef70cb0a9f85a633194e62396a1",
-		"minikube.k8s.io/name":           "minikube",
-		"minikube.k8s.io/updated_at":     "2020_03_16T22_44_27_0700",
-		"minikube.k8s.io/version":        "v1.8.2",
-		"node-role.kubernetes.io/master": "",
+	if !areEqualLabelss(sortedLabelss, expectedLabelss) {
+		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
+	}
+}
+
+func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
+	var result [][]prompbmarshal.Label
+	for _, o := range objectsByKey {
+		labelss := o.getTargetLabels(nil)
+		for _, labels := range labelss {
+			result = append(result, discoveryutils.GetSortedLabels(labels))
+		}
+	}
+	return result
+}
+
+func areEqualLabelss(a, b [][]prompbmarshal.Label) bool {
+	sortLabelss(a)
+	sortLabelss(b)
+	return reflect.DeepEqual(a, b)
+}
+
+func sortLabelss(a [][]prompbmarshal.Label) {
+	sort.Slice(a, func(i, j int) bool {
+		return marshalLabels(a[i]) < marshalLabels(a[j])
 	})
-	if !reflect.DeepEqual(meta.Labels, expectedLabels) {
-		t.Fatalf("unexpected ObjectMeta.Labels\ngot\n%v\nwant\n%v", meta.Labels, expectedLabels)
+}
+
+func marshalLabels(a []prompbmarshal.Label) string {
+	var b []byte
+	for _, label := range a {
+		b = strconv.AppendQuote(b, label.Name)
+		b = append(b, ':')
+		b = strconv.AppendQuote(b, label.Value)
+		b = append(b, ',')
 	}
-	expectedAnnotations := discoveryutils.GetSortedLabels(map[string]string{
-		"kubeadm.alpha.kubernetes.io/cri-socket":                 "/var/run/dockershim.sock",
-		"node.alpha.kubernetes.io/ttl":                           "0",
-		"volumes.kubernetes.io/controller-managed-attach-detach": "true",
-	})
-	if !reflect.DeepEqual(meta.Annotations, expectedAnnotations) {
-		t.Fatalf("unexpected ObjectMeta.Annotations\ngot\n%v\nwant\n%v", meta.Annotations, expectedAnnotations)
-	}
-	status := node.Status
-	expectedAddresses := []NodeAddress{
-		{
-			Type:    "InternalIP",
-			Address: "172.17.0.2",
-		},
-		{
-			Type:    "Hostname",
-			Address: "m01",
-		},
-	}
-	if !reflect.DeepEqual(status.Addresses, expectedAddresses) {
-		t.Fatalf("unexpected addresses\ngot\n%v\nwant\n%v", status.Addresses, expectedAddresses)
-	}
-
-	// Check node.appendTargetLabels()
-	labels := discoveryutils.GetSortedLabels(node.appendTargetLabels(nil)[0])
-	expectedLabels = discoveryutils.GetSortedLabels(map[string]string{
-		"instance":                    "m01",
-		"__address__":                 "172.17.0.2:10250",
-		"__meta_kubernetes_node_name": "m01",
-
-		"__meta_kubernetes_node_label_beta_kubernetes_io_arch":        "amd64",
-		"__meta_kubernetes_node_label_beta_kubernetes_io_os":          "linux",
-		"__meta_kubernetes_node_label_kubernetes_io_arch":             "amd64",
-		"__meta_kubernetes_node_label_kubernetes_io_hostname":         "m01",
-		"__meta_kubernetes_node_label_kubernetes_io_os":               "linux",
-		"__meta_kubernetes_node_label_minikube_k8s_io_commit":         "eb13446e786c9ef70cb0a9f85a633194e62396a1",
-		"__meta_kubernetes_node_label_minikube_k8s_io_name":           "minikube",
-		"__meta_kubernetes_node_label_minikube_k8s_io_updated_at":     "2020_03_16T22_44_27_0700",
-		"__meta_kubernetes_node_label_minikube_k8s_io_version":        "v1.8.2",
-		"__meta_kubernetes_node_label_node_role_kubernetes_io_master": "",
-
-		"__meta_kubernetes_node_labelpresent_beta_kubernetes_io_arch":        "true",
-		"__meta_kubernetes_node_labelpresent_beta_kubernetes_io_os":          "true",
-		"__meta_kubernetes_node_labelpresent_kubernetes_io_arch":             "true",
-		"__meta_kubernetes_node_labelpresent_kubernetes_io_hostname":         "true",
-		"__meta_kubernetes_node_labelpresent_kubernetes_io_os":               "true",
-		"__meta_kubernetes_node_labelpresent_minikube_k8s_io_commit":         "true",
-		"__meta_kubernetes_node_labelpresent_minikube_k8s_io_name":           "true",
-		"__meta_kubernetes_node_labelpresent_minikube_k8s_io_updated_at":     "true",
-		"__meta_kubernetes_node_labelpresent_minikube_k8s_io_version":        "true",
-		"__meta_kubernetes_node_labelpresent_node_role_kubernetes_io_master": "true",
-
-		"__meta_kubernetes_node_annotation_kubeadm_alpha_kubernetes_io_cri_socket":                 "/var/run/dockershim.sock",
-		"__meta_kubernetes_node_annotation_node_alpha_kubernetes_io_ttl":                           "0",
-		"__meta_kubernetes_node_annotation_volumes_kubernetes_io_controller_managed_attach_detach": "true",
-
-		"__meta_kubernetes_node_annotationpresent_kubeadm_alpha_kubernetes_io_cri_socket":                 "true",
-		"__meta_kubernetes_node_annotationpresent_node_alpha_kubernetes_io_ttl":                           "true",
-		"__meta_kubernetes_node_annotationpresent_volumes_kubernetes_io_controller_managed_attach_detach": "true",
-
-		"__meta_kubernetes_node_address_InternalIP": "172.17.0.2",
-		"__meta_kubernetes_node_address_Hostname":   "m01",
-	})
-	if !reflect.DeepEqual(labels, expectedLabels) {
-		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", labels, expectedLabels)
-	}
+	return string(b)
 }

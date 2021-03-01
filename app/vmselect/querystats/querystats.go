@@ -89,7 +89,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `],"topByAvgDuration":[`)
 	topByAvgDuration := qst.getTopByAvgDuration(topN, maxLifetime)
 	for i, r := range topByAvgDuration {
-		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f}`, r.query, r.timeRangeSecs, r.duration.Seconds())
+		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"avgDurationSeconds":%.3f,"count":%d}`, r.query, r.timeRangeSecs, r.duration.Seconds(), r.count)
 		if i+1 < len(topByAvgDuration) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -97,7 +97,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `],"topBySumDuration":[`)
 	topBySumDuration := qst.getTopBySumDuration(topN, maxLifetime)
 	for i, r := range topBySumDuration {
-		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f}`, r.query, r.timeRangeSecs, r.duration.Seconds())
+		fmt.Fprintf(w, `{"query":%q,"timeRangeSeconds":%d,"sumDurationSeconds":%.3f,"count":%d}`, r.query, r.timeRangeSecs, r.duration.Seconds(), r.count)
 		if i+1 < len(topBySumDuration) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -202,6 +202,7 @@ func (qst *queryStatsTracker) getTopByAvgDuration(topN int, maxLifetime time.Dur
 			query:         k.query,
 			timeRangeSecs: k.timeRangeSecs,
 			duration:      ks.sum / time.Duration(ks.count),
+			count:         ks.count,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {
@@ -217,26 +218,35 @@ type queryStatByDuration struct {
 	query         string
 	timeRangeSecs int64
 	duration      time.Duration
+	count         int
 }
 
 func (qst *queryStatsTracker) getTopBySumDuration(topN int, maxLifetime time.Duration) []queryStatByDuration {
 	currentTime := time.Now()
 	qst.mu.Lock()
-	m := make(map[queryStatKey]time.Duration)
+	type countDuration struct {
+		count int
+		sum   time.Duration
+	}
+	m := make(map[queryStatKey]countDuration)
 	for _, r := range qst.a {
 		if r.matches(currentTime, maxLifetime) {
 			k := r.key()
-			m[k] = m[k] + r.duration
+			kd := m[k]
+			kd.count++
+			kd.sum += r.duration
+			m[k] = kd
 		}
 	}
 	qst.mu.Unlock()
 
 	var a []queryStatByDuration
-	for k, d := range m {
+	for k, kd := range m {
 		a = append(a, queryStatByDuration{
 			query:         k.query,
 			timeRangeSecs: k.timeRangeSecs,
-			duration:      d,
+			duration:      kd.sum,
+			count:         kd.count,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {

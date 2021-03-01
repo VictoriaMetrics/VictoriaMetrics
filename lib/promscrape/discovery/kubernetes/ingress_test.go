@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -11,12 +10,12 @@ import (
 func TestParseIngressListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		nls, err := parseIngressList([]byte(s))
+		objectsByKey, _, err := parseIngressList([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if nls != nil {
-			t.Fatalf("unexpected non-nil IngressList: %v", nls)
+		if len(objectsByKey) != 0 {
+			t.Fatalf("unexpected non-empty IngressList: %v", objectsByKey)
 		}
 	}
 	f(``)
@@ -71,21 +70,15 @@ func TestParseIngressListSuccess(t *testing.T) {
     }
   ]
 }`
-	igs, err := parseIngressList([]byte(data))
+	objectsByKey, meta, err := parseIngressList([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if len(igs.Items) != 1 {
-		t.Fatalf("unexpected length of IngressList.Items; got %d; want %d", len(igs.Items), 1)
+	expectedResourceVersion := "351452"
+	if meta.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
-	ig := igs.Items[0]
-
-	// Check ig.appendTargetLabels()
-	labelss := ig.appendTargetLabels(nil)
-	var sortedLabelss [][]prompbmarshal.Label
-	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-	}
+	sortedLabelss := getSortedLabelss(objectsByKey)
 	expectedLabelss := [][]prompbmarshal.Label{
 		discoveryutils.GetSortedLabels(map[string]string{
 			"__address__": "foobar",
@@ -98,7 +91,7 @@ func TestParseIngressListSuccess(t *testing.T) {
 			"__meta_kubernetes_namespace":      "default",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
+	if !areEqualLabelss(sortedLabelss, expectedLabelss) {
 		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
 	}
 }

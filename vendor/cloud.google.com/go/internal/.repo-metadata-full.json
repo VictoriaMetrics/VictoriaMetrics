@@ -29,7 +29,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/appengine/apiv1",
-    "release_level": "beta"
+    "release_level": "ga"
   },
   "cloud.google.com/go/area120/tables/apiv1alpha1": {
     "distribution_name": "cloud.google.com/go/area120/tables/apiv1alpha1",
@@ -221,7 +221,7 @@
     "language": "Go",
     "client_library_type": "generated",
     "docs_url": "https://pkg.go.dev/cloud.google.com/go/channel/apiv1",
-    "release_level": "beta"
+    "release_level": "ga"
   },
   "cloud.google.com/go/cloudbuild/apiv1/v2": {
     "distribution_name": "cloud.google.com/go/cloudbuild/apiv1/v2",

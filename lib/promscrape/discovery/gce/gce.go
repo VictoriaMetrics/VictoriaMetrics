@@ -48,11 +48,16 @@ func (z *ZoneYAML) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // GetLabels returns gce labels according to sdc.
-func GetLabels(sdc *SDConfig) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	cfg, err := getAPIConfig(sdc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
 	ms := getInstancesLabels(cfg)
 	return ms, nil
+}
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
 }

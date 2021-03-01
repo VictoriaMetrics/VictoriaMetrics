@@ -7,29 +7,37 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getNodesLabels returns labels for k8s nodes obtained from the given cfg.
-func getNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
-	data, err := getAPIResponse(cfg, "node", "/api/v1/nodes")
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain nodes data from API server: %w", err)
+// getNodesLabels returns labels for k8s nodes obtained from the given cfg
+func (n *Node) key() string {
+	return n.Metadata.key()
+}
+
+func parseNodeList(data []byte) (map[string]object, ListMeta, error) {
+	var nl NodeList
+	if err := json.Unmarshal(data, &nl); err != nil {
+		return nil, nl.Metadata, fmt.Errorf("cannot unmarshal NodeList from %q: %w", data, err)
 	}
-	nl, err := parseNodeList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse nodes response from API server: %w", err)
-	}
-	var ms []map[string]string
+	objectsByKey := make(map[string]object)
 	for _, n := range nl.Items {
-		// Do not apply namespaces, since they are missing in nodes.
-		ms = n.appendTargetLabels(ms)
+		objectsByKey[n.key()] = n
 	}
-	return ms, nil
+	return objectsByKey, nl.Metadata, nil
+}
+
+func parseNode(data []byte) (object, error) {
+	var n Node
+	if err := json.Unmarshal(data, &n); err != nil {
+		return nil, err
+	}
+	return &n, nil
 }
 
 // NodeList represents NodeList from k8s API.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodelist-v1-core
 type NodeList struct {
-	Items []Node
+	Metadata ListMeta
+	Items    []*Node
 }
 
 // Node represents Node from k8s API.
@@ -63,23 +71,14 @@ type NodeDaemonEndpoints struct {
 	KubeletEndpoint DaemonEndpoint
 }
 
-// parseNodeList parses NodeList from data.
-func parseNodeList(data []byte) (*NodeList, error) {
-	var nl NodeList
-	if err := json.Unmarshal(data, &nl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal NodeList from %q: %w", data, err)
-	}
-	return &nl, nil
-}
-
-// appendTargetLabels appends labels for the given Node n to ms and returns the result.
+// getTargetLabels returs labels for the given n.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#node
-func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
+func (n *Node) getTargetLabels(aw *apiWatcher) []map[string]string {
 	addr := getNodeAddr(n.Status.Addresses)
 	if len(addr) == 0 {
 		// Skip node without address
-		return ms
+		return nil
 	}
 	addr = discoveryutils.JoinHostPort(addr, n.Status.DaemonEndpoints.KubeletEndpoint.Port)
 	m := map[string]string{
@@ -97,8 +96,7 @@ func (n *Node) appendTargetLabels(ms []map[string]string) []map[string]string {
 		ln := discoveryutils.SanitizeLabelName(a.Type)
 		m["__meta_kubernetes_node_address_"+ln] = a.Address
 	}
-	ms = append(ms, m)
-	return ms
+	return []map[string]string{m}
 }
 
 func getNodeAddr(nas []NodeAddress) string {

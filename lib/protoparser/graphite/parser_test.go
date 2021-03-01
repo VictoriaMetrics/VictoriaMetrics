@@ -19,7 +19,6 @@ func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
 	f("")
 	f(";foo=bar")
 	f(" ")
-	f("foo;bar")
 	f("foo ;bar=baz")
 	f("f oo;bar=baz")
 	f("foo;bar=baz   ")
@@ -79,12 +78,6 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Missing value
 	f("aaa")
-
-	// missing tag
-	f("aa; 12 34")
-
-	// missing tag value
-	f("aa;bb 23 34")
 
 	// unexpected space in tag value
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/99
@@ -187,6 +180,31 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 	// Empty tags
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
+	f("foo; 1", &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags:   []Tag{},
+			Value:  1,
+		}},
+	})
+	f("foo; 1 2", &Rows{
+		Rows: []Row{{
+			Metric:    "foo",
+			Tags:      []Tag{},
+			Value:     1,
+			Timestamp: 2,
+		}},
+	})
+	// Empty tag name or value
+	f("foo;bar 1 2", &Rows{
+		Rows: []Row{{
+			Metric:    "foo",
+			Tags:      []Tag{},
+			Value:     1,
+			Timestamp: 2,
+		}},
+	})
 	f("foo;bar=baz;aa=;x=y;=z 1 2", &Rows{
 		Rows: []Row{{
 			Metric: "foo",

@@ -13,7 +13,7 @@ import (
 
 func mustRemoveAll(path string, done func()) bool {
 	err := os.RemoveAll(path)
-	if err == nil {
+	if err == nil || isStaleNFSFileHandleError(err) {
 		// Make sure the parent directory doesn't contain references
 		// to the current directory.
 		mustSyncParentDirIfExists(path)
@@ -85,6 +85,11 @@ func dirRemover() {
 			logger.Warnf("failed to remove directory %q due to NFS lock; retrying later in %.3f seconds", w.path, sleepTime.Seconds())
 		}
 	}
+}
+
+func isStaleNFSFileHandleError(err error) bool {
+	errStr := err.Error()
+	return strings.Contains(errStr, "stale NFS file handle")
 }
 
 func isTemporaryNFSError(err error) bool {

@@ -54,6 +54,7 @@ make backwards-incompatible changes.
 | [Monitoring][cloud-monitoring]                  | stable | [`cloud.google.com/go/monitoring/apiv3`](https://pkg.go.dev/cloud.google.com/go/monitoring/apiv3)                             |
 | [OS Login][cloud-oslogin]                       | stable | [`cloud.google.com/go/oslogin/apiv1`](https://pkg.go.dev/cloud.google.com/go/oslogin/apiv1)                                   |
 | [Pub/Sub][cloud-pubsub]                         | stable | [`cloud.google.com/go/pubsub`](https://pkg.go.dev/cloud.google.com/go/pubsub)                                                 |
+| [Pub/Sub Lite][cloud-pubsublite]                | beta   | [`cloud.google.com/go/pubsublite`](https://pkg.go.dev/cloud.google.com/go/pubsublite)                                                 |
 | [Phishing Protection][cloud-phishingprotection] | alpha  | [`cloud.google.com/go/phishingprotection/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/phishingprotection/apiv1beta1)   |
 | [reCAPTCHA Enterprise][cloud-recaptcha]         | alpha  | [`cloud.google.com/go/recaptchaenterprise/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/recaptchaenterprise/apiv1beta1) |
 | [Recommender][cloud-recommender]                | beta   | [`cloud.google.com/go/recommender/apiv1beta1`](https://pkg.go.dev/cloud.google.com/go/recommender/apiv1beta1)                 |
@@ -150,6 +151,7 @@ for more information.
 [cloud-irm]: https://cloud.google.com/incident-response/docs/concepts
 [cloud-kms]: https://cloud.google.com/kms/
 [cloud-pubsub]: https://cloud.google.com/pubsub/
+[cloud-pubsublite]: https://cloud.google.com/pubsub/lite
 [cloud-storage]: https://cloud.google.com/storage/
 [cloud-language]: https://cloud.google.com/natural-language
 [cloud-logging]: https://cloud.google.com/logging/

@@ -3337,14 +3337,14 @@ func TestExecSuccess(t *testing.T) {
 		)))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{52, 52, 52, 52, 52, 52},
+			Values:     []float64{9, 9, 9, 9, 9, 9},
 			Timestamps: timestampsExpected,
 		}
 		r1.MetricName.MetricGroup = []byte("metric")
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("200"),
+				Value: []byte("10"),
 			},
 			{
 				Key:   []byte("x"),
@@ -3353,11 +3353,27 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Values:     []float64{98, 98, 98, 98, 98, 98},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.MetricGroup = []byte("metric")
 		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("le"),
+				Value: []byte("300"),
+			},
+			{
+				Key:   []byte("x"),
+				Value: []byte("y"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.MetricGroup = []byte("metric")
+		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
 				Value: []byte("inf"),
@@ -3367,7 +3383,7 @@ func TestExecSuccess(t *testing.T) {
 				Value: []byte("y"),
 			},
 		}
-		resultExpected := []netstorage.Result{r1, r2}
+		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)
 	})
 	t.Run(`prometheus_buckets(missing-vmrange)`, func(t *testing.T) {
@@ -4175,11 +4191,11 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`sum(histogram_over_time) by (vmrange)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(
+		q := `sort_by_label(
 			buckets_limit(
 				3,
 				sum(histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s])) by (vmrange)
-			)
+			), "le"
 		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
@@ -4194,24 +4210,24 @@ func TestExecSuccess(t *testing.T) {
 		}
 		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{24, 22, 26, 25, 24, 24},
+			Values:     []float64{0, 0, 0, 0, 0, 0},
 			Timestamps: timestampsExpected,
 		}
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.896e+00"),
+				Value: []byte("1.000e+00"),
 			},
 		}
 		r3 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{11, 12, 11, 7, 11, 13},
+			Values:     []float64{40, 40, 40, 40, 40, 40},
 			Timestamps: timestampsExpected,
 		}
 		r3.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("le"),
-				Value: []byte("1.468e+00"),
+				Value: []byte("2.448e+00"),
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3}

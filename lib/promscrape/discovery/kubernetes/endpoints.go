@@ -7,66 +7,36 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// getEndpointsLabels returns labels for k8s endpoints obtained from the given cfg.
-func getEndpointsLabels(cfg *apiConfig) ([]map[string]string, error) {
-	eps, err := getEndpoints(cfg)
-	if err != nil {
-		return nil, err
-	}
-	pods, err := getPods(cfg)
-	if err != nil {
-		return nil, err
-	}
-	svcs, err := getServices(cfg)
-	if err != nil {
-		return nil, err
-	}
-	var ms []map[string]string
-	for _, ep := range eps {
-		ms = ep.appendTargetLabels(ms, pods, svcs)
-	}
-	return ms, nil
+func (eps *Endpoints) key() string {
+	return eps.Metadata.key()
 }
 
-func getEndpoints(cfg *apiConfig) ([]Endpoints, error) {
-	if len(cfg.namespaces) == 0 {
-		return getEndpointsByPath(cfg, "/api/v1/endpoints")
+func parseEndpointsList(data []byte) (map[string]object, ListMeta, error) {
+	var epsl EndpointsList
+	if err := json.Unmarshal(data, &epsl); err != nil {
+		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointsList from %q: %w", data, err)
 	}
-	// Query /api/v1/namespaces/* for each namespace.
-	// This fixes authorization issue at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/432
-	cfgCopy := *cfg
-	namespaces := cfgCopy.namespaces
-	cfgCopy.namespaces = nil
-	cfg = &cfgCopy
-	var result []Endpoints
-	for _, ns := range namespaces {
-		path := fmt.Sprintf("/api/v1/namespaces/%s/endpoints", ns)
-		eps, err := getEndpointsByPath(cfg, path)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, eps...)
+	objectsByKey := make(map[string]object)
+	for _, eps := range epsl.Items {
+		objectsByKey[eps.key()] = eps
 	}
-	return result, nil
+	return objectsByKey, epsl.Metadata, nil
 }
 
-func getEndpointsByPath(cfg *apiConfig, path string) ([]Endpoints, error) {
-	data, err := getAPIResponse(cfg, "endpoints", path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain endpoints data from API server: %w", err)
+func parseEndpoints(data []byte) (object, error) {
+	var eps Endpoints
+	if err := json.Unmarshal(data, &eps); err != nil {
+		return nil, err
 	}
-	epl, err := parseEndpointsList(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse endpoints response from API server: %w", err)
-	}
-	return epl.Items, nil
+	return &eps, nil
 }
 
 // EndpointsList implements k8s endpoints list.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointslist-v1-core
 type EndpointsList struct {
-	Items []Endpoints
+	Metadata ListMeta
+	Items    []*Endpoints
 }
 
 // Endpoints implements k8s endpoints.
@@ -115,25 +85,20 @@ type EndpointPort struct {
 	Protocol    string
 }
 
-// parseEndpointsList parses EndpointsList from data.
-func parseEndpointsList(data []byte) (*EndpointsList, error) {
-	var esl EndpointsList
-	if err := json.Unmarshal(data, &esl); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal EndpointsList from %q: %w", data, err)
-	}
-	return &esl, nil
-}
-
-// appendTargetLabels appends labels for each endpoint in eps to ms and returns the result.
+// getTargetLabels returns labels for each endpoint in eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-func (eps *Endpoints) appendTargetLabels(ms []map[string]string, pods []Pod, svcs []Service) []map[string]string {
-	svc := getService(svcs, eps.Metadata.Namespace, eps.Metadata.Name)
+func (eps *Endpoints) getTargetLabels(aw *apiWatcher) []map[string]string {
+	var svc *Service
+	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+		svc = o.(*Service)
+	}
 	podPortsSeen := make(map[*Pod][]int)
+	var ms []map[string]string
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
-			ms = appendEndpointLabelsForAddresses(ms, podPortsSeen, eps, ess.Addresses, epp, pods, svc, "true")
-			ms = appendEndpointLabelsForAddresses(ms, podPortsSeen, eps, ess.NotReadyAddresses, epp, pods, svc, "false")
+			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
+			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.NotReadyAddresses, epp, svc, "false")
 		}
 	}
 
@@ -168,10 +133,13 @@ func (eps *Endpoints) appendTargetLabels(ms []map[string]string, pods []Pod, svc
 	return ms
 }
 
-func appendEndpointLabelsForAddresses(ms []map[string]string, podPortsSeen map[*Pod][]int, eps *Endpoints, eas []EndpointAddress, epp EndpointPort,
-	pods []Pod, svc *Service, ready string) []map[string]string {
+func appendEndpointLabelsForAddresses(ms []map[string]string, aw *apiWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
+	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []map[string]string {
 	for _, ea := range eas {
-		p := getPod(pods, ea.TargetRef.Namespace, ea.TargetRef.Name)
+		var p *Pod
+		if o := aw.getObjectByRole("pod", ea.TargetRef.Namespace, ea.TargetRef.Name); o != nil {
+			p = o.(*Pod)
+		}
 		m := getEndpointLabelsForAddressAndPort(podPortsSeen, eps, ea, epp, p, svc, ready)
 		ms = append(ms, m)
 	}
