@@ -94,7 +94,7 @@ func (h *Histogram) Update(v float64) {
 		h.upper++
 	} else {
 		idx := uint(bucketIdx)
-		if bucketIdx == float64(idx) {
+		if bucketIdx == float64(idx) && idx > 0 {
 			// Edge case for 10^n values, which must go to the lower bucket
 			// according to Prometheus logic for `le`-based histograms.
 			idx--
