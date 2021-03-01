@@ -566,6 +566,7 @@ func newScrapeWorkCache() *scrapeWorkCache {
 }
 
 func (swc *scrapeWorkCache) Get(key string) *ScrapeWork {
+	scrapeWorkCacheRequests.Inc()
 	currentTime := fasttime.UnixTimestamp()
 	swc.mu.Lock()
 	swe := swc.m[key]
@@ -576,8 +577,14 @@ func (swc *scrapeWorkCache) Get(key string) *ScrapeWork {
 	if swe == nil {
 		return nil
 	}
+	scrapeWorkCacheHits.Inc()
 	return swe.sw
 }
+
+var (
+	scrapeWorkCacheRequests = metrics.NewCounter(`vm_promscrape_scrapework_cache_requests_total`)
+	scrapeWorkCacheHits     = metrics.NewCounter(`vm_promscrape_scrapework_cache_hits_total`)
+)
 
 func (swc *scrapeWorkCache) Set(key string, sw *ScrapeWork) {
 	currentTime := fasttime.UnixTimestamp()
