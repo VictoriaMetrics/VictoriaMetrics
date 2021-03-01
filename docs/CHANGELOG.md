@@ -30,6 +30,7 @@
 * BUGFIX: fix `http: superfluous response.WriteHeader call` issue. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1078
 * BUGFIX: fix arm64 builds due to the issue in `github.com/golang/snappy`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1074
 * BUGFIX: fix `index out of range [1024819115206086200] with length 27` panic, which could occur when `1e-9` value is passed to VictoriaMetrics histogram. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1096
+* BUGFIX: fix parsing for Graphite line with empty tags such as `foo; 123 456`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
 
 
 # [v1.54.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.54.1)
