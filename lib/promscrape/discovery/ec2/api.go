@@ -18,13 +18,17 @@ import (
 const (
 	awsAccessKeyEnv = "AWS_ACCESS_KEY_ID"
 	awsSecretKeyEnv = "AWS_SECRET_ACCESS_KEY"
+	awsRegionEnv    = "AWS_REGION"
+	awsRoleARNEnv   = "AWS_ROLE_ARN"
+	awsWITPath      = "AWS_WEB_IDENTITY_TOKEN_FILE"
 )
 
 type apiConfig struct {
-	region  string
-	roleARN string
-	filters string
-	port    int
+	region       string
+	roleARN      string
+	webTokenPath string
+	filters      string
+	port         int
 
 	ec2Endpoint string
 	stsEndpoint string
@@ -79,6 +83,14 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	cfg.ec2Endpoint = buildAPIEndpoint(sdc.Endpoint, region, "ec2")
 	cfg.stsEndpoint = buildAPIEndpoint(sdc.Endpoint, region, "sts")
 
+	envARN := os.Getenv(awsRoleARNEnv)
+	if envARN != "" {
+		cfg.roleARN = envARN
+	}
+	cfg.webTokenPath = os.Getenv(awsWITPath)
+	if cfg.webTokenPath != "" && cfg.roleARN == "" {
+		return nil, fmt.Errorf("roleARN is missing for %q, set it with cfg or env var %q", awsWITPath, awsRoleARNEnv)
+	}
 	// explicitly set credentials has priority over env variables
 	cfg.defaultAccessKey = os.Getenv(awsAccessKeyEnv)
 	cfg.defaultSecretKey = os.Getenv(awsSecretKeyEnv)
@@ -108,6 +120,11 @@ func getFiltersQueryString(filters []Filter) string {
 }
 
 func getDefaultRegion() (string, error) {
+	envRegion := os.Getenv(awsRegionEnv)
+	if envRegion != "" {
+		return envRegion, nil
+	}
+
 	data, err := getMetadataByPath("dynamic/instance-identity/document")
 	if err != nil {
 		return "", err
@@ -155,6 +172,13 @@ func getAPICredentials(cfg *apiConfig) (*apiCredentials, error) {
 	acNew := &apiCredentials{
 		AccessKeyID:     cfg.defaultAccessKey,
 		SecretAccessKey: cfg.defaultSecretKey,
+	}
+	if len(cfg.webTokenPath) > 0 {
+		token, err := ioutil.ReadFile(cfg.webTokenPath)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read webToken from path: %q, err: %w", cfg.webTokenPath, err)
+		}
+		return getRoleWebIdentityCredentials(cfg.stsEndpoint, cfg.roleARN, string(token))
 	}
 
 	// we need instance credentials if dont have access keys
@@ -263,29 +287,62 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 	return readResponseBody(resp, apiURL)
 }
 
-// getRoleARNCredentials obtains credentials fo the given roleARN.
-func getRoleARNCredentials(region, stsEndpoint, roleARN string, creds *apiCredentials) (*apiCredentials, error) {
-	data, err := getSTSAPIResponse(region, stsEndpoint, roleARN, creds)
+// getRoleWebIdentityCredentials obtains credentials fo the given roleARN with webToken.
+// https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
+// aws IRSA for kubernetes.
+// https://aws.amazon.com/blogs/opensource/introducing-fine-grained-iam-roles-service-accounts/
+func getRoleWebIdentityCredentials(stsEndpoint, roleARN string, token string) (*apiCredentials, error) {
+	data, err := getSTSAPIResponse("AssumeRoleWithWebIdentity", stsEndpoint, roleARN, func(apiURL string) (*http.Request, error) {
+		apiURL += fmt.Sprintf("&WebIdentityToken=%s", token)
+		return http.NewRequest("GET", apiURL, nil)
+	})
 	if err != nil {
 		return nil, err
 	}
-	return parseARNCredentials(data)
+	return parseARNCredentials(data, "AssumeRoleWithWebIdentity")
+}
+
+// getRoleARNCredentials obtains credentials fo the given roleARN.
+func getRoleARNCredentials(region, stsEndpoint, roleARN string, creds *apiCredentials) (*apiCredentials, error) {
+	data, err := getSTSAPIResponse("AssumeRole", stsEndpoint, roleARN, func(apiURL string) (*http.Request, error) {
+		return newSignedRequest(apiURL, "sts", region, creds)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return parseARNCredentials(data, "AssumeRole")
 }
 
 // parseARNCredentials parses apiCredentials from AssumeRole response.
 //
 // See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-func parseARNCredentials(data []byte) (*apiCredentials, error) {
+func parseARNCredentials(data []byte, role string) (*apiCredentials, error) {
 	var arr AssumeRoleResponse
 	if err := xml.Unmarshal(data, &arr); err != nil {
 		return nil, fmt.Errorf("cannot parse AssumeRoleResponse response from %q: %w", data, err)
 	}
+	var cred assumeCredentials
+	switch role {
+	case "AssumeRole":
+		cred = arr.AssumeRoleResult.Credentials
+	case "AssumeRoleWithWebIdentity":
+		cred = arr.AssumeRoleWithWebIdentityResult.Credentials
+	default:
+		return nil, fmt.Errorf("bug, unexpected role: %q", role)
+	}
 	return &apiCredentials{
-		AccessKeyID:     arr.AssumeRoleResult.Credentials.AccessKeyID,
-		SecretAccessKey: arr.AssumeRoleResult.Credentials.SecretAccessKey,
-		Token:           arr.AssumeRoleResult.Credentials.SessionToken,
-		Expiration:      arr.AssumeRoleResult.Credentials.Expiration,
+		AccessKeyID:     cred.AccessKeyID,
+		SecretAccessKey: cred.SecretAccessKey,
+		Token:           cred.SessionToken,
+		Expiration:      cred.Expiration,
 	}, nil
+}
+
+type assumeCredentials struct {
+	AccessKeyID     string    `xml:"AccessKeyId"`
+	SecretAccessKey string    `xml:"SecretAccessKey"`
+	SessionToken    string    `xml:"SessionToken"`
+	Expiration      time.Time `xml:"Expiration"`
 }
 
 // AssumeRoleResponse represents AssumeRole response
@@ -293,12 +350,10 @@ func parseARNCredentials(data []byte) (*apiCredentials, error) {
 // See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
 type AssumeRoleResponse struct {
 	AssumeRoleResult struct {
-		Credentials struct {
-			AccessKeyID     string    `xml:"AccessKeyId"`
-			SecretAccessKey string    `xml:"SecretAccessKey"`
-			SessionToken    string    `xml:"SessionToken"`
-			Expiration      time.Time `xml:"Expiration"`
-		}
+		Credentials assumeCredentials
+	}
+	AssumeRoleWithWebIdentityResult struct {
+		Credentials assumeCredentials
 	}
 }
 
@@ -323,14 +378,14 @@ func buildAPIEndpoint(customEndpoint, region, service string) string {
 // and returns temporary credentials with expiration time
 //
 // See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-func getSTSAPIResponse(region, stsEndpoint, roleARN string, creds *apiCredentials) ([]byte, error) {
+func getSTSAPIResponse(action, stsEndpoint, roleARN string, reqBuilder func(apiURL string) (*http.Request, error)) ([]byte, error) {
 	// See https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Query-Requests.html
-	apiURL := fmt.Sprintf("%s?Action=%s", stsEndpoint, "AssumeRole")
+	apiURL := fmt.Sprintf("%s?Action=%s", stsEndpoint, action)
 	apiURL += "&Version=2011-06-15"
 	apiURL += fmt.Sprintf("&RoleArn=%s", roleARN)
 	// we have to provide unique session name for cloudtrail audit
 	apiURL += "&RoleSessionName=vmagent-ec2-discovery"
-	req, err := newSignedRequest(apiURL, "sts", region, creds)
+	req, err := reqBuilder(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create signed request: %w", err)
 	}
