@@ -59,6 +59,15 @@ type Config struct {
 	baseDir string
 }
 
+func (cfg *Config) mustStop() {
+	startTime := time.Now()
+	logger.Infof("stopping service discovery routines...")
+	for i := range cfg.ScrapeConfigs {
+		cfg.ScrapeConfigs[i].mustStop()
+	}
+	logger.Infof("stopped service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
+}
+
 // GlobalConfig represents essential parts for `global` section of Prometheus config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -91,7 +100,7 @@ type ScrapeConfig struct {
 	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs,omitempty"`
 	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs,omitempty"`
 	EurekaSDConfigs      []eureka.SDConfig           `yaml:"eureka_sd_configs,omitempty"`
-	DockerSwarmConfigs   []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
+	DockerSwarmSDConfigs []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
 	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs,omitempty"`
 	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs,omitempty"`
 	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs,omitempty"`
@@ -107,6 +116,33 @@ type ScrapeConfig struct {
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
+}
+
+func (sc *ScrapeConfig) mustStop() {
+	for i := range sc.KubernetesSDConfigs {
+		sc.KubernetesSDConfigs[i].MustStop()
+	}
+	for i := range sc.OpenStackSDConfigs {
+		sc.OpenStackSDConfigs[i].MustStop()
+	}
+	for i := range sc.ConsulSDConfigs {
+		sc.ConsulSDConfigs[i].MustStop()
+	}
+	for i := range sc.EurekaSDConfigs {
+		sc.EurekaSDConfigs[i].MustStop()
+	}
+	for i := range sc.DockerSwarmSDConfigs {
+		sc.DockerSwarmSDConfigs[i].MustStop()
+	}
+	for i := range sc.DNSSDConfigs {
+		sc.DNSSDConfigs[i].MustStop()
+	}
+	for i := range sc.EC2SDConfigs {
+		sc.EC2SDConfigs[i].MustStop()
+	}
+	for i := range sc.GCESDConfigs {
+		sc.GCESDConfigs[i].MustStop()
+	}
 }
 
 // FileSDConfig represents file-based service discovery config.
@@ -259,8 +295,8 @@ func (cfg *Config) getDockerSwarmSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork 
 		sc := &cfg.ScrapeConfigs[i]
 		dstLen := len(dst)
 		ok := true
-		for j := range sc.DockerSwarmConfigs {
-			sdc := &sc.DockerSwarmConfigs[j]
+		for j := range sc.DockerSwarmSDConfigs {
+			sdc := &sc.DockerSwarmSDConfigs[j]
 			var okLocal bool
 			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "dockerswarm_sd_config")
 			if ok {

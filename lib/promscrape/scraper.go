@@ -129,6 +129,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
+			cfg.mustStop()
 			cfg = cfgNew
 			data = dataNew
 		case <-tickerCh:
@@ -141,9 +142,11 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
 			}
+			cfg.mustStop()
 			cfg = cfgNew
 			data = dataNew
 		case <-globalStopCh:
+			cfg.mustStop()
 			logger.Infof("stopping Prometheus scrapers")
 			startTime := time.Now()
 			scs.stop()
