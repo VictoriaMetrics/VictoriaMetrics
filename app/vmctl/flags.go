@@ -104,6 +104,7 @@ const (
 	otsdbRetentions  = "otsdb-retentions"
 	otsdbFilters     = "otsdb-filters"
 	otsdbNormalize   = "otsdb-normalize"
+	otsdbMsecsTime   = "otsdb-msecstime"
 )
 
 var (
@@ -119,34 +120,42 @@ var (
 			Usage: "Number of concurrently running fetch queries to OpenTSDB",
 			Value: 1,
 		},
-		&cli.IntFlag{
-			Name:  otsdbQueryLimit,
-			Usage: "Result limit on meta queries to OpenTSDB",
-			Value: 100000,
-		},
-		&cli.IntFlag{
-			Name:  otsdbOffsetDays,
-			Usage: "Days to offset our 'starting' point for collecting data from OpenTSDB",
-			Value: 0,
-		},
-		&cli.BoolFlag{
-			Name:  otsdbNormalize,
-			Value: false,
-			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
-		},
 		&cli.StringSliceFlag{
 			Name:     otsdbRetentions,
 			Value:    nil,
 			Required: true,
 			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed " +
 				"for the query, the row size (in HBase) that will define how long each individual query is, " +
-				"and the time range to query for. e.g. sum-1m-avg:1h:720h. Golang doesn't support durations larger " +
-				"than h, so referencing days will require 24 * (days) to format correctly",
+				"and the time range to query for. e.g. sum-1m-avg:1h:3d.",
 		},
 		&cli.StringSliceFlag{
 			Name:  otsdbFilters,
 			Value: cli.NewStringSlice([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}...),
 			Usage: "Filters to process for discovering metrics in OpenTSDB",
+		},
+		&cli.Int64Flag{
+			Name:  otsdbOffsetDays,
+			Usage: "Days to offset our 'starting' point for collecting data from OpenTSDB",
+			Value: 0,
+		},
+		/*
+			because the defaults are set *extremely* low in OpenTSDB (10-25 results), we will
+			set a larger default limit, but still allow a user to increase/decrease it
+		*/
+		&cli.IntFlag{
+			Name:  otsdbQueryLimit,
+			Usage: "Result limit on meta queries to OpenTSDB",
+			Value: 100000,
+		},
+		&cli.BoolFlag{
+			Name:  otsdbMsecsTime,
+			Value: false,
+			Usage: "Whether OpenTSDB is writing values in miliseconds or seconds",
+		},
+		&cli.BoolFlag{
+			Name:  otsdbNormalize,
+			Value: false,
+			Usage: "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics",
 		},
 	}
 )

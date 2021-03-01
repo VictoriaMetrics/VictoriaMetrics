@@ -5,7 +5,9 @@ import (
 	// "log"
 	"regexp"
 	"strings"
-	"time"
+	// "time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
@@ -13,15 +15,20 @@ var (
 	allowedFirstChar = regexp.MustCompile("[a-zA-Z]")
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
 	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
+	oneHour          = float64(3600 * 1000)
+	oneDay           = float64(3600 * 24 * 1000)
 )
 
 // Convert an incoming retention "string" into the component parts
-func convertRetention(retention string, offset int) (Retention, error) {
+func convertRetention(retention string, offset int64, msecTime bool) (Retention, error) {
 	/*
 		Our "offset" is the number of days we should step
 		back before starting to scan for data
 	*/
 	offset = offset * 24 * 60 * 60
+	if msecTime {
+		offset = offset * 1000
+	}
 	/*
 		A retention string coming in looks like
 		sum-1m-avg:1h:30d
@@ -32,27 +39,30 @@ func convertRetention(retention string, offset int) (Retention, error) {
 	*/
 	chunks := strings.Split(retention, ":")
 	if len(chunks) < 3 {
-		return Retention{}, fmt.Errorf("invalid retention string: %s", retention)
+		return Retention{}, fmt.Errorf("invalid retention string: %q", retention)
 	}
-	// log.Println("Retention strings to process: ", chunks)
-	aggregates := strings.Split(chunks[0], "-")
-	rowLength, err := time.ParseDuration(chunks[1])
-	if err != nil {
-		return Retention{}, fmt.Errorf("failed to parse duration, %v", err)
+	// default to one hour
+	rowLengthDuration := flagutil.NewDuration(chunks[1], oneHour, "row span size")
+	rowLength := rowLengthDuration.Msecs
+	if !msecTime {
+		rowLength = rowLength / 1000
 	}
-	ttl, err := time.ParseDuration(chunks[2])
-	if err != nil {
-		return Retention{}, fmt.Errorf("failed to parse duration: %v", err)
+	// default to one day
+	ttlDuration := flagutil.NewDuration(chunks[2], oneDay, "Amount of data to request")
+	ttl := ttlDuration.Msecs
+	if !msecTime {
+		ttl = ttl / 1000
 	}
-	rowSecs := rowLength.Seconds()
 	// bump by the offset so we don't look at empty ranges any time offset > ttl
-	ttlSecs := ttl.Seconds() + float64(offset)
+	ttl += offset
 	var timeChunks []TimeRange
 	var i int64
-	for i = int64(offset); i <= int64(ttlSecs); i = i + int64(rowSecs) {
-		timeChunks = append(timeChunks, TimeRange{Start: i + int64(rowSecs), End: i})
+	for i = offset; i <= ttl; i = i + rowLength {
+		timeChunks = append(timeChunks, TimeRange{Start: i + rowLength, End: i})
 	}
-	// FirstOrder, AggTime, SecondOrder, RowSize, TTL
+	// first/second order aggregations for queries defined in chunk 0...
+	aggregates := strings.Split(chunks[0], "-")
+
 	ret := Retention{FirstOrder: aggregates[0],
 		SecondOrder: aggregates[2],
 		AggTime:     aggregates[1],

@@ -45,10 +45,11 @@ type Client struct {
 type Config struct {
 	Addr       string
 	Limit      int
-	Offset     int
+	Offset     int64
 	Retentions []string
 	Filters    []string
 	Normalize  bool
+	MsecsTime  bool
 }
 
 // TimeRange contains data about time ranges to query
@@ -268,7 +269,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
 	for _, r := range cfg.Retentions {
-		ret, _ := convertRetention(r, cfg.Offset)
+		ret, _ := convertRetention(r, cfg.Offset, cfg.MsecsTime)
 		retentions = append(retentions, ret)
 	}
 	client := &Client{
