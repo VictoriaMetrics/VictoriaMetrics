@@ -54,9 +54,9 @@ func convertRetention(retention string, offset int) (Retention, error) {
 	}
 	// FirstOrder, AggTime, SecondOrder, RowSize, TTL
 	ret := Retention{FirstOrder: aggregates[0],
-					 SecondOrder: aggregates[2],
-					 AggTime: aggregates[1],
-					 QueryRanges: timeChunks}
+		SecondOrder: aggregates[2],
+		AggTime:     aggregates[1],
+		QueryRanges: timeChunks}
 	return ret, nil
 }
 
