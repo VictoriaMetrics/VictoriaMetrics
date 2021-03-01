@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -169,7 +168,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_scrape": "true",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
+	if !areEqualLabelss(sortedLabelss, expectedLabelss) {
 		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
 	}
 }

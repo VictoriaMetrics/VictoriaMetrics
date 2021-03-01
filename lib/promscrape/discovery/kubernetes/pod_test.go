@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -274,7 +273,7 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_pod_annotationpresent_kubernetes_io_config_source": "true",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
+	if !areEqualLabelss(sortedLabelss, expectedLabelss) {
 		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
 	}
 }
