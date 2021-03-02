@@ -311,7 +311,7 @@ func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error {
 		}
 		reqBuf = bytesutil.Resize(reqBuf, int(packetSize))
 		if n, err := io.ReadFull(bc, reqBuf); err != nil {
-			return fmt.Errorf("cannot read packet with size %d: %w; read only %d bytes", packetSize, err, n)
+			return fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
 		}
 		// Send `ack` to vminsert that the packet has been received.
 		deadline := time.Now().Add(5 * time.Second)
