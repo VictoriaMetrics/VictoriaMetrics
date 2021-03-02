@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	//"sync"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -16,6 +16,13 @@ type otsdbProcessor struct {
 	im      *vm.Importer
 	otsdbcc int
 	vmcc    int
+}
+
+type queryObj struct {
+	Series    opentsdb.Meta
+	Rt        opentsdb.Retention
+	Tr        opentsdb.TimeRange
+	StartTime int64
 }
 
 func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc int) *otsdbProcessor {
@@ -53,10 +60,8 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return nil
 	}
 
-	//seriesCh := make(chan *opentsdb.Meta)
-	//errCh := make(chan error)
-	//var wg sync.WaitGroup
-	//wg.Add(op.otsdbcc)
+	seriesCh := make(chan queryObj)
+	errCh := make(chan error)
 	startTime := time.Now().Unix()
 	for _, metric := range metrics {
 		log.Println(fmt.Sprintf("Starting work on %s", metric))
@@ -65,25 +70,34 @@ func (op *otsdbProcessor) run(silent bool) error {
 			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
 		}
 		bar := pb.StartNew(len(serieslist))
-		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
-		/*for _, series := range serieslist {
-			seriesCh <- series
-		}*/
-		for _, series := range serieslist {
-			for _, rt := range op.oc.Retentions {
-				for _, tr := range rt.QueryRanges {
-					err = op.do(series, rt, tr, startTime)
-					if err != nil {
-						return fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
+		var wg sync.WaitGroup
+		wg.Add(op.otsdbcc)
+		for i := 0; i < op.otsdbcc; i++ {
+			go func() {
+				defer wg.Done()
+				for s := range seriesCh {
+					if op.do(s); err != nil {
+						errCh <- fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
+						return
 					}
-					// log.Println(fmt.Sprintf("Processed %d-%d for %s", tr.Start, tr.End, series))
-					/*for i := 0; i < op.otsdbcc; i++ {
-						defer wg.Done()
-
-					}*/
+					bar.Increment()
+				}
+			}()
+		}
+		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
+		for _, series := range serieslist {
+			select {
+			case otsdbErr := <-errCh:
+				return fmt.Errorf("opentsdb error: %s", otsdbErr)
+			default:
+				for _, rt := range op.oc.Retentions {
+					for _, tr := range rt.QueryRanges {
+						seriesCh <- queryObj{
+							Series: series, Rt: rt,
+							Tr: tr, StartTime: startTime}
+					}
 				}
 			}
-			bar.Increment()
 		}
 		bar.Finish()
 	}
@@ -91,12 +105,13 @@ func (op *otsdbProcessor) run(silent bool) error {
 	return nil
 }
 
-func (op *otsdbProcessor) do(seriesMeta opentsdb.Meta, rt opentsdb.Retention, tr opentsdb.TimeRange, now int64) error {
-	start := now - tr.Start
-	end := now - tr.End
-	data, err := op.oc.GetData(seriesMeta, rt, start, end)
+func (op *otsdbProcessor) do(s queryObj) error {
+
+	start := s.StartTime - s.Tr.Start
+	end := s.StartTime - s.Tr.End
+	data, err := op.oc.GetData(s.Series, s.Rt, start, end)
 	if err != nil {
-		return fmt.Errorf("failed to collect data for %v in %v:%v", seriesMeta, rt, tr)
+		return fmt.Errorf("failed to collect data for %v in %v:%v", s.Series, s.Rt, s.Tr)
 	}
 	if len(data.Timestamps) < 1 {
 		return nil

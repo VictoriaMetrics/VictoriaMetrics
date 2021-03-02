@@ -126,7 +126,9 @@ var (
 			Required: true,
 			Usage: "Retentions patterns to collect on. Each pattern should describe the aggregation performed " +
 				"for the query, the row size (in HBase) that will define how long each individual query is, " +
-				"and the time range to query for. e.g. sum-1m-avg:1h:3d.",
+				"and the time range to query for. e.g. sum-1m-avg:1h:3d. " +
+				"The first time range defined should be a multiple of the row size in HBase. " +
+				"e.g. if the row size is 2 hours, 4h is good, 5h less so. We want each query to land on unique rows.",
 		},
 		&cli.StringSliceFlag{
 			Name:  otsdbFilters,

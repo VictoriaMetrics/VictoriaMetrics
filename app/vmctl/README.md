@@ -99,9 +99,16 @@ OpenTSDB migration works like so:
 2. Find series associated with each returned metric
   * e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
 3. Download data for each series in chunks defined in the CLI switches
-  * e.g. `-retention=1m:1h:90d` == `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+  * e.g. `-retention=sum-1m-avg:1h:90d` ==
+    * `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+    * `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+    * `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+    * ...
+    * `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
 
-This means that we must stream data from OpenTSDB to VictoriaMetrics. Because OpenTSDB queries are likely to get stuck or otherwise fail, the progress is tracked in ...
+This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
+
+OpenTSDB queries are likely to get stuck or otherwise fail. We plan to implement a "running cache" of the data as it is migrated so you can interrupt the ingest process and not have to start over from the beginning.
 
 ## Migrating data from InfluxDB (1.x)
 
