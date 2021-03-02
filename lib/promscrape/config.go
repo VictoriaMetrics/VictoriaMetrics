@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -241,10 +240,23 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		ok := true
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
-			var okLocal bool
-			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "kubernetes_sd_config")
-			if ok {
-				ok = okLocal
+			swos, err := sdc.GetScrapeWorkObjects(cfg.baseDir, func(metaLabels map[string]string) interface{} {
+				target := metaLabels["__address__"]
+				sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
+				if err != nil {
+					logger.Errorf("cannot create kubernetes_sd_config target target %q for job_name %q: %s", target, sc.swc.jobName, err)
+					return nil
+				}
+				return sw
+			})
+			if err != nil {
+				logger.Errorf("skipping kubernetes_sd_config targets for job_name %q because of error: %s", sc.swc.jobName, err)
+				ok = false
+				break
+			}
+			for _, swo := range swos {
+				sw := swo.(*ScrapeWork)
+				dst = append(dst, sw)
 			}
 		}
 		if ok {
@@ -252,7 +264,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering kubernetes targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			logger.Errorf("there were errors when discovering kubernetes_sd_config targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
@@ -555,8 +567,6 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval,
-
-		cache: newScrapeWorkCache(),
 	}
 	return swc, nil
 }
@@ -580,64 +590,6 @@ type scrapeWorkConfig struct {
 	disableKeepAlive     bool
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
-
-	cache *scrapeWorkCache
-}
-
-type scrapeWorkCache struct {
-	mu              sync.Mutex
-	m               map[string]*scrapeWorkEntry
-	lastCleanupTime uint64
-}
-
-type scrapeWorkEntry struct {
-	sw             *ScrapeWork
-	lastAccessTime uint64
-}
-
-func newScrapeWorkCache() *scrapeWorkCache {
-	return &scrapeWorkCache{
-		m: make(map[string]*scrapeWorkEntry),
-	}
-}
-
-func (swc *scrapeWorkCache) Get(key string) *ScrapeWork {
-	scrapeWorkCacheRequests.Inc()
-	currentTime := fasttime.UnixTimestamp()
-	swc.mu.Lock()
-	swe := swc.m[key]
-	if swe != nil {
-		swe.lastAccessTime = currentTime
-	}
-	swc.mu.Unlock()
-	if swe == nil {
-		return nil
-	}
-	scrapeWorkCacheHits.Inc()
-	return swe.sw
-}
-
-var (
-	scrapeWorkCacheRequests = metrics.NewCounter(`vm_promscrape_scrapework_cache_requests_total`)
-	scrapeWorkCacheHits     = metrics.NewCounter(`vm_promscrape_scrapework_cache_hits_total`)
-)
-
-func (swc *scrapeWorkCache) Set(key string, sw *ScrapeWork) {
-	currentTime := fasttime.UnixTimestamp()
-	swc.mu.Lock()
-	swc.m[key] = &scrapeWorkEntry{
-		sw:             sw,
-		lastAccessTime: currentTime,
-	}
-	if currentTime > swc.lastCleanupTime+10*60 {
-		for k, swe := range swc.m {
-			if currentTime > swe.lastAccessTime+2*60 {
-				delete(swc.m, k)
-			}
-		}
-		swc.lastCleanupTime = currentTime
-	}
-	swc.mu.Unlock()
 }
 
 type targetLabelsGetter interface {
@@ -761,26 +713,6 @@ func (stc *StaticConfig) appendScrapeWork(dst []*ScrapeWork, swc *scrapeWorkConf
 	return dst
 }
 
-func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	bb := scrapeWorkKeyBufPool.Get()
-	defer scrapeWorkKeyBufPool.Put(bb)
-	bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
-	keyStrUnsafe := bytesutil.ToUnsafeString(bb.B)
-	if needSkipScrapeWork(keyStrUnsafe) {
-		return nil, nil
-	}
-	if sw := swc.cache.Get(keyStrUnsafe); sw != nil {
-		return sw, nil
-	}
-	sw, err := swc.getScrapeWorkReal(target, extraLabels, metaLabels)
-	if err == nil {
-		swc.cache.Set(string(bb.B), sw)
-	}
-	return sw, err
-}
-
-var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
-
 func appendScrapeWorkKey(dst []byte, target string, extraLabels, metaLabels map[string]string) []byte {
 	dst = append(dst, target...)
 	dst = append(dst, ',')
@@ -814,7 +746,17 @@ func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
 	return dst
 }
 
-func (swc *scrapeWorkConfig) getScrapeWorkReal(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
+var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
+
+func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
+	// Verify whether the scrape work must be skipped.
+	bb := scrapeWorkKeyBufPool.Get()
+	defer scrapeWorkKeyBufPool.Put(bb)
+	bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
+	if needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B)) {
+		return nil, nil
+	}
+
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {

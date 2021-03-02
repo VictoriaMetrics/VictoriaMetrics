@@ -37,15 +37,20 @@ type Selector struct {
 	Field string `yaml:"field"`
 }
 
-// GetLabels returns labels for the given sdc and baseDir.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
-	cfg, err := getAPIConfig(sdc, baseDir)
+// ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
+type ScrapeWorkConstructorFunc func(metaLabels map[string]string) interface{}
+
+// GetScrapeWorkObjects returns ScrapeWork objects for the given sdc and baseDir.
+//
+// swcFunc is used for constructing such objects.
+func (sdc *SDConfig) GetScrapeWorkObjects(baseDir string, swcFunc ScrapeWorkConstructorFunc) ([]interface{}, error) {
+	cfg, err := getAPIConfig(sdc, baseDir, swcFunc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
 	switch sdc.Role {
 	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
-		return cfg.aw.getLabelsForRole(sdc.Role), nil
+		return cfg.aw.getScrapeWorkObjectsForRole(sdc.Role), nil
 	default:
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`; skipping it", sdc.Role)
 	}
