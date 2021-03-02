@@ -3850,11 +3850,12 @@ var awsPartition = partition{
 						Region: "us-west-2",
 					},
 				},
-				"sa-east-1": endpoint{},
-				"us-east-1": endpoint{},
-				"us-east-2": endpoint{},
-				"us-west-1": endpoint{},
-				"us-west-2": endpoint{},
+				"me-south-1": endpoint{},
+				"sa-east-1":  endpoint{},
+				"us-east-1":  endpoint{},
+				"us-east-2":  endpoint{},
+				"us-west-1":  endpoint{},
+				"us-west-2":  endpoint{},
 			},
 		},
 		"lambda": service{
@@ -6585,6 +6586,7 @@ var awsPartition = partition{
 		"transfer": service{
 
 			Endpoints: endpoints{
+				"af-south-1":     endpoint{},
 				"ap-east-1":      endpoint{},
 				"ap-northeast-1": endpoint{},
 				"ap-northeast-2": endpoint{},
@@ -10384,6 +10386,19 @@ var awsisobPartition = partition{
 
 			Endpoints: endpoints{
 				"us-isob-east-1": endpoint{},
+			},
+		},
+		"route53": service{
+			PartitionEndpoint: "aws-iso-b-global",
+			IsRegionalized:    boxedFalse,
+
+			Endpoints: endpoints{
+				"aws-iso-b-global": endpoint{
+					Hostname: "route53.sc2s.sgov.gov",
+					CredentialScope: credentialScope{
+						Region: "us-isob-east-1",
+					},
+				},
 			},
 		},
 		"s3": service{
