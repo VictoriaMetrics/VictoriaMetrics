@@ -46,41 +46,22 @@ func TestFindClosingQuote(t *testing.T) {
 	f(`"foo\"bar\"baz"`, 14)
 }
 
-func TestUnescapeValueFailure(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-		ss, err := unescapeValue(s)
-		if err == nil {
-			t.Fatalf("expecting error")
-		}
-		if ss != "" {
-			t.Fatalf("expecting empty string; got %q", ss)
-		}
-	}
-	f(``)
-	f(`foobar`)
-	f(`"foobar`)
-	f(`foobar"`)
-	f(`"foobar\"`)
-	f(` "foobar"`)
-	f(`"foobar" `)
-}
-
-func TestUnescapeValueSuccess(t *testing.T) {
+func TestUnescapeValue(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
-		result, err := unescapeValue(s)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		result := unescapeValue(s)
 		if result != resultExpected {
 			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
 		}
 	}
-	f(`""`, "")
-	f(`"f"`, "f")
-	f(`"foobar"`, "foobar")
-	f(`"\"\n\t"`, "\"\n\t")
+	f(``, "")
+	f(`f`, "f")
+	f(`foobar`, "foobar")
+	f(`\"\n\t`, "\"\n\\t")
+
+	// Edge cases
+	f(`foo\bar`, "foo\\bar")
+	f(`foo\`, "foo\\")
 }
 
 func TestRowsUnmarshalFailure(t *testing.T) {
@@ -200,6 +181,24 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 		Rows: []Row{{
 			Metric: "cassandra_token_ownership_ratio",
 			Value:  78.9,
+		}},
+	})
+
+	// Incorrectly escaped backlash. This is real-world case, which must be supported.
+	f(`mssql_sql_server_active_transactions_sec{loginname="domain\somelogin",env="develop"} 56`, &Rows{
+		Rows: []Row{{
+			Metric: "mssql_sql_server_active_transactions_sec",
+			Tags: []Tag{
+				{
+					Key: "loginname",
+					Value: "domain\\somelogin",
+				},
+				{
+					Key: "env",
+					Value: "develop",
+				},
+			},
+			Value: 56,
 		}},
 	})
 

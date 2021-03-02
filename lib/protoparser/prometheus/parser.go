@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -264,11 +263,7 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 			if n < 0 {
 				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
 			}
-			var err error
-			value, err = unescapeValue(s[:n+1])
-			if err != nil {
-				return s, dst, fmt.Errorf("cannot unescape value %q for tag %q: %w", s[:n+1], key, err)
-			}
+			value = unescapeValue(s[1:n])
 			s = s[n+1:]
 		}
 		if len(key) > 0 {
@@ -324,16 +319,41 @@ func findClosingQuote(s string) int {
 	}
 }
 
-func unescapeValue(s string) (string, error) {
-	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
-		return "", fmt.Errorf("unexpected tag value: %q", s)
-	}
+func unescapeValue(s string) string {
 	n := strings.IndexByte(s, '\\')
 	if n < 0 {
 		// Fast path - nothing to unescape
-		return s[1 : len(s)-1], nil
+		return s
 	}
-	return strconv.Unquote(s)
+	b := make([]byte, 0, len(s))
+	for {
+		b = append(b, s[:n]...)
+		s = s[n+1:]
+		if len(s) == 0 {
+			b = append(b, '\\')
+			break
+		}
+		// label_value can be any sequence of UTF-8 characters, but the backslash (\), double-quote ("),
+		// and line feed (\n) characters have to be escaped as \\, \", and \n, respectively.
+		// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+		switch s[0] {
+		case '\\':
+			b = append(b, '\\')
+		case '"':
+			b = append(b, '"')
+		case 'n':
+			b = append(b, '\n')
+		default:
+			b = append(b, '\\', s[0])
+		}
+		s = s[1:]
+		n = strings.IndexByte(s, '\\')
+		if n < 0 {
+			b = append(b, s...)
+			break
+		}
+	}
+	return string(b)
 }
 
 func prevBackslashesCount(s string) int {
