@@ -225,17 +225,6 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return labels
 	case "labeldrop":
-		keepSrc := true
-		for i := range src {
-			label := &src[i]
-			if prc.matchString(label.Name) {
-				keepSrc = false
-				break
-			}
-		}
-		if keepSrc {
-			return labels
-		}
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
@@ -245,17 +234,6 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		return dst
 	case "labelkeep":
-		keepSrc := true
-		for i := range src {
-			label := &src[i]
-			if !prc.matchString(label.Name) {
-				keepSrc = false
-				break
-			}
-		}
-		if keepSrc {
-			return labels
-		}
 		dst := labels[:labelsOffset]
 		for i := range src {
 			label := &src[i]
