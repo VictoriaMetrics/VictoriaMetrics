@@ -23,7 +23,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 10*time.Minute, "How frequently to reload the full state from Kuberntes API server")
+var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kuberntes API server")
 
 // apiConfig contains config for API server
 type apiConfig struct {
@@ -367,8 +367,8 @@ func (uw *urlWatcher) reloadObjects() string {
 		}
 	}
 	uw.mu.Lock()
-	uw.objectsRemoved.Add(-len(uw.objectsByKey))
 	uw.objectsAdded.Add(len(objectsByKey))
+	uw.objectsRemoved.Add(len(uw.objectsByKey))
 	uw.objectsCount.Add(len(objectsByKey) - len(uw.objectsByKey))
 	uw.objectsByKey = objectsByKey
 	uw.swosByKey = swosByKey
