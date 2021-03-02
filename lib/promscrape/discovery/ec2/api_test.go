@@ -64,7 +64,6 @@ func TestParseARNCredentialsFailure(t *testing.T) {
 }
 
 func TestParseARNCredentialsSuccess(t *testing.T) {
-
 	f := func(data, role string, credsExpected *apiCredentials) {
 		t.Helper()
 		creds, err := parseARNCredentials([]byte(data), role)

@@ -190,11 +190,11 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			Metric: "mssql_sql_server_active_transactions_sec",
 			Tags: []Tag{
 				{
-					Key: "loginname",
+					Key:   "loginname",
 					Value: "domain\\somelogin",
 				},
 				{
-					Key: "env",
+					Key:   "env",
 					Value: "develop",
 				},
 			},

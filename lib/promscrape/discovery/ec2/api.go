@@ -12,15 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-)
-
-const (
-	awsAccessKeyEnv = "AWS_ACCESS_KEY_ID"
-	awsSecretKeyEnv = "AWS_SECRET_ACCESS_KEY"
-	awsRegionEnv    = "AWS_REGION"
-	awsRoleARNEnv   = "AWS_ROLE_ARN"
-	awsWITPath      = "AWS_WEB_IDENTITY_TOKEN_FILE"
 )
 
 type apiConfig struct {
@@ -83,17 +76,16 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 	cfg.ec2Endpoint = buildAPIEndpoint(sdc.Endpoint, region, "ec2")
 	cfg.stsEndpoint = buildAPIEndpoint(sdc.Endpoint, region, "sts")
 
-	envARN := os.Getenv(awsRoleARNEnv)
-	if envARN != "" {
-		cfg.roleARN = envARN
+	if cfg.roleARN == "" {
+		cfg.roleARN = os.Getenv("AWS_ROLE_ARN")
 	}
-	cfg.webTokenPath = os.Getenv(awsWITPath)
+	cfg.webTokenPath = os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
 	if cfg.webTokenPath != "" && cfg.roleARN == "" {
-		return nil, fmt.Errorf("roleARN is missing for %q, set it with cfg or env var %q", awsWITPath, awsRoleARNEnv)
+		return nil, fmt.Errorf("roleARN is missing for AWS_WEB_IDENTITY_TOKEN_FILE=%q, set it either in `ec2_sd_config` or via env var AWS_ROLE_ARN", cfg.webTokenPath)
 	}
 	// explicitly set credentials has priority over env variables
-	cfg.defaultAccessKey = os.Getenv(awsAccessKeyEnv)
-	cfg.defaultSecretKey = os.Getenv(awsSecretKeyEnv)
+	cfg.defaultAccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
+	cfg.defaultSecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 	if len(sdc.AccessKey) > 0 {
 		cfg.defaultAccessKey = sdc.AccessKey
 	}
@@ -120,11 +112,10 @@ func getFiltersQueryString(filters []Filter) string {
 }
 
 func getDefaultRegion() (string, error) {
-	envRegion := os.Getenv(awsRegionEnv)
+	envRegion := os.Getenv("AWS_REGION")
 	if envRegion != "" {
 		return envRegion, nil
 	}
-
 	data, err := getMetadataByPath("dynamic/instance-identity/document")
 	if err != nil {
 		return "", err
@@ -199,12 +190,12 @@ func getAPICredentials(cfg *apiConfig) (*apiCredentials, error) {
 		acNew = ac
 	}
 	if len(acNew.AccessKeyID) == 0 {
-		return nil, fmt.Errorf("missing `access_key`, you can set it with %s env var, "+
-			"directly at `ec2_sd_config` as `access_key` or use instance iam role", awsAccessKeyEnv)
+		return nil, fmt.Errorf("missing `access_key`, you can set it with env var AWS_ACCESS_KEY_ID, " +
+			"directly at `ec2_sd_config` as `access_key` or use instance iam role")
 	}
 	if len(acNew.SecretAccessKey) == 0 {
-		return nil, fmt.Errorf("missing `secret_key`, you can set it with %s env var,"+
-			"directly at `ec2_sd_config` as `secret_key` or use instance iam role", awsSecretKeyEnv)
+		return nil, fmt.Errorf("missing `secret_key`, you can set it with env var AWS_SECRET_ACCESS_KEY," +
+			"directly at `ec2_sd_config` as `secret_key` or use instance iam role")
 	}
 	return acNew, nil
 }
@@ -293,7 +284,7 @@ func getMetadataByPath(apiPath string) ([]byte, error) {
 // https://aws.amazon.com/blogs/opensource/introducing-fine-grained-iam-roles-service-accounts/
 func getRoleWebIdentityCredentials(stsEndpoint, roleARN string, token string) (*apiCredentials, error) {
 	data, err := getSTSAPIResponse("AssumeRoleWithWebIdentity", stsEndpoint, roleARN, func(apiURL string) (*http.Request, error) {
-		apiURL += fmt.Sprintf("&WebIdentityToken=%s", token)
+		apiURL += fmt.Sprintf("&WebIdentityToken=%s", url.QueryEscape(token))
 		return http.NewRequest("GET", apiURL, nil)
 	})
 	if err != nil {
@@ -328,7 +319,7 @@ func parseARNCredentials(data []byte, role string) (*apiCredentials, error) {
 	case "AssumeRoleWithWebIdentity":
 		cred = arr.AssumeRoleWithWebIdentityResult.Credentials
 	default:
-		return nil, fmt.Errorf("bug, unexpected role: %q", role)
+		logger.Panicf("BUG: unexpected role: %q", role)
 	}
 	return &apiCredentials{
 		AccessKeyID:     cred.AccessKeyID,
@@ -374,7 +365,7 @@ func buildAPIEndpoint(customEndpoint, region, service string) string {
 	return endpoint
 }
 
-// getSTSAPIResponse makes request to aws sts api with role_arn
+// getSTSAPIResponse makes request to aws sts api with roleARN
 // and returns temporary credentials with expiration time
 //
 // See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
