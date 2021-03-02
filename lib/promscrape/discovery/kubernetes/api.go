@@ -36,15 +36,15 @@ func (ac *apiConfig) mustStop() {
 
 var configMap = discoveryutils.NewConfigMap()
 
-func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
+func getAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
+	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir, swcFunc) })
 	if err != nil {
 		return nil, err
 	}
 	return v.(*apiConfig), nil
 }
 
-func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
@@ -97,7 +97,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		},
 		Timeout: *apiServerTimeout,
 	}
-	aw := newAPIWatcher(client, apiServer, ac.Authorization, sdc.Namespaces.Names, sdc.Selectors)
+	aw := newAPIWatcher(client, apiServer, ac.Authorization, sdc.Namespaces.Names, sdc.Selectors, swcFunc)
 	cfg := &apiConfig{
 		aw: aw,
 	}
@@ -141,6 +141,9 @@ type apiWatcher struct {
 	// Selectors to apply during watch
 	selectors []Selector
 
+	// Constructor for creating ScrapeWork objects from labels.
+	swcFunc ScrapeWorkConstructorFunc
+
 	// mu protects watchersByURL
 	mu sync.Mutex
 
@@ -157,7 +160,7 @@ func (aw *apiWatcher) mustStop() {
 	aw.wg.Wait()
 }
 
-func newAPIWatcher(client *http.Client, apiServer, authorization string, namespaces []string, selectors []Selector) *apiWatcher {
+func newAPIWatcher(client *http.Client, apiServer, authorization string, namespaces []string, selectors []Selector, swcFunc ScrapeWorkConstructorFunc) *apiWatcher {
 	stopCtx, stopFunc := context.WithCancel(context.Background())
 	return &apiWatcher{
 		apiServer:     apiServer,
@@ -165,6 +168,7 @@ func newAPIWatcher(client *http.Client, apiServer, authorization string, namespa
 		client:        client,
 		namespaces:    namespaces,
 		selectors:     selectors,
+		swcFunc:       swcFunc,
 
 		watchersByURL: make(map[string]*urlWatcher),
 
@@ -173,23 +177,23 @@ func newAPIWatcher(client *http.Client, apiServer, authorization string, namespa
 	}
 }
 
-// getLabelsForRole returns all the sets of labels for the given role.
-func (aw *apiWatcher) getLabelsForRole(role string) []map[string]string {
+// getScrapeWorkObjectsForRole returns all the ScrapeWork objects for the given role.
+func (aw *apiWatcher) getScrapeWorkObjectsForRole(role string) []interface{} {
 	aw.startWatchersForRole(role)
-	var ms []map[string]string
+	var swos []interface{}
 	aw.mu.Lock()
 	for _, uw := range aw.watchersByURL {
 		if uw.role != role {
 			continue
 		}
 		uw.mu.Lock()
-		for _, labels := range uw.labelsByKey {
-			ms = append(ms, labels...)
+		for _, swosLocal := range uw.swosByKey {
+			swos = append(swos, swosLocal...)
 		}
 		uw.mu.Unlock()
 	}
 	aw.mu.Unlock()
-	return ms
+	return swos
 }
 
 // getObjectByRole returns an object with the given (namespace, name) key and the given role.
@@ -288,12 +292,12 @@ type urlWatcher struct {
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
 
-	// mu protects objectsByKey and labelsByKey
+	// mu protects objectsByKey and swosByKey
 	mu sync.Mutex
 
 	// objectsByKey contains the latest state for objects obtained from apiURL
 	objectsByKey map[string]object
-	labelsByKey  map[string][]map[string]string
+	swosByKey    map[string][]interface{}
 
 	// the parent apiWatcher
 	aw *apiWatcher
@@ -316,7 +320,7 @@ func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObject
 		parseObjectList: parseObjectList,
 
 		objectsByKey: make(map[string]object),
-		labelsByKey:  make(map[string][]map[string]string),
+		swosByKey:    make(map[string][]interface{}),
 
 		aw: aw,
 
@@ -354,18 +358,33 @@ func (uw *urlWatcher) reloadObjects() string {
 		}
 		return ""
 	}
-	labelsByKey := make(map[string][]map[string]string, len(objectsByKey))
+	swosByKey := make(map[string][]interface{}, len(objectsByKey))
 	for k, o := range objectsByKey {
-		labelsByKey[k] = o.getTargetLabels(aw)
+		labels := o.getTargetLabels(aw)
+		swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
+		if len(swos) > 0 {
+			swosByKey[k] = swos
+		}
 	}
 	uw.mu.Lock()
 	uw.objectsRemoved.Add(-len(uw.objectsByKey))
 	uw.objectsAdded.Add(len(objectsByKey))
 	uw.objectsCount.Add(len(objectsByKey) - len(uw.objectsByKey))
 	uw.objectsByKey = objectsByKey
-	uw.labelsByKey = labelsByKey
+	uw.swosByKey = swosByKey
 	uw.mu.Unlock()
 	return metadata.ResourceVersion
+}
+
+func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
+	swos := make([]interface{}, 0, len(labelss))
+	for _, labels := range labelss {
+		swo := swcFunc(labels)
+		if swo != nil {
+			swos = append(swos, swo)
+		}
+	}
+	return swos
 }
 
 // watchForUpdates watches for object updates starting from resourceVersion and updates the corresponding objects to the latest state.
@@ -439,6 +458,7 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 
 // readObjectUpdateStream reads Kuberntes watch events from r and updates locally cached objects according to the received events.
 func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
+	aw := uw.aw
 	d := json.NewDecoder(r)
 	var we WatchEvent
 	for {
@@ -459,9 +479,14 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			}
 			uw.objectsByKey[key] = o
 			uw.mu.Unlock()
-			labels := o.getTargetLabels(uw.aw)
+			labels := o.getTargetLabels(aw)
+			swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
 			uw.mu.Lock()
-			uw.labelsByKey[key] = labels
+			if len(swos) > 0 {
+				uw.swosByKey[key] = swos
+			} else {
+				delete(uw.swosByKey, key)
+			}
 			uw.mu.Unlock()
 		case "DELETED":
 			uw.mu.Lock()
@@ -470,7 +495,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 				uw.objectsCount.Dec()
 			}
 			delete(uw.objectsByKey, key)
-			delete(uw.labelsByKey, key)
+			delete(uw.swosByKey, key)
 			uw.mu.Unlock()
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q for role %q", we.Type, uw.role)
