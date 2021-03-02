@@ -2,6 +2,10 @@
 
 # tip
 
+
+# [v1.55.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.0)
+
+
 * FEATURE: add `sign(q)` and `clamp(q, min, max)` functions, which are planned to be added in [the upcoming Prometheus release](https://twitter.com/roidelapluie/status/1363428376162295811) . The `last_over_time(m[d])` function is already supported in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
 * FEATURE: vmagent: add `scrape_align_interval` config option, which can be used for aligning scrapes to the beginning of the configured interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
 * FEATURE: expose io-related metrics at `/metrics` page for every VictoriaMetrics component:
