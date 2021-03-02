@@ -146,6 +146,7 @@ const (
 	FACILITY_WEP                                                                            = 2049
 	FACILITY_SYNCENGINE                                                                     = 2050
 	FACILITY_XBOX                                                                           = 2339
+	FACILITY_GAME                                                                           = 2340
 	FACILITY_PIX                                                                            = 2748
 	ERROR_SUCCESS                                                             syscall.Errno = 0
 	NO_ERROR                                                                                = 0
@@ -469,9 +470,18 @@ const (
 	ERROR_STORAGE_RESERVE_NOT_EMPTY                                           syscall.Errno = 419
 	ERROR_NOT_A_DAX_VOLUME                                                    syscall.Errno = 420
 	ERROR_NOT_DAX_MAPPABLE                                                    syscall.Errno = 421
-	ERROR_TIME_CRITICAL_THREAD                                                syscall.Errno = 422
+	ERROR_TIME_SENSITIVE_THREAD                                               syscall.Errno = 422
 	ERROR_DPL_NOT_SUPPORTED_FOR_USER                                          syscall.Errno = 423
 	ERROR_CASE_DIFFERING_NAMES_IN_DIR                                         syscall.Errno = 424
+	ERROR_FILE_NOT_SUPPORTED                                                  syscall.Errno = 425
+	ERROR_CLOUD_FILE_REQUEST_TIMEOUT                                          syscall.Errno = 426
+	ERROR_NO_TASK_QUEUE                                                       syscall.Errno = 427
+	ERROR_SRC_SRV_DLL_LOAD_FAILED                                             syscall.Errno = 428
+	ERROR_NOT_SUPPORTED_WITH_BTT                                              syscall.Errno = 429
+	ERROR_ENCRYPTION_DISABLED                                                 syscall.Errno = 430
+	ERROR_ENCRYPTING_METADATA_DISALLOWED                                      syscall.Errno = 431
+	ERROR_CANT_CLEAR_ENCRYPTION_FLAG                                          syscall.Errno = 432
+	ERROR_NO_SUCH_DEVICE                                                      syscall.Errno = 433
 	ERROR_CAPAUTHZ_NOT_DEVUNLOCKED                                            syscall.Errno = 450
 	ERROR_CAPAUTHZ_CHANGE_TYPE                                                syscall.Errno = 451
 	ERROR_CAPAUTHZ_NOT_PROVISIONED                                            syscall.Errno = 452
@@ -1593,6 +1603,8 @@ const (
 	ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION                                   syscall.Errno = 4551
 	ERROR_SYSTEM_INTEGRITY_INVALID_POLICY                                     syscall.Errno = 4552
 	ERROR_SYSTEM_INTEGRITY_POLICY_NOT_SIGNED                                  syscall.Errno = 4553
+	ERROR_SYSTEM_INTEGRITY_TOO_MANY_POLICIES                                  syscall.Errno = 4554
+	ERROR_SYSTEM_INTEGRITY_SUPPLEMENTAL_POLICY_NOT_AUTHORIZED                 syscall.Errno = 4555
 	ERROR_VSM_NOT_INITIALIZED                                                 syscall.Errno = 4560
 	ERROR_VSM_DMA_PROTECTION_NOT_IN_USE                                       syscall.Errno = 4561
 	ERROR_PLATFORM_MANIFEST_NOT_AUTHORIZED                                    syscall.Errno = 4570
@@ -1824,6 +1836,7 @@ const (
 	ERROR_CS_ENCRYPTION_NEW_ENCRYPTED_FILE                                    syscall.Errno = 6020
 	ERROR_CS_ENCRYPTION_FILE_NOT_CSE                                          syscall.Errno = 6021
 	ERROR_ENCRYPTION_POLICY_DENIES_OPERATION                                  syscall.Errno = 6022
+	ERROR_WIP_ENCRYPTION_FAILED                                               syscall.Errno = 6023
 	ERROR_NO_BROWSER_SERVERS_FOUND                                            syscall.Errno = 6118
 	SCHED_E_SERVICE_NOT_LOCALSYSTEM                                           syscall.Errno = 6200
 	ERROR_LOG_SECTOR_INVALID                                                  syscall.Errno = 6600
@@ -3000,6 +3013,7 @@ const (
 	ERROR_SMI_PRIMITIVE_INSTALLER_FAILED                                      syscall.Errno = 14108
 	ERROR_GENERIC_COMMAND_FAILED                                              syscall.Errno = 14109
 	ERROR_SXS_FILE_HASH_MISSING                                               syscall.Errno = 14110
+	ERROR_SXS_DUPLICATE_ACTIVATABLE_CLASS                                     syscall.Errno = 14111
 	ERROR_EVT_INVALID_CHANNEL_PATH                                            syscall.Errno = 15000
 	ERROR_EVT_INVALID_QUERY                                                   syscall.Errno = 15001
 	ERROR_EVT_PUBLISHER_METADATA_NOT_FOUND                                    syscall.Errno = 15002
@@ -3093,6 +3107,7 @@ const (
 	ERROR_PRI_MERGE_RESOURCE_PACKAGE_REQUIRED                                 syscall.Errno = 15157
 	ERROR_PRI_MERGE_INVALID_FILE_NAME                                         syscall.Errno = 15158
 	ERROR_MRM_PACKAGE_NOT_FOUND                                               syscall.Errno = 15159
+	ERROR_MRM_MISSING_DEFAULT_LANGUAGE                                        syscall.Errno = 15160
 	ERROR_MCA_INVALID_CAPABILITIES_STRING                                     syscall.Errno = 15200
 	ERROR_MCA_INVALID_VCP_VERSION                                             syscall.Errno = 15201
 	ERROR_MCA_MONITOR_VIOLATES_MCCS_SPECIFICATION                             syscall.Errno = 15202
@@ -3167,6 +3182,15 @@ const (
 	ERROR_DEPLOYMENT_OPTION_NOT_SUPPORTED                                     syscall.Errno = 15645
 	ERROR_APPINSTALLER_ACTIVATION_BLOCKED                                     syscall.Errno = 15646
 	ERROR_REGISTRATION_FROM_REMOTE_DRIVE_NOT_SUPPORTED                        syscall.Errno = 15647
+	ERROR_APPX_RAW_DATA_WRITE_FAILED                                          syscall.Errno = 15648
+	ERROR_DEPLOYMENT_BLOCKED_BY_VOLUME_POLICY_PACKAGE                         syscall.Errno = 15649
+	ERROR_DEPLOYMENT_BLOCKED_BY_VOLUME_POLICY_MACHINE                         syscall.Errno = 15650
+	ERROR_DEPLOYMENT_BLOCKED_BY_PROFILE_POLICY                                syscall.Errno = 15651
+	ERROR_DEPLOYMENT_FAILED_CONFLICTING_MUTABLE_PACKAGE_DIRECTORY             syscall.Errno = 15652
+	ERROR_SINGLETON_RESOURCE_INSTALLED_IN_ACTIVE_USER                         syscall.Errno = 15653
+	ERROR_DIFFERENT_VERSION_OF_PACKAGED_SERVICE_INSTALLED                     syscall.Errno = 15654
+	ERROR_SERVICE_EXISTS_AS_NON_PACKAGED_SERVICE                              syscall.Errno = 15655
+	ERROR_PACKAGED_SERVICE_REQUIRES_ADMIN_PRIVILEGES                          syscall.Errno = 15656
 	APPMODEL_ERROR_NO_PACKAGE                                                 syscall.Errno = 15700
 	APPMODEL_ERROR_PACKAGE_RUNTIME_CORRUPT                                    syscall.Errno = 15701
 	APPMODEL_ERROR_PACKAGE_IDENTITY_CORRUPT                                   syscall.Errno = 15702
@@ -3174,6 +3198,7 @@ const (
 	APPMODEL_ERROR_DYNAMIC_PROPERTY_READ_FAILED                               syscall.Errno = 15704
 	APPMODEL_ERROR_DYNAMIC_PROPERTY_INVALID                                   syscall.Errno = 15705
 	APPMODEL_ERROR_PACKAGE_NOT_AVAILABLE                                      syscall.Errno = 15706
+	APPMODEL_ERROR_NO_MUTABLE_DIRECTORY                                       syscall.Errno = 15707
 	ERROR_STATE_LOAD_STORE_FAILED                                             syscall.Errno = 15800
 	ERROR_STATE_GET_VERSION_FAILED                                            syscall.Errno = 15801
 	ERROR_STATE_SET_VERSION_FAILED                                            syscall.Errno = 15802
@@ -3204,7 +3229,8 @@ const (
 	E_NOT_SET                                                                               = ERROR_NOT_FOUND
 	E_NOT_VALID_STATE                                                                       = ERROR_INVALID_STATE
 	E_NOT_SUFFICIENT_BUFFER                                                                 = ERROR_INSUFFICIENT_BUFFER
-	E_TIME_CRITICAL_THREAD                                                                  = ERROR_TIME_CRITICAL_THREAD
+	E_TIME_SENSITIVE_THREAD                                                                 = ERROR_TIME_SENSITIVE_THREAD
+	E_NO_TASK_QUEUE                                                                         = ERROR_NO_TASK_QUEUE
 	NOERROR                                                                   syscall.Errno = 0
 	E_UNEXPECTED                                                              Handle        = 0x8000FFFF
 	E_NOTIMPL                                                                 Handle        = 0x80004001
@@ -3966,6 +3992,7 @@ const (
 	SEC_I_COMPLETE_NEEDED                                                     Handle        = 0x00090313
 	SEC_I_COMPLETE_AND_CONTINUE                                               Handle        = 0x00090314
 	SEC_I_LOCAL_LOGON                                                         Handle        = 0x00090315
+	SEC_I_GENERIC_EXTENSION_RECEIVED                                          Handle        = 0x00090316
 	SEC_E_BAD_PKGID                                                           Handle        = 0x80090316
 	SEC_E_CONTEXT_EXPIRED                                                     Handle        = 0x80090317
 	SEC_I_CONTEXT_EXPIRED                                                     Handle        = 0x00090317
@@ -4033,6 +4060,8 @@ const (
 	SEC_E_APPLICATION_PROTOCOL_MISMATCH                                       Handle        = 0x80090367
 	SEC_I_ASYNC_CALL_PENDING                                                  Handle        = 0x00090368
 	SEC_E_INVALID_UPN_NAME                                                    Handle        = 0x80090369
+	SEC_E_EXT_BUFFER_TOO_SMALL                                                Handle        = 0x8009036A
+	SEC_E_INSUFFICIENT_BUFFERS                                                Handle        = 0x8009036B
 	SEC_E_NO_SPM                                                                            = SEC_E_INTERNAL_ERROR
 	SEC_E_NOT_SUPPORTED                                                                     = SEC_E_UNSUPPORTED_FUNCTION
 	CRYPT_E_MSG_ERROR                                                         Handle        = 0x80091001
@@ -4637,6 +4666,8 @@ const (
 	ERROR_GRAPHICS_PRESENT_INVALID_WINDOW                                     Handle        = 0xC026200F
 	ERROR_GRAPHICS_PRESENT_BUFFER_NOT_BOUND                                   Handle        = 0xC0262010
 	ERROR_GRAPHICS_VAIL_STATE_CHANGED                                         Handle        = 0xC0262011
+	ERROR_GRAPHICS_INDIRECT_DISPLAY_ABANDON_SWAPCHAIN                         Handle        = 0xC0262012
+	ERROR_GRAPHICS_INDIRECT_DISPLAY_DEVICE_STOPPED                            Handle        = 0xC0262013
 	ERROR_GRAPHICS_NO_VIDEO_MEMORY                                            Handle        = 0xC0262100
 	ERROR_GRAPHICS_CANT_LOCK_MEMORY                                           Handle        = 0xC0262101
 	ERROR_GRAPHICS_ALLOCATION_BUSY                                            Handle        = 0xC0262102
@@ -5393,6 +5424,13 @@ const (
 	FVE_E_NOT_DE_VOLUME                                                       Handle        = 0x803100D7
 	FVE_E_PROTECTION_CANNOT_BE_DISABLED                                       Handle        = 0x803100D8
 	FVE_E_OSV_KSR_NOT_ALLOWED                                                 Handle        = 0x803100D9
+	FVE_E_AD_BACKUP_REQUIRED_POLICY_NOT_SET_OS_DRIVE                          Handle        = 0x803100DA
+	FVE_E_AD_BACKUP_REQUIRED_POLICY_NOT_SET_FIXED_DRIVE                       Handle        = 0x803100DB
+	FVE_E_AD_BACKUP_REQUIRED_POLICY_NOT_SET_REMOVABLE_DRIVE                   Handle        = 0x803100DC
+	FVE_E_KEY_ROTATION_NOT_SUPPORTED                                          Handle        = 0x803100DD
+	FVE_E_EXECUTE_REQUEST_SENT_TOO_SOON                                       Handle        = 0x803100DE
+	FVE_E_KEY_ROTATION_NOT_ENABLED                                            Handle        = 0x803100DF
+	FVE_E_DEVICE_NOT_JOINED                                                   Handle        = 0x803100E0
 	FWP_E_CALLOUT_NOT_FOUND                                                   Handle        = 0x80320001
 	FWP_E_CONDITION_NOT_FOUND                                                 Handle        = 0x80320002
 	FWP_E_FILTER_NOT_FOUND                                                    Handle        = 0x80320003
@@ -5881,6 +5919,12 @@ const (
 	GCN_E_NETCOMPARTMENT_NOT_FOUND                                            Handle        = 0x803B0027
 	GCN_E_NETINTERFACE_NOT_FOUND                                              Handle        = 0x803B0028
 	GCN_E_DEFAULTNAMESPACE_EXISTS                                             Handle        = 0x803B0029
+	HCN_E_ICS_DISABLED                                                        Handle        = 0x803B002A
+	HCN_E_ENDPOINT_NAMESPACE_ALREADY_EXISTS                                   Handle        = 0x803B002B
+	HCN_E_ENTITY_HAS_REFERENCES                                               Handle        = 0x803B002C
+	HCN_E_INVALID_INTERNAL_PORT                                               Handle        = 0x803B002D
+	HCN_E_NAMESPACE_ATTACH_FAILED                                             Handle        = 0x803B002E
+	HCN_E_ADDR_INVALID_OR_RESERVED                                            Handle        = 0x803B002F
 	SDIAG_E_CANCELLED                                                         syscall.Errno = 0x803C0100
 	SDIAG_E_SCRIPT                                                            syscall.Errno = 0x803C0101
 	SDIAG_E_POWERSHELL                                                        syscall.Errno = 0x803C0102
@@ -6846,6 +6890,7 @@ const (
 	UTC_E_INSUFFICIENT_SPACE_TO_START_TRACE                                   Handle        = 0x87C51059
 	UTC_E_ESCALATION_CANCELLED_AT_SHUTDOWN                                    Handle        = 0x87C5105A
 	UTC_E_GETFILEINFOACTION_FILE_NOT_APPROVED                                 Handle        = 0x87C5105B
+	UTC_E_SETREGKEYACTION_TYPE_NOT_APPROVED                                   Handle        = 0x87C5105C
 	WINML_ERR_INVALID_DEVICE                                                  Handle        = 0x88900001
 	WINML_ERR_INVALID_BINDING                                                 Handle        = 0x88900002
 	WINML_ERR_VALUE_NOTFOUND                                                  Handle        = 0x88900003
