@@ -138,7 +138,7 @@ While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx
 
 ## How to collect metrics in Prometheus format
 
-Pass the path to `prometheus.yml` to `-promscrape.config` command-line flag. `vmagent` takes into account the following
+Specify the path to `prometheus.yml` file via `-promscrape.config` command-line flag. `vmagent` takes into account the following
 sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
 
 * `global`
