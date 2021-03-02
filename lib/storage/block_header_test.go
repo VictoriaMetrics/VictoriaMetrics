@@ -47,7 +47,7 @@ func testBlockHeaderMarshalUnmarshal(t *testing.T, bh *blockHeader) {
 	var bh1 blockHeader
 	tail, err := bh1.Unmarshal(dst)
 	if err != nil {
-		t.Fatalf("cannot umarshal bh=%+v from dst=%x: %s", bh, dst, err)
+		t.Fatalf("cannot unmarshal bh=%+v from dst=%x: %s", bh, dst, err)
 	}
 	if len(tail) > 0 {
 		t.Fatalf("unexpected tail left after unmarshaling of bh=%+v: %x", bh, tail)
