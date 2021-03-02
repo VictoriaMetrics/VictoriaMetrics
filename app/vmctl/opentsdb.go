@@ -76,7 +76,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 			go func() {
 				defer wg.Done()
 				for s := range seriesCh {
-					if op.do(s); err != nil {
+					if err := op.do(s); err != nil {
 						errCh <- fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
 						return
 					}
