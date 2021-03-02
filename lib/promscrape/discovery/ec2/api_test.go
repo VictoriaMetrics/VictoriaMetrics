@@ -51,7 +51,7 @@ func TestParseMetadataSecurityCredentialsSuccess(t *testing.T) {
 func TestParseARNCredentialsFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		creds, err := parseARNCredentials([]byte(s))
+		creds, err := parseARNCredentials([]byte(s), "")
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -64,6 +64,19 @@ func TestParseARNCredentialsFailure(t *testing.T) {
 }
 
 func TestParseARNCredentialsSuccess(t *testing.T) {
+
+	f := func(data, role string, credsExpected *apiCredentials) {
+		t.Helper()
+		creds, err := parseARNCredentials([]byte(data), role)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		if !reflect.DeepEqual(creds, credsExpected) {
+			t.Fatalf("unexpected creds;\ngot\n%+v\nwant\n%+v", creds, credsExpected)
+		}
+
+	}
 	// See https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
 	s := `<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
   <AssumeRoleResult>
@@ -90,10 +103,6 @@ func TestParseARNCredentialsSuccess(t *testing.T) {
   </ResponseMetadata>
 </AssumeRoleResponse>
 `
-	creds, err := parseARNCredentials([]byte(s))
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
 	credsExpected := &apiCredentials{
 		AccessKeyID:     "ASIAIOSFODNN7EXAMPLE",
 		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY",
@@ -106,9 +115,35 @@ func TestParseARNCredentialsSuccess(t *testing.T) {
       `,
 		Expiration: mustParseRFC3339("2019-11-09T13:34:41Z"),
 	}
-	if !reflect.DeepEqual(creds, credsExpected) {
-		t.Fatalf("unexpected creds;\ngot\n%+v\nwant\n%+v", creds, credsExpected)
+	s2 := `<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleWithWebIdentityResult>
+    <Audience>sts.amazonaws.com</Audience>
+    <AssumedRoleUser>
+      <AssumedRoleId>AROA2X6NOXN27E3OGMK3T:vmagent-ec2-discovery</AssumedRoleId>
+      <Arn>arn:aws:sts::111111111:assumed-role/eks-role-9N0EFKEDJ1X/vmagent-ec2-discovery</Arn>
+    </AssumedRoleUser>
+    <Provider>arn:aws:iam::111111111:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/111111111</Provider>
+    <Credentials>
+      <AccessKeyId>ASIABYASSDASF</AccessKeyId>
+      <SecretAccessKey>asffasfasf/RvxIQpCid4iRMGm56nnRs2oKgV</SecretAccessKey>
+      <SessionToken>asfafsassssssssss/MlyKUPOYAiEAq5HgS19Mf8SJ3kIKU3NCztDeZW5EUW4NrPrPyXQ8om0q/AQIjv//////////</SessionToken>
+      <Expiration>2021-03-01T13:38:15Z</Expiration>
+    </Credentials>
+    <SubjectFromWebIdentityToken>system:serviceaccount:default:vmagent</SubjectFromWebIdentityToken>
+  </AssumeRoleWithWebIdentityResult>
+  <ResponseMetadata>
+    <RequestId>1214124-7bb0-4673-ad6d-af9e67fc1141</RequestId>
+  </ResponseMetadata>
+</AssumeRoleWithWebIdentityResponse>`
+	credsExpected2 := &apiCredentials{
+		AccessKeyID:     "ASIABYASSDASF",
+		SecretAccessKey: "asffasfasf/RvxIQpCid4iRMGm56nnRs2oKgV",
+		Token:           "asfafsassssssssss/MlyKUPOYAiEAq5HgS19Mf8SJ3kIKU3NCztDeZW5EUW4NrPrPyXQ8om0q/AQIjv//////////",
+		Expiration:      mustParseRFC3339("2021-03-01T13:38:15Z"),
 	}
+
+	f(s, "AssumeRole", credsExpected)
+	f(s2, "AssumeRoleWithWebIdentity", credsExpected2)
 }
 
 func mustParseRFC3339(s string) time.Time {
