@@ -46,6 +46,11 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	}
 }
 
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	// nothing to do
+}
+
 func getSRVAddrLabels(ctx context.Context, sdc *SDConfig) []map[string]string {
 	type result struct {
 		name string

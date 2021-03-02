@@ -37,3 +37,13 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	ms := getServiceNodesLabels(cfg)
 	return ms, nil
 }
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	v := configMap.Delete(sdc)
+	if v != nil {
+		// v can be nil if GetLabels wasn't called yet.
+		cfg := v.(*apiConfig)
+		cfg.mustStop()
+	}
+}

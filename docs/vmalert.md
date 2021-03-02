@@ -197,7 +197,7 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 The shortlist of configuration flags is the following:
 ```
   -datasource.appendTypePrefix
-        Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to VMSelect URL.
+    	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to VMSelect URL.
   -datasource.basicAuth.password string
     	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
@@ -206,6 +206,8 @@ The shortlist of configuration flags is the following:
     	Lookback defines how far to look into past when evaluating queries. For example, if datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
     	Defines the number of idle (keep-alive connections) to configured datasource.Consider to set this value equal to the value: groups_total * group.concurrency. Too low value may result into high number of sockets in TIME_WAIT state. (default 100)
+  -datasource.queryStep duration
+    	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.
   -datasource.tlsCAFile string
     	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used
   -datasource.tlsCertFile string
@@ -236,6 +238,8 @@ The shortlist of configuration flags is the following:
     	Supports array of values separated by comma or specified via multiple flags.
   -external.url string
     	External URL is used as alert's source for sent alerts to the notifier
+  -fs.disableMmap
+    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
     	Incoming http connections are closed after the configured timeout. This may help spreading incoming load among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem (default 2m0s)
   -http.disableResponseCompression
@@ -264,6 +268,8 @@ The shortlist of configuration flags is the following:
     	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
+  -loggerTimezone string
+    	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
   -memory.allowedBytes value

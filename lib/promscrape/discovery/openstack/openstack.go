@@ -46,3 +46,8 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `instance` or `hypervisor`; skipping it", sdc.Role)
 	}
 }
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
+}

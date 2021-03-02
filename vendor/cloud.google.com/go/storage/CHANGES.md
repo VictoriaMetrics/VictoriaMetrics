@@ -1,5 +1,9 @@
 # Changes
 
+## v1.14.0
+
+- Updates to various dependencies.
+
 ## [1.13.0](https://www.github.com/googleapis/google-cloud-go/compare/storage/v1.12.0...v1.13.0) (2021-02-03)
 
 

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -444,6 +445,11 @@ func resetNonEssentialFields(sws []*ScrapeWork) {
 	}
 }
 
+// String returns human-readable representation for sw.
+func (sw *ScrapeWork) String() string {
+	return strconv.Quote(sw.key())
+}
+
 func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 	f := func(data string, expectedSws []*ScrapeWork) {
 		t.Helper()
@@ -463,7 +469,7 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 			}
 		}
 		if !reflect.DeepEqual(sws, expectedSws) {
-			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
+			t.Fatalf("unexpected scrapeWork; got\n%+v\nwant\n%+v", sws, expectedSws)
 		}
 	}
 	f(`
@@ -608,7 +614,7 @@ func TestGetStaticScrapeWorkSuccess(t *testing.T) {
 		}
 		resetNonEssentialFields(sws)
 		if !reflect.DeepEqual(sws, expectedSws) {
-			t.Fatalf("unexpected scrapeWork; got\n%v\nwant\n%v", sws, expectedSws)
+			t.Fatalf("unexpected scrapeWork; got\n%+v\nwant\n%+v", sws, expectedSws)
 		}
 	}
 	f(``, nil)

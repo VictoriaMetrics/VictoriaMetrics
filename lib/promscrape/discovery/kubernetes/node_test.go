@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"reflect"
+	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -276,7 +278,7 @@ func TestParseNodeListSuccess(t *testing.T) {
 			"__meta_kubernetes_node_address_Hostname":   "m01",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabelss) {
+	if !areEqualLabelss(sortedLabelss, expectedLabelss) {
 		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabelss)
 	}
 }
@@ -290,4 +292,27 @@ func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
 		}
 	}
 	return result
+}
+
+func areEqualLabelss(a, b [][]prompbmarshal.Label) bool {
+	sortLabelss(a)
+	sortLabelss(b)
+	return reflect.DeepEqual(a, b)
+}
+
+func sortLabelss(a [][]prompbmarshal.Label) {
+	sort.Slice(a, func(i, j int) bool {
+		return marshalLabels(a[i]) < marshalLabels(a[j])
+	})
+}
+
+func marshalLabels(a []prompbmarshal.Label) string {
+	var b []byte
+	for _, label := range a {
+		b = strconv.AppendQuote(b, label.Name)
+		b = append(b, ':')
+		b = strconv.AppendQuote(b, label.Value)
+		b = append(b, ',')
+	}
+	return string(b)
 }

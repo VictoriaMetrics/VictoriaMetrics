@@ -27,12 +27,12 @@ type consulWatcher struct {
 	watchServices         []string
 	watchTags             []string
 
-	// servicesLock protects services and servicesLastAccessTime
-	servicesLock           sync.Mutex
-	services               map[string]*serviceWatcher
-	servicesLastAccessTime time.Time
+	// servicesLock protects services
+	servicesLock sync.Mutex
+	services     map[string]*serviceWatcher
 
-	wg sync.WaitGroup
+	wg     sync.WaitGroup
+	stopCh chan struct{}
 }
 
 type serviceWatcher struct {
@@ -55,16 +55,23 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter s
 		serviceNodesQueryArgs += "&tag=" + url.QueryEscape(tag)
 	}
 	cw := &consulWatcher{
-		client:                 client,
-		serviceNamesQueryArgs:  baseQueryArgs,
-		serviceNodesQueryArgs:  serviceNodesQueryArgs,
-		watchServices:          sdc.Services,
-		watchTags:              sdc.Tags,
-		services:               make(map[string]*serviceWatcher),
-		servicesLastAccessTime: time.Now(),
+		client:                client,
+		serviceNamesQueryArgs: baseQueryArgs,
+		serviceNodesQueryArgs: serviceNodesQueryArgs,
+		watchServices:         sdc.Services,
+		watchTags:             sdc.Tags,
+		services:              make(map[string]*serviceWatcher),
+		stopCh:                make(chan struct{}),
 	}
 	go cw.watchForServicesUpdates()
 	return cw
+}
+
+func (cw *consulWatcher) mustStop() {
+	close(cw.stopCh)
+	// Do not wait for the watcher to stop, since it may take
+	// up to discoveryutils.BlockingClientReadTimeout to complete.
+	// TODO: add ability to cancel blocking requests.
 }
 
 // watchForServicesUpdates watches for new services and updates it in cw.
@@ -129,13 +136,12 @@ func (cw *consulWatcher) watchForServicesUpdates() {
 
 	logger.Infof("started Consul service watcher for %q", clientAddr)
 	f()
-	for range ticker.C {
-		cw.servicesLock.Lock()
-		lastAccessTime := cw.servicesLastAccessTime
-		cw.servicesLock.Unlock()
-		if time.Since(lastAccessTime) > 3*checkInterval {
-			// The given cw is no longer used. Stop all service watchers and exit.
-			logger.Infof("starting to stop Consul service watchers for %q", clientAddr)
+	for {
+		select {
+		case <-ticker.C:
+			f()
+		case <-cw.stopCh:
+			logger.Infof("stopping Consul service watchers for %q", clientAddr)
 			startTime := time.Now()
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
@@ -146,8 +152,6 @@ func (cw *consulWatcher) watchForServicesUpdates() {
 			logger.Infof("stopped Consul service watcher for %q in %.3f seconds", clientAddr, time.Since(startTime).Seconds())
 			return
 		}
-
-		f()
 	}
 }
 
@@ -236,7 +240,6 @@ func (cw *consulWatcher) getServiceNodesSnapshot() []ServiceNode {
 	for _, sw := range cw.services {
 		sns = append(sns, sw.serviceNodes...)
 	}
-	cw.servicesLastAccessTime = time.Now()
 	cw.servicesLock.Unlock()
 	return sns
 }

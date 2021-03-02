@@ -56,3 +56,8 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	ms := getInstancesLabels(cfg)
 	return ms, nil
 }
+
+// MustStop stops further usage for sdc.
+func (sdc *SDConfig) MustStop() {
+	configMap.Delete(sdc)
+}

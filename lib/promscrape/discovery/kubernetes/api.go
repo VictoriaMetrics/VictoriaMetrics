@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,30 +17,34 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/metrics"
 )
 
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 10*time.Minute, "How frequently to reload the full state from Kuberntes API server")
+var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kuberntes API server")
 
 // apiConfig contains config for API server
 type apiConfig struct {
 	aw *apiWatcher
 }
 
+func (ac *apiConfig) mustStop() {
+	ac.aw.mustStop()
+}
+
 var configMap = discoveryutils.NewConfigMap()
 
-func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
+func getAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
+	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir, swcFunc) })
 	if err != nil {
 		return nil, err
 	}
 	return v.(*apiConfig), nil
 }
 
-func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
@@ -92,7 +97,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		},
 		Timeout: *apiServerTimeout,
 	}
-	aw := newAPIWatcher(client, apiServer, ac.Authorization, sdc.Namespaces.Names, sdc.Selectors)
+	aw := newAPIWatcher(client, apiServer, ac.Authorization, sdc.Namespaces.Names, sdc.Selectors, swcFunc)
 	cfg := &apiConfig{
 		aw: aw,
 	}
@@ -136,48 +141,59 @@ type apiWatcher struct {
 	// Selectors to apply during watch
 	selectors []Selector
 
-	// mu protects watchersByURL and lastAccessTime
+	// Constructor for creating ScrapeWork objects from labels.
+	swcFunc ScrapeWorkConstructorFunc
+
+	// mu protects watchersByURL
 	mu sync.Mutex
 
-	// a map of watchers keyed by request paths
+	// a map of watchers keyed by request urls
 	watchersByURL map[string]*urlWatcher
 
-	// The last time the apiWatcher was queried for cached objects.
-	// It is used for stopping unused watchers.
-	lastAccessTime uint64
+	stopFunc func()
+	stopCtx  context.Context
+	wg       sync.WaitGroup
 }
 
-func newAPIWatcher(client *http.Client, apiServer, authorization string, namespaces []string, selectors []Selector) *apiWatcher {
+func (aw *apiWatcher) mustStop() {
+	aw.stopFunc()
+	aw.wg.Wait()
+}
+
+func newAPIWatcher(client *http.Client, apiServer, authorization string, namespaces []string, selectors []Selector, swcFunc ScrapeWorkConstructorFunc) *apiWatcher {
+	stopCtx, stopFunc := context.WithCancel(context.Background())
 	return &apiWatcher{
 		apiServer:     apiServer,
 		authorization: authorization,
 		client:        client,
 		namespaces:    namespaces,
 		selectors:     selectors,
+		swcFunc:       swcFunc,
 
 		watchersByURL: make(map[string]*urlWatcher),
 
-		lastAccessTime: fasttime.UnixTimestamp(),
+		stopFunc: stopFunc,
+		stopCtx:  stopCtx,
 	}
 }
 
-// getLabelsForRole returns all the sets of labels for the given role.
-func (aw *apiWatcher) getLabelsForRole(role string) []map[string]string {
-	var ms []map[string]string
+// getScrapeWorkObjectsForRole returns all the ScrapeWork objects for the given role.
+func (aw *apiWatcher) getScrapeWorkObjectsForRole(role string) []interface{} {
+	aw.startWatchersForRole(role)
+	var swos []interface{}
 	aw.mu.Lock()
 	for _, uw := range aw.watchersByURL {
 		if uw.role != role {
 			continue
 		}
 		uw.mu.Lock()
-		for _, labels := range uw.labelsByKey {
-			ms = append(ms, labels...)
+		for _, swosLocal := range uw.swosByKey {
+			swos = append(swos, swosLocal...)
 		}
 		uw.mu.Unlock()
 	}
-	aw.lastAccessTime = fasttime.UnixTimestamp()
 	aw.mu.Unlock()
-	return ms
+	return swos
 }
 
 // getObjectByRole returns an object with the given (namespace, name) key and the given role.
@@ -200,7 +216,6 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 			break
 		}
 	}
-	aw.lastAccessTime = fasttime.UnixTimestamp()
 	aw.mu.Unlock()
 	return o
 }
@@ -216,32 +231,50 @@ func (aw *apiWatcher) startWatchersForRole(role string) {
 
 func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseObjectFunc, parseObjectList parseObjectListFunc) {
 	aw.mu.Lock()
-	defer aw.mu.Unlock()
 	if aw.watchersByURL[apiURL] != nil {
 		// Watcher for the given path already exists.
+		aw.mu.Unlock()
 		return
 	}
 	uw := aw.newURLWatcher(role, apiURL, parseObject, parseObjectList)
-	resourceVersion := uw.reloadObjects()
 	aw.watchersByURL[apiURL] = uw
+	aw.mu.Unlock()
+
+	uw.watchersCount.Inc()
+	uw.watchersCreated.Inc()
+	resourceVersion := uw.reloadObjects()
+	aw.wg.Add(1)
 	go func() {
+		defer aw.wg.Done()
+		logger.Infof("started watcher for %q", apiURL)
 		uw.watchForUpdates(resourceVersion)
+		logger.Infof("stopped watcher for %q", apiURL)
+		uw.mu.Lock()
+		uw.objectsCount.Add(-len(uw.objectsByKey))
+		uw.objectsRemoved.Add(len(uw.objectsByKey))
+		uw.mu.Unlock()
+
 		aw.mu.Lock()
 		delete(aw.watchersByURL, apiURL)
 		aw.mu.Unlock()
+		uw.watchersCount.Dec()
+		uw.watchersStopped.Inc()
 	}()
 }
 
-// needStop returns true if aw wasn't used for long time.
+// needStop returns true if aw must be stopped.
 func (aw *apiWatcher) needStop() bool {
-	aw.mu.Lock()
-	defer aw.mu.Unlock()
-	return fasttime.UnixTimestamp() > aw.lastAccessTime+5*60
+	select {
+	case <-aw.stopCtx.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // doRequest performs http request to the given requestURL.
 func (aw *apiWatcher) doRequest(requestURL string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequestWithContext(aw.stopCtx, "GET", requestURL, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
 	}
@@ -259,15 +292,23 @@ type urlWatcher struct {
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
 
-	// mu protects objectsByKey and labelsByKey
+	// mu protects objectsByKey and swosByKey
 	mu sync.Mutex
 
 	// objectsByKey contains the latest state for objects obtained from apiURL
 	objectsByKey map[string]object
-	labelsByKey  map[string][]map[string]string
+	swosByKey    map[string][]interface{}
 
 	// the parent apiWatcher
 	aw *apiWatcher
+
+	watchersCount   *metrics.Counter
+	watchersCreated *metrics.Counter
+	watchersStopped *metrics.Counter
+
+	objectsCount   *metrics.Counter
+	objectsAdded   *metrics.Counter
+	objectsRemoved *metrics.Counter
 }
 
 func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObjectFunc, parseObjectList parseObjectListFunc) *urlWatcher {
@@ -279,18 +320,29 @@ func (aw *apiWatcher) newURLWatcher(role, apiURL string, parseObject parseObject
 		parseObjectList: parseObjectList,
 
 		objectsByKey: make(map[string]object),
-		labelsByKey:  make(map[string][]map[string]string),
+		swosByKey:    make(map[string][]interface{}),
 
 		aw: aw,
+
+		watchersCount:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers{role=%q}`, role)),
+		watchersCreated: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers_created_total{role=%q}`, role)),
+		watchersStopped: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers_stopped_total{role=%q}`, role)),
+
+		objectsCount:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects{role=%q}`, role)),
+		objectsAdded:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_added_total{role=%q}`, role)),
+		objectsRemoved: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_removed_total{role=%q}`, role)),
 	}
 }
 
 // reloadObjects reloads objects to the latest state and returns resourceVersion for the latest state.
 func (uw *urlWatcher) reloadObjects() string {
+	aw := uw.aw
 	requestURL := uw.apiURL
-	resp, err := uw.aw.doRequest(requestURL)
+	resp, err := aw.doRequest(requestURL)
 	if err != nil {
-		logger.Errorf("error when performing a request to %q: %s", requestURL, err)
+		if !aw.needStop() {
+			logger.Errorf("error when performing a request to %q: %s", requestURL, err)
+		}
 		return ""
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -301,13 +353,38 @@ func (uw *urlWatcher) reloadObjects() string {
 	}
 	objectsByKey, metadata, err := uw.parseObjectList(body)
 	if err != nil {
-		logger.Errorf("cannot parse response from %q: %s", requestURL, err)
+		if !aw.needStop() {
+			logger.Errorf("cannot parse response from %q: %s", requestURL, err)
+		}
 		return ""
 	}
+	swosByKey := make(map[string][]interface{}, len(objectsByKey))
+	for k, o := range objectsByKey {
+		labels := o.getTargetLabels(aw)
+		swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
+		if len(swos) > 0 {
+			swosByKey[k] = swos
+		}
+	}
 	uw.mu.Lock()
+	uw.objectsAdded.Add(len(objectsByKey))
+	uw.objectsRemoved.Add(len(uw.objectsByKey))
+	uw.objectsCount.Add(len(objectsByKey) - len(uw.objectsByKey))
 	uw.objectsByKey = objectsByKey
+	uw.swosByKey = swosByKey
 	uw.mu.Unlock()
 	return metadata.ResourceVersion
+}
+
+func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
+	swos := make([]interface{}, 0, len(labelss))
+	for _, labels := range labelss {
+		swo := swcFunc(labels)
+		if swo != nil {
+			swos = append(swos, swo)
+		}
+	}
+	return swos
 }
 
 // watchForUpdates watches for object updates starting from resourceVersion and updates the corresponding objects to the latest state.
@@ -331,18 +408,19 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 	}
 	timeoutSeconds := time.Duration(0.9 * float64(aw.client.Timeout)).Seconds()
 	apiURL += delimiter + "watch=1&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
-	logger.Infof("started watcher for %q", apiURL)
 	for {
 		if aw.needStop() {
-			logger.Infof("stopped unused watcher for %q", apiURL)
 			return
 		}
 		requestURL := apiURL
 		if resourceVersion != "" {
-			requestURL += "&resourceVersion=" + url.QueryEscape(resourceVersion) + "&resourceVersionMatch=NotOlderThan"
+			requestURL += "&resourceVersion=" + url.QueryEscape(resourceVersion)
 		}
 		resp, err := aw.doRequest(requestURL)
 		if err != nil {
+			if aw.needStop() {
+				return
+			}
 			logger.Errorf("error when performing a request to %q: %s", requestURL, err)
 			backoffSleep()
 			resourceVersion = uw.reloadObjects()
@@ -365,6 +443,9 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 		err = uw.readObjectUpdateStream(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
+			if aw.needStop() {
+				return
+			}
 			if !errors.Is(err, io.EOF) {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 			}
@@ -377,6 +458,7 @@ func (uw *urlWatcher) watchForUpdates(resourceVersion string) {
 
 // readObjectUpdateStream reads Kuberntes watch events from r and updates locally cached objects according to the received events.
 func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
+	aw := uw.aw
 	d := json.NewDecoder(r)
 	var we WatchEvent
 	for {
@@ -391,16 +473,29 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 		switch we.Type {
 		case "ADDED", "MODIFIED":
 			uw.mu.Lock()
+			if uw.objectsByKey[key] == nil {
+				uw.objectsAdded.Inc()
+				uw.objectsCount.Inc()
+			}
 			uw.objectsByKey[key] = o
 			uw.mu.Unlock()
-			labels := o.getTargetLabels(uw.aw)
+			labels := o.getTargetLabels(aw)
+			swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
 			uw.mu.Lock()
-			uw.labelsByKey[key] = labels
+			if len(swos) > 0 {
+				uw.swosByKey[key] = swos
+			} else {
+				delete(uw.swosByKey, key)
+			}
 			uw.mu.Unlock()
 		case "DELETED":
 			uw.mu.Lock()
+			if uw.objectsByKey[key] != nil {
+				uw.objectsRemoved.Inc()
+				uw.objectsCount.Dec()
+			}
 			delete(uw.objectsByKey, key)
-			delete(uw.labelsByKey, key)
+			delete(uw.swosByKey, key)
 			uw.mu.Unlock()
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q for role %q", we.Type, uw.role)

@@ -20,6 +20,10 @@ type apiConfig struct {
 	consulWatcher *consulWatcher
 }
 
+func (ac *apiConfig) mustStop() {
+	ac.consulWatcher.mustStop()
+}
+
 var configMap = discoveryutils.NewConfigMap()
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {

@@ -86,14 +86,6 @@ func (h *Histogram) Update(v float64) {
 		return
 	}
 	bucketIdx := (math.Log10(v) - e10Min) * bucketsPerDecimal
-	idx := uint(bucketIdx)
-	if bucketIdx == float64(idx) {
-		// Edge case for 10^n values, which must go to the lower bucket
-		// according to Prometheus logic for `le`-based histograms.
-		idx--
-	}
-	decimalBucketIdx := idx / bucketsPerDecimal
-	offset := idx % bucketsPerDecimal
 	h.mu.Lock()
 	h.sum += v
 	if bucketIdx < 0 {
@@ -101,6 +93,14 @@ func (h *Histogram) Update(v float64) {
 	} else if bucketIdx >= bucketsCount {
 		h.upper++
 	} else {
+		idx := uint(bucketIdx)
+		if bucketIdx == float64(idx) && idx > 0 {
+			// Edge case for 10^n values, which must go to the lower bucket
+			// according to Prometheus logic for `le`-based histograms.
+			idx--
+		}
+		decimalBucketIdx := idx / bucketsPerDecimal
+		offset := idx % bucketsPerDecimal
 		db := h.decimalBuckets[decimalBucketIdx]
 		if db == nil {
 			var b [bucketsPerDecimal]uint64

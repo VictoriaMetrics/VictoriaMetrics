@@ -71,7 +71,7 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 		var err error
 		tagsPool, err = unmarshalTags(tagsPool, s[n+1:])
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot umarshal tags: %w", err)
+			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
 		tags := tagsPool[tagsStart:]
 		r.Tags = tags[:len(tags):len(tags)]
@@ -171,18 +171,14 @@ func unmarshalTags(dst []Tag, s string) ([]Tag, error) {
 		n := strings.IndexByte(s, ';')
 		if n < 0 {
 			// The last tag found
-			if err := tag.unmarshal(s); err != nil {
-				return dst[:len(dst)-1], err
-			}
+			tag.unmarshal(s)
 			if len(tag.Key) == 0 || len(tag.Value) == 0 {
 				// Skip empty tag
 				dst = dst[:len(dst)-1]
 			}
 			return dst, nil
 		}
-		if err := tag.unmarshal(s[:n]); err != nil {
-			return dst[:len(dst)-1], err
-		}
+		tag.unmarshal(s[:n])
 		s = s[n+1:]
 		if len(tag.Key) == 0 || len(tag.Value) == 0 {
 			// Skip empty tag
@@ -202,13 +198,16 @@ func (t *Tag) reset() {
 	t.Value = ""
 }
 
-func (t *Tag) unmarshal(s string) error {
+func (t *Tag) unmarshal(s string) {
 	t.reset()
 	n := strings.IndexByte(s, '=')
 	if n < 0 {
-		return fmt.Errorf("missing tag value for %q", s)
+		// Empty tag value.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1100
+		t.Key = s
+		t.Value = s[len(s):]
+	} else {
+		t.Key = s[:n]
+		t.Value = s[n+1:]
 	}
-	t.Key = s[:n]
-	t.Value = s[n+1:]
-	return nil
 }
