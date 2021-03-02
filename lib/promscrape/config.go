@@ -893,7 +893,7 @@ func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]s
 
 func mergeLabels(job, scheme, target, metricsPath string, extraLabels, externalLabels, metaLabels map[string]string, params map[string][]string) []prompbmarshal.Label {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string)
+	m := make(map[string]string, 4 + len(externalLabels) + len(params) + len(extraLabels) + len(metaLabels))
 	for k, v := range externalLabels {
 		m[k] = v
 	}
