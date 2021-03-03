@@ -72,10 +72,18 @@ func (c *Cache) SetBig(k, v []byte) {
 // with values stored via other methods.
 //
 // k contents may be modified after returning from GetBig.
-func (c *Cache) GetBig(dst, k []byte) []byte {
+func (c *Cache) GetBig(dst, k []byte) (r []byte) {
 	atomic.AddUint64(&c.bigStats.GetBigCalls, 1)
 	subkey := getSubkeyBuf()
-	defer putSubkeyBuf(subkey)
+	dstWasNil := dst == nil
+	defer func() {
+		putSubkeyBuf(subkey)
+		if len(r) == 0 && dstWasNil {
+			// Guarantee that if the caller provided nil and this is a cache miss that
+			// the caller can accurately test for a cache miss with `if r == nil`.
+			r = nil
+		}
+	}()
 
 	// Read and parse metavalue
 	subkey.B = c.Get(subkey.B[:0], k)
