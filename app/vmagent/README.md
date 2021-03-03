@@ -327,12 +327,6 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
   or they use an init container. These errors can either be fixed or suppressed with the `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag.
   See the available options below if you prefer fixing the root cause of the error:
 
-  The following `relabel_configs` section may help determining `__meta_*` labels resulting in duplicate targets:
-  ```yml
-  - action: labelmap
-    regex: __meta_(.*)
-  ```
-
   The following relabeling rule may be added to `relabel_configs` section in order to filter out pods with unneeded ports:
   ```yml
   - action: keep_if_equal
