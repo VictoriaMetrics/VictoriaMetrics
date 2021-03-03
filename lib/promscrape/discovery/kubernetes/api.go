@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -380,7 +381,8 @@ func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []
 	swos := make([]interface{}, 0, len(labelss))
 	for _, labels := range labelss {
 		swo := swcFunc(labels)
-		if swo != nil {
+		// The reflect check is needed because of https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
+		if swo != nil && !reflect.ValueOf(swo).IsNil() {
 			swos = append(swos, swo)
 		}
 	}
