@@ -177,7 +177,7 @@ rules configuration.
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 * `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/api/v1/<groupName>/<alertID>/status" ` - get alert status by ID.
+* `http://<vmalert-addr>/api/v1/<groupID>/<alertID>/status" ` - get alert status by ID.
 Used as alert source in AlertManager.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
@@ -391,7 +391,7 @@ It is recommended using
 
 #### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmalert` from the root folder of the repository.
    It builds `vmalert` binary and puts it into the `bin` folder.
 
@@ -408,7 +408,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 #### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of the repository.
    It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
 
