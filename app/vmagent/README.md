@@ -348,7 +348,7 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmagent` from the root folder of the repository.
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -377,7 +377,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of the repository.
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 
