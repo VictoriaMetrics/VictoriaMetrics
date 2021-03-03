@@ -137,7 +137,7 @@ func TestGetAPIPaths(t *testing.T) {
 	})
 
 	// role=ingress
-	f("ingress", nil, nil, []string{"/api/v1/ingresses"})
+	f("ingress", nil, nil, []string{"/apis/networking.k8s.io/v1beta1/ingresses"})
 	f("ingress", []string{"x", "y"}, []Selector{
 		{
 			Role:  "node",
@@ -156,7 +156,7 @@ func TestGetAPIPaths(t *testing.T) {
 			Label: "baaa",
 		},
 	}, []string{
-		"/api/v1/namespaces/x/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
-		"/api/v1/namespaces/y/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
+		"/apis/networking.k8s.io/v1beta1/namespaces/x/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
+		"/apis/networking.k8s.io/v1beta1/namespaces/y/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
 	})
 }
