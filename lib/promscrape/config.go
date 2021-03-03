@@ -240,14 +240,17 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		ok := true
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
-			swos, err := sdc.GetScrapeWorkObjects(cfg.baseDir, func(metaLabels map[string]string) interface{} {
+			swos, err := sdc.GetScrapeWorkObjects(cfg.baseDir, func(metaLabels map[string]string) (interface{}, bool) {
 				target := metaLabels["__address__"]
 				sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 				if err != nil {
 					logger.Errorf("cannot create kubernetes_sd_config target target %q for job_name %q: %s", target, sc.swc.jobName, err)
-					return nil
+					return nil, false
 				}
-				return sw
+				if sw == nil {
+					return nil, false
+				}
+				return sw, true
 			})
 			if err != nil {
 				logger.Errorf("skipping kubernetes_sd_config targets for job_name %q because of error: %s", sc.swc.jobName, err)

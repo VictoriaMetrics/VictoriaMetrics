@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -380,11 +379,10 @@ func (uw *urlWatcher) reloadObjects() string {
 func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
 	swos := make([]interface{}, 0, len(labelss))
 	for _, labels := range labelss {
-		swo := swcFunc(labels)
-		// warning it may lead to panic, if swo is struct
-		// it must be some kind of ptr
+		swo, notNil := swcFunc(labels)
+		// nil check is not sufficient here.
 		// https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
-		if swo != nil && !reflect.ValueOf(swo).IsNil() {
+		if notNil {
 			swos = append(swos, swo)
 		}
 	}

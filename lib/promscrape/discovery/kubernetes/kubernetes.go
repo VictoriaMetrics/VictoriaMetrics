@@ -38,7 +38,7 @@ type Selector struct {
 }
 
 // ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
-type ScrapeWorkConstructorFunc func(metaLabels map[string]string) interface{}
+type ScrapeWorkConstructorFunc func(metaLabels map[string]string) (interface{}, bool)
 
 // GetScrapeWorkObjects returns ScrapeWork objects for the given sdc and baseDir.
 //
