@@ -137,6 +137,7 @@ github.com/klauspost/compress/zlib
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/lithammer/go-jump-consistent-hash v1.0.1
+## explicit
 github.com/lithammer/go-jump-consistent-hash
 # github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
