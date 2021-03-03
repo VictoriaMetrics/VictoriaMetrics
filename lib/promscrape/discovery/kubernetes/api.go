@@ -526,6 +526,9 @@ func getAPIPath(objectName, namespace, query string) string {
 	if len(query) > 0 {
 		suffix += "?" + query
 	}
+	if objectName == "ingresses" {
+		return "/apis/networking.k8s.io/v1beta1/" + suffix
+	}
 	if objectName == "endpointslices" {
 		return "/apis/discovery.k8s.io/v1beta1/" + suffix
 	}
