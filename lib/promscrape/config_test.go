@@ -12,6 +12,31 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+func TestNeedSkipScrapeWork(t *testing.T) {
+	f := func(key string, membersCount, replicationFactor, memberNum int, needSkipExpected bool) {
+		t.Helper()
+		needSkip := needSkipScrapeWork(key, membersCount, replicationFactor, memberNum)
+		if needSkip != needSkipExpected {
+			t.Fatalf("unexpected needSkipScrapeWork(key=%q, membersCount=%d, replicationFactor=%d, memberNum=%d)", key, membersCount, replicationFactor, memberNum)
+		}
+	}
+	// Disabled clustering
+	f("foo", 0, 0, 0, false)
+
+	// A cluster with 2 nodes with disabled replication
+	f("foo", 2, 0, 0, true)
+	f("foo", 2, 0, 1, false)
+
+	// A cluster with 2 nodes with replicationFactor=2
+	f("foo", 2, 2, 0, false)
+	f("foo", 2, 2, 1, false)
+
+	// A cluster with 3 nodes with replicationFactor=2
+	f("foo", 3, 2, 0, false)
+	f("foo", 3, 2, 1, true)
+	f("foo", 3, 2, 2, false)
+}
+
 func TestLoadStaticConfigs(t *testing.T) {
 	scs, err := loadStaticConfigs("testdata/file_sd.json")
 	if err != nil {
