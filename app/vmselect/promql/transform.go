@@ -515,7 +515,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		sort.Slice(xss, func(i, j int) bool { return xss[i].end < xss[j].end })
 		xssNew := make([]x, 0, len(xss)+2)
 		var xsPrev x
-		uniqK := make(map[float64]struct{}, len(xss))
+		uniqTs := make(map[string]*timeseries, len(xss))
 		for _, xs := range xss {
 			ts := xs.ts
 			if isZeroTS(ts) {
@@ -525,10 +525,10 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			}
 			if xs.start != xsPrev.end {
 				// check for duplicates at the start of bucket.
-				// in case of duplicate following le already exist.
-				// no need to add new one with null values.
-				if _, ok := uniqK[xs.start]; !ok {
-					uniqK[xs.start] = struct{}{}
+				// in case of duplicate following le already exists.
+				// no need to add new one with zero values.
+				if _, ok := uniqTs[xs.startStr]; !ok {
+					uniqTs[xs.startStr] = xs.ts
 					xssNew = append(xssNew, x{
 						endStr: xs.startStr,
 						end:    xs.start,
@@ -537,9 +537,15 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 				}
 			}
 			ts.MetricName.AddTag("le", xs.endStr)
-			xssNew = append(xssNew, xs)
+			if prevTs, ok := uniqTs[xs.endStr]; !ok {
+				xssNew = append(xssNew, xs)
+				uniqTs[xs.endStr] = xs.ts
+			} else {
+				// end of current bucket not uniq,
+				// need to merge it with existing bucket.
+				mergeNonOverlappingTimeseries(prevTs, xs.ts)
+			}
 			xsPrev = xs
-			uniqK[xs.end] = struct{}{}
 		}
 		if !math.IsInf(xsPrev.end, 1) {
 			xssNew = append(xssNew, x{
