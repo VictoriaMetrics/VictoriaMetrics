@@ -104,9 +104,12 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `histogram(q)` - calculates aggregate histogram over `q` time series for each point on the graph. See [this article](https://medium.com/@valyala/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for more details.
 - `histogram_over_time(m[d])` - calculates [VictoriaMetrics histogram](https://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) for `m` over `d`.
   For example, the following query calculates median temperature by country over the last 24 hours:
-  `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmbucket, country))`.
+  `histogram_quantile(0.5, sum(histogram_over_time(temperature[24h])) by (vmrange,country))`.
 - `histogram_share(le, buckets)` - returns share (in the range 0..1) for `buckets` that fall below `le`. Useful for calculating SLI and SLO.
   For instance, the following query returns the share of requests which are performed under 1.5 seconds during the last 5 minutes: `histogram_share(1.5, sum(rate(request_duration_seconds_bucket[5m])) by (le))`.
+- `histogram_avg(buckets)` - returns the average value for the given buckets. It can be used for calculating the average over the given time range across multiple time series. For exmple, `histogram_avg(sum(histogram_over_time(response_time_duration_seconds[5m])) by (vmrange,job))` would return the average response time per each `job` over the last 5 minutes.
+- `histogram_stdvar(buckets)` - returns standard variance for the given buckets. It can be used for calculating standard deviation over the given time range across multiple time series. For example, `histogram_stdvar(sum(histogram_over_time(temperature[24])) by (vmrange,country))` would return standard deviation for the temperature per each country over the last 24 hours.
+- `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
 - `topk_*` and `bottomk_*` aggregate functions, which return up to K time series. Note that the standard `topk` function may return more than K time series -
    see [this article](https://www.robustperception.io/graph-top-n-time-series-in-grafana) for details.
    - `topk_min(k, q)` - returns top K time series with the max minimums on the given time range

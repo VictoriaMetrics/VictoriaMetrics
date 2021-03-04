@@ -2,6 +2,10 @@
 
 # tip
 
+* FEATURE: add the following functions to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html):
+  - `histogram_avg(buckets)` - returns the average value for the given buckets.
+  - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
+  - `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
 * FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets).
 
 
