@@ -118,6 +118,9 @@ var transformFuncs = map[string]transformFunc{
 	"prometheus_buckets": transformPrometheusBuckets,
 	"buckets_limit":      transformBucketsLimit,
 	"histogram_share":    transformHistogramShare,
+	"histogram_avg":      transformHistogramAvg,
+	"histogram_stdvar":   transformHistogramStdvar,
+	"histogram_stddev":   transformHistogramStddev,
 	"sort_by_label":      newTransformFuncSortByLabel(false),
 	"sort_by_label_desc": newTransformFuncSortByLabel(true),
 }
@@ -655,6 +658,127 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 	}
 	return rvs, nil
+}
+
+func transformHistogramAvg(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	tss := vmrangeBucketsToLE(args[0])
+	m := groupLeTimeseries(tss)
+	rvs := make([]*timeseries, 0, len(m))
+	for _, xss := range m {
+		sort.Slice(xss, func(i, j int) bool {
+			return xss[i].le < xss[j].le
+		})
+		dst := xss[0].ts
+		for i := range dst.Values {
+			dst.Values[i] = avgForLeTimeseries(i, xss)
+		}
+		rvs = append(rvs, dst)
+	}
+	return rvs, nil
+}
+
+func transformHistogramStddev(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	tss := vmrangeBucketsToLE(args[0])
+	m := groupLeTimeseries(tss)
+	rvs := make([]*timeseries, 0, len(m))
+	for _, xss := range m {
+		sort.Slice(xss, func(i, j int) bool {
+			return xss[i].le < xss[j].le
+		})
+		dst := xss[0].ts
+		for i := range dst.Values {
+			v := stdvarForLeTimeseries(i, xss)
+			dst.Values[i] = math.Sqrt(v)
+		}
+		rvs = append(rvs, dst)
+	}
+	return rvs, nil
+}
+
+func transformHistogramStdvar(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	tss := vmrangeBucketsToLE(args[0])
+	m := groupLeTimeseries(tss)
+	rvs := make([]*timeseries, 0, len(m))
+	for _, xss := range m {
+		sort.Slice(xss, func(i, j int) bool {
+			return xss[i].le < xss[j].le
+		})
+		dst := xss[0].ts
+		for i := range dst.Values {
+			dst.Values[i] = stdvarForLeTimeseries(i, xss)
+		}
+		rvs = append(rvs, dst)
+	}
+	return rvs, nil
+}
+
+func avgForLeTimeseries(i int, xss []leTimeseries) float64 {
+	lePrev := float64(0)
+	vPrev := float64(0)
+	sum := float64(0)
+	weightTotal := float64(0)
+	for _, xs := range xss {
+		if math.IsInf(xs.le, 0) {
+			continue
+		}
+		le := xs.le
+		n := (le + lePrev) / 2
+		v := xs.ts.Values[i]
+		weight := v - vPrev
+		sum += n * weight
+		weightTotal += weight
+		lePrev = le
+		vPrev = v
+	}
+	if weightTotal == 0 {
+		return nan
+	}
+	return sum / weightTotal
+}
+
+func stdvarForLeTimeseries(i int, xss []leTimeseries) float64 {
+	lePrev := float64(0)
+	vPrev := float64(0)
+	sum := float64(0)
+	sum2 := float64(0)
+	weightTotal := float64(0)
+	for _, xs := range xss {
+		if math.IsInf(xs.le, 0) {
+			continue
+		}
+		le := xs.le
+		n := (le + lePrev) / 2
+		v := xs.ts.Values[i]
+		weight := v - vPrev
+		sum += n * weight
+		sum2 += n * n * weight
+		weightTotal += weight
+		lePrev = le
+		vPrev = v
+	}
+	if weightTotal == 0 {
+		return nan
+	}
+	avg := sum / weightTotal
+	avg2 := sum2 / weightTotal
+	stdvar := avg2 - avg*avg
+	if stdvar < 0 {
+		// Correct possible calculation error.
+		stdvar = 0
+	}
+	return stdvar
 }
 
 func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {

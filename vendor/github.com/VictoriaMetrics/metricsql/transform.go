@@ -83,6 +83,9 @@ var transformFuncs = map[string]bool{
 	"prometheus_buckets": true,
 	"buckets_limit":      true,
 	"histogram_share":    true,
+	"histogram_avg":      true,
+	"histogram_stdvar":   true,
+	"histogram_stddev":   true,
 	"sort_by_label":      true,
 	"sort_by_label_desc": true,
 }
