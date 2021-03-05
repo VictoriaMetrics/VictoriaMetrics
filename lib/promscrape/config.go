@@ -727,8 +727,8 @@ func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) 
 	if membersCount <= 1 {
 		return false
 	}
-	h := int(xxhash.Sum64(bytesutil.ToUnsafeBytes(key)))
-	idx := h % membersCount
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
+	idx := int(h % uint64(membersCount))
 	if replicasCount < 1 {
 		replicasCount = 1
 	}
