@@ -1,8 +1,12 @@
 package main
 
 import (
-	"reflect"
+	"bytes"
+	"fmt"
+	"regexp"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
 
 func TestParseAuthConfigFailure(t *testing.T) {
@@ -79,12 +83,12 @@ users:
   - url_prefix: http://foobar
 `)
 
-	// src_path not starting with `/`
+	// Invalid regexp in src_path.
 	f(`
 users:
 - username: a
   url_map:
-  - src_paths: [foobar]
+  - src_paths: ['fo[obar']
     url_prefix: http://foobar
 `)
 }
@@ -97,8 +101,8 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		removeMetrics(m)
-		if !reflect.DeepEqual(m, expectedAuthConfig) {
-			t.Fatalf("unexpected auth config\ngot\n%v\nwant\n%v", m, expectedAuthConfig)
+		if err := areEqualConfigs(m, expectedAuthConfig); err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -139,7 +143,7 @@ users:
 users:
 - username: foo
   url_map:
-  - src_paths: ["/api/v1/query","/api/v1/query_range"]
+  - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     url_prefix: http://vminsert/insert/0/prometheus
@@ -148,11 +152,11 @@ users:
 			Username: "foo",
 			URLMap: []URLMap{
 				{
-					SrcPaths:  []string{"/api/v1/query", "/api/v1/query_range"},
+					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: "http://vmselect/select/0/prometheus",
 				},
 				{
-					SrcPaths:  []string{"/api/v1/write"},
+					SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
 					URLPrefix: "http://vminsert/insert/0/prometheus",
 				},
 			},
@@ -160,8 +164,34 @@ users:
 	})
 }
 
+func getSrcPaths(paths []string) []*SrcPath {
+	var sps []*SrcPath
+	for _, path := range paths {
+		sps = append(sps, &SrcPath{
+			sOriginal: path,
+			re:        regexp.MustCompile("^(?:" + path + ")$"),
+		})
+	}
+	return sps
+}
+
 func removeMetrics(m map[string]*UserInfo) {
 	for _, info := range m {
 		info.requests = nil
 	}
+}
+
+func areEqualConfigs(a, b map[string]*UserInfo) error {
+	aData, err := yaml.Marshal(a)
+	if err != nil {
+		return fmt.Errorf("cannot marshal a: %w", err)
+	}
+	bData, err := yaml.Marshal(b)
+	if err != nil {
+		return fmt.Errorf("cannot marshal b: %w", err)
+	}
+	if !bytes.Equal(aData, bData) {
+		return fmt.Errorf("unexpected configs;\ngot\n%s\nwant\n%s", aData, bData)
+	}
+	return nil
 }
