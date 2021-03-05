@@ -456,6 +456,13 @@ func positiveFloatToDecimalSlow(f float64) (int64, int16) {
 			prec = 1e15
 		}
 		_, exp := math.Frexp(f)
+		// Bound the exponent according to https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+		// This fixes the issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1114
+		if exp < -1022 {
+			exp = -1022
+		} else if exp > 1023 {
+			exp = 1023
+		}
 		scale = int16(float64(exp) * (math.Ln2 / math.Ln10))
 		f *= math.Pow10(-int(scale))
 	}
