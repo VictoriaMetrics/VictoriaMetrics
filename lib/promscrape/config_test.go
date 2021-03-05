@@ -17,7 +17,8 @@ func TestNeedSkipScrapeWork(t *testing.T) {
 		t.Helper()
 		needSkip := needSkipScrapeWork(key, membersCount, replicationFactor, memberNum)
 		if needSkip != needSkipExpected {
-			t.Fatalf("unexpected needSkipScrapeWork(key=%q, membersCount=%d, replicationFactor=%d, memberNum=%d)", key, membersCount, replicationFactor, memberNum)
+			t.Fatalf("unexpected needSkipScrapeWork(key=%q, membersCount=%d, replicationFactor=%d, memberNum=%d); got %v; want %v",
+				key, membersCount, replicationFactor, memberNum, needSkip, needSkipExpected)
 		}
 	}
 	// Disabled clustering
