@@ -2484,7 +2484,7 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint6
 		// Slow path: need tf.matchSuffix call.
 		ok, err := tf.matchSuffix(suffix)
 		// Assume that tf.matchSuffix call needs 10x more time than a single metric scan iteration.
-		loopsCount += 10*tf.matchCost
+		loopsCount += 10 * tf.matchCost
 		if err != nil {
 			return loopsCount, fmt.Errorf("error when matching %s against suffix %q: %w", tf, suffix, err)
 		}
