@@ -60,14 +60,14 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return nil
 	}
 
-	seriesCh := make(chan queryObj)
-	errCh := make(chan error)
 	startTime := time.Now().Unix()
 	queryRanges := 0
 	for _, rt := range op.oc.Retentions {
 		queryRanges += len(rt.QueryRanges)
 	}
 	for _, metric := range metrics {
+		seriesCh := make(chan queryObj)
+		errCh := make(chan error)
 		log.Println(fmt.Sprintf("Starting work on %s", metric))
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
@@ -102,6 +102,13 @@ func (op *otsdbProcessor) run(silent bool) error {
 					}
 				}
 			}
+		}
+		close(seriesCh)
+		close(errCh)
+		wg.Wait()
+		op.im.Close()
+		for vmErr := range op.im.Errors() {
+			return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
 		}
 		bar.Finish()
 	}
