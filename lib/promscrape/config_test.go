@@ -1302,6 +1302,7 @@ scrape_configs:
     disable_compression: true
     stream_parse: true
     scrape_align_interval: 1s
+    scrape_offset: 0.5s
     static_configs:
       - targets:
         - 192.168.1.2  # SNMP device.
@@ -1356,6 +1357,7 @@ scrape_configs:
 			DisableCompression:  true,
 			StreamParse:         true,
 			ScrapeAlignInterval: time.Second,
+			ScrapeOffset:        500 * time.Millisecond,
 			jobNameOriginal:     "snmp",
 		},
 	})
