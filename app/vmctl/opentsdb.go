@@ -94,12 +94,14 @@ func (op *otsdbProcessor) run(silent bool) error {
 		}
 		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
 		for _, series := range serieslist {
-			select {
-			case otsdbErr := <-errCh:
-				return fmt.Errorf("opentsdb error: %s", otsdbErr)
-			default:
-				for _, rt := range op.oc.Retentions {
-					for _, tr := range rt.QueryRanges {
+			for _, rt := range op.oc.Retentions {
+				for _, tr := range rt.QueryRanges {
+					select {
+					case otsdbErr := <-errCh:
+						return fmt.Errorf("opentsdb error: %s", otsdbErr)
+					case vmErr := <-op.im.Errors():
+						return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
+					default:
 						seriesCh <- queryObj{
 							Series: series, Rt: rt,
 							Tr: tr, StartTime: startTime}
@@ -107,6 +109,7 @@ func (op *otsdbProcessor) run(silent bool) error {
 				}
 			}
 		}
+		// Drain channels per metric
 		close(seriesCh)
 		close(errCh)
 		wg.Wait()
