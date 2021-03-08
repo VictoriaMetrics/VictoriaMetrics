@@ -114,6 +114,7 @@ type ScrapeConfig struct {
 	DisableKeepAlive    bool          `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool          `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval time.Duration `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        time.Duration `yaml:"scrape_offset,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -569,6 +570,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval,
+		scrapeOffset:         sc.ScrapeOffset,
 	}
 	return swc, nil
 }
@@ -592,6 +594,7 @@ type scrapeWorkConfig struct {
 	disableKeepAlive     bool
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
+	scrapeOffset         time.Duration
 }
 
 type targetLabelsGetter interface {
@@ -853,6 +856,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          swc.streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
+		ScrapeOffset:         swc.scrapeOffset,
 
 		jobNameOriginal: swc.jobName,
 	}
