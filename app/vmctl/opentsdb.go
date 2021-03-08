@@ -66,13 +66,17 @@ func (op *otsdbProcessor) run(silent bool) error {
 		queryRanges += len(rt.QueryRanges)
 	}
 	for _, metric := range metrics {
-		seriesCh := make(chan queryObj)
-		errCh := make(chan error)
 		log.Println(fmt.Sprintf("Starting work on %s", metric))
 		serieslist, err := op.oc.FindSeries(metric)
 		if err != nil {
 			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
 		}
+		/*
+			Create channels for collecting/processing series and errors
+			We'll create them per metric to reduce pressure against OpenTSDB
+		*/
+		seriesCh := make(chan queryObj)
+		errCh := make(chan error)
 		bar := pb.StartNew(len(serieslist) * queryRanges)
 		var wg sync.WaitGroup
 		wg.Add(op.otsdbcc)
