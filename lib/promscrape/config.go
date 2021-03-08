@@ -47,6 +47,8 @@ var (
 		"Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
 	clusterMemberNum = flag.Int("promscrape.cluster.memberNum", 0, "The number of number in the cluster of scrapers. "+
 		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster")
+	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
+		"If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://victoriametrics.github.io/#deduplication")
 )
 
 // Config represents essential parts from Prometheus config defined at https://prometheus.io/docs/prometheus/latest/configuration/configuration/
@@ -112,6 +114,7 @@ type ScrapeConfig struct {
 	DisableKeepAlive    bool          `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool          `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval time.Duration `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        time.Duration `yaml:"scrape_offset,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -567,6 +570,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval,
+		scrapeOffset:         sc.ScrapeOffset,
 	}
 	return swc, nil
 }
@@ -590,6 +594,7 @@ type scrapeWorkConfig struct {
 	disableKeepAlive     bool
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
+	scrapeOffset         time.Duration
 }
 
 type targetLabelsGetter interface {
@@ -721,12 +726,25 @@ func appendScrapeWorkKey(dst []byte, target string, extraLabels, metaLabels map[
 	return dst
 }
 
-func needSkipScrapeWork(key string) bool {
-	if *clusterMembersCount <= 0 {
+func needSkipScrapeWork(key string, membersCount, replicasCount, memberNum int) bool {
+	if membersCount <= 1 {
 		return false
 	}
-	h := int(xxhash.Sum64(bytesutil.ToUnsafeBytes(key)))
-	return (h % *clusterMembersCount) != *clusterMemberNum
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
+	idx := int(h % uint64(membersCount))
+	if replicasCount < 1 {
+		replicasCount = 1
+	}
+	for i := 0; i < replicasCount; i++ {
+		if idx == memberNum {
+			return false
+		}
+		idx++
+		if idx >= replicasCount {
+			idx = 0
+		}
+	}
+	return true
 }
 
 func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
@@ -753,7 +771,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	bb := scrapeWorkKeyBufPool.Get()
 	defer scrapeWorkKeyBufPool.Put(bb)
 	bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
-	if needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B)) {
+	if needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum) {
 		return nil, nil
 	}
 
@@ -838,6 +856,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          swc.streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
+		ScrapeOffset:         swc.scrapeOffset,
 
 		jobNameOriginal: swc.jobName,
 	}

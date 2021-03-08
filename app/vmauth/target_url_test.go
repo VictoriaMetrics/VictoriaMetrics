@@ -44,11 +44,11 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	ui := &UserInfo{
 		URLMap: []URLMap{
 			{
-				SrcPaths:  []string{"/api/v1/query"},
+				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
 				URLPrefix: "http://vmselect/0/prometheus",
 			},
 			{
-				SrcPaths:  []string{"/api/v1/write"},
+				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
 				URLPrefix: "http://vminsert/0/prometheus",
 			},
 		},
@@ -57,6 +57,26 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up")
 	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write")
 	f(ui, "/api/v1/query_range", "http://default-server/api/v1/query_range")
+
+	// Complex routing regexp paths in `url_map`
+	ui = &UserInfo{
+		URLMap: []URLMap{
+			{
+				SrcPaths:  getSrcPaths([]string{"/api/v1/query(_range)?", "/api/v1/label/[^/]+/values"}),
+				URLPrefix: "http://vmselect/0/prometheus",
+			},
+			{
+				SrcPaths:  getSrcPaths([]string{"/api/v1/write"}),
+				URLPrefix: "http://vminsert/0/prometheus",
+			},
+		},
+		URLPrefix: "http://default-server",
+	}
+	f(ui, "/api/v1/query?query=up", "http://vmselect/0/prometheus/api/v1/query?query=up")
+	f(ui, "/api/v1/query_range?query=up", "http://vmselect/0/prometheus/api/v1/query_range?query=up")
+	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values")
+	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write")
+	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar")
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
@@ -78,7 +98,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 	f(&UserInfo{
 		URLMap: []URLMap{
 			{
-				SrcPaths:  []string{"/api/v1/query"},
+				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
 				URLPrefix: "http://foobar/baz",
 			},
 		},

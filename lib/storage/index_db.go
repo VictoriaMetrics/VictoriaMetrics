@@ -154,8 +154,8 @@ func openIndexDB(path string, metricIDCache, metricNameCache, tsidCache *working
 		metricIDCache:              metricIDCache,
 		metricNameCache:            metricNameCache,
 		tsidCache:                  tsidCache,
-		uselessTagFiltersCache:     workingsetcache.New(mem/128, 3*time.Hour),
-		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, 3*time.Hour),
+		uselessTagFiltersCache:     workingsetcache.New(mem/128, time.Hour),
+		loopsPerDateTagFilterCache: workingsetcache.New(mem/128, time.Hour),
 
 		minTimestampForCompositeIndex: minTimestampForCompositeIndex,
 	}
@@ -2458,7 +2458,8 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint6
 		}
 		// Slow path: need tf.matchSuffix call.
 		ok, err := tf.matchSuffix(suffix)
-		loopsCount += tf.matchCost
+		// Assume that tf.matchSuffix call needs 10x more time than a single metric scan iteration.
+		loopsCount += 10 * tf.matchCost
 		if err != nil {
 			return loopsCount, fmt.Errorf("error when matching %s against suffix %q: %w", tf, suffix, err)
 		}
@@ -2479,8 +2480,8 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint6
 			}
 			kb.B[len(kb.B)-1]++
 			ts.Seek(kb.B)
-			// Assume that a seek cost is equivalent to 100 ordinary loops.
-			loopsCount += 100
+			// Assume that a seek cost is equivalent to 1000 ordinary loops.
+			loopsCount += 1000
 			continue
 		}
 		prevMatch = true

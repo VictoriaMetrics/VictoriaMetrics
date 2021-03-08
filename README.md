@@ -1165,8 +1165,8 @@ on the same time series if they fall within the same discrete 60s bucket.  The e
 
 The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs.
 
-The de-duplication reduces disk space usage if multiple identically configured Prometheus instances in HA pair
-write data to the same VictoriaMetrics instance. Note that these Prometheus instances must have identical
+The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://victoriametrics.github.io/vmagent.html) or Prometheus instances in HA pair
+write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series.
 
 
@@ -1317,6 +1317,17 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 * It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
   since the encountered issue could be already fixed there.
 
+* It is recommended to have at least 50% of spare resources for CPU, disk IO and RAM, so VictoriaMetrics could handle short spikes in the workload without performance issues.
+
+* VictoriaMetrics requires free disk space for [merging data files to bigger ones](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+  It may slow down when there is no enough free space left. So make sure `-storageDataPath` directory
+  has at least 20% of free space. The remaining amount of free space
+  can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
+  stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
+  See also `vm_merge_need_free_disk_space` metrics, which are set to values higher than 0
+  if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
+  which would start background merge if they had more free disk space.
+
 * It is recommended inspecting logs during troubleshooting, since they may contain useful information.
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
@@ -1334,15 +1345,6 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 
 * VictoriaMetrics prioritizes data ingestion over data querying. So if it has no enough resources for data ingestion,
   then data querying may slow down significantly.
-
-* VictoriaMetrics requires free disk space for [merging data files to bigger ones](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-  It may slow down when there is no enough free space left. So make sure `-storageDataPath` directory
-  has at least 20% of free space comparing to disk size. The remaining amount of free space
-  can be [monitored](#monitoring) via `vm_free_disk_space_bytes` metric. The total size of data
-  stored on the disk can be monitored via sum of `vm_data_size_bytes` metrics.
-  See also `vm_merge_need_free_disk_space` metrics, which are set to values higher than 0
-  if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
-  which would start background merge if they had more free disk space.
 
 * If VictoriaMetrics doesn't work because of certain parts are corrupted due to disk errors,
   then just remove directories with broken parts. It is safe removing subdirectories under `<-storageDataPath>/data/{big,small}/YYYY_MM` directories

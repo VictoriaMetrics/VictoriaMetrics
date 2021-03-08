@@ -18,8 +18,8 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (string, error) {
 		u.Path = "/" + u.Path
 	}
 	for _, e := range ui.URLMap {
-		for _, path := range e.SrcPaths {
-			if u.Path == path {
+		for _, sp := range e.SrcPaths {
+			if sp.match(u.Path) {
 				return e.URLPrefix + u.RequestURI(), nil
 			}
 		}
