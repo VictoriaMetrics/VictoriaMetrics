@@ -86,7 +86,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 			}
 			proxyConn = tls.Client(proxyConn, tlsCfgLocal)
 		}
-		conn, err := sendConnectRequest(proxyConn, addr, authHeader)
+		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {
 			_ = proxyConn.Close()
 			return nil, fmt.Errorf("error when sending CONNECT request to proxy %q: %w", pu, err)
@@ -125,8 +125,8 @@ func defaultDialFunc(addr string) (net.Conn, error) {
 }
 
 // sendConnectRequest sends CONNECT request to proxyConn for the given addr and authHeader and returns the established connection to dstAddr.
-func sendConnectRequest(proxyConn net.Conn, dstAddr, authHeader string) (net.Conn, error) {
-	req := "CONNECT " + dstAddr + " HTTP/1.1\r\nHost: " + dstAddr + "\r\n" + authHeader + "\r\n"
+func sendConnectRequest(proxyConn net.Conn, proxyAddr, dstAddr, authHeader string) (net.Conn, error) {
+	req := "CONNECT " + dstAddr + " HTTP/1.1\r\nHost: " + proxyAddr + "\r\n" + authHeader + "\r\n"
 	if _, err := proxyConn.Write([]byte(req)); err != nil {
 		return nil, fmt.Errorf("cannot send CONNECT request for dstAddr=%q: %w", dstAddr, err)
 	}
