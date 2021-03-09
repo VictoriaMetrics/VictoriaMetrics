@@ -526,27 +526,22 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 				xsPrev = xs
 				continue
 			}
-			if xs.start != xsPrev.end {
-				// check for duplicates at the start of bucket.
-				// in case of duplicate following le already exists.
-				// no need to add new one with zero values.
-				if _, ok := uniqTs[xs.startStr]; !ok {
-					uniqTs[xs.startStr] = xs.ts
-					xssNew = append(xssNew, x{
-						endStr: xs.startStr,
-						end:    xs.start,
-						ts:     copyTS(ts, xs.startStr),
-					})
-				}
+			if xs.start != xsPrev.end && uniqTs[xs.startStr] == nil {
+				uniqTs[xs.startStr] = xs.ts
+				xssNew = append(xssNew, x{
+					endStr: xs.startStr,
+					end:    xs.start,
+					ts:     copyTS(ts, xs.startStr),
+				})
 			}
 			ts.MetricName.AddTag("le", xs.endStr)
-			if prevTs, ok := uniqTs[xs.endStr]; !ok {
+			prevTs := uniqTs[xs.endStr]
+			if prevTs != nil {
+				// the end of the current bucket is not unique, need to merge it with the existing bucket.
+				mergeNonOverlappingTimeseries(prevTs, xs.ts)
+			} else {
 				xssNew = append(xssNew, xs)
 				uniqTs[xs.endStr] = xs.ts
-			} else {
-				// end of current bucket not uniq,
-				// need to merge it with existing bucket.
-				mergeNonOverlappingTimeseries(prevTs, xs.ts)
 			}
 			xsPrev = xs
 		}
