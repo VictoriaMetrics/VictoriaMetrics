@@ -42,7 +42,7 @@ type blockStreamWriter struct {
 
 	// prevTimestamps* is used as an optimization for reducing disk space usage
 	// when serially written blocks have identical timestamps.
-	// This is usually the case when adjancent blocks contain metrics scraped from the same target,
+	// This is usually the case when adjacent blocks contain metrics scraped from the same target,
 	// since such metrics have identical timestamps.
 	prevTimestampsData        []byte
 	prevTimestampsBlockOffset uint64

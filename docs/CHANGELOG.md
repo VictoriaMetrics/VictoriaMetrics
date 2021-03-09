@@ -385,7 +385,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807
 
 * BUGFIX: properly handle `inf` values during [background merge of LSM parts](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-  Previously `Inf` values could result in `NaN` values for adjancent samples in time series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805 .
+  Previously `Inf` values could result in `NaN` values for adjacent samples in time series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805 .
 * BUGFIX: fill gaps on graphs for `range_*` and `running_*` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/806 .
 * BUGFIX: make a copy of label with new name during relabeling with `action: labelmap` in the same way as Prometheus does.
   Previously the original label name has been replaced. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/812 .

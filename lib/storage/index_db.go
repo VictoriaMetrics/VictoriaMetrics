@@ -3535,7 +3535,7 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 		if len(item) == 0 || item[0] != nsPrefix || i == 0 || i == len(items)-1 {
 			// Write rows not starting with nsPrefix as-is.
 			// Additionally write the first and the last row as-is in order to preserve
-			// sort order for adjancent blocks.
+			// sort order for adjacent blocks.
 			dstData, dstItems = tmm.flushPendingMetricIDs(dstData, dstItems, mpPrev)
 			dstData = append(dstData, item...)
 			dstItems = append(dstItems, mergeset.Item{
