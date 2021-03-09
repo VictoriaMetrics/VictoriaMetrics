@@ -159,9 +159,7 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string, parseObject parseO
 	aw.wg.Add(1)
 	go func() {
 		defer aw.wg.Done()
-		logger.Infof("started watcher for %q", apiURL)
 		uw.watchForUpdates()
-		logger.Infof("stopped watcher for %q", apiURL)
 		uw.objectsByKey.decRef()
 
 		aw.mu.Lock()
@@ -291,6 +289,7 @@ func (uw *urlWatcher) reloadObjects() string {
 		}
 		return ""
 	}
+	logger.Infof("loaded %d objects from %q", len(objectsByKey), requestURL)
 	uw.objectsByKey.reload(objectsByKey)
 	swosByKey := make(map[string][]interface{})
 	for k, o := range objectsByKey {
