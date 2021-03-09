@@ -57,7 +57,7 @@ func newClient(sw *ScrapeWork) *client {
 	requestURI := string(u.RequestURI())
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
-	if sw.AuthConfig != nil {
+	if isTLS {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
 	if !strings.Contains(host, ":") {
@@ -67,7 +67,7 @@ func newClient(sw *ScrapeWork) *client {
 			host += ":443"
 		}
 	}
-	dialFunc, err := newStatDialFunc(sw.ProxyURL, tlsCfg)
+	dialFunc, err := newStatDialFunc(sw.ProxyURL, sw.AuthConfig)
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
