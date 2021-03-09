@@ -66,7 +66,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Clie
 
 	hostPort := string(u.Host())
 	isTLS := string(u.Scheme()) == "https"
-	if isTLS && ac != nil {
+	if ac != nil {
 		tlsCfg = ac.NewTLSConfig()
 	}
 	if !strings.Contains(hostPort, ":") {
