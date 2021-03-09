@@ -16,7 +16,7 @@ rules against configured address.
 * Lightweight without extra dependencies.
 
 ### Limitations:
-* `vmalert` execute queries against remote datasource which has reliability risks because of network. 
+* `vmalert` execute queries against remote datasource which has reliability risks because of network.
 It is recommended to configure alerts thresholds and rules expressions with understanding that network request
 may fail;
 * by default, rules execution is sequential within one group, but persisting of execution results to remote
@@ -37,7 +37,7 @@ The build binary will be placed to `VictoriaMetrics/bin` folder.
 To start using `vmalert` you will need the following things:
 * list of rules - PromQL/MetricsQL expressions to execute;
 * datasource address - reachable VictoriaMetrics instance for rules execution;
-* notifier address - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing, 
+* notifier address - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
 aggregating alerts and sending notifications.
 * remote write address - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
 compatible storage address for storing recording rules results and alerts state in for of timeseries. This is optional.
@@ -56,11 +56,11 @@ Then configure `vmalert` accordingly:
 ```
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts. 
+to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts.
 
-Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) 
-and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very 
-similar to Prometheus rules and configured using YAML. Configuration examples may be found 
+Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
+and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very
+similar to Prometheus rules and configured using YAML. Configuration examples may be found
 in [testdata](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/config/testdata) folder.
 Every `rule` belongs to `group` and every configuration file may contain arbitrary number of groups:
 ```yaml
@@ -79,7 +79,7 @@ name: <string>
 [ interval: <duration> | default = global.evaluation_interval ]
 
 # How many rules execute at once. Increasing concurrency may speed
-# up round execution speed. 
+# up round execution speed.
 [ concurrency: <integer> | default = 1 ]
 
 # Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
@@ -93,15 +93,15 @@ rules:
 #### Rules
 
 There are two types of Rules:
-* [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) - 
+* [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
 Alerting rules allows to define alert conditions via [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
 and to send notifications about firing alerts to [Alertmanager](https://github.com/prometheus/alertmanager).
-* [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) - 
-Recording rules allow you to precompute frequently needed or computationally expensive expressions 
+* [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
+Recording rules allow you to precompute frequently needed or computationally expensive expressions
 and save their result as a new set of time series.
 
 `vmalert` forbids to define duplicates - rules with the same combination of name, expression and labels
-within one group. 
+within one group.
 
 ##### Alerting rules
 
@@ -130,7 +130,7 @@ labels:
 # Annotations to add to each alert.
 annotations:
   [ <labelname>: <tmpl_string> ]
-``` 
+```
 
 ##### Recording rules
 
@@ -158,17 +158,17 @@ For recording rules to work `-remoteWrite.url` must specified.
 
 #### Alerts state on restarts
 
-`vmalert` has no local storage, so alerts state is stored in the process memory. Hence, after reloading of `vmalert` 
+`vmalert` has no local storage, so alerts state is stored in the process memory. Hence, after reloading of `vmalert`
 the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
-* `-remoteWrite.url` - URL to VictoriaMetrics (Single) or VMInsert (Cluster). `vmalert` will persist alerts state 
-into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol. 
-These are regular time series and may be queried from VM just as any other time series. 
+* `-remoteWrite.url` - URL to VictoriaMetrics (Single) or VMInsert (Cluster). `vmalert` will persist alerts state
+into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
+These are regular time series and may be queried from VM just as any other time series.
 The state stored to the configured address on every rule evaluation.
-* `-remoteRead.url` - URL to VictoriaMetrics (Single) or VMSelect (Cluster). `vmalert` will try to restore alerts state 
+* `-remoteRead.url` - URL to VictoriaMetrics (Single) or VMSelect (Cluster). `vmalert` will try to restore alerts state
 from configured address by querying time series with name `ALERTS_FOR_STATE`.
 
 Both flags are required for the proper state restoring. Restore process may fail if time series are missing
-in configured `-remoteRead.url`, weren't updated in the last `1h` or received state doesn't match current `vmalert` 
+in configured `-remoteRead.url`, weren't updated in the last `1h` or received state doesn't match current `vmalert`
 rules configuration.
 
 
@@ -232,7 +232,7 @@ The shortlist of configuration flags is the following:
     	How often to evaluate the rules (default 1m0s)
   -external.alert.source string
     	External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-    	eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
+    	eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
   -external.label array
     	Optional label in the form 'name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
     	Supports array of values separated by comma or specified via multiple flags.
@@ -348,11 +348,11 @@ The shortlist of configuration flags is the following:
   -remoteWrite.url string
     	Optional URL to Victoria Metrics or VMInsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
   -rule array
-    	Path to the file with alert rules. 
-    	Supports patterns. Flag can be specified multiple times. 
+    	Path to the file with alert rules.
+    	Supports patterns. Flag can be specified multiple times.
     	Examples:
     	 -rule="/path/to/file". Path to a single file with alerting rules
-    	 -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder, 
+    	 -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
     	absolute path to all .yaml files in root.
     	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
     	Supports array of values separated by comma or specified via multiple flags.
@@ -370,7 +370,7 @@ The shortlist of configuration flags is the following:
     	Show VictoriaMetrics version
 ```
 
-Pass `-help` to `vmalert` in order to see the full list of supported 
+Pass `-help` to `vmalert` in order to see the full list of supported
 command-line flags with their descriptions.
 
 To reload configuration without `vmalert` restart send SIGHUP signal
@@ -379,13 +379,13 @@ or send GET request to `/-/reload` endpoint.
 ### Contributing
 
 `vmalert` is mostly designed and built by VictoriaMetrics community.
-Feel free to share your experience and ideas for improving this 
+Feel free to share your experience and ideas for improving this
 software. Please keep simplicity as the main priority.
 
 ### How to build from sources
 
-It is recommended using 
-[binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) 
+It is recommended using
+[binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 - `vmalert` is located in `vmutils-*` archives there.
 
 

@@ -26,11 +26,11 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules. 
-Supports patterns. Flag can be specified multiple times. 
+	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules.
+Supports patterns. Flag can be specified multiple times.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
- -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder, 
+ -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
 absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
@@ -41,7 +41,7 @@ Rule files may contain %{ENV_VAR} placeholders, which are substituted by the cor
 	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|pathEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
+eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used`)
 	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
