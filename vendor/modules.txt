@@ -27,7 +27,7 @@ github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.1.1
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.37.22
+# github.com/aws/aws-sdk-go v1.37.26
 ## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -126,7 +126,7 @@ github.com/jmespath/go-jmespath
 github.com/jstemmer/go-junit-report
 github.com/jstemmer/go-junit-report/formatter
 github.com/jstemmer/go-junit-report/parser
-# github.com/klauspost/compress v1.11.9
+# github.com/klauspost/compress v1.11.12
 ## explicit
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
@@ -262,7 +262,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210301091718-77cc2087c03b
+# golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -316,7 +316,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20210302174412-5ede27ff9881
+# google.golang.org/genproto v0.0.0-20210303154014-9728d6b83eeb
 ## explicit
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
