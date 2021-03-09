@@ -67,7 +67,7 @@ func (c *S3) AbortMultipartUploadRequest(input *AbortMultipartUploadInput) (req 
 
 // AbortMultipartUpload API operation for Amazon Simple Storage Service.
 //
-// This operation aborts a multipart upload. After a multipart upload is aborted,
+// This action aborts a multipart upload. After a multipart upload is aborted,
 // no additional parts can be uploaded using that upload ID. The storage consumed
 // by any previously uploaded parts will be freed. However, if any part uploads
 // are currently in progress, those part uploads might or might not succeed.
@@ -76,10 +76,10 @@ func (c *S3) AbortMultipartUploadRequest(input *AbortMultipartUploadInput) (req 
 //
 // To verify that all parts have been removed, so you don't get charged for
 // the part storage, you should call the ListParts (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
-// operation and ensure that the parts list is empty.
+// action and ensure that the parts list is empty.
 //
-// For information about permissions required to use the multipart upload API,
-// see Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
+// For information about permissions required to use the multipart upload, see
+// Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
 //
 // The following operations are related to AbortMultipartUpload:
 //
@@ -175,10 +175,10 @@ func (c *S3) CompleteMultipartUploadRequest(input *CompleteMultipartUploadInput)
 // You first initiate the multipart upload and then upload all parts using the
 // UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
 // operation. After successfully uploading all relevant parts of an upload,
-// you call this operation to complete the upload. Upon receiving this request,
+// you call this action to complete the upload. Upon receiving this request,
 // Amazon S3 concatenates all the parts in ascending order by part number to
 // create a new object. In the Complete Multipart Upload request, you must provide
-// the parts list. You must ensure that the parts list is complete. This operation
+// the parts list. You must ensure that the parts list is complete. This action
 // concatenates the parts that you provide in the list. For each part in the
 // list, you must provide the part number and the ETag value, returned after
 // that part was uploaded.
@@ -199,7 +199,7 @@ func (c *S3) CompleteMultipartUploadRequest(input *CompleteMultipartUploadInput)
 // Multipart Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html).
 //
 // For information about permissions required to use the multipart upload API,
-// see Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
+// see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
 //
 // CompleteMultipartUpload has the following special errors:
 //
@@ -306,10 +306,10 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 // Creates a copy of an object that is already stored in Amazon S3.
 //
 // You can store individual objects of up to 5 TB in Amazon S3. You create a
-// copy of your object up to 5 GB in size in a single atomic operation using
-// this API. However, to copy an object greater than 5 GB, you must use the
-// multipart upload Upload Part - Copy API. For more information, see Copy Object
-// Using the REST Multipart Upload API (https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjctsUsingRESTMPUapi.html).
+// copy of your object up to 5 GB in size in a single atomic action using this
+// API. However, to copy an object greater than 5 GB, you must use the multipart
+// upload Upload Part - Copy API. For more information, see Copy Object Using
+// the REST Multipart Upload API (https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjctsUsingRESTMPUapi.html).
 //
 // All copy requests must be authenticated. Additionally, you must have read
 // access to the source object and write access to the destination bucket. For
@@ -319,7 +319,7 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 //
 // A copy request might return an error when Amazon S3 receives the copy request
 // or while Amazon S3 is copying the files. If the error occurs before the copy
-// operation starts, you receive a standard Amazon S3 error. If the error occurs
+// action starts, you receive a standard Amazon S3 error. If the error occurs
 // during the copy operation, the error response is embedded in the 200 OK response.
 // This means that a 200 OK response can contain either a success or an error.
 // Design your application to parse the contents of the response and handle
@@ -334,7 +334,7 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 //
 // The copy request charge is based on the storage class and Region that you
 // specify for the destination object. For pricing information, see Amazon S3
-// pricing (https://aws.amazon.com/s3/pricing/).
+// pricing (http://aws.amazon.com/s3/pricing/).
 //
 // Amazon S3 transfer acceleration does not support cross-Region copies. If
 // you request a cross-Region copy using a transfer acceleration endpoint, you
@@ -404,7 +404,7 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 //
 // If a target object uses SSE-KMS, you can enable an S3 Bucket Key for the
 // object. For more information, see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Access Control List (ACL)-Specific Request Headers
 //
@@ -418,7 +418,7 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 //
 // Storage Class Options
 //
-// You can use the CopyObject operation to change the storage class of an object
+// You can use the CopyObject action to change the storage class of an object
 // that is already stored in Amazon S3 using the StorageClass parameter. For
 // more information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
 // in the Amazon S3 Service Developer Guide.
@@ -459,8 +459,8 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 //
 // Returned Error Codes:
 //   * ErrCodeObjectNotInActiveTierError "ObjectNotInActiveTierError"
-//   The source object of the COPY operation is not in the active tier and is
-//   only stored in Amazon S3 Glacier.
+//   The source object of the COPY action is not in the active tier and is only
+//   stored in Amazon S3 Glacier.
 //
 // See also, https://docs.aws.amazon.com/goto/WebAPI/s3-2006-03-01/CopyObject
 func (c *S3) CopyObject(input *CopyObjectInput) (*CopyObjectOutput, error) {
@@ -678,10 +678,10 @@ func (c *S3) CreateMultipartUploadRequest(input *CreateMultipartUploadInput) (re
 
 // CreateMultipartUpload API operation for Amazon Simple Storage Service.
 //
-// This operation initiates a multipart upload and returns an upload ID. This
-// upload ID is used to associate all of the parts in the specific multipart
-// upload. You specify this upload ID in each of your subsequent upload part
-// requests (see UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)).
+// This action initiates a multipart upload and returns an upload ID. This upload
+// ID is used to associate all of the parts in the specific multipart upload.
+// You specify this upload ID in each of your subsequent upload part requests
+// (see UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)).
 // You also include this upload ID in the final request to either complete or
 // abort the multipart upload request.
 //
@@ -691,12 +691,12 @@ func (c *S3) CreateMultipartUploadRequest(input *CreateMultipartUploadInput) (re
 // If you have configured a lifecycle rule to abort incomplete multipart uploads,
 // the upload must complete within the number of days specified in the bucket
 // lifecycle configuration. Otherwise, the incomplete multipart upload becomes
-// eligible for an abort operation and Amazon S3 aborts the multipart upload.
-// For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
+// eligible for an abort action and Amazon S3 aborts the multipart upload. For
+// more information, see Aborting Incomplete Multipart Uploads Using a Bucket
 // Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
 //
 // For information about the permissions required to use the multipart upload
-// API, see Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
+// API, see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
 //
 // For request signing, multipart upload is just a series of regular requests.
 // You initiate a multipart upload, send one or more requests to upload parts,
@@ -716,7 +716,7 @@ func (c *S3) CreateMultipartUploadRequest(input *CreateMultipartUploadInput) (re
 // and decrypts it when you access it. You can provide your own encryption key,
 // or use AWS Key Management Service (AWS KMS) customer master keys (CMKs) or
 // Amazon S3-managed encryption keys. If you choose to provide your own encryption
-// key, the request headers you provide in UploadPart (AmazonS3/latest/API/API_UploadPart.html)
+// key, the request headers you provide in UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
 // and UploadPartCopy (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)
 // requests must match the headers you used in the request to initiate the upload
 // by using CreateMultipartUpload.
@@ -1083,7 +1083,7 @@ func (c *S3) DeleteBucketCorsRequest(input *DeleteBucketCorsInput) (req *request
 // permission to others.
 //
 // For information about cors, see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Related Resources:
 //
@@ -1164,17 +1164,17 @@ func (c *S3) DeleteBucketEncryptionRequest(input *DeleteBucketEncryptionInput) (
 
 // DeleteBucketEncryption API operation for Amazon Simple Storage Service.
 //
-// This implementation of the DELETE operation removes default encryption from
+// This implementation of the DELETE action removes default encryption from
 // the bucket. For information about the Amazon S3 default encryption feature,
 // see Amazon S3 Default Bucket Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // To use this operation, you must have permissions to perform the s3:PutEncryptionConfiguration
 // action. The bucket owner has this permission by default. The bucket owner
 // can grant this permission to others. For more information about permissions,
 // see Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Related Resources
 //
@@ -1725,9 +1725,9 @@ func (c *S3) DeleteBucketPolicyRequest(input *DeleteBucketPolicyInput) (req *req
 
 // DeleteBucketPolicy API operation for Amazon Simple Storage Service.
 //
-// This implementation of the DELETE operation uses the policy subresource to
-// delete the policy of a specified bucket. If you are using an identity other
-// than the root user of the AWS account that owns the bucket, the calling identity
+// This implementation of the DELETE action uses the policy subresource to delete
+// the policy of a specified bucket. If you are using an identity other than
+// the root user of the AWS account that owns the bucket, the calling identity
 // must have the DeleteBucketPolicy permissions on the specified bucket and
 // belong to the bucket owner's account to use this operation.
 //
@@ -2000,15 +2000,15 @@ func (c *S3) DeleteBucketWebsiteRequest(input *DeleteBucketWebsiteInput) (req *r
 
 // DeleteBucketWebsite API operation for Amazon Simple Storage Service.
 //
-// This operation removes the website configuration for a bucket. Amazon S3
-// returns a 200 OK response upon successfully deleting a website configuration
-// on the specified bucket. You will get a 200 OK response if the website configuration
+// This action removes the website configuration for a bucket. Amazon S3 returns
+// a 200 OK response upon successfully deleting a website configuration on the
+// specified bucket. You will get a 200 OK response if the website configuration
 // you are trying to delete does not exist on the bucket. Amazon S3 returns
 // a 404 response if the bucket specified in the request does not exist.
 //
-// This DELETE operation requires the S3:DeleteBucketWebsite permission. By
-// default, only the bucket owner can delete the website configuration attached
-// to a bucket. However, bucket owners can grant other users permission to delete
+// This DELETE action requires the S3:DeleteBucketWebsite permission. By default,
+// only the bucket owner can delete the website configuration attached to a
+// bucket. However, bucket owners can grant other users permission to delete
 // the website configuration by writing a bucket policy granting them the S3:DeleteBucketWebsite
 // permission.
 //
@@ -2110,14 +2110,14 @@ func (c *S3) DeleteObjectRequest(input *DeleteObjectInput) (req *request.Request
 // For more information about MFA Delete, see Using MFA Delete (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMFADelete.html).
 // To see sample requests that use versioning, see Sample Request (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html#ExampleVersionObjectDelete).
 //
-// You can delete objects by explicitly calling the DELETE Object API or configure
-// its lifecycle (PutBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycle.html))
+// You can delete objects by explicitly calling DELETE Object or configure its
+// lifecycle (PutBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycle.html))
 // to enable Amazon S3 to remove them for you. If you want to block users or
 // accounts from removing or deleting objects from your bucket, you must deny
 // them the s3:DeleteObject, s3:DeleteObjectVersion, and s3:PutLifeCycleConfiguration
 // actions.
 //
-// The following operation is related to DeleteObject:
+// The following action is related to DeleteObject:
 //
 //    * PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
 //
@@ -2285,27 +2285,27 @@ func (c *S3) DeleteObjectsRequest(input *DeleteObjectsInput) (req *request.Reque
 
 // DeleteObjects API operation for Amazon Simple Storage Service.
 //
-// This operation enables you to delete multiple objects from a bucket using
-// a single HTTP request. If you know the object keys that you want to delete,
-// then this operation provides a suitable alternative to sending individual
-// delete requests, reducing per-request overhead.
+// This action enables you to delete multiple objects from a bucket using a
+// single HTTP request. If you know the object keys that you want to delete,
+// then this action provides a suitable alternative to sending individual delete
+// requests, reducing per-request overhead.
 //
 // The request contains a list of up to 1000 keys that you want to delete. In
 // the XML, you provide the object key names, and optionally, version IDs if
 // you want to delete a specific version of the object from a versioning-enabled
-// bucket. For each key, Amazon S3 performs a delete operation and returns the
+// bucket. For each key, Amazon S3 performs a delete action and returns the
 // result of that delete, success, or failure, in the response. Note that if
 // the object specified in the request is not found, Amazon S3 returns the result
 // as deleted.
 //
-// The operation supports two modes for the response: verbose and quiet. By
-// default, the operation uses verbose mode in which the response includes the
-// result of deletion of each key in your request. In quiet mode the response
-// includes only keys where the delete operation encountered an error. For a
-// successful deletion, the operation does not return any information about
-// the delete in the response body.
+// The action supports two modes for the response: verbose and quiet. By default,
+// the action uses verbose mode in which the response includes the result of
+// deletion of each key in your request. In quiet mode the response includes
+// only keys where the delete action encountered an error. For a successful
+// deletion, the action does not return any information about the delete in
+// the response body.
 //
-// When performing this operation on an MFA Delete enabled bucket, that attempts
+// When performing this action on an MFA Delete enabled bucket, that attempts
 // to delete any versioned objects, you must include an MFA token. If you do
 // not provide one, the entire request will fail, even if there are non-versioned
 // objects you are trying to delete. If you provide an invalid token, whether
@@ -2489,8 +2489,8 @@ func (c *S3) GetBucketAccelerateConfigurationRequest(input *GetBucketAccelerateC
 
 // GetBucketAccelerateConfiguration API operation for Amazon Simple Storage Service.
 //
-// This implementation of the GET operation uses the accelerate subresource
-// to return the Transfer Acceleration state of a bucket, which is either Enabled
+// This implementation of the GET action uses the accelerate subresource to
+// return the Transfer Acceleration state of a bucket, which is either Enabled
 // or Suspended. Amazon S3 Transfer Acceleration is a bucket-level feature that
 // enables you to perform faster data transfers to and from Amazon S3.
 //
@@ -2499,7 +2499,7 @@ func (c *S3) GetBucketAccelerateConfigurationRequest(input *GetBucketAccelerateC
 // can grant this permission to others. For more information about permissions,
 // see Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // You set the Transfer Acceleration state of an existing bucket to Enabled
 // or Suspended by using the PutBucketAccelerateConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAccelerateConfiguration.html)
@@ -2511,7 +2511,7 @@ func (c *S3) GetBucketAccelerateConfigurationRequest(input *GetBucketAccelerateC
 //
 // For more information about transfer acceleration, see Transfer Acceleration
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Related Resources
 //
@@ -2589,7 +2589,7 @@ func (c *S3) GetBucketAclRequest(input *GetBucketAclInput) (req *request.Request
 
 // GetBucketAcl API operation for Amazon Simple Storage Service.
 //
-// This implementation of the GET operation uses the acl subresource to return
+// This implementation of the GET action uses the acl subresource to return
 // the access control list (ACL) of a bucket. To use GET to return the ACL of
 // the bucket, you must have READ_ACP access to the bucket. If READ_ACP permission
 // is granted to the anonymous user, you can return the ACL of the bucket without
@@ -2671,7 +2671,7 @@ func (c *S3) GetBucketAnalyticsConfigurationRequest(input *GetBucketAnalyticsCon
 
 // GetBucketAnalyticsConfiguration API operation for Amazon Simple Storage Service.
 //
-// This implementation of the GET operation returns an analytics configuration
+// This implementation of the GET action returns an analytics configuration
 // (identified by the analytics configuration ID) from the bucket.
 //
 // To use this operation, you must have permissions to perform the s3:GetAnalyticsConfiguration
@@ -2679,11 +2679,11 @@ func (c *S3) GetBucketAnalyticsConfigurationRequest(input *GetBucketAnalyticsCon
 // can grant this permission to others. For more information about permissions,
 // see Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // For information about Amazon S3 analytics feature, see Amazon S3 Analytics
 // – Storage Class Analysis (https://docs.aws.amazon.com/AmazonS3/latest/dev/analytics-storage-class.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Related Resources
 //
@@ -3250,8 +3250,8 @@ func (c *S3) GetBucketLifecycleConfigurationRequest(input *GetBucketLifecycleCon
 // Accordingly, this section describes the latest API. The response describes
 // the new filter element that you can use to specify a filter to select a subset
 // of objects to which the rule applies. If you are using a previous version
-// of the lifecycle configuration, it still works. For the earlier API description,
-// see GetBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycle.html).
+// of the lifecycle configuration, it still works. For the earlier action, see
+// GetBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycle.html).
 //
 // Returns the lifecycle configuration information set on the bucket. For information
 // about lifecycle configuration, see Object Lifecycle Management (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html).
@@ -3692,8 +3692,8 @@ func (c *S3) GetBucketNotificationConfigurationRequest(input *GetBucketNotificat
 //
 // Returns the notification configuration of a bucket.
 //
-// If notifications are not enabled on the bucket, the operation returns an
-// empty NotificationConfiguration element.
+// If notifications are not enabled on the bucket, the action returns an empty
+// NotificationConfiguration element.
 //
 // By default, you must be the bucket owner to read the notification configuration
 // of a bucket. However, the bucket owner can use a bucket policy to grant permission
@@ -3704,7 +3704,7 @@ func (c *S3) GetBucketNotificationConfigurationRequest(input *GetBucketNotificat
 // on a bucket, see Setting Up Notification of Bucket Events (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html).
 // For more information about bucket policies, see Using Bucket Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
 //
-// The following operation is related to GetBucketNotification:
+// The following action is related to GetBucketNotification:
 //
 //    * PutBucketNotification (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotification.html)
 //
@@ -3882,7 +3882,7 @@ func (c *S3) GetBucketPolicyRequest(input *GetBucketPolicyInput) (req *request.R
 // For more information about bucket policies, see Using Bucket Policies and
 // User Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
 //
-// The following operation is related to GetBucketPolicy:
+// The following action is related to GetBucketPolicy:
 //
 //    * GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 //
@@ -4055,11 +4055,11 @@ func (c *S3) GetBucketReplicationRequest(input *GetBucketReplicationInput) (req 
 // can return a wrong result.
 //
 // For information about replication configuration, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
-// This operation requires permissions for the s3:GetReplicationConfiguration
-// action. For more information about permissions, see Using Bucket Policies
-// and User Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
+// This action requires permissions for the s3:GetReplicationConfiguration action.
+// For more information about permissions, see Using Bucket Policies and User
+// Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
 //
 // If you include the Filter element in a replication configuration, you must
 // also include the DeleteMarkerReplication and Priority elements. The response
@@ -4408,7 +4408,7 @@ func (c *S3) GetBucketWebsiteRequest(input *GetBucketWebsiteInput) (req *request
 // For more information about hosting websites, see Hosting Websites on Amazon
 // S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html).
 //
-// This GET operation requires the S3:GetBucketWebsite permission. By default,
+// This GET action requires the S3:GetBucketWebsite permission. By default,
 // only the bucket owner can read the bucket website configuration. However,
 // bucket owners can allow other users to read the website configuration by
 // writing a bucket policy granting them the S3:GetBucketWebsite permission.
@@ -4518,7 +4518,7 @@ func (c *S3) GetObjectRequest(input *GetObjectInput) (req *request.Request, outp
 // Deep Archive storage class, or S3 Intelligent-Tiering Archive or S3 Intelligent-Tiering
 // Deep Archive tiers, before you can retrieve the object you must first restore
 // a copy using RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html).
-// Otherwise, this operation returns an InvalidObjectStateError error. For information
+// Otherwise, this action returns an InvalidObjectStateError error. For information
 // about restoring archived objects, see Restoring Archived Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html).
 //
 // Encryption request headers, like x-amz-server-side-encryption, should not
@@ -4561,8 +4561,8 @@ func (c *S3) GetObjectRequest(input *GetObjectInput) (req *request.Request, outp
 //
 // Versioning
 //
-// By default, the GET operation returns the current version of an object. To
-// return a different version, use the versionId subresource.
+// By default, the GET action returns the current version of an object. To return
+// a different version, use the versionId subresource.
 //
 // If the current version of the object is a delete marker, Amazon S3 behaves
 // as if the object was deleted and includes x-amz-delete-marker: true in the
@@ -5029,7 +5029,7 @@ func (c *S3) GetObjectTaggingRequest(input *GetObjectTaggingInput) (req *request
 // subresource associated with the object.
 //
 // To use this operation, you must have permission to perform the s3:GetObjectTagging
-// action. By default, the GET operation returns information about current version
+// action. By default, the GET action returns information about current version
 // of an object. For a versioned bucket, you can have multiple versions of an
 // object in your bucket. To retrieve tags of any other version, use the versionId
 // query parameter. You also need permission for the s3:GetObjectVersionTagging
@@ -5041,7 +5041,7 @@ func (c *S3) GetObjectTaggingRequest(input *GetObjectTaggingInput) (req *request
 // For information about the Amazon S3 object tagging feature, see Object Tagging
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html).
 //
-// The following operation is related to GetObjectTagging:
+// The following action is related to GetObjectTagging:
 //
 //    * PutObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
 //
@@ -5131,7 +5131,7 @@ func (c *S3) GetObjectTorrentRequest(input *GetObjectTorrentInput) (req *request
 //
 // This action is not supported by Amazon S3 on Outposts.
 //
-// The following operation is related to GetObjectTorrent:
+// The following action is related to GetObjectTorrent:
 //
 //    * GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 //
@@ -5305,9 +5305,9 @@ func (c *S3) HeadBucketRequest(input *HeadBucketInput) (req *request.Request, ou
 
 // HeadBucket API operation for Amazon Simple Storage Service.
 //
-// This operation is useful to determine if a bucket exists and you have permission
-// to access it. The operation returns a 200 OK if the bucket exists and you
-// have permission to access it.
+// This action is useful to determine if a bucket exists and you have permission
+// to access it. The action returns a 200 OK if the bucket exists and you have
+// permission to access it.
 //
 // If the bucket does not exist or you do not have permission to access it,
 // the HEAD request returns a generic 404 Not Found or 403 Forbidden code. A
@@ -5397,15 +5397,15 @@ func (c *S3) HeadObjectRequest(input *HeadObjectInput) (req *request.Request, ou
 
 // HeadObject API operation for Amazon Simple Storage Service.
 //
-// The HEAD operation retrieves metadata from an object without returning the
-// object itself. This operation is useful if you're only interested in an object's
-// metadata. To use HEAD, you must have READ access to the object.
+// The HEAD action retrieves metadata from an object without returning the object
+// itself. This action is useful if you're only interested in an object's metadata.
+// To use HEAD, you must have READ access to the object.
 //
-// A HEAD request has the same options as a GET operation on an object. The
-// response is identical to the GET response except that there is no response
-// body. Because of this, if the HEAD request generates an error, it returns
-// a generic 404 Not Found or 403 Forbidden code. It is not possible to retrieve
-// the exact exception beyond these error codes.
+// A HEAD request has the same options as a GET action on an object. The response
+// is identical to the GET response except that there is no response body. Because
+// of this, if the HEAD request generates an error, it returns a generic 404
+// Not Found or 403 Forbidden code. It is not possible to retrieve the exact
+// exception beyond these error codes.
 //
 // If you encrypt an object by using server-side encryption with customer-provided
 // encryption keys (SSE-C) when you store the object in Amazon S3, then when
@@ -5459,7 +5459,7 @@ func (c *S3) HeadObjectRequest(input *HeadObjectInput) (req *request.Request, ou
 //    * If you don’t have the s3:ListBucket permission, Amazon S3 returns
 //    an HTTP status code 403 ("access denied") error.
 //
-// The following operation is related to HeadObject:
+// The following action is related to HeadObject:
 //
 //    * GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 //
@@ -5541,13 +5541,13 @@ func (c *S3) ListBucketAnalyticsConfigurationsRequest(input *ListBucketAnalytics
 // Lists the analytics configurations for the bucket. You can have up to 1,000
 // analytics configurations per bucket.
 //
-// This operation supports list pagination and does not return more than 100
-// configurations at a time. You should always check the IsTruncated element
-// in the response. If there are no more configurations to list, IsTruncated
-// is set to false. If there are more configurations to list, IsTruncated is
-// set to true, and there will be a value in NextContinuationToken. You use
-// the NextContinuationToken value to continue the pagination of the list by
-// passing the value in continuation-token in the request to GET the next page.
+// This action supports list pagination and does not return more than 100 configurations
+// at a time. You should always check the IsTruncated element in the response.
+// If there are no more configurations to list, IsTruncated is set to false.
+// If there are more configurations to list, IsTruncated is set to true, and
+// there will be a value in NextContinuationToken. You use the NextContinuationToken
+// value to continue the pagination of the list by passing the value in continuation-token
+// in the request to GET the next page.
 //
 // To use this operation, you must have permissions to perform the s3:GetAnalyticsConfiguration
 // action. The bucket owner has this permission by default. The bucket owner
@@ -5740,12 +5740,12 @@ func (c *S3) ListBucketInventoryConfigurationsRequest(input *ListBucketInventory
 // Returns a list of inventory configurations for the bucket. You can have up
 // to 1,000 analytics configurations per bucket.
 //
-// This operation supports list pagination and does not return more than 100
-// configurations at a time. Always check the IsTruncated element in the response.
-// If there are no more configurations to list, IsTruncated is set to false.
-// If there are more configurations to list, IsTruncated is set to true, and
-// there is a value in NextContinuationToken. You use the NextContinuationToken
-// value to continue the pagination of the list by passing the value in continuation-token
+// This action supports list pagination and does not return more than 100 configurations
+// at a time. Always check the IsTruncated element in the response. If there
+// are no more configurations to list, IsTruncated is set to false. If there
+// are more configurations to list, IsTruncated is set to true, and there is
+// a value in NextContinuationToken. You use the NextContinuationToken value
+// to continue the pagination of the list by passing the value in continuation-token
 // in the request to GET the next page.
 //
 // To use this operation, you must have permissions to perform the s3:GetInventoryConfiguration
@@ -5841,12 +5841,12 @@ func (c *S3) ListBucketMetricsConfigurationsRequest(input *ListBucketMetricsConf
 // are only for the request metrics of the bucket and do not provide information
 // on daily storage metrics. You can have up to 1,000 configurations per bucket.
 //
-// This operation supports list pagination and does not return more than 100
-// configurations at a time. Always check the IsTruncated element in the response.
-// If there are no more configurations to list, IsTruncated is set to false.
-// If there are more configurations to list, IsTruncated is set to true, and
-// there is a value in NextContinuationToken. You use the NextContinuationToken
-// value to continue the pagination of the list by passing the value in continuation-token
+// This action supports list pagination and does not return more than 100 configurations
+// at a time. Always check the IsTruncated element in the response. If there
+// are no more configurations to list, IsTruncated is set to false. If there
+// are more configurations to list, IsTruncated is set to true, and there is
+// a value in NextContinuationToken. You use the NextContinuationToken value
+// to continue the pagination of the list by passing the value in continuation-token
 // in the request to GET the next page.
 //
 // To use this operation, you must have permissions to perform the s3:GetMetricsConfiguration
@@ -6018,11 +6018,11 @@ func (c *S3) ListMultipartUploadsRequest(input *ListMultipartUploadsInput) (req 
 
 // ListMultipartUploads API operation for Amazon Simple Storage Service.
 //
-// This operation lists in-progress multipart uploads. An in-progress multipart
+// This action lists in-progress multipart uploads. An in-progress multipart
 // upload is a multipart upload that has been initiated using the Initiate Multipart
 // Upload request, but has not yet been completed or aborted.
 //
-// This operation returns at most 1,000 multipart uploads in the response. 1,000
+// This action returns at most 1,000 multipart uploads in the response. 1,000
 // multipart uploads is the maximum number of uploads a response can include,
 // which is also the default value. You can further limit the number of uploads
 // in a response by specifying the max-uploads parameter in the response. If
@@ -6039,7 +6039,7 @@ func (c *S3) ListMultipartUploadsRequest(input *ListMultipartUploadsInput) (req 
 // Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html).
 //
 // For information on permissions required to use the multipart upload API,
-// see Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
+// see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
 //
 // The following operations are related to ListMultipartUploads:
 //
@@ -6340,8 +6340,8 @@ func (c *S3) ListObjectsRequest(input *ListObjectsInput) (req *request.Request, 
 // to design your application to parse the contents of the response and handle
 // it appropriately.
 //
-// This API has been revised. We recommend that you use the newer version, ListObjectsV2
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html),
+// This action has been revised. We recommend that you use the newer version,
+// ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html),
 // when developing applications. For backward compatibility, Amazon S3 continues
 // to support ListObjects.
 //
@@ -6501,14 +6501,14 @@ func (c *S3) ListObjectsV2Request(input *ListObjectsV2Input) (req *request.Reque
 //
 // To use this operation, you must have READ access to the bucket.
 //
-// To use this operation in an AWS Identity and Access Management (IAM) policy,
+// To use this action in an AWS Identity and Access Management (IAM) policy,
 // you must have permissions to perform the s3:ListBucket action. The bucket
 // owner has this permission by default and can grant this permission to others.
 // For more information about permissions, see Permissions Related to Bucket
 // Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html).
 //
-// This section describes the latest revision of the API. We recommend that
+// This section describes the latest revision of this action. We recommend that
 // you use this revised API for application development. For backward compatibility,
 // Amazon S3 continues to support the prior version of this API, ListObjects
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html).
@@ -6673,7 +6673,7 @@ func (c *S3) ListPartsRequest(input *ListPartsInput) (req *request.Request, outp
 // Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html).
 //
 // For information on permissions required to use the multipart upload API,
-// see Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
+// see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
 //
 // The following operations are related to ListParts:
 //
@@ -6830,7 +6830,7 @@ func (c *S3) PutBucketAccelerateConfigurationRequest(input *PutBucketAccelerateC
 //    * Suspended – Disables accelerated data transfers to the bucket.
 //
 // The GetBucketAccelerateConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAccelerateConfiguration.html)
-// operation returns the transfer acceleration state of a bucket.
+// action returns the transfer acceleration state of a bucket.
 //
 // After setting the Transfer Acceleration state of a bucket to Enabled, it
 // might take up to thirty minutes before the data transfer rates to the bucket
@@ -7242,7 +7242,7 @@ func (c *S3) PutBucketCorsRequest(input *PutBucketCorsInput) (req *request.Reque
 //
 // For more information about CORS, go to Enabling Cross-Origin Resource Sharing
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html) in the Amazon
-// Simple Storage Service Developer Guide.
+// Simple Storage Service User Guide.
 //
 // Related Resources
 //
@@ -7329,7 +7329,7 @@ func (c *S3) PutBucketEncryptionRequest(input *PutBucketEncryptionInput) (req *r
 
 // PutBucketEncryption API operation for Amazon Simple Storage Service.
 //
-// This operation uses the encryption subresource to configure default encryption
+// This action uses the encryption subresource to configure default encryption
 // and Amazon S3 Bucket Key for an existing bucket.
 //
 // Default encryption for a bucket can use server-side encryption with Amazon
@@ -7337,19 +7337,19 @@ func (c *S3) PutBucketEncryptionRequest(input *PutBucketEncryptionInput) (req *r
 // specify default encryption using SSE-KMS, you can also configure Amazon S3
 // Bucket Key. For information about default encryption, see Amazon S3 default
 // bucket encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
-// in the Amazon Simple Storage Service Developer Guide. For more information
-// about S3 Bucket Keys, see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide. For more information about
+// S3 Bucket Keys, see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
+// in the Amazon Simple Storage Service User Guide.
 //
-// This operation requires AWS Signature Version 4. For more information, see
-// Authenticating Requests (AWS Signature Version 4) (sig-v4-authenticating-requests.html).
+// This action requires AWS Signature Version 4. For more information, see Authenticating
+// Requests (AWS Signature Version 4) (https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html).
 //
 // To use this operation, you must have permissions to perform the s3:PutEncryptionConfiguration
 // action. The bucket owner has this permission by default. The bucket owner
 // can grant this permission to others. For more information about permissions,
 // see Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Related Resources
 //
@@ -7547,9 +7547,9 @@ func (c *S3) PutBucketInventoryConfigurationRequest(input *PutBucketInventoryCon
 
 // PutBucketInventoryConfiguration API operation for Amazon Simple Storage Service.
 //
-// This implementation of the PUT operation adds an inventory configuration
-// (identified by the inventory ID) to the bucket. You can have up to 1,000
-// inventory configurations per bucket.
+// This implementation of the PUT action adds an inventory configuration (identified
+// by the inventory ID) to the bucket. You can have up to 1,000 inventory configurations
+// per bucket.
 //
 // Amazon S3 inventory generates inventories of the objects in the bucket on
 // a daily or weekly basis, and the results are published to a flat file. The
@@ -7562,7 +7562,7 @@ func (c *S3) PutBucketInventoryConfigurationRequest(input *PutBucketInventoryCon
 // the inventory daily or weekly. You can also configure what object metadata
 // to include and whether to inventory all object versions or only current versions.
 // For more information, see Amazon S3 Inventory (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-inventory.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // You must create a bucket policy on the destination bucket to grant permissions
 // to Amazon S3 to write objects to the bucket in the defined location. For
@@ -7574,7 +7574,7 @@ func (c *S3) PutBucketInventoryConfigurationRequest(input *PutBucketInventoryCon
 // permission to others. For more information about permissions, see Permissions
 // Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Special Errors
 //
@@ -7686,7 +7686,7 @@ func (c *S3) PutBucketLifecycleRequest(input *PutBucketLifecycleInput) (req *req
 // Creates a new lifecycle configuration for the bucket or replaces an existing
 // lifecycle configuration. For information about lifecycle configuration, see
 // Object Lifecycle Management (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // By default, all Amazon S3 resources, including buckets, objects, and related
 // subresources (for example, lifecycle configuration and website configuration)
@@ -7708,7 +7708,7 @@ func (c *S3) PutBucketLifecycleRequest(input *PutBucketLifecycleInput) (req *req
 //
 // For more information about permissions, see Managing Access Permissions to
 // your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // For more examples of transitioning objects to storage classes such as STANDARD_IA
 // or ONEZONE_IA, see Examples of Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#lifecycle-configuration-examples).
@@ -7725,7 +7725,7 @@ func (c *S3) PutBucketLifecycleRequest(input *PutBucketLifecycleInput) (req *req
 //    the AWS account that created the bucket—can perform any of the operations.
 //    A resource owner can also grant others permission to perform the operation.
 //    For more information, see the following topics in the Amazon Simple Storage
-//    Service Developer Guide: Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
+//    Service User Guide: Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
 //    Managing Access Permissions to your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -8277,8 +8277,8 @@ func (c *S3) PutBucketNotificationConfigurationRequest(input *PutBucketNotificat
 //
 // </NotificationConfiguration>
 //
-// This operation replaces the existing notification configuration with the
-// configuration you include in the request body.
+// This action replaces the existing notification configuration with the configuration
+// you include in the request body.
 //
 // After Amazon S3 receives this request, it first verifies that any Amazon
 // Simple Notification Service (Amazon SNS) or Amazon Simple Queue Service (Amazon
@@ -8298,8 +8298,8 @@ func (c *S3) PutBucketNotificationConfigurationRequest(input *PutBucketNotificat
 // The PUT notification is an atomic operation. For example, suppose your notification
 // configuration includes SNS topic, SQS queue, and Lambda function configurations.
 // When you send a PUT request with this configuration, Amazon S3 sends test
-// messages to your SNS topic. If the message fails, the entire PUT operation
-// will fail, and Amazon S3 will not add the configuration to your bucket.
+// messages to your SNS topic. If the message fails, the entire PUT action will
+// fail, and Amazon S3 will not add the configuration to your bucket.
 //
 // Responses
 //
@@ -8308,7 +8308,7 @@ func (c *S3) PutBucketNotificationConfigurationRequest(input *PutBucketNotificat
 // will also include the x-amz-sns-test-message-id header containing the message
 // ID of the test notification sent to the topic.
 //
-// The following operation is related to PutBucketNotificationConfiguration:
+// The following action is related to PutBucketNotificationConfiguration:
 //
 //    * GetBucketNotificationConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html)
 //
@@ -8584,8 +8584,8 @@ func (c *S3) PutBucketReplicationRequest(input *PutBucketReplicationInput) (req 
 // information, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html)
 // in the Amazon S3 Developer Guide.
 //
-// To perform this operation, the user or role performing the operation must
-// have the iam:PassRole (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html)
+// To perform this operation, the user or role performing the action must have
+// the iam:PassRole (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_passrole.html)
 // permission.
 //
 // Specify the replication configuration in the request body. In the replication
@@ -8833,7 +8833,7 @@ func (c *S3) PutBucketTaggingRequest(input *PutBucketTaggingInput) (req *request
 //    match the schema.
 //
 //    * Error code: OperationAbortedError Description: A conflicting conditional
-//    operation is currently in progress against this resource. Please try again.
+//    action is currently in progress against this resource. Please try again.
 //
 //    * Error code: InternalError Description: The service was unable to apply
 //    the provided tag to the bucket.
@@ -9040,7 +9040,7 @@ func (c *S3) PutBucketWebsiteRequest(input *PutBucketWebsiteInput) (req *request
 // document and any redirect rules. For more information, see Hosting Websites
 // on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html).
 //
-// This PUT operation requires the S3:PutBucketWebsite permission. By default,
+// This PUT action requires the S3:PutBucketWebsite permission. By default,
 // only the bucket owner can configure the website attached to a bucket; however,
 // bucket owners can allow other users to set the website configuration by writing
 // a bucket policy that grants them the S3:PutBucketWebsite permission.
@@ -9099,7 +9099,7 @@ func (c *S3) PutBucketWebsiteRequest(input *PutBucketWebsiteInput) (req *request
 // Amazon S3 has a limitation of 50 routing rules per website configuration.
 // If you require more than 50 routing rules, you can use object redirect. For
 // more information, see Configuring an Object Redirect (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -9206,7 +9206,7 @@ func (c *S3) PutObjectRequest(input *PutObjectInput) (req *request.Request, outp
 // If you request server-side encryption using AWS Key Management Service (SSE-KMS),
 // you can enable an S3 Bucket Key at the object-level. For more information,
 // see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Access Control List (ACL)-Specific Request Headers
 //
@@ -9325,7 +9325,7 @@ func (c *S3) PutObjectAclRequest(input *PutObjectAclInput) (req *request.Request
 // for a new or existing object in an S3 bucket. You must have WRITE_ACP permission
 // to set the ACL of an object. For more information, see What permissions can
 // I grant? (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#permissions)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // This action is not supported by Amazon S3 on Outposts.
 //
@@ -9773,7 +9773,7 @@ func (c *S3) PutObjectTaggingRequest(input *PutObjectTaggingInput) (req *request
 //
 //    * Code: MalformedXMLError Cause: The XML provided does not match the schema.
 //
-//    * Code: OperationAbortedError Cause: A conflicting conditional operation
+//    * Code: OperationAbortedError Cause: A conflicting conditional action
 //    is currently in progress against this resource. Please try again.
 //
 //    * Code: InternalError Cause: The service was unable to apply the provided
@@ -9974,7 +9974,7 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 // permission to others. For more information about permissions, see Permissions
 // Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Querying Archives with Select Requests
 //
@@ -9984,7 +9984,7 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 // queries and custom analytics on your archived data without having to restore
 // your data to a hotter Amazon S3 tier. For an overview about select requests,
 // see Querying Archived Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/querying-glacier-archives.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // When making a select request, do the following:
 //
@@ -9995,13 +9995,13 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //    the storage class and encryption for the output objects stored in the
 //    bucket. For more information about output, see Querying Archived Objects
 //    (https://docs.aws.amazon.com/AmazonS3/latest/dev/querying-glacier-archives.html)
-//    in the Amazon Simple Storage Service Developer Guide. For more information
+//    in the Amazon Simple Storage Service User Guide. For more information
 //    about the S3 structure in the request body, see the following: PutObject
 //    (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html) Managing
 //    Access with ACLs (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3_ACLs_UsingACLs.html)
-//    in the Amazon Simple Storage Service Developer Guide Protecting Data Using
+//    in the Amazon Simple Storage Service User Guide Protecting Data Using
 //    Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html)
-//    in the Amazon Simple Storage Service Developer Guide
+//    in the Amazon Simple Storage Service User Guide
 //
 //    * Define the SQL expression for the SELECT type of restoration for your
 //    query in the request body's SelectParameters structure. You can use expressions
@@ -10017,7 +10017,7 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //
 // For more information about using SQL with S3 Glacier Select restore, see
 // SQL Reference for Amazon S3 Select and S3 Glacier Select (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // When making a select request, you can also do the following:
 //
@@ -10088,19 +10088,19 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //
 // For more information about archive retrieval options and provisioned capacity
 // for Expedited data access, see Restoring Archived Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // You can use Amazon S3 restore speed upgrade to change the restore speed to
 // a faster speed while it is in progress. For more information, see Upgrading
 // the speed of an in-progress restore (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html#restoring-objects-upgrade-tier.title.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // To get the status of object restoration, you can send a HEAD request. Operations
 // return the x-amz-restore header, which provides information about the restoration
 // status, in the response. You can use Amazon S3 event notifications to notify
 // you when a restore is initiated or completed. For more information, see Configuring
 // Amazon S3 Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // After restoring an archived object, you can update the restoration period
 // by reissuing the request with a new period. Amazon S3 updates the restoration
@@ -10115,11 +10115,11 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 // the object in 3 days. For more information about lifecycle configuration,
 // see PutBucketLifecycleConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html)
 // and Object Lifecycle Management (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html)
-// in Amazon Simple Storage Service Developer Guide.
+// in Amazon Simple Storage Service User Guide.
 //
 // Responses
 //
-// A successful operation returns either the 200 OK or 202 Accepted status code.
+// A successful action returns either the 200 OK or 202 Accepted status code.
 //
 //    * If the object is not previously restored, then Amazon S3 returns 202
 //    Accepted in the response.
@@ -10146,7 +10146,7 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //    * GetBucketNotificationConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html)
 //
 //    * SQL Reference for Amazon S3 Select and S3 Glacier Select (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference.html)
-//    in the Amazon Simple Storage Service Developer Guide
+//    in the Amazon Simple Storage Service User Guide
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -10157,7 +10157,7 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //
 // Returned Error Codes:
 //   * ErrCodeObjectAlreadyInActiveTierError "ObjectAlreadyInActiveTierError"
-//   This operation is not allowed against this storage tier.
+//   This action is not allowed against this storage tier.
 //
 // See also, https://docs.aws.amazon.com/goto/WebAPI/s3-2006-03-01/RestoreObject
 func (c *S3) RestoreObject(input *RestoreObjectInput) (*RestoreObjectOutput, error) {
@@ -10234,7 +10234,7 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 
 // SelectObjectContent API operation for Amazon Simple Storage Service.
 //
-// This operation filters the contents of an Amazon S3 object based on a simple
+// This action filters the contents of an Amazon S3 object based on a simple
 // structured query language (SQL) statement. In the request, along with the
 // SQL expression, you must also specify a data serialization format (JSON,
 // CSV, or Apache Parquet) of the object. Amazon S3 uses this format to parse
@@ -10246,18 +10246,18 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 //
 // For more information about Amazon S3 Select, see Selecting Content from Objects
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/selecting-content-from-objects.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // For more information about using SQL with Amazon S3 Select, see SQL Reference
 // for Amazon S3 Select and S3 Glacier Select (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Permissions
 //
 // You must have s3:GetObject permission for this operation. Amazon S3 Select
 // does not support anonymous access. For more information about permissions,
 // see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Object Data Formats
 //
@@ -10280,13 +10280,13 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 //    you must use the headers that are documented in the GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html).
 //    For more information about SSE-C, see Server-Side Encryption (Using Customer-Provided
 //    Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
-//    in the Amazon Simple Storage Service Developer Guide. For objects that
-//    are encrypted with Amazon S3 managed encryption keys (SSE-S3) and customer
+//    in the Amazon Simple Storage Service User Guide. For objects that are
+//    encrypted with Amazon S3 managed encryption keys (SSE-S3) and customer
 //    master keys (CMKs) stored in AWS Key Management Service (SSE-KMS), server-side
 //    encryption is handled transparently, so you don't need to specify anything.
 //    For more information about server-side encryption, including SSE-S3 and
 //    SSE-KMS, see Protecting Data Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html)
-//    in the Amazon Simple Storage Service Developer Guide.
+//    in the Amazon Simple Storage Service User Guide.
 //
 // Working with the Response Body
 //
@@ -10297,8 +10297,8 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 //
 // GetObject Support
 //
-// The SelectObjectContent operation does not support the following GetObject
-// functionality. For more information, see GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html).
+// The SelectObjectContent action does not support the following GetObject functionality.
+// For more information, see GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html).
 //
 //    * Range: Although you can specify a scan range for an Amazon S3 Select
 //    request (see SelectObjectContentRequest - ScanRange (https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html#AmazonS3-SelectObjectContent-request-ScanRange)
@@ -10308,7 +10308,7 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 //    * GLACIER, DEEP_ARCHIVE and REDUCED_REDUNDANCY storage classes: You cannot
 //    specify the GLACIER, DEEP_ARCHIVE, or REDUCED_REDUNDANCY storage classes.
 //    For more information, about storage classes see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html#storage-class-intro)
-//    in the Amazon Simple Storage Service Developer Guide.
+//    in the Amazon Simple Storage Service User Guide.
 //
 // Special Errors
 //
@@ -10601,11 +10601,11 @@ func (c *S3) UploadPartRequest(input *UploadPartInput) (req *request.Request, ou
 //
 // For more information on multipart uploads, go to Multipart Upload Overview
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) in the
-// Amazon Simple Storage Service Developer Guide .
+// Amazon Simple Storage Service User Guide .
 //
 // For information on the permissions required to use the multipart upload API,
-// go to Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// go to Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
+// in the Amazon Simple Storage Service User Guide.
 //
 // You can optionally request server-side encryption where Amazon S3 encrypts
 // your data as it writes it to disks in its data centers and decrypts it for
@@ -10615,7 +10615,7 @@ func (c *S3) UploadPartRequest(input *UploadPartInput) (req *request.Request, ou
 // match the headers you used in the request to initiate the upload by using
 // CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html).
 // For more information, go to Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Server-side encryption is supported by the S3 Multipart Upload actions. Unless
 // you are using a customer-provided encryption key, you don't need to specify
@@ -10731,10 +10731,10 @@ func (c *S3) UploadPartCopyRequest(input *UploadPartCopyInput) (req *request.Req
 //
 // The minimum allowable part size for a multipart upload is 5 MB. For more
 // information about multipart upload limits, go to Quick Facts (https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 //
 // Instead of using an existing object as part data, you might use the UploadPart
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html) operation
+// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html) action
 // and provide data in your request.
 //
 // You must initiate a multipart upload before you can upload any part. In response
@@ -10745,15 +10745,15 @@ func (c *S3) UploadPartCopyRequest(input *UploadPartCopyInput) (req *request.Req
 //
 //    * For conceptual information about multipart uploads, see Uploading Objects
 //    Using Multipart Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html)
-//    in the Amazon Simple Storage Service Developer Guide.
+//    in the Amazon Simple Storage Service User Guide.
 //
 //    * For information about permissions required to use the multipart upload
-//    API, see Multipart Upload API and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
-//    in the Amazon Simple Storage Service Developer Guide.
+//    API, see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
+//    in the Amazon Simple Storage Service User Guide.
 //
-//    * For information about copying objects using a single atomic operation
-//    vs. the multipart upload, see Operations on Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectOperations.html)
-//    in the Amazon Simple Storage Service Developer Guide.
+//    * For information about copying objects using a single atomic action vs.
+//    the multipart upload, see Operations on Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectOperations.html)
+//    in the Amazon Simple Storage Service User Guide.
 //
 //    * For information about using server-side encryption with customer-provided
 //    encryption keys with the UploadPartCopy operation, see CopyObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
@@ -10876,17 +10876,17 @@ type AbortMultipartUploadInput struct {
 
 	// The bucket name to which the upload was taking place.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -12161,17 +12161,17 @@ type CompleteMultipartUploadOutput struct {
 
 	// The name of the bucket that contains the newly created object.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -12447,17 +12447,17 @@ type CopyObjectInput struct {
 
 	// The name of the destination bucket.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -12470,8 +12470,8 @@ type CopyObjectInput struct {
 	// to true causes Amazon S3 to use an S3 Bucket Key for object encryption with
 	// SSE-KMS.
 	//
-	// Specifying this header with a COPY operation doesn’t affect bucket-level
-	// settings for S3 Bucket Key.
+	// Specifying this header with a COPY action doesn’t affect bucket-level settings
+	// for S3 Bucket Key.
 	BucketKeyEnabled *bool `location:"header" locationName:"x-amz-server-side-encryption-bucket-key-enabled" type:"boolean"`
 
 	// Specifies caching behavior along the request/reply chain.
@@ -13364,17 +13364,17 @@ type CreateMultipartUploadInput struct {
 
 	// The name of the bucket to which to initiate the upload
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -13387,7 +13387,7 @@ type CreateMultipartUploadInput struct {
 	// to true causes Amazon S3 to use an S3 Bucket Key for object encryption with
 	// SSE-KMS.
 	//
-	// Specifying this header with an object operation doesn’t affect bucket-level
+	// Specifying this header with an object action doesn’t affect bucket-level
 	// settings for S3 Bucket Key.
 	BucketKeyEnabled *bool `location:"header" locationName:"x-amz-server-side-encryption-bucket-key-enabled" type:"boolean"`
 
@@ -13485,7 +13485,7 @@ type CreateMultipartUploadInput struct {
 	// object encryption. All GET and PUT requests for an object protected by AWS
 	// KMS will fail if not made via SSL or using SigV4. For information about configuring
 	// using any of the officially supported AWS SDKs and AWS CLI, see Specifying
-	// the Signature Version in Request Authentication (https://docs.aws.amazon.com/http:/docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
+	// the Signature Version in Request Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
 	// in the Amazon S3 Developer Guide.
 	SSEKMSKeyId *string `location:"header" locationName:"x-amz-server-side-encryption-aws-kms-key-id" type:"string" sensitive:"true"`
 
@@ -13778,17 +13778,17 @@ type CreateMultipartUploadOutput struct {
 
 	// The name of the bucket to which the multipart upload was initiated.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -15476,17 +15476,17 @@ type DeleteObjectInput struct {
 
 	// The bucket name of the bucket containing the object.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -15682,17 +15682,17 @@ type DeleteObjectTaggingInput struct {
 
 	// The bucket name containing the objects from which to remove the tags.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -15833,17 +15833,17 @@ type DeleteObjectsInput struct {
 
 	// The bucket name containing the objects to delete.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -15991,7 +15991,7 @@ type DeleteObjectsOutput struct {
 	// was successfully deleted.
 	Deleted []*DeletedObject `type:"list" flattened:"true"`
 
-	// Container for a failed delete operation that describes the object that Amazon
+	// Container for a failed delete action that describes the object that Amazon
 	// S3 attempted to delete and the error it encountered.
 	Errors []*Error `locationName:"Error" type:"list" flattened:"true"`
 
@@ -16462,9 +16462,9 @@ type Error struct {
 	//    Forbidden SOAP Fault Code Prefix: Client
 	//
 	//    * Code: AccountProblem Description: There is a problem with your AWS account
-	//    that prevents the operation from completing successfully. Contact AWS
-	//    Support for further assistance. HTTP Status Code: 403 Forbidden SOAP Fault
-	//    Code Prefix: Client
+	//    that prevents the action from completing successfully. Contact AWS Support
+	//    for further assistance. HTTP Status Code: 403 Forbidden SOAP Fault Code
+	//    Prefix: Client
 	//
 	//    * Code: AllAccessDisabled Description: All access to this Amazon S3 resource
 	//    has been disabled. Contact AWS Support for further assistance. HTTP Status
@@ -16567,9 +16567,9 @@ type Error struct {
 	//    Select a Region for Your Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro).
 	//    HTTP Status Code: 400 Bad Request SOAP Fault Code Prefix: Client
 	//
-	//    * Code: InvalidObjectState Description: The operation is not valid for
-	//    the current state of the object. HTTP Status Code: 403 Forbidden SOAP
-	//    Fault Code Prefix: Client
+	//    * Code: InvalidObjectState Description: The action is not valid for the
+	//    current state of the object. HTTP Status Code: 403 Forbidden SOAP Fault
+	//    Code Prefix: Client
 	//
 	//    * Code: InvalidPart Description: One or more of the specified parts could
 	//    not be found. The part might not have been uploaded, or the specified
@@ -16734,7 +16734,7 @@ type Error struct {
 	//    can sign up at the following URL: https://aws.amazon.com/s3 HTTP Status
 	//    Code: 403 Forbidden SOAP Fault Code Prefix: Client
 	//
-	//    * Code: OperationAborted Description: A conflicting conditional operation
+	//    * Code: OperationAborted Description: A conflicting conditional action
 	//    is currently in progress against this resource. Try again. HTTP Status
 	//    Code: 409 Conflict SOAP Fault Code Prefix: Client
 	//
@@ -19353,11 +19353,11 @@ type GetObjectAclInput struct {
 
 	// The bucket name that contains the object for which to get the ACL information.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
@@ -19527,17 +19527,17 @@ type GetObjectInput struct {
 
 	// The bucket name containing the object.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -19827,11 +19827,11 @@ type GetObjectLegalHoldInput struct {
 	// The bucket name containing the object whose Legal Hold status you want to
 	// retrieve.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
@@ -19982,11 +19982,11 @@ type GetObjectLockConfigurationInput struct {
 
 	// The bucket whose Object Lock configuration you want to retrieve.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
@@ -20183,7 +20183,7 @@ type GetObjectOutput struct {
 	// request.
 	RequestCharged *string `location:"header" locationName:"x-amz-request-charged" type:"string" enum:"RequestCharged"`
 
-	// Provides information about object restoration operation and expiration time
+	// Provides information about object restoration action and expiration time
 	// of the restored object copy.
 	Restore *string `location:"header" locationName:"x-amz-restore" type:"string"`
 
@@ -20430,11 +20430,11 @@ type GetObjectRetentionInput struct {
 	// The bucket name containing the object whose retention settings you want to
 	// retrieve.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
@@ -20585,17 +20585,17 @@ type GetObjectTaggingInput struct {
 
 	// The bucket name containing the object for which to get the tagging information.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -21205,17 +21205,17 @@ type HeadBucketInput struct {
 
 	// The bucket name.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -21320,17 +21320,17 @@ type HeadObjectInput struct {
 
 	// The name of the bucket containing the object.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -23849,17 +23849,17 @@ type ListMultipartUploadsInput struct {
 
 	// The name of the bucket to which the multipart upload was initiated.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -24206,7 +24206,7 @@ type ListObjectVersionsInput struct {
 	KeyMarker *string `location:"querystring" locationName:"key-marker" type:"string"`
 
 	// Sets the maximum number of keys returned in the response. By default the
-	// API returns up to 1,000 key names. The response might contain fewer keys
+	// action returns up to 1,000 key names. The response might contain fewer keys
 	// but will never contain more. If additional keys satisfy the search criteria,
 	// but were not returned because max-keys was exceeded, the response contains
 	// <isTruncated>true</isTruncated>. To return the additional keys, see key-marker
@@ -24489,17 +24489,17 @@ type ListObjectsInput struct {
 
 	// The name of the bucket containing the objects.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -24527,7 +24527,7 @@ type ListObjectsInput struct {
 	Marker *string `location:"querystring" locationName:"marker" type:"string"`
 
 	// Sets the maximum number of keys returned in the response. By default the
-	// API returns up to 1,000 key names. The response might contain fewer keys
+	// action returns up to 1,000 key names. The response might contain fewer keys
 	// but will never contain more.
 	MaxKeys *int64 `location:"querystring" locationName:"max-keys" type:"integer"`
 
@@ -24783,17 +24783,17 @@ type ListObjectsV2Input struct {
 
 	// Bucket name to list.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -24823,7 +24823,7 @@ type ListObjectsV2Input struct {
 	FetchOwner *bool `location:"querystring" locationName:"fetch-owner" type:"boolean"`
 
 	// Sets the maximum number of keys returned in the response. By default the
-	// API returns up to 1,000 key names. The response might contain fewer keys
+	// action returns up to 1,000 key names. The response might contain fewer keys
 	// but will never contain more.
 	MaxKeys *int64 `location:"querystring" locationName:"max-keys" type:"integer"`
 
@@ -25013,23 +25013,23 @@ type ListObjectsV2Output struct {
 	KeyCount *int64 `type:"integer"`
 
 	// Sets the maximum number of keys returned in the response. By default the
-	// API returns up to 1,000 key names. The response might contain fewer keys
+	// action returns up to 1,000 key names. The response might contain fewer keys
 	// but will never contain more.
 	MaxKeys *int64 `type:"integer"`
 
 	// The bucket name.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -25135,17 +25135,17 @@ type ListPartsInput struct {
 
 	// The name of the bucket to which the parts are being uploaded.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -26975,7 +26975,7 @@ func (s *ProgressEvent) MarshalEvent(pm protocol.PayloadMarshaler) (msg eventstr
 // S3 bucket. You can enable the configuration options in any combination. For
 // more information about when Amazon S3 considers a bucket or object public,
 // see The Meaning of "Public" (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 type PublicAccessBlockConfiguration struct {
 	_ struct{} `type:"structure"`
 
@@ -27480,7 +27480,7 @@ type PutBucketCorsInput struct {
 	// Describes the cross-origin access configuration for objects in an Amazon
 	// S3 bucket. For more information, see Enabling Cross-Origin Resource Sharing
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html) in the Amazon
-	// Simple Storage Service Developer Guide.
+	// Simple Storage Service User Guide.
 	//
 	// CORSConfiguration is a required field
 	CORSConfiguration *CORSConfiguration `locationName:"CORSConfiguration" type:"structure" required:"true" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
@@ -29549,11 +29549,11 @@ type PutObjectAclInput struct {
 	// The bucket name that contains the object to which you want to attach the
 	// ACL.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
@@ -29588,19 +29588,19 @@ type PutObjectAclInput struct {
 	// This action is not supported by Amazon S3 on Outposts.
 	GrantWriteACP *string `location:"header" locationName:"x-amz-grant-write-acp" type:"string"`
 
-	// Key for which the PUT operation was initiated.
+	// Key for which the PUT action was initiated.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -29798,19 +29798,19 @@ type PutObjectInput struct {
 	// Object data.
 	Body io.ReadSeeker `type:"blob"`
 
-	// The bucket name to which the PUT operation was initiated.
+	// The bucket name to which the PUT action was initiated.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -29823,8 +29823,8 @@ type PutObjectInput struct {
 	// to true causes Amazon S3 to use an S3 Bucket Key for object encryption with
 	// SSE-KMS.
 	//
-	// Specifying this header with a PUT operation doesn’t affect bucket-level
-	// settings for S3 Bucket Key.
+	// Specifying this header with a PUT action doesn’t affect bucket-level settings
+	// for S3 Bucket Key.
 	BucketKeyEnabled *bool `location:"header" locationName:"x-amz-server-side-encryption-bucket-key-enabled" type:"boolean"`
 
 	// Can be used to specify caching behavior along the request/reply chain. For
@@ -29891,7 +29891,7 @@ type PutObjectInput struct {
 	// This action is not supported by Amazon S3 on Outposts.
 	GrantWriteACP *string `location:"header" locationName:"x-amz-grant-write-acp" type:"string"`
 
-	// Object key for which the PUT operation was initiated.
+	// Object key for which the PUT action was initiated.
 	//
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
@@ -30257,11 +30257,11 @@ type PutObjectLegalHoldInput struct {
 	// The bucket name containing the object that you want to place a Legal Hold
 	// on.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
@@ -30687,17 +30687,17 @@ type PutObjectRetentionInput struct {
 	// The bucket name that contains the object you want to apply this Object Retention
 	// configuration to.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
-	// Indicates whether this operation should bypass Governance-mode restrictions.
+	// Indicates whether this action should bypass Governance-mode restrictions.
 	BypassGovernanceRetention *bool `location:"header" locationName:"x-amz-bypass-governance-retention" type:"boolean"`
 
 	// The account id of the expected bucket owner. If the bucket is owned by a
@@ -30863,17 +30863,17 @@ type PutObjectTaggingInput struct {
 
 	// The bucket name containing the object.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -32051,17 +32051,17 @@ type RestoreObjectInput struct {
 
 	// The bucket name containing the object to restore.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -32074,7 +32074,7 @@ type RestoreObjectInput struct {
 	// error.
 	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
-	// Object key for which the operation was initiated.
+	// Object key for which the action was initiated.
 	//
 	// Key is a required field
 	Key *string `location:"uri" locationName:"Key" min:"1" type:"string" required:"true"`
@@ -32345,7 +32345,7 @@ func (s *RestoreRequest) SetType(v string) *RestoreRequest {
 // Specifies the redirect behavior and when a redirect is applied. For more
 // information about routing rules, see Configuring advanced conditional redirects
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html#advanced-conditional-redirects)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 type RoutingRule struct {
 	_ struct{} `type:"structure"`
 
@@ -32453,7 +32453,7 @@ type Rule struct {
 	// Specifies when an object transitions to a specified storage class. For more
 	// information about Amazon S3 lifecycle configuration rules, see Transitioning
 	// Objects Using Amazon S3 Lifecycle (https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-transition-general-considerations.html)
-	// in the Amazon Simple Storage Service Developer Guide.
+	// in the Amazon Simple Storage Service User Guide.
 	Transition *Transition `type:"structure"`
 }
 
@@ -33277,7 +33277,7 @@ type ServerSideEncryptionRule struct {
 	// S3 to use an S3 Bucket Key. By default, S3 Bucket Key is not enabled.
 	//
 	// For more information, see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
-	// in the Amazon Simple Storage Service Developer Guide.
+	// in the Amazon Simple Storage Service User Guide.
 	BucketKeyEnabled *bool `type:"boolean"`
 }
 
@@ -33844,7 +33844,7 @@ type TopicConfiguration struct {
 
 	// The Amazon S3 bucket event about which to send notifications. For more information,
 	// see Supported Event Types (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
-	// in the Amazon Simple Storage Service Developer Guide.
+	// in the Amazon Simple Storage Service User Guide.
 	//
 	// Events is a required field
 	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true"`
@@ -33977,7 +33977,7 @@ func (s *TopicConfigurationDeprecated) SetTopic(v string) *TopicConfigurationDep
 // Specifies when an object transitions to a specified storage class. For more
 // information about Amazon S3 lifecycle configuration rules, see Transitioning
 // Objects Using Amazon S3 Lifecycle (https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-transition-general-considerations.html)
-// in the Amazon Simple Storage Service Developer Guide.
+// in the Amazon Simple Storage Service User Guide.
 type Transition struct {
 	_ struct{} `type:"structure"`
 
@@ -34026,17 +34026,17 @@ type UploadPartCopyInput struct {
 
 	// The bucket name.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
@@ -34468,17 +34468,17 @@ type UploadPartInput struct {
 
 	// The name of the bucket to which the multipart upload was initiated.
 	//
-	// When using this API with an access point, you must direct requests to the
-	// access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
-	// When using this operation with an access point through the AWS SDKs, you
-	// provide the access point ARN in place of the bucket name. For more information
-	// about access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
+	// When using this action with an access point, you must direct requests to
+	// the access point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+	// When using this action with an access point through the AWS SDKs, you provide
+	// the access point ARN in place of the bucket name. For more information about
+	// access point ARNs, see Using Access Points (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-access-points.html)
 	// in the Amazon Simple Storage Service Developer Guide.
 	//
-	// When using this API with Amazon S3 on Outposts, you must direct requests
+	// When using this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this operation using S3 on Outposts through the AWS SDKs, you provide
+	// using this action using S3 on Outposts through the AWS SDKs, you provide
 	// the Outposts bucket ARN in place of the bucket name. For more information
 	// about S3 on Outposts ARNs, see Using S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3onOutposts.html)
 	// in the Amazon Simple Storage Service Developer Guide.
