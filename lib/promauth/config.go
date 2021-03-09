@@ -65,13 +65,16 @@ func (ac *Config) tlsCertificateString() string {
 // NewTLSConfig returns new TLS config for the given ac.
 func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg := &tls.Config{
-		RootCAs:            ac.TLSRootCA,
 		ClientSessionCache: tls.NewLRUClientSessionCache(0),
+	}
+	if ac == nil {
+		return tlsCfg
 	}
 	if ac.TLSCertificate != nil {
 		// Do not set tlsCfg.GetClientCertificate, since tlsCfg.Certificates should work OK.
 		tlsCfg.Certificates = []tls.Certificate{*ac.TLSCertificate}
 	}
+	tlsCfg.RootCAs = ac.TLSRootCA
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
 	return tlsCfg

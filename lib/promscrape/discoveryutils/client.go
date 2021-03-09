@@ -66,7 +66,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Clie
 
 	hostPort := string(u.Host())
 	isTLS := string(u.Scheme()) == "https"
-	if ac != nil {
+	if isTLS {
 		tlsCfg = ac.NewTLSConfig()
 	}
 	if !strings.Contains(hostPort, ":") {
@@ -77,7 +77,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Clie
 		hostPort = net.JoinHostPort(hostPort, port)
 	}
 	if dialFunc == nil {
-		dialFunc, err = proxyURL.NewDialFunc(tlsCfg)
+		dialFunc, err = proxyURL.NewDialFunc(ac)
 		if err != nil {
 			return nil, err
 		}

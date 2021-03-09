@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/fasthttp"
 )
 
@@ -48,8 +50,8 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// NewDialFunc returns dial func for the given pu and tlsConfig.
-func (u *URL) NewDialFunc(tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
+// NewDialFunc returns dial func for the given u and ac.
+func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	if u == nil || u.url == nil {
 		return defaultDialFunc, nil
 	}
@@ -57,18 +59,32 @@ func (u *URL) NewDialFunc(tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
 	if pu.Scheme != "http" && pu.Scheme != "https" {
 		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http or https", pu.Scheme, pu)
 	}
+	isTLS := pu.Scheme == "https"
+	proxyAddr := addMissingPort(pu.Host, isTLS)
 	var authHeader string
+	if ac != nil {
+		authHeader = ac.Authorization
+	}
 	if pu.User != nil && len(pu.User.Username()) > 0 {
 		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
-		authHeader = "Proxy-Authorization: Basic " + userPasswordEncoded + "\r\n"
+		authHeader = "Basic " + userPasswordEncoded
 	}
+	if authHeader != "" {
+		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
+	}
+	tlsCfg := ac.NewTLSConfig()
 	dialFunc := func(addr string) (net.Conn, error) {
-		proxyConn, err := defaultDialFunc(pu.Host)
+		proxyConn, err := defaultDialFunc(proxyAddr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu, err)
 		}
-		if pu.Scheme == "https" {
-			proxyConn = tls.Client(proxyConn, tlsConfig)
+		if isTLS {
+			tlsCfgLocal := tlsCfg
+			if !tlsCfgLocal.InsecureSkipVerify && tlsCfgLocal.ServerName == "" {
+				tlsCfgLocal = tlsCfgLocal.Clone()
+				tlsCfgLocal.ServerName = tlsServerName(addr)
+			}
+			proxyConn = tls.Client(proxyConn, tlsCfgLocal)
 		}
 		conn, err := sendConnectRequest(proxyConn, addr, authHeader)
 		if err != nil {
@@ -78,6 +94,25 @@ func (u *URL) NewDialFunc(tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
 		return conn, nil
 	}
 	return dialFunc, nil
+}
+
+func addMissingPort(addr string, isTLS bool) string {
+	if strings.IndexByte(addr, ':') >= 0 {
+		return addr
+	}
+	port := "80"
+	if isTLS {
+		port = "443"
+	}
+	return addr + ":" + port
+}
+
+func tlsServerName(addr string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	return host
 }
 
 func defaultDialFunc(addr string) (net.Conn, error) {
