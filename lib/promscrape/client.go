@@ -57,7 +57,7 @@ func newClient(sw *ScrapeWork) *client {
 	requestURI := string(u.RequestURI())
 	isTLS := string(u.Scheme()) == "https"
 	var tlsCfg *tls.Config
-	if isTLS {
+	if sw.AuthConfig != nil {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
 	if !strings.Contains(host, ":") {
