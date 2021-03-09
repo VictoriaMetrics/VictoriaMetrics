@@ -2810,6 +2810,72 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`stdvar_over_time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(stdvar_over_time(rand(0)[200s:5s]), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.082, 0.088, 0.092, 0.075, 0.101, 0.08},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_stdvar()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(histogram_stdvar(histogram_over_time(rand(0)[200s:5s])), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.079, 0.089, 0.089, 0.071, 0.1, 0.082},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`stddev_over_time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(stddev_over_time(rand(0)[200s:5s]), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.286, 0.297, 0.303, 0.274, 0.318, 0.283},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_stddev()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(histogram_stddev(histogram_over_time(rand(0)[200s:5s])), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.281, 0.299, 0.298, 0.267, 0.316, 0.286},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`avg_over_time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(avg_over_time(rand(0)[200s:5s]), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.521, 0.518, 0.509, 0.544, 0.511, 0.504},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`histogram_avg()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(histogram_avg(histogram_over_time(rand(0)[200s:5s])), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.519, 0.521, 0.503, 0.543, 0.511, 0.506},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_share(single-value-valid-le)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_share(80, label_set(100, "le", "200"))`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,8 +39,47 @@ type UserInfo struct {
 
 // URLMap is a mapping from source paths to target urls.
 type URLMap struct {
-	SrcPaths  []string `yaml:"src_paths"`
-	URLPrefix string   `yaml:"url_prefix"`
+	SrcPaths  []*SrcPath `yaml:"src_paths"`
+	URLPrefix string     `yaml:"url_prefix"`
+}
+
+// SrcPath represents an src path
+type SrcPath struct {
+	sOriginal string
+	re        *regexp.Regexp
+}
+
+func (sp *SrcPath) match(s string) bool {
+	prefix, ok := sp.re.LiteralPrefix()
+	if ok {
+		// Fast path - literal match
+		return s == prefix
+	}
+	if !strings.HasPrefix(s, prefix) {
+		return false
+	}
+	return sp.re.MatchString(s)
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler
+func (sp *SrcPath) UnmarshalYAML(f func(interface{}) error) error {
+	var s string
+	if err := f(&s); err != nil {
+		return err
+	}
+	sAnchored := "^(?:" + s + ")$"
+	re, err := regexp.Compile(sAnchored)
+	if err != nil {
+		return fmt.Errorf("cannot build regexp from %q: %w", s, err)
+	}
+	sp.sOriginal = s
+	sp.re = re
+	return nil
+}
+
+// MarshalYAML implements yaml.Marshaler.
+func (sp *SrcPath) MarshalYAML() (interface{}, error) {
+	return sp.sOriginal, nil
 }
 
 func initAuthConfig() {
@@ -126,11 +166,6 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		for _, e := range ui.URLMap {
 			if len(e.SrcPaths) == 0 {
 				return nil, fmt.Errorf("missing `src_paths`")
-			}
-			for _, path := range e.SrcPaths {
-				if !strings.HasPrefix(path, "/") {
-					return nil, fmt.Errorf("`src_path`=%q must start with `/`", path)
-				}
 			}
 			urlPrefix, err := sanitizeURLPrefix(e.URLPrefix)
 			if err != nil {

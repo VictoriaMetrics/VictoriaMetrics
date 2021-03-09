@@ -65,13 +65,13 @@ users:
 
 
   # A single user for querying and inserting data:
-  # - Requests to http://vmauth:8427/api/v1/query or http://vmauth:8427/api/v1/query_range
-  #   are routed to http://vmselect:8481/select/42/prometheus.
+  # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
+  #   and http://vmauth:8427/api/v1/label/<label_name>/values are routed to http://vmselect:8481/select/42/prometheus.
   #   For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8480/select/42/prometheus/api/v1/query
   # - Requests to http://vmauth:8427/api/v1/write are routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "foobar"
   url_map:
-  - src_paths: ["/api/v1/query", "/api/v1/query_range"]
+  - src_paths: ["/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^/]+/values"]
     url_prefix: "http://vmselect:8481/select/42/prometheus"
   - src_paths: ["/api/v1/write"]
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
@@ -110,7 +110,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmauth` from the root folder of the repository.
    It builds `vmauth` binary and puts it into the `bin` folder.
 

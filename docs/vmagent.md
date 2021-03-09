@@ -230,7 +230,7 @@ You can read more about relabeling in the following articles:
 ## Scraping big number of targets
 
 A single `vmagent` instance can scrape tens of thousands of scrape targets. Sometimes this isn't enough due to limitations on CPU, network, RAM, etc.
-In this case scrape targets can be split among multiple `vmagent` instances (aka `vmagent` clustering).
+In this case scrape targets can be split among multiple `vmagent` instances (aka `vmagent` horizontal scaling and clustering).
 Each `vmagent` instance in the cluster must use identical `-promscrape.config` files with distinct `-promscrape.cluster.memberNum` values.
 The flag value must be in the range `0 ... N-1`, where `N` is the number of `vmagent` instances in the cluster.
 The number of `vmagent` instances in the cluster must be passed to `-promscrape.cluster.membersCount` command-line flag. For example, the following commands
@@ -240,6 +240,19 @@ spread scrape targets among a cluster of two `vmagent` instances:
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
+
+By default each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
+then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
+start a cluster of three `vmagent` instances, where each target is scraped by two `vmagent` instances:
+
+```
+/path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=0 -promscrape.config=/path/to/config.yml ...
+/path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
+/path/to/vmagent -promscrape.cluster.membersCount=3 -promscrape.cluster.replicationFactor=2 -promscrape.cluster.memberNum=2 -promscrape.config=/path/to/config.yml ...
+```
+
+If each target is scraped by multiple `vmagent` instances, then data deduplication must be enabled at remote storage pointed by `-remoteWrite.url`.
+See [these docs](https://victoriametrics.github.io/#deduplication) for details.
 
 
 ## Monitoring
@@ -313,25 +326,29 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
   the url may contain sensitive information such as auth tokens or passwords.
   Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
 
-* If scrapes must be aligned in time (for instance, if they must be performed at the beginning of every hour), then set the `scrape_align_interval` option
-  in the corresponding scrape config. For example, the following config aligns hourly scrapes to the nearest 10 minutes:
+* By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at the beginning of some interval,
+  then `scrape_align_interval` option  must be used. For example, the following config aligns hourly scrapes to the beginning of hour:
 
   ```yml
   scrape_configs:
   - job_name: foo
     scrape_interval: 1h
-    scrape_align_interval: 10m
+    scrape_align_interval: 1h
+  ```
+
+* By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at specific offset, then `scrape_offset` option must be used.
+  For example, the following config instructs `vmagent` to scrape the target at 10 seconds of every minute:
+
+  ```yml
+  scrape_configs:
+  - job_name: foo
+    scrape_interval: 1m
+    scrape_offset: 10s
   ```
 
 * If you see `skipping duplicate scrape target with identical labels` errors when scraping Kubernetes pods, then it is likely these pods listen to multiple ports
   or they use an init container. These errors can either be fixed or suppressed with the `-promscrape.suppressDuplicateScrapeTargetErrors` command-line flag.
   See the available options below if you prefer fixing the root cause of the error:
-
-  The following `relabel_configs` section may help determining `__meta_*` labels resulting in duplicate targets:
-  ```yml
-  - action: labelmap
-    regex: __meta_(.*)
-  ```
 
   The following relabeling rule may be added to `relabel_configs` section in order to filter out pods with unneeded ports:
   ```yml
@@ -354,7 +371,7 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmagent` from the root folder of the repository.
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -383,7 +400,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.13.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of the repository.
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 

@@ -92,6 +92,9 @@ type ScrapeWork struct {
 	// The interval for aligning the first scrape.
 	ScrapeAlignInterval time.Duration
 
+	// The offset for the first scrape.
+	ScrapeOffset time.Duration
+
 	// The original 'job_name'
 	jobNameOriginal string
 }
@@ -102,9 +105,11 @@ type ScrapeWork struct {
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, ScrapeAlignInterval=%s",
+		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
+		"ScrapeAlignInterval=%s, ScrapeOffset=%s",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
-		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse, sw.ScrapeAlignInterval)
+		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
+		sw.ScrapeAlignInterval, sw.ScrapeOffset)
 	return key
 }
 
@@ -174,9 +179,14 @@ type scrapeWork struct {
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
-	scrapeInterval := sw.Config.ScrapeInterval
 	var randSleep uint64
-	if sw.Config.ScrapeAlignInterval <= 0 {
+	scrapeInterval := sw.Config.ScrapeInterval
+	scrapeAlignInterval := sw.Config.ScrapeAlignInterval
+	scrapeOffset := sw.Config.ScrapeOffset
+	if scrapeOffset > 0 {
+		scrapeAlignInterval = scrapeInterval
+	}
+	if scrapeAlignInterval <= 0 {
 		// Calculate start time for the first scrape from ScrapeURL and labels.
 		// This should spread load when scraping many targets with different
 		// scrape urls and labels.
@@ -191,8 +201,11 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}) {
 		}
 		randSleep -= sleepOffset
 	} else {
-		d := uint64(sw.Config.ScrapeAlignInterval)
+		d := uint64(scrapeAlignInterval)
 		randSleep = d - uint64(time.Now().UnixNano())%d
+		if scrapeOffset > 0 {
+			randSleep += uint64(scrapeOffset)
+		}
 		randSleep %= uint64(scrapeInterval)
 	}
 	timer := timerpool.Get(time.Duration(randSleep))
