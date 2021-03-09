@@ -12,6 +12,7 @@
 
 * BUGFIX: vmagent: prevent from high CPU usage bug during failing scrapes with small `scrape_timeout` (less than a few seconds).
 * BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct jobs by sharing the cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
+* BUGFUX: avoid `duplicate time series` error if `prometheus_buckets()` covers a time range with distinct set of buckets.
 * BUGFIX: prevent exponent overflow when processing extremely small values close to zero such as `2.964393875E-314`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1114
 
 
