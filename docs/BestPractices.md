@@ -20,19 +20,23 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
   It is safe to upgrade VictoriaMetrics to new versions unless the release notes say otherwise. It is safe to skip multiple versions during the upgrade unless release notes say otherwise. It is recommended to perform regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
 It is also safe to downgrade to the previous version unless release notes say otherwise.
 The following steps must be performed during the upgrade / downgrade process:
+
 		-Send SIGINT signal to VictoriaMetrics process so that it is stopped gracefully.
 		-Wait until the process stops. This can take a few seconds. 
 		-Start the upgraded VictoriaMetrics.
+		
 Prometheus doesn't drop data during theVictoriaMetrics restart. See this article for details.
  
 ## Security
   Do not forget to protect sensitive endpoints in VictoriaMetrics when exposing them to untrusted networks such as the internet. Please consider setting the following command-line flags:
+  
 		-tls, -tlsCertFile and -tlsKeyFile for switching from HTTP to HTTPS.
 		-httpAuth.username and -httpAuth.password for protecting all the HTTP endpoints with HTTP Basic Authentication.
 		-deleteAuthKey for protecting /api/v1/admin/tsdb/delete_series endpoint. See how to delete time series.
 		-snapshotAuthKey for protecting /snapshot* endpoints. See how to work with snapshots.
 		-forceMergeAuthKey for protecting /internal/force_merge endpoint. See force merge docs.
 		-search.resetCacheAuthKey for protecting /internal/resetRollupResultCache endpoint. See backfilling for more details.
+		
   Explicitly set internal network interface to TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats. For example, substitute -graphiteListenAddr=:2003 with -graphiteListenAddr=<internal_iface_ip>:2003.
 It is preferable to authorize all  incoming requests from untrusted networks with vmauth or a similar auth proxy.
 
