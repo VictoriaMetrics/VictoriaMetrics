@@ -47,6 +47,10 @@ type Endpoints struct {
 	Subsets  []EndpointSubset
 }
 
+func (eps *Endpoints) resourceVersion() string {
+	return eps.Metadata.ResourceVersion
+}
+
 // EndpointSubset implements k8s endpoint subset.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#endpointsubset-v1-core
