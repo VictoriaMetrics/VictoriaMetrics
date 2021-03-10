@@ -47,6 +47,10 @@ type Service struct {
 	Spec     ServiceSpec
 }
 
+func (s *Service) resourceVersion() string {
+	return s.Metadata.ResourceVersion
+}
+
 // ServiceSpec is k8s service spec.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#servicespec-v1-core

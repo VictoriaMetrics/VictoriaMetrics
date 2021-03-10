@@ -48,6 +48,10 @@ type Node struct {
 	Status   NodeStatus
 }
 
+func (n *Node) resourceVersion() string {
+	return n.Metadata.ResourceVersion
+}
+
 // NodeStatus represents NodeStatus from k8s API.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#nodestatus-v1-core

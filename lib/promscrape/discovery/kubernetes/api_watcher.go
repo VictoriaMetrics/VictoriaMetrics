@@ -31,6 +31,7 @@ type WatchEvent struct {
 type object interface {
 	key() string
 	getTargetLabels(aw *apiWatcher) []map[string]string
+	resourceVersion() string
 }
 
 // parseObjectFunc must parse object from the given data.
@@ -247,9 +248,9 @@ var reloadObjectsLocksByRole = map[string]*sync.Mutex{
 	"ingress":        {},
 }
 
-func (uw *urlWatcher) resetResourceVersion() {
+func (uw *urlWatcher) setResourceVersion(resourceVersion string) {
 	uw.mu.Lock()
-	uw.resourceVersion = ""
+	uw.resourceVersion = resourceVersion
 	uw.mu.Unlock()
 }
 
@@ -339,7 +340,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		delimiter = "&"
 	}
 	timeoutSeconds := time.Duration(0.9 * float64(aw.client.Timeout)).Seconds()
-	apiURL += delimiter + "watch=1&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
+	apiURL += delimiter + "watch=1&allowWatchBookmarks=true&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
 	for {
 		if aw.needStop() {
 			return
@@ -356,7 +357,6 @@ func (uw *urlWatcher) watchForUpdates() {
 			}
 			logger.Errorf("error when performing a request to %q: %s", requestURL, err)
 			backoffSleep()
-			uw.resetResourceVersion()
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -366,10 +366,10 @@ func (uw *urlWatcher) watchForUpdates() {
 			if resp.StatusCode == 410 {
 				// There is no need for sleep on 410 error. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
 				backoffDelay = time.Second
+				uw.setResourceVersion("")
 			} else {
 				backoffSleep()
 			}
-			uw.resetResourceVersion()
 			continue
 		}
 		backoffDelay = time.Second
@@ -383,7 +383,6 @@ func (uw *urlWatcher) watchForUpdates() {
 				logger.Errorf("error when reading WatchEvent stream from %q: %s", requestURL, err)
 			}
 			backoffSleep()
-			uw.resetResourceVersion()
 			continue
 		}
 	}
@@ -420,6 +419,9 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			uw.mu.Lock()
 			delete(uw.swosByKey, key)
 			uw.mu.Unlock()
+		case "BOOKMARK":
+			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
+			uw.setResourceVersion(o.resourceVersion())
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q for role %q", we.Type, uw.role)
 		}
