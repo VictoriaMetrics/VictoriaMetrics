@@ -332,7 +332,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		up 0 123
 		scrape_samples_scraped 2 123
 		scrape_duration_seconds 0 123
-		scrape_samples_post_metric_relabeling 0 123
+		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 0 123
 	`)
 }

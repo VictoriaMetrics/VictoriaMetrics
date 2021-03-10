@@ -6,11 +6,18 @@
   - `histogram_avg(buckets)` - returns the average value for the given buckets.
   - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
   - `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
+* FEATURE: reduce median query duration by up to 2x. See https://github.com/VictoriaMetrics/VictoriaMetrics/commit/18fe0ff14bc78860c5569e2b70de1db78fac61be
+* FEATURE: export `vm_available_memory_bytes` and `vm_available_cpu_cores` metrics, which show the number of available RAM and available CPU cores for VictoriaMetrics apps.
 * FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets).
 * FATURE: vmagent: accept `scrape_offset` option at `scrape_config`. This option may be useful when scrapes must start at the specified offset of every scrape interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
 * FEATURE: vmauth: allow using regexp paths in `url_map`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1112) for details.
 
-* BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct jobs by sharing the cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
+* BUGFIX: vmagent: prevent from high CPU usage bug during failing scrapes with small `scrape_timeout` (less than a few seconds).
+* BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct scrape config jobs by sharing Kubernetes object cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
+* BUGFIX: vmagent: apply `sample_limit` only after `metric_relabel_configs` are applied as Prometheus does. Previously the `sample_limit` was applied before metrics relabeling.
+* BUGFIX: vmagent: properly apply `tls_config`, `basic_auth` and `bearer_token` to proxy connections if `proxy_url` option is set. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116
+* BUGFIX: vmagent: properly scrape targets via https proxy specified in `proxy_url` if `insecure_skip_verify` flag isn't set in `tls_config` section. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116
+* BUGFUX: avoid `duplicate time series` error if `prometheus_buckets()` covers a time range with distinct set of buckets.
 * BUGFIX: prevent exponent overflow when processing extremely small values close to zero such as `2.964393875E-314`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1114
 
 
@@ -385,7 +392,7 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
   See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/807
 
 * BUGFIX: properly handle `inf` values during [background merge of LSM parts](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-  Previously `Inf` values could result in `NaN` values for adjancent samples in time series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805 .
+  Previously `Inf` values could result in `NaN` values for adjacent samples in time series. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/805 .
 * BUGFIX: fill gaps on graphs for `range_*` and `running_*` functions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/806 .
 * BUGFIX: make a copy of label with new name during relabeling with `action: labelmap` in the same way as Prometheus does.
   Previously the original label name has been replaced. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/812 .

@@ -518,6 +518,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		sort.Slice(xss, func(i, j int) bool { return xss[i].end < xss[j].end })
 		xssNew := make([]x, 0, len(xss)+2)
 		var xsPrev x
+		uniqTs := make(map[string]*timeseries, len(xss))
 		for _, xs := range xss {
 			ts := xs.ts
 			if isZeroTS(ts) {
@@ -525,7 +526,8 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 				xsPrev = xs
 				continue
 			}
-			if xs.start != xsPrev.end {
+			if xs.start != xsPrev.end && uniqTs[xs.startStr] == nil {
+				uniqTs[xs.startStr] = xs.ts
 				xssNew = append(xssNew, x{
 					endStr: xs.startStr,
 					end:    xs.start,
@@ -533,7 +535,14 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 				})
 			}
 			ts.MetricName.AddTag("le", xs.endStr)
-			xssNew = append(xssNew, xs)
+			prevTs := uniqTs[xs.endStr]
+			if prevTs != nil {
+				// the end of the current bucket is not unique, need to merge it with the existing bucket.
+				mergeNonOverlappingTimeseries(prevTs, xs.ts)
+			} else {
+				xssNew = append(xssNew, xs)
+				uniqTs[xs.endStr] = xs.ts
+			}
 			xsPrev = xs
 		}
 		if !math.IsInf(xsPrev.end, 1) {

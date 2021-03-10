@@ -1412,7 +1412,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 	rows = rows[:rowsLen+len(mrs)]
 	j := 0
 	var (
-		// These vars are used for speeding up bulk imports of multiple adjancent rows for the same metricName.
+		// These vars are used for speeding up bulk imports of multiple adjacent rows for the same metricName.
 		prevTSID          TSID
 		prevMetricNameRaw []byte
 	)
@@ -1626,7 +1626,7 @@ func (s *Storage) updatePerDateData(rows []rawRow) error {
 	var hour uint64
 	var prevTimestamp int64
 	var (
-		// These vars are used for speeding up bulk imports when multiple adjancent rows
+		// These vars are used for speeding up bulk imports when multiple adjacent rows
 		// contain the same (metricID, date) pairs.
 		prevDate     uint64
 		prevMetricID uint64
