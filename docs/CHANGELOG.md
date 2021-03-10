@@ -7,6 +7,7 @@
   - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
   - `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
 * FEATURE: reduce median query duration by up to 2x. See https://github.com/VictoriaMetrics/VictoriaMetrics/commit/18fe0ff14bc78860c5569e2b70de1db78fac61be
+* FEATURE: export `vm_available_memory_bytes` and `vm_available_cpu_cores` metrics, which show the number of available RAM and available CPU cores for VictoriaMetrics apps.
 * FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets).
 * FATURE: vmagent: accept `scrape_offset` option at `scrape_config`. This option may be useful when scrapes must start at the specified offset of every scrape interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
 * FEATURE: vmauth: allow using regexp paths in `url_map`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1112) for details.
