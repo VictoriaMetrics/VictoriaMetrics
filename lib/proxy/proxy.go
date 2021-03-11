@@ -57,7 +57,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	}
 	pu := u.url
 	if pu.Scheme != "http" && pu.Scheme != "https" {
-		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http or https", pu.Scheme, pu)
+		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http or https", pu.Scheme, pu.Redacted())
 	}
 	isTLS := pu.Scheme == "https"
 	proxyAddr := addMissingPort(pu.Host, isTLS)
@@ -76,7 +76,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	dialFunc := func(addr string) (net.Conn, error) {
 		proxyConn, err := defaultDialFunc(proxyAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu, err)
+			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu.Redacted(), err)
 		}
 		if isTLS {
 			tlsCfgLocal := tlsCfg
@@ -89,7 +89,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {
 			_ = proxyConn.Close()
-			return nil, fmt.Errorf("error when sending CONNECT request to proxy %q: %w", pu, err)
+			return nil, fmt.Errorf("error when sending CONNECT request to proxy %q: %w", pu.Redacted(), err)
 		}
 		return conn, nil
 	}
