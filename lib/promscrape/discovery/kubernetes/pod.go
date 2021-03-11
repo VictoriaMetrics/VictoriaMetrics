@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -13,10 +14,11 @@ func (p *Pod) key() string {
 	return p.Metadata.key()
 }
 
-func parsePodList(data []byte) (map[string]object, ListMeta, error) {
+func parsePodList(r io.Reader) (map[string]object, ListMeta, error) {
 	var pl PodList
-	if err := json.Unmarshal(data, &pl); err != nil {
-		return nil, pl.Metadata, fmt.Errorf("cannot unmarshal PodList from %q: %w", data, err)
+	d := json.NewDecoder(r)
+	if err := d.Decode(&pl); err != nil {
+		return nil, pl.Metadata, fmt.Errorf("cannot unmarshal PodList: %w", err)
 	}
 	objectsByKey := make(map[string]object)
 	for _, p := range pl.Items {

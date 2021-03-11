@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"bytes"
 	"reflect"
 	"sort"
 	"strconv"
@@ -13,7 +14,8 @@ import (
 func TestParseNodeListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		objectsByKey, _, err := parseNodeList([]byte(s))
+		r := bytes.NewBufferString(s)
+		objectsByKey, _, err := parseNodeList(r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -229,7 +231,8 @@ func TestParseNodeListSuccess(t *testing.T) {
   ]
 }
 `
-	objectsByKey, meta, err := parseNodeList([]byte(data))
+	r := bytes.NewBufferString(data)
+	objectsByKey, meta, err := parseNodeList(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
