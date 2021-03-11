@@ -160,3 +160,15 @@ func TestGetAPIPaths(t *testing.T) {
 		"/apis/networking.k8s.io/v1beta1/namespaces/y/ingresses?labelSelector=cde%2Cbaaa&fieldSelector=abc",
 	})
 }
+
+func TestParseBookmark(t *testing.T) {
+	data := `{"kind": "Pod", "apiVersion": "v1", "metadata": {"resourceVersion": "12746"} }`
+	bm, err := parseBookmark([]byte(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	expectedResourceVersion := "12746"
+	if bm.Metadata.ResourceVersion != expectedResourceVersion {
+		t.Fatalf("unexpected resourceVersion; got %q; want %q", bm.Metadata.ResourceVersion, expectedResourceVersion)
+	}
+}

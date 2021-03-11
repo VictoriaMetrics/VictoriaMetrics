@@ -50,10 +50,6 @@ type Pod struct {
 	Status   PodStatus
 }
 
-func (p *Pod) resourceVersion() string {
-	return p.Metadata.ResourceVersion
-}
-
 // PodSpec implements k8s pod spec.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podspec-v1-core
