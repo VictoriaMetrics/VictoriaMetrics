@@ -31,7 +31,6 @@ type WatchEvent struct {
 type object interface {
 	key() string
 	getTargetLabels(aw *apiWatcher) []map[string]string
-	resourceVersion() string
 }
 
 // parseObjectFunc must parse object from the given data.
@@ -397,13 +396,13 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 		if err := d.Decode(&we); err != nil {
 			return err
 		}
-		o, err := uw.parseObject(we.Object)
-		if err != nil {
-			return err
-		}
-		key := o.key()
 		switch we.Type {
 		case "ADDED", "MODIFIED":
+			o, err := uw.parseObject(we.Object)
+			if err != nil {
+				return err
+			}
+			key := o.key()
 			uw.objectsByKey.update(key, o)
 			labels := o.getTargetLabels(aw)
 			swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
@@ -415,17 +414,42 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			}
 			uw.mu.Unlock()
 		case "DELETED":
+			o, err := uw.parseObject(we.Object)
+			if err != nil {
+				return err
+			}
+			key := o.key()
 			uw.objectsByKey.remove(key)
 			uw.mu.Lock()
 			delete(uw.swosByKey, key)
 			uw.mu.Unlock()
 		case "BOOKMARK":
 			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
-			uw.setResourceVersion(o.resourceVersion())
+			bm, err := parseBookmark(we.Object)
+			if err != nil {
+				return fmt.Errorf("cannot parse bookmark from %q: %w", we.Object, err)
+			}
+			uw.setResourceVersion(bm.Metadata.ResourceVersion)
 		default:
 			return fmt.Errorf("unexpected WatchEvent type %q for role %q", we.Type, uw.role)
 		}
 	}
+}
+
+// Bookmark is a bookmark from Kubernetes Watch API.
+// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
+type Bookmark struct {
+	Metadata struct {
+		ResourceVersion string
+	}
+}
+
+func parseBookmark(data []byte) (*Bookmark, error) {
+	var bm Bookmark
+	if err := json.Unmarshal(data, &bm); err != nil {
+		return nil, err
+	}
+	return &bm, nil
 }
 
 func getAPIPaths(role string, namespaces []string, selectors []Selector) []string {

@@ -8,7 +8,6 @@ import (
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#objectmeta-v1-meta
 type ObjectMeta struct {
-	ResourceVersion string
 	Name            string
 	Namespace       string
 	UID             string

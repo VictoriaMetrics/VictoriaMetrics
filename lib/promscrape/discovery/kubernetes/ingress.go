@@ -45,10 +45,6 @@ type Ingress struct {
 	Spec     IngressSpec
 }
 
-func (ig *Ingress) resourceVersion() string {
-	return ig.Metadata.ResourceVersion
-}
-
 // IngressSpec represents ingress spec in k8s.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#ingressspec-v1beta1-extensions
