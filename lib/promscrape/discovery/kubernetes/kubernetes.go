@@ -48,12 +48,7 @@ func (sdc *SDConfig) GetScrapeWorkObjects(baseDir string, swcFunc ScrapeWorkCons
 	if err != nil {
 		return nil, fmt.Errorf("cannot create API config: %w", err)
 	}
-	switch sdc.Role {
-	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
-		return cfg.aw.getScrapeWorkObjectsForRole(sdc.Role), nil
-	default:
-		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`; skipping it", sdc.Role)
-	}
+	return cfg.aw.getScrapeWorkObjects(), nil
 }
 
 // MustStop stops further usage for sdc.

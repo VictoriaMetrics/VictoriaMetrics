@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
@@ -11,10 +12,11 @@ func (s *Service) key() string {
 	return s.Metadata.key()
 }
 
-func parseServiceList(data []byte) (map[string]object, ListMeta, error) {
+func parseServiceList(r io.Reader) (map[string]object, ListMeta, error) {
 	var sl ServiceList
-	if err := json.Unmarshal(data, &sl); err != nil {
-		return nil, sl.Metadata, fmt.Errorf("cannot unmarshal ServiceList from %q: %w", data, err)
+	d := json.NewDecoder(r)
+	if err := d.Decode(&sl); err != nil {
+		return nil, sl.Metadata, fmt.Errorf("cannot unmarshal ServiceList: %w", err)
 	}
 	objectsByKey := make(map[string]object)
 	for _, s := range sl.Items {

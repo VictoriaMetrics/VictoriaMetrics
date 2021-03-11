@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -12,10 +13,11 @@ func (eps *EndpointSlice) key() string {
 	return eps.Metadata.key()
 }
 
-func parseEndpointSliceList(data []byte) (map[string]object, ListMeta, error) {
+func parseEndpointSliceList(r io.Reader) (map[string]object, ListMeta, error) {
 	var epsl EndpointSliceList
-	if err := json.Unmarshal(data, &epsl); err != nil {
-		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointSliceList from %q: %w", data, err)
+	d := json.NewDecoder(r)
+	if err := d.Decode(&epsl); err != nil {
+		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointSliceList: %w", err)
 	}
 	objectsByKey := make(map[string]object)
 	for _, eps := range epsl.Items {
