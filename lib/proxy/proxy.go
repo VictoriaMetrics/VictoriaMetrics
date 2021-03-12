@@ -93,19 +93,21 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	if authHeader != "" {
 		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 	}
-	tlsCfg := ac.NewTLSConfig()
+	var tlsCfg *tls.Config
+	if isTLS {
+		tlsCfg = ac.NewTLSConfig()
+		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
+			tlsCfg = tlsCfg.Clone()
+			tlsCfg.ServerName = tlsServerName(proxyAddr)
+		}
+	}
 	dialFunc := func(addr string) (net.Conn, error) {
 		proxyConn, err := defaultDialFunc(proxyAddr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu.Redacted(), err)
 		}
 		if isTLS {
-			tlsCfgLocal := tlsCfg
-			if !tlsCfgLocal.InsecureSkipVerify && tlsCfgLocal.ServerName == "" {
-				tlsCfgLocal = tlsCfgLocal.Clone()
-				tlsCfgLocal.ServerName = tlsServerName(addr)
-			}
-			proxyConn = tls.Client(proxyConn, tlsCfgLocal)
+			proxyConn = tls.Client(proxyConn, tlsCfg)
 		}
 		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {
