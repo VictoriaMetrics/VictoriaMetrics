@@ -60,12 +60,21 @@ type apiWatcher struct {
 	swosByKey     map[string][]interface{}
 	swosByKeyLock sync.Mutex
 
-	// a map of watchers keyed by request urls
-	watchersByURL     map[string]*urlWatcher
-	watchersByURLLock sync.Mutex
+	// a map of watchers keyed by role and request urls
+	watchersURLByRole map[string]map[string]*urlWatcher
+	//	watchersURLByRole sync.Mutex by role
+	watcherURLByRoleLocks map[string]*sync.Mutex
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
+}
+
+func (aw *apiWatcher) lockUWByRole(role string) {
+	aw.watcherURLByRoleLocks[role].Lock()
+}
+
+func (aw *apiWatcher) unLockUWByRole(role string) {
+	aw.watcherURLByRoleLocks[role].Unlock()
 }
 
 func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc ScrapeWorkConstructorFunc) *apiWatcher {
@@ -75,8 +84,23 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 		sdc:       sdc,
 		swcFunc:   swcFunc,
 
-		swosByKey:     make(map[string][]interface{}),
-		watchersByURL: make(map[string]*urlWatcher),
+		swosByKey: make(map[string][]interface{}),
+		watchersURLByRole: map[string]map[string]*urlWatcher{
+			"pod":            {},
+			"service":        {},
+			"endpoints":      {},
+			"ingress":        {},
+			"endpointslices": {},
+			"node":           {},
+		},
+		watcherURLByRoleLocks: map[string]*sync.Mutex{
+			"pod":            {},
+			"service":        {},
+			"endpoints":      {},
+			"ingress":        {},
+			"endpointslices": {},
+			"node":           {},
+		},
 
 		stopCh: make(chan struct{}),
 	}
@@ -155,13 +179,10 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 	}
 	key := namespace + "/" + name
 	aw.startWatchersForRole(role)
-	aw.watchersByURLLock.Lock()
-	defer aw.watchersByURLLock.Unlock()
+	aw.lockUWByRole(role)
+	defer aw.unLockUWByRole(role)
 
-	for _, uw := range aw.watchersByURL {
-		if uw.role != role {
-			continue
-		}
+	for _, uw := range aw.watchersURLByRole[role] {
 		uw.mu.Lock()
 		o := uw.objectsByKey[key]
 		uw.mu.Unlock()
@@ -181,25 +202,25 @@ func (aw *apiWatcher) startWatchersForRole(role string) {
 }
 
 func (aw *apiWatcher) startWatcherForURL(role, apiURL string) {
-	aw.watchersByURLLock.Lock()
-	if aw.watchersByURL[apiURL] != nil {
-		// Watcher for the given path already exists.
-		aw.watchersByURLLock.Unlock()
+	aw.lockUWByRole(role)
+	if aw.watchersURLByRole[role][apiURL] != nil {
+		aw.unLockUWByRole(role)
 		return
 	}
+
 	uw := getURLWatcher(role, apiURL, aw.sdc.ProxyURL.URL(), aw.ac)
 	uw.addAPIWatcher(aw)
-	aw.watchersByURL[apiURL] = uw
-	aw.watchersByURLLock.Unlock()
+	aw.watchersURLByRole[role][apiURL] = uw
+	aw.unLockUWByRole(role)
 
 	aw.wg.Add(1)
 	go func() {
 		defer aw.wg.Done()
 		<-aw.stopCh
-		aw.watchersByURLLock.Lock()
+		aw.lockUWByRole(role)
 		uw.removeAPIWatcher(aw)
-		delete(aw.watchersByURL, apiURL)
-		aw.watchersByURLLock.Unlock()
+		delete(aw.watchersURLByRole[role], apiURL)
+		aw.unLockUWByRole(role)
 	}()
 }
 
@@ -291,13 +312,9 @@ func (uw *urlWatcher) addAPIWatcher(aw *apiWatcher) {
 		logger.Panicf("BUG: aw=%p has been already added", aw)
 	}
 	uw.aws[aw] = struct{}{}
-	objectsByKey := make(map[string]object)
-	for key, o := range uw.objectsByKey {
-		objectsByKey[key] = o
-	}
+	aw.reloadScrapeWorks(uw.objectsByKey)
 	uw.mu.Unlock()
 
-	aw.reloadScrapeWorks(objectsByKey)
 }
 
 func (uw *urlWatcher) removeAPIWatcher(aw *apiWatcher) {
