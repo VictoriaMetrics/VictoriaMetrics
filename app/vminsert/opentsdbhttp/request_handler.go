@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdb-http"}`)
+	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdbhttp"}`)
 	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="opentsdbhttp"}`)
 )
 
