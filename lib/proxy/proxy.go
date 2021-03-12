@@ -97,7 +97,6 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	if isTLS {
 		tlsCfg = ac.NewTLSConfig()
 		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
-			tlsCfg = tlsCfg.Clone()
 			tlsCfg.ServerName = tlsServerName(proxyAddr)
 		}
 	}
