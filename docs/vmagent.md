@@ -255,6 +255,41 @@ If each target is scraped by multiple `vmagent` instances, then data deduplicati
 See [these docs](https://victoriametrics.github.io/#deduplication) for details.
 
 
+## Scraping targets via a proxy
+
+`vmagent` supports scraping targets via http and https proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
+target scraping via https proxy at `https://proxy-addr:1234`:
+
+```yml
+scrape_configs:
+- job_name: foo
+  proxy_url: https://proxy-addr:1234
+```
+
+Proxy can be configured with the following optional settings:
+
+* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
+* `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
+
+For example:
+
+```yml
+scrape_configs:
+- job_name: foo
+  proxy_url: https://proxy-addr:1234
+  proxy_basic_auth:
+    username: foobar
+    password: secret
+  proxy_tls_config:
+    insecure_skip_verify: true
+    cert_file: /path/to/cert
+    key_file: /path/to/key
+    ca_file: /path/to/ca
+    server_name: real-server-name
+```
+
+
 ## Monitoring
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. We recommend setting up regular scraping of this page

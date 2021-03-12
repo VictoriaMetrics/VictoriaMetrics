@@ -67,7 +67,7 @@ func newClient(sw *ScrapeWork) *client {
 			host += ":443"
 		}
 	}
-	dialFunc, err := newStatDialFunc(sw.ProxyURL, sw.AuthConfig)
+	dialFunc, err := newStatDialFunc(sw.ProxyURL, sw.ProxyAuthConfig)
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
