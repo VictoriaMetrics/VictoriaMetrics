@@ -968,6 +968,11 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		start -= offset
 		end := start
 		start = end - window
+		// Do not includ data point with a timestamp matching the lower boundary of the window as Prometheus does.
+		start++
+		if end < start {
+			end = start
+		}
 		if err := exportHandler(w, []string{childQuery}, etf, start, end, "promapi", 0, false, deadline); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
