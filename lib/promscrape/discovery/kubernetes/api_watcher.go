@@ -207,11 +207,9 @@ func getURLWatcher(role, apiURL string, proxyURL *url.URL, ac *promauth.Config) 
 	key := fmt.Sprintf("url=%s, proxyURL=%v, authConfig=%s", apiURL, proxyURL, ac.String())
 	urlWatchersLock.Lock()
 	uw := urlWatchers[key]
-	logger.Infof("found watcher for key=%s", key)
 	if uw == nil {
 		uw = newURLWatcher(role, apiURL, proxyURL, ac)
 		urlWatchers[key] = uw
-		logger.Infof("registered watcher for key=%s", key)
 	}
 	urlWatchersLock.Unlock()
 	return uw
