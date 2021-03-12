@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 func TestNeedSkipScrapeWork(t *testing.T) {
@@ -154,6 +155,7 @@ scrape_configs:
 			},
 		},
 		AuthConfig:      &promauth.Config{},
+		ProxyAuthConfig: &promauth.Config{},
 		jobNameOriginal: "blackbox",
 	}}
 	if !reflect.DeepEqual(sws, swsExpected) {
@@ -548,6 +550,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 		{
@@ -587,6 +590,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 		{
@@ -626,6 +630,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -679,6 +684,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -729,6 +735,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -748,6 +755,10 @@ scrape_configs:
     p: ["x&y", "="]
     xaa:
   bearer_token: xyz
+  proxy_url: http://foo.bar
+  proxy_basic_auth:
+    username: foo
+    password: bar
   static_configs:
   - targets: ["foo.bar", "aaa"]
     labels:
@@ -801,6 +812,10 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer xyz",
 			},
+			ProxyAuthConfig: &promauth.Config{
+				Authorization: "Basic Zm9vOmJhcg==",
+			},
+			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
 		{
@@ -842,6 +857,10 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer xyz",
 			},
+			ProxyAuthConfig: &promauth.Config{
+				Authorization: "Basic Zm9vOmJhcg==",
+			},
+			ProxyURL:        proxy.MustNewURL("http://foo.bar"),
 			jobNameOriginal: "foo",
 		},
 		{
@@ -877,6 +896,7 @@ scrape_configs:
 				TLSServerName:         "foobar",
 				TLSInsecureSkipVerify: true,
 			},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "qwer",
 		},
 	})
@@ -955,6 +975,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1017,6 +1038,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1060,6 +1082,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1099,7 +1122,8 @@ scrape_configs:
 					Value: "foo",
 				},
 			},
-			AuthConfig: &promauth.Config{},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			MetricRelabelConfigs: mustParseRelabelConfigs(`
 - source_labels: [foo]
   target_label: abc
@@ -1145,6 +1169,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Basic eHl6OnNlY3JldC1wYXNz",
 			},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1184,6 +1209,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				Authorization: "Bearer secret-pass",
 			},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1229,6 +1255,7 @@ scrape_configs:
 			AuthConfig: &promauth.Config{
 				TLSCertificate: &snakeoilCert,
 			},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1291,6 +1318,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "aaa",
 		},
 	})
@@ -1352,6 +1380,7 @@ scrape_configs:
 				},
 			},
 			AuthConfig:          &promauth.Config{},
+			ProxyAuthConfig:     &promauth.Config{},
 			SampleLimit:         100,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,
@@ -1398,6 +1427,7 @@ scrape_configs:
 			},
 			jobNameOriginal: "path wo slash",
 			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
 		},
 	})
 }
