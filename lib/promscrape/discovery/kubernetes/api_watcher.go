@@ -132,7 +132,7 @@ func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []
 
 // getScrapeWorkObjects returns all the ScrapeWork objects for the given aw.
 func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
-	aw.startWatchersForRole(aw.sdc.Role)
+	aw.startWatchersForRole(aw.sdc.Role, true)
 	aw.swosByKeyLock.Lock()
 	defer aw.swosByKeyLock.Unlock()
 
@@ -154,7 +154,7 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 		return nil
 	}
 	key := namespace + "/" + name
-	aw.startWatchersForRole(role)
+	aw.startWatchersForRole(role, false)
 	aw.watchersByURLLock.Lock()
 	defer aw.watchersByURLLock.Unlock()
 
@@ -172,15 +172,15 @@ func (aw *apiWatcher) getObjectByRole(role, namespace, name string) object {
 	return nil
 }
 
-func (aw *apiWatcher) startWatchersForRole(role string) {
+func (aw *apiWatcher) startWatchersForRole(role string, registerAPIWatcher bool) {
 	paths := getAPIPaths(role, aw.sdc.Namespaces.Names, aw.sdc.Selectors)
 	for _, path := range paths {
 		apiURL := aw.apiServer + path
-		aw.startWatcherForURL(role, apiURL)
+		aw.startWatcherForURL(role, apiURL, registerAPIWatcher)
 	}
 }
 
-func (aw *apiWatcher) startWatcherForURL(role, apiURL string) {
+func (aw *apiWatcher) startWatcherForURL(role, apiURL string, registerAPIWatcher bool) {
 	aw.watchersByURLLock.Lock()
 	if aw.watchersByURL[apiURL] != nil {
 		// Watcher for the given path already exists.
@@ -188,16 +188,21 @@ func (aw *apiWatcher) startWatcherForURL(role, apiURL string) {
 		return
 	}
 	uw := getURLWatcher(role, apiURL, aw.sdc.ProxyURL.URL(), aw.ac)
-	uw.addAPIWatcher(aw)
 	aw.watchersByURL[apiURL] = uw
 	aw.watchersByURLLock.Unlock()
+	uw.initOnce()
+	if registerAPIWatcher {
+		uw.addAPIWatcher(aw)
+	}
 
 	aw.wg.Add(1)
 	go func() {
 		defer aw.wg.Done()
 		<-aw.stopCh
+		if registerAPIWatcher {
+			uw.removeAPIWatcher(aw)
+		}
 		aw.watchersByURLLock.Lock()
-		uw.removeAPIWatcher(aw)
 		delete(aw.watchersByURL, apiURL)
 		aw.watchersByURLLock.Unlock()
 	}()
@@ -229,6 +234,9 @@ type urlWatcher struct {
 
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
+
+	// once is used for initializing the urlWatcher only once
+	once sync.Once
 
 	// mu protects aws, objectsByKey and resourceVersion
 	mu sync.Mutex
@@ -280,9 +288,14 @@ func newURLWatcher(role, apiURL string, proxyURL *url.URL, ac *promauth.Config) 
 		objectsRemoved: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_removed_total{role=%q}`, role)),
 		objectsUpdated: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_updated_total{role=%q}`, role)),
 	}
-	uw.reloadObjects()
-	go uw.watchForUpdates()
 	return uw
+}
+
+func (uw *urlWatcher) initOnce() {
+	uw.once.Do(func() {
+		uw.reloadObjects()
+		go uw.watchForUpdates()
+	})
 }
 
 func (uw *urlWatcher) addAPIWatcher(aw *apiWatcher) {
@@ -291,13 +304,8 @@ func (uw *urlWatcher) addAPIWatcher(aw *apiWatcher) {
 		logger.Panicf("BUG: aw=%p has been already added", aw)
 	}
 	uw.aws[aw] = struct{}{}
-	objectsByKey := make(map[string]object)
-	for key, o := range uw.objectsByKey {
-		objectsByKey[key] = o
-	}
+	aw.reloadScrapeWorks(uw.objectsByKey)
 	uw.mu.Unlock()
-
-	aw.reloadScrapeWorks(objectsByKey)
 }
 
 func (uw *urlWatcher) removeAPIWatcher(aw *apiWatcher) {
@@ -425,7 +433,7 @@ func (uw *urlWatcher) watchForUpdates() {
 		}
 		resp, err := uw.doRequest(requestURL)
 		if err != nil {
-			logger.Errorf("cannot performing request to %q: %s", requestURL, err)
+			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
 			backoffSleep()
 			continue
 		}
