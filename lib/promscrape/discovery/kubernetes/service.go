@@ -71,7 +71,7 @@ type ServicePort struct {
 // getTargetLabels returns labels for each port of the given s.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#service
-func (s *Service) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (s *Service) getTargetLabels(gw *groupWatcher) []map[string]string {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
 	var ms []map[string]string
 	for _, sp := range s.Spec.Ports {

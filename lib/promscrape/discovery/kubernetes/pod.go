@@ -97,7 +97,7 @@ type PodCondition struct {
 // getTargetLabels returns labels for each port of the given p.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#pod
-func (p *Pod) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (p *Pod) getTargetLabels(gw *groupWatcher) []map[string]string {
 	if len(p.Status.PodIP) == 0 {
 		// Skip pod without IP
 		return nil

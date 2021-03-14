@@ -87,7 +87,7 @@ type HTTPIngressPath struct {
 // getTargetLabels returns labels for ig.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
-func (ig *Ingress) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (ig *Ingress) getTargetLabels(gw *groupWatcher) []map[string]string {
 	tlsHosts := make(map[string]bool)
 	for _, tls := range ig.Spec.TLS {
 		for _, host := range tls.Hosts {
