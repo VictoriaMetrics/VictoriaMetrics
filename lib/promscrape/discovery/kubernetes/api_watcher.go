@@ -490,10 +490,11 @@ func (uw *urlWatcher) watchForUpdates() {
 	apiURL += delimiter + "watch=1&allowWatchBookmarks=true&timeoutSeconds=" + strconv.Itoa(int(timeoutSeconds))
 	for {
 		resourceVersion := uw.reloadObjects()
-		requestURL := apiURL
-		if resourceVersion != "" {
-			requestURL += "&resourceVersion=" + url.QueryEscape(resourceVersion)
+		if resourceVersion == "" {
+			backoffSleep()
+			continue
 		}
+		requestURL := apiURL + "&resourceVersion=" + url.QueryEscape(resourceVersion)
 		resp, err := uw.gw.doRequest(requestURL)
 		if err != nil {
 			logger.Errorf("cannot perform request to %q: %s", requestURL, err)
