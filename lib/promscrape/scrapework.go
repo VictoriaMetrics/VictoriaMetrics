@@ -294,10 +294,22 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	srcRows := wc.rows.Rows
 	samplesScraped := len(srcRows)
 	scrapedSamples.Update(float64(samplesScraped))
+	samplesPostRelabeling := 0
 	for i := range srcRows {
 		sw.addRowToTimeseries(wc, &srcRows[i], scrapeTimestamp, true)
+		if len(wc.labels) > 40000 {
+			// Limit the maximum size of wc.writeRequest.
+			// This should reduce memory usage when scraping targets with millions of metrics and/or labels.
+			// For example, when scraping /federate handler from Prometheus - see https://prometheus.io/docs/prometheus/latest/federation/
+			samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+			sw.updateSeriesAdded(wc)
+			startTime := time.Now()
+			sw.PushData(&wc.writeRequest)
+			pushDataDuration.UpdateDuration(startTime)
+			wc.resetNoRows()
+		}
 	}
-	samplesPostRelabeling := len(wc.writeRequest.Timeseries)
+	samplesPostRelabeling += len(wc.writeRequest.Timeseries)
 	if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
 		wc.resetNoRows()
 		up = 0
