@@ -90,17 +90,17 @@ type EndpointPort struct {
 // getTargetLabels returns labels for each endpoint in eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-func (eps *Endpoints) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
 	var svc *Service
-	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+	if o := gw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
 	var ms []map[string]string
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
-			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
-			ms = appendEndpointLabelsForAddresses(ms, aw, podPortsSeen, eps, ess.NotReadyAddresses, epp, svc, "false")
+			ms = appendEndpointLabelsForAddresses(ms, gw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
+			ms = appendEndpointLabelsForAddresses(ms, gw, podPortsSeen, eps, ess.NotReadyAddresses, epp, svc, "false")
 		}
 	}
 
@@ -135,11 +135,11 @@ func (eps *Endpoints) getTargetLabels(aw *apiWatcher) []map[string]string {
 	return ms
 }
 
-func appendEndpointLabelsForAddresses(ms []map[string]string, aw *apiWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
+func appendEndpointLabelsForAddresses(ms []map[string]string, gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
 	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []map[string]string {
 	for _, ea := range eas {
 		var p *Pod
-		if o := aw.getObjectByRole("pod", ea.TargetRef.Namespace, ea.TargetRef.Name); o != nil {
+		if o := gw.getObjectByRole("pod", ea.TargetRef.Namespace, ea.TargetRef.Name); o != nil {
 			p = o.(*Pod)
 		}
 		m := getEndpointLabelsForAddressAndPort(podPortsSeen, eps, ea, epp, p, svc, ready)

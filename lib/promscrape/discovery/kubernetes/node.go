@@ -76,7 +76,7 @@ type NodeDaemonEndpoints struct {
 // getTargetLabels returs labels for the given n.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#node
-func (n *Node) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (n *Node) getTargetLabels(gw *groupWatcher) []map[string]string {
 	addr := getNodeAddr(n.Status.Addresses)
 	if len(addr) == 0 {
 		// Skip node without address
