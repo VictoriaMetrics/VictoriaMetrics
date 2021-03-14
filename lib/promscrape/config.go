@@ -251,7 +251,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 				target := metaLabels["__address__"]
 				sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 				if err != nil {
-					logger.Errorf("cannot create kubernetes_sd_config target target %q for job_name %q: %s", target, sc.swc.jobName, err)
+					logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
 					return nil
 				}
 				return sw
