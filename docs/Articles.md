@@ -28,6 +28,7 @@
 * [Tame Kubernetes Costs with Percona Monitoring and Management and Prometheus Operator](https://www.percona.com/blog/2021/02/12/tame-kubernetes-costs-with-percona-monitoring-and-management-and-prometheus-operator/)
 * [Prometheus Victoria Metrics On AWS ECS](https://dalefro.medium.com/prometheus-victoria-metrics-on-aws-ecs-62448e266090)
 * [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-alertmanager)
+* [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
 
 
 ## Our articles
