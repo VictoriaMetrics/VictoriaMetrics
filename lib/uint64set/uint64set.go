@@ -835,19 +835,22 @@ func (b *bucket16) copyTo(dst *bucket16) {
 }
 
 func (b *bucket16) add(x uint16) bool {
-	if b.bits == nil {
+	bits := b.bits
+	if bits == nil {
 		return b.addToSmallPool(x)
 	}
 	wordNum, bitMask := getWordNumBitMask(x)
-	word := &b.bits[wordNum]
-	ok := *word&bitMask == 0
-	*word |= bitMask
+	ok := bits[wordNum]&bitMask == 0
+	if ok {
+		bits[wordNum] |= bitMask
+	}
 	return ok
 }
 
 func (b *bucket16) addMulti(a []uint64) int {
 	count := 0
-	if b.bits == nil {
+	bits := b.bits
+	if bits == nil {
 		// Slow path
 		for _, x := range a {
 			if b.add(uint16(x)) {
@@ -858,11 +861,10 @@ func (b *bucket16) addMulti(a []uint64) int {
 		// Fast path
 		for _, x := range a {
 			wordNum, bitMask := getWordNumBitMask(uint16(x))
-			word := &b.bits[wordNum]
-			if *word&bitMask == 0 {
+			if bits[wordNum]&bitMask == 0 {
+				bits[wordNum] |= bitMask
 				count++
 			}
-			*word |= bitMask
 		}
 	}
 	return count
