@@ -141,36 +141,32 @@ func (s *Set) AddMulti(a []uint64) {
 	if len(a) == 0 {
 		return
 	}
-	slowPath := false
-	hi := uint32(a[0] >> 32)
-	for _, x := range a[1:] {
-		if hi != uint32(x>>32) {
-			slowPath = true
-			break
+	hiPrev := uint32(a[0] >> 32)
+	i := 0
+	for j, x := range a {
+		hi := uint32(x >> 32)
+		if hi == hiPrev {
+			continue
 		}
+		b32 := s.getOrCreateBucket32(hiPrev)
+		s.itemsCount += b32.addMulti(a[i:j])
+		hiPrev = hi
+		i = j
 	}
-	if slowPath {
-		for _, x := range a {
-			s.Add(x)
-		}
-		return
-	}
-	// Fast path - all the items in a have identical higher 32 bits.
-	// Put them in a bulk into the corresponding bucket32.
+	b32 := s.getOrCreateBucket32(hiPrev)
+	s.itemsCount += b32.addMulti(a[i:])
+}
+
+func (s *Set) getOrCreateBucket32(hi uint32) *bucket32 {
 	bs := s.buckets
-	var b32 *bucket32
 	for i := range bs {
 		if bs[i].hi == hi {
-			b32 = &bs[i]
-			break
+			return &bs[i]
 		}
 	}
-	if b32 == nil {
-		b32 = s.addBucket32()
-		b32.hi = hi
-	}
-	n := b32.addMulti(a)
-	s.itemsCount += n
+	b32 := s.addBucket32()
+	b32.hi = hi
+	return b32
 }
 
 func (s *Set) addBucket32() *bucket32 {
@@ -609,41 +605,32 @@ func (b *bucket32) addMulti(a []uint64) int {
 	if len(a) == 0 {
 		return 0
 	}
-	hi := uint16(a[0] >> 16)
-	slowPath := false
-	for _, x := range a[1:] {
-		if hi != uint16(x>>16) {
-			slowPath = true
-			break
+	count := 0
+	hiPrev := uint16(a[0] >> 16)
+	i := 0
+	for j, x := range a {
+		hi := uint16(x >> 16)
+		if hi == hiPrev {
+			continue
 		}
+		b16 := b.getOrCreateBucket16(hiPrev)
+		count += b16.addMulti(a[i:j])
+		hiPrev = hi
+		i = j
 	}
-	if slowPath {
-		count := 0
-		for _, x := range a {
-			if b.add(uint32(x)) {
-				count++
-			}
-		}
-		return count
-	}
-	// Fast path - all the items in a have identical higher 32+16 bits.
-	// Put them to a single bucket16 in a bulk.
-	var b16 *bucket16
+	b16 := b.getOrCreateBucket16(hiPrev)
+	count += b16.addMulti(a[i:])
+	return count
+}
+
+func (b *bucket32) getOrCreateBucket16(hi uint16) *bucket16 {
 	his := b.b16his
 	bs := b.buckets
-	if n := b.getHint(); n < uint32(len(his)) && his[n] == hi {
-		b16 = &bs[n]
+	n := binarySearch16(his, hi)
+	if n < 0 || n >= len(his) || his[n] != hi {
+		return b.addBucketAtPos(hi, n)
 	}
-	if b16 == nil {
-		n := binarySearch16(his, hi)
-		if n < 0 || n >= len(his) || his[n] != hi {
-			b16 = b.addBucketAtPos(hi, n)
-		} else {
-			b.setHint(n)
-			b16 = &bs[n]
-		}
-	}
-	return b16.addMulti(a)
+	return &bs[n]
 }
 
 func (b *bucket32) addSlow(hi, lo uint16) bool {
