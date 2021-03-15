@@ -1089,6 +1089,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 		QuotedRemoteAddr:   httpserver.GetQuotedRemoteAddr(r),
 		Deadline:           deadline,
 		LookbackDelta:      lookbackDelta,
+		RoundDigits:        getRoundDigits(r),
 		EnforcedTagFilters: etf,
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
@@ -1196,6 +1197,7 @@ func queryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		Deadline:           deadline,
 		MayCache:           mayCache,
 		LookbackDelta:      lookbackDelta,
+		RoundDigits:        getRoundDigits(r),
 		EnforcedTagFilters: etf,
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
@@ -1372,6 +1374,18 @@ func getMatchesFromRequest(r *http.Request) []string {
 	// This is needed for backwards compatibility
 	matches = append(matches, r.Form["match"]...)
 	return matches
+}
+
+func getRoundDigits(r *http.Request) int {
+	s := r.FormValue("round_digits")
+	if len(s) == 0 {
+		return 100
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 100
+	}
+	return n
 }
 
 func getLatencyOffsetMilliseconds() int64 {

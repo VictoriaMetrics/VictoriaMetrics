@@ -100,9 +100,13 @@ type EvalConfig struct {
 	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
 	LookbackDelta int64
 
+	// How many decimal digits after the point to leave in response.
+	RoundDigits int
+
 	// EnforcedTagFilters used for apply additional label filters to query.
 	EnforcedTagFilters []storage.TagFilter
 
+	// Whether to deny partial response.
 	DenyPartialResponse bool
 
 	// IsPartialResponse is set during query execution and can be used by Exec caller after query execution.
@@ -122,6 +126,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
+	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilters = src.EnforcedTagFilters
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse = src.IsPartialResponse

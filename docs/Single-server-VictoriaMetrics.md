@@ -562,13 +562,16 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
 
+VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v1/query_range` handlers. It can be used for rounding response values to the given number of digits after the decimal point. For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+
 By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
 
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
-See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
 
 * Any number [time series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) via `match[]` query arg.
 * Optional `start` and `end` query args for limiting the time range for the selected labels or label values.
+
+See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details.
 
 Additionally VictoriaMetrics provides the following handlers:
 
