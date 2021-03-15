@@ -577,8 +577,20 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	// on db.tb flush via invalidateTagCache flushCallback passed to OpenTable.
 
 	atomic.AddUint64(&db.newTimeseriesCreated, 1)
+	if logNewSeries {
+		logger.Infof("new series created: %s", mn.String())
+	}
 	return nil
 }
+
+// SetLogNewSeries updates new series logging.
+//
+// This function must be called before any calling any storage functions.
+func SetLogNewSeries(ok bool) {
+	logNewSeries = ok
+}
+
+var logNewSeries = false
 
 func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) error {
 	// Search the TSID in the external storage.
