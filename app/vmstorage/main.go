@@ -39,6 +39,9 @@ var (
 	minScrapeInterval     = flag.Duration("dedup.minScrapeInterval", 0, "Remove superflouos samples from time series if they are located closer to each other than this duration. "+
 		"This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. "+
 		"Deduplication is disabled if the -dedup.minScrapeInterval is 0")
+
+	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
+		"when big number of new series are ingested into VictoriaMetrics")
 )
 
 func main() {
@@ -50,6 +53,7 @@ func main() {
 	logger.Init()
 
 	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
+	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
