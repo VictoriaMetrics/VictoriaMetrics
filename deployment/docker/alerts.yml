@@ -122,6 +122,16 @@ groups:
           description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series."
 
+      - alert: ProcessNearFDLimits
+        expr: process_open_fds / process_max_fds > 0.8
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Number of free file descriptors is less than 20% for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 10m"
+          description: "Exhausting OS file descriptors limit can cause severe degradation of the process.
+          Consider to increase the limit as fast as possible."
+
   # Alerts group for vmagent assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/12683 is installed.
   # Pls update the `dashboard` annotation according to your setup.
