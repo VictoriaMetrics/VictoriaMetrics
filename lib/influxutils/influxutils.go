@@ -23,7 +23,7 @@ func WriteDatabaseNames(w http.ResponseWriter) {
 	}
 	dbs := make([]string, len(dbNames))
 	for i := range dbNames {
-		dbs[i] = fmt.Sprintf(`"[%s]"`, dbNames[i])
+		dbs[i] = fmt.Sprintf(`[%q]`, dbNames[i])
 	}
 	fmt.Fprintf(w, `{"results":[{"name":"databases","columns":["name"],"series":[{"values":[%s]}]}]}`, strings.Join(dbs, ","))
 }
