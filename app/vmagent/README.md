@@ -515,6 +515,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -import.maxLineLen max_rows_per_line
     	The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with max_rows_per_line query arg passed to /api/v1/export
     	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
+  -influx.databasesNames comma separated names of influx database, that will be returned for /query and /influx/query request.
   -influx.maxLineSize value
     	The maximum size in bytes for a single Influx line during parsing
     	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 262144)
