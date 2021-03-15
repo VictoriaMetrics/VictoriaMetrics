@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -40,7 +41,6 @@ var (
 		"Usually :4242 must be set. Doesn't work if empty")
 	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superfluous labels are dropped")
-	influxDatabasesNames   = flag.String("influx.databasesNames", "_internal", "Comma separated names of databases, that will be returned for /query and /influx/query api.")
 )
 
 var (
@@ -148,18 +148,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/influx/query", "/query":
-		// Emulate fake response for influx query.
-		// This is required for TSBS benchmark and some telegraph plugins.
 		influxQueryRequests.Inc()
-		var dbs string
-		influxDbs := strings.Split(*influxDatabasesNames, ",")
-		for i := range influxDbs {
-			dbs += fmt.Sprintf(`"[%s]"`, influxDbs[i])
-			if i != len(influxDbs)-1 {
-				dbs += ","
-			}
-		}
-		fmt.Fprintf(w, `{"results":[{"name":"databases","columns":["name"],"series":[{"values":[%s]}]}]}`, dbs)
+		influxutils.WriteDatabaseNames(w)
 		return true
 	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()

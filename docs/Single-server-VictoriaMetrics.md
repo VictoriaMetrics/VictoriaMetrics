@@ -413,6 +413,10 @@ while VictoriaMetrics stores them with *milliseconds* precision.
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
+Some plugins for Telegraf such as [fluentd](https://github.com/fangli/fluent-plugin-influxdb), [Juniper/open-nti](https://github.com/Juniper/open-nti)
+or [Juniper/jitmon](https://github.com/Juniper/jtimon) send `SHOW DATABASES` query to `/query` and expect a particular database name in the response.
+Comma-separated list of expected databases can be passed to VictoriaMetrics via `-influx.databaseNames` command-line flag.
+
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,

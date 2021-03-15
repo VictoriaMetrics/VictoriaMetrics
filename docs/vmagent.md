@@ -515,7 +515,9 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -import.maxLineLen max_rows_per_line
     	The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with max_rows_per_line query arg passed to /api/v1/export
     	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
-  -influx.databasesNames comma separated names of influx database, that will be returned for /query and /influx/query request.
+  -influx.databaseNames array
+    	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
+    	Supports array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize value
     	The maximum size in bytes for a single Influx line during parsing
     	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 262144)
@@ -574,6 +576,8 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster
   -promscrape.cluster.membersCount int
     	The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
+  -promscrape.cluster.replicationFactor int
+    	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://victoriametrics.github.io/#deduplication (default 1)
   -promscrape.config string
     	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
@@ -607,7 +611,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -promscrape.gceSDCheckInterval gce_sd_configs
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
-    	How frequently to reload the full state from Kuberntes API server (default 10m0s)
+    	How frequently to reload the full state from Kuberntes API server (default 30m0s)
   -promscrape.kubernetesSDCheckInterval kubernetes_sd_configs
     	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
   -promscrape.maxDroppedTargets droppedTargets
