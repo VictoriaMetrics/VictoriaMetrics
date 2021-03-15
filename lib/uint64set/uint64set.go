@@ -729,8 +729,8 @@ const (
 
 type bucket16 struct {
 	bits         *[wordsPerBucket]uint64
+	smallPool    *[smallPoolSize]uint16
 	smallPoolLen int
-	smallPool    [smallPoolSize]uint16
 }
 
 const smallPoolSize = 56
@@ -807,7 +807,14 @@ func (b *bucket16) intersect(a *bucket16) {
 }
 
 func (b *bucket16) sizeBytes() uint64 {
-	return uint64(unsafe.Sizeof(*b)) + uint64(unsafe.Sizeof(*b.bits))
+	n := unsafe.Sizeof(*b)
+	if b.bits != nil {
+		n += unsafe.Sizeof(*b.bits)
+	}
+	if b.smallPool != nil {
+		n += unsafe.Sizeof(*b.smallPool)
+	}
+	return uint64(n)
 }
 
 func (b *bucket16) copyTo(dst *bucket16) {
@@ -818,7 +825,18 @@ func (b *bucket16) copyTo(dst *bucket16) {
 		dst.bits = &bits
 	}
 	dst.smallPoolLen = b.smallPoolLen
-	dst.smallPool = b.smallPool
+	if b.smallPool != nil {
+		sp := dst.getOrCreateSmallPool()
+		*sp = *b.smallPool
+	}
+}
+
+func (b *bucket16) getOrCreateSmallPool() *[smallPoolSize]uint16 {
+	if b.smallPool == nil {
+		var sp [smallPoolSize]uint16
+		b.smallPool = &sp
+	}
+	return b.smallPool
 }
 
 func (b *bucket16) add(x uint16) bool {
@@ -861,15 +879,16 @@ func (b *bucket16) addToSmallPool(x uint16) bool {
 	if b.hasInSmallPool(x) {
 		return false
 	}
-	if b.smallPoolLen < len(b.smallPool) {
-		b.smallPool[b.smallPoolLen] = x
+	sp := b.getOrCreateSmallPool()
+	if b.smallPoolLen < len(sp) {
+		sp[b.smallPoolLen] = x
 		b.smallPoolLen++
 		return true
 	}
 	b.smallPoolLen = 0
 	var bits [wordsPerBucket]uint64
 	b.bits = &bits
-	for _, v := range b.smallPool[:] {
+	for _, v := range sp[:] {
 		b.add(v)
 	}
 	b.add(x)
@@ -885,7 +904,11 @@ func (b *bucket16) has(x uint16) bool {
 }
 
 func (b *bucket16) hasInSmallPool(x uint16) bool {
-	for _, v := range b.smallPool[:b.smallPoolLen] {
+	sp := b.smallPool
+	if sp == nil {
+		return false
+	}
+	for _, v := range sp[:b.smallPoolLen] {
 		if v == x {
 			return true
 		}
@@ -905,9 +928,13 @@ func (b *bucket16) del(x uint16) bool {
 }
 
 func (b *bucket16) delFromSmallPool(x uint16) bool {
-	for i, v := range b.smallPool[:b.smallPoolLen] {
+	sp := b.smallPool
+	if sp == nil {
+		return false
+	}
+	for i, v := range sp[:b.smallPoolLen] {
 		if v == x {
-			copy(b.smallPool[i:], b.smallPool[i+1:])
+			copy(sp[i:], sp[i+1:])
 			b.smallPoolLen--
 			return true
 		}
@@ -918,11 +945,15 @@ func (b *bucket16) delFromSmallPool(x uint16) bool {
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	if b.bits == nil {
+		sp := b.smallPool
+		if sp == nil {
+			return dst
+		}
 		// Use smallPoolSorter instead of sort.Slice here in order to reduce memory allocations.
 		sps := smallPoolSorterPool.Get().(*smallPoolSorter)
-		// Sort a copy of b.smallPool, since b must be readonly in order to prevent from data races
+		// Sort a copy of sp, since b must be readonly in order to prevent from data races
 		// when b.appendTo is called from concurrent goroutines.
-		sps.smallPool = b.smallPool
+		sps.smallPool = *sp
 		sps.a = sps.smallPool[:b.smallPoolLen]
 		if len(sps.a) > 1 && !sort.IsSorted(sps) {
 			sort.Sort(sps)
@@ -985,6 +1016,10 @@ func getWordNumBitMask(x uint16) (uint16, uint64) {
 func binarySearch16(u16 []uint16, x uint16) int {
 	// The code has been adapted from sort.Search.
 	n := len(u16)
+	if n > 0 && u16[n-1] < x {
+		// Fast path for values scanned in ascending order.
+		return n
+	}
 	i, j := 0, n
 	for i < j {
 		h := int(uint(i+j) >> 1)
