@@ -3,16 +3,18 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 func (ig *Ingress) key() string {
 	return ig.Metadata.key()
 }
 
-func parseIngressList(data []byte) (map[string]object, ListMeta, error) {
+func parseIngressList(r io.Reader) (map[string]object, ListMeta, error) {
 	var igl IngressList
-	if err := json.Unmarshal(data, &igl); err != nil {
-		return nil, igl.Metadata, fmt.Errorf("cannot unmarshal IngressList from %q: %w", data, err)
+	d := json.NewDecoder(r)
+	if err := d.Decode(&igl); err != nil {
+		return nil, igl.Metadata, fmt.Errorf("cannot unmarshal IngressList: %w", err)
 	}
 	objectsByKey := make(map[string]object)
 	for _, ig := range igl.Items {
@@ -85,7 +87,7 @@ type HTTPIngressPath struct {
 // getTargetLabels returns labels for ig.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
-func (ig *Ingress) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (ig *Ingress) getTargetLabels(gw *groupWatcher) []map[string]string {
 	tlsHosts := make(map[string]bool)
 	for _, tls := range ig.Spec.TLS {
 		for _, host := range tls.Hosts {

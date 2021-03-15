@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
@@ -12,10 +13,11 @@ func (n *Node) key() string {
 	return n.Metadata.key()
 }
 
-func parseNodeList(data []byte) (map[string]object, ListMeta, error) {
+func parseNodeList(r io.Reader) (map[string]object, ListMeta, error) {
 	var nl NodeList
-	if err := json.Unmarshal(data, &nl); err != nil {
-		return nil, nl.Metadata, fmt.Errorf("cannot unmarshal NodeList from %q: %w", data, err)
+	d := json.NewDecoder(r)
+	if err := d.Decode(&nl); err != nil {
+		return nil, nl.Metadata, fmt.Errorf("cannot unmarshal NodeList: %w", err)
 	}
 	objectsByKey := make(map[string]object)
 	for _, n := range nl.Items {
@@ -74,7 +76,7 @@ type NodeDaemonEndpoints struct {
 // getTargetLabels returs labels for the given n.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#node
-func (n *Node) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (n *Node) getTargetLabels(gw *groupWatcher) []map[string]string {
 	addr := getNodeAddr(n.Status.Addresses)
 	if len(addr) == 0 {
 		// Skip node without address

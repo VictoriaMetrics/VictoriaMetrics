@@ -6,13 +6,24 @@
   - `histogram_avg(buckets)` - returns the average value for the given buckets.
   - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
   - `histogram_stddev(buckets)` - returns standard deviation for the given buckets.
+* FEATURE: reduce median query duration by up to 2x. See https://github.com/VictoriaMetrics/VictoriaMetrics/commit/18fe0ff14bc78860c5569e2b70de1db78fac61be
+* FEATURE: export `vm_available_memory_bytes` and `vm_available_cpu_cores` metrics, which show the number of available RAM and available CPU cores for VictoriaMetrics apps.
 * FEATURE: vmagent: add ability to replicate scrape targets among `vmagent` instances in the cluster with `-promscrape.cluster.replicationFactor` command-line flag. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets).
-* FATURE: vmagent: accept `scrape_offset` option at `scrape_config`. This option may be useful when scrapes must start at the specified offset of every scrape interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+* FEATURE: vmagent: accept `scrape_offset` option at `scrape_config`. This option may be useful when scrapes must start at the specified offset of every scrape interval. See [these docs](https://victoriametrics.github.io/vmagent.html#troubleshooting) for details.
+* FEATURE: vmagent: support `proxy_tls_config`, `proxy_basic_auth`, `proxy_bearer_token` and `proxy_bearer_token_file` options at `scrape_config` section for configuring proxies specified via `proxy_url`. See [these docs](https://victoriametrics.github.io/vmagent.html#scraping-targets-via-a-proxy).
 * FEATURE: vmauth: allow using regexp paths in `url_map`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1112) for details.
+* FEATURE: accept `round_digits` query arg at `/api/v1/query` and `/api/v1/query_range` handlers. This option can be set at Prometheus datasource in Grafana for limiting the number of digits after the decimal point in response values.
+* FEATURE: add `-influx.databaseNames` command-line flag, which can be used for accepting data from some Telegraf plugins such as [fluentd plugin](https://github.com/fangli/fluent-plugin-influxdb). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1124).
+* FEATURE: add `-logNewSeries` command-line flag, which can be used for debugging the source of time series churn rate.
 
 * BUGFIX: vmagent: prevent from high CPU usage bug during failing scrapes with small `scrape_timeout` (less than a few seconds).
-* BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct jobs by sharing the cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
+* BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct scrape config jobs by sharing Kubernetes object cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
+* BUGFIX: vmagent: apply `sample_limit` only after `metric_relabel_configs` are applied as Prometheus does. Previously the `sample_limit` was applied before metrics relabeling.
+* BUGFIX: vmagent: properly apply `tls_config`, `basic_auth` and `bearer_token` to proxy connections if `proxy_url` option is set. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116
+* BUGFIX: vmagent: properly scrape targets via https proxy specified in `proxy_url` if `insecure_skip_verify` flag isn't set in `tls_config` section. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1116
+* BUGFUX: avoid `duplicate time series` error if `prometheus_buckets()` covers a time range with distinct set of buckets.
 * BUGFIX: prevent exponent overflow when processing extremely small values close to zero such as `2.964393875E-314`. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1114
+* BUGFIX: do not include datapoints with a timestamp `t-d` when returning results from `/api/v1/query?query=m[d]&time=t` as Prometheus does.
 
 
 # [v1.55.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.55.1)

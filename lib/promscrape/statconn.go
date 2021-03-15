@@ -2,7 +2,6 @@ package promscrape
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -49,8 +49,8 @@ var (
 	stdDialerOnce sync.Once
 )
 
-func newStatDialFunc(proxyURL proxy.URL, tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
-	dialFunc, err := proxyURL.NewDialFunc(tlsConfig)
+func newStatDialFunc(proxyURL proxy.URL, ac *promauth.Config) (fasthttp.DialFunc, error) {
+	dialFunc, err := proxyURL.NewDialFunc(ac)
 	if err != nil {
 		return nil, err
 	}

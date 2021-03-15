@@ -21,29 +21,29 @@ var (
 	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 30*time.Second, "Interval for checking for changes in 'file_sd_config'. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
 	kubernetesSDCheckInterval = flag.Duration("promscrape.kubernetesSDCheckInterval", 30*time.Second, "Interval for checking for changes in Kubernetes API server. "+
-		"This works only if `kubernetes_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details")
 	openstackSDCheckInterval = flag.Duration("promscrape.openstackSDCheckInterval", 30*time.Second, "Interval for checking for changes in openstack API server. "+
-		"This works only if `openstack_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if openstack_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details")
 	eurekaSDCheckInterval = flag.Duration("promscrape.eurekaSDCheckInterval", 30*time.Second, "Interval for checking for changes in eureka. "+
-		"This works only if `eureka_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if eureka_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details")
 	dnsSDCheckInterval = flag.Duration("promscrape.dnsSDCheckInterval", 30*time.Second, "Interval for checking for changes in dns. "+
-		"This works only if `dns_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if dns_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details")
 	ec2SDCheckInterval = flag.Duration("promscrape.ec2SDCheckInterval", time.Minute, "Interval for checking for changes in ec2. "+
-		"This works only if `ec2_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if ec2_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details")
 	gceSDCheckInterval = flag.Duration("promscrape.gceSDCheckInterval", time.Minute, "Interval for checking for changes in gce. "+
-		"This works only if `gce_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if gce_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details")
 	dockerswarmSDCheckInterval = flag.Duration("promscrape.dockerswarmSDCheckInterval", 30*time.Second, "Interval for checking for changes in dockerswarm. "+
-		"This works only if `dockerswarm_sd_configs` is configured in '-promscrape.config' file. "+
+		"This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. "+
 		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
 		"See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
-	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress `duplicate scrape target` errors; "+
+	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress 'duplicate scrape target' errors; "+
 		"see https://victoriametrics.github.io/vmagent.html#troubleshooting for details")
 )
 
@@ -231,11 +231,17 @@ func (scfg *scrapeConfig) run() {
 	cfg := <-scfg.cfgCh
 	var swsPrev []*ScrapeWork
 	updateScrapeWork := func(cfg *Config) {
-		startTime := time.Now()
-		sws := scfg.getScrapeWork(cfg, swsPrev)
-		sg.update(sws)
-		swsPrev = sws
-		scfg.discoveryDuration.UpdateDuration(startTime)
+		for {
+			startTime := time.Now()
+			sws := scfg.getScrapeWork(cfg, swsPrev)
+			retry := sg.update(sws)
+			swsPrev = sws
+			scfg.discoveryDuration.UpdateDuration(startTime)
+			if !retry {
+				return
+			}
+			time.Sleep(2 * time.Second)
+		}
 	}
 	updateScrapeWork(cfg)
 	atomic.AddInt32(&PendingScrapeConfigs, -1)
@@ -295,7 +301,7 @@ func (sg *scraperGroup) stop() {
 	sg.wg.Wait()
 }
 
-func (sg *scraperGroup) update(sws []*ScrapeWork) {
+func (sg *scraperGroup) update(sws []*ScrapeWork) (retry bool) {
 	sg.mLock.Lock()
 	defer sg.mLock.Unlock()
 
@@ -352,6 +358,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 		sg.changesCount.Add(additionsCount + deletionsCount)
 		logger.Infof("%s: added targets: %d, removed targets: %d; total targets: %d", sg.name, additionsCount, deletionsCount, len(sg.m))
 	}
+	return deletionsCount > 0 && len(sg.m) == 0
 }
 
 type scraper struct {

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -9,7 +10,8 @@ import (
 
 func TestParseEndpointSliceListFail(t *testing.T) {
 	f := func(data string) {
-		objectsByKey, _, err := parseEndpointSliceList([]byte(data))
+		r := bytes.NewBufferString(data)
+		objectsByKey, _, err := parseEndpointSliceList(r)
 		if err == nil {
 			t.Errorf("unexpected result, test must fail! data: %s", data)
 		}
@@ -175,7 +177,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
     }
   ]
 }`
-	objectsByKey, meta, err := parseEndpointSliceList([]byte(data))
+	r := bytes.NewBufferString(data)
+	objectsByKey, meta, err := parseEndpointSliceList(r)
 	if err != nil {
 		t.Errorf("cannot parse data for EndpointSliceList: %v", err)
 		return

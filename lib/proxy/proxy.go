@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/fasthttp"
 )
 
@@ -18,12 +21,32 @@ type URL struct {
 	url *url.URL
 }
 
+// MustNewURL returns new URL for the given u.
+func MustNewURL(u string) URL {
+	pu, err := url.Parse(u)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse u=%q: %s", u, err)
+	}
+	return URL{
+		url: pu,
+	}
+}
+
 // URL return the underlying url.
 func (u *URL) URL() *url.URL {
 	if u == nil || u.url == nil {
 		return nil
 	}
 	return u.url
+}
+
+// String returns string representation of u.
+func (u *URL) String() string {
+	pu := u.URL()
+	if pu == nil {
+		return ""
+	}
+	return pu.String()
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
@@ -48,36 +71,70 @@ func (u *URL) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// NewDialFunc returns dial func for the given pu and tlsConfig.
-func (u *URL) NewDialFunc(tlsConfig *tls.Config) (fasthttp.DialFunc, error) {
+// NewDialFunc returns dial func for the given u and ac.
+func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	if u == nil || u.url == nil {
 		return defaultDialFunc, nil
 	}
 	pu := u.url
 	if pu.Scheme != "http" && pu.Scheme != "https" {
-		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http or https", pu.Scheme, pu)
+		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http or https", pu.Scheme, pu.Redacted())
 	}
+	isTLS := pu.Scheme == "https"
+	proxyAddr := addMissingPort(pu.Host, isTLS)
 	var authHeader string
+	if ac != nil {
+		authHeader = ac.Authorization
+	}
 	if pu.User != nil && len(pu.User.Username()) > 0 {
 		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
-		authHeader = "Proxy-Authorization: Basic " + userPasswordEncoded + "\r\n"
+		authHeader = "Basic " + userPasswordEncoded
+	}
+	if authHeader != "" {
+		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
+	}
+	var tlsCfg *tls.Config
+	if isTLS {
+		tlsCfg = ac.NewTLSConfig()
+		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
+			tlsCfg.ServerName = tlsServerName(proxyAddr)
+		}
 	}
 	dialFunc := func(addr string) (net.Conn, error) {
-		proxyConn, err := defaultDialFunc(pu.Host)
+		proxyConn, err := defaultDialFunc(proxyAddr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu, err)
+			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu.Redacted(), err)
 		}
-		if pu.Scheme == "https" {
-			proxyConn = tls.Client(proxyConn, tlsConfig)
+		if isTLS {
+			proxyConn = tls.Client(proxyConn, tlsCfg)
 		}
-		conn, err := sendConnectRequest(proxyConn, addr, authHeader)
+		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {
 			_ = proxyConn.Close()
-			return nil, fmt.Errorf("error when sending CONNECT request to proxy %q: %w", pu, err)
+			return nil, fmt.Errorf("error when sending CONNECT request to proxy %q: %w", pu.Redacted(), err)
 		}
 		return conn, nil
 	}
 	return dialFunc, nil
+}
+
+func addMissingPort(addr string, isTLS bool) string {
+	if strings.IndexByte(addr, ':') >= 0 {
+		return addr
+	}
+	port := "80"
+	if isTLS {
+		port = "443"
+	}
+	return addr + ":" + port
+}
+
+func tlsServerName(addr string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	return host
 }
 
 func defaultDialFunc(addr string) (net.Conn, error) {
@@ -90,8 +147,8 @@ func defaultDialFunc(addr string) (net.Conn, error) {
 }
 
 // sendConnectRequest sends CONNECT request to proxyConn for the given addr and authHeader and returns the established connection to dstAddr.
-func sendConnectRequest(proxyConn net.Conn, dstAddr, authHeader string) (net.Conn, error) {
-	req := "CONNECT " + dstAddr + " HTTP/1.1\r\nHost: " + dstAddr + "\r\n" + authHeader + "\r\n"
+func sendConnectRequest(proxyConn net.Conn, proxyAddr, dstAddr, authHeader string) (net.Conn, error) {
+	req := "CONNECT " + dstAddr + " HTTP/1.1\r\nHost: " + proxyAddr + "\r\n" + authHeader + "\r\n"
 	if _, err := proxyConn.Write([]byte(req)); err != nil {
 		return nil, fmt.Errorf("cannot send CONNECT request for dstAddr=%q: %w", dstAddr, err)
 	}

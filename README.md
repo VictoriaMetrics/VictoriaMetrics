@@ -170,6 +170,7 @@ Alphabetically sorted links to case studies:
     * [Font used](#font-used)
     * [Color Palette](#color-palette)
   * [We kindly ask](#we-kindly-ask)
+* [List of command-line flags](#list-of-command-line-flags)
 
 
 ## How to start VictoriaMetrics
@@ -182,7 +183,7 @@ The following command-line flags are used the most:
 * `-storageDataPath` - path to data directory. VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
 * `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [these docs](#retention) for more details.
 
-Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see all the available flags with description and default values.
+Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
 See how to [ingest data to VictoriaMetrics](#how-to-import-time-series-data), how to [query VictoriaMetrics](#grafana-setup)
 and how to [handle alerts](#alerting).
@@ -413,6 +414,10 @@ while VictoriaMetrics stores them with *milliseconds* precision.
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
+Some plugins for Telegraf such as [fluentd](https://github.com/fangli/fluent-plugin-influxdb), [Juniper/open-nti](https://github.com/Juniper/open-nti)
+or [Juniper/jitmon](https://github.com/Juniper/jtimon) send `SHOW DATABASES` query to `/query` and expect a particular database name in the response.
+Comma-separated list of expected databases can be passed to VictoriaMetrics via `-influx.databaseNames` command-line flag.
+
 ## How to send data from Graphite-compatible agents such as [StatsD](https://github.com/etsy/statsd)
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command line flag. For instance,
@@ -562,13 +567,16 @@ in front of VictoriaMetrics. [Contact us](mailto:sales@victoriametrics.com) if y
 VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
 For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
 
+VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v1/query_range` handlers. It can be used for rounding response values to the given number of digits after the decimal point. For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+
 By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
 
 VictoriaMetrics accepts additional args for `/api/v1/labels` and `/api/v1/label/.../values` handlers.
-See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details:
 
 * Any number [time series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) via `match[]` query arg.
 * Optional `start` and `end` query args for limiting the time range for the selected labels or label values.
+
+See [this feature request](https://github.com/prometheus/prometheus/issues/6178) for details.
 
 Additionally VictoriaMetrics provides the following handlers:
 
@@ -1367,6 +1375,8 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
   VictoriaMetrics accepts optional `date=YYYY-MM-DD` and `topN=42` args on this page. By default `date` equals to the current date,
   while `topN` equals to 10.
 
+* New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
+
 * VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.
   This prevents from ingesting metrics with too many labels. It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
@@ -1538,3 +1548,248 @@ Files included in each folder:
 * There should be sufficient clear space around the logo.
 * Do not change spacing, alignment, or relative locations of the design elements.
 * Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.
+
+
+## List of command-line flags
+
+Pass `-help` to VictoriaMetrics in order to see the list of supported command-line flags with their description:
+
+```
+  -bigMergeConcurrency int
+    	The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+  -csvTrimTimestamp duration
+    	Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -dedup.minScrapeInterval duration
+    	Remove superflouos samples from time series if they are located closer to each other than this duration. This may be useful for reducing overhead when multiple identically configured Prometheus instances write data to the same VictoriaMetrics. Deduplication is disabled if the -dedup.minScrapeInterval is 0
+  -deleteAuthKey string
+    	authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
+  -denyQueriesOutsideRetention
+    	Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+  -dryRun
+    	Whether to check only -promscrape.config and then exit. Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
+  -enableTCP6
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
+  -envflag.enable
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
+  -envflag.prefix string
+    	Prefix for environment variables if -envflag.enable is set
+  -finalMergeDelay duration
+    	The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
+  -forceFlushAuthKey string
+    	authKey, which must be passed in query string to /internal/force_flush pages
+  -forceMergeAuthKey string
+    	authKey, which must be passed in query string to /internal/force_merge pages
+  -fs.disableMmap
+    	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -graphiteListenAddr string
+    	TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty
+  -graphiteTrimTimestamp duration
+    	Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
+  -http.connTimeout duration
+    	Incoming http connections are closed after the configured timeout. This may help spreading incoming load among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem (default 2m0s)
+  -http.disableResponseCompression
+    	Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth
+  -http.idleConnTimeout duration
+    	Timeout for incoming idle http connections (default 1m0s)
+  -http.maxGracefulShutdownDuration duration
+    	The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
+  -http.pathPrefix string
+    	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
+  -http.shutdownDelay duration
+    	Optional delay before http server shutdown. During this dealy the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+    	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+    	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpListenAddr string
+    	TCP address to listen for http connections (default ":8428")
+  -import.maxLineLen size
+    	The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
+  -influx.databaseNames array
+    	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
+    	Supports array of values separated by comma or specified via multiple flags.
+  -influx.maxLineSize size
+    	The maximum size in bytes for a single Influx line during parsing
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxListenAddr string
+    	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
+  -influxMeasurementFieldSeparator string
+    	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
+  -influxSkipMeasurement
+    	Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
+  -influxSkipSingleField
+    	Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if Influx line contains only a single field
+  -influxTrimTimestamp duration
+    	Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -insert.maxQueueDuration duration
+    	The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
+  -loggerDisableTimestamps
+    	Whether to disable writing timestamps in logs
+  -loggerErrorsPerSecondLimit int
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
+  -loggerLevel string
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
+  -loggerTimezone string
+    	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
+  -loggerWarnsPerSecondLimit int
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
+  -maxConcurrentInserts int
+    	The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 16)
+  -maxInsertRequestSize size
+    	The maximum size in bytes of a single Prometheus remote_write API request
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -maxLabelsPerTimeseries int
+    	The maximum number of labels accepted per time series. Superfluous labels are dropped (default 30)
+  -memory.allowedBytes size
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+  -memory.allowedPercent float
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+    	Auth key for /metrics. It overrides httpAuth settings
+  -opentsdbHTTPListenAddr string
+    	TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
+  -opentsdbListenAddr string
+    	TCP and UDP address to listen for OpentTSDB metrics. Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. Usually :4242 must be set. Doesn't work if empty
+  -opentsdbTrimTimestamp duration
+    	Trim timestamps for OpenTSDB 'telnet put' data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
+  -opentsdbhttp.maxInsertRequestSize size
+    	The maximum size of OpenTSDB HTTP put request
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -opentsdbhttpTrimTimestamp duration
+    	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -pprofAuthKey string
+    	Auth key for /debug/pprof. It overrides httpAuth settings
+  -precisionBits int
+    	The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
+  -promscrape.cluster.memberNum int
+    	The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster
+  -promscrape.cluster.membersCount int
+    	The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
+  -promscrape.cluster.replicationFactor int
+    	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://victoriametrics.github.io/#deduplication (default 1)
+  -promscrape.config string
+    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+  -promscrape.config.dryRun
+    	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
+  -promscrape.config.strictParse
+    	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
+  -promscrape.configCheckInterval duration
+    	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -promscrape.consulSDCheckInterval duration
+    	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+  -promscrape.disableCompression
+    	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+  -promscrape.disableKeepAlive
+    	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
+  -promscrape.discovery.concurrency int
+    	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
+  -promscrape.discovery.concurrentWaitTime duration
+    	The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
+  -promscrape.dnsSDCheckInterval duration
+    	Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+  -promscrape.dockerswarmSDCheckInterval duration
+    	Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details (default 30s)
+  -promscrape.dropOriginalLabels
+    	Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
+  -promscrape.ec2SDCheckInterval duration
+    	Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details (default 1m0s)
+  -promscrape.eurekaSDCheckInterval duration
+    	Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
+  -promscrape.fileSDCheckInterval duration
+    	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
+  -promscrape.gceSDCheckInterval duration
+    	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
+  -promscrape.kubernetes.apiServerTimeout duration
+    	How frequently to reload the full state from Kuberntes API server (default 30m0s)
+  -promscrape.kubernetesSDCheckInterval duration
+    	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
+  -promscrape.maxDroppedTargets int
+    	The maximum number of droppedTargets shown at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+  -promscrape.maxScrapeSize size
+    	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.openstackSDCheckInterval duration
+    	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
+  -promscrape.streamParse
+    	Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+  -promscrape.suppressDuplicateScrapeTargetErrors
+    	Whether to suppress 'duplicate scrape target' errors; see https://victoriametrics.github.io/vmagent.html#troubleshooting for details
+  -promscrape.suppressScrapeErrors
+    	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
+  -relabelConfig string
+    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://victoriametrics.github.io/#relabeling for details
+  -retentionPeriod value
+    	Data with timestamps outside the retentionPeriod is automatically deleted
+    	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
+  -search.cacheTimestampOffset duration
+    	The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
+  -search.disableCache
+    	Whether to disable response caching. This may be useful during data backfilling
+  -search.latencyOffset duration
+    	The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
+  -search.logSlowQueryDuration duration
+    	Log queries with execution time exceeding this value. Zero disables slow query logging (default 5s)
+  -search.maxConcurrentRequests int
+    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores. See also -search.maxQueueDuration (default 8)
+  -search.maxExportDuration duration
+    	The maximum duration for /api/v1/export call (default 720h0m0s)
+  -search.maxLookback duration
+    	Synonim to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
+  -search.maxPointsPerTimeseries int
+    	The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as Grafana. There is no sense in setting this limit to values significantly exceeding horizontal resoultion of the graph (default 30000)
+  -search.maxQueryDuration duration
+    	The maximum duration for query execution (default 30s)
+  -search.maxQueryLen size
+    	The maximum search query length in bytes
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16384)
+  -search.maxQueueDuration duration
+    	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxStalenessInterval duration
+    	The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
+  -search.maxStepForPointsAdjustment duration
+    	The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
+  -search.maxTagKeys int
+    	The maximum number of tag keys returned from /api/v1/labels (default 100000)
+  -search.maxTagValueSuffixesPerSearch int
+    	The maximum number of tag value suffixes returned from /metrics/find (default 100000)
+  -search.maxTagValues int
+    	The maximum number of tag values returned from /api/v1/label/<label_name>/values (default 100000)
+  -search.maxUniqueTimeseries int
+    	The maximum number of unique time series each search can scan (default 300000)
+  -search.minStalenessInterval duration
+    	The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
+  -search.queryStats.lastQueriesCount int
+    	Query stats for /api/v1/status/top_queries is tracked on this number of last queries. Zero value disables query stats tracking (default 20000)
+  -search.queryStats.minQueryDuration int
+    	The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats
+  -search.resetCacheAuthKey string
+    	Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
+  -search.treatDotsAsIsInRegexps
+    	Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
+  -selfScrapeInstance string
+    	Value for 'instance' label, which is added to self-scraped metrics (default "self")
+  -selfScrapeInterval duration
+    	Interval for self-scraping own metrics at /metrics page
+  -selfScrapeJob string
+    	Value for 'job' label, which is added to self-scraped metrics (default "victoria-metrics")
+  -smallMergeConcurrency int
+    	The maximum number of CPU cores to use for small merges. Default value is used if set to 0
+  -snapshotAuthKey string
+    	authKey, which must be passed in query string to /snapshot* pages
+  -storageDataPath string
+    	Path to storage data (default "victoria-metrics-data")
+  -tls
+    	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
+  -tlsCertFile string
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
+  -tlsKeyFile string
+    	Path to file with TLS key. Used only if -tls is set
+  -version
+    	Show VictoriaMetrics version
+```

@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -40,7 +41,7 @@ var (
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
 		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. "+
-		"This flag isn't needed when ingesting data over HTTP - just send it to `http://<vmagent>:8429/write`")
+		"This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write")
 	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB metrics. "+
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
@@ -204,10 +205,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/query":
-		// Emulate fake response for influx query.
-		// This is required for TSBS benchmark.
 		influxQueryRequests.Inc()
-		fmt.Fprintf(w, `{"results":[{"series":[{"values":[]}]}]}`)
+		influxutils.WriteDatabaseNames(w)
 		return true
 	case "/targets":
 		promscrapeTargetsRequests.Inc()

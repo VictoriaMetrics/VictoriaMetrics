@@ -110,11 +110,15 @@ type ScrapeConfig struct {
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression  bool          `yaml:"disable_compression,omitempty"`
-	DisableKeepAlive    bool          `yaml:"disable_keepalive,omitempty"`
-	StreamParse         bool          `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval time.Duration `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset        time.Duration `yaml:"scrape_offset,omitempty"`
+	DisableCompression   bool                      `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive     bool                      `yaml:"disable_keepalive,omitempty"`
+	StreamParse          bool                      `yaml:"stream_parse,omitempty"`
+	ScrapeAlignInterval  time.Duration             `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset         time.Duration             `yaml:"scrape_offset,omitempty"`
+	ProxyTLSConfig       *promauth.TLSConfig       `yaml:"proxy_tls_config,omitempty"`
+	ProxyBasicAuth       *promauth.BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
+	ProxyBearerToken     string                    `yaml:"proxy_bearer_token,omitempty"`
+	ProxyBearerTokenFile string                    `yaml:"proxy_bearer_token_file,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -247,7 +251,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 				target := metaLabels["__address__"]
 				sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
 				if err != nil {
-					logger.Errorf("cannot create kubernetes_sd_config target target %q for job_name %q: %s", target, sc.swc.jobName, err)
+					logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
 					return nil
 				}
 				return sw
@@ -543,6 +547,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
+	proxyAC, err := promauth.NewConfig(baseDir, sc.ProxyBasicAuth, sc.ProxyBearerToken, sc.ProxyBearerTokenFile, sc.ProxyTLSConfig)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
+	}
 	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
@@ -559,6 +567,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scheme:               scheme,
 		params:               params,
 		proxyURL:             sc.ProxyURL,
+		proxyAuthConfig:      proxyAC,
 		authConfig:           ac,
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
@@ -583,6 +592,7 @@ type scrapeWorkConfig struct {
 	scheme               string
 	params               map[string][]string
 	proxyURL             proxy.URL
+	proxyAuthConfig      *promauth.Config
 	authConfig           *promauth.Config
 	honorLabels          bool
 	honorTimestamps      bool
@@ -849,6 +859,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		OriginalLabels:       originalLabels,
 		Labels:               labels,
 		ProxyURL:             swc.proxyURL,
+		ProxyAuthConfig:      swc.proxyAuthConfig,
 		AuthConfig:           swc.authConfig,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		SampleLimit:          swc.sampleLimit,

@@ -577,8 +577,20 @@ func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error {
 	// on db.tb flush via invalidateTagCache flushCallback passed to OpenTable.
 
 	atomic.AddUint64(&db.newTimeseriesCreated, 1)
+	if logNewSeries {
+		logger.Infof("new series created: %s", mn.String())
+	}
 	return nil
 }
+
+// SetLogNewSeries updates new series logging.
+//
+// This function must be called before any calling any storage functions.
+func SetLogNewSeries(ok bool) {
+	logNewSeries = ok
+}
+
+var logNewSeries = false
 
 func (db *indexDB) generateTSID(dst *TSID, metricName []byte, mn *MetricName) error {
 	// Search the TSID in the external storage.
@@ -2048,15 +2060,6 @@ func (is *indexSearch) getTagFilterWithMinMetricIDsCount(tfs *TagFilters, maxMet
 
 		metricIDs, _, err := is.getMetricIDsForTagFilter(tf, nil, maxMetrics)
 		if err != nil {
-			if err == errFallbackToMetricNameMatch {
-				// Skip tag filters requiring to scan for too many metrics.
-				kb.B = append(kb.B[:0], uselessSingleTagFilterKeyPrefix)
-				kb.B = encoding.MarshalUint64(kb.B, uint64(maxMetrics))
-				kb.B = tf.Marshal(kb.B)
-				is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
-				uselessTagFilters++
-				continue
-			}
 			return nil, nil, fmt.Errorf("cannot find MetricIDs for tagFilter %s: %w", tf, err)
 		}
 		if metricIDs.Len() >= maxMetrics {
@@ -2306,7 +2309,7 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 		// Fast path: found metricIDs by date range.
 		return nil
 	}
-	if err != errFallbackToMetricNameMatch {
+	if err != errFallbackToGlobalSearch {
 		return err
 	}
 
@@ -2330,12 +2333,6 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 			continue
 		}
 		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
-		if err == errFallbackToMetricNameMatch {
-			// The tag filter requires too many index scans. Postpone it,
-			// so tag filters with lower number of index scans may be applied.
-			tfsPostponed = append(tfsPostponed, tf)
-			continue
-		}
 		if err != nil {
 			return err
 		}
@@ -2345,11 +2342,8 @@ func (is *indexSearch) updateMetricIDsForTagFilters(metricIDs *uint64set.Set, tf
 	if len(tfsPostponed) > 0 && successfulIntersects == 0 {
 		return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed)
 	}
-	for i, tf := range tfsPostponed {
+	for _, tf := range tfsPostponed {
 		mIDs, err := is.intersectMetricIDsWithTagFilter(tf, minMetricIDs)
-		if err == errFallbackToMetricNameMatch {
-			return is.updateMetricIDsByMetricNameMatch(metricIDs, minMetricIDs, tfsPostponed[i:])
-		}
 		if err != nil {
 			return err
 		}
@@ -2363,7 +2357,6 @@ const (
 	uselessSingleTagFilterKeyPrefix   = 0
 	uselessMultiTagFiltersKeyPrefix   = 1
 	uselessNegativeTagFilterKeyPrefix = 2
-	uselessTagIntersectKeyPrefix      = 3
 )
 
 var uselessTagFilterCacheValue = []byte("1")
@@ -2375,29 +2368,28 @@ func (is *indexSearch) getMetricIDsForTagFilter(tf *tagFilter, filter *uint64set
 	metricIDs := &uint64set.Set{}
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffixes.
-		loopsCount, err := is.updateMetricIDsForOrSuffixesNoFilter(tf, maxMetrics, metricIDs)
+		var loopsCount uint64
+		var err error
+		if filter != nil {
+			loopsCount, err = is.updateMetricIDsForOrSuffixesWithFilter(tf, metricIDs, filter)
+		} else {
+			loopsCount, err = is.updateMetricIDsForOrSuffixesNoFilter(tf, maxMetrics, metricIDs)
+		}
 		if err != nil {
-			if err == errFallbackToMetricNameMatch {
-				return nil, loopsCount, err
-			}
 			return nil, loopsCount, fmt.Errorf("error when searching for metricIDs for tagFilter in fast path: %w; tagFilter=%s", err, tf)
 		}
 		return metricIDs, loopsCount, nil
 	}
 
 	// Slow path - scan for all the rows with the given prefix.
-	maxLoopsCount := uint64(maxMetrics) * maxIndexScanSlowLoopsPerMetric
-	loopsCount, err := is.getMetricIDsForTagFilterSlow(tf, filter, maxLoopsCount, metricIDs.Add)
+	loopsCount, err := is.getMetricIDsForTagFilterSlow(tf, filter, metricIDs.Add)
 	if err != nil {
-		if err == errFallbackToMetricNameMatch {
-			return nil, loopsCount, err
-		}
 		return nil, loopsCount, fmt.Errorf("error when searching for metricIDs for tagFilter in slow path: %w; tagFilter=%s", err, tf)
 	}
 	return metricIDs, loopsCount, nil
 }
 
-func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint64set.Set, maxLoopsCount uint64, f func(metricID uint64)) (uint64, error) {
+func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint64set.Set, f func(metricID uint64)) (uint64, error) {
 	if len(tf.orSuffixes) > 0 {
 		logger.Panicf("BUG: the getMetricIDsForTagFilterSlow must be called only for empty tf.orSuffixes; got %s", tf.orSuffixes)
 	}
@@ -2436,9 +2428,6 @@ func (is *indexSearch) getMetricIDsForTagFilterSlow(tf *tagFilter, filter *uint6
 		}
 		mp.ParseMetricIDs()
 		loopsCount += uint64(mp.MetricIDsLen())
-		if loopsCount > maxLoopsCount {
-			return loopsCount, errFallbackToMetricNameMatch
-		}
 		if prevMatch && string(suffix) == string(prevMatchingSuffix) {
 			// Fast path: the same tag value found.
 			// There is no need in checking it again with potentially
@@ -2522,26 +2511,28 @@ func (is *indexSearch) updateMetricIDsForOrSuffixesNoFilter(tf *tagFilter, maxMe
 	return loopsCount, nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, metricIDs, filter *uint64set.Set) error {
+func (is *indexSearch) updateMetricIDsForOrSuffixesWithFilter(tf *tagFilter, metricIDs, filter *uint64set.Set) (uint64, error) {
 	sortedFilter := filter.AppendTo(nil)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
+	var loopsCount uint64
 	for _, orSuffix := range tf.orSuffixes {
 		kb.B = append(kb.B[:0], tf.prefix...)
 		kb.B = append(kb.B, orSuffix...)
 		kb.B = append(kb.B, tagSeparatorChar)
-		if err := is.updateMetricIDsForOrSuffixWithFilter(kb.B, metricIDs, sortedFilter, tf.isNegative); err != nil {
-			return err
+		lc, err := is.updateMetricIDsForOrSuffixWithFilter(kb.B, metricIDs, sortedFilter, tf.isNegative)
+		if err != nil {
+			return loopsCount, err
 		}
+		loopsCount += lc
 	}
-	return nil
+	return loopsCount, nil
 }
 
 func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetrics int, metricIDs *uint64set.Set) (uint64, error) {
 	ts := &is.ts
 	mp := &is.mp
 	mp.Reset()
-	maxLoopsCount := uint64(maxMetrics) * maxIndexScanLoopsPerMetric
 	var loopsCount uint64
 	loopsPaceLimiter := 0
 	ts.Seek(prefix)
@@ -2560,9 +2551,6 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 			return loopsCount, err
 		}
 		loopsCount += uint64(mp.MetricIDsLen())
-		if loopsCount > maxLoopsCount {
-			return loopsCount, errFallbackToMetricNameMatch
-		}
 		mp.ParseMetricIDs()
 		metricIDs.AddMulti(mp.MetricIDs)
 	}
@@ -2572,16 +2560,15 @@ func (is *indexSearch) updateMetricIDsForOrSuffixNoFilter(prefix []byte, maxMetr
 	return loopsCount, nil
 }
 
-func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metricIDs *uint64set.Set, sortedFilter []uint64, isNegative bool) error {
+func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metricIDs *uint64set.Set, sortedFilter []uint64, isNegative bool) (uint64, error) {
 	if len(sortedFilter) == 0 {
-		return nil
+		return 0, nil
 	}
 	firstFilterMetricID := sortedFilter[0]
 	lastFilterMetricID := sortedFilter[len(sortedFilter)-1]
 	ts := &is.ts
 	mp := &is.mp
 	mp.Reset()
-	maxLoopsCount := uint64(len(sortedFilter)) * maxIndexScanLoopsPerMetric
 	var loopsCount uint64
 	loopsPaceLimiter := 0
 	ts.Seek(prefix)
@@ -2590,17 +2577,18 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 	for ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterMediumIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return err
+				return loopsCount, err
 			}
 		}
 		loopsPaceLimiter++
 		item := ts.Item
 		if !bytes.HasPrefix(item, prefix) {
-			return nil
+			return loopsCount, nil
 		}
 		if err := mp.InitOnlyTail(item, item[len(prefix):]); err != nil {
-			return err
+			return loopsCount, err
 		}
+		loopsCount += uint64(mp.MetricIDsLen())
 		firstMetricID, lastMetricID := mp.FirstAndLastMetricIDs()
 		if lastMetricID < firstFilterMetricID {
 			// Skip the item, since it contains metricIDs lower
@@ -2610,14 +2598,11 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 		if firstMetricID > lastFilterMetricID {
 			// Stop searching, since the current item and all the subsequent items
 			// contain metricIDs higher than metricIDs in sortedFilter.
-			return nil
+			return loopsCount, nil
 		}
 		sf = sortedFilter
-		loopsCount += uint64(mp.MetricIDsLen())
-		if loopsCount > maxLoopsCount {
-			return errFallbackToMetricNameMatch
-		}
 		mp.ParseMetricIDs()
+		matchingMetricIDs := mp.MetricIDs[:0]
 		for _, metricID = range mp.MetricIDs {
 			if len(sf) == 0 {
 				break
@@ -2632,18 +2617,23 @@ func (is *indexSearch) updateMetricIDsForOrSuffixWithFilter(prefix []byte, metri
 			if metricID < sf[0] {
 				continue
 			}
-			if isNegative {
-				metricIDs.Del(metricID)
-			} else {
-				metricIDs.Add(metricID)
-			}
+			matchingMetricIDs = append(matchingMetricIDs, metricID)
 			sf = sf[1:]
+		}
+		if len(matchingMetricIDs) > 0 {
+			if isNegative {
+				for _, metricID := range matchingMetricIDs {
+					metricIDs.Del(metricID)
+				}
+			} else {
+				metricIDs.AddMulti(matchingMetricIDs)
+			}
 		}
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("error when searching for tag filter prefix %q: %w", prefix, err)
+		return loopsCount, fmt.Errorf("error when searching for tag filter prefix %q: %w", prefix, err)
 	}
-	return nil
+	return loopsCount, nil
 }
 
 func binarySearchUint64(a []uint64, v uint64) uint {
@@ -2660,7 +2650,7 @@ func binarySearchUint64(a []uint64, v uint64) uint {
 	return i
 }
 
-var errFallbackToMetricNameMatch = errors.New("fall back to updateMetricIDsByMetricNameMatch because of too many index scan loops")
+var errFallbackToGlobalSearch = errors.New("fall back from per-day index search to global index search")
 
 var errMissingMetricIDsForDate = errors.New("missing metricIDs for date")
 
@@ -2725,11 +2715,11 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
 	if maxDate < minDate {
 		// Per-day inverted index doesn't cover the selected date range.
-		return errFallbackToMetricNameMatch
+		return fmt.Errorf("maxDate=%d cannot be smaller than minDate=%d", maxDate, minDate)
 	}
 	if maxDate-minDate > maxDaysForDateMetricIDs {
 		// Too much dates must be covered. Give up, since it may be slow.
-		return errFallbackToMetricNameMatch
+		return errFallbackToGlobalSearch
 	}
 	if minDate == maxDate {
 		// Fast path - query only a single date.
@@ -2759,14 +2749,14 @@ func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set
 				return
 			}
 			if err != nil {
-				if err == errFallbackToMetricNameMatch {
+				if err == errFallbackToGlobalSearch {
 					// The per-date search is too expensive. Probably it is faster to perform global search
 					// using metric name match.
 					errGlobal = err
 					return
 				}
 				dateStr := time.Unix(int64(date*24*3600), 0)
-				errGlobal = fmt.Errorf("cannot search for metricIDs for %s: %w", dateStr, err)
+				errGlobal = fmt.Errorf("cannot search for metricIDs at %s: %w", dateStr, err)
 				return
 			}
 			if metricIDs.Len() < maxMetrics {
@@ -2788,9 +2778,8 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	// This stats is usually collected from the previous queries.
 	// This way we limit the amount of work below by applying fast filters at first.
 	type tagFilterWithWeight struct {
-		tf                 *tagFilter
-		loopsCount         uint64
-		lastQueryTimestamp uint64
+		tf         *tagFilter
+		loopsCount uint64
 	}
 	tfws := make([]tagFilterWithWeight, len(tfs.tfs))
 	currentTime := fasttime.UnixTimestamp()
@@ -2798,26 +2787,29 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		tf := &tfs.tfs[i]
 		loopsCount, lastQueryTimestamp := is.getLoopsCountAndTimestampForDateFilter(date, tf)
 		origLoopsCount := loopsCount
-		if currentTime > lastQueryTimestamp+3*3600 {
-			// Update stats once per 3 hours only for relatively fast tag filters.
-			// There is no need in spending CPU resources on updating stats for slow tag filters.
+		if loopsCount == 0 && tf.looksLikeHeavy() {
+			// Set high loopsCount for heavy tag filters instead of spending CPU time on their execution.
+			loopsCount = 11e6
+			is.storeLoopsCountForDateFilter(date, tf, loopsCount)
+		}
+		if currentTime > lastQueryTimestamp+3600 {
+			// Update stats once per hour for relatively fast tag filters.
+			// There is no need in spending CPU resources on updating stats for heavy tag filters.
 			if loopsCount <= 10e6 {
 				loopsCount = 0
 			}
 		}
 		if loopsCount == 0 {
-			// Prevent from possible thundering herd issue when heavy tf is executed from multiple concurrent queries
+			// Prevent from possible thundering herd issue when potentially heavy tf is executed from multiple concurrent queries
 			// by temporary persisting its position in the tag filters list.
 			if origLoopsCount == 0 {
-				origLoopsCount = 10e6
+				origLoopsCount = 9e6
 			}
-			lastQueryTimestamp = 0
-			is.storeLoopsCountForDateFilter(date, tf, origLoopsCount, lastQueryTimestamp)
+			is.storeLoopsCountForDateFilter(date, tf, origLoopsCount)
 		}
 		tfws[i] = tagFilterWithWeight{
-			tf:                 tf,
-			loopsCount:         loopsCount,
-			lastQueryTimestamp: lastQueryTimestamp,
+			tf:         tf,
+			loopsCount: loopsCount,
 		}
 	}
 	sort.Slice(tfws, func(i, j int) bool {
@@ -2829,7 +2821,6 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	})
 
 	// Populate metricIDs for the first non-negative filter.
-	var tfsPostponed []*tagFilter
 	var metricIDs *uint64set.Set
 	tfwsRemaining := tfws[:0]
 	maxDateMetrics := maxMetrics * 50
@@ -2841,13 +2832,16 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			continue
 		}
 		m, loopsCount, err := is.getMetricIDsForDateTagFilter(tf, date, nil, tfs.commonPrefix, maxDateMetrics)
-		is.storeLoopsCountForDateFilter(date, tf, loopsCount, tfw.lastQueryTimestamp)
+		if loopsCount > tfw.loopsCount {
+			is.storeLoopsCountForDateFilter(date, tf, loopsCount)
+		}
 		if err != nil {
 			return nil, err
 		}
 		if m.Len() >= maxDateMetrics {
-			// Too many time series found by a single tag filter. Postpone applying this filter via metricName match.
-			tfsPostponed = append(tfsPostponed, tf)
+			// Too many time series found by a single tag filter. Postpone applying this filter.
+			tfwsRemaining = append(tfwsRemaining, tfw)
+			tfw.loopsCount = loopsCount
 			continue
 		}
 		metricIDs = m
@@ -2872,7 +2866,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		}
 		if m.Len() >= maxDateMetrics {
 			// Too many time series found for the given (date). Fall back to global search.
-			return nil, errFallbackToMetricNameMatch
+			return nil, errFallbackToGlobalSearch
 		}
 		metricIDs = m
 	}
@@ -2883,6 +2877,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 	// when the intial tag filters significantly reduce the number of found metricIDs,
 	// so the remaining filters could be performed via much faster metricName matching instead
 	// of slow selecting of matching metricIDs.
+	var tfsPostponed []*tagFilter
 	for i := range tfwsRemaining {
 		tfw := tfwsRemaining[i]
 		tf := tfw.tf
@@ -2891,23 +2886,25 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			// Short circuit - there is no need in applying the remaining filters to an empty set.
 			break
 		}
-		if uint64(metricIDsLen)*maxIndexScanLoopsPerMetric < tfw.loopsCount {
+		if tfw.loopsCount > uint64(metricIDsLen)*loopsCountPerMetricNameMatch {
 			// It should be faster performing metricName match on the remaining filters
 			// instead of scanning big number of entries in the inverted index for these filters.
-			tfsPostponed = append(tfsPostponed, tf)
-			// Store stats for non-executed tf, since it could be updated during protection from thundered herd.
-			is.storeLoopsCountForDateFilter(date, tf, tfw.loopsCount, tfw.lastQueryTimestamp)
-			continue
+			for i < len(tfwsRemaining) {
+				tfw := tfwsRemaining[i]
+				tf := tfw.tf
+				tfsPostponed = append(tfsPostponed, tf)
+				// Store stats for non-executed tf, since it could be updated during protection from thundered herd.
+				is.storeLoopsCountForDateFilter(date, tf, tfw.loopsCount)
+				i++
+			}
+			break
 		}
-		m, loopsCount, err := is.getMetricIDsForDateTagFilter(tf, date, metricIDs, tfs.commonPrefix, maxDateMetrics)
-		is.storeLoopsCountForDateFilter(date, tf, loopsCount, tfw.lastQueryTimestamp)
+		m, loopsCount, err := is.getMetricIDsForDateTagFilter(tf, date, metricIDs, tfs.commonPrefix, 0)
+		if loopsCount > tfw.loopsCount {
+			is.storeLoopsCountForDateFilter(date, tf, loopsCount)
+		}
 		if err != nil {
 			return nil, err
-		}
-		if m.Len() >= maxDateMetrics {
-			// Too many time series found by a single tag filter. Postpone applying this filter via metricName match.
-			tfsPostponed = append(tfsPostponed, tf)
-			continue
 		}
 		if tf.isNegative {
 			metricIDs.Subtract(m)
@@ -3092,9 +3089,9 @@ func (is *indexSearch) getMetricIDsForDateTagFilter(tf *tagFilter, date uint64, 
 	kbPool.Put(kb)
 	if err != nil {
 		// Set high loopsCount for failing filter, so it is moved to the end of filter list.
-		loopsCount = 1e9
+		loopsCount = 20e9
 	}
-	if metricIDs.Len() >= maxMetrics {
+	if filter == nil && metricIDs.Len() >= maxMetrics {
 		// Increase loopsCount for tag filter matching too many metrics,
 		// So next time it is moved to the end of filter list.
 		loopsCount *= 2
@@ -3115,13 +3112,8 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	return loopsCount, timestamp
 }
 
-func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, loopsCount, prevTimestamp uint64) {
+func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, loopsCount uint64) {
 	currentTimestamp := fasttime.UnixTimestamp()
-	if currentTimestamp < prevTimestamp+5 {
-		// The cache already contains quite fresh entry for the current (date, tf).
-		// Do not update it too frequently.
-		return
-	}
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], date, tf)
 	kb := kbPool.Get()
 	kb.B = encoding.MarshalUint64(kb.B[:0], loopsCount)
@@ -3196,63 +3188,28 @@ func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64
 	return nil
 }
 
-// The maximum number of index scan loops.
-// Bigger number of loops is slower than updateMetricIDsByMetricNameMatch
-// over the found metrics.
-const maxIndexScanLoopsPerMetric = 100
-
-// The maximum number of slow index scan loops.
-// Bigger number of loops is slower than updateMetricIDsByMetricNameMatch
-// over the found metrics.
-const maxIndexScanSlowLoopsPerMetric = 20
+// The estimated number of index scan loops a single loop in updateMetricIDsByMetricNameMatch takes.
+const loopsCountPerMetricNameMatch = 500
 
 func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	if filter.Len() == 0 {
 		return nil, nil
 	}
-	kb := &is.kb
-	filterLenRounded := (uint64(filter.Len()) / 1024) * 1024
-	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
-	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
-	kb.B = tf.Marshal(kb.B)
-	if len(is.db.uselessTagFiltersCache.Get(nil, kb.B)) > 0 {
-		// Skip useless work, since the intersection will return
-		// errFallbackToMetricNameMatc for the given filter.
-		return nil, errFallbackToMetricNameMatch
-	}
-	metricIDs, err := is.intersectMetricIDsWithTagFilterNocache(tf, filter)
-	if err == nil {
-		return metricIDs, err
-	}
-	if err != errFallbackToMetricNameMatch {
-		return nil, err
-	}
-	kb.B = append(kb.B[:0], uselessTagIntersectKeyPrefix)
-	kb.B = encoding.MarshalUint64(kb.B, filterLenRounded)
-	kb.B = tf.Marshal(kb.B)
-	is.db.uselessTagFiltersCache.Set(kb.B, uselessTagFilterCacheValue)
-	return nil, errFallbackToMetricNameMatch
-}
-
-func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	metricIDs := filter
 	if !tf.isNegative {
 		metricIDs = &uint64set.Set{}
 	}
 	if len(tf.orSuffixes) > 0 {
 		// Fast path for orSuffixes - seek for rows for each value from orSuffixes.
-		if err := is.updateMetricIDsForOrSuffixesWithFilter(tf, metricIDs, filter); err != nil {
-			if err == errFallbackToMetricNameMatch {
-				return nil, err
-			}
+		_, err := is.updateMetricIDsForOrSuffixesWithFilter(tf, metricIDs, filter)
+		if err != nil {
 			return nil, fmt.Errorf("error when intersecting metricIDs for tagFilter in fast path: %w; tagFilter=%s", err, tf)
 		}
 		return metricIDs, nil
 	}
 
 	// Slow path - scan for all the rows with the given prefix.
-	maxLoopsCount := uint64(filter.Len()) * maxIndexScanSlowLoopsPerMetric
-	_, err := is.getMetricIDsForTagFilterSlow(tf, filter, maxLoopsCount, func(metricID uint64) {
+	_, err := is.getMetricIDsForTagFilterSlow(tf, filter, func(metricID uint64) {
 		if tf.isNegative {
 			// filter must be equal to metricIDs
 			metricIDs.Del(metricID)
@@ -3261,9 +3218,6 @@ func (is *indexSearch) intersectMetricIDsWithTagFilterNocache(tf *tagFilter, fil
 		}
 	})
 	if err != nil {
-		if err == errFallbackToMetricNameMatch {
-			return nil, err
-		}
 		return nil, fmt.Errorf("error when intersecting metricIDs for tagFilter in slow path: %w; tagFilter=%s", err, tf)
 	}
 	return metricIDs, nil

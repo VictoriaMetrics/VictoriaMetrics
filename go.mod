@@ -7,7 +7,7 @@ require (
 
 	// Do not use the original github.com/valyala/fasthttp because of issues
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
-	github.com/VictoriaMetrics/fasthttp v1.0.13
+	github.com/VictoriaMetrics/fasthttp v1.0.14
 	github.com/VictoriaMetrics/metrics v1.15.2
 	github.com/VictoriaMetrics/metricsql v0.14.0
 	github.com/aws/aws-sdk-go v1.37.26

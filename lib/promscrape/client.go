@@ -27,11 +27,11 @@ var (
 		"It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
 	disableKeepAlive = flag.Bool("promscrape.disableKeepAlive", false, "Whether to disable HTTP keep-alive connections when scraping all the targets. "+
 		"This may be useful when targets has no support for HTTP keep-alive connection. "+
-		"It is possible to set `disable_keepalive: true` individually per each 'scrape_config` section in '-promscrape.config' for fine grained control. "+
+		"It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. "+
 		"Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
 	streamParse = flag.Bool("promscrape.streamParse", false, "Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful "+
 		"for reducing memory usage when millions of metrics are exposed per each scrape target. "+
-		"It is posible to set `stream_parse: true` individually per each `scrape_config` section in `-promscrape.config` for fine grained control")
+		"It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
 )
 
 type client struct {
@@ -67,7 +67,7 @@ func newClient(sw *ScrapeWork) *client {
 			host += ":443"
 		}
 	}
-	dialFunc, err := newStatDialFunc(sw.ProxyURL, tlsCfg)
+	dialFunc, err := newStatDialFunc(sw.ProxyURL, sw.ProxyAuthConfig)
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}

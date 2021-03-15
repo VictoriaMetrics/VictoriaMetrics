@@ -538,6 +538,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Do not drop trailing data points for queries, which return 2 or 1 point (aka instant queries).
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/845
 	canDropLastSample := rc.CanDropLastSample && len(rc.Timestamps) > 2
+	f := rc.Func
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -577,7 +578,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			rfa.realNextValue = nan
 		}
 		rfa.currTimestamp = tEnd
-		value := rc.Func(rfa)
+		value := f(rfa)
 		rfa.idx++
 		dstValues = append(dstValues, value)
 	}
@@ -643,12 +644,12 @@ func getScrapeInterval(timestamps []int64) int64 {
 		return int64(maxSilenceInterval)
 	}
 
-	// Estimate scrape interval as 0.6 quantile for the first 100 intervals.
+	// Estimate scrape interval as 0.6 quantile for the first 20 intervals.
 	h := histogram.GetFast()
 	tsPrev := timestamps[0]
 	timestamps = timestamps[1:]
-	if len(timestamps) > 100 {
-		timestamps = timestamps[:100]
+	if len(timestamps) > 20 {
+		timestamps = timestamps[:20]
 	}
 	for _, ts := range timestamps {
 		h.Update(float64(ts - tsPrev))
