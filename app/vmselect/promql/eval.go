@@ -98,11 +98,14 @@ type EvalConfig struct {
 	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
 	LookbackDelta int64
 
-	timestamps     []int64
-	timestampsOnce sync.Once
+	// How many decimal digits after the point to leave in response.
+	RoundDigits int
 
 	// EnforcedTagFilters used for apply additional label filters to query.
 	EnforcedTagFilters []storage.TagFilter
+
+	timestamps     []int64
+	timestampsOnce sync.Once
 }
 
 // newEvalConfig returns new EvalConfig copy from src.
@@ -114,6 +117,7 @@ func newEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.Deadline = src.Deadline
 	ec.MayCache = src.MayCache
 	ec.LookbackDelta = src.LookbackDelta
+	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilters = src.EnforcedTagFilters
 
 	// do not copy src.timestamps - they must be generated again.

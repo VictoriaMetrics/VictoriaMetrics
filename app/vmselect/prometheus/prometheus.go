@@ -1022,6 +1022,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		QuotedRemoteAddr:   httpserver.GetQuotedRemoteAddr(r),
 		Deadline:           deadline,
 		LookbackDelta:      lookbackDelta,
+		RoundDigits:        getRoundDigits(r),
 		EnforcedTagFilters: etf,
 	}
 	result, err := promql.Exec(&ec, query, true)
@@ -1126,6 +1127,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 		Deadline:           deadline,
 		MayCache:           mayCache,
 		LookbackDelta:      lookbackDelta,
+		RoundDigits:        getRoundDigits(r),
 		EnforcedTagFilters: etf,
 	}
 	result, err := promql.Exec(&ec, query, false)
@@ -1300,6 +1302,18 @@ func getMatchesFromRequest(r *http.Request) []string {
 	// This is needed for backwards compatibility
 	matches = append(matches, r.Form["match"]...)
 	return matches
+}
+
+func getRoundDigits(r *http.Request) int {
+	s := r.FormValue("round_digits")
+	if len(s) == 0 {
+		return 100
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 100
+	}
+	return n
 }
 
 func getLatencyOffsetMilliseconds() int64 {

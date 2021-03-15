@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -71,6 +72,14 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
 		return nil, err
+	}
+	if n := ec.RoundDigits; n < 100 {
+		for i := range result {
+			values := result[i].Values
+			for j, v := range values {
+				values[j] = decimal.RoundToDecimalDigits(v, n)
+			}
+		}
 	}
 	return result, err
 }
