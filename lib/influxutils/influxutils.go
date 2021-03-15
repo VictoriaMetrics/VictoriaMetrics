@@ -25,5 +25,5 @@ func WriteDatabaseNames(w http.ResponseWriter) {
 	for i := range dbNames {
 		dbs[i] = fmt.Sprintf(`[%q]`, dbNames[i])
 	}
-	fmt.Fprintf(w, `{"results":[{"name":"databases","columns":["name"],"series":[{"values":[%s]}]}]}`, strings.Join(dbs, ","))
+	fmt.Fprintf(w, `{"results":[{"statement_id":0,"series":[{"name":"databases","columns":["name"],"values":[%s]}]}]}`, strings.Join(dbs, ","))
 }
