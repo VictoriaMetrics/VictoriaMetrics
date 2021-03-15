@@ -57,10 +57,11 @@ func TestExecSuccess(t *testing.T) {
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:    start,
-			End:      end,
-			Step:     step,
-			Deadline: searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Start:       start,
+			End:         end,
+			Step:        step,
+			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits: 100,
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(ec, q, false)
@@ -6575,10 +6576,11 @@ func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:    1000,
-			End:      2000,
-			Step:     100,
-			Deadline: searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Start:       1000,
+			End:         2000,
+			Step:        100,
+			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits: 100,
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(ec, q, false)
