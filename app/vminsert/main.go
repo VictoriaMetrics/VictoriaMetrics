@@ -26,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutils"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -49,7 +50,6 @@ var (
 	httpListenAddr         = flag.String("httpListenAddr", ":8480", "Address to listen for http connections")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superfluous labels are dropped")
 	storageNodes           = flagutil.NewArray("storageNode", "Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400")
-	influxDatabasesNames   = flag.String("influx.databasesNames", "_internal", "Comma separated names of databases, that will be returned for /query and /influx/query api.")
 )
 
 var (
@@ -215,18 +215,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "influx/query":
-		// Emulate fake response for influx query.
-		// This is required for TSBS benchmark and some telegraph plugins.
 		influxQueryRequests.Inc()
-		var dbs string
-		influxDbs := strings.Split(*influxDatabasesNames, ",")
-		for i := range influxDbs {
-			dbs += fmt.Sprintf(`"[%s]"`, influxDbs[i])
-			if i != len(influxDbs)-1 {
-				dbs += ","
-			}
-		}
-		fmt.Fprintf(w, `{"results":[{"name":"databases","columns":["name"],"series":[{"values":[%s]}]}]}`, dbs)
+		influxutils.WriteDatabaseNames(w)
 		return true
 	default:
 		// This is not our link
