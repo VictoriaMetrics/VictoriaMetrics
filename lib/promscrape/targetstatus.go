@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
-var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of `droppedTargets` shown at /api/v1/targets page. "+
+var maxDroppedTargets = flag.Int("promscrape.maxDroppedTargets", 1000, "The maximum number of droppedTargets to show at /api/v1/targets page. "+
 	"Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. "+
 	"Note that the increased number of tracked dropped targets may result in increased memory usage")
 
