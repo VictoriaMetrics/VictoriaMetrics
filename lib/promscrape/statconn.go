@@ -15,9 +15,9 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func statStdDial(ctx context.Context, network, addr string) (net.Conn, error) {
+func statStdDial(ctx context.Context, network_, addr string) (net.Conn, error) {
 	d := getStdDialer()
-	network = netutil.GetTCPNetwork()
+	network := netutil.GetTCPNetwork()
 	conn, err := d.DialContext(ctx, network, addr)
 	dialsTotal.Inc()
 	if err != nil {

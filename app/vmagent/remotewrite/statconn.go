@@ -9,8 +9,8 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func statDial(network, addr string) (conn net.Conn, err error) {
-	network = netutil.GetTCPNetwork()
+func statDial(network_, addr string) (conn net.Conn, err error) {
+	network := netutil.GetTCPNetwork()
 	conn, err = net.DialTimeout(network, addr, 5*time.Second)
 	dialsTotal.Inc()
 	if err != nil {
