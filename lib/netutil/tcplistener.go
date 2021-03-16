@@ -11,14 +11,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used")
+var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used")
 
 // NewTCPListener returns new TCP listener for the given addr.
 //
 // name is used for exported metrics. Each listener in the program must have
 // distinct name.
 func NewTCPListener(name, addr string) (*TCPListener, error) {
-	network := getNetwork()
+	network := GetTCPNetwork()
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,17 @@ func TCP6Enabled() bool {
 	return *enableTCP6
 }
 
-func getNetwork() string {
+// GetUDPNetwork returns current udp network.
+func GetUDPNetwork() string {
+	if *enableTCP6 {
+		// Enable both udp4 and udp6
+		return "udp"
+	}
+	return "udp4"
+}
+
+// GetTCPNetwork returns current tcp network.
+func GetTCPNetwork() string {
 	if *enableTCP6 {
 		// Enable both tcp4 and tcp6
 		return "tcp"
