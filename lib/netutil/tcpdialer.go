@@ -45,7 +45,7 @@ type TCPDialer struct {
 // Dial dials the addr passed to NewTCPDialer.
 func (d *TCPDialer) Dial() (net.Conn, error) {
 	d.dials.Inc()
-	network := getNetwork()
+	network := GetTCPNetwork()
 	c, err := d.d.Dial(network, d.addr)
 	if err != nil {
 		d.dialErrors.Inc()

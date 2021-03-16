@@ -138,10 +138,7 @@ func tlsServerName(addr string) string {
 }
 
 func defaultDialFunc(addr string) (net.Conn, error) {
-	network := "tcp4"
-	if netutil.TCP6Enabled() {
-		network = "tcp"
-	}
+	network := netutil.GetTCPNetwork()
 	// Do not use fasthttp.Dial because of https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
 	return net.DialTimeout(network, addr, 5*time.Second)
 }

@@ -1,9 +1,7 @@
 package remotewrite
 
 import (
-	"fmt"
 	"net"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -12,12 +10,7 @@ import (
 )
 
 func statDial(network, addr string) (conn net.Conn, err error) {
-	if !strings.HasPrefix(network, "tcp") {
-		return nil, fmt.Errorf("unexpected network passed to statDial: %q; it must start from `tcp`", network)
-	}
-	if !netutil.TCP6Enabled() {
-		network = "tcp4"
-	}
+	network = netutil.GetTCPNetwork()
 	conn, err = net.DialTimeout(network, addr, 5*time.Second)
 	dialsTotal.Inc()
 	if err != nil {

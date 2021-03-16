@@ -16,6 +16,7 @@
 * FEATURE: add `-influx.databaseNames` command-line flag, which can be used for accepting data from some Telegraf plugins such as [fluentd plugin](https://github.com/fangli/fluent-plugin-influxdb). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1124).
 * FEATURE: add `-logNewSeries` command-line flag, which can be used for debugging the source of time series churn rate.
 * FEATURE: publish Windows builds for [vmagent](https://victoriametrics.github.io/vmagent.html), [vmalert](https://victoriametrics.github.io/vmalert.html), [vmauth](https://victoriametrics.github.io/vmauth.html) and [vmctl](https://victoriametrics.github.io/vmctl.html) at `vmutils-windows-*.zip` archives at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+* FEATURE: listen for IPv6 UDP if `-enableTCP6` command-line flag is passed to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1131).
 
 * BUGFIX: vmagent: prevent from high CPU usage bug during failing scrapes with small `scrape_timeout` (less than a few seconds).
 * BUGFIX: vmagent: reduce memory usage when Kubernetes service discovery is used in big number of distinct scrape config jobs by sharing Kubernetes object cache. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1113
