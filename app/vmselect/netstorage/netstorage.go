@@ -293,7 +293,7 @@ func unpackWorker() {
 // unpackBatchSize is the maximum number of blocks that may be unpacked at once by a single goroutine.
 //
 // This batch is needed in order to reduce contention for upackWorkCh in multi-CPU system.
-var unpackBatchSize = 8 * cgroup.AvailableCPUs()
+var unpackBatchSize = 32 * cgroup.AvailableCPUs()
 
 // Unpack unpacks pts to dst.
 func (pts *packedTimeseries) Unpack(dst *Result, tbf *tmpBlocksFile, tr storage.TimeRange, fetchData bool) error {
