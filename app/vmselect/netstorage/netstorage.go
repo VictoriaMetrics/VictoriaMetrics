@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -749,7 +750,9 @@ func ExportBlocks(sq *storage.SearchQuery, deadline searchutils.Deadline, f func
 
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
+	startTime := time.Now()
 	sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
 	gomaxprocs := cgroup.AvailableCPUs()
@@ -882,7 +885,9 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
+	startTime := time.Now()
 	maxSeriesCount := sr.Init(vmstorage.Storage, tfss, tr, *maxMetricsPerSearch, deadline.Deadline())
+	indexSearchDuration.UpdateDuration(startTime)
 	m := make(map[string][]blockRef, maxSeriesCount)
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 	blocksRead := 0
@@ -949,6 +954,8 @@ func ProcessSearchQuery(sq *storage.SearchQuery, fetchData bool, deadline search
 	rss.tbf = tbf
 	return &rss, nil
 }
+
+var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds`)
 
 type blockRef struct {
 	partRef storage.PartRef
