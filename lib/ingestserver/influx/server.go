@@ -44,7 +44,7 @@ func MustStart(addr string, insertHandler func(r io.Reader) error) *Server {
 	}
 
 	logger.Infof("starting UDP Influx server at %q", addr)
-	lnUDP, err := net.ListenPacket("udp4", addr)
+	lnUDP, err := net.ListenPacket(netutil.GetUDPNetwork(), addr)
 	if err != nil {
 		logger.Fatalf("cannot start UDP Influx server at %q: %s", addr, err)
 	}
