@@ -1193,7 +1193,9 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 	if err := checkTimeRange(s.storage, tr); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
+	startTime := time.Now()
 	ctx.sr.Init(s.storage, ctx.tfss, tr, *maxMetricsPerSearch, ctx.deadline)
+	indexSearchDuration.UpdateDuration(startTime)
 	defer ctx.sr.MustClose()
 	if err := ctx.sr.Error(); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -1227,6 +1229,8 @@ func (s *Server) processVMSelectSearch(ctx *vmselectRequestCtx) error {
 	}
 	return nil
 }
+
+var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds`)
 
 // checkTimeRange returns true if the given tr is denied for querying.
 func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
