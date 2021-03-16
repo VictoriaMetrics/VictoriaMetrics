@@ -260,10 +260,6 @@ type tagFilter struct {
 	graphiteReverseSuffix []byte
 }
 
-func (tf *tagFilter) looksLikeHeavy() bool {
-	return tf.isRegexp && len(tf.orSuffixes) == 0
-}
-
 func (tf *tagFilter) isComposite() bool {
 	k := tf.key
 	return len(k) > 0 && k[0] == compositeTagKeyPrefix
