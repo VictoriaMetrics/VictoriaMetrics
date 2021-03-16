@@ -2979,6 +2979,9 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 			break
 		}
 		maxLoopsCount := getFirstPositiveFilterLoopsCount(tfws[i+1:])
+		if maxLoopsCount == int64Max {
+			maxLoopsCount = int64(metricIDsLen) * loopsCountPerMetricNameMatch
+		}
 		m, filterLoopsCount, err := is.getMetricIDsForDateTagFilter(tf, date, tfs.commonPrefix, intMax, maxLoopsCount)
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
