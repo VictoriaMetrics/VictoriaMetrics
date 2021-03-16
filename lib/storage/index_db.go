@@ -2833,16 +2833,8 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		return int64Max
 	}
 	storeLoopsCount := func(tfw *tagFilterWithWeight, loopsCount int64) {
-		needStore := false
 		if loopsCount != tfw.loopsCount {
 			tfw.loopsCount = loopsCount
-			needStore = true
-		}
-		if loopsCount > tfw.filterLoopsCount {
-			tfw.filterLoopsCount = loopsCount
-			needStore = true
-		}
-		if needStore {
 			is.storeLoopsCountForDateFilter(date, tfw.tf, tfw.loopsCount, tfw.filterLoopsCount)
 		}
 	}
