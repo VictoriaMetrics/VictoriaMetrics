@@ -347,8 +347,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		return nil, nil
 	}
 	if limit < 3 {
-		// Preserve the first and the last bucket for better accuracy,
-		// since these buckets are usually `[0...leMin]` and `(leMax ... +Inf]`
+		// Preserve the first and the last bucket for better accuracy for min and max values.
 		limit = 3
 	}
 	tss := vmrangeBucketsToLE(args[1])
@@ -412,21 +411,17 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 			}
 		}
 		for len(leGroup) > limit {
-			// Preserve the first and the last bucket for better accuracy,
-			// since these buckets are usually `[0...leMin]` and `(leMax ... +Inf]`
-			xxMinIdx := 0
-			for i, xx := range leGroup[1 : len(leGroup)-1] {
-				if xx.hits < leGroup[xxMinIdx].hits {
-					xxMinIdx = i
+			// Preserve the first and the last bucket for better accuracy for min and max values
+			xxMinIdx := 1
+			minMergeHits := leGroup[1].hits + leGroup[2].hits
+			for i := range leGroup[1 : len(leGroup)-2] {
+				mergeHits := leGroup[i+1].hits + leGroup[i+2].hits
+				if mergeHits < minMergeHits {
+					xxMinIdx = i + 1
+					minMergeHits = mergeHits
 				}
 			}
-			xxMinIdx++
-			// Merge the leGroup[xxMinIdx] bucket with the smallest adjacent bucket in order to preserve
-			// the maximum accuracy.
-			if xxMinIdx > 1 && leGroup[xxMinIdx-1].hits < leGroup[xxMinIdx+1].hits {
-				xxMinIdx--
-			}
-			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
+			leGroup[xxMinIdx].hits += leGroup[xxMinIdx+1].hits
 			leGroup = append(leGroup[:xxMinIdx], leGroup[xxMinIdx+1:]...)
 		}
 		for _, xx := range leGroup {
