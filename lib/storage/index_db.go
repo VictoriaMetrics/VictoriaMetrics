@@ -2889,7 +2889,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
 				// The tf took too many loops compared to the next filter. Postpone applying this filter.
-				storeLoopsCount(&tfw, loopsCount+1)
+				storeLoopsCount(&tfw, 2*loopsCount)
 				tfwsRemaining = append(tfwsRemaining, tfw)
 				continue
 			}
@@ -2986,7 +2986,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
 				// Postpone tf, since it took more loops than the next filter may need.
-				storeFilterLoopsCount(&tfw, filterLoopsCount+1)
+				storeFilterLoopsCount(&tfw, 2*filterLoopsCount)
 				tfsPostponed = append(tfsPostponed, tf)
 				continue
 			}
