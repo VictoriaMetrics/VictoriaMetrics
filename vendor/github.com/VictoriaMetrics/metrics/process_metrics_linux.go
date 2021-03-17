@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -11,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 // See https://github.com/prometheus/procfs/blob/a4ac0826abceb44c40fc71daed2b301db498b93e/proc_stat.go#L40 .
@@ -67,11 +65,6 @@ func writeProcessMetrics(w io.Writer) {
 		log.Printf("ERROR: cannot parse %q read from %s: %s", data, statFilepath, err)
 		return
 	}
-	rssPageCache, rssAnonymous, err := getRSSStats()
-	if err != nil {
-		log.Printf("ERROR: cannot obtain RSS page cache bytes: %s", err)
-		return
-	}
 
 	// It is expensive obtaining `process_open_fds` when big number of file descriptors is opened,
 	// so don't do it here.
@@ -86,11 +79,9 @@ func writeProcessMetrics(w io.Writer) {
 	fmt.Fprintf(w, "process_minor_pagefaults_total %d\n", p.Minflt)
 	fmt.Fprintf(w, "process_num_threads %d\n", p.NumThreads)
 	fmt.Fprintf(w, "process_resident_memory_bytes %d\n", p.Rss*4096)
-	fmt.Fprintf(w, "process_resident_memory_anonymous_bytes %d\n", rssAnonymous)
-	fmt.Fprintf(w, "process_resident_memory_pagecache_bytes %d\n", rssPageCache)
 	fmt.Fprintf(w, "process_start_time_seconds %d\n", startTimeSeconds)
 	fmt.Fprintf(w, "process_virtual_memory_bytes %d\n", p.Vsize)
-
+	writeProcessMemMetrics(w)
 	writeIOMetrics(w)
 }
 
@@ -142,7 +133,7 @@ func writeIOMetrics(w io.Writer) {
 
 var startTimeSeconds = time.Now().Unix()
 
-// riteFDMetrics writes process_max_fds and process_open_fds metrics to w.
+// writeFDMetrics writes process_max_fds and process_open_fds metrics to w.
 func writeFDMetrics(w io.Writer) {
 	totalOpenFDs, err := getOpenFDsCount("/proc/self/fd")
 	if err != nil {
@@ -208,119 +199,67 @@ func getMaxFilesLimit(path string) (uint64, error) {
 	return 0, fmt.Errorf("cannot find max open files limit")
 }
 
-// getRSSStats returns RSS bytes for page cache and anonymous memory.
-func getRSSStats() (uint64, uint64, error) {
-	filepath := "/proc/self/smaps"
-	f, err := os.Open(filepath)
-	if err != nil {
-		return 0, 0, fmt.Errorf("cannot open %q: %w", filepath, err)
-	}
-	defer func() {
-		_ = f.Close()
-	}()
-	rssPageCache, rssAnonymous, err := getRSSStatsFromSmaps(f)
-	if err != nil {
-		return 0, 0, fmt.Errorf("cannot read %q: %w", filepath, err)
-	}
-	return rssPageCache, rssAnonymous, nil
+// https://man7.org/linux/man-pages/man5/procfs.5.html
+type memStats struct {
+	vmPeak   uint64
+	rssPeak  uint64
+	rssAnon  uint64
+	rssFile  uint64
+	rssShmem uint64
 }
 
-func getRSSStatsFromSmaps(r io.Reader) (uint64, uint64, error) {
-	var pageCacheBytes, anonymousBytes uint64
-	var se smapsEntry
-	ses := newSmapsEntryScanner(r)
-	for ses.Next(&se) {
-		if se.anonymousBytes == 0 {
-			pageCacheBytes += se.rssBytes
-		} else {
-			anonymousBytes += se.rssBytes
+func writeProcessMemMetrics(w io.Writer) {
+	ms, err := getMemStats("/proc/self/status")
+	if err != nil {
+		log.Printf("ERROR: cannot determine memory status: %s", err)
+		return
+	}
+	fmt.Fprintf(w, "process_virtual_memory_peak_bytes %d\n", ms.vmPeak)
+	fmt.Fprintf(w, "process_resident_memory_peak_bytes %d\n", ms.rssPeak)
+	fmt.Fprintf(w, "process_resident_memory_anon_bytes %d\n", ms.rssAnon)
+	fmt.Fprintf(w, "process_resident_memory_file_bytes %d\n", ms.rssFile)
+	fmt.Fprintf(w, "process_resident_memory_shared_bytes %d\n", ms.rssShmem)
+
+}
+
+func getMemStats(path string) (*memStats, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var ms memStats
+	lines := strings.Split(string(data), "\n")
+	for _, s := range lines {
+		if !strings.HasPrefix(s, "Vm") && !strings.HasPrefix(s, "Rss") {
+			continue
+		}
+		// Extract key value.
+		line := strings.Fields(s)
+		if len(line) != 3 {
+			return nil, fmt.Errorf("unexpected number of fields found in %q; got %d; want %d", s, len(line), 3)
+		}
+		memStatName := line[0]
+		memStatValue := line[1]
+		value, err := strconv.ParseUint(memStatValue, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse number from %q: %w", s, err)
+		}
+		if line[2] != "kB" {
+			return nil, fmt.Errorf("expecting kB value in %q; got %q", s, line[2])
+		}
+		value *= 1024
+		switch memStatName {
+		case "VmPeak:":
+			ms.vmPeak = value
+		case "VmHWM:":
+			ms.rssPeak = value
+		case "RssAnon:":
+			ms.rssAnon = value
+		case "RssFile:":
+			ms.rssFile = value
+		case "RssShmem:":
+			ms.rssShmem = value
 		}
 	}
-	if err := ses.Err(); err != nil {
-		return 0, 0, err
-	}
-	return pageCacheBytes, anonymousBytes, nil
-}
-
-type smapsEntry struct {
-	rssBytes       uint64
-	anonymousBytes uint64
-}
-
-func (se *smapsEntry) reset() {
-	se.rssBytes = 0
-	se.anonymousBytes = 0
-}
-
-type smapsEntryScanner struct {
-	bs  *bufio.Scanner
-	err error
-}
-
-func newSmapsEntryScanner(r io.Reader) *smapsEntryScanner {
-	return &smapsEntryScanner{
-		bs: bufio.NewScanner(r),
-	}
-}
-
-func (ses *smapsEntryScanner) Err() error {
-	return ses.err
-}
-
-// nextSmapsEntry reads the next se from ses.
-//
-// It returns true after successful read and false on error or on the end of stream.
-// ses.Err() method must be called for determining the error.
-func (ses *smapsEntryScanner) Next(se *smapsEntry) bool {
-	se.reset()
-	if !ses.bs.Scan() {
-		ses.err = ses.bs.Err()
-		return false
-	}
-	for ses.bs.Scan() {
-		line := unsafeBytesToString(ses.bs.Bytes())
-		switch {
-		case strings.HasPrefix(line, "VmFlags:"):
-			return true
-		case strings.HasPrefix(line, "Rss:"):
-			n, err := getSmapsSize(line[len("Rss:"):])
-			if err != nil {
-				ses.err = fmt.Errorf("cannot read Rss size: %w", err)
-				return false
-			}
-			se.rssBytes = n
-		case strings.HasPrefix(line, "Anonymous:"):
-			n, err := getSmapsSize(line[len("Anonymous:"):])
-			if err != nil {
-				ses.err = fmt.Errorf("cannot read Anonymous size: %w", err)
-				return false
-			}
-			se.anonymousBytes = n
-		}
-	}
-	ses.err = ses.bs.Err()
-	if ses.err == nil {
-		ses.err = fmt.Errorf("unexpected end of stream")
-	}
-	return false
-}
-
-func getSmapsSize(line string) (uint64, error) {
-	line = strings.TrimSpace(line)
-	if !strings.HasSuffix(line, " kB") {
-		return 0, fmt.Errorf("cannot find %q suffix in %q", " kB", line)
-	}
-	line = line[:len(line)-len(" kB")]
-	n, err := strconv.ParseUint(line, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse %q: %w", line, err)
-	}
-	if n > ((1<<64)-1)/1024 {
-		return 0, fmt.Errorf("too big size in %q: %d kB", line, n)
-	}
-	return n * 1024, nil
-}
-
-func unsafeBytesToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return &ms, nil
 }
