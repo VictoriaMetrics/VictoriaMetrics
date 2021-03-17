@@ -60,11 +60,6 @@ type Histogram struct {
 // Reset resets the given histogram.
 func (h *Histogram) Reset() {
 	h.mu.Lock()
-	h.resetLocked()
-	h.mu.Unlock()
-}
-
-func (h *Histogram) resetLocked() {
 	for _, db := range h.decimalBuckets[:] {
 		if db == nil {
 			continue
@@ -75,6 +70,8 @@ func (h *Histogram) resetLocked() {
 	}
 	h.lower = 0
 	h.upper = 0
+	h.sum = 0
+	h.mu.Unlock()
 }
 
 // Update updates h with v.

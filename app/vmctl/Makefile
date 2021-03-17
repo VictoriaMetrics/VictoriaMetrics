@@ -71,3 +71,9 @@ vmctl-local-with-goarch:
 
 vmctl-pure:
 	APP_NAME=vmctl $(MAKE) app-local-pure
+
+vmctl-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmctl $(MAKE) app-local-windows-with-goarch
+
+vmctl-windows-amd64-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-windows-amd64

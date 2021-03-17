@@ -426,7 +426,7 @@ type timeseriesMap struct {
 }
 
 func newTimeseriesMap(funcName string, sharedTimestamps []int64, mnSrc *storage.MetricName) *timeseriesMap {
-	if funcName != "histogram_over_time" {
+	if strings.ToLower(funcName) != "histogram_over_time" {
 		return nil
 	}
 

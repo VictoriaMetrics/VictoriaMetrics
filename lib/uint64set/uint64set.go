@@ -854,22 +854,26 @@ func (b *bucket16) add(x uint16) bool {
 
 func (b *bucket16) addMulti(a []uint64) int {
 	count := 0
-	bits := b.bits
-	if bits == nil {
+	if b.bits == nil {
 		// Slow path
-		for _, x := range a {
+		for i, x := range a {
 			if b.add(uint16(x)) {
 				count++
 			}
-		}
-	} else {
-		// Fast path
-		for _, x := range a {
-			wordNum, bitMask := getWordNumBitMask(uint16(x))
-			if bits[wordNum]&bitMask == 0 {
-				bits[wordNum] |= bitMask
-				count++
+			if b.bits != nil {
+				a = a[i+1:]
+				goto fastPath
 			}
+		}
+		return count
+	}
+fastPath:
+	bits := b.bits
+	for _, x := range a {
+		wordNum, bitMask := getWordNumBitMask(uint16(x))
+		if bits[wordNum]&bitMask == 0 {
+			bits[wordNum] |= bitMask
+			count++
 		}
 	}
 	return count

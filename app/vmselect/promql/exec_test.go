@@ -4515,6 +4515,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`sum(Histogram_OVER_time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(Histogram_OVER_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{40, 40, 40, 40, 40, 40},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`topk_max(histogram_over_time)`, func(t *testing.T) {
 		t.Parallel()
 		q := `topk_max(1, histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
