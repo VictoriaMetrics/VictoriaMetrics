@@ -2,6 +2,10 @@
 
 # tip
 
+* FEATURE: add the following metrics at `/metrics` page for every VictoraMetrics app:
+  * `process_resident_memory_anonymous_bytes` - RSS share for memory allocated by the process itself.  This share cannot be freed by the OS, so it must be taken into account by OOM killer.
+  * `process_resident_memory_pagecache_bytes` - RSS share for page cache memory (aka memory-mapped files). This share can be freed by the OS at any time, so it must be ignored by OOM killer.
+
 
 # [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0)
 
