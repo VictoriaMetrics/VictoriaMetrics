@@ -2,6 +2,9 @@
 
 # tip
 
+
+# [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0)
+
 * FEATURE: add the following functions to [MetricsQL](https://victoriametrics.github.io/MetricsQL.html):
   - `histogram_avg(buckets)` - returns the average value for the given buckets.
   - `histogram_stdvar(buckets)` - returns standard variance for the given buckets.
