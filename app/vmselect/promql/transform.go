@@ -421,7 +421,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 					minMergeHits = mergeHits
 				}
 			}
-			leGroup[xxMinIdx].hits += leGroup[xxMinIdx+1].hits
+			leGroup[xxMinIdx+1].hits += leGroup[xxMinIdx].hits
 			leGroup = append(leGroup[:xxMinIdx], leGroup[xxMinIdx+1:]...)
 		}
 		for _, xx := range leGroup {
