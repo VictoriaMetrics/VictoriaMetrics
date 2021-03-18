@@ -683,8 +683,6 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Pure Go build (CGO_ENABLED=0)
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
-This is an experimental mode, which may result in a lower compression ratio and slower decompression performance.
-Use it with caution!
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
 2. Run `make victoria-metrics-pure` from the root folder of the repository.
