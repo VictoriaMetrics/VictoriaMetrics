@@ -61,6 +61,12 @@ vmutils-arm64: \
 	vmrestore-arm64 \
 	vmctl-arm64
 
+vmutils-windows-amd64: \
+	vmagent-windows-amd64 \
+	vmalert-windows-amd64 \
+	vmauth-windows-amd64 \
+	vmctl-windows-amd64
+
 release-snap:
 	snapcraft
 	snapcraft upload "victoriametrics_$(PKG_TAG)_multi.snap" --release beta,edge,candidate
@@ -89,13 +95,17 @@ release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
 
 release-vmutils: \
 	release-vmutils-amd64 \
-	release-vmutils-arm64
+	release-vmutils-arm64 \
+	release-vmutils-windows-amd64
 
 release-vmutils-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-generic
 
 release-vmutils-arm64:
 	GOARCH=arm64 $(MAKE) release-vmutils-generic
+
+release-vmutils-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
 
 release-vmutils-generic: \
 	vmagent-$(GOARCH)-prod \
@@ -120,6 +130,24 @@ release-vmutils-generic: \
 			vmrestore-$(GOARCH)-prod \
 			vmctl-$(GOARCH)-prod \
 			| sed s/-$(GOARCH)// > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
+
+release-vmutils-windows-generic: \
+	vmagent-windows-$(GOARCH)-prod \
+	vmalert-windows-$(GOARCH)-prod \
+	vmauth-windows-$(GOARCH)-prod \
+	vmctl-windows-$(GOARCH)-prod
+	cd bin && \
+		zip vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vmagent-windows-$(GOARCH)-prod.exe \
+			vmalert-windows-$(GOARCH)-prod.exe \
+			vmauth-windows-$(GOARCH)-prod.exe \
+			vmctl-windows-$(GOARCH)-prod.exe \
+		&& sha256sum vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vmagent-windows-$(GOARCH)-prod.exe \
+			vmalert-windows-$(GOARCH)-prod.exe \
+			vmauth-windows-$(GOARCH)-prod.exe \
+			vmctl-windows-$(GOARCH)-prod.exe \
+			> vmutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -193,6 +221,9 @@ app-local-pure:
 
 app-local-with-goarch:
 	GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-$(GOARCH)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+
+app-local-windows-with-goarch:
+	CGO_ENABLED=0 GO111MODULE=on go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 quicktemplate-gen: install-qtc
 	qtc

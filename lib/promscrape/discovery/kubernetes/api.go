@@ -1,20 +1,14 @@
 package kubernetes
 
 import (
-	"flag"
 	"fmt"
 	"net"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
-
-var apiServerTimeout = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kuberntes API server")
 
 // apiConfig contains config for API server
 type apiConfig struct {
@@ -36,6 +30,11 @@ func getAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
+	switch sdc.Role {
+	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
+	default:
+		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslices` or `ingress`", sdc.Role)
+	}
 	ac, err := promauth.NewConfig(baseDir, sdc.BasicAuth, sdc.BearerToken, sdc.BearerTokenFile, sdc.TLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
@@ -75,20 +74,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFu
 	for strings.HasSuffix(apiServer, "/") {
 		apiServer = apiServer[:len(apiServer)-1]
 	}
-	var proxy func(*http.Request) (*url.URL, error)
-	if proxyURL := sdc.ProxyURL.URL(); proxyURL != nil {
-		proxy = http.ProxyURL(proxyURL)
-	}
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig:     ac.NewTLSConfig(),
-			Proxy:               proxy,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     *apiServerTimeout,
-		},
-		Timeout: *apiServerTimeout,
-	}
-	aw := newAPIWatcher(client, apiServer, ac.Authorization, sdc.Namespaces.Names, sdc.Selectors, swcFunc)
+	aw := newAPIWatcher(apiServer, ac, sdc, swcFunc)
 	cfg := &apiConfig{
 		aw: aw,
 	}

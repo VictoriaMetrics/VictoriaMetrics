@@ -4,7 +4,7 @@ DOCKER_NAMESPACE := victoriametrics
 
 ROOT_IMAGE ?= alpine:3.13.2
 CERTS_IMAGE := alpine:3.13.2
-GO_BUILDER_IMAGE := golang:1.16.0
+GO_BUILDER_IMAGE := golang:1.16.2
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr : _)
 BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr : _)-$(shell echo $(CERTS_IMAGE) | tr : _)
 
@@ -38,6 +38,22 @@ app-via-docker: package-builder
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
 			-tags 'netgo osusergo nethttpomithttp2' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
+
+app-via-docker-windows: package-builder
+	mkdir -p gocache-for-docker
+	docker run --rm \
+		--user $(shell id -u):$(shell id -g) \
+		--mount type=bind,src="$(shell pwd)",dst=/VictoriaMetrics \
+		-w /VictoriaMetrics \
+		--mount type=bind,src="$(shell pwd)/gocache-for-docker",dst=/gocache \
+		--env GOCACHE=/gocache \
+		--env GO111MODULE=on \
+		$(DOCKER_OPTS) \
+		$(BUILDER_IMAGE) \
+		go build $(RACE) -mod=vendor -trimpath \
+			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
+			-tags 'netgo osusergo nethttpomithttp2' \
+			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE)$$') || (\
@@ -78,6 +94,11 @@ app-via-docker-goarch:
 	DOCKER_OPTS='--env CGO_ENABLED=$(CGO_ENABLED) --env GOOS=linux --env GOARCH=$(GOARCH)' \
 	$(MAKE) app-via-docker
 
+app-via-docker-windows-goarch:
+	APP_SUFFIX='-$(GOARCH)' \
+	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=$(GOARCH)' \
+	$(MAKE) app-via-docker-windows
+
 app-via-docker-goarch-cgo:
 	CGO_ENABLED=1 $(MAKE) app-via-docker-goarch
 
@@ -101,6 +122,9 @@ app-via-docker-ppc64le:
 
 app-via-docker-386:
 	GOARCH=386 $(MAKE) app-via-docker-goarch-nocgo
+
+app-via-docker-windows-amd64:
+	GOARCH=amd64 $(MAKE) app-via-docker-windows-goarch
 
 package-via-docker-goarch:
 	APP_SUFFIX='-$(GOARCH)' \

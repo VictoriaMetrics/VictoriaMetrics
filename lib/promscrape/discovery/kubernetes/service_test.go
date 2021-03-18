@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -10,7 +11,8 @@ import (
 func TestParseServiceListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		objectsByKey, _, err := parseServiceList([]byte(s))
+		r := bytes.NewBufferString(s)
+		objectsByKey, _, err := parseServiceList(r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -88,7 +90,8 @@ func TestParseServiceListSuccess(t *testing.T) {
   ]
 }
 `
-	objectsByKey, meta, err := parseServiceList([]byte(data))
+	r := bytes.NewBufferString(data)
+	objectsByKey, meta, err := parseServiceList(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

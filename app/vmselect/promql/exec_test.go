@@ -57,10 +57,11 @@ func TestExecSuccess(t *testing.T) {
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:    start,
-			End:      end,
-			Step:     step,
-			Deadline: searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Start:       start,
+			End:         end,
+			Step:        step,
+			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits: 100,
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(ec, q, false)
@@ -4514,6 +4515,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`sum(Histogram_OVER_time)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sum(Histogram_OVER_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{40, 40, 40, 40, 40, 40},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`topk_max(histogram_over_time)`, func(t *testing.T) {
 		t.Parallel()
 		q := `topk_max(1, histogram_over_time(alias(label_set(rand(0)*1.3+1.1, "foo", "bar"), "xxx")[200s:5s]))`
@@ -6575,10 +6587,11 @@ func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:    1000,
-			End:      2000,
-			Step:     100,
-			Deadline: searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			Start:       1000,
+			End:         2000,
+			Step:        100,
+			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits: 100,
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(ec, q, false)

@@ -338,7 +338,7 @@ Please see [Monitoring K8S with VictoriaMetrics](https://docs.google.com/present
 
 Numbers:
 
-- Active time series: ~2500 Million
+- Active time series: ~25 Million
 - Datapoints: ~20 Trillion
 - Ingestion rate: ~1800k/s
 - Disk usage: ~20 TB

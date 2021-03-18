@@ -11690,6 +11690,9 @@ type CORSRule struct {
 	// object).
 	ExposeHeaders []*string `locationName:"ExposeHeader" type:"list" flattened:"true"`
 
+	// Unique identifier for the rule. The value cannot be longer than 255 characters.
+	ID *string `type:"string"`
+
 	// The time in seconds that your browser is to cache the preflight response
 	// for the specified resource.
 	MaxAgeSeconds *int64 `type:"integer"`
@@ -11742,6 +11745,12 @@ func (s *CORSRule) SetAllowedOrigins(v []*string) *CORSRule {
 // SetExposeHeaders sets the ExposeHeaders field's value.
 func (s *CORSRule) SetExposeHeaders(v []*string) *CORSRule {
 	s.ExposeHeaders = v
+	return s
+}
+
+// SetID sets the ID field's value.
+func (s *CORSRule) SetID(v string) *CORSRule {
+	s.ID = &v
 	return s
 }
 

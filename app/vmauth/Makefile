@@ -77,3 +77,9 @@ vmauth-local-with-goarch:
 
 vmauth-pure:
 	APP_NAME=vmauth $(MAKE) app-local-pure
+
+vmauth-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmauth $(MAKE) app-local-windows-with-goarch
+
+vmauth-windows-amd64-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-windows-amd64

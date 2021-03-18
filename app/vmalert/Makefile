@@ -88,3 +88,9 @@ vmalert-local-with-goarch:
 
 vmalert-pure:
 	APP_NAME=vmalert $(MAKE) app-local-pure
+
+vmalert-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmalert $(MAKE) app-local-windows-with-goarch
+
+vmalert-windows-amd64-prod:
+	APP_NAME=vmalert $(MAKE) app-via-docker-windows-amd64

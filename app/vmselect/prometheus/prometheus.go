@@ -968,6 +968,11 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		start -= offset
 		end := start
 		start = end - window
+		// Do not include data point with a timestamp matching the lower boundary of the window as Prometheus does.
+		start++
+		if end < start {
+			end = start
+		}
 		if err := exportHandler(w, []string{childQuery}, etf, start, end, "promapi", 0, false, deadline); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
@@ -1017,6 +1022,7 @@ func QueryHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) e
 		QuotedRemoteAddr:   httpserver.GetQuotedRemoteAddr(r),
 		Deadline:           deadline,
 		LookbackDelta:      lookbackDelta,
+		RoundDigits:        getRoundDigits(r),
 		EnforcedTagFilters: etf,
 	}
 	result, err := promql.Exec(&ec, query, true)
@@ -1121,6 +1127,7 @@ func queryRangeHandler(startTime time.Time, w http.ResponseWriter, query string,
 		Deadline:           deadline,
 		MayCache:           mayCache,
 		LookbackDelta:      lookbackDelta,
+		RoundDigits:        getRoundDigits(r),
 		EnforcedTagFilters: etf,
 	}
 	result, err := promql.Exec(&ec, query, false)
@@ -1295,6 +1302,18 @@ func getMatchesFromRequest(r *http.Request) []string {
 	// This is needed for backwards compatibility
 	matches = append(matches, r.Form["match"]...)
 	return matches
+}
+
+func getRoundDigits(r *http.Request) int {
+	s := r.FormValue("round_digits")
+	if len(s) == 0 {
+		return 100
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 100
+	}
+	return n
 }
 
 func getLatencyOffsetMilliseconds() int64 {

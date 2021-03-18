@@ -255,6 +255,41 @@ If each target is scraped by multiple `vmagent` instances, then data deduplicati
 See [these docs](https://victoriametrics.github.io/#deduplication) for details.
 
 
+## Scraping targets via a proxy
+
+`vmagent` supports scraping targets via http and https proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
+target scraping via https proxy at `https://proxy-addr:1234`:
+
+```yml
+scrape_configs:
+- job_name: foo
+  proxy_url: https://proxy-addr:1234
+```
+
+Proxy can be configured with the following optional settings:
+
+* `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
+* `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
+
+For example:
+
+```yml
+scrape_configs:
+- job_name: foo
+  proxy_url: https://proxy-addr:1234
+  proxy_basic_auth:
+    username: foobar
+    password: secret
+  proxy_tls_config:
+    insecure_skip_verify: true
+    cert_file: /path/to/cert
+    key_file: /path/to/key
+    ca_file: /path/to/ca
+    server_name: real-server-name
+```
+
+
 ## Monitoring
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. We recommend setting up regular scraping of this page
@@ -477,13 +512,16 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
     	TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr='' (default ":8429")
-  -import.maxLineLen max_rows_per_line
-    	The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with max_rows_per_line query arg passed to /api/v1/export
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
-  -influx.maxLineSize value
+  -import.maxLineLen size
+    	The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
+  -influx.databaseNames array
+    	Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
+    	Supports array of values separated by comma or specified via multiple flags.
+  -influx.maxLineSize size
     	The maximum size in bytes for a single Influx line during parsing
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 262144)
-  -influxListenAddr http://<vmagent>:8429/write
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+  -influxListenAddr string
     	TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write
   -influxMeasurementFieldSeparator string
     	Separator for '{measurement}{separator}{field_name}' metric name when inserted via Influx line protocol (default "_")
@@ -511,12 +549,12 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
   -maxConcurrentInserts int
     	The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 16)
-  -maxInsertRequestSize value
+  -maxInsertRequestSize size
     	The maximum size in bytes of a single Prometheus remote_write API request
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
-  -memory.allowedBytes value
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+  -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
     	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
@@ -527,9 +565,9 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	TCP and UDP address to listen for OpentTSDB metrics. Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. Usually :4242 must be set. Doesn't work if empty
   -opentsdbTrimTimestamp duration
     	Trim timestamps for OpenTSDB 'telnet put' data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
-  -opentsdbhttp.maxInsertRequestSize value
+  -opentsdbhttp.maxInsertRequestSize size
     	The maximum size of OpenTSDB HTTP put request
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
     	Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
@@ -538,6 +576,8 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster
   -promscrape.cluster.membersCount int
     	The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
+  -promscrape.cluster.replicationFactor int
+    	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://victoriametrics.github.io/#deduplication (default 1)
   -promscrape.config string
     	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
@@ -546,45 +586,45 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
-  -promscrape.consulSDCheckInterval consul_sd_configs
+  -promscrape.consulSDCheckInterval duration
     	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
   -promscrape.disableCompression
     	Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
-  -promscrape.disableKeepAlive disable_keepalive: true
-    	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set disable_keepalive: true individually per each 'scrape_config` section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
+  -promscrape.disableKeepAlive
+    	Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
   -promscrape.discovery.concurrency int
     	The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
     	The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
-  -promscrape.dnsSDCheckInterval dns_sd_configs
+  -promscrape.dnsSDCheckInterval duration
     	Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
-  -promscrape.dockerswarmSDCheckInterval dockerswarm_sd_configs
+  -promscrape.dockerswarmSDCheckInterval duration
     	Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details (default 30s)
   -promscrape.dropOriginalLabels
     	Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
-  -promscrape.ec2SDCheckInterval ec2_sd_configs
+  -promscrape.ec2SDCheckInterval duration
     	Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details (default 1m0s)
-  -promscrape.eurekaSDCheckInterval eureka_sd_configs
+  -promscrape.eurekaSDCheckInterval duration
     	Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
   -promscrape.fileSDCheckInterval duration
     	Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 30s)
-  -promscrape.gceSDCheckInterval gce_sd_configs
+  -promscrape.gceSDCheckInterval duration
     	Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
-    	How frequently to reload the full state from Kuberntes API server (default 10m0s)
-  -promscrape.kubernetesSDCheckInterval kubernetes_sd_configs
+    	How frequently to reload the full state from Kuberntes API server (default 30m0s)
+  -promscrape.kubernetesSDCheckInterval duration
     	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
-  -promscrape.maxDroppedTargets droppedTargets
+  -promscrape.maxDroppedTargets int
     	The maximum number of droppedTargets shown at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
-  -promscrape.maxScrapeSize value
+  -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
-  -promscrape.openstackSDCheckInterval openstack_sd_configs
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+  -promscrape.openstackSDCheckInterval duration
     	Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
-  -promscrape.streamParse stream_parse: true
-    	Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set stream_parse: true individually per each `scrape_config` section in `-promscrape.config` for fine grained control
-  -promscrape.suppressDuplicateScrapeTargetErrors duplicate scrape target
-    	Whether to suppress duplicate scrape target errors; see https://victoriametrics.github.io/vmagent.html#troubleshooting for details
+  -promscrape.streamParse
+    	Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+  -promscrape.suppressDuplicateScrapeTargetErrors
+    	Whether to suppress 'duplicate scrape target' errors; see https://victoriametrics.github.io/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
     	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
   -remoteWrite.basicAuth.password array
@@ -601,12 +641,12 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -remoteWrite.label array
     	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage
     	Supports array of values separated by comma or specified via multiple flags.
-  -remoteWrite.maxBlockSize value
+  -remoteWrite.maxBlockSize size
     	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
-  -remoteWrite.maxDiskUsagePerURL value
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
+  -remoteWrite.maxDiskUsagePerURL size
     	The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500000000. Disk usage is unlimited if the value is set to 0
-    	Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)
+    	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -remoteWrite.proxyURL array
     	Optional proxy URL for writing data to -remoteWrite.url. Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234
     	Supports array of values separated by comma or specified via multiple flags.

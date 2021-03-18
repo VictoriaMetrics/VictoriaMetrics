@@ -15,7 +15,9 @@ import (
 //    ...
 //    pools[n] is for capacities from 2^(n+2)+1 to 2^(n+3)
 //
-var pools [30]sync.Pool
+// Limit the maximum capacity to 2^18, since there are no performance benefits
+// in caching byte slices with bigger capacities.
+var pools [17]sync.Pool
 
 // Get returns byte buffer with the given capacity.
 func Get(capacity int) *bytesutil.ByteBuffer {
@@ -37,9 +39,11 @@ func Get(capacity int) *bytesutil.ByteBuffer {
 // Put returns bb to the pool.
 func Put(bb *bytesutil.ByteBuffer) {
 	capacity := cap(bb.B)
-	id, _ := getPoolIDAndCapacity(capacity)
-	bb.Reset()
-	pools[id].Put(bb)
+	id, poolCapacity := getPoolIDAndCapacity(capacity)
+	if capacity <= poolCapacity {
+		bb.Reset()
+		pools[id].Put(bb)
+	}
 }
 
 func getPoolIDAndCapacity(size int) (int, int) {
@@ -49,7 +53,7 @@ func getPoolIDAndCapacity(size int) (int, int) {
 	}
 	size >>= 3
 	id := bits.Len(uint(size))
-	if id > len(pools) {
+	if id >= len(pools) {
 		id = len(pools) - 1
 	}
 	return id, (1 << (id + 3))

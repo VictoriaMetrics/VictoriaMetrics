@@ -78,3 +78,9 @@ vmagent-local-with-goarch:
 
 vmagent-pure:
 	APP_NAME=vmagent $(MAKE) app-local-pure
+
+vmagent-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmagent $(MAKE) app-local-windows-with-goarch
+
+vmagent-windows-amd64-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-windows-amd64

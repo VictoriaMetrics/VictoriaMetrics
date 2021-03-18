@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/fasthttp"
@@ -20,12 +21,32 @@ type URL struct {
 	url *url.URL
 }
 
+// MustNewURL returns new URL for the given u.
+func MustNewURL(u string) URL {
+	pu, err := url.Parse(u)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse u=%q: %s", u, err)
+	}
+	return URL{
+		url: pu,
+	}
+}
+
 // URL return the underlying url.
 func (u *URL) URL() *url.URL {
 	if u == nil || u.url == nil {
 		return nil
 	}
 	return u.url
+}
+
+// String returns string representation of u.
+func (u *URL) String() string {
+	pu := u.URL()
+	if pu == nil {
+		return ""
+	}
+	return pu.String()
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
@@ -72,19 +93,20 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	if authHeader != "" {
 		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 	}
-	tlsCfg := ac.NewTLSConfig()
+	var tlsCfg *tls.Config
+	if isTLS {
+		tlsCfg = ac.NewTLSConfig()
+		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
+			tlsCfg.ServerName = tlsServerName(proxyAddr)
+		}
+	}
 	dialFunc := func(addr string) (net.Conn, error) {
 		proxyConn, err := defaultDialFunc(proxyAddr)
 		if err != nil {
 			return nil, fmt.Errorf("cannot connect to proxy %q: %w", pu.Redacted(), err)
 		}
 		if isTLS {
-			tlsCfgLocal := tlsCfg
-			if !tlsCfgLocal.InsecureSkipVerify && tlsCfgLocal.ServerName == "" {
-				tlsCfgLocal = tlsCfgLocal.Clone()
-				tlsCfgLocal.ServerName = tlsServerName(addr)
-			}
-			proxyConn = tls.Client(proxyConn, tlsCfgLocal)
+			proxyConn = tls.Client(proxyConn, tlsCfg)
 		}
 		conn, err := sendConnectRequest(proxyConn, proxyAddr, addr, authHeader)
 		if err != nil {
@@ -116,10 +138,7 @@ func tlsServerName(addr string) string {
 }
 
 func defaultDialFunc(addr string) (net.Conn, error) {
-	network := "tcp4"
-	if netutil.TCP6Enabled() {
-		network = "tcp"
-	}
+	network := netutil.GetTCPNetwork()
 	// Do not use fasthttp.Dial because of https://github.com/VictoriaMetrics/VictoriaMetrics/issues/987
 	return net.DialTimeout(network, addr, 5*time.Second)
 }

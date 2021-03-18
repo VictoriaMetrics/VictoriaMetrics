@@ -141,36 +141,32 @@ func (s *Set) AddMulti(a []uint64) {
 	if len(a) == 0 {
 		return
 	}
-	slowPath := false
-	hi := uint32(a[0] >> 32)
-	for _, x := range a[1:] {
-		if hi != uint32(x>>32) {
-			slowPath = true
-			break
+	hiPrev := uint32(a[0] >> 32)
+	i := 0
+	for j, x := range a {
+		hi := uint32(x >> 32)
+		if hi == hiPrev {
+			continue
 		}
+		b32 := s.getOrCreateBucket32(hiPrev)
+		s.itemsCount += b32.addMulti(a[i:j])
+		hiPrev = hi
+		i = j
 	}
-	if slowPath {
-		for _, x := range a {
-			s.Add(x)
-		}
-		return
-	}
-	// Fast path - all the items in a have identical higher 32 bits.
-	// Put them in a bulk into the corresponding bucket32.
+	b32 := s.getOrCreateBucket32(hiPrev)
+	s.itemsCount += b32.addMulti(a[i:])
+}
+
+func (s *Set) getOrCreateBucket32(hi uint32) *bucket32 {
 	bs := s.buckets
-	var b32 *bucket32
 	for i := range bs {
 		if bs[i].hi == hi {
-			b32 = &bs[i]
-			break
+			return &bs[i]
 		}
 	}
-	if b32 == nil {
-		b32 = s.addBucket32()
-		b32.hi = hi
-	}
-	n := b32.addMulti(a)
-	s.itemsCount += n
+	b32 := s.addBucket32()
+	b32.hi = hi
+	return b32
 }
 
 func (s *Set) addBucket32() *bucket32 {
@@ -609,41 +605,32 @@ func (b *bucket32) addMulti(a []uint64) int {
 	if len(a) == 0 {
 		return 0
 	}
-	hi := uint16(a[0] >> 16)
-	slowPath := false
-	for _, x := range a[1:] {
-		if hi != uint16(x>>16) {
-			slowPath = true
-			break
+	count := 0
+	hiPrev := uint16(a[0] >> 16)
+	i := 0
+	for j, x := range a {
+		hi := uint16(x >> 16)
+		if hi == hiPrev {
+			continue
 		}
+		b16 := b.getOrCreateBucket16(hiPrev)
+		count += b16.addMulti(a[i:j])
+		hiPrev = hi
+		i = j
 	}
-	if slowPath {
-		count := 0
-		for _, x := range a {
-			if b.add(uint32(x)) {
-				count++
-			}
-		}
-		return count
-	}
-	// Fast path - all the items in a have identical higher 32+16 bits.
-	// Put them to a single bucket16 in a bulk.
-	var b16 *bucket16
+	b16 := b.getOrCreateBucket16(hiPrev)
+	count += b16.addMulti(a[i:])
+	return count
+}
+
+func (b *bucket32) getOrCreateBucket16(hi uint16) *bucket16 {
 	his := b.b16his
 	bs := b.buckets
-	if n := b.getHint(); n < uint32(len(his)) && his[n] == hi {
-		b16 = &bs[n]
+	n := binarySearch16(his, hi)
+	if n < 0 || n >= len(his) || his[n] != hi {
+		return b.addBucketAtPos(hi, n)
 	}
-	if b16 == nil {
-		n := binarySearch16(his, hi)
-		if n < 0 || n >= len(his) || his[n] != hi {
-			b16 = b.addBucketAtPos(hi, n)
-		} else {
-			b.setHint(n)
-			b16 = &bs[n]
-		}
-	}
-	return b16.addMulti(a)
+	return &bs[n]
 }
 
 func (b *bucket32) addSlow(hi, lo uint16) bool {
@@ -742,8 +729,8 @@ const (
 
 type bucket16 struct {
 	bits         *[wordsPerBucket]uint64
+	smallPool    *[smallPoolSize]uint16
 	smallPoolLen int
-	smallPool    [smallPoolSize]uint16
 }
 
 const smallPoolSize = 56
@@ -820,7 +807,14 @@ func (b *bucket16) intersect(a *bucket16) {
 }
 
 func (b *bucket16) sizeBytes() uint64 {
-	return uint64(unsafe.Sizeof(*b)) + uint64(unsafe.Sizeof(*b.bits))
+	n := unsafe.Sizeof(*b)
+	if b.bits != nil {
+		n += unsafe.Sizeof(*b.bits)
+	}
+	if b.smallPool != nil {
+		n += unsafe.Sizeof(*b.smallPool)
+	}
+	return uint64(n)
 }
 
 func (b *bucket16) copyTo(dst *bucket16) {
@@ -831,17 +825,30 @@ func (b *bucket16) copyTo(dst *bucket16) {
 		dst.bits = &bits
 	}
 	dst.smallPoolLen = b.smallPoolLen
-	dst.smallPool = b.smallPool
+	if b.smallPool != nil {
+		sp := dst.getOrCreateSmallPool()
+		*sp = *b.smallPool
+	}
+}
+
+func (b *bucket16) getOrCreateSmallPool() *[smallPoolSize]uint16 {
+	if b.smallPool == nil {
+		var sp [smallPoolSize]uint16
+		b.smallPool = &sp
+	}
+	return b.smallPool
 }
 
 func (b *bucket16) add(x uint16) bool {
-	if b.bits == nil {
+	bits := b.bits
+	if bits == nil {
 		return b.addToSmallPool(x)
 	}
 	wordNum, bitMask := getWordNumBitMask(x)
-	word := &b.bits[wordNum]
-	ok := *word&bitMask == 0
-	*word |= bitMask
+	ok := bits[wordNum]&bitMask == 0
+	if ok {
+		bits[wordNum] |= bitMask
+	}
 	return ok
 }
 
@@ -849,20 +856,24 @@ func (b *bucket16) addMulti(a []uint64) int {
 	count := 0
 	if b.bits == nil {
 		// Slow path
-		for _, x := range a {
+		for i, x := range a {
 			if b.add(uint16(x)) {
 				count++
 			}
-		}
-	} else {
-		// Fast path
-		for _, x := range a {
-			wordNum, bitMask := getWordNumBitMask(uint16(x))
-			word := &b.bits[wordNum]
-			if *word&bitMask == 0 {
-				count++
+			if b.bits != nil {
+				a = a[i+1:]
+				goto fastPath
 			}
-			*word |= bitMask
+		}
+		return count
+	}
+fastPath:
+	bits := b.bits
+	for _, x := range a {
+		wordNum, bitMask := getWordNumBitMask(uint16(x))
+		if bits[wordNum]&bitMask == 0 {
+			bits[wordNum] |= bitMask
+			count++
 		}
 	}
 	return count
@@ -872,15 +883,16 @@ func (b *bucket16) addToSmallPool(x uint16) bool {
 	if b.hasInSmallPool(x) {
 		return false
 	}
-	if b.smallPoolLen < len(b.smallPool) {
-		b.smallPool[b.smallPoolLen] = x
+	sp := b.getOrCreateSmallPool()
+	if b.smallPoolLen < len(sp) {
+		sp[b.smallPoolLen] = x
 		b.smallPoolLen++
 		return true
 	}
 	b.smallPoolLen = 0
 	var bits [wordsPerBucket]uint64
 	b.bits = &bits
-	for _, v := range b.smallPool[:] {
+	for _, v := range sp[:] {
 		b.add(v)
 	}
 	b.add(x)
@@ -896,7 +908,11 @@ func (b *bucket16) has(x uint16) bool {
 }
 
 func (b *bucket16) hasInSmallPool(x uint16) bool {
-	for _, v := range b.smallPool[:b.smallPoolLen] {
+	sp := b.smallPool
+	if sp == nil {
+		return false
+	}
+	for _, v := range sp[:b.smallPoolLen] {
 		if v == x {
 			return true
 		}
@@ -916,9 +932,13 @@ func (b *bucket16) del(x uint16) bool {
 }
 
 func (b *bucket16) delFromSmallPool(x uint16) bool {
-	for i, v := range b.smallPool[:b.smallPoolLen] {
+	sp := b.smallPool
+	if sp == nil {
+		return false
+	}
+	for i, v := range sp[:b.smallPoolLen] {
 		if v == x {
-			copy(b.smallPool[i:], b.smallPool[i+1:])
+			copy(sp[i:], sp[i+1:])
 			b.smallPoolLen--
 			return true
 		}
@@ -929,11 +949,15 @@ func (b *bucket16) delFromSmallPool(x uint16) bool {
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	if b.bits == nil {
+		sp := b.smallPool
+		if sp == nil {
+			return dst
+		}
 		// Use smallPoolSorter instead of sort.Slice here in order to reduce memory allocations.
 		sps := smallPoolSorterPool.Get().(*smallPoolSorter)
-		// Sort a copy of b.smallPool, since b must be readonly in order to prevent from data races
+		// Sort a copy of sp, since b must be readonly in order to prevent from data races
 		// when b.appendTo is called from concurrent goroutines.
-		sps.smallPool = b.smallPool
+		sps.smallPool = *sp
 		sps.a = sps.smallPool[:b.smallPoolLen]
 		if len(sps.a) > 1 && !sort.IsSorted(sps) {
 			sort.Sort(sps)
@@ -996,6 +1020,10 @@ func getWordNumBitMask(x uint16) (uint16, uint64) {
 func binarySearch16(u16 []uint16, x uint16) int {
 	// The code has been adapted from sort.Search.
 	n := len(u16)
+	if n > 0 && u16[n-1] < x {
+		// Fast path for values scanned in ascending order.
+		return n
+	}
 	i, j := 0, n
 	for i < j {
 		h := int(uint(i+j) >> 1)

@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -12,10 +13,11 @@ func (eps *EndpointSlice) key() string {
 	return eps.Metadata.key()
 }
 
-func parseEndpointSliceList(data []byte) (map[string]object, ListMeta, error) {
+func parseEndpointSliceList(r io.Reader) (map[string]object, ListMeta, error) {
 	var epsl EndpointSliceList
-	if err := json.Unmarshal(data, &epsl); err != nil {
-		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointSliceList from %q: %w", data, err)
+	d := json.NewDecoder(r)
+	if err := d.Decode(&epsl); err != nil {
+		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointSliceList: %w", err)
 	}
 	objectsByKey := make(map[string]object)
 	for _, eps := range epsl.Items {
@@ -35,16 +37,16 @@ func parseEndpointSlice(data []byte) (object, error) {
 // getTargetLabels returns labels for eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpointslices
-func (eps *EndpointSlice) getTargetLabels(aw *apiWatcher) []map[string]string {
+func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string {
 	var svc *Service
-	if o := aw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+	if o := gw.getObjectByRole("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
 	var ms []map[string]string
 	for _, ess := range eps.Endpoints {
 		var p *Pod
-		if o := aw.getObjectByRole("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {
+		if o := gw.getObjectByRole("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {
 			p = o.(*Pod)
 		}
 		for _, epp := range eps.Ports {

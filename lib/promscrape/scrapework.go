@@ -68,11 +68,14 @@ type ScrapeWork struct {
 	// See also https://prometheus.io/docs/concepts/jobs_instances/
 	Labels []prompbmarshal.Label
 
-	// Auth config
-	AuthConfig *promauth.Config
-
 	// ProxyURL HTTP proxy url
 	ProxyURL proxy.URL
+
+	// Auth config for ProxyUR:
+	ProxyAuthConfig *promauth.Config
+
+	// Auth config
+	AuthConfig *promauth.Config
 
 	// Optional `metric_relabel_configs`.
 	MetricRelabelConfigs *promrelabel.ParsedConfigs
@@ -105,9 +108,10 @@ type ScrapeWork struct {
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
 	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
-		"AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
+		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
 		"ScrapeAlignInterval=%s, ScrapeOffset=%s",
 		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
+		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
 		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
 		sw.ScrapeAlignInterval, sw.ScrapeOffset)
 	return key
@@ -173,9 +177,9 @@ type scrapeWork struct {
 	// It is used as a hint in order to reduce memory usage for body buffers.
 	prevBodyLen int
 
-	// prevRowsLen contains the number rows scraped during the previous scrape.
+	// prevLabelsLen contains the number labels scraped during the previous scrape.
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
-	prevRowsLen int
+	prevLabelsLen int
 }
 
 func (sw *scrapeWork) run(stopCh <-chan struct{}) {
@@ -279,7 +283,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	scrapeDuration.Update(duration)
 	scrapeResponseSize.Update(float64(len(body.B)))
 	up := 1
-	wc := writeRequestCtxPool.Get(sw.prevRowsLen)
+	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -309,7 +313,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	startTime := time.Now()
 	sw.PushData(&wc.writeRequest)
 	pushDataDuration.UpdateDuration(startTime)
-	sw.prevRowsLen = samplesScraped
+	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	// body must be released only after wc is released, since wc refers to body.
@@ -323,7 +327,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesScraped := 0
 	samplesPostRelabeling := 0
 	responseSize := int64(0)
-	wc := writeRequestCtxPool.Get(sw.prevRowsLen)
+	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 
 	sr, err := sw.GetStreamReader()
 	if err != nil {
@@ -373,7 +377,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	startTime := time.Now()
 	sw.PushData(&wc.writeRequest)
 	pushDataDuration.UpdateDuration(startTime)
-	sw.prevRowsLen = len(wc.rows.Rows)
+	sw.prevLabelsLen = len(wc.labels)
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	tsmGlobal.Update(sw.Config, sw.ScrapeGroup, up == 1, realTimestamp, int64(duration*1000), err)
@@ -385,11 +389,11 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 //
 // Its logic has been copied from leveledbytebufferpool.
 type leveledWriteRequestCtxPool struct {
-	pools [30]sync.Pool
+	pools [13]sync.Pool
 }
 
-func (lwp *leveledWriteRequestCtxPool) Get(rowsCapacity int) *writeRequestCtx {
-	id, capacityNeeded := lwp.getPoolIDAndCapacity(rowsCapacity)
+func (lwp *leveledWriteRequestCtxPool) Get(labelsCapacity int) *writeRequestCtx {
+	id, capacityNeeded := lwp.getPoolIDAndCapacity(labelsCapacity)
 	for i := 0; i < 2; i++ {
 		if id < 0 || id >= len(lwp.pools) {
 			break
@@ -405,10 +409,12 @@ func (lwp *leveledWriteRequestCtxPool) Get(rowsCapacity int) *writeRequestCtx {
 }
 
 func (lwp *leveledWriteRequestCtxPool) Put(wc *writeRequestCtx) {
-	capacity := cap(wc.rows.Rows)
-	id, _ := lwp.getPoolIDAndCapacity(capacity)
-	wc.reset()
-	lwp.pools[id].Put(wc)
+	capacity := cap(wc.labels)
+	id, poolCapacity := lwp.getPoolIDAndCapacity(capacity)
+	if capacity <= poolCapacity {
+		wc.reset()
+		lwp.pools[id].Put(wc)
+	}
 }
 
 func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int) {
@@ -418,7 +424,7 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 	}
 	size >>= 3
 	id := bits.Len(uint(size))
-	if id > len(lwp.pools) {
+	if id >= len(lwp.pools) {
 		id = len(lwp.pools) - 1
 	}
 	return id, (1 << (id + 3))
