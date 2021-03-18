@@ -81,7 +81,7 @@ func dirRemover() {
 		time.Sleep(sleepTime)
 		if sleepTime < maxSleepTime {
 			sleepTime *= 2
-		} else {
+		} else if sleepTime > time.Second {
 			logger.Warnf("failed to remove directory %q due to NFS lock; retrying later in %.3f seconds", w.path, sleepTime.Seconds())
 		}
 	}
