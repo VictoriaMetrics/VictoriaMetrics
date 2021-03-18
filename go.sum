@@ -86,8 +86,8 @@ github.com/VictoriaMetrics/fastcache v1.5.8/go.mod h1:SiMZNgwEPJ9qWLshu9tyuE6bKc
 github.com/VictoriaMetrics/fasthttp v1.0.14 h1:iWCdHg7JQ1SO0xvPAgw3QFpFT3he+Ugdshg+1clN6CQ=
 github.com/VictoriaMetrics/fasthttp v1.0.14/go.mod h1:eDVgYyGts3xXpYpVGDxQ3ZlQKW5TSvOqfc9FryjH1JA=
 github.com/VictoriaMetrics/metrics v1.12.2/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
-github.com/VictoriaMetrics/metrics v1.17.0 h1:OZRC1PEJ4p1QgzqNgviC2zW3vMGQutvmm/M1AhFz7PQ=
-github.com/VictoriaMetrics/metrics v1.17.0/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
+github.com/VictoriaMetrics/metrics v1.17.1 h1:hQCM4mUIrFWe0ZY8czGbiGdMRu7W491MAkH9INFruHI=
+github.com/VictoriaMetrics/metrics v1.17.1/go.mod h1:Z1tSfPfngDn12bTfZSCqArT3OPY3u88J12hSoOhuiRE=
 github.com/VictoriaMetrics/metricsql v0.14.0 h1:XGbpZJVskUPJFo2C7vG6ATxXBwkBFPe7EWZXB2HZt2U=
 github.com/VictoriaMetrics/metricsql v0.14.0/go.mod h1:ylO7YITho/Iw6P71oEaGyHbO94bGoGtzWfLGqFhMIg8=
 github.com/VividCortex/ewma v1.1.1 h1:MnEK4VOv6n0RSY4vtRe3h11qjxL3+t0B8yOL8iMXdcM=

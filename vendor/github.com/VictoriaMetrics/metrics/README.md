@@ -86,8 +86,8 @@ Because the `github.com/prometheus/client_golang` is too complex and is hard to 
 #### Why the `metrics.WritePrometheus` doesn't expose documentation for each metric?
 
 Because this documentation is ignored by Prometheus. The documentation is for users.
-Just add comments in the source code or in other suitable place explaining each metric
-exposed from your application.
+Just give meaningful names to the exported metrics or add comments in the source code
+or in other suitable place explaining each metric exposed from your application.
 
 
 #### How to implement [CounterVec](https://godoc.org/github.com/prometheus/client_golang/prometheus#CounterVec) in `metrics`?
@@ -98,7 +98,7 @@ instead of `CounterVec.With`. See [this example](https://pkg.go.dev/github.com/V
 
 #### Why [Histogram](http://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) buckets contain `vmrange` labels instead of `le` labels like in Prometheus histograms?
 
-Buckets with `vmrange` labels occupy less disk space comparing to Promethes-style buckets with `le` labels,
+Buckets with `vmrange` labels occupy less disk space compared to Promethes-style buckets with `le` labels,
 because `vmrange` buckets don't include counters for the previous ranges. [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) provides `prometheus_buckets`
 function, which converts `vmrange` buckets to Prometheus-style buckets with `le` labels. This is useful for building heatmaps in Grafana.
 Additionally, its' `histogram_quantile` function transparently handles histogram buckets with `vmrange` labels.
