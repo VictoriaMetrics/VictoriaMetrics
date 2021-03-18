@@ -222,23 +222,32 @@ func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	return nil
 }
 
-// metricsFind searches for label values that match the given head and tail.
-func metricsFind(tr storage.TimeRange, label, head, tail string, delimiter byte, isExpand bool, deadline searchutils.Deadline) ([]string, error) {
-	n := strings.IndexAny(tail, "*{[")
-	// fast path.
+// metricsFind searches for label values that match the given qHead and qTail.
+func metricsFind(tr storage.TimeRange, label, qHead, qTail string, delimiter byte, isExpand bool, deadline searchutils.Deadline) ([]string, error) {
+	n := strings.IndexAny(qTail, "*{[")
 	if n < 0 {
-		res, err := netstorage.GetTagValueSuffixes(tr, label, head+tail, delimiter, deadline)
+		query := qHead + qTail
+		suffixes, err := netstorage.GetTagValueSuffixes(tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, err
 		}
-		if len(res) == 0 {
+		if len(suffixes) == 0 {
 			return nil, nil
 		}
-		return []string{head + tail}, nil
+		if len(query) > 0 && query[len(query)-1] == delimiter {
+			return []string{query}, nil
+		}
+		results := make([]string, 0, len(suffixes))
+		for _, suffix := range suffixes {
+			if len(suffix) == 0 || len(suffix) == 1 && suffix[0] == delimiter {
+				results = append(results, query+suffix)
+			}
+		}
+		return results, nil
 	}
-	if strings.HasSuffix(head, "*") {
-		head = head[:len(head)-1]
-		suffixes, err := netstorage.GetTagValueSuffixes(tr, label, head, delimiter, deadline)
+	if n == len(qTail)-1 && strings.HasSuffix(qTail, "*") {
+		query := qHead + qTail[:len(qTail)-1]
+		suffixes, err := netstorage.GetTagValueSuffixes(tr, label, query, delimiter, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -247,25 +256,22 @@ func metricsFind(tr storage.TimeRange, label, head, tail string, delimiter byte,
 		}
 		results := make([]string, 0, len(suffixes))
 		for _, suffix := range suffixes {
-			results = append(results, head+suffix)
+			results = append(results, query+suffix)
 		}
 		return results, nil
 	}
-
-	head += tail[:n]
-	subquery := head + "*"
-	// execute subquery with the given head.
-	paths, err := metricsFind(tr, label, subquery, "*", delimiter, isExpand, deadline)
+	qHead += qTail[:n]
+	paths, err := metricsFind(tr, label, qHead, "*", delimiter, isExpand, deadline)
 	if err != nil {
 		return nil, err
 	}
-	tailNew := ""
-	suffix := tail[n:]
+	suffix := qTail[n:]
+	qTail = ""
 	if m := strings.IndexByte(suffix, delimiter); m >= 0 {
-		tailNew = suffix[m+1:]
+		qTail = suffix[m+1:]
 		suffix = suffix[:m+1]
 	}
-	qPrefix := head + suffix
+	qPrefix := qHead + suffix
 	rePrefix, err := getRegexpForQuery(qPrefix, delimiter)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert query %q to regexp: %w", qPrefix, err)
@@ -275,11 +281,11 @@ func metricsFind(tr storage.TimeRange, label, head, tail string, delimiter byte,
 		if !rePrefix.MatchString(path) {
 			continue
 		}
-		if tailNew == "" {
+		if qTail == "" {
 			results = append(results, path)
 			continue
 		}
-		fullPaths, err := metricsFind(tr, label, path, tailNew, delimiter, isExpand, deadline)
+		fullPaths, err := metricsFind(tr, label, path, qTail, delimiter, isExpand, deadline)
 		if err != nil {
 			return nil, err
 		}
