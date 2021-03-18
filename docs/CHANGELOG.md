@@ -9,6 +9,8 @@
   * `process_resident_memory_peak_bytes` - peak RSS usage for the process.
   * `process_virtual_memory_peak_bytes` - peak virtual memory usage for the process.
 
+* BUGFIX: prevent from infinite loop on `{__graphite__="..."}` filters when a metric name contains `*`, `{` or `[` chars.
+
 
 # [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0)
 
