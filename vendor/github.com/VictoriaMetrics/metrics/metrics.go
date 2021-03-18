@@ -47,8 +47,30 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 
 // WriteProcessMetrics writes additional process metrics in Prometheus format to w.
 //
-// Various `go_*` and `process_*` metrics are exposed for the currently
-// running process.
+// The following `go_*` and `process_*` metrics are exposed for the currently
+// running process. Below is a short description for the exposed `process_*` metrics:
+//
+//     - process_cpu_seconds_system_total - CPU time spent in syscalls
+//     - process_cpu_seconds_user_total - CPU time spent in userspace
+//     - process_cpu_seconds_total - CPU time spent by the process
+//     - process_major_pagefaults_total - page faults resulted in disk IO
+//     - process_minor_pagefaults_total - page faults resolved without disk IO
+//     - process_resident_memory_bytes - recently accessed memory (aka RSS or resident memory)
+//     - process_resident_memory_peak_bytes - the maximum RSS memory usage
+//     - process_resident_memory_anon_bytes - RSS for memory-mapped files
+//     - process_resident_memory_file_bytes - RSS for memory allocated by the process
+//     - process_resident_memory_shared_bytes - RSS for memory shared between multiple processes
+//     - process_virtual_memory_bytes - virtual memory usage
+//     - process_virtual_memory_peak_bytes - the maximum virtual memory usage
+//     - process_num_threads - the number of threads
+//     - process_start_time_seconds - process start time as unix timestamp
+//
+//     - process_io_read_bytes_total - the number of bytes read via syscalls
+//     - process_io_written_bytes_total - the number of bytes written via syscalls
+//     - process_io_read_syscalls_total - the number of read syscalls
+//     - process_io_write_syscalls_total - the number of write syscalls
+//     - process_io_storage_read_bytes_total - the number of bytes actually read from disk
+//     - process_io_storage_written_bytes_total - the number of bytes actually written to disk
 //
 // The WriteProcessMetrics func is usually called in combination with writing Set metrics
 // inside "/metrics" handler:
