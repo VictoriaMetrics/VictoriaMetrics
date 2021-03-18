@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1048,12 +1049,12 @@ func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
 //
 // If more than maxPaths paths is found, then only the first maxPaths paths is returned.
-func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
-	queryStr := string(query)
-	n := strings.IndexAny(queryStr, "*[{")
+func (s *Storage) SearchGraphitePaths(tr TimeRange, head, tail []byte, maxPaths int, deadline uint64) ([]string, error) {
+	n := bytes.IndexAny(tail, "*[{")
 	if n < 0 {
 		// Verify that the query matches a metric name.
-		suffixes, err := s.SearchTagValueSuffixes(tr, nil, query, '.', 1, deadline)
+		head = append(head, tail...)
+		suffixes, err := s.SearchTagValueSuffixes(tr, nil, head, '.', 1, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -1065,9 +1066,10 @@ func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, 
 			// The query matches a metric name with additional suffix.
 			return nil, nil
 		}
-		return []string{queryStr}, nil
+		return []string{string(head)}, nil
 	}
-	suffixes, err := s.SearchTagValueSuffixes(tr, nil, query[:n], '.', maxPaths, deadline)
+	head = append(head, tail[:n]...)
+	suffixes, err := s.SearchTagValueSuffixes(tr, nil, head, '.', maxPaths, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1077,16 +1079,15 @@ func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, 
 	if len(suffixes) >= maxPaths {
 		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
 	}
-	qPrefixStr := queryStr[:n]
-	qTail := ""
-	qNode := queryStr[n:]
+	qTail := tail[:0]
+	qNode := tail[n:]
 	mustMatchLeafs := true
-	if m := strings.IndexByte(qNode, '.'); m >= 0 {
+	if m := bytes.IndexByte(qNode, '.'); m >= 0 {
 		qTail = qNode[m+1:]
 		qNode = qNode[:m+1]
 		mustMatchLeafs = false
 	}
-	re, err := getRegexpForGraphiteQuery(qNode)
+	re, err := getRegexpForGraphiteQuery(string(qNode))
 	if err != nil {
 		return nil, err
 	}
@@ -1099,12 +1100,12 @@ func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, 
 		if !re.MatchString(suffix) {
 			continue
 		}
+		newHead := append(head, suffix...)
 		if mustMatchLeafs {
-			paths = append(paths, qPrefixStr+suffix)
+			paths = append(paths, string(newHead))
 			continue
 		}
-		q := qPrefixStr + suffix + qTail
-		ps, err := s.SearchGraphitePaths(tr, []byte(q), maxPaths, deadline)
+		ps, err := s.SearchGraphitePaths(tr, newHead, qTail, maxPaths, deadline)
 		if err != nil {
 			return nil, err
 		}
