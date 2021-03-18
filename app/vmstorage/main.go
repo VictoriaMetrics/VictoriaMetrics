@@ -192,9 +192,7 @@ func SearchTagValueSuffixes(tr storage.TimeRange, tagKey, tagValuePrefix []byte,
 // SearchGraphitePaths returns all the metric names matching the given Graphite query.
 func SearchGraphitePaths(tr storage.TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	//	paths, err := Storage.SearchGraphitePathsNew(tr, nil, query, maxPaths, deadline)
 	paths, err := Storage.SearchGraphitePaths(tr, nil, query, maxPaths, deadline)
-
 	WG.Done()
 	return paths, err
 }
