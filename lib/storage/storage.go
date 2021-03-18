@@ -16,7 +16,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -1129,7 +1128,7 @@ func (s *Storage) SearchGraphitePaths(accountID, projectID uint32, tr TimeRange,
 }
 
 func (s *Storage) searchGraphitePaths(accountID, projectID uint32, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
-	n := strings.IndexAny(bytesutil.ToUnsafeString(qTail), "*[{")
+	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
