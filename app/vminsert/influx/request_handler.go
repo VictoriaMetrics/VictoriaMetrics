@@ -105,7 +105,8 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 		if !*skipMeasurement {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, r.Measurement...)
 		}
-		skipFieldKey := len(r.Fields) == 1 && *skipSingleField
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1139
+		skipFieldKey := len(r.Measurement) > 0 && len(r.Fields) == 1 && *skipSingleField
 		if len(ctx.metricGroupBuf) > 0 && !skipFieldKey {
 			ctx.metricGroupBuf = append(ctx.metricGroupBuf, *measurementFieldSeparator...)
 		}
