@@ -126,7 +126,7 @@ type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
-	storage *Storage
+	idb *indexDB
 
 	ts tableSearch
 
@@ -150,7 +150,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.MetricName = s.MetricBlockRef.MetricName[:0]
 	s.MetricBlockRef.BlockRef = nil
 
-	s.storage = nil
+	s.idb = nil
 	s.ts.reset()
 	s.tr = TimeRange{}
 	s.tfss = nil
@@ -190,7 +190,7 @@ func (s *Search) Init(storage *Storage, tfss []*TagFilters, tr TimeRange, maxMet
 		return 0
 	}
 
-	s.storage = storage
+	s.idb = storage.idb()
 	return len(tsids)
 }
 
@@ -226,7 +226,7 @@ func (s *Search) NextMetricBlock() bool {
 		s.loops++
 		tsid := &s.ts.BlockRef.bh.TSID
 		var err error
-		s.MetricBlockRef.MetricName, err = s.storage.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
+		s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
 		if err != nil {
 			if err == io.EOF {
 				// Skip missing metricName for tsid.MetricID.

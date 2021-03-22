@@ -935,14 +935,12 @@ func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics
 	accountID := tsids[0].AccountID
 	projectID := tsids[0].ProjectID
 	idb := s.idb()
-	is := idb.getIndexSearch(accountID, projectID, deadline)
-	defer idb.putIndexSearch(is)
 	mns := make([]MetricName, 0, len(tsids))
 	var metricName []byte
 	for i := range tsids {
 		metricID := tsids[i].MetricID
 		var err error
-		metricName, err = is.searchMetricName(metricName[:0], metricID)
+		metricName, err = idb.searchMetricNameWithCache(metricName[:0], metricID, accountID, projectID)
 		if err != nil {
 			if err == io.EOF {
 				// Skip missing metricName for metricID.
@@ -1009,7 +1007,7 @@ var (
 //
 // It is expected that all the tsdis have the same (accountID, projectID)
 //
-// This should speed-up further searchMetricName calls for metricIDs from tsids.
+// This should speed-up further searchMetricNameWithCache calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	if len(tsids) == 0 {
 		return nil
@@ -1037,6 +1035,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 
 	// Pre-fetch metricIDs.
 	sort.Sort(metricIDs)
+	var missingMetricIDs []uint64
 	var metricName []byte
 	var err error
 	idb := s.idb()
@@ -1048,10 +1047,33 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 				return err
 			}
 		}
-		metricName, err = is.searchMetricName(metricName[:0], metricID)
-		if err != nil && err != io.EOF {
+		metricName, err = is.searchMetricNameWithCache(metricName[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				missingMetricIDs = append(missingMetricIDs, metricID)
+				continue
+			}
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
 		}
+	}
+	idb.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		defer extDB.putIndexSearch(is)
+		for loops, metricID := range missingMetricIDs {
+			if loops&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return
+				}
+			}
+			metricName, err = is.searchMetricNameWithCache(metricName[:0], metricID)
+			if err != nil && err != io.EOF {
+				err = fmt.Errorf("error in pre-fetching metricName for metricID=%d in extDB: %w", metricID, err)
+				return
+			}
+		}
+	})
+	if err != nil {
+		return err
 	}
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
@@ -1084,12 +1106,6 @@ func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 	// after filtering out deleted metricIDs.
 
 	return deletedCount, nil
-}
-
-// searchMetricName appends metric name for the given metricID to dst
-// and returns the result.
-func (s *Storage) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32) ([]byte, error) {
-	return s.idb().searchMetricName(dst, metricID, accountID, projectID)
 }
 
 // SearchTagKeysOnTimeRange searches for tag keys on tr.
