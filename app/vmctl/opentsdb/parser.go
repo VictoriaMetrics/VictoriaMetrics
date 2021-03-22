@@ -2,7 +2,7 @@ package opentsdb
 
 import (
 	"fmt"
-	"log"
+	// "log"
 	"regexp"
 	"strings"
 	// "time"
@@ -27,7 +27,6 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	*/
 	offset = offset * 24 * 60 * 60
 	if msecTime {
-		log.Println("Using millisecond time!")
 		offset = offset * 1000
 	}
 	/*
