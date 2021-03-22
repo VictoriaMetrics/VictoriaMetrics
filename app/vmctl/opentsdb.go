@@ -59,9 +59,10 @@ func (op *otsdbProcessor) run(silent bool) error {
 	if !silent && !prompt(question) {
 		return nil
 	}
-
+	op.im.ResetStats()
 	startTime := time.Now().Unix()
 	queryRanges := 0
+	// pre-calculate the number of query ranges we'll be processing
 	for _, rt := range op.oc.Retentions {
 		queryRanges += len(rt.QueryRanges)
 	}
@@ -118,6 +119,8 @@ func (op *otsdbProcessor) run(silent bool) error {
 			return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
 		}
 		bar.Finish()
+		op.im.Stats()
+		op.im.ResetStats()
 	}
 	log.Println("Import finished!")
 	return nil

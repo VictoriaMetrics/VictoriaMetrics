@@ -43,12 +43,14 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	}
 	// default to one hour
 	rowLengthDuration := flagutil.NewDuration(chunks[1], oneHour, "row span size")
+	// set length of each row in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	rowLength := rowLengthDuration.Msecs
 	if !msecTime {
 		rowLength = rowLength / 1000
 	}
 	// default to one day
 	ttlDuration := flagutil.NewDuration(chunks[2], oneDay, "Amount of data to request")
+	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	ttl := ttlDuration.Msecs
 	if !msecTime {
 		ttl = ttl / 1000
@@ -77,10 +79,12 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 		Metric: "", Tags: make(map[string]string),
 		Timestamps: msg.Timestamps, Values: msg.Values,
 	}
+	// if the metric name has invalid characters, the data model says to drop it
 	if !allowedFirstChar.MatchString(msg.Metric) {
 		return Metric{}, fmt.Errorf("%s has a bad first character", msg.Metric)
 	}
 	name := msg.Metric
+	// if normalization requested, lowercase the name
 	if normalize {
 		name = strings.ToLower(name)
 	}
@@ -92,10 +96,12 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 	}
 	// replace bad characters in tag keys with _ per the data model
 	for key, value := range msg.Tags {
+		// if normalization requested, lowercase the key and value
 		if normalize {
 			key = strings.ToLower(key)
 			value = strings.ToLower(value)
 		}
+		// replace all explicitly bad characters with _
 		if !allowedTagKeys.MatchString(key) {
 			key = replaceChars.ReplaceAllString(key, "_")
 		}

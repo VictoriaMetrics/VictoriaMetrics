@@ -207,6 +207,13 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 
 // GetData actually retrieves data for a series at a specified time range
 func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
+	/*
+		Here we build the actual exp query we'll send to OpenTSDB
+
+		This is comprised of a number of different settings. We hard-code
+		a few to simplify the JSON object creation.
+		There are examples queries available, so not too much detail here...
+	*/
 	expr := Expression{}
 	expr.Outputs = []outputObj{exprOutput}
 	expr.Metrics = append(expr.Metrics, metricObj{ID: "a", Metric: series.Metric,
@@ -217,6 +224,10 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 			FillPolicy: exprFillPolicy}}
 	var TagList []tagObj
 	for k, v := range series.Tags {
+		/*
+			every tag should be a literal_or because that's the closest to a full "==" that
+			this endpoint allows for
+		*/
 		TagList = append(TagList, tagObj{Type: "literal_or", Tagk: k,
 			Filter: v, GroupBy: true})
 	}
@@ -225,7 +236,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	expr.Expressions = make([]int, 0)
 	inputData, err := json.Marshal(expr)
 	if err != nil {
-		return Metric{}, fmt.Errorf("failed to marshal query results %v", err)
+		return Metric{}, fmt.Errorf("failed to marshal query JSON %s", err)
 	}
 	// log.Println("Query: ", string(inputData))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
@@ -246,7 +257,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 		return Metric{}, fmt.Errorf("failed to unmarshal response from %q: %s", q, err)
 	}
 	if len(output.Outputs) < 1 {
-		// log.Println("Incoming data: ", string(body))
+		// no results returned...return an empty object without error
 		return Metric{}, nil
 	}
 	// log.Println("De-serialized: ", output)
@@ -256,6 +267,8 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	/*
 		We evaluate data for correctness before formatting the actual values
 		to skip a little bit of time if the series has invalid formatting
+
+		First step is to enforce Prometheus' data model
 	*/
 	data, err = modifyData(data, c.Normalize)
 	if err != nil {
@@ -264,7 +277,7 @@ func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metr
 	/*
 		Convert data from OpenTSDB's output format ([[ts,val],[ts,val]...])
 		to VictoriaMetrics format: {"timestamps": [ts,ts,ts...], "values": [val,val,val...]}
-		The nasty part here is that because on object in each array
+		The nasty part here is that because an object in each array
 		can be a float64, we have to initially cast _all_ objects that way
 		then convert the timestamp back to something reasonable.
 	*/
