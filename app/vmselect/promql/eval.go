@@ -21,7 +21,7 @@ var (
 	disableCache           = flag.Bool("search.disableCache", false, "Whether to disable response caching. This may be useful during data backfilling")
 	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
-		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values significantly exceeding horizontal resoultion of the graph")
+		"returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
