@@ -137,7 +137,7 @@ var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="pr
 // ResetRollupResultCache resets rollup result cache.
 func ResetRollupResultCache() {
 	rollupResultCacheResets.Inc()
-	rollupResultCacheV.c.Reset()
+	atomic.AddUint64(&rollupResultCacheKeyPrefix, 1)
 	logger.Infof("rollupResult cache has been cleared")
 }
 
@@ -301,10 +301,11 @@ var (
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 7
+const rollupResultCacheVersion = 8
 
 func marshalRollupResultCacheKey(dst []byte, at *auth.Token, expr metricsql.Expr, window, step int64, filters []storage.TagFilter) []byte {
 	dst = append(dst, rollupResultCacheVersion)
+	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix)
 	dst = encoding.MarshalUint32(dst, at.AccountID)
 	dst = encoding.MarshalUint32(dst, at.ProjectID)
 	dst = encoding.MarshalInt64(dst, window)
