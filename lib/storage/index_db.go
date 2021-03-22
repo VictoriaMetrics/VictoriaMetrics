@@ -3252,7 +3252,7 @@ func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64
 }
 
 // The estimated number of index scan loops a single loop in updateMetricIDsByMetricNameMatch takes.
-const loopsCountPerMetricNameMatch = 500
+const loopsCountPerMetricNameMatch = 300
 
 func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	if filter.Len() == 0 {
