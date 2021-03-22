@@ -244,7 +244,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to marshal query JSON %s", err)
 	}
-	// log.Println("Query: ", string(inputData))
+	//log.Println(fmt.Sprintf("Query: %q", string(inputData)))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {

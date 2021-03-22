@@ -2,12 +2,9 @@ package opentsdb
 
 import (
 	"fmt"
-	// "log"
+	//"log"
 	"regexp"
 	"strings"
-	// "time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
@@ -42,16 +39,22 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 		return Retention{}, fmt.Errorf("invalid retention string: %q", retention)
 	}
 	// default to one hour
-	rowLengthDuration := flagutil.NewDuration(chunks[1], oneHour, "row span size")
+	rowLengthDuration, err := ParseDuration(chunks[1])
+	if err != nil {
+		return Retention{}, fmt.Errorf("Invalid row length (first order) duration string: %q", chunks[1])
+	}
 	// set length of each row in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
-	rowLength := rowLengthDuration.Msecs
+	rowLength := rowLengthDuration.Milliseconds()
 	if !msecTime {
 		rowLength = rowLength / 1000
 	}
 	// default to one day
-	ttlDuration := flagutil.NewDuration(chunks[2], oneDay, "Amount of data to request")
+	ttlDuration, err := ParseDuration(chunks[2])
+	if err != nil {
+		return Retention{}, fmt.Errorf("Invalid ttl (second order) duration string: %q", chunks[1])
+	}
 	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
-	ttl := ttlDuration.Msecs
+	ttl := ttlDuration.Milliseconds()
 	if !msecTime {
 		ttl = ttl / 1000
 	}

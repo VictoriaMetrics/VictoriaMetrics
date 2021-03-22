@@ -123,36 +123,37 @@ func (op *otsdbProcessor) run(silent bool) error {
 		}
 		// Drain channels per metric
 		close(seriesCh)
-		close(errCh)
-		op.im.Close()
 		wg.Wait()
-		// check for any lingering errors
-		for vmErr := range op.im.Errors() {
-			return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
-		}
+		close(errCh)
+		// check for any lingering errors on the query side
 		for otsdbErr := range errCh {
 			return fmt.Errorf("Import process failed: \n%s", otsdbErr)
 		}
 		bar.Finish()
 		log.Print(op.im.Stats())
-		op.im.ResetStats()
+	}
+	op.im.Close()
+	for vmErr := range op.im.Errors() {
+		return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
 	}
 	log.Println("Import finished!")
+	log.Print(op.im.Stats())
 	return nil
 }
 
 func (op *otsdbProcessor) do(s queryObj) error {
-
+	//log.Println(fmt.Sprintf("Query start position (%s), This chunk will query %s to %s", s.StartTime, s.Tr.Start, s.Tr.End))
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end)
 	if err != nil {
 		return fmt.Errorf("failed to collect data for %v in %v:%v", s.Series, s.Rt, s.Tr)
 	}
+	//log.Println(fmt.Sprintf("Found %d points for %v", len(data.Timestamps), s.Series))
 	if len(data.Timestamps) < 1 || len(data.Values) < 1 {
+		//log.Println(fmt.Sprintf("Didn't find any values for %v", s.Series))
 		return nil
 	}
-	// log.Println("Found %d stats for %v", len(data.Timestamps), seriesMeta)
 	labels := make([]vm.LabelPair, len(data.Tags))
 	for k, v := range data.Tags {
 		labels = append(labels, vm.LabelPair{Name: k, Value: v})

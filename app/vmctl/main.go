@@ -31,12 +31,6 @@ func main() {
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
 
-					vmCfg := initConfigVM(c)
-					importer, err := vm.NewImporter(vmCfg)
-					if err != nil {
-						return fmt.Errorf("failed to create VM importer: %s", err)
-					}
-
 					oCfg := opentsdb.Config{
 						Addr:       c.String(otsdbAddr),
 						Limit:      c.Int(otsdbQueryLimit),
@@ -49,6 +43,12 @@ func main() {
 					otsdbClient, err := opentsdb.NewClient(oCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create opentsdb client: %s", err)
+					}
+
+					vmCfg := initConfigVM(c)
+					importer, err := vm.NewImporter(vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Int(vmConcurrency))
