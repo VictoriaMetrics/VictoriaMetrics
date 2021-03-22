@@ -101,6 +101,7 @@ const (
 	otsdbConcurrency = "otsdb-concurrency"
 	otsdbQueryLimit  = "otsdb-query-limit"
 	otsdbOffsetDays  = "otsdb-offset-days"
+	otsdbHardTSStart = "otsdb-hard-ts-start"
 	otsdbRetentions  = "otsdb-retentions"
 	otsdbFilters     = "otsdb-filters"
 	otsdbNormalize   = "otsdb-normalize"
@@ -138,6 +139,11 @@ var (
 		&cli.Int64Flag{
 			Name:  otsdbOffsetDays,
 			Usage: "Days to offset our 'starting' point for collecting data from OpenTSDB",
+			Value: 0,
+		},
+		&cli.Int64Flag{
+			Name:  otsdbHardTSStart,
+			Usage: "A specific timestamp to start from, will override using an offset",
 			Value: 0,
 		},
 		/*

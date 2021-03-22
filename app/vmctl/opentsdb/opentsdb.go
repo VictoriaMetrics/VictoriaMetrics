@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	//"log"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Retention objects contain meta data about what to query for our run
@@ -52,6 +53,7 @@ type Config struct {
 	Addr       string
 	Limit      int
 	Offset     int64
+	HardTS     int64
 	Retentions []string
 	Filters    []string
 	Normalize  bool
@@ -298,8 +300,25 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
+	var offsetPrint int64
+	if cfg.MsecsTime {
+		// 1000000 == Nanoseconds -> Milliseconds difference
+		offsetPrint = int64(time.Now().UnixNano() / 1000000)
+	} else {
+		offsetPrint = int64(time.Now().Unix())
+	}
+	if cfg.HardTS > 0 {
+		offsetPrint = cfg.HardTS
+	} else if cfg.Offset > 0 {
+		if cfg.MsecsTime {
+			offsetPrint = offsetPrint - (cfg.Offset * 24 * 60 * 60 * 1000)
+		} else {
+			offsetPrint = offsetPrint - (cfg.Offset * 24 * 60 * 60)
+		}
+	}
+	log.Println(fmt.Sprintf("Will collect data starting at TS %v", offsetPrint))
 	for _, r := range cfg.Retentions {
-		ret, _ := convertRetention(r, cfg.Offset, cfg.MsecsTime)
+		ret, _ := convertRetention(r, cfg.Offset, cfg.HardTS, cfg.MsecsTime)
 		retentions = append(retentions, ret)
 	}
 	client := &Client{

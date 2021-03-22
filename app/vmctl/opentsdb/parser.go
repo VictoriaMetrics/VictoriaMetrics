@@ -12,19 +12,21 @@ var (
 	allowedFirstChar = regexp.MustCompile("[a-zA-Z]")
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
 	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
-	oneHour          = float64(3600)
-	oneDay           = float64(3600 * 24)
 )
 
 // Convert an incoming retention "string" into the component parts
-func convertRetention(retention string, offset int64, msecTime bool) (Retention, error) {
-	/*
-		Our "offset" is the number of days we should step
-		back before starting to scan for data
-	*/
-	offset = offset * 24 * 60 * 60
-	if msecTime {
-		offset = offset * 1000
+func convertRetention(retention string, offset int64, hardTS int64, msecTime bool) (Retention, error) {
+	if hardTS > 0 {
+		offset = hardTS
+	} else {
+		/*
+			Our "offset" is the number of days we should step
+			back before starting to scan for data
+		*/
+		offset = offset * 24 * 60 * 60
+		if msecTime {
+			offset = offset * 1000
+		}
 	}
 	/*
 		A retention string coming in looks like

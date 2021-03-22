@@ -35,6 +35,7 @@ func main() {
 						Addr:       c.String(otsdbAddr),
 						Limit:      c.Int(otsdbQueryLimit),
 						Offset:     c.Int64(otsdbOffsetDays),
+						HardTS:     c.Int64(otsdbHardTSStart),
 						Retentions: c.StringSlice(otsdbRetentions),
 						Filters:    c.StringSlice(otsdbFilters),
 						Normalize:  c.Bool(otsdbNormalize),
