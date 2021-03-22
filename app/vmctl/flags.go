@@ -152,7 +152,7 @@ var (
 		&cli.BoolFlag{
 			Name:  otsdbMsecsTime,
 			Value: false,
-			Usage: "Whether OpenTSDB is writing values in miliseconds or seconds",
+			Usage: "Whether OpenTSDB is writing values in milliseconds or seconds",
 		},
 		&cli.BoolFlag{
 			Name:  otsdbNormalize,

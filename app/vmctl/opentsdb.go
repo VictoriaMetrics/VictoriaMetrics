@@ -20,7 +20,7 @@ type otsdbProcessor struct {
 
 type queryObj struct {
 	Series    opentsdb.Meta
-	Rt        opentsdb.Retention
+	Rt        opentsdb.RetentionMeta
 	Tr        opentsdb.TimeRange
 	StartTime int64
 }
@@ -69,15 +69,19 @@ func (op *otsdbProcessor) run(silent bool) error {
 	for _, metric := range metrics {
 		log.Println(fmt.Sprintf("Starting work on %s", metric))
 		serieslist, err := op.oc.FindSeries(metric)
+		//log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
 		if err != nil {
 			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
 		}
 		/*
 			Create channels for collecting/processing series and errors
 			We'll create them per metric to reduce pressure against OpenTSDB
+
+			Limit the size of seriesCh so we can't get too far ahead of actual processing
 		*/
-		seriesCh := make(chan queryObj)
+		seriesCh := make(chan queryObj, op.otsdbcc)
 		errCh := make(chan error)
+		// we're going to make serieslist * queryRanges queries, so we should represent that in the progress bar
 		bar := pb.StartNew(len(serieslist) * queryRanges)
 		var wg sync.WaitGroup
 		wg.Add(op.otsdbcc)
@@ -93,7 +97,14 @@ func (op *otsdbProcessor) run(silent bool) error {
 				}
 			}()
 		}
-		// log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
+		/*
+			Loop through all series for this metric, processing all retentions and time ranges
+			requested. This loop is our primary "collect data from OpenTSDB loop" and should
+			be async, sending data to VictoriaMetrics over time.
+
+			The idea with having the select at the inner-most loop is to ensure quick
+			short-circuiting on error.
+		*/
 		for _, series := range serieslist {
 			for _, rt := range op.oc.Retentions {
 				for _, tr := range rt.QueryRanges {
@@ -102,10 +113,10 @@ func (op *otsdbProcessor) run(silent bool) error {
 						return fmt.Errorf("opentsdb error: %s", otsdbErr)
 					case vmErr := <-op.im.Errors():
 						return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
-					default:
-						seriesCh <- queryObj{
-							Series: series, Rt: rt,
-							Tr: tr, StartTime: startTime}
+					case seriesCh <- queryObj{
+						Tr: tr, StartTime: startTime,
+						Series: series, Rt: opentsdb.RetentionMeta{
+							FirstOrder: rt.FirstOrder, SecondOrder: rt.SecondOrder, AggTime: rt.AggTime}}:
 					}
 				}
 			}
@@ -113,13 +124,17 @@ func (op *otsdbProcessor) run(silent bool) error {
 		// Drain channels per metric
 		close(seriesCh)
 		close(errCh)
-		wg.Wait()
 		op.im.Close()
+		wg.Wait()
+		// check for any lingering errors
 		for vmErr := range op.im.Errors() {
 			return fmt.Errorf("Import process failed: \n%s", wrapErr(vmErr))
 		}
+		for otsdbErr := range errCh {
+			return fmt.Errorf("Import process failed: \n%s", otsdbErr)
+		}
 		bar.Finish()
-		op.im.Stats()
+		log.Print(op.im.Stats())
 		op.im.ResetStats()
 	}
 	log.Println("Import finished!")
@@ -134,7 +149,7 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	if err != nil {
 		return fmt.Errorf("failed to collect data for %v in %v:%v", s.Series, s.Rt, s.Tr)
 	}
-	if len(data.Timestamps) < 1 {
+	if len(data.Timestamps) < 1 || len(data.Values) < 1 {
 		return nil
 	}
 	// log.Println("Found %d stats for %v", len(data.Timestamps), seriesMeta)
