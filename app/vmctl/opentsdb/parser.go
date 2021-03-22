@@ -2,7 +2,7 @@ package opentsdb
 
 import (
 	"fmt"
-	// "log"
+	"log"
 	"regexp"
 	"strings"
 	// "time"
@@ -15,8 +15,8 @@ var (
 	allowedFirstChar = regexp.MustCompile("[a-zA-Z]")
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
 	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
-	oneHour          = float64(3600 * 1000)
-	oneDay           = float64(3600 * 24 * 1000)
+	oneHour          = float64(3600)
+	oneDay           = float64(3600 * 24)
 )
 
 // Convert an incoming retention "string" into the component parts
@@ -27,6 +27,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	*/
 	offset = offset * 24 * 60 * 60
 	if msecTime {
+		log.Println("Using millisecond time!")
 		offset = offset * 1000
 	}
 	/*
