@@ -870,6 +870,11 @@ func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics
 	mns := make([]MetricName, 0, len(tsids))
 	var metricName []byte
 	for i := range tsids {
+		if i&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+				return nil, err
+			}
+		}
 		metricID := tsids[i].MetricID
 		var err error
 		metricName, err = idb.searchMetricNameWithCache(metricName[:0], metricID)
