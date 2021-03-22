@@ -30,6 +30,12 @@ type Retention struct {
 	QueryRanges []TimeRange
 }
 
+type RetentionMeta struct {
+	FirstOrder  string
+	SecondOrder string
+	AggTime     string
+}
+
 // Client object holds general config about how queries should be performed
 type Client struct {
 	Addr string
@@ -206,7 +212,7 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 }
 
 // GetData actually retrieves data for a series at a specified time range
-func (c Client) GetData(series Meta, rt Retention, start int64, end int64) (Metric, error) {
+func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (Metric, error) {
 	/*
 		Here we build the actual exp query we'll send to OpenTSDB
 
