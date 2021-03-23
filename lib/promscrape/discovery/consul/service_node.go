@@ -13,8 +13,10 @@ import (
 func getServiceNodesLabels(cfg *apiConfig) []map[string]string {
 	sns := cfg.consulWatcher.getServiceNodesSnapshot()
 	var ms []map[string]string
-	for _, sn := range sns {
-		ms = sn.appendTargetLabels(ms, cfg.tagSeparator)
+	for svc, sn := range sns {
+		for i := range sn {
+			ms = sn[i].appendTargetLabels(ms, svc, cfg.tagSeparator)
+		}
 	}
 	return ms
 }
@@ -67,7 +69,7 @@ func parseServiceNodes(data []byte) ([]ServiceNode, error) {
 	return sns, nil
 }
 
-func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, tagSeparator string) []map[string]string {
+func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, serviceName, tagSeparator string) []map[string]string {
 	var addr string
 	if sn.Service.Address != "" {
 		addr = discoveryutils.JoinHostPort(sn.Service.Address, sn.Service.Port)
@@ -80,7 +82,7 @@ func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, tagSeparator s
 		"__meta_consul_dc":              sn.Node.Datacenter,
 		"__meta_consul_health":          aggregatedStatus(sn.Checks),
 		"__meta_consul_node":            sn.Node.Node,
-		"__meta_consul_service":         sn.Service.Service,
+		"__meta_consul_service":         serviceName,
 		"__meta_consul_service_address": sn.Service.Address,
 		"__meta_consul_service_id":      sn.Service.ID,
 		"__meta_consul_service_port":    strconv.Itoa(sn.Service.Port),

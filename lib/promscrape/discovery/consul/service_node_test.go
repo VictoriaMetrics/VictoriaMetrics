@@ -106,7 +106,7 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 
 	// Check sn.appendTargetLabels()
 	tagSeparator := ","
-	labelss := sn.appendTargetLabels(nil, tagSeparator)
+	labelss := sn.appendTargetLabels(nil, "redis", tagSeparator)
 	var sortedLabelss [][]prompbmarshal.Label
 	for _, labels := range labelss {
 		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
