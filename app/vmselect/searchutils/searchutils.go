@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -187,4 +189,25 @@ func (d *Deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
 	elapsed := time.Since(startTime)
 	return fmt.Sprintf("%.3f seconds (elapsed %.3f seconds); the timeout can be adjusted with `%s` command-line flag", d.timeout.Seconds(), elapsed.Seconds(), d.flagHint)
+}
+
+// GetEnforcedTagFiltersFromRequest returns additional filters from request.
+func GetEnforcedTagFiltersFromRequest(r *http.Request) ([]storage.TagFilter, error) {
+	// fast path.
+	extraLabels := r.Form["extra_label"]
+	if len(extraLabels) == 0 {
+		return nil, nil
+	}
+	tagFilters := make([]storage.TagFilter, 0, len(extraLabels))
+	for _, match := range extraLabels {
+		tmp := strings.SplitN(match, "=", 2)
+		if len(tmp) != 2 {
+			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
+		}
+		tagFilters = append(tagFilters, storage.TagFilter{
+			Key:   []byte(tmp[0]),
+			Value: []byte(tmp[1]),
+		})
+	}
+	return tagFilters, nil
 }
