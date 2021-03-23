@@ -144,6 +144,8 @@ type Search struct {
 	needClosing bool
 
 	loops int
+
+	prevMetricID uint64
 }
 
 func (s *Search) reset() {
@@ -158,6 +160,7 @@ func (s *Search) reset() {
 	s.err = nil
 	s.needClosing = false
 	s.loops = 0
+	s.prevMetricID = 0
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -225,16 +228,19 @@ func (s *Search) NextMetricBlock() bool {
 		}
 		s.loops++
 		tsid := &s.ts.BlockRef.bh.TSID
-		var err error
-		s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
-		if err != nil {
-			if err == io.EOF {
-				// Skip missing metricName for tsid.MetricID.
-				// It should be automatically fixed. See indexDB.searchMetricName for details.
-				continue
+		if tsid.MetricID != s.prevMetricID {
+			var err error
+			s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
+			if err != nil {
+				if err == io.EOF {
+					// Skip missing metricName for tsid.MetricID.
+					// It should be automatically fixed. See indexDB.searchMetricName for details.
+					continue
+				}
+				s.err = err
+				return false
 			}
-			s.err = err
-			return false
+			s.prevMetricID = tsid.MetricID
 		}
 		s.MetricBlockRef.BlockRef = s.ts.BlockRef
 		return true
