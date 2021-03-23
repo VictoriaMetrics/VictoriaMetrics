@@ -285,7 +285,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if start >= end {
 		end = start + defaultStep
 	}
-	etf, err := getEnforcedTagFiltersFromRequest(r)
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -520,7 +520,7 @@ func LabelValuesHandler(startTime time.Time, at *auth.Token, labelName string, w
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	etf, err := getEnforcedTagFiltersFromRequest(r)
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -745,7 +745,7 @@ func LabelsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
-	etf, err := getEnforcedTagFiltersFromRequest(r)
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -1018,7 +1018,7 @@ func QueryHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r 
 	if len(query) > maxQueryLen.N {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
-	etf, err := getEnforcedTagFiltersFromRequest(r)
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -1155,7 +1155,7 @@ func QueryRangeHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 	if err != nil {
 		return err
 	}
-	etf, err := getEnforcedTagFiltersFromRequest(r)
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -1308,26 +1308,6 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	return searchutils.GetDuration(r, "max_lookback", d)
 }
 
-func getEnforcedTagFiltersFromRequest(r *http.Request) ([]storage.TagFilter, error) {
-	// fast path.
-	extraLabels := r.Form["extra_label"]
-	if len(extraLabels) == 0 {
-		return nil, nil
-	}
-	tagFilters := make([]storage.TagFilter, 0, len(extraLabels))
-	for _, match := range extraLabels {
-		tmp := strings.SplitN(match, "=", 2)
-		if len(tmp) != 2 {
-			return nil, fmt.Errorf("`extra_label` query arg must have the format `name=value`; got %q", match)
-		}
-		tagFilters = append(tagFilters, storage.TagFilter{
-			Key:   []byte(tmp[0]),
-			Value: []byte(tmp[1]),
-		})
-	}
-	return tagFilters, nil
-}
-
 func addEnforcedFiltersToTagFilterss(dstTfss [][]storage.TagFilter, enforcedFilters []storage.TagFilter) [][]storage.TagFilter {
 	if len(dstTfss) == 0 {
 		return [][]storage.TagFilter{
@@ -1361,7 +1341,7 @@ func getTagFilterssFromRequest(r *http.Request) ([][]storage.TagFilter, error) {
 	if err != nil {
 		return nil, err
 	}
-	etf, err := getEnforcedTagFiltersFromRequest(r)
+	etf, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
 	if err != nil {
 		return nil, err
 	}
