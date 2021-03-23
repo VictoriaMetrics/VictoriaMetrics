@@ -21,8 +21,9 @@ var (
 	remoteWriteURLs = flagutil.NewArray("remoteWrite.url", "Remote storage URL to write data to. It must support Prometheus remote_write API. "+
 		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems")
-	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored")
-	queues      = flag.Int("remoteWrite.queues", 4, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
+	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
+		"See also -remoteWrite.maxDiskUsagePerURL")
+	queues = flag.Int("remoteWrite.queues", 4, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 		"isn't enough for sending high volume of collected data to remote storage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
