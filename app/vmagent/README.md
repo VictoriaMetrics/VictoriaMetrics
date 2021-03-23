@@ -483,7 +483,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -dryRun
     	Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
   -enableTCP6
-    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
   -envflag.prefix string
@@ -586,6 +586,8 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -promscrape.consul.waitTime duration
+    	Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
     	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
   -promscrape.disableCompression
@@ -615,7 +617,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -promscrape.kubernetesSDCheckInterval duration
     	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
   -promscrape.maxDroppedTargets int
-    	The maximum number of droppedTargets shown at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+    	The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
@@ -684,7 +686,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tmpDataPath string
-    	Path to directory where temporary data for remote write component is stored (default "vmagent-remotewrite-data")
+    	Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
   -remoteWrite.url array
     	Remote storage URL to write data to. It must support Prometheus remote_write API. It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems
     	Supports array of values separated by comma or specified via multiple flags.

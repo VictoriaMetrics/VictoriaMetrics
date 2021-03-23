@@ -1685,6 +1685,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -promscrape.consul.waitTime duration
+    	Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
     	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
   -promscrape.disableCompression
