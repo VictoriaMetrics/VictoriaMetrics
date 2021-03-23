@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/fasthttp"
 )
+
+var waitTime = flag.Duration("promscrape.consul.waitTime", 0, "Wait time used by Consul service discovery. Default value is used if not set")
 
 // apiConfig contains config for API server.
 type apiConfig struct {
@@ -116,7 +119,7 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 }
 
 // maxWaitTime is duration for consul blocking request.
-var maxWaitTime = func() time.Duration {
+func maxWaitTime() time.Duration {
 	d := discoveryutils.BlockingClientReadTimeout
 	// Consul adds random delay up to wait/16, so reduce the timeout in order to keep it below BlockingClientReadTimeout.
 	// See https://www.consul.io/api-docs/features/blocking
@@ -125,17 +128,18 @@ var maxWaitTime = func() time.Duration {
 	if d > 10*time.Minute {
 		d = 10 * time.Minute
 	}
+	if *waitTime > time.Second && *waitTime < d {
+		d = *waitTime
+	}
 	return d
-}()
-
-var maxWaitTimeStr = fmt.Sprintf("%ds", int(maxWaitTime.Seconds()))
+}
 
 // getBlockingAPIResponse perfoms blocking request to Consul via client and returns response.
 //
 // See https://www.consul.io/api-docs/features/blocking .
 func getBlockingAPIResponse(client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
 	path += "&index=" + strconv.FormatInt(index, 10)
-	path += "&wait=" + maxWaitTimeStr
+	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
 	getMeta := func(resp *fasthttp.Response) {
 		ind := resp.Header.Peek("X-Consul-Index")
 		if len(ind) == 0 {
