@@ -1348,7 +1348,7 @@ func (mr *MetricRow) String() string {
 	if err := mn.unmarshalRaw(mr.MetricNameRaw); err == nil {
 		metricName = mn.String()
 	}
-	return fmt.Sprintf("MetricName=%s, Timestamp=%d, Value=%f\n", metricName, mr.Timestamp, mr.Value)
+	return fmt.Sprintf("%s (Timestamp=%d, Value=%f)", metricName, mr.Timestamp, mr.Value)
 }
 
 // Marshal appends marshaled mr to dst and returns the result.
