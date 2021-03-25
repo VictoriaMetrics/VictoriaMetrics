@@ -97,7 +97,7 @@ See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/Victor
 ### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding those metrics to remote storage
-then `vmagent` can replace Prometheus. tupically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
+then `vmagent` can replace Prometheus. Typically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 
 
