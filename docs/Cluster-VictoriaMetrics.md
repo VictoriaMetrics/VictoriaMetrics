@@ -97,7 +97,7 @@ vmstorage-prod
 ### Development Builds
 
 1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make` from the repository root. It should build `vmstorage`, `vmselect`
+2. Run `make` from [the repository root](https://github.com/VictoriaMetrics/VictoriaMetrics). It should build `vmstorage`, `vmselect`
    and `vminsert` binaries and put them into the `bin` folder.
 
 
@@ -109,7 +109,7 @@ Run `make package`. It will build the following docker images locally:
 * `victoriametrics/vmselect:<PKG_TAG>`
 * `victoriametrics/vmstorage:<PKG_TAG>`
 
-`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
 
 By default images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
