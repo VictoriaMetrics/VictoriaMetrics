@@ -659,13 +659,13 @@ to your needs or when testing bugfixes.
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make victoria-metrics` from the root folder of the repository.
+2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-prod` from the root folder of the repository.
+2. Run `make victoria-metrics-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-prod` binary and puts it into the `bin` folder.
 
 ### ARM build
@@ -675,13 +675,13 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
+2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-arm-prod` or `make victoria-metrics-arm64-prod` from the root folder of the repository.
+2. Run `make victoria-metrics-arm-prod` or `make victoria-metrics-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-arm-prod` or `victoria-metrics-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ### Pure Go build (CGO_ENABLED=0)
@@ -689,7 +689,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make victoria-metrics-pure` from the root folder of the repository.
+2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
 ### Building docker images
