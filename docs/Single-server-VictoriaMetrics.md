@@ -605,6 +605,10 @@ VictoriaMetrics supports the following Graphite APIs, which are needed for [Grap
 
 All the Graphite handlers can be pre-pended with `/graphite` prefix. For example, both `/graphite/metrics/find` and `/metrics/find` should work.
 
+VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg for all the Graphite APIs. This arg can be used for limiting the scope of time series
+visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics.
+[Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
+
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
 For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
 and it is easier to use when migrating from Graphite to VictoriaMetrics.
@@ -655,13 +659,13 @@ to your needs or when testing bugfixes.
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make victoria-metrics` from the root folder of the repository.
+2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-prod` from the root folder of the repository.
+2. Run `make victoria-metrics-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-prod` binary and puts it into the `bin` folder.
 
 ### ARM build
@@ -671,23 +675,21 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of the repository.
+2. Run `make victoria-metrics-arm` or `make victoria-metrics-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-arm` or `victoria-metrics-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-metrics-arm-prod` or `make victoria-metrics-arm64-prod` from the root folder of the repository.
+2. Run `make victoria-metrics-arm-prod` or `make victoria-metrics-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-arm-prod` or `victoria-metrics-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 ### Pure Go build (CGO_ENABLED=0)
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
-This is an experimental mode, which may result in a lower compression ratio and slower decompression performance.
-Use it with caution!
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make victoria-metrics-pure` from the root folder of the repository.
+2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 
 ### Building docker images
@@ -1683,6 +1685,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -promscrape.consul.waitTime duration
+    	Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
     	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
   -promscrape.disableCompression
@@ -1744,7 +1748,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxLookback duration
     	Synonim to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxPointsPerTimeseries int
-    	The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as Grafana. There is no sense in setting this limit to values significantly exceeding horizontal resoultion of the graph (default 30000)
+    	The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph (default 30000)
   -search.maxQueryDuration duration
     	The maximum duration for query execution (default 30s)
   -search.maxQueryLen size

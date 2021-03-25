@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestGetTimeSuccess(t *testing.T) {
@@ -75,4 +78,49 @@ func TestGetTimeError(t *testing.T) {
 	f("2019-07-07T20:47:40+03:00123")
 	f("-292273086-05-16T16:47:07Z")
 	f("292277025-08-18T07:12:54.999999998Z")
+}
+
+// helper for tests
+func tfFromKV(k, v string) storage.TagFilter {
+	return storage.TagFilter{
+		Key:   []byte(k),
+		Value: []byte(v),
+	}
+}
+
+func TestGetEnforcedTagFiltersFromRequest(t *testing.T) {
+	httpReqWithForm := func(tfs []string) *http.Request {
+		return &http.Request{
+			Form: map[string][]string{
+				"extra_label": tfs,
+			},
+		}
+	}
+	f := func(t *testing.T, r *http.Request, want []storage.TagFilter, wantErr bool) {
+		t.Helper()
+		got, err := GetEnforcedTagFiltersFromRequest(r)
+		if (err != nil) != wantErr {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("unxpected result for getEnforcedTagFiltersFromRequest, \ngot: %v,\n want: %v", want, got)
+		}
+	}
+
+	f(t, httpReqWithForm([]string{"label=value"}),
+		[]storage.TagFilter{
+			tfFromKV("label", "value"),
+		},
+		false)
+
+	f(t, httpReqWithForm([]string{"job=vmagent", "dc=gce"}),
+		[]storage.TagFilter{tfFromKV("job", "vmagent"), tfFromKV("dc", "gce")},
+		false,
+	)
+	f(t, httpReqWithForm([]string{"bad_filter"}),
+		nil,
+		true,
+	)
+	f(t, &http.Request{},
+		nil, false)
 }

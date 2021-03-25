@@ -47,8 +47,45 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 
 // WriteProcessMetrics writes additional process metrics in Prometheus format to w.
 //
-// Various `go_*` and `process_*` metrics are exposed for the currently
-// running process.
+// The following `go_*` and `process_*` metrics are exposed for the currently
+// running process. Below is a short description for the exposed `process_*` metrics:
+//
+//     - process_cpu_seconds_system_total - CPU time spent in syscalls
+//     - process_cpu_seconds_user_total - CPU time spent in userspace
+//     - process_cpu_seconds_total - CPU time spent by the process
+//     - process_major_pagefaults_total - page faults resulted in disk IO
+//     - process_minor_pagefaults_total - page faults resolved without disk IO
+//     - process_resident_memory_bytes - recently accessed memory (aka RSS or resident memory)
+//     - process_resident_memory_peak_bytes - the maximum RSS memory usage
+//     - process_resident_memory_anon_bytes - RSS for memory-mapped files
+//     - process_resident_memory_file_bytes - RSS for memory allocated by the process
+//     - process_resident_memory_shared_bytes - RSS for memory shared between multiple processes
+//     - process_virtual_memory_bytes - virtual memory usage
+//     - process_virtual_memory_peak_bytes - the maximum virtual memory usage
+//     - process_num_threads - the number of threads
+//     - process_start_time_seconds - process start time as unix timestamp
+//
+//     - process_io_read_bytes_total - the number of bytes read via syscalls
+//     - process_io_written_bytes_total - the number of bytes written via syscalls
+//     - process_io_read_syscalls_total - the number of read syscalls
+//     - process_io_write_syscalls_total - the number of write syscalls
+//     - process_io_storage_read_bytes_total - the number of bytes actually read from disk
+//     - process_io_storage_written_bytes_total - the number of bytes actually written to disk
+//
+//     - go_memstats_alloc_bytes - memory usage for Go objects in the heap
+//     - go_memstats_alloc_bytes_total - the cumulative counter for total size of allocated Go objects
+//     - go_memstats_frees_total - the cumulative counter for number of freed Go objects
+//     - go_memstats_gc_cpu_fraction - the fraction of CPU spent in Go garbage collector
+//     - go_memstats_gc_sys_bytes - the size of Go garbage collector metadata
+//     - go_memstats_heap_alloc_bytes - the same as go_memstats_alloc_bytes
+//     - go_memstats_heap_idle_bytes - idle memory ready for new Go object allocations
+//     - go_memstats_heap_objects - the number of Go objects in the heap
+//     - go_memstats_heap_sys_bytes - memory requested for Go objects from the OS
+//     - go_memstats_mallocs_total - the number of allocations for Go objects
+//     - go_memstats_next_gc_bytes - the target heap size when the next garbage collection should start
+//     - go_memstats_stack_inuse_bytes - memory used for goroutine stacks
+//     - go_memstats_stack_sys_bytes - memory requested fromthe OS for goroutine stacks
+//     - go_memstats_sys_bytes - memory requested by Go runtime from the OS
 //
 // The WriteProcessMetrics func is usually called in combination with writing Set metrics
 // inside "/metrics" handler:

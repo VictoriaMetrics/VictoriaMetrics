@@ -234,11 +234,11 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher) {
 }
 
 // getServiceNodesSnapshot returns a snapshot of discovered ServiceNodes.
-func (cw *consulWatcher) getServiceNodesSnapshot() []ServiceNode {
-	var sns []ServiceNode
+func (cw *consulWatcher) getServiceNodesSnapshot() map[string][]ServiceNode {
 	cw.servicesLock.Lock()
-	for _, sw := range cw.services {
-		sns = append(sns, sw.serviceNodes...)
+	sns := make(map[string][]ServiceNode, len(cw.services))
+	for svc, sw := range cw.services {
+		sns[svc] = sw.serviceNodes
 	}
 	cw.servicesLock.Unlock()
 	return sns

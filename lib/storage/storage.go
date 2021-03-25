@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -866,14 +867,17 @@ func (s *Storage) SearchMetricNames(tfss []*TagFilters, tr TimeRange, maxMetrics
 		return nil, err
 	}
 	idb := s.idb()
-	is := idb.getIndexSearch(deadline)
-	defer idb.putIndexSearch(is)
 	mns := make([]MetricName, 0, len(tsids))
 	var metricName []byte
 	for i := range tsids {
+		if i&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+				return nil, err
+			}
+		}
 		metricID := tsids[i].MetricID
 		var err error
-		metricName, err = is.searchMetricName(metricName[:0], metricID)
+		metricName, err = idb.searchMetricNameWithCache(metricName[:0], metricID)
 		if err != nil {
 			if err == io.EOF {
 				// Skip missing metricName for metricID.
@@ -938,7 +942,7 @@ var (
 
 // prefetchMetricNames pre-fetches metric names for the given tsids into metricID->metricName cache.
 //
-// This should speed-up further searchMetricName calls for metricIDs from tsids.
+// This should speed-up further searchMetricNameWithCache calls for metricIDs from tsids.
 func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 	if len(tsids) == 0 {
 		return nil
@@ -961,6 +965,7 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 
 	// Pre-fetch metricIDs.
 	sort.Sort(metricIDs)
+	var missingMetricIDs []uint64
 	var metricName []byte
 	var err error
 	idb := s.idb()
@@ -972,10 +977,33 @@ func (s *Storage) prefetchMetricNames(tsids []TSID, deadline uint64) error {
 				return err
 			}
 		}
-		metricName, err = is.searchMetricName(metricName[:0], metricID)
-		if err != nil && err != io.EOF {
+		metricName, err = is.searchMetricNameWithCache(metricName[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				missingMetricIDs = append(missingMetricIDs, metricID)
+				continue
+			}
 			return fmt.Errorf("error in pre-fetching metricName for metricID=%d: %w", metricID, err)
 		}
+	}
+	idb.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(deadline)
+		defer extDB.putIndexSearch(is)
+		for loops, metricID := range missingMetricIDs {
+			if loops&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return
+				}
+			}
+			metricName, err = is.searchMetricNameWithCache(metricName[:0], metricID)
+			if err != nil && err != io.EOF {
+				err = fmt.Errorf("error in pre-fetching metricName for metricID=%d in extDB: %w", metricID, err)
+				return
+			}
+		}
+	})
+	if err != nil {
+		return err
 	}
 
 	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
@@ -1010,12 +1038,6 @@ func (s *Storage) DeleteMetrics(tfss []*TagFilters) (int, error) {
 	return deletedCount, nil
 }
 
-// searchMetricName appends metric name for the given metricID to dst
-// and returns the result.
-func (s *Storage) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
-	return s.idb().searchMetricName(dst, metricID)
-}
-
 // SearchTagKeysOnTimeRange searches for tag keys on tr.
 func (s *Storage) SearchTagKeysOnTimeRange(tr TimeRange, maxTagKeys int, deadline uint64) ([]string, error) {
 	return s.idb().SearchTagKeysOnTimeRange(tr, maxTagKeys, deadline)
@@ -1046,14 +1068,16 @@ func (s *Storage) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix []
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
-//
-// If more than maxPaths paths is found, then only the first maxPaths paths is returned.
 func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
-	queryStr := string(query)
-	n := strings.IndexAny(queryStr, "*[{")
+	return s.searchGraphitePaths(tr, nil, query, maxPaths, deadline)
+}
+
+func (s *Storage) searchGraphitePaths(tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
+	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
-		// Verify that the query matches a metric name.
-		suffixes, err := s.SearchTagValueSuffixes(tr, nil, query, '.', 1, deadline)
+		// Verify that qHead matches a metric name.
+		qHead = append(qHead, qTail...)
+		suffixes, err := s.SearchTagValueSuffixes(tr, nil, qHead, '.', 1, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -1065,9 +1089,10 @@ func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, 
 			// The query matches a metric name with additional suffix.
 			return nil, nil
 		}
-		return []string{queryStr}, nil
+		return []string{string(qHead)}, nil
 	}
-	suffixes, err := s.SearchTagValueSuffixes(tr, nil, query[:n], '.', maxPaths, deadline)
+	qHead = append(qHead, qTail[:n]...)
+	suffixes, err := s.SearchTagValueSuffixes(tr, nil, qHead, '.', maxPaths, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1077,34 +1102,34 @@ func (s *Storage) SearchGraphitePaths(tr TimeRange, query []byte, maxPaths int, 
 	if len(suffixes) >= maxPaths {
 		return nil, fmt.Errorf("more than maxPaths=%d suffixes found", maxPaths)
 	}
-	qPrefixStr := queryStr[:n]
-	qTail := ""
-	qNode := queryStr[n:]
+	qNode := qTail[n:]
+	qTail = nil
 	mustMatchLeafs := true
-	if m := strings.IndexByte(qNode, '.'); m >= 0 {
+	if m := bytes.IndexByte(qNode, '.'); m >= 0 {
 		qTail = qNode[m+1:]
 		qNode = qNode[:m+1]
 		mustMatchLeafs = false
 	}
-	re, err := getRegexpForGraphiteQuery(qNode)
+	re, err := getRegexpForGraphiteQuery(string(qNode))
 	if err != nil {
 		return nil, err
 	}
+	qHeadLen := len(qHead)
 	var paths []string
 	for _, suffix := range suffixes {
 		if len(paths) > maxPaths {
-			paths = paths[:maxPaths]
-			break
+			return nil, fmt.Errorf("more than maxPath=%d paths found", maxPaths)
 		}
 		if !re.MatchString(suffix) {
 			continue
 		}
 		if mustMatchLeafs {
-			paths = append(paths, qPrefixStr+suffix)
+			qHead = append(qHead[:qHeadLen], suffix...)
+			paths = append(paths, string(qHead))
 			continue
 		}
-		q := qPrefixStr + suffix + qTail
-		ps, err := s.SearchGraphitePaths(tr, []byte(q), maxPaths, deadline)
+		qHead = append(qHead[:qHeadLen], suffix...)
+		ps, err := s.searchGraphitePaths(tr, qHead, qTail, maxPaths, deadline)
 		if err != nil {
 			return nil, err
 		}

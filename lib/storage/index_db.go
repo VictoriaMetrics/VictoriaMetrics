@@ -1501,9 +1501,14 @@ func (th *topHeap) Pop() interface{} {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
-// searchMetricName appends metric name for the given metricID to dst
+// searchMetricNameWithCache appends metric name for the given metricID to dst
 // and returns the result.
-func (db *indexDB) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
+func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, error) {
+	metricName := db.getMetricNameFromCache(dst, metricID)
+	if len(metricName) > len(dst) {
+		return metricName, nil
+	}
+
 	is := db.getIndexSearch(noDeadline)
 	dst, err := is.searchMetricName(dst, metricID)
 	db.putIndexSearch(is)
@@ -1753,12 +1758,15 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte) error {
 	return io.EOF
 }
 
-func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
+func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, error) {
 	metricName := is.db.getMetricNameFromCache(dst, metricID)
 	if len(metricName) > len(dst) {
 		return metricName, nil
 	}
+	return is.searchMetricName(dst, metricID)
+}
 
+func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToMetricName)
@@ -1929,7 +1937,7 @@ func (is *indexSearch) updateMetricIDsByMetricNameMatch(metricIDs, srcMetricIDs 
 			}
 		}
 		var err error
-		metricName.B, err = is.searchMetricName(metricName.B[:0], metricID)
+		metricName.B, err = is.searchMetricNameWithCache(metricName.B[:0], metricID)
 		if err != nil {
 			if err == io.EOF {
 				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
@@ -2864,7 +2872,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
 				// The tf took too many loops compared to the next filter. Postpone applying this filter.
-				storeLoopsCount(&tfw, loopsCount+1)
+				storeLoopsCount(&tfw, 2*loopsCount)
 				tfwsRemaining = append(tfwsRemaining, tfw)
 				continue
 			}
@@ -2961,7 +2969,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(date uint64, tfs *TagFilter
 		if err != nil {
 			if errors.Is(err, errTooManyLoops) {
 				// Postpone tf, since it took more loops than the next filter may need.
-				storeFilterLoopsCount(&tfw, filterLoopsCount+1)
+				storeFilterLoopsCount(&tfw, 2*filterLoopsCount)
 				tfsPostponed = append(tfsPostponed, tf)
 				continue
 			}
@@ -3015,7 +3023,7 @@ func (is *indexSearch) storeDateMetricID(date, metricID uint64) error {
 	// There is no need in searching for metric name in is.db.extDB,
 	// Since the storeDateMetricID function is called only after the metricID->metricName
 	// is added into the current is.db.
-	kb.B, err = is.searchMetricName(kb.B[:0], metricID)
+	kb.B, err = is.searchMetricNameWithCache(kb.B[:0], metricID)
 	if err != nil {
 		if err == io.EOF {
 			logger.Errorf("missing metricName by metricID %d; this could be the case after unclean shutdown; "+
@@ -3252,7 +3260,7 @@ func (is *indexSearch) updateMetricIDsForPrefix(prefix []byte, metricIDs *uint64
 }
 
 // The estimated number of index scan loops a single loop in updateMetricIDsByMetricNameMatch takes.
-const loopsCountPerMetricNameMatch = 500
+const loopsCountPerMetricNameMatch = 150
 
 func (is *indexSearch) intersectMetricIDsWithTagFilter(tf *tagFilter, filter *uint64set.Set) (*uint64set.Set, error) {
 	if filter.Len() == 0 {

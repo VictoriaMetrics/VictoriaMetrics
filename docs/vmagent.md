@@ -61,7 +61,7 @@ Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://vi
 
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 
-Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
+Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
 
 
 ## Configuration update
@@ -97,7 +97,7 @@ See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/Victor
 ### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding those metrics to remote storage
-then `vmagent` can replace Prometheus. tupically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
+then `vmagent` can replace Prometheus. Typically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 
 
@@ -133,7 +133,7 @@ Also, Basic Auth can be enabled for the incoming `remote_write` requests with `-
 
 ### remote_write for clustered version
 
-While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets, writes are always peformed in Promethes remote_write protocol. Therefore for the clustered version, `-remoteWrite.url` the command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<customer-id>/prometheus/api/v1/write`
+While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets, writes are always peformed in Promethes remote_write protocol. Therefore for the [clustered version](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html), `-remoteWrite.url` the command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<customer-id>/prometheus/api/v1/write`
 
 
 ## How to collect metrics in Prometheus format
@@ -152,11 +152,11 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 * `static_configs` - is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config) for details.
 * `file_sd_configs` - is for scraping targets defined in external files (aka file-based service discover).
   See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details
-* and `kubernetes_sd_configs` - for scraping targets in Kubernetes (k8s).
+* `kubernetes_sd_configs` - for scraping targets in Kubernetes (k8s).
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
 * `ec2_sd_configs` - is for scraping targets in Amazon EC2.
   See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
-  `vmagent` doesn't support the `profile` config param and aws credentials file yet.
+  `vmagent` doesn't support the `profile` config param yet.
 * `gce_sd_configs` - is for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
   `vmagent` provides the following additional functionality for `gce_sd_config`:
@@ -164,7 +164,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
   * if `zone` arg is equal to `"*"`, then `vmagent` discovers all the zones for the given project;
   * `zone` may contain an arbitrary number of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
-* `consul_sd_configs` - for scraping the targets registered in Consul.
+* `consul_sd_configs` - is for scraping the targets registered in Consul.
   See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
 * `dns_sd_configs` - is for scraping targets discovered from DNS records (SRV, A and AAAA).
   See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
@@ -184,6 +184,7 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
   By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
+* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics.
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -196,8 +197,12 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders w
 
 Labels can be added to metrics by the following mechanisms:
 
-* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file.
-* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`.
+* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](https://victoriametrics.github.io/#how-to-import-time-series-data).
+* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`. For example, the following command will start `vmagent`, which will add `{datacenter="foobar"}` label to all the metrics pushed to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
+
+```
+/path/to/vmagent -remoteWrite.label=datacenter=foobar ...
+```
 
 
 ## Relabeling
@@ -295,11 +300,11 @@ scrape_configs:
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. We recommend setting up regular scraping of this page
 either through `vmagent` itself or by Prometheus so that the exported metrics may be analyzed later.
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
-If you have suggestions for improvements or have found a bug -please open an issue on github or add a review to the dashboard.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
 
 `vmagent` also exports the status for various targets at the following handlers:
 
-* `http://vmagent-host:8429/targets`. This handler returns human-readable plaintext status for every active target.
+* `http://vmagent-host:8429/targets`. This handler returns human-readable status for every active target.
 This page is easy to query from the command line with `wget`, `curl` or similar tools.
 It accepts optional `show_original_labels=1` query arg which shows the original labels per each target before applying the relabeling.
 This information may be useful for debugging target relabeling.
@@ -407,19 +412,19 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make vmagent` from the root folder of the repository.
+2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmagent-prod` from the root folder of the repository.
+2. Run `make vmagent-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmagent-prod` binary and puts it into the `bin` folder.
 
 ### Building docker images
 
 Run `make package-vmagent`. It builds `victoriametrics/vmagent:<PKG_TAG>` docker image locally.
-`<PKG_TAG>` is an auto-generated image tag, which depends on source code in the repository.
+`<PKG_TAG>` is an auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
@@ -436,13 +441,13 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of the repository.
+2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of the repository.
+2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmagent-arm-prod` or `vmagent-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 
@@ -483,7 +488,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -dryRun
     	Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries are allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse
   -enableTCP6
-    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
   -envflag.prefix string
@@ -586,6 +591,8 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Whether to allow only supported fields in -promscrape.config . By default unsupported fields are silently skipped
   -promscrape.configCheckInterval duration
     	Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+  -promscrape.consul.waitTime duration
+    	Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
     	Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
   -promscrape.disableCompression
@@ -615,7 +622,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -promscrape.kubernetesSDCheckInterval duration
     	Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
   -promscrape.maxDroppedTargets int
-    	The maximum number of droppedTargets shown at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
+    	The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxScrapeSize size
     	The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
@@ -639,7 +646,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -remoteWrite.flushInterval duration
     	Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.label array
-    	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage
+    	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
     	Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxBlockSize size
     	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
@@ -684,7 +691,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
     	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used. If multiple args are set, then they are applied independently for the corresponding -remoteWrite.url
     	Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tmpDataPath string
-    	Path to directory where temporary data for remote write component is stored (default "vmagent-remotewrite-data")
+    	Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
   -remoteWrite.url array
     	Remote storage URL to write data to. It must support Prometheus remote_write API. It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url flags in order to write data concurrently to multiple remote storage systems
     	Supports array of values separated by comma or specified via multiple flags.

@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -149,7 +148,7 @@ func setUp() {
 }
 
 func processFlags() {
-	envflag.Parse()
+	flag.Parse()
 	for _, fv := range []struct {
 		flag  string
 		value string

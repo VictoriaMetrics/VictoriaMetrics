@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"math"
-	"net/http"
 	"reflect"
 	"testing"
 
@@ -231,41 +230,4 @@ func Test_addEnforcedFiltersToTagFilterss(t *testing.T) {
 			{tfFromKV("l1", "v1"), tfFromKV("ext-l1", "v2")},
 			{tfFromKV("l2", "v2"), tfFromKV("ext-l1", "v2")},
 		})
-}
-
-func Test_getEnforcedTagFiltersFromRequest(t *testing.T) {
-	httpReqWithForm := func(tfs []string) *http.Request {
-		return &http.Request{
-			Form: map[string][]string{
-				"extra_label": tfs,
-			},
-		}
-	}
-	f := func(t *testing.T, r *http.Request, want []storage.TagFilter, wantErr bool) {
-		t.Helper()
-		got, err := getEnforcedTagFiltersFromRequest(r)
-		if (err != nil) != wantErr {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("unxpected result for getEnforcedTagFiltersFromRequest, \ngot: %v,\n want: %v", want, got)
-		}
-	}
-
-	f(t, httpReqWithForm([]string{"label=value"}),
-		[]storage.TagFilter{
-			tfFromKV("label", "value"),
-		},
-		false)
-
-	f(t, httpReqWithForm([]string{"job=vmagent", "dc=gce"}),
-		[]storage.TagFilter{tfFromKV("job", "vmagent"), tfFromKV("dc", "gce")},
-		false,
-	)
-	f(t, httpReqWithForm([]string{"bad_filter"}),
-		nil,
-		true,
-	)
-	f(t, &http.Request{},
-		nil, false)
 }

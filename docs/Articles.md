@@ -29,6 +29,7 @@
 * [Prometheus Victoria Metrics On AWS ECS](https://dalefro.medium.com/prometheus-victoria-metrics-on-aws-ecs-62448e266090)
 * [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-alertmanager)
 * [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
+* [Monitoring Kubernetes clusters with VictoriaMetrics and Grafana](https://blog.cybozu.io/entry/2021/03/18/115743)
 
 
 ## Our articles
