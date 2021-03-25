@@ -267,6 +267,12 @@ func mergeNonOverlappingTimeseries(dst, src *timeseries) bool {
 	if overlaps > 2 {
 		return false
 	}
+	// Do not merge time series with too small number of datapoints.
+	// This can be the case during evaluation of instant queries (alerting or recording rules).
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1141
+	if len(srcValues) <= 2 && len(dstValues) <= 2 {
+		return false
+	}
 	// Time series can be merged. Merge them.
 	for i, v := range srcValues {
 		if math.IsNaN(v) {
