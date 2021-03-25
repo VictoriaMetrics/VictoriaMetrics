@@ -197,8 +197,12 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders w
 
 Labels can be added to metrics by the following mechanisms:
 
-* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file.
-* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`.
+* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](https://victoriametrics.github.io/#how-to-import-time-series-data).
+* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`. For example, the following command will start `vmagent`, which will add `{datacenter="foobar"}` label to all the metrics pushed to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
+
+```
+/path/to/vmagent -remoteWrite.label=datacenter=foobar ...
+```
 
 
 ## Relabeling
@@ -642,7 +646,7 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -remoteWrite.flushInterval duration
     	Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.label array
-    	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple flags to metrics before sending them to remote storage
+    	Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
     	Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxBlockSize size
     	The maximum size in bytes of unpacked request to send to remote storage. It shouldn't exceed -maxInsertRequestSize from VictoriaMetrics
