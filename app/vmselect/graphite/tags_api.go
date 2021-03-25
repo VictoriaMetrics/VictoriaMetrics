@@ -32,13 +32,17 @@ func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 	var row graphiteparser.Row
 	var tagsPool []graphiteparser.Tag
 	ct := startTime.UnixNano() / 1e6
+	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	if err != nil {
+		return fmt.Errorf("cannot setup tag filters: %w", err)
+	}
 	for _, path := range paths {
 		var err error
 		tagsPool, err = row.UnmarshalMetricAndTags(path, tagsPool[:0])
 		if err != nil {
 			return fmt.Errorf("cannot parse path=%q: %w", path, err)
 		}
-		tfs := make([]storage.TagFilter, 0, 1+len(row.Tags))
+		tfs := make([]storage.TagFilter, 0, 1+len(row.Tags)+len(etfs))
 		tfs = append(tfs, storage.TagFilter{
 			Key:   nil,
 			Value: []byte(row.Metric),
@@ -49,6 +53,7 @@ func TagsDelSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 				Value: []byte(tag.Value),
 			})
 		}
+		tfs = append(tfs, etfs...)
 		sq := storage.NewSearchQuery(0, ct, [][]storage.TagFilter{tfs})
 		n, err := netstorage.DeleteSeries(sq, deadline)
 		if err != nil {
@@ -176,7 +181,11 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 	valuePrefix := r.FormValue("valuePrefix")
 	exprs := r.Form["expr"]
 	var tagValues []string
-	if len(exprs) == 0 {
+	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	if err != nil {
+		return fmt.Errorf("cannot setup tag filters: %w", err)
+	}
+	if len(exprs) == 0 && len(etfs) == 0 {
 		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTagValues.
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
@@ -187,7 +196,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, exprs)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs)
 		if err != nil {
 			return err
 		}
@@ -257,7 +266,11 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 	tagPrefix := r.FormValue("tagPrefix")
 	exprs := r.Form["expr"]
 	var labels []string
-	if len(exprs) == 0 {
+	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	if err != nil {
+		return fmt.Errorf("cannot setup tag filters: %w", err)
+	}
+	if len(exprs) == 0 && len(etfs) == 0 {
 		// Fast path: there are no `expr` filters, so use netstorage.GetGraphiteTags.
 
 		// Escape special chars in tagPrefix as Graphite does.
@@ -269,7 +282,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, exprs)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs)
 		if err != nil {
 			return err
 		}
@@ -332,7 +345,11 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if len(exprs) == 0 {
 		return fmt.Errorf("expecting at least one `expr` query arg")
 	}
-	sq, err := getSearchQueryForExprs(startTime, exprs)
+	etfs, err := searchutils.GetEnforcedTagFiltersFromRequest(r)
+	if err != nil {
+		return fmt.Errorf("cannot setup tag filters: %w", err)
+	}
+	sq, err := getSearchQueryForExprs(startTime, etfs, exprs)
 	if err != nil {
 		return err
 	}
@@ -457,12 +474,13 @@ func getInt(r *http.Request, argName string) (int, error) {
 	return n, nil
 }
 
-func getSearchQueryForExprs(startTime time.Time, exprs []string) (*storage.SearchQuery, error) {
+func getSearchQueryForExprs(startTime time.Time, etfs []storage.TagFilter, exprs []string) (*storage.SearchQuery, error) {
 	tfs, err := exprsToTagFilters(exprs)
 	if err != nil {
 		return nil, err
 	}
 	ct := startTime.UnixNano() / 1e6
+	tfs = append(tfs, etfs...)
 	sq := storage.NewSearchQuery(0, ct, [][]storage.TagFilter{tfs})
 	return sq, nil
 }
