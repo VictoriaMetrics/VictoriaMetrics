@@ -365,6 +365,8 @@ func exportHandler(at *auth.Token, w http.ResponseWriter, r *http.Request, match
 	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error)
 	if !reduceMemUsage {
+		// Unconditionally deny partial response for the exported data,
+		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
 		rss, _, err := netstorage.ProcessSearchQuery(at, denyPartialResponse, sq, true, deadline)
 		if err != nil {
