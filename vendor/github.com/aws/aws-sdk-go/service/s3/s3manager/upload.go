@@ -391,6 +391,10 @@ func (u *uploader) upload() (*UploadOutput, error) {
 
 // init will initialize all default options.
 func (u *uploader) init() error {
+	if err := validateSupportedARNType(aws.StringValue(u.in.Bucket)); err != nil {
+		return err
+	}
+
 	if u.cfg.Concurrency == 0 {
 		u.cfg.Concurrency = DefaultUploadConcurrency
 	}

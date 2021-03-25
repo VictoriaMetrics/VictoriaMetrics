@@ -72,6 +72,21 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 //     - process_io_storage_read_bytes_total - the number of bytes actually read from disk
 //     - process_io_storage_written_bytes_total - the number of bytes actually written to disk
 //
+//     - go_memstats_alloc_bytes - memory usage for Go objects in the heap
+//     - go_memstats_alloc_bytes_total - the cumulative counter for total size of allocated Go objects
+//     - go_memstats_frees_total - the cumulative counter for number of freed Go objects
+//     - go_memstats_gc_cpu_fraction - the fraction of CPU spent in Go garbage collector
+//     - go_memstats_gc_sys_bytes - the size of Go garbage collector metadata
+//     - go_memstats_heap_alloc_bytes - the same as go_memstats_alloc_bytes
+//     - go_memstats_heap_idle_bytes - idle memory ready for new Go object allocations
+//     - go_memstats_heap_objects - the number of Go objects in the heap
+//     - go_memstats_heap_sys_bytes - memory requested for Go objects from the OS
+//     - go_memstats_mallocs_total - the number of allocations for Go objects
+//     - go_memstats_next_gc_bytes - the target heap size when the next garbage collection should start
+//     - go_memstats_stack_inuse_bytes - memory used for goroutine stacks
+//     - go_memstats_stack_sys_bytes - memory requested fromthe OS for goroutine stacks
+//     - go_memstats_sys_bytes - memory requested by Go runtime from the OS
+//
 // The WriteProcessMetrics func is usually called in combination with writing Set metrics
 // inside "/metrics" handler:
 //
