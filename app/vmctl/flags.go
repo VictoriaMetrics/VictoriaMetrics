@@ -118,7 +118,7 @@ var (
 		},
 		&cli.IntFlag{
 			Name:  otsdbConcurrency,
-			Usage: "Number of concurrently running fetch queries to OpenTSDB",
+			Usage: "Number of concurrently running fetch queries to OpenTSDB per metric",
 			Value: 1,
 		},
 		&cli.StringSliceFlag{
@@ -152,7 +152,7 @@ var (
 		*/
 		&cli.IntFlag{
 			Name:  otsdbQueryLimit,
-			Usage: "Result limit on meta queries to OpenTSDB",
+			Usage: "Result limit on meta queries to OpenTSDB (affects both metric name and tag value queries, recommended to use a value exceeding your largest series)",
 			Value: 100000,
 		},
 		&cli.BoolFlag{
