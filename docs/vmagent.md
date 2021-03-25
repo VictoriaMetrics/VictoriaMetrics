@@ -61,7 +61,7 @@ Then send Influx data to `http://vmagent-host:8429`. See [these docs](https://vi
 
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags).
 
-Pass `-help` to `vmagent` in order to see the full list of supported command-line flags with their descriptions.
+Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
 
 
 ## Configuration update
@@ -156,7 +156,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
 * `ec2_sd_configs` - is for scraping targets in Amazon EC2.
   See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details.
-  `vmagent` doesn't support the `profile` config param and aws credentials file yet.
+  `vmagent` doesn't support the `profile` config param yet.
 * `gce_sd_configs` - is for scraping targets in Google Compute Engine (GCE).
   See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details.
   `vmagent` provides the following additional functionality for `gce_sd_config`:
@@ -164,7 +164,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
   * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
   * if `zone` arg is equal to `"*"`, then `vmagent` discovers all the zones for the given project;
   * `zone` may contain an arbitrary number of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
-* `consul_sd_configs` - for scraping the targets registered in Consul.
+* `consul_sd_configs` - is for scraping the targets registered in Consul.
   See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
 * `dns_sd_configs` - is for scraping targets discovered from DNS records (SRV, A and AAAA).
   See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
@@ -184,6 +184,7 @@ Please file feature requests to [our issue tracker](https://github.com/VictoriaM
   to save network bandwidth.
 * `disable_keepalive: true` - to disable [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis.
   By default, `vmagent` uses keep-alive connections to scrape targets to reduce overhead on connection re-establishing.
+* `stream_parse: true` - for scraping targets in a streaming manner. This may be useful for targets exporting big number of metrics.
 
 Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -295,11 +296,11 @@ scrape_configs:
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. We recommend setting up regular scraping of this page
 either through `vmagent` itself or by Prometheus so that the exported metrics may be analyzed later.
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
-If you have suggestions for improvements or have found a bug -please open an issue on github or add a review to the dashboard.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
 
 `vmagent` also exports the status for various targets at the following handlers:
 
-* `http://vmagent-host:8429/targets`. This handler returns human-readable plaintext status for every active target.
+* `http://vmagent-host:8429/targets`. This handler returns human-readable status for every active target.
 This page is easy to query from the command line with `wget`, `curl` or similar tools.
 It accepts optional `show_original_labels=1` query arg which shows the original labels per each target before applying the relabeling.
 This information may be useful for debugging target relabeling.
@@ -407,19 +408,19 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make vmagent` from the root folder of the repository.
+2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
 ### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmagent-prod` from the root folder of the repository.
+2. Run `make vmagent-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmagent-prod` binary and puts it into the `bin` folder.
 
 ### Building docker images
 
 Run `make package-vmagent`. It builds `victoriametrics/vmagent:<PKG_TAG>` docker image locally.
-`<PKG_TAG>` is an auto-generated image tag, which depends on source code in the repository.
+`<PKG_TAG>` is an auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmagent`.
 
 The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
@@ -436,13 +437,13 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 ### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of the repository.
+2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 
 ### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of the repository.
+2. Run `make vmagent-arm-prod` or `make vmagent-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmagent-arm-prod` or `vmagent-arm64-prod` binary respectively and puts it into the `bin` folder.
 
 
