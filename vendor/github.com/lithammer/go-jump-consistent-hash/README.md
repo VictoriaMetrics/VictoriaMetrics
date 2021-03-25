@@ -1,6 +1,6 @@
 # Jump Consistent Hash
 
-[![Build Status](https://travis-ci.org/lithammer/go-jump-consistent-hash.svg?branch=master)](https://travis-ci.org/lithammer/go-jump-consistent-hash)
+[![Build Status](https://github.com/lithammer/go-jump-consistent-hash/workflows/Go/badge.svg)](https://github.com/lithammer/go-jump-consistent-hash/actions)
 [![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/lithammer/go-jump-consistent-hash)
 
 Go implementation of the jump consistent hash algorithm[1] by John Lamping and Eric Veach.

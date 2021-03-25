@@ -231,6 +231,10 @@ var ElementBar ElementFunc = func(state *State, args ...string) string {
 	return p.buf.String()
 }
 
+func elapsedTime(state *State) time.Duration {
+	return state.Time().Sub(state.StartTime()).Truncate(time.Millisecond)
+}
+
 // ElementRemainingTime calculates remaining time based on speed (EWMA)
 // Optionally can take one or two string arguments.
 // First string will be used as value for format time duration string, default is "%s".
@@ -238,29 +242,23 @@ var ElementBar ElementFunc = func(state *State, args ...string) string {
 // Third string will be used when value not available, default is "?"
 // In template use as follows: {{rtime .}} or {{rtime . "%s remain"}} or {{rtime . "%s remain" "%s total" "???"}}
 var ElementRemainingTime ElementFunc = func(state *State, args ...string) string {
-	var rts string
-	sp := getSpeedObj(state).value(state)
-	if !state.IsFinished() {
-		if sp > 0 {
-			remain := float64(state.Total() - state.Value())
-			remainDur := time.Duration(remain/sp) * time.Second
-			rts = remainDur.String()
-		} else {
-			return argsHelper(args).getOr(2, "?")
-		}
-	} else {
-		rts = state.Time().Truncate(time.Second).Sub(state.StartTime().Truncate(time.Second)).String()
-		return fmt.Sprintf(argsHelper(args).getOr(1, "%s"), rts)
+	if state.IsFinished() {
+		return fmt.Sprintf(argsHelper(args).getOr(1, "%s"), elapsedTime(state))
 	}
-	return fmt.Sprintf(argsHelper(args).getOr(0, "%s"), rts)
+	sp := getSpeedObj(state).value(state)
+	if sp > 0 {
+		remain := float64(state.Total() - state.Value())
+		remainDur := time.Duration(remain/sp) * time.Second
+		return fmt.Sprintf(argsHelper(args).getOr(0, "%s"), remainDur)
+	}
+	return argsHelper(args).getOr(2, "?")
 }
 
 // ElementElapsedTime shows elapsed time
 // Optionally cat take one argument - it's format for time string.
 // In template use as follows: {{etime .}} or {{etime . "%s elapsed"}}
 var ElementElapsedTime ElementFunc = func(state *State, args ...string) string {
-	etm := state.Time().Truncate(time.Second).Sub(state.StartTime().Truncate(time.Second))
-	return fmt.Sprintf(argsHelper(args).getOr(0, "%s"), etm.String())
+	return fmt.Sprintf(argsHelper(args).getOr(0, "%s"), elapsedTime(state))
 }
 
 // ElementString get value from bar by given key and print them

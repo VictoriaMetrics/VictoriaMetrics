@@ -15,6 +15,7 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -202,13 +203,23 @@ func ParseDuration(durationStr string) (Duration, error) {
 
 	// Parse the match at pos `pos` in the regex and use `mult` to turn that
 	// into ms, then add that value to the total parsed duration.
+	var overflowErr error
 	m := func(pos int, mult time.Duration) {
 		if matches[pos] == "" {
 			return
 		}
 		n, _ := strconv.Atoi(matches[pos])
+
+		// Check if the provided duration overflows time.Duration (> ~ 290years).
+		if n > int((1<<63-1)/mult/time.Millisecond) {
+			overflowErr = errors.New("duration out of range")
+		}
 		d := time.Duration(n) * time.Millisecond
 		dur += d * mult
+
+		if dur < 0 {
+			overflowErr = errors.New("duration out of range")
+		}
 	}
 
 	m(2, 1000*60*60*24*365) // y
@@ -219,7 +230,7 @@ func ParseDuration(durationStr string) (Duration, error) {
 	m(12, 1000)             // s
 	m(14, 1)                // ms
 
-	return Duration(dur), nil
+	return Duration(dur), overflowErr
 }
 
 func (d Duration) String() string {

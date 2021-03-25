@@ -21,7 +21,7 @@ import (
 )
 
 // Version of ProgressBar library
-const Version = "3.0.6"
+const Version = "3.0.7"
 
 type key int
 
@@ -235,6 +235,12 @@ func (pb *ProgressBar) Total() int64 {
 // SetTotal sets the total bar value
 func (pb *ProgressBar) SetTotal(value int64) *ProgressBar {
 	atomic.StoreInt64(&pb.total, value)
+	return pb
+}
+
+// AddTotal adds to the total bar value
+func (pb *ProgressBar) AddTotal(value int64) *ProgressBar {
+	atomic.AddInt64(&pb.total, value)
 	return pb
 }
 
