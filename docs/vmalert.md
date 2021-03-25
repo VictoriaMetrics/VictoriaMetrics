@@ -51,8 +51,7 @@ Then configure `vmalert` accordingly:
     -remoteWrite.url=http://localhost:8428 \ # remote write compatible storage to persist rules
     -remoteRead.url=http://localhost:8428 \  # PromQL compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
-    -external.label=replica=a \              # Multiple external labels may be set
-    -evaluationInterval=3s                   # Default evaluation interval if not specified in rules group
+    -external.label=replica=a                # Multiple external labels may be set
 ```
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
