@@ -575,8 +575,8 @@ var (
 	alertsRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/alerts"}`)
 	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
 
-	httpRequests         = tenantmetrics.NewCounterMap(`vm_vmselect_http_requests_total`)
-	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_vmselect_http_requests_duration_ms_total`)
+	httpRequests         = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_total`)
+	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_duration_ms_total`)
 )
 
 func usage() {

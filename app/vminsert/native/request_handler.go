@@ -5,19 +5,19 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="native"}`)
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="native"}`)
 	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="native"}`)
 )
 
@@ -41,7 +41,8 @@ func insertRows(at *auth.Token, block *parser.Block, extraLabels []prompbmarshal
 	// Update rowsInserted and rowsPerInsert before actual inserting,
 	// since relabeling can prevent from inserting the rows.
 	rowsLen := len(block.Values)
-	rowsInserted.Get(at).Add(rowsLen)
+	rowsInserted.Add(rowsLen)
+	tenantmetrics.RowsInsertedByTenant.Get(at).Add(rowsLen)
 	rowsPerInsert.Update(float64(rowsLen))
 
 	ctx.Reset() // This line is required for initializing ctx internals.

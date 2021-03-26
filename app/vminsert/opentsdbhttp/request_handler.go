@@ -6,19 +6,20 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="opentsdbhttp"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="opentsdbhttp"}`)
+	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdbhttp"}`)
+	rowsInsertedTenant = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdbhttp"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="opentsdbhttp"}`)
 )
 
 // InsertHandler processes HTTP OpenTSDB put requests.
@@ -82,7 +83,9 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			return err
 		}
 	}
-	rowsInserted.Get(at).Add(len(rows))
+	rowsInserted.Add(len(rows))
+	rowsInsertedTenant.Add(len(rows))
+	tenantmetrics.RowsInsertedByTenant.Get(at).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }
