@@ -326,7 +326,10 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 	log.Println(fmt.Sprintf("Will collect data starting at TS %v", offsetPrint))
 	for _, r := range cfg.Retentions {
-		ret, _ := convertRetention(r, offsetPrint, cfg.MsecsTime)
+		ret, err := convertRetention(r, offsetPrint, cfg.MsecsTime)
+		if err != nil {
+			return &Client{}, fmt.Errorf("Couldn't parse retention %q :: %v", r, err)
+		}
 		retentions = append(retentions, ret)
 	}
 	client := &Client{
