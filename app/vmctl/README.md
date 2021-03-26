@@ -108,8 +108,6 @@ OpenTSDB migration works like so:
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
-OpenTSDB queries are likely to get stuck or otherwise fail. We plan to implement a "running cache" of the data as it is migrated so you can interrupt the ingest process and not have to start over from the beginning.
-
 ## Migrating data from InfluxDB (1.x)
 
 `vmctl` supports the `influx` mode to migrate data from InfluxDB to VictoriaMetrics time-series database.

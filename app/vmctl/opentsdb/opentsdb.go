@@ -296,20 +296,22 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	return data, nil
 }
 
-// NewClient creates and returns influx client
+// NewClient creates and returns OpenTSDB client
 // configured with passed Config
 func NewClient(cfg Config) (*Client, error) {
 	var retentions []Retention
-	var offsetPrint int64
+	offsetPrint := int64(time.Now().Unix())
 	if cfg.MsecsTime {
 		// 1000000 == Nanoseconds -> Milliseconds difference
 		offsetPrint = int64(time.Now().UnixNano() / 1000000)
-	} else {
-		offsetPrint = int64(time.Now().Unix())
 	}
 	if cfg.HardTS > 0 {
 		offsetPrint = cfg.HardTS
 	} else if cfg.Offset > 0 {
+		/*
+			Our "offset" is the number of days we should step
+			back before starting to scan for data
+		*/
 		if cfg.MsecsTime {
 			offsetPrint = offsetPrint - (cfg.Offset * 24 * 60 * 60 * 1000)
 		} else {
@@ -318,7 +320,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 	log.Println(fmt.Sprintf("Will collect data starting at TS %v", offsetPrint))
 	for _, r := range cfg.Retentions {
-		ret, _ := convertRetention(r, cfg.Offset, cfg.HardTS, cfg.MsecsTime)
+		ret, _ := convertRetention(r, offsetPrint, cfg.MsecsTime)
 		retentions = append(retentions, ret)
 	}
 	client := &Client{

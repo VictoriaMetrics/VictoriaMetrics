@@ -147,7 +147,7 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end)
 	if err != nil {
-		return fmt.Errorf("failed to collect data for %v in %v:%v", s.Series, s.Rt, s.Tr)
+		return fmt.Errorf("failed to collect data for %v in %v:%v :: %v", s.Series, s.Rt, s.Tr, err)
 	}
 	//log.Println(fmt.Sprintf("Found %d points for %v", len(data.Timestamps), s.Series))
 	if len(data.Timestamps) < 1 || len(data.Values) < 1 {

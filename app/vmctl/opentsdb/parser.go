@@ -15,19 +15,7 @@ var (
 )
 
 // Convert an incoming retention "string" into the component parts
-func convertRetention(retention string, offset int64, hardTS int64, msecTime bool) (Retention, error) {
-	if hardTS > 0 {
-		offset = hardTS
-	} else {
-		/*
-			Our "offset" is the number of days we should step
-			back before starting to scan for data
-		*/
-		offset = offset * 24 * 60 * 60
-		if msecTime {
-			offset = offset * 1000
-		}
-	}
+func convertRetention(retention string, offset int64, msecTime bool) (Retention, error) {
 	/*
 		A retention string coming in looks like
 		sum-1m-avg:1h:30d
