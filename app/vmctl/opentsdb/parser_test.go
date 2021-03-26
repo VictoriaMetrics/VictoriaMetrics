@@ -1,11 +1,16 @@
 package opentsdb
 
-/*
 import (
-	"reflect"
 	"testing"
 )
 
+func TestConvertRetention(t *testing.T) {
+}
+
+func TestModifyData(t *testing.T) {
+}
+
+/*
 func TestSeries_Unmarshal(t *testing.T) {
 	tag := func(name, value string) LabelPair {
 		return LabelPair{

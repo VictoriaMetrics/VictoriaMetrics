@@ -1,6 +1,18 @@
 package opentsdb
 
-//import "testing"
+import (
+	"testing"
+)
+
+func TestFindMetrics(t *testing.T) {
+}
+
+func TestFindSeries(t *testing.T) {
+}
+
+func TestGetData(t *testing.T) {
+}
+
 /*
 func TestFetchQuery(t *testing.T) {
 	testCases := []struct {
