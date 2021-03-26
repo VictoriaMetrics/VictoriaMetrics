@@ -31,6 +31,7 @@ type Retention struct {
 	QueryRanges []TimeRange
 }
 
+// RetentionMeta objects exist to pass smaller subsets (only one retention range) of a full Retention object around
 type RetentionMeta struct {
 	FirstOrder  string
 	SecondOrder string
