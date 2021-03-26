@@ -25,10 +25,9 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 		3. create the time ranges we actually need
 	*/
 	chunks := strings.Split(retention, ":")
-	if len(chunks) < 3 {
+	if len(chunks) != 3 {
 		return Retention{}, fmt.Errorf("invalid retention string: %q", retention)
 	}
-	// default to one hour
 	rowLengthDuration, err := ParseDuration(chunks[1])
 	if err != nil {
 		return Retention{}, fmt.Errorf("Invalid row length (first order) duration string: %q", chunks[1])
@@ -57,6 +56,9 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	}
 	// first/second order aggregations for queries defined in chunk 0...
 	aggregates := strings.Split(chunks[0], "-")
+	if len(aggregates) != 3 {
+		return Retention{}, fmt.Errorf("invalid aggregation string: %q", chunks[0])
+	}
 
 	ret := Retention{FirstOrder: aggregates[0],
 		SecondOrder: aggregates[2],

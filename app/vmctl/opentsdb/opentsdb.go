@@ -307,7 +307,12 @@ func NewClient(cfg Config) (*Client, error) {
 		offsetPrint = int64(time.Now().UnixNano() / 1000000)
 	}
 	if cfg.HardTS > 0 {
-		offsetPrint = cfg.HardTS
+		/*
+			"Hard" offsets are specific timestamps, rather than
+			a relative number of days. To use them effectively
+			we should subtract them from our default offset (Now)
+		*/
+		offsetPrint = offsetPrint - cfg.HardTS
 	} else if cfg.Offset > 0 {
 		/*
 			Our "offset" is the number of days we should step
