@@ -8,7 +8,7 @@ func TestConvertRetention(t *testing.T) {
 	/*
 		2592000 seconds in 30 days
 		3600 in one hour
-		2592000 / 3600 = 720 individual query "ranges" should exist
+		2592000 / 3600 = 720 individual query "ranges" should exist, plus one because time ranges can be weird
 		First order should == "sum"
 		Second order should == "avg"
 		AggTime should == "1m"
@@ -17,7 +17,7 @@ func TestConvertRetention(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error parsing valid retention string: %v", err)
 	}
-	if len(res.QueryRanges) != 720 {
+	if len(res.QueryRanges) != 721 {
 		t.Fatalf("Found %v query ranges. Should have found 720", len(res.QueryRanges))
 	}
 	if res.FirstOrder != "sum" {
@@ -45,14 +45,6 @@ func TestConvertRetention(t *testing.T) {
 	}
 }
 
-/*
-// Metric holds the time series data
-type Metric struct {
-	Metric     string
-	Tags       map[string]string
-	Timestamps []int64
-	Values     []float64
-}*/
 func TestModifyData(t *testing.T) {
 	/*
 		Good metric metadata

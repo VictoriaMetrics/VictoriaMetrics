@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	allowedNames     = regexp.MustCompile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
-	allowedFirstChar = regexp.MustCompile("[a-zA-Z]")
+	allowedNames     = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_:]*$")
+	allowedFirstChar = regexp.MustCompile("^[a-zA-Z]")
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
-	allowedTagKeys   = regexp.MustCompile("[a-zA-Z][a-zA-Z0-9_]*")
+	allowedTagKeys   = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_]*$")
 )
 
 // Convert an incoming retention "string" into the component parts
@@ -83,7 +83,10 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 	if normalize {
 		name = strings.ToLower(name)
 	}
-	// replace bad characters in metric name with _ per the data model
+	/*
+		replace bad characters in metric name with _ per the data model
+		only replace if needed to reduce string processing time
+	*/
 	if !allowedNames.MatchString(name) {
 		finalMsg.Metric = replaceChars.ReplaceAllString(name, "_")
 	} else {
@@ -96,7 +99,10 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 			key = strings.ToLower(key)
 			value = strings.ToLower(value)
 		}
-		// replace all explicitly bad characters with _
+		/*
+			replace all explicitly bad characters with _
+			only replace if needed to reduce string processing time
+		*/
 		if !allowedTagKeys.MatchString(key) {
 			key = replaceChars.ReplaceAllString(key, "_")
 		}
