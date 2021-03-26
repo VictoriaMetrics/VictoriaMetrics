@@ -14,6 +14,9 @@ func TestConvertRetention(t *testing.T) {
 		AggTime should == "1m"
 	*/
 	res, err := convertRetention("sum-1m-avg:1h:30d", 0, false)
+	if err != nil {
+		t.Fatalf("Error parsing valid retention string: %v", err)
+	}
 	if len(res.QueryRanges) != 720 {
 		t.Fatalf("Found %v query ranges. Should have found 720", len(res.QueryRanges))
 	}
@@ -74,7 +77,7 @@ func TestModifyData(t *testing.T) {
 		t.Fatalf("Valid metric name %q was converted: %q", m.Metric, res.Metric)
 	}
 	found := false
-	for k, _ := range res.Tags {
+	for k := range res.Tags {
 		if k == "core" {
 			found = true
 			break
@@ -154,7 +157,7 @@ func TestModifyData(t *testing.T) {
 		t.Fatalf("Valid metric failed to parse? %v", err)
 	}
 	found = false
-	for k, _ := range res.Tags {
+	for k := range res.Tags {
 		if k == "__core" {
 			found = true
 			break
@@ -186,7 +189,7 @@ func TestModifyData(t *testing.T) {
 		t.Fatalf("Valid metric failed to parse? %v", err)
 	}
 	found = false
-	for k, _ := range res.Tags {
+	for k := range res.Tags {
 		if k == "core.name" {
 			found = true
 			break
