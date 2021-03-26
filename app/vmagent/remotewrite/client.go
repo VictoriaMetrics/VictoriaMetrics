@@ -265,7 +265,6 @@ again:
 		// drop block on 400 status code,
 		// not expected that remote server will be able to handle it on retry
 		// should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149
-		_, _ = ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
 		return true
