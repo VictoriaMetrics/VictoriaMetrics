@@ -179,11 +179,14 @@ func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline int64, rowsDeleted *uint
 func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted *uint64) {
 	timestamps := b.timestamps
 	nextIdx := b.nextIdx
+	nextIdxOrig := nextIdx
 	for nextIdx < len(timestamps) && timestamps[nextIdx] < retentionDeadline {
 		nextIdx++
 	}
-	atomic.AddUint64(rowsDeleted, uint64(nextIdx-b.nextIdx))
-	b.nextIdx = nextIdx
+	if n := nextIdx - nextIdxOrig; n > 0 {
+		atomic.AddUint64(rowsDeleted, uint64(n))
+		b.nextIdx = nextIdx
+	}
 }
 
 func appendRows(ob, ib *Block) {
