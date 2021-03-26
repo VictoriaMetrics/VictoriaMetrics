@@ -586,7 +586,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 		case "ERROR":
 			em, err := parseError(we.Object)
 			if err != nil {
-				return fmt.Errorf("cannot parse error message for from %q: %w", we.Object, err)
+				return fmt.Errorf("cannot parse error message from %q: %w", we.Object, err)
 			}
 			if em.Code == 410 {
 				// See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
