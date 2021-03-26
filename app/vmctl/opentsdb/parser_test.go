@@ -15,24 +15,30 @@ func TestConvertRetention(t *testing.T) {
 	*/
 	res, err := convertRetention("sum-1m-avg:1h:30d", 0, false)
 	if len(res.QueryRanges) != 720 {
+		t.Fatalf("Found %v query ranges. Should have found 720", len(res.QueryRanges))
 	}
 	if res.FirstOrder != "sum" {
+		t.Fatalf("Incorrect first order aggregation. Should have been sum", res.FirstOrder)
 	}
 	if res.SecondOrder != "avg" {
+		t.Fatalf("Incorrect second order aggregation. Should have been avg", res.SecondOrder)
 	}
 	if res.AggTime != "1m" {
+		t.Fatalf("Incorrect aggregation time length. Should have been 1m", res.AggTime)
 	}
 	/*
 		Invalid retention string
 	*/
-	res, err := convertRetention("sum-1m-avg:30d", 0, false)
+	res, err = convertRetention("sum-1m-avg:30d", 0, false)
 	if err == nil {
+		t.Fatalf("Bad retention string (sum-1m-avg:30d) didn't fail: %v", res)
 	}
 	/*
-		Invalid retention string
+		Invalid aggregation string
 	*/
-	res, err := convertRetention("sum-1m-avg:30d", 0, false)
+	res, err = convertRetention("sum-1m:1h:30d", 0, false)
 	if err == nil {
+		t.Fatalf("Bad aggregation string (sum-1m:1h:30d) didn't fail: %v", res)
 	}
 }
 

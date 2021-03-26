@@ -7,6 +7,7 @@ Features:
 - [x] Thanos: migrate data from Thanos to VictoriaMetrics
 - [ ] ~~Prometheus: migrate data from Prometheus to VictoriaMetrics by query~~(discarded)
 - [x] InfluxDB: migrate data from InfluxDB to VictoriaMetrics
+- [x] OpenTSDB: migrate data from OpenTSDB to VictoriaMetrics
 - [ ] Storage Management: data re-balancing between nodes 
 
 # Table of contents
