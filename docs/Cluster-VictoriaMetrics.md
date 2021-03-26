@@ -97,7 +97,7 @@ vmstorage-prod
 ### Development Builds
 
 1. [Install go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
-2. Run `make` from the repository root. It should build `vmstorage`, `vmselect`
+2. Run `make` from [the repository root](https://github.com/VictoriaMetrics/VictoriaMetrics). It should build `vmstorage`, `vmselect`
    and `vminsert` binaries and put them into the `bin` folder.
 
 
@@ -109,7 +109,7 @@ Run `make package`. It will build the following docker images locally:
 * `victoriametrics/vmselect:<PKG_TAG>`
 * `victoriametrics/vmstorage:<PKG_TAG>`
 
-`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+`<PKG_TAG>` is auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
 
 By default images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
@@ -271,6 +271,8 @@ the update process. See [cluster availability](#cluster-availability) section fo
 
   - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
   - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available. If consistency over availability is preferred, then either pass `-search.denyPartialResponse` command-line flag to `vmselect` or pass `deny_partial_response=1` query arg in requests to `vmselect`.
+
+`vmselect` doesn't serve partial responses for API handlers returning raw datapoints - [`/api/v1/export*` endpoints](https://victoriametrics.github.io/#how-to-export-time-series), since users usually expect this data is always complete.
 
 Data replication can be used for increasing storage durability. See [these docs](#replication-and-data-safety) for details.
 
