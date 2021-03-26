@@ -90,6 +90,10 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ## Migrating data from OpenTSDB
 
+`vmctl` supports the `opentsdb` mode to migrate data from OpenTSDB to VictoriaMetrics time-series database.
+
+See `./vmctl opentsdb --help` for details and full list of flags.
+
 *OpenTSDB migration is not possible without a functioning [meta](http://opentsdb.net/docs/build/html/user_guide/metadata.html) table to search for metrics/series.*
 
 OpenTSDB migration works like so:
@@ -107,6 +111,10 @@ OpenTSDB migration works like so:
     * `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
+
+### Restarting OpenTSDB migrations
+
+One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timstamp we started collecting data from at thebeginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
 
 ## Migrating data from InfluxDB (1.x)
 
