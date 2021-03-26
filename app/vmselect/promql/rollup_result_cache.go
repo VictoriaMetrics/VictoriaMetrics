@@ -29,12 +29,16 @@ var (
 // ResetRollupResultCacheIfNeeded resets rollup result cache if mrs contains timestamps outside `now - search.cacheTimestampOffset`.
 func ResetRollupResultCacheIfNeeded(mrs []storage.MetricRow) {
 	checkRollupResultCacheResetOnce.Do(func() {
+		rollupResultResetMetricRowSample.Store(&storage.MetricRow{})
 		go checkRollupResultCacheReset()
 	})
 	minTimestamp := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds() + checkRollupResultCacheResetInterval.Milliseconds()
 	needCacheReset := false
 	for i := range mrs {
 		if mrs[i].Timestamp < minTimestamp {
+			var mr storage.MetricRow
+			mr.CopyFrom(&mrs[i])
+			rollupResultResetMetricRowSample.Store(&mr)
 			needCacheReset = true
 			break
 		}
@@ -49,6 +53,10 @@ func checkRollupResultCacheReset() {
 	for {
 		time.Sleep(checkRollupResultCacheResetInterval)
 		if atomic.SwapUint32(&needRollupResultCacheReset, 0) > 0 {
+			mr := rollupResultResetMetricRowSample.Load().(*storage.MetricRow)
+			d := int64(fasttime.UnixTimestamp()*1000) - mr.Timestamp - cacheTimestampOffset.Milliseconds()
+			logger.Warnf("resetting rollup result cache because the metric %s has a timestamp older than -search.cacheTimestampOffset=%s by %.3fs",
+				mr.String(), cacheTimestampOffset, float64(d)/1e3)
 			ResetRollupResultCache()
 		}
 	}
@@ -58,6 +66,7 @@ const checkRollupResultCacheResetInterval = 5 * time.Second
 
 var needRollupResultCacheReset uint32
 var checkRollupResultCacheResetOnce sync.Once
+var rollupResultResetMetricRowSample atomic.Value
 
 var rollupResultCacheV = &rollupResultCache{
 	c: workingsetcache.New(1024*1024, time.Hour), // This is a cache for testing.

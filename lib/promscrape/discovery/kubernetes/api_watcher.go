@@ -308,10 +308,11 @@ type urlWatcher struct {
 
 	resourceVersion string
 
-	objectsCount   *metrics.Counter
-	objectsAdded   *metrics.Counter
-	objectsRemoved *metrics.Counter
-	objectsUpdated *metrics.Counter
+	objectsCount          *metrics.Counter
+	objectsAdded          *metrics.Counter
+	objectsRemoved        *metrics.Counter
+	objectsUpdated        *metrics.Counter
+	staleResourceVersions *metrics.Counter
 }
 
 func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
@@ -329,10 +330,11 @@ func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
 		awsPending:   make(map[*apiWatcher]struct{}),
 		objectsByKey: make(map[string]object),
 
-		objectsCount:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects{role=%q}`, role)),
-		objectsAdded:   metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_added_total{role=%q}`, role)),
-		objectsRemoved: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_removed_total{role=%q}`, role)),
-		objectsUpdated: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_updated_total{role=%q}`, role)),
+		objectsCount:          metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects{role=%q}`, role)),
+		objectsAdded:          metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_added_total{role=%q}`, role)),
+		objectsRemoved:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_removed_total{role=%q}`, role)),
+		objectsUpdated:        metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_objects_updated_total{role=%q}`, role)),
+		staleResourceVersions: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_stale_resource_versions_total{role=%q}`, role)),
 	}
 	logger.Infof("started %s watcher for %q", uw.role, uw.apiURL)
 	go uw.watchForUpdates()
@@ -502,14 +504,15 @@ func (uw *urlWatcher) watchForUpdates() {
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
-			body, _ := ioutil.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 			if resp.StatusCode == 410 {
 				// There is no need for sleep on 410 error. See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
 				backoffDelay = time.Second
+				uw.staleResourceVersions.Inc()
 				uw.setResourceVersion("")
 			} else {
+				body, _ := ioutil.ReadAll(resp.Body)
+				_ = resp.Body.Close()
+				logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 				backoffSleep()
 			}
 			continue
@@ -580,13 +583,25 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 				return fmt.Errorf("cannot parse bookmark from %q: %w", we.Object, err)
 			}
 			uw.setResourceVersion(bm.Metadata.ResourceVersion)
+		case "ERROR":
+			em, err := parseError(we.Object)
+			if err != nil {
+				return fmt.Errorf("cannot parse error message from %q: %w", we.Object, err)
+			}
+			if em.Code == 410 {
+				// See https://kubernetes.io/docs/reference/using-api/api-concepts/#410-gone-responses
+				uw.staleResourceVersions.Inc()
+				uw.setResourceVersion("")
+				return nil
+			}
+			return fmt.Errorf("unexpected error message: %q", we.Object)
 		default:
-			return fmt.Errorf("unexpected WatchEvent type %q for role %q", we.Type, uw.role)
+			return fmt.Errorf("unexpected WatchEvent type %q: %q", we.Type, we.Object)
 		}
 	}
 }
 
-// Bookmark is a bookmark from Kubernetes Watch API.
+// Bookmark is a bookmark message from Kubernetes Watch API.
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
 type Bookmark struct {
 	Metadata struct {
@@ -600,6 +615,19 @@ func parseBookmark(data []byte) (*Bookmark, error) {
 		return nil, err
 	}
 	return &bm, nil
+}
+
+// Error is an error message from Kubernetes Watch API.
+type Error struct {
+	Code int
+}
+
+func parseError(data []byte) (*Error, error) {
+	var em Error
+	if err := json.Unmarshal(data, &em); err != nil {
+		return nil, err
+	}
+	return &em, nil
 }
 
 func getAPIPaths(role string, namespaces []string, selectors []Selector) []string {
