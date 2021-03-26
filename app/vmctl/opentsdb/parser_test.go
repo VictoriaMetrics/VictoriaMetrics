@@ -18,13 +18,13 @@ func TestConvertRetention(t *testing.T) {
 		t.Fatalf("Found %v query ranges. Should have found 720", len(res.QueryRanges))
 	}
 	if res.FirstOrder != "sum" {
-		t.Fatalf("Incorrect first order aggregation. Should have been sum", res.FirstOrder)
+		t.Fatalf("Incorrect first order aggregation %v. Should have been sum", res.FirstOrder)
 	}
 	if res.SecondOrder != "avg" {
-		t.Fatalf("Incorrect second order aggregation. Should have been avg", res.SecondOrder)
+		t.Fatalf("Incorrect second order aggregation %v. Should have been avg", res.SecondOrder)
 	}
 	if res.AggTime != "1m" {
-		t.Fatalf("Incorrect aggregation time length. Should have been 1m", res.AggTime)
+		t.Fatalf("Incorrect aggregation time length %v. Should have been 1m", res.AggTime)
 	}
 	/*
 		Invalid retention string
