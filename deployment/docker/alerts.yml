@@ -106,6 +106,23 @@ groups:
             High Churn Rate tightly connected with database performance and may
             result in unexpected OOM's or slow queries."
 
+      - alert: TooHighChurnRate24h
+        expr: |
+          sum(increase(vm_new_timeseries_created_total[24h])) by(instance)
+          >
+          (sum(vm_cache_entries{type="storage/hour_metric_ids"}) by(instance) * 3)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
+          summary: "Too high number of new series on \"{{ $labels.instance }}\" created over last 24h"
+          description: "The number of created new time series over last 24h is 3x times higher than
+            current number of active series on \"{{ $labels.instance }}\".\n
+            This effect is known as Churn Rate.\n
+            High Churn Rate tightly connected with database performance and may
+            result in unexpected OOM's or slow queries."
+
       - alert: TooHighSlowInsertsRate
         expr: |
           (
