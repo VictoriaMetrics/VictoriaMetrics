@@ -45,12 +45,12 @@
       }
     ]
   },
-  "description": "Overview for single node VictoriaMetrics v1.55.1 or higher",
+  "description": "Overview for single node VictoriaMetrics v1.56.0 or higher",
   "editable": true,
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1615713966732,
+  "iteration": 1616956884194,
   "links": [
     {
       "icon": "doc",
@@ -2654,7 +2654,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
-          "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
+          "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher chur rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -2668,7 +2668,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 85
+            "y": 32
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2689,15 +2689,27 @@
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [],
+          "seriesOverrides": [
+            {
+              "alias": "new series over 24h",
+              "yaxis": 2
+            }
+          ],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
               "expr": "sum(rate(vm_new_timeseries_created_total{job=\"$job\", instance=\"$instance\"}[5m]))",
+              "interval": "",
               "legendFormat": "churn rate",
               "refId": "A"
+            },
+            {
+              "expr": "sum(increase(vm_new_timeseries_created_total{job=\"$job\", instance=\"$instance\"}[24h]))",
+              "interval": "",
+              "legendFormat": "new series over 24h",
+              "refId": "B"
             }
           ],
           "thresholds": [],
@@ -2761,7 +2773,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 85
+            "y": 32
           },
           "hiddenSeries": false,
           "id": 60,
@@ -2859,7 +2871,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 93
+            "y": 40
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2958,7 +2970,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 93
+            "y": 40
           },
           "hiddenSeries": false,
           "id": 74,

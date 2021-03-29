@@ -18,7 +18,7 @@ require (
 	github.com/go-kit/kit v0.10.0
 	github.com/golang/snappy v0.0.3
 	github.com/influxdata/influxdb v1.8.4
-	github.com/klauspost/compress v1.11.12
+	github.com/klauspost/compress v1.11.13
 	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/prometheus/client_golang v1.10.0 // indirect
