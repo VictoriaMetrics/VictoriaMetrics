@@ -5,17 +5,18 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="graphite"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="graphite"}`)
+	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="graphite"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="graphite"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="graphite"}`)
 )
 
 // InsertHandler processes remote write for graphite plaintext protocol.
@@ -67,7 +68,7 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	}
 	// Assume that all the rows for a single connection belong to the same (AccountID, ProjectID).
 	rowsInserted.Add(len(rows))
-	tenantmetrics.RowsInsertedByTenant.Get(&atCopy).Add(len(rows))
+	rowsTenantInserted.Get(&atCopy).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }

@@ -5,18 +5,19 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="prometheus"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="prometheus"}`)
+	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="prometheus"}`)
+	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="prometheus"}`)
+	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="prometheus"}`)
 )
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
@@ -67,7 +68,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		}
 	}
 	rowsInserted.Add(len(rows))
-	tenantmetrics.RowsInsertedByTenant.Get(at).Add(len(rows))
+	rowsTenantInserted.Get(at).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }
