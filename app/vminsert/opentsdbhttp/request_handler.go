@@ -17,9 +17,8 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdbhttp"}`)
-	rowsInsertedTenant = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdbhttp"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="opentsdbhttp"}`)
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="opentsdbhttp"}`)
+	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="opentsdbhttp"}`)
 )
 
 // InsertHandler processes HTTP OpenTSDB put requests.
@@ -84,7 +83,6 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		}
 	}
 	rowsInserted.Add(len(rows))
-	rowsInsertedTenant.Add(len(rows))
 	tenantmetrics.RowsInsertedByTenant.Get(at).Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
