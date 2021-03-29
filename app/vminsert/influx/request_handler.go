@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -16,7 +17,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
@@ -29,7 +29,7 @@ var (
 )
 
 var (
-	rowsInserted  = tenantmetrics.NewCounterMap(`vm_rows_inserted_total{type="influx"}`)
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="influx"}`)
 	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="influx"}`)
 )
 
@@ -162,7 +162,8 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 			}
 		}
 	}
-	rowsInserted.Get(&atCopy).Add(rowsTotal)
+	rowsInserted.Add(rowsTotal)
+	tenantmetrics.RowsInsertedByTenant.Get(&atCopy).Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }
