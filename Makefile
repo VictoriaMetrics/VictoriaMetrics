@@ -85,10 +85,14 @@ release: \
 
 release-victoria-metrics: \
 	release-victoria-metrics-amd64 \
+	release-victoria-metrics-arm \
 	release-victoria-metrics-arm64
 
 release-victoria-metrics-amd64:
 	GOARCH=amd64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-arm:
+	GOARCH=arm $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-arm64:
 	GOARCH=arm64 $(MAKE) release-victoria-metrics-generic
