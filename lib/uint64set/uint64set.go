@@ -186,19 +186,6 @@ func (s *Set) Has(x uint64) bool {
 	hi32 := uint32(x >> 32)
 	lo32 := uint32(x)
 	bs := s.buckets
-	if len(bs) > 0 && bs[0].hi == hi32 {
-		// Manually inline bucket32.has for performance reasons.
-		hi16 := uint16(lo32 >> 16)
-		lo16 := uint16(lo32)
-		b32 := &bs[0]
-		his := b32.b16his
-		if n := b32.getHint(); n < uint32(len(his)) && his[n] == hi16 {
-			// Fast path - check the previously used bucket.
-			bs := b32.buckets
-			return n < uint32(len(bs)) && bs[n].has(lo16)
-		}
-		return b32.hasSlow(hi16, lo16)
-	}
 	for i := range bs {
 		b32 := &bs[i]
 		if b32.hi == hi32 {
@@ -672,21 +659,12 @@ func (b *bucket32) has(x uint32) bool {
 	hi := uint16(x >> 16)
 	lo := uint16(x)
 	his := b.b16his
-	if n := b.getHint(); n < uint32(len(his)) && his[n] == hi {
-		// Fast path - check the previously used bucket.
-		bs := b.buckets
-		return n < uint32(len(bs)) && bs[n].has(lo)
-	}
-	return b.hasSlow(hi, lo)
-}
-
-func (b *bucket32) hasSlow(hi, lo uint16) bool {
-	his := b.b16his
 	n := binarySearch16(his, hi)
 	if n < 0 || n >= len(his) || his[n] != hi {
 		return false
 	}
-	b.setHint(n)
+	// Do not call b.setHint(n) here, since this may trash performance
+	// when many concurrent goroutines call b.has() method from many CPU cores.
 	bs := b.buckets
 	return n < len(bs) && bs[n].has(lo)
 }
