@@ -20,12 +20,6 @@ var (
 	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution; see also -search.storageTimeout")
 	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
 		"this trades availability over consistency; see also -search.maxQueryDuration and -search.storageTimeout")
-
-	// StorageTimeout limits the duration of query execution on every vmstorage node.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
-	StorageTimeout = flag.Duration("search.storageTimeout", 0, "The timeout for per-storage query processing; "+
-		"this allows returning partial responses if certain -storageNode instances slowly process the query; "+
-		"see also -search.maxQueryDuration and -search.denyPartialResponse command-line flags")
 )
 
 func roundToSeconds(ms int64) int64 {
@@ -123,9 +117,6 @@ func GetMaxQueryDuration(r *http.Request) time.Duration {
 	d := time.Duration(dms) * time.Millisecond
 	if d <= 0 || d > *maxQueryDuration {
 		d = *maxQueryDuration
-	}
-	if *StorageTimeout > 0 && d > *StorageTimeout {
-		d = *StorageTimeout
 	}
 	return d
 }
