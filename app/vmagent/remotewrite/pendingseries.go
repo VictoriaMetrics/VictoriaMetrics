@@ -27,6 +27,9 @@ var (
 // the maximum number of rows to send per each block.
 const maxRowsPerBlock = 10000
 
+// the maximum number of labels to send per each block.
+const maxLabelsPerBlock = 40000
+
 type pendingSeries struct {
 	mu sync.Mutex
 	wr writeRequest
@@ -153,7 +156,7 @@ func (wr *writeRequest) push(src []prompbmarshal.TimeSeries) {
 	for i := range src {
 		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
 		wr.copyTimeSeries(&tssDst[len(tssDst)-1], &src[i])
-		if len(wr.samples) >= maxRowsPerBlock {
+		if len(wr.samples) >= maxRowsPerBlock || len(wr.labels) >= maxLabelsPerBlock {
 			wr.tss = tssDst
 			wr.flush()
 			tssDst = wr.tss
