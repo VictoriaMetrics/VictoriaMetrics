@@ -4,6 +4,8 @@
 
 * FEATURE: publish vmutils for `GOOS=arm` on [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
+* BUGFIX: prevent from possible incomplete query results after timed out query.
+
 
 # [v1.57.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.57.0)
 
