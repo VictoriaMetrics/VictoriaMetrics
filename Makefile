@@ -61,6 +61,14 @@ vmutils-arm64: \
 	vmrestore-arm64 \
 	vmctl-arm64
 
+vmutils-arm: \
+	vmagent-arm \
+	vmalert-arm \
+	vmauth-arm \
+	vmbackup-arm \
+	vmrestore-arm \
+	vmctl-arm
+
 vmutils-windows-amd64: \
 	vmagent-windows-amd64 \
 	vmalert-windows-amd64 \
@@ -77,10 +85,14 @@ release: \
 
 release-victoria-metrics: \
 	release-victoria-metrics-amd64 \
+	release-victoria-metrics-arm \
 	release-victoria-metrics-arm64
 
 release-victoria-metrics-amd64:
 	GOARCH=amd64 $(MAKE) release-victoria-metrics-generic
+
+release-victoria-metrics-arm:
+	GOARCH=arm $(MAKE) release-victoria-metrics-generic
 
 release-victoria-metrics-arm64:
 	GOARCH=arm64 $(MAKE) release-victoria-metrics-generic
@@ -96,6 +108,7 @@ release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
 release-vmutils: \
 	release-vmutils-amd64 \
 	release-vmutils-arm64 \
+	release-vmutils-arm \
 	release-vmutils-windows-amd64
 
 release-vmutils-amd64:
@@ -103,6 +116,9 @@ release-vmutils-amd64:
 
 release-vmutils-arm64:
 	GOARCH=arm64 $(MAKE) release-vmutils-generic
+
+release-vmutils-arm:
+	GOARCH=arm $(MAKE) release-vmutils-generic
 
 release-vmutils-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmutils-windows-generic
