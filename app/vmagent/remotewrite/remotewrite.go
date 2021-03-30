@@ -151,11 +151,13 @@ func Push(wr *prompbmarshal.WriteRequest) {
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
 		samplesCount := 0
+		labelsCount := 0
 		i := 0
 		for i < len(tss) {
 			samplesCount += len(tss[i].Samples)
+			labelsCount += len(tss[i].Labels)
 			i++
-			if samplesCount > maxRowsPerBlock {
+			if samplesCount >= maxRowsPerBlock || labelsCount >= maxLabelsPerBlock {
 				break
 			}
 		}
