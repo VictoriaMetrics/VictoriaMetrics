@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	maxExportDuration   = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
-	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
+	maxExportDuration        = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
+	maxQueryDuration         = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
+	maxStatusRequestDuration = flag.Duration("search.maxStatusRequestDuration", time.Minute*5, "The maximum duration for /api/v1/status/* requests")
+	denyPartialResponse      = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
 		"this trades availability over consistency; see also -search.maxQueryDuration")
 )
 
@@ -125,6 +126,12 @@ func GetMaxQueryDuration(r *http.Request) time.Duration {
 func GetDeadlineForQuery(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxQueryDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxQueryDuration")
+}
+
+// GetDeadlineForStatusRequest returns deadline for the given request to /api/v1/status/*.
+func GetDeadlineForStatusRequest(r *http.Request, startTime time.Time) Deadline {
+	dMax := maxStatusRequestDuration.Milliseconds()
+	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxStatusRequestDuration")
 }
 
 // GetDeadlineForExport returns deadline for the given request to /api/v1/export.

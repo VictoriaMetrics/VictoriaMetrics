@@ -666,7 +666,7 @@ var labelValuesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 
 // LabelsCountHandler processes /api/v1/labels/count request.
 func LabelsCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	labelEntries, isPartial, err := netstorage.GetLabelEntries(at, denyPartialResponse, deadline)
 	if err != nil {
@@ -692,7 +692,7 @@ const secsPerDay = 3600 * 24
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 func TSDBStatusHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("cannot parse form values: %w", err)
 	}
@@ -875,7 +875,7 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 
 // SeriesCountHandler processes /api/v1/series/count request.
 func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
-	deadline := searchutils.GetDeadlineForQuery(r, startTime)
+	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
 	n, isPartial, err := netstorage.GetSeriesCount(at, denyPartialResponse, deadline)
 	if err != nil {
