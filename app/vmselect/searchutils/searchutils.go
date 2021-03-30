@@ -17,9 +17,9 @@ import (
 
 var (
 	maxExportDuration   = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution; see also -search.storageTimeout")
+	maxQueryDuration    = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution")
 	denyPartialResponse = flag.Bool("search.denyPartialResponse", false, "Whether to deny partial responses if a part of -storageNode instances fail to perform queries; "+
-		"this trades availability over consistency; see also -search.maxQueryDuration and -search.storageTimeout")
+		"this trades availability over consistency; see also -search.maxQueryDuration")
 )
 
 func roundToSeconds(ms int64) int64 {
