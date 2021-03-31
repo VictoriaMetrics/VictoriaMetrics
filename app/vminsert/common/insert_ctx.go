@@ -14,7 +14,7 @@ import (
 
 // InsertCtx contains common bits for data points insertion.
 type InsertCtx struct {
-	Labels []prompb.Label
+	Labels sortedLabels
 
 	mrs            []storage.MetricRow
 	metricNamesBuf []byte
