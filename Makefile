@@ -53,6 +53,14 @@ vmutils: \
 	vmrestore \
 	vmctl
 
+vmutils-pure: \
+	vmagent-pure \
+	vmalert-pure \
+	vmauth-pure \
+	vmbackup-pure \
+	vmrestore-pure \
+	vmctl-pure
+
 vmutils-arm64: \
 	vmagent-arm64 \
 	vmalert-arm64 \
