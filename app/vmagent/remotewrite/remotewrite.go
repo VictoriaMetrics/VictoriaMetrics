@@ -210,7 +210,13 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int,
 	c := newClient(argIdx, remoteWriteURL, sanitizedURL, fq, *queues)
 	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
 	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
-	pss := make([]*pendingSeries, *queues)
+	pssLen := *queues
+	if n := cgroup.AvailableCPUs(); pssLen > n {
+		// There is no sense in running more than availableCPUs concurrent pendingSeries,
+		// since every pendingSeries can saturate up to a single CPU.
+		pssLen = n
+	}
+	pss := make([]*pendingSeries, pssLen)
 	for i := range pss {
 		pss[i] = newPendingSeries(fq.MustWriteBlock, sf, rd)
 	}
