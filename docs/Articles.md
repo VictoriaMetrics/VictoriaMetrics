@@ -30,6 +30,7 @@
 * [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-alertmanager)
 * [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
 * [Monitoring Kubernetes clusters with VictoriaMetrics and Grafana](https://blog.cybozu.io/entry/2021/03/18/115743)
+* [Multi-tenancy monitoring system for Kubernetes cluster using VictoriaMetrics and operators](https://blog.kintone.io/entry/2021/03/31/175256)
 
 
 ## Our articles
