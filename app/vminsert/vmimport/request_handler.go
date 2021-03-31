@@ -63,6 +63,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			// Skip metric without labels.
 			continue
 		}
+		ctx.SortLabelsIfNeeded()
 		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		values := r.Values

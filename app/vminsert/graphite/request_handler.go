@@ -62,6 +62,7 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			// Skip metric without labels.
 			continue
 		}
+		ctx.SortLabelsIfNeeded()
 		if err := ctx.WriteDataPoint(&atCopy, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}

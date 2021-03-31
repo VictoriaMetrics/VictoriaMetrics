@@ -130,6 +130,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					continue
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
+				ic.SortLabelsIfNeeded()
 				for i := range ic.Labels {
 					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
 				}
@@ -139,6 +140,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				}
 			}
 		} else {
+			ic.SortLabelsIfNeeded()
 			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, ic.Labels)
 			metricNameBufLen := len(ic.MetricNameBuf)
 			labelsLen := len(ic.Labels)

@@ -61,6 +61,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			// Skip metric without labels.
 			continue
 		}
+		ctx.SortLabelsIfNeeded()
 		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 		samples := ts.Samples

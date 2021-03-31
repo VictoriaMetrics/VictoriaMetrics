@@ -19,7 +19,7 @@ import (
 //
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
-	Labels        []prompb.Label
+	Labels        sortedLabels
 	MetricNameBuf []byte
 
 	bufRowss  []bufRows

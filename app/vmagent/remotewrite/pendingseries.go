@@ -128,6 +128,7 @@ func (wr *writeRequest) reset() {
 }
 
 func (wr *writeRequest) flush() {
+	sortLabelsIfNeeded(wr.tss)
 	wr.wr.Timeseries = wr.tss
 	wr.adjustSampleValues()
 	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
