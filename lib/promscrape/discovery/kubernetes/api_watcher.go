@@ -80,7 +80,9 @@ func (aw *apiWatcher) mustStop() {
 func (aw *apiWatcher) reloadScrapeWorks(swosByKey map[string][]interface{}) {
 	aw.swosByKeyLock.Lock()
 	aw.swosCount.Add(len(swosByKey) - len(aw.swosByKey))
-	aw.swosByKey = swosByKey
+	for k, v := range swosByKey {
+		aw.swosByKey[k] = v
+	}
 	aw.swosByKeyLock.Unlock()
 }
 
