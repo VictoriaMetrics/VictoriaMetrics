@@ -51,9 +51,9 @@ type apiWatcher struct {
 
 	gw *groupWatcher
 
-	// swos contains a map of ScrapeWork objects for the given apiWatcher
-	swosByKey     map[string][]interface{}
-	swosByKeyLock sync.Mutex
+	// swos contains per-namepsace maps of ScrapeWork objects for the given apiWatcher
+	swosByNamespace     map[string]map[string][]interface{}
+	swosByNamespaceLock sync.Mutex
 
 	swosCount *metrics.Counter
 }
@@ -64,44 +64,54 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	proxyURL := sdc.ProxyURL.URL()
 	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, proxyURL)
 	return &apiWatcher{
-		role:      sdc.Role,
-		swcFunc:   swcFunc,
-		gw:        gw,
-		swosByKey: make(map[string][]interface{}),
-		swosCount: metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, sdc.Role)),
+		role:            sdc.Role,
+		swcFunc:         swcFunc,
+		gw:              gw,
+		swosByNamespace: make(map[string]map[string][]interface{}),
+		swosCount:       metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_scrape_works{role=%q}`, sdc.Role)),
 	}
 }
 
 func (aw *apiWatcher) mustStop() {
 	aw.gw.unsubscribeAPIWatcher(aw)
-	aw.reloadScrapeWorks(make(map[string][]interface{}))
+	aw.swosByNamespaceLock.Lock()
+	aw.swosByNamespace = make(map[string]map[string][]interface{})
+	aw.swosByNamespaceLock.Unlock()
 }
 
-func (aw *apiWatcher) reloadScrapeWorks(swosByKey map[string][]interface{}) {
-	aw.swosByKeyLock.Lock()
-	aw.swosCount.Add(len(swosByKey) - len(aw.swosByKey))
-	aw.swosByKey = swosByKey
-	aw.swosByKeyLock.Unlock()
+func (aw *apiWatcher) reloadScrapeWorks(namespace string, swosByKey map[string][]interface{}) {
+	aw.swosByNamespaceLock.Lock()
+	aw.swosCount.Add(len(swosByKey) - len(aw.swosByNamespace[namespace]))
+	aw.swosByNamespace[namespace] = swosByKey
+	aw.swosByNamespaceLock.Unlock()
 }
 
-func (aw *apiWatcher) setScrapeWorks(key string, labels []map[string]string) {
+func (aw *apiWatcher) setScrapeWorks(namespace, key string, labels []map[string]string) {
 	swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labels)
-	aw.swosByKeyLock.Lock()
-	if len(swos) > 0 {
-		aw.swosCount.Add(len(swos) - len(aw.swosByKey[key]))
-		aw.swosByKey[key] = swos
-	} else {
-		aw.swosCount.Add(-len(aw.swosByKey[key]))
-		delete(aw.swosByKey, key)
+	aw.swosByNamespaceLock.Lock()
+	swosByKey := aw.swosByNamespace[namespace]
+	if swosByKey == nil {
+		swosByKey = make(map[string][]interface{})
+		aw.swosByNamespace[namespace] = swosByKey
 	}
-	aw.swosByKeyLock.Unlock()
+	if len(swos) > 0 {
+		aw.swosCount.Add(len(swos) - len(swosByKey[key]))
+		swosByKey[key] = swos
+	} else {
+		aw.swosCount.Add(-len(swosByKey[key]))
+		delete(swosByKey, key)
+	}
+	aw.swosByNamespaceLock.Unlock()
 }
 
-func (aw *apiWatcher) removeScrapeWorks(key string) {
-	aw.swosByKeyLock.Lock()
-	aw.swosCount.Add(-len(aw.swosByKey[key]))
-	delete(aw.swosByKey, key)
-	aw.swosByKeyLock.Unlock()
+func (aw *apiWatcher) removeScrapeWorks(namespace, key string) {
+	aw.swosByNamespaceLock.Lock()
+	swosByKey := aw.swosByNamespace[namespace]
+	if len(swosByKey) > 0 {
+		aw.swosCount.Add(-len(swosByKey[key]))
+		delete(swosByKey, key)
+	}
+	aw.swosByNamespaceLock.Unlock()
 }
 
 func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []map[string]string) []interface{} {
@@ -119,16 +129,20 @@ func getScrapeWorkObjectsForLabels(swcFunc ScrapeWorkConstructorFunc, labelss []
 // getScrapeWorkObjects returns all the ScrapeWork objects for the given aw.
 func (aw *apiWatcher) getScrapeWorkObjects() []interface{} {
 	aw.gw.startWatchersForRole(aw.role, aw)
-	aw.swosByKeyLock.Lock()
-	defer aw.swosByKeyLock.Unlock()
+	aw.swosByNamespaceLock.Lock()
+	defer aw.swosByNamespaceLock.Unlock()
 
 	size := 0
-	for _, swosLocal := range aw.swosByKey {
-		size += len(swosLocal)
+	for _, swosByKey := range aw.swosByNamespace {
+		for _, swosLocal := range swosByKey {
+			size += len(swosLocal)
+		}
 	}
 	swos := make([]interface{}, 0, size)
-	for _, swosLocal := range aw.swosByKey {
-		swos = append(swos, swosLocal...)
+	for _, swosByKey := range aw.swosByNamespace {
+		for _, swosLocal := range swosByKey {
+			swos = append(swos, swosLocal...)
+		}
 	}
 	return swos
 }
@@ -216,6 +230,11 @@ func (gw *groupWatcher) getObjectByRole(role, namespace, name string) object {
 
 	for _, uw := range gw.m {
 		if uw.role != role {
+			// Role mismatch
+			continue
+		}
+		if uw.namespace != "" && uw.namespace != namespace {
+			// Namespace mismatch
 			continue
 		}
 		uw.mu.Lock()
@@ -229,13 +248,13 @@ func (gw *groupWatcher) getObjectByRole(role, namespace, name string) object {
 }
 
 func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
-	paths := getAPIPaths(role, gw.namespaces, gw.selectors)
-	for _, path := range paths {
+	paths, namespaces := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
+	for i, path := range paths {
 		apiURL := gw.apiServer + path
 		gw.mu.Lock()
 		uw := gw.m[apiURL]
 		if uw == nil {
-			uw = newURLWatcher(role, apiURL, gw)
+			uw = newURLWatcher(role, namespaces[i], apiURL, gw)
 			gw.m[apiURL] = uw
 		}
 		gw.mu.Unlock()
@@ -243,7 +262,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 	}
 }
 
-func (gw *groupWatcher) reloadScrapeWorksForAPIWatchers(aws []*apiWatcher, objectsByKey map[string]object) {
+func (gw *groupWatcher) reloadScrapeWorksForAPIWatchers(namespace string, aws []*apiWatcher, objectsByKey map[string]object) {
 	if len(aws) == 0 {
 		return
 	}
@@ -261,7 +280,7 @@ func (gw *groupWatcher) reloadScrapeWorksForAPIWatchers(aws []*apiWatcher, objec
 		}
 	}
 	for i, aw := range aws {
-		aw.reloadScrapeWorks(swosByKey[i])
+		aw.reloadScrapeWorks(namespace, swosByKey[i])
 	}
 }
 
@@ -287,9 +306,10 @@ func (gw *groupWatcher) unsubscribeAPIWatcher(aw *apiWatcher) {
 
 // urlWatcher watches for an apiURL and updates object states in objectsByKey.
 type urlWatcher struct {
-	role   string
-	apiURL string
-	gw     *groupWatcher
+	role      string
+	namespace string
+	apiURL    string
+	gw        *groupWatcher
 
 	parseObject     parseObjectFunc
 	parseObjectList parseObjectListFunc
@@ -315,13 +335,14 @@ type urlWatcher struct {
 	staleResourceVersions *metrics.Counter
 }
 
-func newURLWatcher(role, apiURL string, gw *groupWatcher) *urlWatcher {
+func newURLWatcher(role, namespace, apiURL string, gw *groupWatcher) *urlWatcher {
 	parseObject, parseObjectList := getObjectParsersForRole(role)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_url_watchers{role=%q}`, role)).Inc()
 	uw := &urlWatcher{
-		role:   role,
-		apiURL: apiURL,
-		gw:     gw,
+		role:      role,
+		namespace: namespace,
+		apiURL:    apiURL,
+		gw:        gw,
 
 		parseObject:     parseObject,
 		parseObjectList: parseObjectList,
@@ -393,7 +414,7 @@ func (uw *urlWatcher) processPendingSubscribers() {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_discovery_kubernetes_subscibers{role=%q,type="permanent"}`, uw.role)).Add(len(awsPending))
 		uw.mu.Unlock()
 
-		uw.gw.reloadScrapeWorksForAPIWatchers(awsPending, objectsByKey)
+		uw.gw.reloadScrapeWorksForAPIWatchers(uw.namespace, awsPending, objectsByKey)
 	}
 }
 
@@ -457,7 +478,7 @@ func (uw *urlWatcher) reloadObjects() string {
 	aws := getAPIWatchers(uw.aws)
 	uw.mu.Unlock()
 
-	uw.gw.reloadScrapeWorksForAPIWatchers(aws, objectsByKey)
+	uw.gw.reloadScrapeWorksForAPIWatchers(uw.namespace, aws, objectsByKey)
 	logger.Infof("reloaded %d objects from %q", len(objectsByKey), requestURL)
 	return metadata.ResourceVersion
 }
@@ -557,7 +578,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			uw.mu.Unlock()
 			labels := o.getTargetLabels(uw.gw)
 			for _, aw := range aws {
-				aw.setScrapeWorks(key, labels)
+				aw.setScrapeWorks(uw.namespace, key, labels)
 			}
 		case "DELETED":
 			o, err := uw.parseObject(we.Object)
@@ -574,7 +595,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			aws := getAPIWatchers(uw.aws)
 			uw.mu.Unlock()
 			for _, aw := range aws {
-				aw.removeScrapeWorks(key)
+				aw.removeScrapeWorks(uw.namespace, key)
 			}
 		case "BOOKMARK":
 			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
@@ -630,19 +651,19 @@ func parseError(data []byte) (*Error, error) {
 	return &em, nil
 }
 
-func getAPIPaths(role string, namespaces []string, selectors []Selector) []string {
+func getAPIPathsWithNamespaces(role string, namespaces []string, selectors []Selector) ([]string, []string) {
 	objectName := getObjectNameByRole(role)
 	if objectName == "nodes" || len(namespaces) == 0 {
 		query := joinSelectors(role, selectors)
 		path := getAPIPath(objectName, "", query)
-		return []string{path}
+		return []string{path}, []string{""}
 	}
 	query := joinSelectors(role, selectors)
 	paths := make([]string, len(namespaces))
 	for i, namespace := range namespaces {
 		paths[i] = getAPIPath(objectName, namespace, query)
 	}
-	return paths
+	return paths, namespaces
 }
 
 func getAPIPath(objectName, namespace, query string) string {

@@ -65,6 +65,7 @@ func insertRows(block *parser.Block, extraLabels []prompbmarshal.Label) error {
 		// Skip metric without labels.
 		return nil
 	}
+	ic.SortLabelsIfNeeded()
 	ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 	values := block.Values
 	timestamps := block.Timestamps

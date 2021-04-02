@@ -415,7 +415,7 @@ We recommend using [binary releases](https://github.com/VictoriaMetrics/Victoria
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
 2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -444,7 +444,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.14.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
 2. Run `make vmagent-arm` or `make vmagent-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-arm` or `vmagent-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -702,6 +702,8 @@ See the docs at https://victoriametrics.github.io/vmagent.html .
   -remoteWrite.urlRelabelConfig array
     	Optional path to relabel config for the corresponding -remoteWrite.url
     	Supports array of values separated by comma or specified via multiple flags.
+  -sortLabels
+    	Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string

@@ -63,6 +63,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			// Skip metric without labels.
 			continue
 		}
+		ctx.SortLabelsIfNeeded()
 		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}

@@ -39,7 +39,7 @@ services:
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:7.1.1
+    image: grafana/grafana:7.5.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -71,6 +71,7 @@ services:
       # display source of alerts in grafana
       - '-external.url=http://127.0.0.1:3000' #grafana outside container
       - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":"{{$$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' ## when copypaste the line be aware of '$$' for escaping in '$expr'    networks:
+    networks:
       - vm_net
     restart: always
   alertmanager:

@@ -61,6 +61,7 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Labe
 			// Skip metric without labels.
 			continue
 		}
+		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		samples := ts.Samples

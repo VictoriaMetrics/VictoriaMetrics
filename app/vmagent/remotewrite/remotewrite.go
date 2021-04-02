@@ -151,11 +151,13 @@ func Push(wr *prompbmarshal.WriteRequest) {
 	for len(tss) > 0 {
 		// Process big tss in smaller blocks in order to reduce the maximum memory usage
 		samplesCount := 0
+		labelsCount := 0
 		i := 0
 		for i < len(tss) {
 			samplesCount += len(tss[i].Samples)
+			labelsCount += len(tss[i].Labels)
 			i++
-			if samplesCount > maxRowsPerBlock {
+			if samplesCount >= maxRowsPerBlock || labelsCount >= maxLabelsPerBlock {
 				break
 			}
 		}
@@ -208,7 +210,13 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL string, maxInmemoryBlocks int,
 	c := newClient(argIdx, remoteWriteURL, sanitizedURL, fq, *queues)
 	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
 	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
-	pss := make([]*pendingSeries, *queues)
+	pssLen := *queues
+	if n := cgroup.AvailableCPUs(); pssLen > n {
+		// There is no sense in running more than availableCPUs concurrent pendingSeries,
+		// since every pendingSeries can saturate up to a single CPU.
+		pssLen = n
+	}
+	pss := make([]*pendingSeries, pssLen)
 	for i := range pss {
 		pss[i] = newPendingSeries(fq.MustWriteBlock, sf, rd)
 	}
