@@ -10,8 +10,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-func (p *Pod) name() string {
-	return p.Metadata.Name
+func (p *Pod) key() string {
+	return p.Metadata.key()
 }
 
 func parsePodList(r io.Reader) (map[string]object, ListMeta, error) {
@@ -20,11 +20,11 @@ func parsePodList(r io.Reader) (map[string]object, ListMeta, error) {
 	if err := d.Decode(&pl); err != nil {
 		return nil, pl.Metadata, fmt.Errorf("cannot unmarshal PodList: %w", err)
 	}
-	objectsByName := make(map[string]object)
+	objectsByKey := make(map[string]object)
 	for _, p := range pl.Items {
-		objectsByName[p.name()] = p
+		objectsByKey[p.key()] = p
 	}
-	return objectsByName, pl.Metadata, nil
+	return objectsByKey, pl.Metadata, nil
 }
 
 func parsePod(data []byte) (object, error) {
