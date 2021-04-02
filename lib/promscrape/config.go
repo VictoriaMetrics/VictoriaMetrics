@@ -88,6 +88,7 @@ type ScrapeConfig struct {
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
+	FollowRedirects      *bool                       `yaml:"follow_redirects"` // omitempty isn't set, since the default value for this flag is true.
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
@@ -531,6 +532,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	}
 	honorLabels := sc.HonorLabels
 	honorTimestamps := sc.HonorTimestamps
+	denyRedirects := false
+	if sc.FollowRedirects != nil {
+		denyRedirects = !*sc.FollowRedirects
+	}
 	metricsPath := sc.MetricsPath
 	if metricsPath == "" {
 		metricsPath = "/metrics"
@@ -571,6 +576,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		authConfig:           ac,
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
+		denyRedirects:        denyRedirects,
 		externalLabels:       globalCfg.ExternalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
@@ -596,6 +602,7 @@ type scrapeWorkConfig struct {
 	authConfig           *promauth.Config
 	honorLabels          bool
 	honorTimestamps      bool
+	denyRedirects        bool
 	externalLabels       map[string]string
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
@@ -856,6 +863,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeTimeout:        swc.scrapeTimeout,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
+		DenyRedirects:        swc.denyRedirects,
 		OriginalLabels:       originalLabels,
 		Labels:               labels,
 		ProxyURL:             swc.proxyURL,
