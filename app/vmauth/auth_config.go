@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -29,10 +30,11 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Username  string   `yaml:"username"`
-	Password  string   `yaml:"password"`
-	URLPrefix string   `yaml:"url_prefix"`
-	URLMap    []URLMap `yaml:"url_map"`
+	BearerToken string   `yaml:"bearer_token"`
+	Username    string   `yaml:"username"`
+	Password    string   `yaml:"password"`
+	URLPrefix   string   `yaml:"url_prefix"`
+	URLMap      []URLMap `yaml:"url_map"`
 
 	requests *metrics.Counter
 }
@@ -150,11 +152,26 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 	if len(uis) == 0 {
 		return nil, fmt.Errorf("`users` section cannot be empty in AuthConfig")
 	}
-	m := make(map[string]*UserInfo, len(uis))
+	byAuthToken := make(map[string]*UserInfo, len(uis))
+	byUsername := make(map[string]bool, len(uis))
+	byBearerToken := make(map[string]bool, len(uis))
 	for i := range uis {
 		ui := &uis[i]
-		if m[ui.Username] != nil {
+		if ui.BearerToken == "" && ui.Username == "" {
+			return nil, fmt.Errorf("either bearer_token or username must be set")
+		}
+		if ui.BearerToken != "" && ui.Username != "" {
+			return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
+		}
+		if byBearerToken[ui.BearerToken] {
+			return nil, fmt.Errorf("duplicate bearer_token found; bearer_token: %q", ui.BearerToken)
+		}
+		if byUsername[ui.Username] {
 			return nil, fmt.Errorf("duplicate username found; username: %q", ui.Username)
+		}
+		authToken := getAuthToken(ui.BearerToken, ui.Username, ui.Password)
+		if byAuthToken[authToken] != nil {
+			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", authToken, ui.BearerToken, ui.Username)
 		}
 		if len(ui.URLPrefix) > 0 {
 			urlPrefix, err := sanitizeURLPrefix(ui.URLPrefix)
@@ -176,10 +193,29 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if len(ui.URLMap) == 0 && len(ui.URLPrefix) == 0 {
 			return nil, fmt.Errorf("missing `url_prefix`")
 		}
-		ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, ui.Username))
-		m[ui.Username] = ui
+		if ui.BearerToken != "" {
+			if ui.Password != "" {
+				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
+			}
+			ui.requests = metrics.GetOrCreateCounter(`vmauth_user_requests_total{username="bearer_token"}`)
+			byBearerToken[ui.BearerToken] = true
+		}
+		if ui.Username != "" {
+			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, ui.Username))
+			byUsername[ui.Username] = true
+		}
+		byAuthToken[authToken] = ui
 	}
-	return m, nil
+	return byAuthToken, nil
+}
+
+func getAuthToken(bearerToken, username, password string) string {
+	if bearerToken != "" {
+		return "Bearer " + bearerToken
+	}
+	token := username + ":" + password
+	token64 := base64.StdEncoding.EncodeToString([]byte(token))
+	return "Basic " + token64
 }
 
 func sanitizeURLPrefix(urlPrefix string) (string, error) {

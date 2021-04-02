@@ -77,7 +77,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		port:         sdc.Port,
 	}
 	if sdc.TLSConfig != nil {
-		ac, err := promauth.NewConfig(baseDir, nil, "", "", sdc.TLSConfig)
+		ac, err := promauth.NewConfig(baseDir, nil, nil, "", "", sdc.TLSConfig)
 		if err != nil {
 			return nil, err
 		}

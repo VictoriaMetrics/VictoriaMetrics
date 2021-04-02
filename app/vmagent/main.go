@@ -145,6 +145,9 @@ func main() {
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
+		if r.Method != "GET" {
+			return false
+		}
 		fmt.Fprintf(w, "vmagent - see docs at https://victoriametrics.github.io/vmagent.html")
 		return true
 	}

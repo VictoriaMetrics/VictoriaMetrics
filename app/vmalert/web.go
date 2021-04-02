@@ -29,6 +29,9 @@ var pathList = [][]string{
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/":
+		if r.Method != "GET" {
+			return false
+		}
 		for _, path := range pathList {
 			p, doc := path[0], path[1]
 			fmt.Fprintf(w, "<a href='%s'>%q</a> - %s<br/>", p, p, doc)

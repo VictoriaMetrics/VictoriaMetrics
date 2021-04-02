@@ -693,8 +693,14 @@ func getRemainingSumTimeseries(tss []*timeseries, modifier *metricsql.ModifierEx
 	var dst timeseries
 	dst.CopyFromShallowTimestamps(tss[0])
 	removeGroupTags(&dst.MetricName, modifier)
+	tagValue := remainingSumTagName
+	n := strings.IndexByte(remainingSumTagName, '=')
+	if n >= 0 {
+		tagValue = remainingSumTagName[n+1:]
+		remainingSumTagName = remainingSumTagName[:n]
+	}
 	dst.MetricName.RemoveTag(remainingSumTagName)
-	dst.MetricName.AddTag(remainingSumTagName, remainingSumTagName)
+	dst.MetricName.AddTag(remainingSumTagName, tagValue)
 	for i, k := range ks {
 		kn := getIntK(k, len(tss))
 		var sum float64

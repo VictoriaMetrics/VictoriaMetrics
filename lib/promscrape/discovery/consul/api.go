@@ -50,7 +50,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		token = ""
 	}
-	ac, err := promauth.NewConfig(baseDir, ba, token, "", sdc.TLSConfig)
+	ac, err := promauth.NewConfig(baseDir, nil, ba, token, "", sdc.TLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}

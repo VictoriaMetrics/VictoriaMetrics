@@ -16,17 +16,11 @@ const appsAPIPath = "/apps"
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka
 type SDConfig struct {
-	Server     string              `yaml:"server,omitempty"`
-	Token      *string             `yaml:"token"`
-	Datacenter string              `yaml:"datacenter"`
-	Scheme     string              `yaml:"scheme,omitempty"`
-	Username   string              `yaml:"username"`
-	Password   string              `yaml:"password"`
-	ProxyURL   proxy.URL           `yaml:"proxy_url,omitempty"`
-	TLSConfig  *promauth.TLSConfig `yaml:"tls_config,omitempty"`
+	Server           string                    `yaml:"server,omitempty"`
+	ProxyURL         proxy.URL                 `yaml:"proxy_url,omitempty"`
+	HTTPClientConfig promauth.HTTPClientConfig `ymal:",inline"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.ec2SDCheckInterval` command-line option.
-	Port *int `yaml:"port,omitempty"`
 }
 
 type applications struct {
@@ -95,11 +89,7 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	port := 80
-	if sdc.Port != nil {
-		port = *sdc.Port
-	}
-	return addInstanceLabels(apps, port), nil
+	return addInstanceLabels(apps), nil
 }
 
 // MustStop stops further usage for sdc.
@@ -107,11 +97,11 @@ func (sdc *SDConfig) MustStop() {
 	configMap.Delete(sdc)
 }
 
-func addInstanceLabels(apps *applications, port int) []map[string]string {
+func addInstanceLabels(apps *applications) []map[string]string {
 	var ms []map[string]string
 	for _, app := range apps.Applications {
 		for _, instance := range app.Instances {
-			instancePort := port
+			instancePort := 80
 			if instance.Port.Port != 0 {
 				instancePort = instance.Port.Port
 			}

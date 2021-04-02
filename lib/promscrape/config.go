@@ -88,26 +88,25 @@ type ScrapeConfig struct {
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      bool                        `yaml:"honor_timestamps,omitempty"`
+	FollowRedirects      *bool                       `yaml:"follow_redirects"` // omitempty isn't set, since the default value for this flag is true.
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
-	BasicAuth            *promauth.BasicAuthConfig   `yaml:"basic_auth,omitempty"`
-	BearerToken          string                      `yaml:"bearer_token,omitempty"`
-	BearerTokenFile      string                      `yaml:"bearer_token_file,omitempty"`
+	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
 	ProxyURL             proxy.URL                   `yaml:"proxy_url,omitempty"`
-	TLSConfig            *promauth.TLSConfig         `yaml:"tls_config,omitempty"`
-	StaticConfigs        []StaticConfig              `yaml:"static_configs,omitempty"`
-	FileSDConfigs        []FileSDConfig              `yaml:"file_sd_configs,omitempty"`
-	KubernetesSDConfigs  []kubernetes.SDConfig       `yaml:"kubernetes_sd_configs,omitempty"`
-	OpenStackSDConfigs   []openstack.SDConfig        `yaml:"openstack_sd_configs,omitempty"`
-	ConsulSDConfigs      []consul.SDConfig           `yaml:"consul_sd_configs,omitempty"`
-	EurekaSDConfigs      []eureka.SDConfig           `yaml:"eureka_sd_configs,omitempty"`
-	DockerSwarmSDConfigs []dockerswarm.SDConfig      `yaml:"dockerswarm_sd_configs,omitempty"`
-	DNSSDConfigs         []dns.SDConfig              `yaml:"dns_sd_configs,omitempty"`
-	EC2SDConfigs         []ec2.SDConfig              `yaml:"ec2_sd_configs,omitempty"`
-	GCESDConfigs         []gce.SDConfig              `yaml:"gce_sd_configs,omitempty"`
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
+
+	StaticConfigs        []StaticConfig         `yaml:"static_configs,omitempty"`
+	FileSDConfigs        []FileSDConfig         `yaml:"file_sd_configs,omitempty"`
+	KubernetesSDConfigs  []kubernetes.SDConfig  `yaml:"kubernetes_sd_configs,omitempty"`
+	OpenStackSDConfigs   []openstack.SDConfig   `yaml:"openstack_sd_configs,omitempty"`
+	ConsulSDConfigs      []consul.SDConfig      `yaml:"consul_sd_configs,omitempty"`
+	EurekaSDConfigs      []eureka.SDConfig      `yaml:"eureka_sd_configs,omitempty"`
+	DockerSwarmSDConfigs []dockerswarm.SDConfig `yaml:"dockerswarm_sd_configs,omitempty"`
+	DNSSDConfigs         []dns.SDConfig         `yaml:"dns_sd_configs,omitempty"`
+	EC2SDConfigs         []ec2.SDConfig         `yaml:"ec2_sd_configs,omitempty"`
+	GCESDConfigs         []gce.SDConfig         `yaml:"gce_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	DisableCompression   bool                      `yaml:"disable_compression,omitempty"`
@@ -115,10 +114,11 @@ type ScrapeConfig struct {
 	StreamParse          bool                      `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval  time.Duration             `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset         time.Duration             `yaml:"scrape_offset,omitempty"`
-	ProxyTLSConfig       *promauth.TLSConfig       `yaml:"proxy_tls_config,omitempty"`
+	ProxyAuthorization   *promauth.Authorization   `yaml:"proxy_authorization,omitempty"`
 	ProxyBasicAuth       *promauth.BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
 	ProxyBearerToken     string                    `yaml:"proxy_bearer_token,omitempty"`
 	ProxyBearerTokenFile string                    `yaml:"proxy_bearer_token_file,omitempty"`
+	ProxyTLSConfig       *promauth.TLSConfig       `yaml:"proxy_tls_config,omitempty"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -531,6 +531,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	}
 	honorLabels := sc.HonorLabels
 	honorTimestamps := sc.HonorTimestamps
+	denyRedirects := false
+	if sc.FollowRedirects != nil {
+		denyRedirects = !*sc.FollowRedirects
+	}
 	metricsPath := sc.MetricsPath
 	if metricsPath == "" {
 		metricsPath = "/metrics"
@@ -543,11 +547,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		return nil, fmt.Errorf("unexpected `scheme` for `job_name` %q: %q; supported values: http or https", jobName, scheme)
 	}
 	params := sc.Params
-	ac, err := promauth.NewConfig(baseDir, sc.BasicAuth, sc.BearerToken, sc.BearerTokenFile, sc.TLSConfig)
+	ac, err := sc.HTTPClientConfig.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
-	proxyAC, err := promauth.NewConfig(baseDir, sc.ProxyBasicAuth, sc.ProxyBearerToken, sc.ProxyBearerTokenFile, sc.ProxyTLSConfig)
+	proxyAC, err := promauth.NewConfig(baseDir, sc.ProxyAuthorization, sc.ProxyBasicAuth, sc.ProxyBearerToken, sc.ProxyBearerTokenFile, sc.ProxyTLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
@@ -571,6 +575,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		authConfig:           ac,
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
+		denyRedirects:        denyRedirects,
 		externalLabels:       globalCfg.ExternalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
@@ -596,6 +601,7 @@ type scrapeWorkConfig struct {
 	authConfig           *promauth.Config
 	honorLabels          bool
 	honorTimestamps      bool
+	denyRedirects        bool
 	externalLabels       map[string]string
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
@@ -856,6 +862,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeTimeout:        swc.scrapeTimeout,
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
+		DenyRedirects:        swc.denyRedirects,
 		OriginalLabels:       originalLabels,
 		Labels:               labels,
 		ProxyURL:             swc.proxyURL,

@@ -4813,7 +4813,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`topk_max(1, remaining_sum)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_desc(topk_max(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"), "remaining_sum"))`
+		q := `sort_desc(topk_max(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"), "remaining_sum=foo"))`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{nan, nan, nan, 10.666666666666666, 12, 13.333333333333334},
@@ -4831,7 +4831,7 @@ func TestExecSuccess(t *testing.T) {
 		r2.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("remaining_sum"),
-				Value: []byte("remaining_sum"),
+				Value: []byte("foo"),
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2}

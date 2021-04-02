@@ -273,6 +273,7 @@ scrape_configs:
 
 Proxy can be configured with the following optional settings:
 
+* `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
 * `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
