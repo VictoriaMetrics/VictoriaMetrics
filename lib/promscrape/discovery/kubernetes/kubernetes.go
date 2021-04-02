@@ -11,15 +11,12 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
 type SDConfig struct {
-	APIServer       string                    `yaml:"api_server,omitempty"`
-	Role            string                    `yaml:"role"`
-	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`
-	BearerToken     string                    `yaml:"bearer_token,omitempty"`
-	BearerTokenFile string                    `yaml:"bearer_token_file,omitempty"`
-	ProxyURL        proxy.URL                 `yaml:"proxy_url,omitempty"`
-	TLSConfig       *promauth.TLSConfig       `yaml:"tls_config,omitempty"`
-	Namespaces      Namespaces                `yaml:"namespaces,omitempty"`
-	Selectors       []Selector                `yaml:"selectors,omitempty"`
+	APIServer        string                    `yaml:"api_server,omitempty"`
+	Role             string                    `yaml:"role"`
+	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
+	ProxyURL         proxy.URL                 `yaml:"proxy_url,omitempty"`
+	Namespaces       Namespaces                `yaml:"namespaces,omitempty"`
+	Selectors        []Selector                `yaml:"selectors,omitempty"`
 }
 
 // Namespaces represents namespaces for SDConfig

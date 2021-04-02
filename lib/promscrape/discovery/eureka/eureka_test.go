@@ -11,7 +11,6 @@ import (
 func Test_addInstanceLabels(t *testing.T) {
 	type args struct {
 		applications *applications
-		port         int
 	}
 	tests := []struct {
 		name string
@@ -21,7 +20,6 @@ func Test_addInstanceLabels(t *testing.T) {
 		{
 			name: "1 application",
 			args: args{
-				port: 9100,
 				applications: &applications{
 					Applications: []Application{
 						{
@@ -43,6 +41,9 @@ func Test_addInstanceLabels(t *testing.T) {
 											XMLName: struct{ Space, Local string }{Local: "key-1"},
 										},
 									}},
+									Port: Port{
+										Port: 9100,
+									},
 								},
 							},
 						},
@@ -64,6 +65,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					"__meta_eureka_app_instance_statuspage_url":     "some-status-url",
 					"__meta_eureka_app_instance_id":                 "some-id",
 					"__meta_eureka_app_instance_metadata_key_1":     "value-1",
+					"__meta_eureka_app_instance_port":               "9100",
+					"__meta_eureka_app_instance_port_enabled":       "false",
 					"__meta_eureka_app_instance_status":             "Ok",
 				}),
 			},
@@ -71,7 +74,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := addInstanceLabels(tt.args.applications, tt.args.port)
+			got := addInstanceLabels(tt.args.applications)
 			var sortedLabelss [][]prompbmarshal.Label
 			for _, labels := range got {
 				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
