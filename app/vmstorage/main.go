@@ -120,6 +120,9 @@ func main() {
 func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 	return func(w http.ResponseWriter, r *http.Request) bool {
 		if r.URL.Path == "/" {
+			if r.Method != "GET" {
+				return false
+			}
 			fmt.Fprintf(w, "vmstorage - a component of VictoriaMetrics cluster. See docs at https://victoriametrics.github.io/Cluster-VictoriaMetrics.html")
 			return true
 		}
