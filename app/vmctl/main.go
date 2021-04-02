@@ -52,7 +52,7 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Int(vmConcurrency))
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
 					return otsdbProcessor.run(c.Bool(globalSilent))
 				},
 			},

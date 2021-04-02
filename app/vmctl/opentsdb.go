@@ -15,7 +15,6 @@ type otsdbProcessor struct {
 	oc      *opentsdb.Client
 	im      *vm.Importer
 	otsdbcc int
-	vmcc    int
 }
 
 type queryObj struct {
@@ -25,18 +24,14 @@ type queryObj struct {
 	StartTime int64
 }
 
-func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, vmcc int) *otsdbProcessor {
+func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int) *otsdbProcessor {
 	if otsdbcc < 1 {
 		otsdbcc = 1
-	}
-	if vmcc < 1 {
-		vmcc = 1
 	}
 	return &otsdbProcessor{
 		oc:      oc,
 		im:      im,
 		otsdbcc: otsdbcc,
-		vmcc:    vmcc,
 	}
 }
 
