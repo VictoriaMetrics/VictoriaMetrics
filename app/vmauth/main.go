@@ -47,16 +47,16 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	username, password, ok := r.BasicAuth()
-	if !ok {
+	authToken := r.Header.Get("Authorization")
+	if authToken == "" {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		http.Error(w, "missing `Authorization: Basic *` header", http.StatusUnauthorized)
+		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 		return true
 	}
 	ac := authConfig.Load().(map[string]*UserInfo)
-	ui := ac[username]
-	if ui == nil || ui.Password != password {
-		httpserver.Errorf(w, r, "cannot find the provided username %q or password in config", username)
+	ui := ac[authToken]
+	if ui == nil {
+		httpserver.Errorf(w, r, "cannot find the provided auth token %q in config", authToken)
 		return true
 	}
 	ui.requests.Inc()
