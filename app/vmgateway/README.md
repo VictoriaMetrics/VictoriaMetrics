@@ -1,9 +1,9 @@
-## Victori Metrics Gateway
+## vmgateway
 
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
 
-The service is a proxy for Victoria Metrics TSDB. It provides the next features:
+`vmgateway` is a proxy for Victoria Metrics TSDB. It provides the following features:
 
 * Rate Limiter
   * Based on cluster tenants' utilization supports multiple time interval limits for ingestion/retrieving metrics
@@ -11,6 +11,8 @@ The service is a proxy for Victoria Metrics TSDB. It provides the next features:
   * Supports additional per-label access control for Single and Cluster versions of Victoria Metrics TSDB
   * Provides access by tenantID at Cluster version
   * Allows to separate write/read/admin access to data
+
+`vmgateway` is included in an [enterprise package](https://victoriametrics.com/enterprise.html).
 
 
 ### Access Control
