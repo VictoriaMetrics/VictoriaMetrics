@@ -269,4 +269,5 @@ docs-sync:
 	cp app/vmbackup/README.md docs/vmbackup.md
 	cp app/vmrestore/README.md docs/vmrestore.md
 	cp app/vmctl/README.md docs/vmctl.md
+	cp app/vmgateway/README.md docs/vmgateway.md
 	cp README.md docs/Single-server-VictoriaMetrics.md
