@@ -237,7 +237,7 @@ golang.org/x/lint/golint
 ## explicit
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20210324205630-d1beb07c2056
+# golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -245,7 +245,9 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
+golang.org/x/net/proxy
 golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20210323180902-22b0adad7558
 ## explicit
@@ -257,7 +259,7 @@ golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210324051608-47abb6519492
+# golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader

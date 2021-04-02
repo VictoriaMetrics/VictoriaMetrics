@@ -32,9 +32,9 @@ require (
 	github.com/valyala/histogram v1.1.2
 	github.com/valyala/quicktemplate v1.6.3
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20210324205630-d1beb07c2056 // indirect
+	golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c
 	golang.org/x/oauth2 v0.0.0-20210323180902-22b0adad7558
-	golang.org/x/sys v0.0.0-20210324051608-47abb6519492
+	golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44
 	google.golang.org/api v0.43.0
 	google.golang.org/genproto v0.0.0-20210325141258-5636347f2b14 // indirect
 	gopkg.in/yaml.v2 v2.4.0
