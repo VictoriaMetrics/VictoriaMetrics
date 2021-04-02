@@ -8,8 +8,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-func (eps *Endpoints) key() string {
-	return eps.Metadata.key()
+func (eps *Endpoints) name() string {
+	return eps.Metadata.Name
 }
 
 func parseEndpointsList(r io.Reader) (map[string]object, ListMeta, error) {
@@ -18,11 +18,11 @@ func parseEndpointsList(r io.Reader) (map[string]object, ListMeta, error) {
 	if err := d.Decode(&epsl); err != nil {
 		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointsList: %w", err)
 	}
-	objectsByKey := make(map[string]object)
+	objectsByName := make(map[string]object)
 	for _, eps := range epsl.Items {
-		objectsByKey[eps.key()] = eps
+		objectsByName[eps.name()] = eps
 	}
-	return objectsByKey, epsl.Metadata, nil
+	return objectsByName, epsl.Metadata, nil
 }
 
 func parseEndpoints(data []byte) (object, error) {
