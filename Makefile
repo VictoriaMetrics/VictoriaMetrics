@@ -111,7 +111,7 @@ release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
 			victoria-metrics-$(GOARCH)-prod \
 		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)-prod// > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
+			| sed s/-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
 	release-vmutils-amd64 \
@@ -153,7 +153,7 @@ release-vmutils-generic: \
 			vmbackup-$(GOARCH)-prod \
 			vmrestore-$(GOARCH)-prod \
 			vmctl-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)-prod// > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
+			| sed s/-$(GOARCH)-prod/-prod/ > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils-windows-generic: \
 	vmagent-windows-$(GOARCH)-prod \
