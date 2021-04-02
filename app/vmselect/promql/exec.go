@@ -85,10 +85,6 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
-	if len(tss) > 100 {
-		// There is no sense in sorting a lot of results
-		return false
-	}
 	fe, ok := e.(*metricsql.FuncExpr)
 	if !ok {
 		return true
