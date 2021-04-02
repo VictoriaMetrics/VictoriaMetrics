@@ -30,7 +30,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	}
 	rowLengthDuration, err := ParseDuration(chunks[1])
 	if err != nil {
-		return Retention{}, fmt.Errorf("Invalid row length (first order) duration string: %q", chunks[1])
+		return Retention{}, fmt.Errorf("invalid row length (first order) duration string: %q: %s", chunks[1], err)
 	}
 	// set length of each row in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	rowLength := rowLengthDuration.Milliseconds()
@@ -40,7 +40,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	// default to one day
 	ttlDuration, err := ParseDuration(chunks[2])
 	if err != nil {
-		return Retention{}, fmt.Errorf("Invalid ttl (second order) duration string: %q", chunks[1])
+		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %s", chunks[1], err)
 	}
 	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	ttl := ttlDuration.Milliseconds()
