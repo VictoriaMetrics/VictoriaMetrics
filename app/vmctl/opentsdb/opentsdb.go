@@ -180,6 +180,9 @@ func (c Client) FindMetrics(q string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
 	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Bad return from OpenTSDB: %q: %s", resp.StatusCode, resp)
+	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -200,6 +203,9 @@ func (c Client) FindSeries(metric string) ([]Meta, error) {
 	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set GET request to %q: %s", q, err)
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Bad return from OpenTSDB: %q: %s", resp.StatusCode, resp)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -252,6 +258,9 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to send GET request to %q: %s", q, err)
+	}
+	if resp.StatusCode != 200 {
+		return Metric{}, fmt.Errorf("Bad return from OpenTSDB: %q: %s", resp.StatusCode, resp)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := ioutil.ReadAll(resp.Body)
