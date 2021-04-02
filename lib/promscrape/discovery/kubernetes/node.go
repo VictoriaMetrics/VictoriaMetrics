@@ -8,8 +8,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-func (n *Node) name() string {
-	return n.Metadata.Name
+// getNodesLabels returns labels for k8s nodes obtained from the given cfg
+func (n *Node) key() string {
+	return n.Metadata.key()
 }
 
 func parseNodeList(r io.Reader) (map[string]object, ListMeta, error) {
@@ -18,11 +19,11 @@ func parseNodeList(r io.Reader) (map[string]object, ListMeta, error) {
 	if err := d.Decode(&nl); err != nil {
 		return nil, nl.Metadata, fmt.Errorf("cannot unmarshal NodeList: %w", err)
 	}
-	objectsByName := make(map[string]object)
+	objectsByKey := make(map[string]object)
 	for _, n := range nl.Items {
-		objectsByName[n.name()] = n
+		objectsByKey[n.key()] = n
 	}
-	return objectsByName, nl.Metadata, nil
+	return objectsByKey, nl.Metadata, nil
 }
 
 func parseNode(data []byte) (object, error) {
