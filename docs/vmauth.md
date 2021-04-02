@@ -36,11 +36,15 @@ Auth config is represented in the following simple `yml` format:
 # Usernames must be unique.
 
 users:
+  # Requests with the 'Authorization: Bearer XXXX' header are proxied to http://localhost:8428 .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+- bearer_token: "XXXX"
+  url_prefix: "http://localhost:8428"
 
   # The user for querying local single-node VictoriaMetrics.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://localhost:8428 .
-  # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query
+  # will be proxied to http://localhost:8428 .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - username: "local-single-node"
   password: "***"
   url_prefix: "http://localhost:8428"
@@ -48,8 +52,8 @@ users:
   # The user for querying account 123 in VictoriaMetrics cluster
   # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://vmselect:8481/select/123/prometheus .
-  # For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8481/select/123/prometheus/api/v1/select
+  # will be proxied to http://vmselect:8481/select/123/prometheus .
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect:8481/select/123/prometheus/api/v1/select
 - username: "cluster-select-account-123"
   password: "***"
   url_prefix: "http://vmselect:8481/select/123/prometheus"
@@ -57,8 +61,8 @@ users:
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
   # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://vminsert:8480/insert/42/prometheus .
-  # For example, http://vmauth:8427/api/v1/write is routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
+  # will be proxied to http://vminsert:8480/insert/42/prometheus .
+  # For example, http://vmauth:8427/api/v1/write is proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "cluster-insert-account-42"
   password: "***"
   url_prefix: "http://vminsert:8480/insert/42/prometheus"
@@ -66,9 +70,9 @@ users:
 
   # A single user for querying and inserting data:
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
-  #   and http://vmauth:8427/api/v1/label/<label_name>/values are routed to http://vmselect:8481/select/42/prometheus.
-  #   For example, http://vmauth:8427/api/v1/query is routed to http://vmselect:8480/select/42/prometheus/api/v1/query
-  # - Requests to http://vmauth:8427/api/v1/write are routed to http://vminsert:8480/insert/42/prometheus/api/v1/write
+  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to http://vmselect:8481/select/42/prometheus.
+  #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect:8480/select/42/prometheus/api/v1/query
+  # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write
 - username: "foobar"
   url_map:
   - src_paths: ["/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^/]+/values"]
