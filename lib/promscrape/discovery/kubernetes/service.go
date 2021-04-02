@@ -8,8 +8,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-func (s *Service) key() string {
-	return s.Metadata.key()
+func (s *Service) name() string {
+	return s.Metadata.Name
 }
 
 func parseServiceList(r io.Reader) (map[string]object, ListMeta, error) {
@@ -18,11 +18,11 @@ func parseServiceList(r io.Reader) (map[string]object, ListMeta, error) {
 	if err := d.Decode(&sl); err != nil {
 		return nil, sl.Metadata, fmt.Errorf("cannot unmarshal ServiceList: %w", err)
 	}
-	objectsByKey := make(map[string]object)
+	objectsByName := make(map[string]object)
 	for _, s := range sl.Items {
-		objectsByKey[s.key()] = s
+		objectsByName[s.name()] = s
 	}
-	return objectsByKey, sl.Metadata, nil
+	return objectsByName, sl.Metadata, nil
 }
 
 func parseService(data []byte) (object, error) {

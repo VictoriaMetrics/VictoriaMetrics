@@ -6,8 +6,8 @@ import (
 	"io"
 )
 
-func (ig *Ingress) key() string {
-	return ig.Metadata.key()
+func (ig *Ingress) name() string {
+	return ig.Metadata.Name
 }
 
 func parseIngressList(r io.Reader) (map[string]object, ListMeta, error) {
@@ -16,11 +16,11 @@ func parseIngressList(r io.Reader) (map[string]object, ListMeta, error) {
 	if err := d.Decode(&igl); err != nil {
 		return nil, igl.Metadata, fmt.Errorf("cannot unmarshal IngressList: %w", err)
 	}
-	objectsByKey := make(map[string]object)
+	objectsByName := make(map[string]object)
 	for _, ig := range igl.Items {
-		objectsByKey[ig.key()] = ig
+		objectsByName[ig.name()] = ig
 	}
-	return objectsByKey, igl.Metadata, nil
+	return objectsByName, igl.Metadata, nil
 }
 
 func parseIngress(data []byte) (object, error) {

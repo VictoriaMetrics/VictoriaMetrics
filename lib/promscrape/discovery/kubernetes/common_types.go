@@ -16,10 +16,6 @@ type ObjectMeta struct {
 	OwnerReferences []OwnerReference
 }
 
-func (om *ObjectMeta) key() string {
-	return om.Namespace + "/" + om.Name
-}
-
 // ListMeta is a Kubernetes list metadata
 // https://v1-17.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#listmeta-v1-meta
 type ListMeta struct {
