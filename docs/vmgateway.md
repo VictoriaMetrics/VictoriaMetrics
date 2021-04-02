@@ -57,20 +57,20 @@ Start single version of Victoria Metrics
 
 Start vmgateway
 
-```
+```bash
 ./bin/vmgateway -eula -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
 ```
 
-Retieve data frof database
-```
+Retrieve data from database
+```bash
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2bV9hY2Nlc3MiOnsidGVuYW50X2lkIjp7fSwicm9sZSI6MX0sImV4cCI6MTkzOTM0NjIxMH0.5WUxEfdcV9hKo4CtQdtuZYOGpGXWwaqM9VuVivMMrVg'
-
-TODO: need to have queries to show the limits
 ```
 
-Expected result
-```
-TODO:  must be provided
+ Request with incorrect token or with out token will be rejected:
+```bash
+curl 'http://localhost:8431/api/v1/series/count'
+
+curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incorrect-token'
 ```
 
 
@@ -78,9 +78,10 @@ TODO:  must be provided
 
 <img alt="vmgateway-rl" src="vmgateway-rate-limiting.jpg">
 
-TODO: no information about source for rate limiting
+ Limits incoming requests by given pre-configured limits. It supports read and write limiting by a tenant. 
 
-Limits incoming requests by given pre-configured limits. It supports read and write limiting with `minute` and `hour` interval.
+ `vmgateway` needs datasource for rate limits queries. It can be single-node or cluster version of `victoria-metrics`. 
+It must have metrics scrapped from cluster, that you want to rate limit.
 
 List of supported limit types:
 - `queries` - count of api requests made at tenant to read api, such as `/api/v1/query`, `/api/v1/series` and others.
@@ -113,7 +114,7 @@ limits:
 
 #### QuickStart
 
-ClusterMode
+ cluster version required for rate limiting.
 ```bash
 # start datasource for cluster metrics
 
@@ -157,6 +158,8 @@ EOF
 curl 'http://localhost:8431/api/v1/import/prometheus' -X POST  -d 'foo{bar="baz1"} 123' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjAxNjIwMDAwMDAsInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsiYWNjb3VudF9pZCI6MTV9fX0.PB1_KXDKPUp-40pxOGk6lt_jt9Yq80PIMpWVJqSForQ'
 # read metric from tenant 1:5
 curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjAxNjIwMDAwMDAsInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsiYWNjb3VudF9pZCI6MTV9fX0.PB1_KXDKPUp-40pxOGk6lt_jt9Yq80PIMpWVJqSForQ'
+
+# check rate limit 
 ```
 
 ### Configuration
@@ -278,6 +281,7 @@ The shortlist of configuration flags is the following:
 ### Limitations
 
 * Access Control:
-  * `jwt` token must be validated by external system, currently `vmauth` can't validate the signature.
+  * `jwt` token must be validated by external system, currently `vmgateway` can't validate the signature.
 * RateLimiting:
   * limits applied based on queries to `datasource.url`
+  * only cluster version can be rate-limited.
