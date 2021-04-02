@@ -751,6 +751,7 @@ scrape_configs:
   scheme: https
   honor_labels: true
   honor_timestamps: true
+  follow_redirects: false
   params:
     p: ["x&y", "="]
     xaa:
@@ -779,6 +780,7 @@ scrape_configs:
 			ScrapeTimeout:   12 * time.Second,
 			HonorLabels:     true,
 			HonorTimestamps: true,
+			DenyRedirects:   true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -824,6 +826,7 @@ scrape_configs:
 			ScrapeTimeout:   12 * time.Second,
 			HonorLabels:     true,
 			HonorTimestamps: true,
+			DenyRedirects:   true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",

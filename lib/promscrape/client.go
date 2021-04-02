@@ -46,6 +46,7 @@ type client struct {
 	host               string
 	requestURI         string
 	authHeader         string
+	denyRedirects      bool
 	disableCompression bool
 	disableKeepAlive   bool
 }
@@ -101,6 +102,11 @@ func newClient(sw *ScrapeWork) *client {
 			},
 			Timeout: sw.ScrapeTimeout,
 		}
+		if sw.DenyRedirects {
+			sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+		}
 	}
 	return &client{
 		hc:                 hc,
@@ -109,6 +115,7 @@ func newClient(sw *ScrapeWork) *client {
 		host:               host,
 		requestURI:         requestURI,
 		authHeader:         sw.AuthConfig.Authorization,
+		denyRedirects:      sw.DenyRedirects,
 		disableCompression: sw.DisableCompression,
 		disableKeepAlive:   sw.DisableKeepAlive,
 	}
@@ -181,13 +188,17 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
 	statusCode := resp.StatusCode()
 	if err == nil && (statusCode == fasthttp.StatusMovedPermanently || statusCode == fasthttp.StatusFound) {
-		// Allow a single redirect.
-		// It is expected that the redirect is made on the same host.
-		// Otherwise it won't work.
-		if location := resp.Header.Peek("Location"); len(location) > 0 {
-			req.URI().UpdateBytes(location)
-			err = c.hc.DoDeadline(req, resp, deadline)
-			statusCode = resp.StatusCode()
+		if c.denyRedirects {
+			err = fmt.Errorf("cannot follow redirects if `follow_redirects: false` is set")
+		} else {
+			// Allow a single redirect.
+			// It is expected that the redirect is made on the same host.
+			// Otherwise it won't work.
+			if location := resp.Header.Peek("Location"); len(location) > 0 {
+				req.URI().UpdateBytes(location)
+				err = c.hc.DoDeadline(req, resp, deadline)
+				statusCode = resp.StatusCode()
+			}
 		}
 	}
 	if swapResponseBodies {
