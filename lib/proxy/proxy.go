@@ -159,7 +159,7 @@ func sendConnectRequest(proxyConn net.Conn, proxyAddr, dstAddr, authHeader strin
 		return nil, fmt.Errorf("cannot read CONNECT response for dstAddr=%q: %w", dstAddr, err)
 	}
 	if statusCode := res.Header.StatusCode(); statusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code received: %d; want: 200", statusCode)
+		return nil, fmt.Errorf("unexpected status code received: %d; want: 200; response body: %q", statusCode, res.Body())
 	}
 	return conn, nil
 }
