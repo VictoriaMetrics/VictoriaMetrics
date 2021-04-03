@@ -328,6 +328,29 @@ scrape_configs:
   - targets: ["a"]
 `)
 
+	// Both `authorization` and `basic_auth` are set
+	f(`
+scrape_configs:
+- job_name: x
+  authorization:
+    credentials: foobar
+  basic_auth:
+    username: foobar
+  static_configs:
+  - targets: ["a"]
+`)
+
+	// Both `authorization` and `bearer_token` are set
+	f(`
+scrape_configs:
+- job_name: x
+  authorization:
+    credentials: foobar
+  bearer_token: foo
+  static_configs:
+  - targets: ["a"]
+`)
+
 	// Invalid `bearer_token_file`
 	f(`
 scrape_configs:
@@ -773,6 +796,12 @@ scrape_configs:
     insecure_skip_verify: true
   static_configs:
   - targets: [1.2.3.4]
+- job_name: asdf
+  authorization:
+    type: xyz
+    credentials: abc
+  static_configs:
+  - targets: [foobar]
 `, []*ScrapeWork{
 		{
 			ScrapeURL:       "https://foo.bar:443/foo/bar?p=x%26y&p=%3D",
@@ -867,11 +896,9 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:       "http://1.2.3.4:80/metrics",
-			ScrapeInterval:  8 * time.Second,
-			ScrapeTimeout:   34 * time.Second,
-			HonorLabels:     false,
-			HonorTimestamps: false,
+			ScrapeURL:      "http://1.2.3.4:80/metrics",
+			ScrapeInterval: 8 * time.Second,
+			ScrapeTimeout:  34 * time.Second,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "__address__",
@@ -901,6 +928,38 @@ scrape_configs:
 			},
 			ProxyAuthConfig: &promauth.Config{},
 			jobNameOriginal: "qwer",
+		},
+		{
+			ScrapeURL:      "http://foobar:80/metrics",
+			ScrapeInterval: 8 * time.Second,
+			ScrapeTimeout:  34 * time.Second,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "__address__",
+					Value: "foobar",
+				},
+				{
+					Name:  "__metrics_path__",
+					Value: "/metrics",
+				},
+				{
+					Name:  "__scheme__",
+					Value: "http",
+				},
+				{
+					Name:  "instance",
+					Value: "foobar:80",
+				},
+				{
+					Name:  "job",
+					Value: "asdf",
+				},
+			},
+			AuthConfig: &promauth.Config{
+				Authorization: "xyz abc",
+			},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "asdf",
 		},
 	})
 	f(`
