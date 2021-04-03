@@ -262,7 +262,7 @@ See [these docs](https://victoriametrics.github.io/#deduplication) for details.
 
 ## Scraping targets via a proxy
 
-`vmagent` supports scraping targets via http and https proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
+`vmagent` supports scraping targets via http, https and socks5 proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
 target scraping via https proxy at `https://proxy-addr:1234`:
 
 ```yml
