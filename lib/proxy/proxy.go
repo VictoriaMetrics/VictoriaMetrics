@@ -40,6 +40,16 @@ func (u *URL) URL() *url.URL {
 	return u.url
 }
 
+// IsHTTPOrHTTPS returns true if u is http or https
+func (u *URL) IsHTTPOrHTTPS() bool {
+	pu := u.URL()
+	if pu == nil {
+		return false
+	}
+	scheme := u.url.Scheme
+	return scheme == "http" || scheme == "https"
+}
+
 // String returns string representation of u.
 func (u *URL) String() string {
 	pu := u.URL()
@@ -47,6 +57,23 @@ func (u *URL) String() string {
 		return ""
 	}
 	return pu.String()
+}
+
+// GetAuthHeader returns Proxy-Authorization auth header for the given u and ac.
+func (u *URL) GetAuthHeader(ac *promauth.Config) string {
+	authHeader := ""
+	if ac != nil {
+		authHeader = ac.Authorization
+	}
+	if u == nil || u.url == nil {
+		return authHeader
+	}
+	pu := u.url
+	if pu.User != nil && len(pu.User.Username()) > 0 {
+		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
+		authHeader = "Basic " + userPasswordEncoded
+	}
+	return authHeader
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
@@ -82,14 +109,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	}
 	isTLS := pu.Scheme == "https"
 	proxyAddr := addMissingPort(pu.Host, isTLS)
-	var authHeader string
-	if ac != nil {
-		authHeader = ac.Authorization
-	}
-	if pu.User != nil && len(pu.User.Username()) > 0 {
-		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
-		authHeader = "Basic " + userPasswordEncoded
-	}
+	authHeader := u.GetAuthHeader(ac)
 	if authHeader != "" {
 		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 	}

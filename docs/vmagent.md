@@ -178,7 +178,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 
 Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
-`vmagent` also support the following additional options in `scrape_config` section:
+`vmagent` also support the following additional options in `scrape_configs` section:
 
 * `disable_compression: true` - to disable response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
   to save network bandwidth.
