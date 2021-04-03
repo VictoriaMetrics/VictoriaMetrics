@@ -42,6 +42,7 @@ type Client struct {
 
 	apiServer string
 
+	hostPort        string
 	authHeader      string
 	proxyAuthHeader string
 	sendFullURL     bool
@@ -127,6 +128,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyA
 		hc:              hc,
 		blockingClient:  blockingClient,
 		apiServer:       apiServer,
+		hostPort:        hostPort,
 		authHeader:      authHeader,
 		proxyAuthHeader: proxyAuthHeader,
 		sendFullURL:     sendFullURL,
@@ -183,8 +185,8 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 		req.SetRequestURIBytes(u.FullURI())
 	} else {
 		req.SetRequestURIBytes(u.RequestURI())
-		req.SetHostBytes(u.Host())
 	}
+	req.Header.SetHost(c.hostPort)
 	req.Header.Set("Accept-Encoding", "gzip")
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
