@@ -40,22 +40,20 @@ type Client struct {
 	// blockingClient is used for long-polling requests.
 	blockingClient *fasthttp.HostClient
 
-	ac        *promauth.Config
 	apiServer string
-	hostPort  string
+
+	authHeader      string
+	proxyAuthHeader string
+	sendFullURL     bool
 }
 
-// NewClient returns new Client for the given apiServer and the given ac.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Client, error) {
-	var (
-		dialFunc fasthttp.DialFunc
-		tlsCfg   *tls.Config
-		u        fasthttp.URI
-		err      error
-	)
+// NewClient returns new Client for the given args.
+func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL, proxyAC *promauth.Config) (*Client, error) {
+	var u fasthttp.URI
 	u.Update(apiServer)
 
 	// special case for unix socket connection
+	var dialFunc fasthttp.DialFunc
 	if string(u.Scheme()) == "unix" {
 		dialAddr := string(u.Path())
 		apiServer = "http://"
@@ -66,8 +64,24 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Clie
 
 	hostPort := string(u.Host())
 	isTLS := string(u.Scheme()) == "https"
+	var tlsCfg *tls.Config
 	if isTLS {
 		tlsCfg = ac.NewTLSConfig()
+	}
+	sendFullURL := !isTLS && proxyURL.IsHTTPOrHTTPS()
+	proxyAuthHeader := ""
+	if sendFullURL {
+		// Send full urls in requests to a proxy host for non-TLS apiServer
+		// like net/http package from Go does.
+		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
+		pu := proxyURL.URL()
+		hostPort = pu.Host
+		isTLS = pu.Scheme == "https"
+		if isTLS {
+			tlsCfg = proxyAC.NewTLSConfig()
+		}
+		proxyAuthHeader = proxyURL.GetAuthHeader(proxyAC)
+		proxyURL = proxy.URL{}
 	}
 	if !strings.Contains(hostPort, ":") {
 		port := "80"
@@ -77,7 +91,8 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Clie
 		hostPort = net.JoinHostPort(hostPort, port)
 	}
 	if dialFunc == nil {
-		dialFunc, err = proxyURL.NewDialFunc(ac)
+		var err error
+		dialFunc, err = proxyURL.NewDialFunc(proxyAC)
 		if err != nil {
 			return nil, err
 		}
@@ -104,12 +119,17 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL proxy.URL) (*Clie
 		MaxConns:            64 * 1024,
 		Dial:                dialFunc,
 	}
+	authHeader := ""
+	if ac != nil {
+		authHeader = ac.Authorization
+	}
 	return &Client{
-		hc:             hc,
-		blockingClient: blockingClient,
-		ac:             ac,
-		apiServer:      apiServer,
-		hostPort:       hostPort,
+		hc:              hc,
+		blockingClient:  blockingClient,
+		apiServer:       apiServer,
+		authHeader:      authHeader,
+		proxyAuthHeader: proxyAuthHeader,
+		sendFullURL:     sendFullURL,
 	}, nil
 }
 
@@ -159,11 +179,18 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	var u fasthttp.URI
 	u.Update(requestURL)
 	var req fasthttp.Request
-	req.SetRequestURIBytes(u.RequestURI())
-	req.SetHost(c.hostPort)
+	if c.sendFullURL {
+		req.SetRequestURIBytes(u.FullURI())
+	} else {
+		req.SetRequestURIBytes(u.RequestURI())
+		req.SetHostBytes(u.Host())
+	}
 	req.Header.Set("Accept-Encoding", "gzip")
-	if c.ac != nil && c.ac.Authorization != "" {
-		req.Header.Set("Authorization", c.ac.Authorization)
+	if c.authHeader != "" {
+		req.Header.Set("Authorization", c.authHeader)
+	}
+	if c.proxyAuthHeader != "" {
+		req.Header.Set("Proxy-Authorization", c.proxyAuthHeader)
 	}
 
 	var resp fasthttp.Response
