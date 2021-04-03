@@ -41,6 +41,16 @@ func (u *URL) URL() *url.URL {
 	return u.url
 }
 
+// IsHTTPOrHTTPS returns true if u is http or https
+func (u *URL) IsHTTPOrHTTPS() bool {
+	pu := u.URL()
+	if pu == nil {
+		return false
+	}
+	scheme := u.url.Scheme
+	return scheme == "http" || scheme == "https"
+}
+
 // String returns string representation of u.
 func (u *URL) String() string {
 	pu := u.URL()
@@ -48,6 +58,23 @@ func (u *URL) String() string {
 		return ""
 	}
 	return pu.String()
+}
+
+// GetAuthHeader returns Proxy-Authorization auth header for the given u and ac.
+func (u *URL) GetAuthHeader(ac *promauth.Config) string {
+	authHeader := ""
+	if ac != nil {
+		authHeader = ac.Authorization
+	}
+	if u == nil || u.url == nil {
+		return authHeader
+	}
+	pu := u.url
+	if pu.User != nil && len(pu.User.Username()) > 0 {
+		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
+		authHeader = "Basic " + userPasswordEncoded
+	}
+	return authHeader
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
@@ -83,19 +110,10 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	}
 	isTLS := pu.Scheme == "https"
 	proxyAddr := addMissingPort(pu.Host, isTLS)
-
-	// fast path for socks5.
 	if pu.Scheme == "socks5" {
 		return socks5DialFunc(proxyAddr, pu)
 	}
-	var authHeader string
-	if ac != nil {
-		authHeader = ac.Authorization
-	}
-	if pu.User != nil && len(pu.User.Username()) > 0 {
-		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
-		authHeader = "Basic " + userPasswordEncoded
-	}
+	authHeader := u.GetAuthHeader(ac)
 	if authHeader != "" {
 		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 	}
@@ -186,7 +204,7 @@ func sendConnectRequest(proxyConn net.Conn, proxyAddr, dstAddr, authHeader strin
 		return nil, fmt.Errorf("cannot read CONNECT response for dstAddr=%q: %w", dstAddr, err)
 	}
 	if statusCode := res.Header.StatusCode(); statusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code received: %d; want: 200", statusCode)
+		return nil, fmt.Errorf("unexpected status code received: %d; want: 200; response body: %q", statusCode, res.Body())
 	}
 	return conn, nil
 }

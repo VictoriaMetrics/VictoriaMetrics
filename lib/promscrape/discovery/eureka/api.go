@@ -30,7 +30,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		apiServer = scheme + "://" + apiServer
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL)
+	proxyAC, err := sdc.ProxyClientConfig.NewConfig(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
+	}
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}

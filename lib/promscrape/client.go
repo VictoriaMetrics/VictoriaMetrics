@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -46,6 +47,7 @@ type client struct {
 	host               string
 	requestURI         string
 	authHeader         string
+	proxyAuthHeader    string
 	denyRedirects      bool
 	disableCompression bool
 	disableKeepAlive   bool
@@ -61,6 +63,22 @@ func newClient(sw *ScrapeWork) *client {
 	if isTLS {
 		tlsCfg = sw.AuthConfig.NewTLSConfig()
 	}
+	proxyAuthHeader := ""
+	proxyURL := sw.ProxyURL
+	if !isTLS && proxyURL.IsHTTPOrHTTPS() {
+		// Send full sw.ScrapeURL in requests to a proxy host for non-TLS scrape targets
+		// like net/http package from Go does.
+		// See https://en.wikipedia.org/wiki/Proxy_server#Web_proxy_servers
+		pu := proxyURL.URL()
+		host = pu.Host
+		requestURI = sw.ScrapeURL
+		isTLS = pu.Scheme == "https"
+		if isTLS {
+			tlsCfg = sw.ProxyAuthConfig.NewTLSConfig()
+		}
+		proxyAuthHeader = proxyURL.GetAuthHeader(sw.ProxyAuthConfig)
+		proxyURL = proxy.URL{}
+	}
 	if !strings.Contains(host, ":") {
 		if !isTLS {
 			host += ":80"
@@ -68,7 +86,7 @@ func newClient(sw *ScrapeWork) *client {
 			host += ":443"
 		}
 	}
-	dialFunc, err := newStatDialFunc(sw.ProxyURL, sw.ProxyAuthConfig)
+	dialFunc, err := newStatDialFunc(proxyURL, sw.ProxyAuthConfig)
 	if err != nil {
 		logger.Fatalf("cannot create dial func: %s", err)
 	}
@@ -86,14 +104,14 @@ func newClient(sw *ScrapeWork) *client {
 	}
 	var sc *http.Client
 	if *streamParse || sw.StreamParse {
-		var proxy func(*http.Request) (*url.URL, error)
+		var proxyURLFunc func(*http.Request) (*url.URL, error)
 		if proxyURL := sw.ProxyURL.URL(); proxyURL != nil {
-			proxy = http.ProxyURL(proxyURL)
+			proxyURLFunc = http.ProxyURL(proxyURL)
 		}
 		sc = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig:     tlsCfg,
-				Proxy:               proxy,
+				Proxy:               proxyURLFunc,
 				TLSHandshakeTimeout: 10 * time.Second,
 				IdleConnTimeout:     2 * sw.ScrapeInterval,
 				DisableCompression:  *disableCompression || sw.DisableCompression,
@@ -115,6 +133,7 @@ func newClient(sw *ScrapeWork) *client {
 		host:               host,
 		requestURI:         requestURI,
 		authHeader:         sw.AuthConfig.Authorization,
+		proxyAuthHeader:    proxyAuthHeader,
 		denyRedirects:      sw.DenyRedirects,
 		disableCompression: sw.DisableCompression,
 		disableKeepAlive:   sw.DisableKeepAlive,
@@ -137,6 +156,9 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
+	}
+	if c.proxyAuthHeader != "" {
+		req.Header.Set("Proxy-Authorization", c.proxyAuthHeader)
 	}
 	resp, err := c.sc.Do(req)
 	if err != nil {
@@ -162,21 +184,24 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	deadline := time.Now().Add(c.hc.ReadTimeout)
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(c.requestURI)
-	req.SetHost(c.host)
+	req.Header.SetHost(c.host)
 	// The following `Accept` header has been copied from Prometheus sources.
 	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
 	// This is needed as a workaround for scraping stupid Java-based servers such as Spring Boot.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
 	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
+	if c.authHeader != "" {
+		req.Header.Set("Authorization", c.authHeader)
+	}
+	if c.proxyAuthHeader != "" {
+		req.Header.Set("Proxy-Authorization", c.proxyAuthHeader)
+	}
 	if !*disableCompression && !c.disableCompression {
 		req.Header.Set("Accept-Encoding", "gzip")
 	}
 	if *disableKeepAlive || c.disableKeepAlive {
 		req.SetConnectionClose()
-	}
-	if c.authHeader != "" {
-		req.Header.Set("Authorization", c.authHeader)
 	}
 	resp := fasthttp.AcquireResponse()
 	swapResponseBodies := len(dst) == 0

@@ -109,16 +109,12 @@ type ScrapeConfig struct {
 	GCESDConfigs         []gce.SDConfig         `yaml:"gce_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	DisableCompression   bool                      `yaml:"disable_compression,omitempty"`
-	DisableKeepAlive     bool                      `yaml:"disable_keepalive,omitempty"`
-	StreamParse          bool                      `yaml:"stream_parse,omitempty"`
-	ScrapeAlignInterval  time.Duration             `yaml:"scrape_align_interval,omitempty"`
-	ScrapeOffset         time.Duration             `yaml:"scrape_offset,omitempty"`
-	ProxyAuthorization   *promauth.Authorization   `yaml:"proxy_authorization,omitempty"`
-	ProxyBasicAuth       *promauth.BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
-	ProxyBearerToken     string                    `yaml:"proxy_bearer_token,omitempty"`
-	ProxyBearerTokenFile string                    `yaml:"proxy_bearer_token_file,omitempty"`
-	ProxyTLSConfig       *promauth.TLSConfig       `yaml:"proxy_tls_config,omitempty"`
+	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
+	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
+	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
+	ScrapeAlignInterval time.Duration              `yaml:"scrape_align_interval,omitempty"`
+	ScrapeOffset        time.Duration              `yaml:"scrape_offset,omitempty"`
+	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
@@ -551,7 +547,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
-	proxyAC, err := promauth.NewConfig(baseDir, sc.ProxyAuthorization, sc.ProxyBasicAuth, sc.ProxyBearerToken, sc.ProxyBearerTokenFile, sc.ProxyTLSConfig)
+	proxyAC, err := sc.ProxyClientConfig.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}

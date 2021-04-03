@@ -45,6 +45,15 @@ type HTTPClientConfig struct {
 	TLSConfig       *TLSConfig       `yaml:"tls_config,omitempty"`
 }
 
+// ProxyClientConfig represents proxy client config.
+type ProxyClientConfig struct {
+	Authorization   *Authorization   `yaml:"proxy_authorization,omitempty"`
+	BasicAuth       *BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
+	BearerToken     string           `yaml:"proxy_bearer_token,omitempty"`
+	BearerTokenFile string           `yaml:"proxy_bearer_token_file,omitempty"`
+	TLSConfig       *TLSConfig       `yaml:"proxy_tls_config,omitempty"`
+}
+
 // Config is auth config.
 type Config struct {
 	// Optional `Authorization` header.
@@ -101,6 +110,11 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 // NewConfig creates auth config for the given hcc.
 func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
 	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken, hcc.BearerTokenFile, hcc.TLSConfig)
+}
+
+// NewConfig creates auth config for the given pcc.
+func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
+	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken, pcc.BearerTokenFile, pcc.TLSConfig)
 }
 
 // NewConfig creates auth config from the given args.

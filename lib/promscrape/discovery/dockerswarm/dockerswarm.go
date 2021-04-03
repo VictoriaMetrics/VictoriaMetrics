@@ -16,8 +16,9 @@ type SDConfig struct {
 	Port    int      `yaml:"port,omitempty"`
 	Filters []Filter `yaml:"filters,omitempty"`
 
-	ProxyURL         proxy.URL                 `yaml:"proxy_url,omitempty"`
-	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
+	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
+	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
+	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	// refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option
 }
 
