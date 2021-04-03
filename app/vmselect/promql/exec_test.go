@@ -1264,6 +1264,12 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("tagname"),
+				Value: []byte("foobar"),
+			},
+		}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
@@ -1277,6 +1283,12 @@ func TestExecSuccess(t *testing.T) {
 			MetricName: metricNameExpected,
 			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("tagname"),
+				Value: []byte("foobar"),
+			},
 		}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
