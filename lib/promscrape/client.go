@@ -43,14 +43,15 @@ type client struct {
 	// It may be useful for scraping targets with millions of metrics per target.
 	sc *http.Client
 
-	scrapeURL          string
-	host               string
-	requestURI         string
-	authHeader         string
-	proxyAuthHeader    string
-	denyRedirects      bool
-	disableCompression bool
-	disableKeepAlive   bool
+	scrapeURL               string
+	scrapeTimeoutSecondsStr string
+	host                    string
+	requestURI              string
+	authHeader              string
+	proxyAuthHeader         string
+	denyRedirects           bool
+	disableCompression      bool
+	disableKeepAlive        bool
 }
 
 func newClient(sw *ScrapeWork) *client {
@@ -127,16 +128,17 @@ func newClient(sw *ScrapeWork) *client {
 		}
 	}
 	return &client{
-		hc:                 hc,
-		sc:                 sc,
-		scrapeURL:          sw.ScrapeURL,
-		host:               host,
-		requestURI:         requestURI,
-		authHeader:         sw.AuthConfig.Authorization,
-		proxyAuthHeader:    proxyAuthHeader,
-		denyRedirects:      sw.DenyRedirects,
-		disableCompression: sw.DisableCompression,
-		disableKeepAlive:   sw.DisableKeepAlive,
+		hc:                      hc,
+		sc:                      sc,
+		scrapeURL:               sw.ScrapeURL,
+		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
+		host:                    host,
+		requestURI:              requestURI,
+		authHeader:              sw.AuthConfig.Authorization,
+		proxyAuthHeader:         proxyAuthHeader,
+		denyRedirects:           sw.DenyRedirects,
+		disableCompression:      sw.DisableCompression,
+		disableKeepAlive:        sw.DisableKeepAlive,
 	}
 }
 
@@ -154,6 +156,9 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
 	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
+	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
+	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
 	}
@@ -191,6 +196,9 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
 	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
 	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
+	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
+	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
 	if c.authHeader != "" {
 		req.Header.Set("Authorization", c.authHeader)
 	}
