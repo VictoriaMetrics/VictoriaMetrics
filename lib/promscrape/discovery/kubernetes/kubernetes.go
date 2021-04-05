@@ -67,6 +67,6 @@ func (sdc *SDConfig) MustStart(baseDir string, swcFunc ScrapeWorkConstructorFunc
 func (sdc *SDConfig) MustStop() {
 	if sdc.cfg != nil {
 		// sdc.cfg can be nil on MustStart error.
-		sdc.cfg.mustStop()
+		sdc.cfg.aw.mustStop()
 	}
 }
