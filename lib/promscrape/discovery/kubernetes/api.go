@@ -14,14 +14,6 @@ type apiConfig struct {
 	aw *apiWatcher
 }
 
-func (ac *apiConfig) mustStart() {
-	ac.aw.mustStart()
-}
-
-func (ac *apiConfig) mustStop() {
-	ac.aw.mustStop()
-}
-
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	switch sdc.Role {
 	case "node", "pod", "service", "endpoints", "endpointslices", "ingress":
