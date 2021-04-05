@@ -158,8 +158,7 @@ func socks5DialFunc(proxyAddr string, pu *url.URL, tlsCfg *tls.Config) (fasthttp
 	var dialer proxy.Dialer = proxy.Direct
 	if tlsCfg != nil {
 		dialer = &tls.Dialer{
-			NetDialer: proxy.Direct,
-			Config:    tls.Config,
+			Config: tlsCfg,
 		}
 	}
 	d, err := proxy.SOCKS5(network, proxyAddr, sac, dialer)
