@@ -472,10 +472,6 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 			break
 		}
 		label := &labels[i]
-		if len(label.Value) == 0 {
-			// Skip labels without values, since they have no sense in prometheus.
-			continue
-		}
 		dst = marshalBytesFast(dst, label.Name)
 		dst = marshalBytesFast(dst, label.Value)
 	}
