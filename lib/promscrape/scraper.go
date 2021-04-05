@@ -231,17 +231,11 @@ func (scfg *scrapeConfig) run() {
 	cfg := <-scfg.cfgCh
 	var swsPrev []*ScrapeWork
 	updateScrapeWork := func(cfg *Config) {
-		for {
-			startTime := time.Now()
-			sws := scfg.getScrapeWork(cfg, swsPrev)
-			retry := sg.update(sws)
-			swsPrev = sws
-			scfg.discoveryDuration.UpdateDuration(startTime)
-			if !retry {
-				return
-			}
-			time.Sleep(2 * time.Second)
-		}
+		startTime := time.Now()
+		sws := scfg.getScrapeWork(cfg, swsPrev)
+		sg.update(sws)
+		swsPrev = sws
+		scfg.discoveryDuration.UpdateDuration(startTime)
 	}
 	updateScrapeWork(cfg)
 	atomic.AddInt32(&PendingScrapeConfigs, -1)
@@ -301,7 +295,7 @@ func (sg *scraperGroup) stop() {
 	sg.wg.Wait()
 }
 
-func (sg *scraperGroup) update(sws []*ScrapeWork) (retry bool) {
+func (sg *scraperGroup) update(sws []*ScrapeWork) {
 	sg.mLock.Lock()
 	defer sg.mLock.Unlock()
 
@@ -358,7 +352,6 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) (retry bool) {
 		sg.changesCount.Add(additionsCount + deletionsCount)
 		logger.Infof("%s: added targets: %d, removed targets: %d; total targets: %d", sg.name, additionsCount, deletionsCount, len(sg.m))
 	}
-	return deletionsCount > 0 && len(sg.m) == 0
 }
 
 type scraper struct {
