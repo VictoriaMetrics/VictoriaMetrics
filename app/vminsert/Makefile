@@ -15,6 +15,21 @@ vminsert-prod:
 vminsert-pure-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-pure
 
+vminsert-amd64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-amd64
+
+vminsert-arm-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-arm
+
+vminsert-arm64-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-arm64
+
+vminsert-ppc64le-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-ppc64le
+
+vminsert-386-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-386
+
 vminsert-prod-race:
 	APP_NAME=vminsert RACE=-race $(MAKE) app-via-docker
 

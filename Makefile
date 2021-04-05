@@ -42,11 +42,29 @@ release: \
 	release-vmcluster
 
 release-vmcluster: \
-	vminsert-prod \
-	vmselect-prod \
-	vmstorage-prod
-	cd bin && tar czf victoria-metrics-$(PKG_TAG).tar.gz vminsert-prod vmselect-prod vmstorage-prod && \
-		sha256sum victoria-metrics-$(PKG_TAG).tar.gz > victoria-metrics-$(PKG_TAG)_checksums.txt
+	release-vmcluster-amd64 \
+	release-vmcluster-arm64
+
+release-vmcluster-amd64:
+	GOARCH=amd64 $(MAKE) release-vmcluster-generic
+
+release-vmcluster-arm64:
+	GOARCH=arm64 $(MAKE) release-vmcluster-generic
+
+release-vmcluster-generic: \
+	vminsert-$(GOARCH)-prod \
+	vmselect-$(GOARCH)-prod \
+	vmstorage-$(GOARCH)-prod
+	cd bin && \
+		tar --transform="flags=r;s|-$(GOARCH)||" -czf victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vminsert-$(GOARCH)-prod \
+			vmselect-$(GOARCH)-prod \
+			vmstorage-$(GOARCH)-prod \
+		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vminsert-$(GOARCH)-prod \
+			vmselect-$(GOARCH)-prod \
+			vmstorage-$(GOARCH)-prod \
+			| sed s/-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)

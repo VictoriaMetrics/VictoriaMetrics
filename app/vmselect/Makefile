@@ -19,6 +19,21 @@ vmselect-prod:
 vmselect-pure-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-pure
 
+vmselect-amd64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-amd64
+
+vmselect-arm-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-arm
+
+vmselect-arm64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-arm64
+
+vmselect-ppc64le-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-ppc64le
+
+vmselect-386-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-386
+
 vmselect-prod-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) app-via-docker
 

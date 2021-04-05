@@ -19,6 +19,21 @@ vmstorage-prod:
 vmstorage-pure-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-pure
 
+vmstorage-amd64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-amd64
+
+vmstorage-arm-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-arm
+
+vmstorage-arm64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-arm64
+
+vmstorage-ppc64le-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-ppc64le
+
+vmstorage-386-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-386
+
 vmstorage-prod-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) app-via-docker
 
