@@ -55,19 +55,19 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
 - `ru(freeResources, maxResources)` function for returning resource utilization percentage in the range `0% - 100%`. For instance, `ru(node_memory_MemFree_bytes, node_memory_MemTotal_bytes)` returns memory utilization over [node_exporter](https://github.com/prometheus/node_exporter) metrics.
 - `ttf(slowlyChangingFreeResources)` function for returning the time in seconds when the given `slowlyChangingFreeResources` expression reaches zero. For instance, `ttf(node_filesystem_avail_byte)` returns the time to storage space exhaustion. This function may be useful for capacity planning.
 - Functions for label manipulation:
-  - `alias(q, name)` for setting metric name across all the time series `q`.
-  - `label_set(q, label1, value1, ... labelN, valueN)` for setting the given values for the given labels on `q`.
-  - `label_map(q, label, srcValue1, dstValue1, ... srcValueN, dstValueN)` for mapping `label` values from `src*` to `dst*`.
-  - `label_uppercase(q, label1, ... labelN)` for uppercasing values for the given labels.
-  - `label_lowercase(q, label2, ... labelN)` for lowercasing value for the given labels.
-  - `label_del(q, label1, ... labelN)` for deleting the given labels from `q`.
-  - `label_keep(q, label1, ... labelN)` for deleting all the labels except the given labels from `q`.
-  - `label_copy(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for copying label values from `src_*` to `dst_*`.
-  - `label_move(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for moving label values from `src_*` to `dst_*`.
-  - `label_transform(q, label, regexp, replacement)` for replacing all the `regexp` occurences with `replacement` in the `label` values from `q`.
-  - `label_value(q, label)` - returns numeric values for the given `label` from `q`.
+  - `alias(q, name)` for setting metric name across all the time series `q`. For example, `alias(foo, "bar")` would give `bar` name to all the `foo` series.
+  - `label_set(q, label1, value1, ... labelN, valueN)` for setting the given values for the given labels on `q`. For example, `label_set(foo, "bar", "baz")` would add `{bar="baz"}` label to all the `foo` series.
+  - `label_map(q, label, srcValue1, dstValue1, ... srcValueN, dstValueN)` for mapping `label` values from `src*` to `dst*`. For example, `label_map(foo, "instance", "127.0.0.1", "locahost")` would rename `foo{instance="127.0.0.1"}` to `foo{instance="localhost"}`.
+  - `label_uppercase(q, label1, ... labelN)` for uppercasing values for the given labels. For example, `label_uppercase(foo, "instance")` would transform `foo{instance="bar"}` to `foo{instance="BAR"}`.
+  - `label_lowercase(q, label2, ... labelN)` for lowercasing value for the given labels. For example, `label_lowercase(foo, "instance")` would transform `foo{instance="BAR"}` to `foo{instance="bar"}`.
+  - `label_del(q, label1, ... labelN)` for deleting the given labels from `q`. For example, `label_del(foo, "bar")` would delete `bar` label from all the `foo` series.
+  - `label_keep(q, label1, ... labelN)` for deleting all the labels except the given labels from `q`. For example, `label_keep(foo, "bar")` would delete all the labels except `bar` from `foo` series.
+  - `label_copy(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for copying label values from `src_*` to `dst_*`. If `src_label` is empty, then `dst_label` is left untouched. For example, `label_copy(foo, "bar", baz")` would transform `foo{bar="x"}` to `foo{bar="x",baz="x"}`.
+  - `label_move(q, src_label1, dst_label1, ... src_labelN, dst_labelN)` for moving label values from `src_*` to `dst_*`. If `src_label` is empty, then `dst_label` is left untouched. For example, `label_move(foo, 'bar", "baz")` would transform `foo{bar="x"}` to `foo{bax="x"}`.
+  - `label_transform(q, label, regexp, replacement)` for replacing all the `regexp` occurences with `replacement` in the `label` values from `q`. For example, `label_transform(foo, "bar", "-", "_")` would transform `foo{bar="a-b-c"}` to `foo{bar="a_b_c"}`.
+  - `label_value(q, label)` - returns numeric values for the given `label` from `q`. For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series `foo{bar="1.234"}` with `1.234` value.
 - `label_match(q, label, regexp)` and `label_mismatch(q, label, regexp)` for filtering time series with labels matching (or not matching) the given regexps.
-- `sort_by_label(q, label1, ... labelN)` and `sort_by_label_desc(q, label1, ... labelN)` for sorting time series by the given set of labels.
+- `sort_by_label(q, label1, ... labelN)` and `sort_by_label_desc(q, label1, ... labelN)` for sorting time series by the given set of labels. For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series.
 - `step()` function for returning the step in seconds used in the query.
 - `start()` and `end()` functions for returning the start and end timestamps of the `[start ... end]` range used in the query.
 - `integrate(m[d])` for returning integral over the given duration `d` for the given metric `m`.
@@ -121,7 +121,7 @@ This functionality can be tried at [an editable Grafana dashboard](http://play-g
    - `bottomk_avg(k, q)` - returns bottom K time series with the min averages on the given time range
    - `bottomk_median(k, q)` - returns bottom K time series with the min medians on the given time range.
 
-  All the `topk_*` and `bottomk_*` functions accept optional third argument - label name for the sum of the remaining time series outside top K or bottom K time series. For example, `topk_max(3, process_resident_memory_bytes, "remaining_sum")` would return up to 3 time series with the maximum value for `process_resident_memory_bytes` plus fourth time series with the sum of the remaining time series if any. The fourth time series will contain `remaining_sum="remaining_sum"` additional label.
+  All the `topk_*` and `bottomk_*` functions accept optional third argument - label to add to the sum of the remaining time series outside top K or bottom K time series. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the maximum value for `sum(process_resident_memory_bytes) by (job)` plus fourth time series with the sum of the remaining time series if any. The fourth time series will contain `job="other"` label.
 - `share_le_over_time(m[d], le)` - returns share (in the range 0..1) of values in `m` over `d`, which are smaller or equal to `le`. Useful for calculating SLI and SLO.
   Example: `share_le_over_time(memory_usage_bytes[24h], 100*1024*1024)` returns the share of time series values for the last 24 hours when memory usage was below or equal to 100MB.
 - `share_gt_over_time(m[d], gt)` - returns share (in the range 0..1) of values in `m` over `d`, which are bigger than `gt`. Useful for calculating SLI and SLO.

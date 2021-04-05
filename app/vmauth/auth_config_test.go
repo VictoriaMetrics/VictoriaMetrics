@@ -56,6 +56,22 @@ users:
   url_prefix: http:///bar
 `)
 
+	// Username and bearer_token in a single config
+	f(`
+users:
+- username: foo
+  bearer_token: bbb
+  url_prefix: http://foo.bar
+`)
+
+	// Bearer_token and password in a single config
+	f(`
+users:
+- password: foo
+  bearer_token: bbb
+  url_prefix: http://foo.bar
+`)
+
 	// Duplicate users
 	f(`
 users:
@@ -64,6 +80,17 @@ users:
 - username: bar
   url_prefix: http://xxx.yyy
 - username: foo
+  url_prefix: https://sss.sss
+`)
+
+	// Duplicate bearer_tokens
+	f(`
+users:
+- bearer_token: foo
+  url_prefix: http://foo.bar
+- username: bar
+  url_prefix: http://xxx.yyy
+- bearer_token: foo
   url_prefix: https://sss.sss
 `)
 
@@ -113,7 +140,7 @@ users:
   password: bar
   url_prefix: http://aaa:343/bbb
 `, map[string]*UserInfo{
-		"foo": {
+		getAuthToken("", "foo", "bar"): {
 			Username:  "foo",
 			Password:  "bar",
 			URLPrefix: "http://aaa:343/bbb",
@@ -128,11 +155,11 @@ users:
 - username: bar
   url_prefix: https://bar/x///
 `, map[string]*UserInfo{
-		"foo": {
+		getAuthToken("", "foo", ""): {
 			Username:  "foo",
 			URLPrefix: "http://foo",
 		},
-		"bar": {
+		getAuthToken("", "bar", ""): {
 			Username:  "bar",
 			URLPrefix: "https://bar/x",
 		},
@@ -141,15 +168,15 @@ users:
 	// non-empty URLMap
 	f(`
 users:
-- username: foo
+- bearer_token: foo
   url_map:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
     url_prefix: http://vminsert/insert/0/prometheus
 `, map[string]*UserInfo{
-		"foo": {
-			Username: "foo",
+		getAuthToken("foo", "", ""): {
+			BearerToken: "foo",
 			URLMap: []URLMap{
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),

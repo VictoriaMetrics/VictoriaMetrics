@@ -117,6 +117,7 @@ Alphabetically sorted links to case studies:
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
   * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
 * [Graphite API usage](#graphite-api-usage)
+  * [Graphite Render API usage](#graphite-render-api-usage)
   * [Graphite Metrics API usage](#graphite-metrics-api-usage)
   * [Graphite Tags API usage](#graphite-tags-api-usage)
 * [How to build from sources](#how-to-build-from-sources)

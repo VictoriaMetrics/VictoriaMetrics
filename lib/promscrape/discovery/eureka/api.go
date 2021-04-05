@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
@@ -16,19 +15,7 @@ type apiConfig struct {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
-	token := ""
-	if sdc.Token != nil {
-		token = *sdc.Token
-	}
-	var ba *promauth.BasicAuthConfig
-	if len(sdc.Username) > 0 {
-		ba = &promauth.BasicAuthConfig{
-			Username: sdc.Username,
-			Password: sdc.Password,
-		}
-		token = ""
-	}
-	ac, err := promauth.NewConfig(baseDir, ba, token, "", sdc.TLSConfig)
+	ac, err := sdc.HTTPClientConfig.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
@@ -37,13 +24,17 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		apiServer = "localhost:8080/eureka/v2"
 	}
 	if !strings.Contains(apiServer, "://") {
-		scheme := sdc.Scheme
-		if scheme == "" {
-			scheme = "http"
+		scheme := "http"
+		if sdc.HTTPClientConfig.TLSConfig != nil {
+			scheme = "https"
 		}
 		apiServer = scheme + "://" + apiServer
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL)
+	proxyAC, err := sdc.ProxyClientConfig.NewConfig(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
+	}
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}

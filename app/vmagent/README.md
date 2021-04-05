@@ -178,7 +178,7 @@ The following scrape types in [scrape_config](https://prometheus.io/docs/prometh
 
 Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
-`vmagent` also support the following additional options in `scrape_config` section:
+`vmagent` also support the following additional options in `scrape_configs` section:
 
 * `disable_compression: true` - to disable response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets
   to save network bandwidth.
@@ -262,7 +262,7 @@ See [these docs](https://victoriametrics.github.io/#deduplication) for details.
 
 ## Scraping targets via a proxy
 
-`vmagent` supports scraping targets via http and https proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
+`vmagent` supports scraping targets via http, https and socks5 proxies. Proxy address must be specified in `proxy_url` option. For example, the following scrape config instructs
 target scraping via https proxy at `https://proxy-addr:1234`:
 
 ```yml
@@ -273,6 +273,7 @@ scrape_configs:
 
 Proxy can be configured with the following optional settings:
 
+* `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
 * `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).

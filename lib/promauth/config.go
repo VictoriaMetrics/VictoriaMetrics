@@ -20,11 +20,38 @@ type TLSConfig struct {
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 }
 
+// Authorization represents generic authorization config.
+//
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+type Authorization struct {
+	Type            string `yaml:"type,omitempty"`
+	Credentials     string `yaml:"credentials,omitempty"`
+	CredentialsFile string `yaml:"credentials_file,omitempty"`
+}
+
 // BasicAuthConfig represents basic auth config.
 type BasicAuthConfig struct {
 	Username     string `yaml:"username"`
 	Password     string `yaml:"password,omitempty"`
 	PasswordFile string `yaml:"password_file,omitempty"`
+}
+
+// HTTPClientConfig represents http client config.
+type HTTPClientConfig struct {
+	Authorization   *Authorization   `yaml:"authorization,omitempty"`
+	BasicAuth       *BasicAuthConfig `yaml:"basic_auth,omitempty"`
+	BearerToken     string           `yaml:"bearer_token,omitempty"`
+	BearerTokenFile string           `yaml:"bearer_token_file,omitempty"`
+	TLSConfig       *TLSConfig       `yaml:"tls_config,omitempty"`
+}
+
+// ProxyClientConfig represents proxy client config.
+type ProxyClientConfig struct {
+	Authorization   *Authorization   `yaml:"proxy_authorization,omitempty"`
+	BasicAuth       *BasicAuthConfig `yaml:"proxy_basic_auth,omitempty"`
+	BearerToken     string           `yaml:"proxy_bearer_token,omitempty"`
+	BearerTokenFile string           `yaml:"proxy_bearer_token_file,omitempty"`
+	TLSConfig       *TLSConfig       `yaml:"proxy_tls_config,omitempty"`
 }
 
 // Config is auth config.
@@ -80,10 +107,42 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	return tlsCfg
 }
 
+// NewConfig creates auth config for the given hcc.
+func (hcc *HTTPClientConfig) NewConfig(baseDir string) (*Config, error) {
+	return NewConfig(baseDir, hcc.Authorization, hcc.BasicAuth, hcc.BearerToken, hcc.BearerTokenFile, hcc.TLSConfig)
+}
+
+// NewConfig creates auth config for the given pcc.
+func (pcc *ProxyClientConfig) NewConfig(baseDir string) (*Config, error) {
+	return NewConfig(baseDir, pcc.Authorization, pcc.BasicAuth, pcc.BearerToken, pcc.BearerTokenFile, pcc.TLSConfig)
+}
+
 // NewConfig creates auth config from the given args.
-func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, tlsConfig *TLSConfig) (*Config, error) {
+func NewConfig(baseDir string, az *Authorization, basicAuth *BasicAuthConfig, bearerToken, bearerTokenFile string, tlsConfig *TLSConfig) (*Config, error) {
 	var authorization string
+	if az != nil {
+		azType := "Bearer"
+		if az.Type != "" {
+			azType = az.Type
+		}
+		azToken := az.Credentials
+		if az.CredentialsFile != "" {
+			if az.Credentials != "" {
+				return nil, fmt.Errorf("both `credentials`=%q and `credentials_file`=%q are set", az.Credentials, az.CredentialsFile)
+			}
+			path := getFilepath(baseDir, az.CredentialsFile)
+			token, err := readPasswordFromFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("cannot read credentials from `credentials_file`=%q: %w", az.CredentialsFile, err)
+			}
+			azToken = token
+		}
+		authorization = azType + " " + azToken
+	}
 	if basicAuth != nil {
+		if authorization != "" {
+			return nil, fmt.Errorf("cannot use both `authorization` and `basic_auth`")
+		}
 		if basicAuth.Username == "" {
 			return nil, fmt.Errorf("missing `username` in `basic_auth` section")
 		}
@@ -106,6 +165,9 @@ func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTo
 		authorization = "Basic " + token64
 	}
 	if bearerTokenFile != "" {
+		if authorization != "" {
+			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth` and `bearer_token_file`")
+		}
 		if bearerToken != "" {
 			return nil, fmt.Errorf("both `bearer_token`=%q and `bearer_token_file`=%q are set", bearerToken, bearerTokenFile)
 		}
@@ -114,11 +176,11 @@ func NewConfig(baseDir string, basicAuth *BasicAuthConfig, bearerToken, bearerTo
 		if err != nil {
 			return nil, fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %w", bearerTokenFile, err)
 		}
-		bearerToken = token
+		authorization = "Bearer " + token
 	}
 	if bearerToken != "" {
 		if authorization != "" {
-			return nil, fmt.Errorf("cannot use both `basic_auth` and `bearer_token`")
+			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth` and `bearer_token`")
 		}
 		authorization = "Bearer " + bearerToken
 	}

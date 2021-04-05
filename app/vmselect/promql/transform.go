@@ -1446,11 +1446,12 @@ func transformLabelCopyExt(tfa *transformFuncArg, removeSrcLabels bool) ([]*time
 		for i, srcLabel := range srcLabels {
 			dstLabel := dstLabels[i]
 			value := mn.GetTagValue(srcLabel)
+			if len(value) == 0 {
+				// Do not remove destination label if the source label doesn't exist.
+				continue
+			}
 			dstValue := getDstValue(mn, dstLabel)
 			*dstValue = append((*dstValue)[:0], value...)
-			if len(value) == 0 {
-				mn.RemoveTag(dstLabel)
-			}
 			if removeSrcLabels && srcLabel != dstLabel {
 				mn.RemoveTag(srcLabel)
 			}
