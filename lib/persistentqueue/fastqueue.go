@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// FastQueue is a wrapper around Queue, which prefers sending data via memory.
+// FastQueue is fast persistent queue, which prefers sending data via memory.
 //
 // It falls back to sending data via file when readers don't catch up with writers.
 type FastQueue struct {
@@ -20,7 +20,7 @@ type FastQueue struct {
 	cond sync.Cond
 
 	// pq is file-based queue
-	pq *Queue
+	pq *queue
 
 	// ch is in-memory queue
 	ch chan *bytesutil.ByteBuffer
@@ -40,7 +40,7 @@ type FastQueue struct {
 // Otherwise its size is limited by maxPendingBytes. The oldest data is dropped when the queue
 // reaches maxPendingSize.
 func MustOpenFastQueue(path, name string, maxInmemoryBlocks, maxPendingBytes int) *FastQueue {
-	pq := MustOpen(path, name, maxPendingBytes)
+	pq := mustOpen(path, name, maxPendingBytes)
 	fq := &FastQueue{
 		pq: pq,
 		ch: make(chan *bytesutil.ByteBuffer, maxInmemoryBlocks),
@@ -174,7 +174,12 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 			return dst, true
 		}
 		if n := fq.pq.GetPendingBytes(); n > 0 {
-			return fq.pq.MustReadBlock(dst)
+			data, ok := fq.pq.MustReadBlockNonblocking(dst)
+			if ok {
+				return data, true
+			}
+			dst = data
+			continue
 		}
 
 		// There are no blocks. Wait for new block.
