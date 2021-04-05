@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1617614302800,
+  "iteration": 1617614302806,
   "links": [
     {
       "icon": "doc",
@@ -4049,7 +4049,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 100,
@@ -4147,7 +4147,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 47
           },
           "hiddenSeries": false,
           "id": 113,
@@ -4246,7 +4246,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 16,
@@ -4346,7 +4346,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 55
           },
           "hiddenSeries": false,
           "id": 14,
@@ -4461,7 +4461,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 22
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 18,
@@ -4559,7 +4559,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 22
+            "y": 63
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4657,7 +4657,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 54,
@@ -4753,7 +4753,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 71
           },
           "hiddenSeries": false,
           "id": 55,
@@ -4849,7 +4849,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 122,
@@ -4885,6 +4885,7 @@
           "steppedLine": false,
           "targets": [
             {
+              "exemplar": true,
               "expr": "sum(rate(process_io_storage_read_bytes_total{job=\"$job_storage\", instance=~\"$instance\"}[5m])) by(instance)",
               "format": "time_series",
               "hide": false,
@@ -4964,7 +4965,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 79
           },
           "hiddenSeries": false,
           "id": 22,
@@ -5036,6 +5037,114 @@
               "logBase": 1,
               "max": null,
               "min": "0",
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "$ds",
+          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. However, these two actions are separated and controlled via different concurrency limiters. The `max` on this panel can't be changed and always equal to number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.\n\n",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 87
+          },
+          "hiddenSeries": false,
+          "id": 133,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": false,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.5.1",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "max",
+              "color": "#C4162A"
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "max(vm_concurrent_addrows_capacity{job=\"$job_storage\", instance=~\"$instance\"})",
+              "interval": "",
+              "legendFormat": "max",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "sum(avg_over_time(vm_concurrent_addrows_current{job=\"$job_storage\", instance=~\"$instance\"}[1m])) by(instance)",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "{{instance}}",
+              "refId": "B"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Concurrent flushes on disk ($instance)",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
               "show": true
             }
           ],
