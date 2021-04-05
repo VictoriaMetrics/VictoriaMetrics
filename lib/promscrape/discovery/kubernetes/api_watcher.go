@@ -189,7 +189,7 @@ func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	if proxyURL != nil {
 		proxyURLStr = proxyURL.String()
 	}
-	key := fmt.Sprintf("apiServer=%s, namespaces=%s, selectors=%s, proxyURL=%v, authConfig=%s",
+	key := fmt.Sprintf("apiServer=%s, namespaces=%s, selectors=%s, proxyURL=%s, authConfig=%s",
 		apiServer, namespaces, selectorsKey(selectors), proxyURLStr, ac.String())
 	groupWatchersLock.Lock()
 	gw := groupWatchers[key]
