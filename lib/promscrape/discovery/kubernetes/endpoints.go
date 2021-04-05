@@ -139,8 +139,10 @@ func appendEndpointLabelsForAddresses(ms []map[string]string, gw *groupWatcher, 
 	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []map[string]string {
 	for _, ea := range eas {
 		var p *Pod
-		if o := gw.getObjectByRole("pod", ea.TargetRef.Namespace, ea.TargetRef.Name); o != nil {
-			p = o.(*Pod)
+		if ea.TargetRef.Name != "" {
+			if o := gw.getObjectByRole("pod", ea.TargetRef.Namespace, ea.TargetRef.Name); o != nil {
+				p = o.(*Pod)
+			}
 		}
 		m := getEndpointLabelsForAddressAndPort(podPortsSeen, eps, ea, epp, p, svc, ready)
 		ms = append(ms, m)
