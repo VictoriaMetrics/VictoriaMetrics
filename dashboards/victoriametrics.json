@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1617614302794,
+  "iteration": 1617614302797,
   "links": [
     {
       "icon": "doc",
@@ -3769,7 +3769,6 @@
           "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3780,7 +3779,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 57,
@@ -3798,8 +3797,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3882,18 +3884,17 @@
           "description": "VictoriaMetrics stores various caches in RAM. Memory size for these caches may be limited with -`memory.allowedPercent` flag. Line `max allowed` shows max allowed memory size for cache.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
           },
-          "fill": 1,
+          "fill": 0,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 58,
@@ -3910,8 +3911,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3921,9 +3925,11 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "1 - (sum(rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) / sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type))",
+              "exemplar": true,
+              "expr": "1 - (\n sum(rate(vm_cache_misses_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type) /\n sum(rate(vm_cache_requests_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by (type)\n)",
               "format": "time_series",
               "hide": false,
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{type}}",
               "refId": "A"
@@ -4004,7 +4010,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 6
           },
           "hiddenSeries": false,
           "id": 100,
@@ -4102,7 +4108,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 6
           },
           "hiddenSeries": false,
           "id": 113,
@@ -4201,7 +4207,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 57
+            "y": 14
           },
           "hiddenSeries": false,
           "id": 16,
@@ -4301,7 +4307,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 57
+            "y": 14
           },
           "hiddenSeries": false,
           "id": 14,
@@ -4416,7 +4422,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 22
           },
           "hiddenSeries": false,
           "id": 18,
@@ -4514,7 +4520,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 22
           },
           "hiddenSeries": false,
           "id": 20,
@@ -4612,7 +4618,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 73
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 54,
@@ -4708,7 +4714,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 73
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 55,
@@ -4804,7 +4810,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 81
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 122,
@@ -4919,7 +4925,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 81
+            "y": 38
           },
           "hiddenSeries": false,
           "id": 22,
