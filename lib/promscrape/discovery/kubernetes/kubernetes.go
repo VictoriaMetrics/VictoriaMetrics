@@ -17,6 +17,9 @@ type SDConfig struct {
 	ProxyURL         proxy.URL                 `yaml:"proxy_url,omitempty"`
 	Namespaces       Namespaces                `yaml:"namespaces,omitempty"`
 	Selectors        []Selector                `yaml:"selectors,omitempty"`
+
+	cfg      *apiConfig
+	startErr error
 }
 
 // Namespaces represents namespaces for SDConfig
@@ -37,23 +40,33 @@ type Selector struct {
 // ScrapeWorkConstructorFunc must construct ScrapeWork object for the given metaLabels.
 type ScrapeWorkConstructorFunc func(metaLabels map[string]string) interface{}
 
-// GetScrapeWorkObjects returns ScrapeWork objects for the given sdc and baseDir.
+// GetScrapeWorkObjects returns ScrapeWork objects for the given sdc.
+//
+// This function must be called after MustStart call.
+func (sdc *SDConfig) GetScrapeWorkObjects() ([]interface{}, error) {
+	if sdc.cfg == nil {
+		return nil, sdc.startErr
+	}
+	return sdc.cfg.aw.getScrapeWorkObjects(), nil
+}
+
+// MustStart initializes sdc before its usage.
 //
 // swcFunc is used for constructing such objects.
-func (sdc *SDConfig) GetScrapeWorkObjects(baseDir string, swcFunc ScrapeWorkConstructorFunc) ([]interface{}, error) {
-	cfg, err := getAPIConfig(sdc, baseDir, swcFunc)
+func (sdc *SDConfig) MustStart(baseDir string, swcFunc ScrapeWorkConstructorFunc) {
+	cfg, err := newAPIConfig(sdc, baseDir, swcFunc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create API config: %w", err)
+		sdc.startErr = fmt.Errorf("cannot create API config for kubernetes: %w", err)
+		return
 	}
-	return cfg.aw.getScrapeWorkObjects(), nil
+	cfg.aw.mustStart()
+	sdc.cfg = cfg
 }
 
 // MustStop stops further usage for sdc.
 func (sdc *SDConfig) MustStop() {
-	v := configMap.Delete(sdc)
-	if v != nil {
-		// v can be nil if GetLabels wasn't called yet.
-		cfg := v.(*apiConfig)
-		cfg.mustStop()
+	if sdc.cfg != nil {
+		// sdc.cfg can be nil on MustStart error.
+		sdc.cfg.mustStop()
 	}
 }
