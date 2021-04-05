@@ -60,6 +60,15 @@ type Config struct {
 	baseDir string
 }
 
+func (cfg *Config) mustStart() {
+	startTime := time.Now()
+	logger.Infof("starting service discovery routines...")
+	for i := range cfg.ScrapeConfigs {
+		cfg.ScrapeConfigs[i].mustStart(cfg.baseDir)
+	}
+	logger.Infof("started service discovery routines in %.3f seconds", time.Since(startTime).Seconds())
+}
+
 func (cfg *Config) mustStop() {
 	startTime := time.Now()
 	logger.Infof("stopping service discovery routines...")
@@ -118,6 +127,21 @@ type ScrapeConfig struct {
 
 	// This is set in loadConfig
 	swc *scrapeWorkConfig
+}
+
+func (sc *ScrapeConfig) mustStart(baseDir string) {
+	for i := range sc.KubernetesSDConfigs {
+		swosFunc := func(metaLabels map[string]string) interface{} {
+			target := metaLabels["__address__"]
+			sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
+			if err != nil {
+				logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
+				return nil
+			}
+			return sw
+		}
+		sc.KubernetesSDConfigs[i].MustStart(baseDir, swosFunc)
+	}
 }
 
 func (sc *ScrapeConfig) mustStop() {
@@ -243,15 +267,7 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		ok := true
 		for j := range sc.KubernetesSDConfigs {
 			sdc := &sc.KubernetesSDConfigs[j]
-			swos, err := sdc.GetScrapeWorkObjects(cfg.baseDir, func(metaLabels map[string]string) interface{} {
-				target := metaLabels["__address__"]
-				sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
-				if err != nil {
-					logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
-					return nil
-				}
-				return sw
-			})
+			swos, err := sdc.GetScrapeWorkObjects()
 			if err != nil {
 				logger.Errorf("skipping kubernetes_sd_config targets for job_name %q because of error: %s", sc.swc.jobName, err)
 				ok = false

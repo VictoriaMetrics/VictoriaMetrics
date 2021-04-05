@@ -93,6 +93,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	if err != nil {
 		logger.Fatalf("cannot read %q: %s", configFile, err)
 	}
+	cfg.mustStart()
 
 	scs := newScrapeConfigs(pushData)
 	scs.add("static_configs", 0, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getStaticScrapeWork() })
@@ -130,6 +131,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				goto waitForChans
 			}
 			cfg.mustStop()
+			cfgNew.mustStart()
 			cfg = cfgNew
 			data = dataNew
 		case <-tickerCh:
@@ -143,6 +145,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 				goto waitForChans
 			}
 			cfg.mustStop()
+			cfgNew.mustStart()
 			cfg = cfgNew
 			data = dataNew
 		case <-globalStopCh:

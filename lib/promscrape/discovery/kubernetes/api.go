@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
 // apiConfig contains config for API server
@@ -15,18 +14,12 @@ type apiConfig struct {
 	aw *apiWatcher
 }
 
-func (ac *apiConfig) mustStop() {
-	ac.aw.mustStop()
+func (ac *apiConfig) mustStart() {
+	ac.aw.mustStart()
 }
 
-var configMap = discoveryutils.NewConfigMap()
-
-func getAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
-	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir, swcFunc) })
-	if err != nil {
-		return nil, err
-	}
-	return v.(*apiConfig), nil
+func (ac *apiConfig) mustStop() {
+	ac.aw.mustStop()
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
