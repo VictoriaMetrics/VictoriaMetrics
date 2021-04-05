@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -26,8 +25,10 @@ const defaultChunkFileSize = (MaxBlockSize + 8) * 16
 
 var chunkFileNameRegex = regexp.MustCompile("^[0-9A-F]{16}$")
 
-// Queue represents persistent queue.
-type Queue struct {
+// queue represents persistent queue.
+//
+// It is unsafe to call queue methods from concurrent goroutines.
+type queue struct {
 	chunkFileSize   uint64
 	maxBlockSize    uint64
 	maxPendingBytes uint64
@@ -36,13 +37,6 @@ type Queue struct {
 	name string
 
 	flockF *os.File
-
-	// mu protects all the fields below.
-	mu sync.Mutex
-
-	// cond is used for notifying blocked readers when new data has been added
-	// or when MustClose is called.
-	cond sync.Cond
 
 	reader            *filestream.Reader
 	readerPath        string
@@ -74,10 +68,7 @@ type Queue struct {
 // ResetIfEmpty resets q if it is empty.
 //
 // This is needed in order to remove chunk file associated with empty q.
-func (q *Queue) ResetIfEmpty() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
+func (q *queue) ResetIfEmpty() {
 	if q.readerOffset != q.writerOffset {
 		// The queue isn't empty.
 		return
@@ -86,10 +77,13 @@ func (q *Queue) ResetIfEmpty() {
 		// The file is too small to drop. Leave it as is in order to reduce filesystem load.
 		return
 	}
+	q.mustResetFiles()
+}
+
+func (q *queue) mustResetFiles() {
 	if q.readerPath != q.writerPath {
 		logger.Panicf("BUG: readerPath=%q doesn't match writerPath=%q", q.readerPath, q.writerPath)
 	}
-
 	q.reader.MustClose()
 	q.writer.MustClose()
 	fs.MustRemoveAll(q.readerPath)
@@ -115,31 +109,29 @@ func (q *Queue) ResetIfEmpty() {
 	}
 	q.reader = r
 
-	if err := q.flushMetainfoLocked(); err != nil {
+	if err := q.flushMetainfo(); err != nil {
 		logger.Panicf("FATAL: cannot flush metainfo: %s", err)
 	}
 }
 
 // GetPendingBytes returns the number of pending bytes in the queue.
-func (q *Queue) GetPendingBytes() uint64 {
-	q.mu.Lock()
+func (q *queue) GetPendingBytes() uint64 {
 	n := q.writerOffset - q.readerOffset
-	q.mu.Unlock()
 	return n
 }
 
-// MustOpen opens persistent queue from the given path.
+// mustOpen opens persistent queue from the given path.
 //
 // If maxPendingBytes is greater than 0, then the max queue size is limited by this value.
 // The oldest data is deleted when queue size exceeds maxPendingBytes.
-func MustOpen(path, name string, maxPendingBytes int) *Queue {
+func mustOpen(path, name string, maxPendingBytes int) *queue {
 	if maxPendingBytes < 0 {
 		maxPendingBytes = 0
 	}
-	return mustOpen(path, name, defaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
+	return mustOpenInternal(path, name, defaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
 }
 
-func mustOpen(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) *Queue {
+func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) *queue {
 	if chunkFileSize < 8 || chunkFileSize-8 < maxBlockSize {
 		logger.Panicf("BUG: too small chunkFileSize=%d for maxBlockSize=%d; chunkFileSize must fit at least one block", chunkFileSize, maxBlockSize)
 	}
@@ -166,15 +158,14 @@ func mustCreateFlockFile(path string) *os.File {
 	return f
 }
 
-func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) (*Queue, error) {
+func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) (*queue, error) {
 	// Protect from concurrent opens.
-	var q Queue
+	var q queue
 	q.chunkFileSize = chunkFileSize
 	q.maxBlockSize = maxBlockSize
 	q.maxPendingBytes = maxPendingBytes
 	q.dir = path
 	q.name = name
-	q.cond.L = &q.mu
 
 	q.blocksDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_blocks_dropped_total{path=%q}`, path))
 	q.bytesDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vm_persistentqueue_bytes_dropped_total{path=%q}`, path))
@@ -346,17 +337,8 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 
 // MustClose closes q.
 //
-// It unblocks all the MustReadBlock calls.
-//
 // MustWriteBlock mustn't be called during and after the call to MustClose.
-func (q *Queue) MustClose() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	// Unblock goroutines blocked on cond in MustReadBlock.
-	q.mustStop = true
-	q.cond.Broadcast()
-
+func (q *queue) MustClose() {
 	// Close writer.
 	q.writer.MustClose()
 	q.writer = nil
@@ -366,7 +348,7 @@ func (q *Queue) MustClose() {
 	q.reader = nil
 
 	// Store metainfo
-	if err := q.flushMetainfoLocked(); err != nil {
+	if err := q.flushMetainfo(); err != nil {
 		logger.Panicf("FATAL: cannot flush chunked queue metainfo: %s", err)
 	}
 
@@ -377,11 +359,11 @@ func (q *Queue) MustClose() {
 	q.flockF = nil
 }
 
-func (q *Queue) chunkFilePath(offset uint64) string {
+func (q *queue) chunkFilePath(offset uint64) string {
 	return fmt.Sprintf("%s/%016X", q.dir, offset)
 }
 
-func (q *Queue) metainfoPath() string {
+func (q *queue) metainfoPath() string {
 	return q.dir + "/metainfo.json"
 }
 
@@ -390,14 +372,10 @@ func (q *Queue) metainfoPath() string {
 // The block size cannot exceed MaxBlockSize.
 //
 // It is safe calling this function from concurrent goroutines.
-func (q *Queue) MustWriteBlock(block []byte) {
+func (q *queue) MustWriteBlock(block []byte) {
 	if uint64(len(block)) > q.maxBlockSize {
 		logger.Panicf("BUG: too big block to send: %d bytes; it mustn't exceed %d bytes", len(block), q.maxBlockSize)
 	}
-
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
 	if q.mustStop {
 		logger.Panicf("BUG: MustWriteBlock cannot be called after MustClose")
 	}
@@ -416,7 +394,10 @@ func (q *Queue) MustWriteBlock(block []byte) {
 		bb := blockBufPool.Get()
 		for q.writerOffset-q.readerOffset > maxPendingBytes {
 			var err error
-			bb.B, err = q.readBlockLocked(bb.B[:0])
+			bb.B, err = q.readBlock(bb.B[:0])
+			if err == errEmptyQueue {
+				break
+			}
 			if err != nil {
 				logger.Panicf("FATAL: cannot read the oldest block %s", err)
 			}
@@ -429,38 +410,18 @@ func (q *Queue) MustWriteBlock(block []byte) {
 			return
 		}
 	}
-	if err := q.writeBlockLocked(block); err != nil {
+	if err := q.writeBlock(block); err != nil {
 		logger.Panicf("FATAL: %s", err)
 	}
-
-	// Notify blocked reader if any.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/484 for details.
-	q.cond.Signal()
 }
 
 var blockBufPool bytesutil.ByteBufferPool
 
-func (q *Queue) writeBlockLocked(block []byte) error {
+func (q *queue) writeBlock(block []byte) error {
 	if q.writerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
-		// Finalize the current chunk and start new one.
-		q.writer.MustClose()
-		// There is no need to do fs.MustSyncPath(q.writerPath) here,
-		// since MustClose already does this.
-		if n := q.writerOffset % q.chunkFileSize; n > 0 {
-			q.writerOffset += (q.chunkFileSize - n)
+		if err := q.nextChunkFileForWrite(); err != nil {
+			return fmt.Errorf("cannot create next chunk file: %w", err)
 		}
-		q.writerFlushedOffset = q.writerOffset
-		q.writerLocalOffset = 0
-		q.writerPath = q.chunkFilePath(q.writerOffset)
-		w, err := filestream.Create(q.writerPath, false)
-		if err != nil {
-			return fmt.Errorf("cannot create chunk file %q: %w", q.writerPath, err)
-		}
-		q.writer = w
-		if err := q.flushMetainfoLocked(); err != nil {
-			return fmt.Errorf("cannot flush metainfo: %w", err)
-		}
-		fs.MustSyncPath(q.dir)
 	}
 
 	// Write block len.
@@ -479,62 +440,61 @@ func (q *Queue) writeBlockLocked(block []byte) error {
 	}
 	q.blocksWritten.Inc()
 	q.bytesWritten.Add(len(block))
-	return q.flushMetainfoIfNeededLocked(true)
+	return q.flushWriterMetainfoIfNeeded()
 }
 
-// MustReadBlock appends the next block from q to dst and returns the result.
-//
-// false is returned after MustClose call.
-//
-// It is safe calling this function from concurrent goroutines.
-func (q *Queue) MustReadBlock(dst []byte) ([]byte, bool) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
+func (q *queue) nextChunkFileForWrite() error {
+	// Finalize the current chunk and start new one.
+	q.writer.MustClose()
+	// There is no need to do fs.MustSyncPath(q.writerPath) here,
+	// since MustClose already does this.
+	if n := q.writerOffset % q.chunkFileSize; n > 0 {
+		q.writerOffset += q.chunkFileSize - n
+	}
+	q.writerFlushedOffset = q.writerOffset
+	q.writerLocalOffset = 0
+	q.writerPath = q.chunkFilePath(q.writerOffset)
+	w, err := filestream.Create(q.writerPath, false)
+	if err != nil {
+		return fmt.Errorf("cannot create chunk file %q: %w", q.writerPath, err)
+	}
+	q.writer = w
+	if err := q.flushMetainfo(); err != nil {
+		return fmt.Errorf("cannot flush metainfo: %w", err)
+	}
+	fs.MustSyncPath(q.dir)
+	return nil
+}
 
-	for {
-		if q.mustStop {
+// MustReadBlockNonblocking appends the next block from q to dst and returns the result.
+//
+// false is returned if q is empty.
+func (q *queue) MustReadBlockNonblocking(dst []byte) ([]byte, bool) {
+	if q.readerOffset > q.writerOffset {
+		logger.Panicf("BUG: readerOffset=%d cannot exceed writerOffset=%d", q.readerOffset, q.writerOffset)
+	}
+	if q.readerOffset == q.writerOffset {
+		return dst, false
+	}
+	var err error
+	dst, err = q.readBlock(dst)
+	if err != nil {
+		if err == errEmptyQueue {
 			return dst, false
 		}
-		if q.readerOffset > q.writerOffset {
-			logger.Panicf("BUG: readerOffset=%d cannot exceed writerOffset=%d", q.readerOffset, q.writerOffset)
-		}
-		if q.readerOffset < q.writerOffset {
-			break
-		}
-		q.cond.Wait()
-	}
-
-	data, err := q.readBlockLocked(dst)
-	if err != nil {
-		// Skip the current chunk, since it may be broken.
-		q.readerOffset += q.chunkFileSize - q.readerOffset%q.chunkFileSize
-		_ = q.flushMetainfoLocked()
 		logger.Panicf("FATAL: %s", err)
 	}
-	return data, true
+	return dst, true
 }
 
-func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
+func (q *queue) readBlock(dst []byte) ([]byte, error) {
 	if q.readerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
-		// Remove the current chunk and go to the next chunk.
-		q.reader.MustClose()
-		fs.MustRemoveAll(q.readerPath)
-		if n := q.readerOffset % q.chunkFileSize; n > 0 {
-			q.readerOffset += (q.chunkFileSize - n)
+		if err := q.nextChunkFileForRead(); err != nil {
+			return dst, fmt.Errorf("cannot open next chunk file: %w", err)
 		}
-		q.readerLocalOffset = 0
-		q.readerPath = q.chunkFilePath(q.readerOffset)
-		r, err := filestream.Open(q.readerPath, true)
-		if err != nil {
-			return dst, fmt.Errorf("cannot open chunk file %q: %w", q.readerPath, err)
-		}
-		q.reader = r
-		if err := q.flushMetainfoLocked(); err != nil {
-			return dst, fmt.Errorf("cannot flush metainfo: %w", err)
-		}
-		fs.MustSyncPath(q.dir)
 	}
 
+again:
 	// Read block len.
 	header := headerBufPool.Get()
 	header.B = bytesutil.Resize(header.B, 8)
@@ -542,27 +502,73 @@ func (q *Queue) readBlockLocked(dst []byte) ([]byte, error) {
 	blockLen := encoding.UnmarshalUint64(header.B)
 	headerBufPool.Put(header)
 	if err != nil {
-		return dst, fmt.Errorf("cannot read header with size 8 bytes from %q: %w", q.readerPath, err)
+		logger.Errorf("skipping corrupted %q, since header with size 8 bytes cannot be read from it: %s", q.readerPath, err)
+		if err := q.skipBrokenChunkFile(); err != nil {
+			return dst, err
+		}
+		goto again
 	}
 	if blockLen > q.maxBlockSize {
-		return dst, fmt.Errorf("too big block size read from %q: %d bytes; cannot exceed %d bytes", q.readerPath, blockLen, q.maxBlockSize)
+		logger.Errorf("skipping corrupted %q, since too big block size is read from it: %d bytes; cannot exceed %d bytes", q.readerPath, blockLen, q.maxBlockSize)
+		if err := q.skipBrokenChunkFile(); err != nil {
+			return dst, err
+		}
+		goto again
 	}
 
 	// Read block contents.
 	dstLen := len(dst)
 	dst = bytesutil.Resize(dst, dstLen+int(blockLen))
 	if err := q.readFull(dst[dstLen:]); err != nil {
-		return dst, fmt.Errorf("cannot read block contents with size %d bytes from %q: %w", blockLen, q.readerPath, err)
+		logger.Errorf("skipping corrupted %q, since contents with size %d bytes cannot be read from it: %s", q.readerPath, blockLen, err)
+		if err := q.skipBrokenChunkFile(); err != nil {
+			return dst[:dstLen], err
+		}
+		goto again
 	}
 	q.blocksRead.Inc()
 	q.bytesRead.Add(int(blockLen))
-	if err := q.flushMetainfoIfNeededLocked(false); err != nil {
+	if err := q.flushReaderMetainfoIfNeeded(); err != nil {
 		return dst, err
 	}
 	return dst, nil
 }
 
-func (q *Queue) write(buf []byte) error {
+func (q *queue) skipBrokenChunkFile() error {
+	// Try to recover from broken chunk file by skipping it.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1030
+	q.readerOffset += q.chunkFileSize - q.readerOffset%q.chunkFileSize
+	if q.readerOffset >= q.writerOffset {
+		q.mustResetFiles()
+		return errEmptyQueue
+	}
+	return q.nextChunkFileForRead()
+}
+
+var errEmptyQueue = fmt.Errorf("the queue is empty")
+
+func (q *queue) nextChunkFileForRead() error {
+	// Remove the current chunk and go to the next chunk.
+	q.reader.MustClose()
+	fs.MustRemoveAll(q.readerPath)
+	if n := q.readerOffset % q.chunkFileSize; n > 0 {
+		q.readerOffset += q.chunkFileSize - n
+	}
+	q.readerLocalOffset = 0
+	q.readerPath = q.chunkFilePath(q.readerOffset)
+	r, err := filestream.Open(q.readerPath, true)
+	if err != nil {
+		return fmt.Errorf("cannot open chunk file %q: %w", q.readerPath, err)
+	}
+	q.reader = r
+	if err := q.flushMetainfo(); err != nil {
+		return fmt.Errorf("cannot flush metainfo: %w", err)
+	}
+	fs.MustSyncPath(q.dir)
+	return nil
+}
+
+func (q *queue) write(buf []byte) error {
 	bufLen := uint64(len(buf))
 	n, err := q.writer.Write(buf)
 	if err != nil {
@@ -576,7 +582,7 @@ func (q *Queue) write(buf []byte) error {
 	return nil
 }
 
-func (q *Queue) readFull(buf []byte) error {
+func (q *queue) readFull(buf []byte) error {
 	bufLen := uint64(len(buf))
 	if q.readerOffset+bufLen > q.writerFlushedOffset {
 		q.writer.MustFlush(false)
@@ -594,22 +600,32 @@ func (q *Queue) readFull(buf []byte) error {
 	return nil
 }
 
-func (q *Queue) flushMetainfoIfNeededLocked(flushData bool) error {
+func (q *queue) flushReaderMetainfoIfNeeded() error {
 	t := fasttime.UnixTimestamp()
 	if t == q.lastMetainfoFlushTime {
 		return nil
 	}
-	if flushData {
-		q.writer.MustFlush(true)
-	}
-	if err := q.flushMetainfoLocked(); err != nil {
+	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
 	}
 	q.lastMetainfoFlushTime = t
 	return nil
 }
 
-func (q *Queue) flushMetainfoLocked() error {
+func (q *queue) flushWriterMetainfoIfNeeded() error {
+	t := fasttime.UnixTimestamp()
+	if t == q.lastMetainfoFlushTime {
+		return nil
+	}
+	q.writer.MustFlush(true)
+	if err := q.flushMetainfo(); err != nil {
+		return fmt.Errorf("cannot flush metainfo: %w", err)
+	}
+	q.lastMetainfoFlushTime = t
+	return nil
+}
+
+func (q *queue) flushMetainfo() error {
 	mi := &metainfo{
 		Name:         q.name,
 		ReaderOffset: q.readerOffset,
