@@ -50,7 +50,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1617614302797,
+  "iteration": 1617614302800,
   "links": [
     {
       "icon": "doc",
@@ -822,7 +822,7 @@
       },
       "fontSize": "100%",
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 8,
         "x": 0,
         "y": 5
@@ -922,7 +922,7 @@
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 16,
         "x": 8,
         "y": 5
@@ -1031,7 +1031,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 10
       },
       "hiddenSeries": false,
       "id": 2,
@@ -1127,7 +1127,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 10
       },
       "hiddenSeries": false,
       "id": 6,
@@ -1228,7 +1228,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 18
       },
       "hiddenSeries": false,
       "id": 52,
@@ -1329,7 +1329,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 18
       },
       "hiddenSeries": false,
       "id": 8,
@@ -1430,7 +1430,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 28
+        "y": 26
       },
       "hiddenSeries": false,
       "id": 44,
@@ -1537,7 +1537,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
+      "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -1550,28 +1550,23 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 28
+        "y": 26
       },
       "hiddenSeries": false,
-      "id": 12,
+      "id": 104,
       "legend": {
-        "avg": false,
-        "current": false,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
         "max": false,
         "min": false,
         "show": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
-      "links": [
-        {
-          "targetBlank": true,
-          "title": "troubleshooting",
-          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#troubleshooting"
-        }
-      ],
+      "links": [],
       "nullPointMode": "null",
       "options": {
         "alertThreshold": true
@@ -1587,10 +1582,11 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance.*\", type=\"storage/hour_metric_ids\"})",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance.*\"}[5m])) by (job, level) ",
           "format": "time_series",
+          "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "Active time series",
+          "legendFormat": "{{job}} - {{level}}",
           "refId": "A"
         }
       ],
@@ -1598,10 +1594,10 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Active time series ($instance)",
+      "title": "Logging rate",
       "tooltip": {
         "shared": true,
-        "sort": 0,
+        "sort": 2,
         "value_type": "individual"
       },
       "type": "graph",
@@ -1614,6 +1610,7 @@
       },
       "yaxes": [
         {
+          "decimals": null,
           "format": "short",
           "label": null,
           "logBase": 1,
@@ -1626,7 +1623,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": "0",
+          "min": null,
           "show": true
         }
       ],
@@ -1654,7 +1651,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 36
+        "y": 34
       },
       "hiddenSeries": false,
       "id": 110,
@@ -1750,7 +1747,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "$ds",
-      "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+      "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
       "fieldConfig": {
         "defaults": {
           "links": []
@@ -1763,22 +1760,28 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 36
+        "y": 34
       },
       "hiddenSeries": false,
-      "id": 104,
+      "id": 12,
       "legend": {
         "avg": false,
         "current": false,
         "max": false,
         "min": false,
-        "show": true,
+        "show": false,
         "total": false,
         "values": false
       },
       "lines": true,
       "linewidth": 1,
-      "links": [],
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "troubleshooting",
+          "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/README.md#troubleshooting"
+        }
+      ],
       "nullPointMode": "null",
       "options": {
         "alertThreshold": true
@@ -1794,11 +1797,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance.*\"}[5m])) by (job, level) ",
+          "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance.*\", type=\"storage/hour_metric_ids\"})",
           "format": "time_series",
-          "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "{{job}} - {{level}}",
+          "legendFormat": "Active time series",
           "refId": "A"
         }
       ],
@@ -1806,7 +1808,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Logging rate",
+      "title": "Active time series ($instance)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1822,7 +1824,6 @@
       },
       "yaxes": [
         {
-          "decimals": null,
           "format": "short",
           "label": null,
           "logBase": 1,
@@ -1835,7 +1836,7 @@
           "label": null,
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         }
       ],
@@ -1851,7 +1852,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 42
       },
       "id": 46,
       "panels": [
@@ -1874,7 +1875,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 2
           },
           "hiddenSeries": false,
           "id": 66,
@@ -1917,7 +1918,7 @@
           "title": "Memory usage ($instance)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -1969,7 +1970,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 2
           },
           "hiddenSeries": false,
           "id": 64,
@@ -2067,7 +2068,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 53
+            "y": 10
           },
           "hiddenSeries": false,
           "id": 117,
@@ -2179,7 +2180,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 10
           },
           "hiddenSeries": false,
           "id": 72,
@@ -2276,7 +2277,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 61
+            "y": 18
           },
           "hiddenSeries": false,
           "id": 68,
@@ -2293,6 +2294,9 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
           "pluginVersion": "7.5.1",
           "pointradius": 2,
@@ -2318,7 +2322,7 @@
           "title": "Goroutines ($instance)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -2369,7 +2373,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 61
+            "y": 18
           },
           "hiddenSeries": false,
           "id": 119,
@@ -2385,6 +2389,9 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
           "pluginVersion": "7.5.1",
           "pointradius": 2,
@@ -2461,7 +2468,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 69
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 70,
@@ -2478,6 +2485,9 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
           "pluginVersion": "7.5.1",
           "pointradius": 2,
@@ -2503,7 +2513,7 @@
           "title": "Threads ($instance)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -2554,7 +2564,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 69
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 120,
@@ -2570,6 +2580,9 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
           "pluginVersion": "7.5.1",
           "pointradius": 2,
@@ -2639,7 +2652,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 43
       },
       "id": 106,
       "panels": [
@@ -2652,7 +2665,6 @@
           "description": "Shows how many of new time-series are created every second.  High churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2672,15 +2684,18 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2745,7 +2760,6 @@
           "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2772,8 +2786,11 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2839,7 +2856,6 @@
           "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>50%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2866,8 +2882,11 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2933,7 +2952,6 @@
           "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -2961,8 +2979,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3034,7 +3055,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 44
       },
       "id": 48,
       "panels": [
@@ -3047,7 +3068,6 @@
           "description": "Shows number of pushed and sent rows. \n* `Pushed rows` - rows added to internal inserter buffers before send\n* `Sent rows` - successfully transmitted rows to storage nodes",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3058,7 +3078,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 77
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 76,
@@ -3076,8 +3096,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3151,7 +3174,6 @@
           "description": "Rate of RPC errors by type:\n* `Connection` - the number of connection errors to vmstorage node\n* `Dial` -  the number of dial errors to vmstorage node.\n* `Handshake` - the number of handshake errors to vmstorage node\n* `Rerouted` - errors appeared during rerouting of rows from un-healthy storage node to a healthy one.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3162,7 +3184,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 77
+            "y": 4
           },
           "hiddenSeries": false,
           "id": 86,
@@ -3180,8 +3202,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3269,7 +3294,6 @@
           "description": "The number of rows rerouted to the vmstorage node from other nodes when they were unhealthy.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3280,7 +3304,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 80,
@@ -3298,8 +3322,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3309,8 +3336,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rpc_rows_rerouted_to_here_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(addr) > 0",
+              "exemplar": true,
+              "expr": "sum(rate(vm_rpc_rows_rerouted_to_here_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(addr)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{addr}}",
               "refId": "A"
@@ -3366,7 +3395,6 @@
           "description": "The number of rows rerouted from the vmstorage node to healthy nodes when the given node was unhealthy.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3377,7 +3405,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 86
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 78,
@@ -3395,8 +3423,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -3406,8 +3437,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(vm_rpc_rows_rerouted_from_here_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(addr) > 0",
+              "exemplar": true,
+              "expr": "sum(rate(vm_rpc_rows_rerouted_from_here_total{job=~\"$job\", instance=~\"$instance\"}[5m])) by(addr)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{addr}}",
               "refId": "A"
@@ -3463,7 +3496,6 @@
           "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3474,7 +3506,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 94
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 82,
@@ -3491,8 +3523,11 @@
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3567,7 +3602,6 @@
           "description": "The number of rows that were lost because of unhealthy vmstorage nodes.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3578,7 +3612,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 94
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 84,
@@ -3588,15 +3622,18 @@
             "current": true,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": true
           },
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3661,7 +3698,6 @@
           "description": "Network usage by internal VictoriaMetrics RPC protocol",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -3672,7 +3708,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 29
           },
           "hiddenSeries": false,
           "id": 74,
@@ -3681,15 +3717,18 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
           "lines": true,
           "linewidth": 1,
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -3756,7 +3795,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 45
       },
       "id": 60,
       "panels": [
@@ -3987,7 +4026,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 46
       },
       "id": 24,
       "panels": [
@@ -4019,7 +4058,7 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
@@ -4117,7 +4156,7 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
@@ -4216,7 +4255,7 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
@@ -4431,7 +4470,7 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
@@ -4529,7 +4568,7 @@
             "current": false,
             "max": false,
             "min": false,
-            "show": true,
+            "show": false,
             "total": false,
             "values": false
           },
@@ -5016,7 +5055,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 47
       },
       "id": 42,
       "panels": [
@@ -5029,7 +5068,6 @@
           "description": "Request rate accepted by vmselect nodes",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -5060,8 +5098,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5128,7 +5169,6 @@
           "description": "Shows how many ongoing insertions are taking place.\n* `max` - equal to number of CPU * 2 by default. May be configured with `search.maxConcurrentRequests` flag\n* `current` - current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means vmselect node is overloaded and require more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -5161,8 +5201,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5245,7 +5288,6 @@
           "description": "",
           "fieldConfig": {
             "defaults": {
-              "custom": {},
               "links": []
             },
             "overrides": []
@@ -5276,8 +5318,11 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "percentage": false,
-          "pluginVersion": "7.1.1",
+          "pluginVersion": "7.5.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -5331,7 +5376,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": "0",
+              "min": null,
               "show": true
             },
             {
@@ -5339,7 +5384,7 @@
               "label": null,
               "logBase": 1,
               "max": null,
-              "min": "0",
+              "min": null,
               "show": true
             }
           ],
@@ -5359,7 +5404,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 48
       },
       "id": 40,
       "panels": [
@@ -5382,7 +5427,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 8
           },
           "hiddenSeries": false,
           "id": 97,
@@ -5483,7 +5528,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 8
           },
           "hiddenSeries": false,
           "id": 99,
@@ -5602,7 +5647,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 16
           },
           "hiddenSeries": false,
           "id": 90,
@@ -5716,7 +5761,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 16
           },
           "hiddenSeries": false,
           "id": 88,
@@ -5819,7 +5864,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 24
           },
           "hiddenSeries": false,
           "id": 114,
@@ -6088,7 +6133,7 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {
