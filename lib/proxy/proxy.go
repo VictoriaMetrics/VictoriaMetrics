@@ -105,24 +105,26 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		return defaultDialFunc, nil
 	}
 	pu := u.url
-	if pu.Scheme != "http" && pu.Scheme != "https" && pu.Scheme != "socks5" {
-		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http, https or socks5", pu.Scheme, pu.Redacted())
+	switch pu.Scheme {
+	case "http", "https", "socks5", "tls+socks5":
+	default:
+		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http, https, socks5 or tls+socks5", pu.Scheme, pu.Redacted())
 	}
-	isTLS := pu.Scheme == "https"
+	isTLS := (pu.Scheme == "https" || pu.Scheme == "tls+socks5")
 	proxyAddr := addMissingPort(pu.Host, isTLS)
-	if pu.Scheme == "socks5" {
-		return socks5DialFunc(proxyAddr, pu)
-	}
-	authHeader := u.GetAuthHeader(ac)
-	if authHeader != "" {
-		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
-	}
 	var tlsCfg *tls.Config
 	if isTLS {
 		tlsCfg = ac.NewTLSConfig()
 		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
 			tlsCfg.ServerName = tlsServerName(proxyAddr)
 		}
+	}
+	if pu.Scheme == "socks5" || pu.Scheme == "tls+socks5" {
+		return socks5DialFunc(proxyAddr, pu, tlsCfg)
+	}
+	authHeader := u.GetAuthHeader(ac)
+	if authHeader != "" {
+		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 	}
 	dialFunc := func(addr string) (net.Conn, error) {
 		proxyConn, err := defaultDialFunc(proxyAddr)
@@ -142,7 +144,7 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 	return dialFunc, nil
 }
 
-func socks5DialFunc(proxyAddr string, pu *url.URL) (fasthttp.DialFunc, error) {
+func socks5DialFunc(proxyAddr string, pu *url.URL, tlsCfg *tls.Config) (fasthttp.DialFunc, error) {
 	var sac *proxy.Auth
 	if pu.User != nil {
 		username := pu.User.Username()
@@ -153,7 +155,14 @@ func socks5DialFunc(proxyAddr string, pu *url.URL) (fasthttp.DialFunc, error) {
 		}
 	}
 	network := netutil.GetTCPNetwork()
-	d, err := proxy.SOCKS5(network, proxyAddr, sac, proxy.Direct)
+	var dialer proxy.Dialer = proxy.Direct
+	if tlsCfg != nil {
+		dialer = &tls.Dialer{
+			NetDialer: proxy.Direct,
+			Config:    tls.Config,
+		}
+	}
+	d, err := proxy.SOCKS5(network, proxyAddr, sac, dialer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create socks5 proxy for url: %s, err: %w", pu.Redacted(), err)
 	}
