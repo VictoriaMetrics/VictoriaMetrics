@@ -2,9 +2,10 @@ package opentsdb
 
 import (
 	"fmt"
-	//"log"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -13,6 +14,64 @@ var (
 	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
 	allowedTagKeys   = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_]*$")
 )
+
+func convertDuration(duration string) (time.Duration, error) {
+	/*
+		Golang's time library doesn't support many different
+		string formats (year, month, week, day) because they
+		aren't consistent ranges. But Java's library _does_.
+		Consequently, we'll need to handle all the custom
+		time ranges, and, to make the internal API call consistent,
+		we'll need to allow for durations that Go supports, too.
+
+		The nice thing is all the "broken" time ranges are > 1 hour,
+		so we can just make assumptions to convert them to a range in hours.
+		They aren't *good* assumptions, but they're reasonable
+		for this function.
+	*/
+	var actualDuration time.Duration
+	var err error
+	var timeValue int
+	if strings.HasSuffix(duration, "y") {
+		timeValue, err = strconv.Atoi(strings.Trim(duration, "y"))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+		timeValue = timeValue * 365 * 24
+		actualDuration, err = time.ParseDuration(fmt.Sprintf("%vh", timeValue))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else if strings.HasSuffix(duration, "w") {
+		timeValue, err = strconv.Atoi(strings.Trim(duration, "w"))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+		timeValue = timeValue * 7 * 24
+		actualDuration, err = time.ParseDuration(fmt.Sprintf("%vh", timeValue))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else if strings.HasSuffix(duration, "d") {
+		timeValue, err = strconv.Atoi(strings.Trim(duration, "d"))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+		timeValue = timeValue * 24
+		actualDuration, err = time.ParseDuration(fmt.Sprintf("%vh", timeValue))
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else if strings.HasSuffix(duration, "h") || strings.HasSuffix(duration, "m") || strings.HasSuffix(duration, "s") || strings.HasSuffix(duration, "ms") {
+		actualDuration, err = time.ParseDuration(duration)
+		if err != nil {
+			return 0, fmt.Errorf("invalid time range: %q", duration)
+		}
+	} else {
+		return 0, fmt.Errorf("invalid time duration string: %q", duration)
+	}
+	return actualDuration, nil
+}
 
 // Convert an incoming retention "string" into the component parts
 func convertRetention(retention string, offset int64, msecTime bool) (Retention, error) {
@@ -28,7 +87,7 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	if len(chunks) != 3 {
 		return Retention{}, fmt.Errorf("invalid retention string: %q", retention)
 	}
-	rowLengthDuration, err := ParseDuration(chunks[1])
+	rowLengthDuration, err := convertDuration(chunks[1])
 	if err != nil {
 		return Retention{}, fmt.Errorf("invalid row length (first order) duration string: %q: %s", chunks[1], err)
 	}
@@ -37,10 +96,9 @@ func convertRetention(retention string, offset int64, msecTime bool) (Retention,
 	if !msecTime {
 		rowLength = rowLength / 1000
 	}
-	// default to one day
-	ttlDuration, err := ParseDuration(chunks[2])
+	ttlDuration, err := convertDuration(chunks[2])
 	if err != nil {
-		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %s", chunks[1], err)
+		return Retention{}, fmt.Errorf("invalid ttl (second order) duration string: %q: %s", chunks[2], err)
 	}
 	// set ttl in milliseconds, unless we aren't using millisecond time in OpenTSDB...then use seconds
 	ttl := ttlDuration.Milliseconds()
