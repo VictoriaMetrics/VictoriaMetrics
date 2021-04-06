@@ -437,6 +437,9 @@ func (uw *urlWatcher) registerPendingAPIWatchers() {
 	for aw := range uw.awsPending {
 		awsPending = append(awsPending, aw)
 		delete(uw.awsPending, aw)
+		if _, ok := uw.aws[aw]; !ok {
+			uw.aws[aw] = struct{}{}
+		}
 	}
 	uw.reloadScrapeWorksForAPIWatchers(awsPending, uw.objectsByKey)
 	uw.mu.Unlock()
