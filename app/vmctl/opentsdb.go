@@ -64,7 +64,6 @@ func (op *otsdbProcessor) run(silent bool) error {
 	for _, metric := range metrics {
 		log.Println(fmt.Sprintf("Starting work on %s", metric))
 		serieslist, err := op.oc.FindSeries(metric)
-		//log.Println(fmt.Sprintf("Found %d series for %s", len(serieslist), metric))
 		if err != nil {
 			return fmt.Errorf("couldn't retrieve series list for %s : %s", metric, err)
 		}
@@ -137,16 +136,13 @@ func (op *otsdbProcessor) run(silent bool) error {
 }
 
 func (op *otsdbProcessor) do(s queryObj) error {
-	//log.Println(fmt.Sprintf("Query start position (%s), This chunk will query %s to %s", s.StartTime, s.Tr.Start, s.Tr.End))
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end)
 	if err != nil {
 		return fmt.Errorf("failed to collect data for %v in %v:%v :: %v", s.Series, s.Rt, s.Tr, err)
 	}
-	//log.Println(fmt.Sprintf("Found %d points for %v", len(data.Timestamps), s.Series))
 	if len(data.Timestamps) < 1 || len(data.Values) < 1 {
-		//log.Println(fmt.Sprintf("Didn't find any values for %v", s.Series))
 		return nil
 	}
 	labels := make([]vm.LabelPair, len(data.Tags))

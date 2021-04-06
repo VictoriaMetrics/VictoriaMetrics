@@ -175,7 +175,6 @@ var (
 // FindMetrics discovers all metrics that OpenTSDB knows about (given a filter)
 // e.g. /api/suggest?type=metrics&q=system&max=100000
 func (c Client) FindMetrics(q string) ([]string, error) {
-	//log.Println(q)
 	resp, err := http.Get(q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request to %q: %s", q, err)
@@ -253,7 +252,6 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to marshal query JSON %s", err)
 	}
-	//log.Println(fmt.Sprintf("Query: %q", string(inputData)))
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
@@ -267,18 +265,15 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	if err != nil {
 		return Metric{}, fmt.Errorf("could not retrieve series data from %q: %s", q, err)
 	}
-	// log.Println(fmt.Sprintf("Initial Output: %v", string(body)))
 	var output ExpressionOutput
 	err = json.Unmarshal(body, &output)
 	if err != nil {
-		// log.Println("Incoming data: ", string(body))
 		return Metric{}, fmt.Errorf("failed to unmarshal response from %q: %s", q, err)
 	}
 	if len(output.Outputs) < 1 {
 		// no results returned...return an empty object without error
 		return Metric{}, nil
 	}
-	// log.Println("De-serialized: ", output)
 	data := Metric{}
 	data.Metric = series.Metric
 	data.Tags = series.Tags
