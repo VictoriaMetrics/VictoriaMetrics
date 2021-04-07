@@ -1,10 +1,14 @@
-## vmalert
+---
+sort: 3
+---
+
+# vmalert
 
 `vmalert` executes a list of given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 rules against configured address.
 
-### Features:
+## Features
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
 * VictoriaMetrics [MetricsQL](https://victoriametrics.github.io/MetricsQL.html)
  support and expressions validation;
@@ -15,7 +19,7 @@ rules against configured address.
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite) for details.
 * Lightweight without extra dependencies.
 
-### Limitations:
+## Limitations
 * `vmalert` execute queries against remote datasource which has reliability risks because of network.
 It is recommended to configure alerts thresholds and rules expressions with understanding that network request
 may fail;
@@ -24,7 +28,7 @@ storage is asynchronous. Hence, user shouldn't rely on recording rules chaining 
 recording rule is reused in next one;
 * `vmalert` has no UI, just an API for getting groups and rules statuses.
 
-### QuickStart
+## QuickStart
 
 To build `vmalert` from sources:
 ```
@@ -67,7 +71,7 @@ groups:
   [ - <rule_group> ]
 ```
 
-#### Groups
+### Groups
 
 Each group has following attributes:
 ```yaml
@@ -89,7 +93,7 @@ rules:
   [ - <rule> ... ]
 ```
 
-#### Rules
+### Rules
 
 There are two types of Rules:
 * [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
@@ -102,7 +106,7 @@ and save their result as a new set of time series.
 `vmalert` forbids to define duplicates - rules with the same combination of name, expression and labels
 within one group.
 
-##### Alerting rules
+#### Alerting rules
 
 The syntax for alerting rule is following:
 ```yaml
@@ -131,7 +135,7 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
-##### Recording rules
+#### Recording rules
 
 The syntax for recording rules is following:
 ```yaml
@@ -155,7 +159,7 @@ labels:
 For recording rules to work `-remoteWrite.url` must specified.
 
 
-#### Alerts state on restarts
+### Alerts state on restarts
 
 `vmalert` has no local storage, so alerts state is stored in the process memory. Hence, after reloading of `vmalert`
 the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
@@ -171,7 +175,7 @@ in configured `-remoteRead.url`, weren't updated in the last `1h` or received st
 rules configuration.
 
 
-#### WEB
+### WEB
 
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 * `http://<vmalert-addr>/api/v1/groups` - list of all loaded groups and rules;
@@ -182,7 +186,7 @@ Used as alert source in AlertManager.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
 
 
-### Graphite
+## Graphite
 
 vmalert sends requests to `<-datasource.url>/render?format=json` during evaluation of alerting and recording rules
 if the corresponding group or rule contains `type: "graphite"` config option. It is expected that the `<-datasource.url>/render`
@@ -191,7 +195,7 @@ When using vmalert with both `graphite` and `prometheus` rules configured agains
 to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on query type.
 
 
-### Configuration
+## Configuration
 
 The shortlist of configuration flags is the following:
 ```
@@ -375,43 +379,43 @@ command-line flags with their descriptions.
 To reload configuration without `vmalert` restart send SIGHUP signal
 or send GET request to `/-/reload` endpoint.
 
-### Contributing
+## Contributing
 
 `vmalert` is mostly designed and built by VictoriaMetrics community.
 Feel free to share your experience and ideas for improving this
 software. Please keep simplicity as the main priority.
 
-### How to build from sources
+## How to build from sources
 
 It is recommended using
 [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 - `vmalert` is located in `vmutils-*` archives there.
 
 
-#### Development build
+### Development build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
 2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
-#### Production build
+### Production build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmalert-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-prod` binary and puts it into the `bin` folder.
 
 
-#### ARM build
+### ARM build
 
 ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://blog.cloudflare.com/arm-takes-wing/).
 
-#### Development ARM build
+### Development ARM build
 
 1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.15.
 2. Run `make vmalert-arm` or `make vmalert-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-arm` or `vmalert-arm64` binary respectively and puts it into the `bin` folder.
 
-#### Production ARM build
+### Production ARM build
 
 1. [Install docker](https://docs.docker.com/install/).
 2. Run `make vmalert-arm-prod` or `make vmalert-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
