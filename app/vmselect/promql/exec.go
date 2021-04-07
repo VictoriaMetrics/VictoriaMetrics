@@ -85,21 +85,22 @@ func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result,
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
-	fe, ok := e.(*metricsql.FuncExpr)
-	if !ok {
-		return true
+	switch v := e.(type) {
+	case *metricsql.FuncExpr:
+		switch strings.ToLower(v.Name) {
+		case "sort", "sort_desc",
+			"sort_by_label", "sort_by_label_desc":
+			return false
+		}
+	case *metricsql.AggrFuncExpr:
+		switch strings.ToLower(v.Name) {
+		case "topk", "bottomk", "outliersk",
+			"topk_max", "topk_min", "topk_avg", "topk_median",
+			"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median":
+			return false
+		}
 	}
-	switch fe.Name {
-	case "sort", "sort_desc",
-		"sort_by_label", "sort_by_label_desc",
-		"topk", "bottomk",
-		"topk_max", "topk_min", "topk_avg", "topk_median",
-		"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median",
-		"outliersk":
-		return false
-	default:
-		return true
-	}
+	return true
 }
 
 func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, error) {
