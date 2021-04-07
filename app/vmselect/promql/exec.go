@@ -91,7 +91,11 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 	}
 	switch fe.Name {
 	case "sort", "sort_desc",
-		"sort_by_label", "sort_by_label_desc":
+		"sort_by_label", "sort_by_label_desc",
+		"topk", "bottomk",
+		"topk_max", "topk_min", "topk_avg", "topk_median",
+		"bottomk_max", "bottomk_min", "bottomk_avg", "bottomk_median",
+		"outliersk":
 		return false
 	default:
 		return true
