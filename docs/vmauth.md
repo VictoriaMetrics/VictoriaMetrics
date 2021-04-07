@@ -1,4 +1,8 @@
-## vmauth
+---
+sort: 4
+---
+
+# vmauth
 
 `vmauth` is a simple auth proxy and router for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).
 It reads username and password from [Basic Auth headers](https://en.wikipedia.org/wiki/Basic_access_authentication),
