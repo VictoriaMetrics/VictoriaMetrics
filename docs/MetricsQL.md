@@ -1,3 +1,7 @@
+---
+sort: 11
+---
+
 # MetricsQL
 
 VictoriaMetrics implements MetricsQL - query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).

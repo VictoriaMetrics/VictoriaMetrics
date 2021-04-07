@@ -1,3 +1,7 @@
+---
+sort: 10
+---
+
 # Quick Start
 
 1. If you run Ubuntu please run the `snap install victoriametrics` command to install and start VictoriaMetrics. Then read [these docs](https://snapcraft.io/victoriametrics).

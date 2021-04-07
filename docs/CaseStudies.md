@@ -1,3 +1,7 @@
+---
+sort: 17
+---
+
 # Case studies and talks
 
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](http://slack.victoriametrics.com/)

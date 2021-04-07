@@ -1,4 +1,4 @@
-## vmbackup
+# vmbackup
 
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://victoriametrics.github.io/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 

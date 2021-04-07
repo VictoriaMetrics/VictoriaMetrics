@@ -155,12 +155,19 @@ golangci-lint: install-golangci-lint
 install-golangci-lint:
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.29.0
 
+copy-docs:
+	echo "---\nsort: ${ORDER}\n---\n" > ${DST}
+	cat ${SRC} >> ${DST}
+
+# Copies docs for all components and adds the order tag.
+# Cluster docs are supposed to be ordered as 9th.
+# For The rest of docs is ordered manually.t
 docs-sync:
-	cp app/vmagent/README.md docs/vmagent.md
-	cp app/vmalert/README.md docs/vmalert.md
-	cp app/vmauth/README.md docs/vmauth.md
-	cp app/vmbackup/README.md docs/vmbackup.md
-	cp app/vmrestore/README.md docs/vmrestore.md
-	cp app/vmctl/README.md docs/vmctl.md
-	cp app/vmgateway/README.md docs/vmgateway.md
-	cp README.md docs/Cluster-VictoriaMetrics.md
+	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=2 $(MAKE) copy-docs
+	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=3 $(MAKE) copy-docs
+	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=4 $(MAKE) copy-docs
+	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=5 $(MAKE) copy-docs
+	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=6 $(MAKE) copy-docs
+	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=7 $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=8 $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/Cluster-VictoriaMetrics.md ORDER=9 $(MAKE) copy-docs

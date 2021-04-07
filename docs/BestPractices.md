@@ -1,3 +1,7 @@
+---
+sort: 12
+---
+
 # VM best practices 
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database. It can be used as a long-term, remote storage for Prometheus which allows it to gather metrics from different systems and store them in a single location or separate them for different purposes (short-, long-term, responsibility zones etc). 
