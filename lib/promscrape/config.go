@@ -795,12 +795,15 @@ func appendSortedKeyValuePairs(dst []byte, m map[string]string) []byte {
 var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
-	// Verify whether the scrape work must be skipped.
-	bb := scrapeWorkKeyBufPool.Get()
-	defer scrapeWorkKeyBufPool.Put(bb)
-	bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
-	if needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum) {
-		return nil, nil
+	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
+	if *clusterMembersCount > 1 {
+		bb := scrapeWorkKeyBufPool.Get()
+		bb.B = appendScrapeWorkKey(bb.B[:0], target, extraLabels, metaLabels)
+		needSkip := needSkipScrapeWork(bytesutil.ToUnsafeString(bb.B), *clusterMembersCount, *clusterReplicationFactor, *clusterMemberNum)
+		scrapeWorkKeyBufPool.Put(bb)
+		if needSkip {
+			return nil, nil
+		}
 	}
 
 	labels := mergeLabels(swc.jobName, swc.scheme, target, swc.metricsPath, extraLabels, swc.externalLabels, metaLabels, swc.params)
