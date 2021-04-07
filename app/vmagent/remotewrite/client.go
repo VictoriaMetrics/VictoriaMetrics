@@ -160,7 +160,7 @@ func getTLSConfig(argIdx int) (*tls.Config, error) {
 	if c.CAFile == "" && c.CertFile == "" && c.KeyFile == "" && c.ServerName == "" && !c.InsecureSkipVerify {
 		return nil, nil
 	}
-	cfg, err := promauth.NewConfig(".", nil, "", "", c)
+	cfg, err := promauth.NewConfig(".", nil, nil, "", "", c)
 	if err != nil {
 		return nil, fmt.Errorf("cannot populate TLS config: %w", err)
 	}

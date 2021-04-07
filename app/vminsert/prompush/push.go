@@ -62,6 +62,7 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 			// Skip metric without labels.
 			continue
 		}
+		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		for i := range ts.Samples {

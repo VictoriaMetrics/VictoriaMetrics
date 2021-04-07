@@ -618,7 +618,9 @@ func newAggrFuncTopK(isReverse bool) aggrFunc {
 				})
 				fillNaNsAtIdx(n, ks[n], tss)
 			}
-			return removeNaNs(tss)
+			tss = removeNaNs(tss)
+			reverseSeries(tss)
+			return tss
 		}
 		return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, true)
 	}
@@ -683,7 +685,17 @@ func getRangeTopKTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr,
 	if remainingSumTS != nil {
 		tss = append(tss, remainingSumTS)
 	}
-	return removeNaNs(tss)
+	tss = removeNaNs(tss)
+	reverseSeries(tss)
+	return tss
+}
+
+func reverseSeries(tss []*timeseries) {
+	j := len(tss)
+	for i := 0; i < len(tss)/2; i++ {
+		j--
+		tss[i], tss[j] = tss[j], tss[i]
+	}
 }
 
 func getRemainingSumTimeseries(tss []*timeseries, modifier *metricsql.ModifierExpr, ks []float64, remainingSumTagName string) *timeseries {
@@ -693,8 +705,14 @@ func getRemainingSumTimeseries(tss []*timeseries, modifier *metricsql.ModifierEx
 	var dst timeseries
 	dst.CopyFromShallowTimestamps(tss[0])
 	removeGroupTags(&dst.MetricName, modifier)
+	tagValue := remainingSumTagName
+	n := strings.IndexByte(remainingSumTagName, '=')
+	if n >= 0 {
+		tagValue = remainingSumTagName[n+1:]
+		remainingSumTagName = remainingSumTagName[:n]
+	}
 	dst.MetricName.RemoveTag(remainingSumTagName)
-	dst.MetricName.AddTag(remainingSumTagName, remainingSumTagName)
+	dst.MetricName.AddTag(remainingSumTagName, tagValue)
 	for i, k := range ks {
 		kn := getIntK(k, len(tss))
 		var sum float64

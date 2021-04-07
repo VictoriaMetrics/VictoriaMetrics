@@ -719,6 +719,9 @@ func (db *indexDB) SearchTagKeysOnTimeRange(tr TimeRange, maxTagKeys int, deadli
 func (is *indexSearch) searchTagKeysOnTimeRange(tks map[string]struct{}, tr TimeRange, maxTagKeys int) error {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+		return is.searchTagKeys(tks, maxTagKeys)
+	}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	var errGlobal error
@@ -914,6 +917,9 @@ func (db *indexDB) SearchTagValuesOnTimeRange(tagKey []byte, tr TimeRange, maxTa
 func (is *indexSearch) searchTagValuesOnTimeRange(tvs map[string]struct{}, tagKey []byte, tr TimeRange, maxTagValues int) error {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
+	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+		return is.searchTagValues(tvs, tagKey, maxTagValues)
+	}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	var errGlobal error
@@ -1126,7 +1132,7 @@ func (db *indexDB) SearchTagValueSuffixes(tr TimeRange, tagKey, tagValuePrefix [
 func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct{}, tr TimeRange, tagKey, tagValuePrefix []byte, delimiter byte, maxTagValueSuffixes int) error {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate-minDate > maxDaysForDateMetricIDs {
+	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 	// Query over multiple days in parallel.
@@ -2673,7 +2679,7 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*
 	atomic.AddUint64(&is.db.dateMetricIDsSearchCalls, 1)
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate-minDate > maxDaysForDateMetricIDs {
+	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		// Too much dates must be covered. Give up.
 		return nil, errMissingMetricIDsForDate
 	}
@@ -2722,17 +2728,13 @@ func (is *indexSearch) getMetricIDsForTimeRange(tr TimeRange, maxMetrics int) (*
 	return metricIDs, nil
 }
 
-const maxDaysForDateMetricIDs = 40
+const maxDaysForPerDaySearch = 40
 
 func (is *indexSearch) tryUpdatingMetricIDsForDateRange(metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
 	atomic.AddUint64(&is.db.dateRangeSearchCalls, 1)
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
-	if maxDate < minDate {
-		// Per-day inverted index doesn't cover the selected date range.
-		return fmt.Errorf("maxDate=%d cannot be smaller than minDate=%d", maxDate, minDate)
-	}
-	if maxDate-minDate > maxDaysForDateMetricIDs {
+	if minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
 		// Too much dates must be covered. Give up, since it may be slow.
 		return errFallbackToGlobalSearch
 	}

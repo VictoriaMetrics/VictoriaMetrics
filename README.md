@@ -1,3 +1,5 @@
+# VictoriaMetrics
+
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](http://slack.victoriametrics.com/)
@@ -6,9 +8,7 @@
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-![Victoria Metrics logo](logo.png "Victoria Metrics")
-
-## VictoriaMetrics
+<img src="logo.png" width="300" alt="Victoria Metrics logo">
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
@@ -117,6 +117,7 @@ Alphabetically sorted links to case studies:
 * [Prometheus querying API usage](#prometheus-querying-api-usage)
   * [Prometheus querying API enhancements](#prometheus-querying-api-enhancements)
 * [Graphite API usage](#graphite-api-usage)
+  * [Graphite Render API usage](#graphite-render-api-usage)
   * [Graphite Metrics API usage](#graphite-metrics-api-usage)
   * [Graphite Tags API usage](#graphite-tags-api-usage)
 * [How to build from sources](#how-to-build-from-sources)
@@ -1324,6 +1325,8 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 * It is recommended to use default command-line flag values (i.e. don't set them explicitly) until the need
   of tweaking these flag values arises.
 
+* It is recommended inspecting logs during troubleshooting, since they may contain useful information.
+
 * It is recommended upgrading to the latest available release from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
   since the encountered issue could be already fixed there.
 
@@ -1338,8 +1341,6 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
   if background merge cannot be initiated due to free disk space shortage. The value shows the number of per-month partitions,
   which would start background merge if they had more free disk space.
 
-* It is recommended inspecting logs during troubleshooting, since they may contain useful information.
-
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":
   * Data becomes available for querying in a few seconds after inserting. It is possible to flush in-memory buffers to persistent storage
@@ -1349,9 +1350,12 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many active time series for the current amount of RAM.
-  VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics, which could be used as an indicator of low amounts of RAM.
-  It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
+  VictoriaMetrics [exposes](#monitoring) `vm_slow_*` metrics such as `vm_slow_row_inserts_total` and `vm_slow_metric_name_loads_total`, which could be used
+  as an indicator of low amounts of RAM. It is recommended increasing the amount of RAM on the node with VictoriaMetrics in order to improve
   ingestion and query performance in this case.
+
+* If the order of labels for the same metrics can change over time (e.g. if `metric{k1="v1",k2="v2"}` may become `metric{k2="v2",k1="v1"}`),
+  then it is recommended running VictoriaMetrics with `-sortLabels` command-line flag in order to reduce memory usage and CPU usage.
 
 * VictoriaMetrics prioritizes data ingestion over data querying. So if it has no enough resources for data ingestion,
   then data querying may slow down significantly.
@@ -1758,6 +1762,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum time the request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -search.maxStalenessInterval duration
     	The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.maxLookback' flag, which has the same meaning due to historical reasons
+  -search.maxStatusRequestDuration duration
+    	The maximum duration for /api/v1/status/* requests (default 5m0s)
   -search.maxStepForPointsAdjustment duration
     	The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTagKeys int
@@ -1788,6 +1794,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
     	The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
     	authKey, which must be passed in query string to /snapshot* pages
+  -sortLabels
+    	Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storageDataPath string
     	Path to storage data (default "victoria-metrics-data")
   -tls

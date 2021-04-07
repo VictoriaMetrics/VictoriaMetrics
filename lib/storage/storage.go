@@ -1485,7 +1485,7 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 			continue
 		}
 		if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
-			// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
+			// Fast path - the TSID for the given MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
 			// contain MetricName->TSID entries for deleted time series.
 			// See Storage.DeleteMetrics code for details.
@@ -1533,15 +1533,6 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				r.TSID = prevTSID
 				continue
 			}
-			if s.getTSIDFromCache(&r.TSID, mr.MetricNameRaw) {
-				// Fast path - the TSID for the given MetricName has been found in cache and isn't deleted.
-				// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
-				// contain MetricName->TSID entries for deleted time series.
-				// See Storage.DeleteMetrics code for details.
-				prevTSID = r.TSID
-				prevMetricNameRaw = mr.MetricNameRaw
-				continue
-			}
 			slowInsertsCount++
 			if err := is.GetOrCreateTSIDByName(&r.TSID, pmr.MetricName); err != nil {
 				// Do not stop adding rows on error - just skip invalid row.
@@ -1554,6 +1545,8 @@ func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]ra
 				continue
 			}
 			s.putTSIDToCache(&r.TSID, mr.MetricNameRaw)
+			prevTSID = r.TSID
+			prevMetricNameRaw = mr.MetricNameRaw
 		}
 		idb.putIndexSearch(is)
 		putPendingMetricRows(pmrs)

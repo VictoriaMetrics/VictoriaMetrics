@@ -172,6 +172,11 @@ func getAPICredentials(cfg *apiConfig) (*apiCredentials, error) {
 		return getRoleWebIdentityCredentials(cfg.stsEndpoint, cfg.roleARN, string(token))
 	}
 
+	if ecsMetaURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(ecsMetaURI) > 0 {
+		path := "http://169.254.170.2" + ecsMetaURI
+		return getECSRoleCredentialsByPath(path)
+	}
+
 	// we need instance credentials if dont have access keys
 	if len(acNew.AccessKeyID) == 0 && len(acNew.SecretAccessKey) == 0 {
 		ac, err := getInstanceRoleCredentials()
@@ -198,6 +203,22 @@ func getAPICredentials(cfg *apiConfig) (*apiCredentials, error) {
 			"directly at `ec2_sd_config` as `secret_key` or use instance iam role")
 	}
 	return acNew, nil
+}
+
+// getECSRoleCredentialsByPath makes request to ecs metadata service
+// and retrieves instances credentails
+// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
+func getECSRoleCredentialsByPath(path string) (*apiCredentials, error) {
+	client := discoveryutils.GetHTTPClient()
+	resp, err := client.Get(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get ECS instance role credentials: %w", err)
+	}
+	data, err := readResponseBody(resp, path)
+	if err != nil {
+		return nil, err
+	}
+	return parseMetadataSecurityCredentials(data)
 }
 
 // getInstanceRoleCredentials makes request to local ec2 instance metadata service

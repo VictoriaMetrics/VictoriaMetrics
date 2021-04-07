@@ -16,12 +16,10 @@ type SDConfig struct {
 	Port    int      `yaml:"port,omitempty"`
 	Filters []Filter `yaml:"filters,omitempty"`
 
-	ProxyURL  proxy.URL           `yaml:"proxy_url,omitempty"`
-	TLSConfig *promauth.TLSConfig `yaml:"tls_config,omitempty"`
+	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
+	ProxyURL          proxy.URL                  `yaml:"proxy_url,omitempty"`
+	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	// refresh_interval is obtained from `-promscrape.dockerswarmSDCheckInterval` command-line option
-	BasicAuth       *promauth.BasicAuthConfig `yaml:"basic_auth,omitempty"`
-	BearerToken     string                    `yaml:"bearer_token,omitempty"`
-	BearerTokenFile string                    `yaml:"bearer_token_file,omitempty"`
 }
 
 // Filter is a filter, which can be passed to SDConfig.

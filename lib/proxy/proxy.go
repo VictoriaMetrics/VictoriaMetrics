@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/fasthttp"
+	"golang.org/x/net/proxy"
 )
 
 // URL implements YAML.Marshaler and yaml.Unmarshaler interfaces for url.URL.
@@ -40,6 +41,16 @@ func (u *URL) URL() *url.URL {
 	return u.url
 }
 
+// IsHTTPOrHTTPS returns true if u is http or https
+func (u *URL) IsHTTPOrHTTPS() bool {
+	pu := u.URL()
+	if pu == nil {
+		return false
+	}
+	scheme := u.url.Scheme
+	return scheme == "http" || scheme == "https"
+}
+
 // String returns string representation of u.
 func (u *URL) String() string {
 	pu := u.URL()
@@ -47,6 +58,23 @@ func (u *URL) String() string {
 		return ""
 	}
 	return pu.String()
+}
+
+// GetAuthHeader returns Proxy-Authorization auth header for the given u and ac.
+func (u *URL) GetAuthHeader(ac *promauth.Config) string {
+	authHeader := ""
+	if ac != nil {
+		authHeader = ac.Authorization
+	}
+	if u == nil || u.url == nil {
+		return authHeader
+	}
+	pu := u.url
+	if pu.User != nil && len(pu.User.Username()) > 0 {
+		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
+		authHeader = "Basic " + userPasswordEncoded
+	}
+	return authHeader
 }
 
 // MarshalYAML implements yaml.Marshaler interface.
@@ -77,28 +105,26 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 		return defaultDialFunc, nil
 	}
 	pu := u.url
-	if pu.Scheme != "http" && pu.Scheme != "https" {
-		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http or https", pu.Scheme, pu.Redacted())
+	switch pu.Scheme {
+	case "http", "https", "socks5", "tls+socks5":
+	default:
+		return nil, fmt.Errorf("unknown scheme=%q for proxy_url=%q, must be http, https, socks5 or tls+socks5", pu.Scheme, pu.Redacted())
 	}
-	isTLS := pu.Scheme == "https"
+	isTLS := (pu.Scheme == "https" || pu.Scheme == "tls+socks5")
 	proxyAddr := addMissingPort(pu.Host, isTLS)
-	var authHeader string
-	if ac != nil {
-		authHeader = ac.Authorization
-	}
-	if pu.User != nil && len(pu.User.Username()) > 0 {
-		userPasswordEncoded := base64.StdEncoding.EncodeToString([]byte(pu.User.String()))
-		authHeader = "Basic " + userPasswordEncoded
-	}
-	if authHeader != "" {
-		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
-	}
 	var tlsCfg *tls.Config
 	if isTLS {
 		tlsCfg = ac.NewTLSConfig()
 		if !tlsCfg.InsecureSkipVerify && tlsCfg.ServerName == "" {
 			tlsCfg.ServerName = tlsServerName(proxyAddr)
 		}
+	}
+	if pu.Scheme == "socks5" || pu.Scheme == "tls+socks5" {
+		return socks5DialFunc(proxyAddr, pu, tlsCfg)
+	}
+	authHeader := u.GetAuthHeader(ac)
+	if authHeader != "" {
+		authHeader = "Proxy-Authorization: " + authHeader + "\r\n"
 	}
 	dialFunc := func(addr string) (net.Conn, error) {
 		proxyConn, err := defaultDialFunc(proxyAddr)
@@ -114,6 +140,33 @@ func (u *URL) NewDialFunc(ac *promauth.Config) (fasthttp.DialFunc, error) {
 			return nil, fmt.Errorf("error when sending CONNECT request to proxy %q: %w", pu.Redacted(), err)
 		}
 		return conn, nil
+	}
+	return dialFunc, nil
+}
+
+func socks5DialFunc(proxyAddr string, pu *url.URL, tlsCfg *tls.Config) (fasthttp.DialFunc, error) {
+	var sac *proxy.Auth
+	if pu.User != nil {
+		username := pu.User.Username()
+		password, _ := pu.User.Password()
+		sac = &proxy.Auth{
+			User:     username,
+			Password: password,
+		}
+	}
+	network := netutil.GetTCPNetwork()
+	var dialer proxy.Dialer = proxy.Direct
+	if tlsCfg != nil {
+		dialer = &tls.Dialer{
+			Config: tlsCfg,
+		}
+	}
+	d, err := proxy.SOCKS5(network, proxyAddr, sac, dialer)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create socks5 proxy for url: %s, err: %w", pu.Redacted(), err)
+	}
+	dialFunc := func(addr string) (net.Conn, error) {
+		return d.Dial(network, addr)
 	}
 	return dialFunc, nil
 }
@@ -159,7 +212,7 @@ func sendConnectRequest(proxyConn net.Conn, proxyAddr, dstAddr, authHeader strin
 		return nil, fmt.Errorf("cannot read CONNECT response for dstAddr=%q: %w", dstAddr, err)
 	}
 	if statusCode := res.Header.StatusCode(); statusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code received: %d; want: 200", statusCode)
+		return nil, fmt.Errorf("unexpected status code received: %d; want: 200; response body: %q", statusCode, res.Body())
 	}
 	return conn, nil
 }

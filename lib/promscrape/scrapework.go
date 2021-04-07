@@ -48,6 +48,9 @@ type ScrapeWork struct {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 	HonorTimestamps bool
 
+	// Whether to deny redirects during requests to scrape config.
+	DenyRedirects bool
+
 	// OriginalLabels contains original labels before relabeling.
 	//
 	// These labels are needed for relabeling troubleshooting at /targets page.
@@ -107,10 +110,10 @@ type ScrapeWork struct {
 // it can be used for comparing for equality for two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels.
-	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, Labels=%s, "+
+	key := fmt.Sprintf("ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
 		"ScrapeAlignInterval=%s, ScrapeOffset=%s",
-		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.LabelsString(),
+		sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
 		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
 		sw.ScrapeAlignInterval, sw.ScrapeOffset)

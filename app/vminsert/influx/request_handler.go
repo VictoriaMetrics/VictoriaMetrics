@@ -117,11 +117,13 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 					// Skip metric without labels.
 					continue
 				}
+				ic.SortLabelsIfNeeded()
 				if err := ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 			}
 		} else {
+			ic.SortLabelsIfNeeded()
 			ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 			labelsLen := len(ic.Labels)
 			for j := range r.Fields {

@@ -50,7 +50,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		token = ""
 	}
-	ac, err := promauth.NewConfig(baseDir, ba, token, "", sdc.TLSConfig)
+	ac, err := promauth.NewConfig(baseDir, nil, ba, token, "", sdc.TLSConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
@@ -65,7 +65,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		}
 		apiServer = scheme + "://" + apiServer
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL)
+	proxyAC, err := sdc.ProxyClientConfig.NewConfig(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
+	}
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}

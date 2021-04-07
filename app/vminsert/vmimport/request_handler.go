@@ -67,6 +67,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			// Skip metric without labels.
 			continue
 		}
+		ic.SortLabelsIfNeeded()
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		values := r.Values
 		timestamps := r.Timestamps

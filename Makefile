@@ -53,6 +53,14 @@ vmutils: \
 	vmrestore \
 	vmctl
 
+vmutils-pure: \
+	vmagent-pure \
+	vmalert-pure \
+	vmauth-pure \
+	vmbackup-pure \
+	vmrestore-pure \
+	vmctl-pure
+
 vmutils-arm64: \
 	vmagent-arm64 \
 	vmalert-arm64 \
@@ -103,7 +111,7 @@ release-victoria-metrics-generic: victoria-metrics-$(GOARCH)-prod
 			victoria-metrics-$(GOARCH)-prod \
 		&& sha256sum victoria-metrics-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)// > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
+			| sed s/-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils: \
 	release-vmutils-amd64 \
@@ -145,7 +153,7 @@ release-vmutils-generic: \
 			vmbackup-$(GOARCH)-prod \
 			vmrestore-$(GOARCH)-prod \
 			vmctl-$(GOARCH)-prod \
-			| sed s/-$(GOARCH)// > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
+			| sed s/-$(GOARCH)-prod/-prod/ > vmutils-$(GOARCH)-$(PKG_TAG)_checksums.txt
 
 release-vmutils-windows-generic: \
 	vmagent-windows-$(GOARCH)-prod \
@@ -254,11 +262,21 @@ golangci-lint: install-golangci-lint
 install-golangci-lint:
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.29.0
 
+copy-docs:
+	echo "---\nsort: ${ORDER}\n---\n" > ${DST}
+	cat ${SRC} >> ${DST}
+
+# Copies docs for all components and adds the order tag.
+# Cluster docs are supposed to be ordered as 9th.
+# For The rest of docs is ordered manually.t
 docs-sync:
-	cp app/vmagent/README.md docs/vmagent.md
-	cp app/vmalert/README.md docs/vmalert.md
-	cp app/vmauth/README.md docs/vmauth.md
-	cp app/vmbackup/README.md docs/vmbackup.md
-	cp app/vmrestore/README.md docs/vmrestore.md
-	cp app/vmctl/README.md docs/vmctl.md
-	cp README.md docs/Single-server-VictoriaMetrics.md
+	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md ORDER=1 $(MAKE) copy-docs
+	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=2 $(MAKE) copy-docs
+	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=3 $(MAKE) copy-docs
+	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=4 $(MAKE) copy-docs
+	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=5 $(MAKE) copy-docs
+	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=6 $(MAKE) copy-docs
+	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=7 $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=8 $(MAKE) copy-docs
+
+
