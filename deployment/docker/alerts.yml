@@ -3,6 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   - name: serviceHealth
+    # note the `job` filter and update accordingly to your setup
     rules:
       # note the `job` filter and update accordingly to your setup
       - alert: TooManyRestarts
@@ -13,6 +14,15 @@ groups:
           summary: "{{ $labels.job }} too many restarts (instance {{ $labels.instance }})"
           description: "Job {{ $labels.job }} has restarted more than twice in the last 15 minutes.
             It might be crashlooping."
+
+      - alert: ServiceDown
+        expr: up{job=~"victoriametrics|vmagent|vmalert"} == 0
+        for: 2m
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minutes."
 
   # Alerts group for VM single assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/10229 is installed.
@@ -44,6 +54,23 @@ groups:
             for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
+      - alert: DiskRunsOutOfSpace
+        expr: |
+          sum(vm_data_size_bytes) by(instance) /
+          (
+           sum(vm_free_disk_space_bytes) by(instance) +
+           sum(vm_data_size_bytes) by(instance)
+          ) > 0.8
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} will run out of disk space soon"
+          description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
+            Having less than 20% of free disk space could cripple merges processes and overall performance.
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+
       - alert: RequestErrorsToAPI
         expr: increase(vm_http_request_errors_total[5m]) > 0
         for: 15m
@@ -56,13 +83,13 @@ groups:
             Please verify if clients are sending correct requests."
 
       - alert: ConcurrentFlushesHitTheLimit
-        expr: vm_concurrent_addrows_current >= vm_concurrent_addrows_capacity
+        expr: avg_over_time(vm_concurrent_addrows_current[1m]) >= vm_concurrent_addrows_capacity
         for: 15m
         labels:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=59&var-instance={{ $labels.instance }}"
-          summary: "VictoriMetrics on instance {{ $labels.instance }} is constantly hitting concurrent flushes limit"
+          summary: "VictoriaMetrics on instance {{ $labels.instance }} is constantly hitting concurrent flushes limit"
           description: "The limit of concurrent flushes on instance {{ $labels.instance }} is equal to number of CPUs.\n
             When VictoriaMetrics constantly hits the limit it means that storage is overloaded and requires more CPU."
 
@@ -140,12 +167,13 @@ groups:
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series."
 
       - alert: ProcessNearFDLimits
-        expr: process_open_fds / process_max_fds > 0.8
-        for: 10m
+        expr: (process_max_fds - process_open_fds) < 100
+        for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "Number of free file descriptors is less than 20% for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 10m"
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=75&var-instance={{ $labels.instance }}"
+          summary: "Number of free file descriptors is less than 100 for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 5m"
           description: "Exhausting OS file descriptors limit can cause severe degradation of the process.
           Consider to increase the limit as fast as possible."
 
