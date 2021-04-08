@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -23,6 +24,38 @@ func main() {
 		Usage:   "Victoria metrics command-line tool",
 		Version: buildinfo.Version,
 		Commands: []*cli.Command{
+			{
+				Name:  "opentsdb",
+				Usage: "Migrate timeseries from OpenTSDB",
+				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
+				Action: func(c *cli.Context) error {
+					fmt.Println("OpenTSDB import mode")
+
+					oCfg := opentsdb.Config{
+						Addr:       c.String(otsdbAddr),
+						Limit:      c.Int(otsdbQueryLimit),
+						Offset:     c.Int64(otsdbOffsetDays),
+						HardTS:     c.Int64(otsdbHardTSStart),
+						Retentions: c.StringSlice(otsdbRetentions),
+						Filters:    c.StringSlice(otsdbFilters),
+						Normalize:  c.Bool(otsdbNormalize),
+						MsecsTime:  c.Bool(otsdbMsecsTime),
+					}
+					otsdbClient, err := opentsdb.NewClient(oCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create opentsdb client: %s", err)
+					}
+
+					vmCfg := initConfigVM(c)
+					importer, err := vm.NewImporter(vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
+					return otsdbProcessor.run(c.Bool(globalSilent))
+				},
+			},
 			{
 				Name:  "influx",
 				Usage: "Migrate timeseries from InfluxDB",
