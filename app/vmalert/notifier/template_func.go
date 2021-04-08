@@ -32,40 +32,44 @@ import (
 // for templating functions.
 type QueryFn func(query string) ([]datasource.Metric, error)
 
-func funcsWithQuery(query QueryFn) textTpl.FuncMap {
-	fm := make(textTpl.FuncMap)
-	for k, fn := range tmplFunc {
-		fm[k] = fn
-	}
-	fm["query"] = func(q string) ([]datasource.Metric, error) {
-		return query(q)
-	}
-	return fm
-}
-
 var tmplFunc textTpl.FuncMap
 
 // InitTemplateFunc initiates template helper functions
 func InitTemplateFunc(externalURL *url.URL) {
 	tmplFunc = textTpl.FuncMap{
-		"args": func(args ...interface{}) map[string]interface{} {
-			result := make(map[string]interface{})
-			for i, a := range args {
-				result[fmt.Sprintf("arg%d", i)] = a
-			}
-			return result
-		},
+		/* Strings */
+
+		// reReplaceAll ReplaceAllString returns a copy of src, replacing matches of the Regexp with
+		// the replacement string repl. Inside repl, $ signs are interpreted as in Expand,
+		// so for instance $1 represents the text of the first submatch.
+		// alias for https://golang.org/pkg/regexp/#Regexp.ReplaceAllString
 		"reReplaceAll": func(pattern, repl, text string) string {
 			re := regexp.MustCompile(pattern)
 			return re.ReplaceAllString(text, repl)
 		},
-		"safeHtml": func(text string) htmlTpl.HTML {
-			return htmlTpl.HTML(text)
-		},
-		"match":   regexp.MatchString,
-		"title":   strings.Title,
+
+		// match reports whether the string s
+		// contains any match of the regular expression pattern.
+		// alias for https://golang.org/pkg/regexp/#MatchString
+		"match": regexp.MatchString,
+
+		// title returns a copy of the string s with all Unicode letters
+		// that begin words mapped to their Unicode title case.
+		// alias for https://golang.org/pkg/strings/#Title
+		"title": strings.Title,
+
+		// toUpper returns s with all Unicode letters mapped to their upper case.
+		// alias for https://golang.org/pkg/strings/#ToUpper
 		"toUpper": strings.ToUpper,
+
+		// toLower returns s with all Unicode letters mapped to their lower case.
+		// alias for https://golang.org/pkg/strings/#ToLower
 		"toLower": strings.ToLower,
+
+		/* Numbers */
+
+		// humanize converts given number to a human readable format
+		// by adding metric prefixes https://en.wikipedia.org/wiki/Metric_prefix
 		"humanize": func(v float64) string {
 			if v == 0 || math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Sprintf("%.4g", v)
@@ -91,6 +95,8 @@ func InitTemplateFunc(externalURL *url.URL) {
 			}
 			return fmt.Sprintf("%.4g%s", v, prefix)
 		},
+
+		// humanize1024 converts given number to a human readable format with 1024 as base
 		"humanize1024": func(v float64) string {
 			if math.Abs(v) <= 1 || math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Sprintf("%.4g", v)
@@ -105,6 +111,8 @@ func InitTemplateFunc(externalURL *url.URL) {
 			}
 			return fmt.Sprintf("%.4g%s", v, prefix)
 		},
+
+		// humanizeDuration converts given seconds to a human readable duration
 		"humanizeDuration": func(v float64) string {
 			if math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Sprintf("%.4g", v)
@@ -145,9 +153,13 @@ func InitTemplateFunc(externalURL *url.URL) {
 			}
 			return fmt.Sprintf("%.4g%ss", v, prefix)
 		},
+
+		// humanizePercentage converts given ratio value to a fraction of 100
 		"humanizePercentage": func(v float64) string {
 			return fmt.Sprintf("%.4g%%", v*100)
 		},
+
+		// humanizeTimestamp converts given timestamp to a human readable time equivalent
 		"humanizeTimestamp": func(v float64) string {
 			if math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Sprintf("%.4g", v)
@@ -155,46 +167,109 @@ func InitTemplateFunc(externalURL *url.URL) {
 			t := TimeFromUnixNano(int64(v * 1e9)).Time().UTC()
 			return fmt.Sprint(t)
 		},
-		"pathPrefix": func() string {
-			return externalURL.Path
-		},
+
+		/* URLs */
+
+		// externalURL returns value of `external.url` flag
 		"externalURL": func() string {
 			return externalURL.String()
 		},
+
+		// pathPrefix returns a Path segment from the URL value in `external.url` flag
+		"pathPrefix": func() string {
+			return externalURL.Path
+		},
+
+		// pathEscape escapes the string so it can be safely placed inside a URL path segment,
+		// replacing special characters (including /) with %XX sequences as needed.
+		// alias for https://golang.org/pkg/net/url/#PathEscape
 		"pathEscape": func(u string) string {
 			return url.PathEscape(u)
 		},
+
+		// queryEscape escapes the string so it can be safely placed
+		// inside a URL query.
+		// alias for https://golang.org/pkg/net/url/#QueryEscape
 		"queryEscape": func(q string) string {
 			return url.QueryEscape(q)
 		},
+
+		// crlfEscape replaces new line chars to skip URL encoding.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890
 		"crlfEscape": func(q string) string {
 			q = strings.Replace(q, "\n", `\n`, -1)
 			return strings.Replace(q, "\r", `\r`, -1)
 		},
+
+		// quotesEscape escapes quote char
 		"quotesEscape": func(q string) string {
 			return strings.Replace(q, `"`, `\"`, -1)
 		},
-		// query function supposed to be substituted at funcsWithQuery().
-		// it is present here only for validation purposes, when there is no
-		// provided datasource.
+
+		// query executes the MetricsQL/PromQL query against
+		// configured `datasource.url` address.
+		// For example, {{ query "foo" | first | value }} will
+		// execute "/api/v1/query?query=foo" request and will return
+		// the first value in response.
 		"query": func(q string) ([]datasource.Metric, error) {
+			// query function supposed to be substituted at funcsWithQuery().
+			// it is present here only for validation purposes, when there is no
+			// provided datasource.
+			//
 			// return non-empty slice to pass validation with chained functions in template
 			// see issue #989 for details
 			return []datasource.Metric{{}}, nil
 		},
+
+		// first returns the first by order element from the given metrics list.
+		// usually used alongside with `query` template function.
 		"first": func(metrics []datasource.Metric) (datasource.Metric, error) {
 			if len(metrics) > 0 {
 				return metrics[0], nil
 			}
 			return datasource.Metric{}, errors.New("first() called on vector with no elements")
 		},
+
+		// label returns the value of the given label name for the given metric.
+		// usually used alongside with `query` template function.
 		"label": func(label string, m datasource.Metric) string {
 			return m.Label(label)
 		},
+
+		// value returns the value of the given metric.
+		// usually used alongside with `query` template function.
 		"value": func(m datasource.Metric) float64 {
 			return m.Value
 		},
+
+		/* Helpers */
+
+		// Converts a list of objects to a map with keys arg0, arg1 etc.
+		// This is intended to allow multiple arguments to be passed to templates.
+		"args": func(args ...interface{}) map[string]interface{} {
+			result := make(map[string]interface{})
+			for i, a := range args {
+				result[fmt.Sprintf("arg%d", i)] = a
+			}
+			return result
+		},
+
+		// safeHtml marks string as HTML not requiring auto-escaping.
+		"safeHtml": func(text string) htmlTpl.HTML {
+			return htmlTpl.HTML(text)
+		},
 	}
+}
+
+func funcsWithQuery(query QueryFn) textTpl.FuncMap {
+	fm := make(textTpl.FuncMap)
+	for k, fn := range tmplFunc {
+		fm[k] = fn
+	}
+	fm["query"] = func(q string) ([]datasource.Metric, error) {
+		return query(q)
+	}
+	return fm
 }
 
 // Time is the number of milliseconds since the epoch
