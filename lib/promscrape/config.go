@@ -130,16 +130,16 @@ type ScrapeConfig struct {
 }
 
 func (sc *ScrapeConfig) mustStart(baseDir string) {
-	for i := range sc.KubernetesSDConfigs {
-		swosFunc := func(metaLabels map[string]string) interface{} {
-			target := metaLabels["__address__"]
-			sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
-			if err != nil {
-				logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
-				return nil
-			}
-			return sw
+	swosFunc := func(metaLabels map[string]string) interface{} {
+		target := metaLabels["__address__"]
+		sw, err := sc.swc.getScrapeWork(target, nil, metaLabels)
+		if err != nil {
+			logger.Errorf("cannot create kubernetes_sd_config target %q for job_name %q: %s", target, sc.swc.jobName, err)
+			return nil
 		}
+		return sw
+	}
+	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStart(baseDir, swosFunc)
 	}
 }
