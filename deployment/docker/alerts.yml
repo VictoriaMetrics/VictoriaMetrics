@@ -3,6 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   - name: serviceHealth
+    # note the `job` filter and update accordingly to your setup
     rules:
       # note the `job` filter and update accordingly to your setup
       - alert: TooManyRestarts
@@ -13,6 +14,15 @@ groups:
           summary: "{{ $labels.job }} too many restarts (instance {{ $labels.instance }})"
           description: "Job {{ $labels.job }} has restarted more than twice in the last 15 minutes.
             It might be crashlooping."
+
+      - alert: ServiceDown
+        expr: up{job=~"victoriametrics|vmagent|vmalert"} == 0
+        for: 2m
+        labels:
+          severity: "critical"
+        annotations:
+          summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 2 minutes."
 
   # Alerts group for VM single assumes that Grafana dashboard
   # https://grafana.com/grafana/dashboards/10229 is installed.
