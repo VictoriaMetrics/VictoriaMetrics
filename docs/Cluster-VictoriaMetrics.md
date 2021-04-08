@@ -1,3 +1,7 @@
+---
+sort: 9
+---
+
 # Cluster version
 
 <img alt="Victoria Metrics" src="logo.png">

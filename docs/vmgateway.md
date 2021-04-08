@@ -1,4 +1,8 @@
-## vmgateway
+---
+sort: 8
+---
+
+# vmgateway
 
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
@@ -15,7 +19,7 @@
 `vmgateway` is included in an [enterprise package](https://victoriametrics.com/enterprise.html).
 
 
-### Access Control
+## Access Control
 
 <img alt="vmgateway-ac" src="vmgateway-access-control.jpg">
 
@@ -45,7 +49,7 @@ Where:
 - `extra_labels` - optional, key-value pairs for label filters - added to ingested or selected metrics.
 - `mode` - optional, access mode for api - read, write, full. supported values: 0 - full (default value), 1 - read, 2 - write.
 
-#### QuickStart
+## QuickStart
 
 Start single version of Victoria Metrics
 
@@ -74,7 +78,7 @@ curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer incor
 ```
 
 
-### Rate Limiter
+## Rate Limiter
 
 <img alt="vmgateway-rl" src="vmgateway-rate-limiting.jpg">
 
@@ -112,7 +116,7 @@ limits:
     account_id: 1
 ```
 
-#### QuickStart
+## QuickStart
 
  cluster version required for rate limiting.
 ```bash
@@ -162,7 +166,7 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 # check rate limit 
 ```
 
-### Configuration
+## Configuration
 
 The shortlist of configuration flags is the following:
 ```bash
@@ -269,7 +273,7 @@ The shortlist of configuration flags is the following:
 
 ```
 
-### TroubleShooting
+## TroubleShooting
 
 * Access control:
   * incorrect `jwt` format, try https://jwt.io/#debugger-io with our tokens
@@ -278,7 +282,7 @@ The shortlist of configuration flags is the following:
   * `scrape_interval` at datasource, reduce it to apply limits faster.
 
 
-### Limitations
+## Limitations
 
 * Access Control:
   * `jwt` token must be validated by external system, currently `vmgateway` can't validate the signature.

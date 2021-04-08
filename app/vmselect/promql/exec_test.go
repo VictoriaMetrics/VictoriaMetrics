@@ -4756,24 +4756,24 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`topk(1)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(topk(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
+		q := `topk(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
 		r1 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{10, 10, 10, nan, nan, nan},
-			Timestamps: timestampsExpected,
-		}
-		r1.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("foo"),
-			Value: []byte("bar"),
-		}}
-		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{nan, nan, nan, 10.666666666666666, 12, 13.333333333333334},
 			Timestamps: timestampsExpected,
 		}
-		r2.MetricName.Tags = []storage.Tag{{
+		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("baz"),
 			Value: []byte("sss"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
@@ -5047,24 +5047,24 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`bottomk(1)`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort(bottomk(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
+		q := `bottomk(1, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss"))`
 		r1 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{6.666666666666667, 8, 9.333333333333334, nan, nan, nan},
-			Timestamps: timestampsExpected,
-		}
-		r1.MetricName.Tags = []storage.Tag{{
-			Key:   []byte("baz"),
-			Value: []byte("sss"),
-		}}
-		r2 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{nan, nan, nan, 10, 10, 10},
 			Timestamps: timestampsExpected,
 		}
-		r2.MetricName.Tags = []storage.Tag{{
+		r1.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("bar"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6.666666666666667, 8, 9.333333333333334, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("baz"),
+			Value: []byte("sss"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)

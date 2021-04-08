@@ -1,3 +1,7 @@
+---
+sort: 18
+---
+
 # FAQ
 
 ### What is the main purpose of VictoriaMetrics?

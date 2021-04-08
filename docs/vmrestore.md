@@ -1,4 +1,8 @@
-## vmrestore
+---
+sort: 6
+---
+
+# vmrestore
 
 `vmrestore` restores data from backups created by [vmbackup](https://victoriametrics.github.io/vbackup.html).
 VictoriaMetrics `v1.29.0` and newer versions must be used for working with the restored data.

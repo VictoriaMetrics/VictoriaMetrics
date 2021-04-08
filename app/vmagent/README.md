@@ -1,4 +1,4 @@
-## vmagent
+# vmagent
 
 `vmagent` is a tiny but mighty agent which helps you collect metrics from various sources
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
