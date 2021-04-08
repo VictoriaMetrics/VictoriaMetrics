@@ -168,6 +168,9 @@ or Prometheus to scrape `/metrics` pages from all the cluster components, so the
 with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831).
 
+It is recommended setting up alerts in [vmalert](https://victoriametrics.github.io/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
+
+
 
 ## URL format
 
