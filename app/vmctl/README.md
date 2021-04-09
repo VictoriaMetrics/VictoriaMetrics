@@ -15,6 +15,8 @@ Features:
 * [Articles](#articles)
 * [How to build](#how-to-build)
 * [Migrating data from OpenTSDB](#migrating-data-from-opentsdb)
+   * [Retention Strings](#retention-strings)
+   * [Restarting OpenTSDB Migrations](#restarting-opentsdb-migrations)
 * [Migrating data from InfluxDB 1.x](#migrating-data-from-influxdb-1x)
    * [Data mapping](#data-mapping)
    * [Configuration](#configuration)
@@ -113,9 +115,52 @@ OpenTSDB migration works like so:
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
-### How to "chunk" OpenTSDB data
 
-To properly collect data from OpenTSDB, we have to define retention strings for the data to be consumed. If, for example, we provided the retention string `sum-1m-avg:1h:30d` that would translate into a series of queries to OpenTSDB similar to:
+### Retention strings
+
+Starting with a relatively simple retention string (`sum-1m-avg:1h:30d`), let's describe how this is converted into actual queries.
+
+There are two essential parts of a retention string:
+1. [aggregation](#aggregation)
+2. [windows/time ranges](#windows)
+
+#### Aggregation
+
+Retention strings essentially define the two levels of aggregation for our collected series.
+
+`sum-1m-avg` would become:
+* First order: `sum`
+* Second order: `1m-avg-none`
+
+##### First Order Aggregations
+
+First-order aggregation addresses how to aggregate any un-mentioned tags.
+
+This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
+
+It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
+
+##### Second Order Aggregations
+
+Second-order aggregation (`1m-avg` in our example) defines any windowing that should occur before returning the data
+
+It is recommended to match the stat collection interval so we again avoid transforming incoming data.
+
+We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggreagtion, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
+
+#### Windows
+
+There are two important windows we define in a retention string:
+1. the "chunk" range of each query
+2. The time range we will be querying on with that "chunk"
+
+##### Window "chunks"
+
+In our example
+
+#### Results of retention string
+
+The 
 ```
 http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:<series>
 http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:<series>
@@ -124,21 +169,6 @@ http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series
 http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<series>
 ```
 Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
-
-### Retention strings
-
-Retention strings essentially define the two levels of aggregation for our collected series.
-
-In our above example, `sum-1m-avg` would become:
-* First order: `sum`
-* Second order: `1m-avg-none`
-
-1. First-order aggregation addresses how to aggregate any un-mentioned tags.
-  * This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
-  * It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
-2. Second-order aggregation (`1m-avg` in our example) defines any windowing that should occur before returning the data
-  * It is recommended to match the stat collection interval so we again avoid transforming incoming data.
-  * We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggreagtion, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
 
 ### Restarting OpenTSDB migrations
 
