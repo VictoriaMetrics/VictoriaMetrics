@@ -123,12 +123,18 @@ http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series
 ...
 http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<series>
 ```
-
 Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
 
-These retention strings essentially define the two levels of aggregation for our collected series. It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
+### Retention strings
 
-The second order aggregation (`1m-avg` in our example) should (ideally) match the stat collection interval so we again avoid transforming incoming data.
+Retention strings essentially define the two levels of aggregation for our collected series.
+
+1. First-order aggregation addresses how to aggregate any un-mentioned tags.
+  * This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
+  * It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
+2. Second-order aggregation (`1m-avg` in our example) defines any windowing that should occur before returning the data
+  * It is recommended to match the stat collection interval so we again avoid transforming incoming data.
+  * We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggreagtion, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
 
 ### Restarting OpenTSDB migrations
 
