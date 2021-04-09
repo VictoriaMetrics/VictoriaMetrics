@@ -46,7 +46,7 @@ type Client struct {
 	Retentions []Retention
 	Filters    []string
 	Normalize  bool
-	HardTS	   int64
+	HardTS     int64
 }
 
 // Config contains fields required
