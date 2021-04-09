@@ -129,6 +129,10 @@ Chunking the data like this means each individual query returns faster, so we ca
 
 Retention strings essentially define the two levels of aggregation for our collected series.
 
+In our above example, `sum-1m-avg` would become:
+* First order: `sum`
+* Second order: `1m-avg-none`
+
 1. First-order aggregation addresses how to aggregate any un-mentioned tags.
   * This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
   * It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
