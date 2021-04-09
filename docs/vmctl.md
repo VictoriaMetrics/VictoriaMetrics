@@ -11,6 +11,7 @@ Features:
 - [x] Thanos: migrate data from Thanos to VictoriaMetrics
 - [ ] ~~Prometheus: migrate data from Prometheus to VictoriaMetrics by query~~(discarded)
 - [x] InfluxDB: migrate data from InfluxDB to VictoriaMetrics
+- [x] OpenTSDB: migrate data from OpenTSDB to VictoriaMetrics
 - [ ] Storage Management: data re-balancing between nodes 
 
 ## Articles
@@ -64,6 +65,33 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 2. Run `make vmctl-arm-prod` or `make vmctl-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-arm-prod` or `vmctl-arm64-prod` binary respectively and puts it into the `bin` folder.
 
+## Migrating data from OpenTSDB
+
+`vmctl` supports the `opentsdb` mode to migrate data from OpenTSDB to VictoriaMetrics time-series database.
+
+See `./vmctl opentsdb --help` for details and full list of flags.
+
+*OpenTSDB migration is not possible without a functioning [meta](http://opentsdb.net/docs/build/html/user_guide/metadata.html) table to search for metrics/series.*
+
+OpenTSDB migration works like so:
+
+1. Find metrics based on selected filters (or the default filter set ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'])
+  * e.g. `curl -Ss "http://opentsdb:4242/api/suggest?type=metrics&q=sys"`
+2. Find series associated with each returned metric
+  * e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
+3. Download data for each series in chunks defined in the CLI switches
+  * e.g. `-retention=sum-1m-avg:1h:90d` ==
+    * `curl -Ss "http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+    * `curl -Ss "http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+    * `curl -Ss "http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+    * ...
+    * `curl -Ss "http://opentsdb:4242/api/query?start=2160h-ago&end=2159h-ago&m=sum:1m-avg-none:system.load5\{host=host1\}"`
+
+This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
+
+### Restarting OpenTSDB migrations
+
+One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timstamp we started collecting data from at thebeginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
 
 ## Migrating data from InfluxDB (1.x)
 

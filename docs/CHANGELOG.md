@@ -6,6 +6,8 @@ sort: 13
 
 ## tip
 
+* FEATURE: add OpenTSDB migration option to vmctl. See more details [here](https://victoriametrics.github.io/vmctl#migrating-data-from-opentsdb).
+Thanks to @johnseekins!
 
 ## [v1.58.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.58.0)
 
