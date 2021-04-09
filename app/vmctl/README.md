@@ -115,6 +115,15 @@ OpenTSDB migration works like so:
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
+```
+$ bin/vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria/
+OpenTSDB import mode
+2021/04/09 11:52:50 Will collect data starting at TS 1617990770
+2021/04/09 11:52:50 Loading all metrics from OpenTSDB for filters:  [system]
+Found 9 metrics to import. Continue? [Y/n] 
+2021/04/09 11:52:51 Starting work on system.load1
+23 / 402200 [>____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________] 0.01% 2 p/s
+```
 
 ### Retention strings
 

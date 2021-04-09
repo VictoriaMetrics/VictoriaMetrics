@@ -46,6 +46,7 @@ type Client struct {
 	Retentions []Retention
 	Filters    []string
 	Normalize  bool
+	HardTS	   int64
 }
 
 // Config contains fields required
@@ -252,6 +253,7 @@ func (c Client) GetData(series Meta, rt RetentionMeta, start int64, end int64) (
 	if err != nil {
 		return Metric{}, fmt.Errorf("failed to marshal query JSON %s", err)
 	}
+
 	q := fmt.Sprintf("%s/api/query/exp", c.Addr)
 	resp, err := http.Post(q, "application/json", bytes.NewBuffer(inputData))
 	if err != nil {
@@ -312,11 +314,10 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 	if cfg.HardTS > 0 {
 		/*
-			"Hard" offsets are specific timestamps, rather than
-			a relative number of days. To use them effectively
-			we should subtract them from our default offset (Now)
+			HardTS is a specific timestamp we'll be starting at.
+			Just present that if it is defined
 		*/
-		offsetPrint = offsetPrint - cfg.HardTS
+		offsetPrint = cfg.HardTS
 	} else if cfg.Offset > 0 {
 		/*
 			Our "offset" is the number of days we should step
@@ -330,7 +331,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 	log.Println(fmt.Sprintf("Will collect data starting at TS %v", offsetPrint))
 	for _, r := range cfg.Retentions {
-		ret, err := convertRetention(r, offsetPrint, cfg.MsecsTime)
+		ret, err := convertRetention(r, cfg.Offset, cfg.MsecsTime)
 		if err != nil {
 			return &Client{}, fmt.Errorf("Couldn't parse retention %q :: %v", r, err)
 		}
@@ -342,6 +343,7 @@ func NewClient(cfg Config) (*Client, error) {
 		Limit:      cfg.Limit,
 		Filters:    cfg.Filters,
 		Normalize:  cfg.Normalize,
+		HardTS:     cfg.HardTS,
 	}
 	return client, nil
 }

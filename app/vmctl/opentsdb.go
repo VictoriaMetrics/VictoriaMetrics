@@ -55,7 +55,12 @@ func (op *otsdbProcessor) run(silent bool) error {
 		return nil
 	}
 	op.im.ResetStats()
-	startTime := time.Now().Unix()
+	var startTime int64
+	if op.oc.HardTS != 0 {
+		startTime = op.oc.HardTS
+	} else {
+		startTime = time.Now().Unix()
+	}
 	queryRanges := 0
 	// pre-calculate the number of query ranges we'll be processing
 	for _, rt := range op.oc.Retentions {
