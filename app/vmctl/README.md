@@ -154,13 +154,26 @@ There are two important windows we define in a retention string:
 1. the "chunk" range of each query
 2. The time range we will be querying on with that "chunk"
 
+From our example, our windows are `1h:30d`.
+
 ##### Window "chunks"
 
-In our example
+The window `1h` means that each individual query to OpenTSDB should only span 1 hour of time (e.g. `start=2h-ago&end=1h-ago`).
+
+It is important to ensure this window somewhat matches the row size in HBase to help improve query times.
+
+For example, if the query is hitting a rollup table with a 4 hour row size, we should set a chunk size of a multiple of 4 hours (e.g. `4h`, `8h`, etc.) to avoid requesting data across row boundaries. Landing on row boundaries allows for more consistent request times to HBase.
+
+The default table created in HBase for OpenTSDB has a 1 hour row size, so if you aren't sure on a correct row size to use, `1h` is a reasonable choice.
+
+##### Time range
+
+The time range `30d` simply means we are asking for the last 30 days of data. This time range can be written using `h`, `d`, `w`, or `y`. (We can't use `m` for month because it already means `minute` in time parsing).
 
 #### Results of retention string
 
-The 
+The resultant queries that will be created, based on our example retention string of `sum-1m-avg:1h:30d` look like this:
+
 ```
 http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:<series>
 http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:<series>
@@ -168,6 +181,7 @@ http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series
 ...
 http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<series>
 ```
+
 Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
 
 ### Restarting OpenTSDB migrations
