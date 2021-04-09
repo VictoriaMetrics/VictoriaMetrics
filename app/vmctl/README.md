@@ -113,6 +113,23 @@ OpenTSDB migration works like so:
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
+### How to "chunk" OpenTSDB data
+
+To properly collect data from OpenTSDB, we have to define retention strings for the data to be consumed. If, for example, we provided the retention string `sum-1m-avg:1h:30d` that would translate into a series of queries to OpenTSDB similar to:
+```
+http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:<series>
+http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:<series>
+http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series>
+...
+http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<series>
+```
+
+Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
+
+These retention strings essentially define the two levels of aggregation for our collected series. It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
+
+The second order aggregation (`1m-avg` in our example) should (ideally) match the stat collection interval so we again avoid transforming incoming data.
+
 ### Restarting OpenTSDB migrations
 
 One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timstamp we started collecting data from at thebeginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
