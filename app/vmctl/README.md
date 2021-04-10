@@ -10,36 +10,6 @@ Features:
 - [x] OpenTSDB: migrate data from OpenTSDB to VictoriaMetrics
 - [ ] Storage Management: data re-balancing between nodes 
 
-# Table of contents
-
-* [Articles](#articles)
-* [How to build](#how-to-build)
-* [Migrating data from OpenTSDB](#migrating-data-from-opentsdb)
-   * [Retention Strings](#retention-strings)
-   * [Restarting OpenTSDB Migrations](#restarting-opentsdb-migrations)
-* [Migrating data from InfluxDB 1.x](#migrating-data-from-influxdb-1x)
-   * [Data mapping](#data-mapping)
-   * [Configuration](#configuration)
-   * [Filtering](#filtering)
-* [Migrating data from InfluxDB 2.x](#migrating-data-from-influxdb-2x)  
-* [Migrating data from Prometheus](#migrating-data-from-prometheus)
-   * [Data mapping](#data-mapping-1)
-   * [Configuration](#configuration-1)
-   * [Filtering](#filtering-1)
-* [Migrating data from Thanos](#migrating-data-from-thanos)
-   * [Current data](#current-data)
-   * [Historical data](#historical-data)
-* [Migrating data from VictoriaMetrics](#migrating-data-from-victoriametrics)
-   * [Native protocol](#native-protocol)
-* [Tuning](#tuning)
-   * [Influx mode](#influx-mode)
-   * [Prometheus mode](#prometheus-mode)
-   * [VictoriaMetrics importer](#victoriametrics-importer)
-   * [Importer stats](#importer-stats)
-* [Significant figures](#significant-figures)
-* [Adding extra labels](#adding-extra-labels)
-
-
 ## Articles
 
 * [How to migrate data from Prometheus](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043)
