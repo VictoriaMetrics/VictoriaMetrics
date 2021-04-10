@@ -395,7 +395,7 @@ type unmarshalWork struct {
 }
 
 func (uw *unmarshalWork) reset() {
-	if (len(uw.mrs)*4 > cap(uw.mrs) || len(uw.reqBuf)*4 > cap(uw.reqBuf)) && fasttime.UnixTimestamp()-uw.lastResetTime > 10 {
+	if len(uw.reqBuf)*4 < cap(uw.reqBuf) && fasttime.UnixTimestamp()-uw.lastResetTime > 10 {
 		// Periodically reset mrs and reqBuf in order to prevent from gradual memory usage growth
 		// when ceratin entries in mr contain too long labels.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/490 for details.
