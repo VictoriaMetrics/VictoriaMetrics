@@ -89,6 +89,84 @@ OpenTSDB migration works like so:
 
 This means that we must stream data from OpenTSDB to VictoriaMetrics in chunks. This is where concurrency for OpenTSDB comes in. We can query multiple chunks at once, but we shouldn't perform too many chunks at a time to avoid overloading the OpenTSDB cluster.
 
+```
+$ bin/vmctl opentsdb --otsdb-addr http://opentsdb:4242/ --otsdb-retentions sum-1m-avg:1h:1d --otsdb-filters system --otsdb-normalize --vm-addr http://victoria/
+OpenTSDB import mode
+2021/04/09 11:52:50 Will collect data starting at TS 1617990770
+2021/04/09 11:52:50 Loading all metrics from OpenTSDB for filters:  [system]
+Found 9 metrics to import. Continue? [Y/n] 
+2021/04/09 11:52:51 Starting work on system.load1
+23 / 402200 [>____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________] 0.01% 2 p/s
+```
+
+### Retention strings
+
+Starting with a relatively simple retention string (`sum-1m-avg:1h:30d`), let's describe how this is converted into actual queries.
+
+There are two essential parts of a retention string:
+1. [aggregation](#aggregation)
+2. [windows/time ranges](#windows)
+
+#### Aggregation
+
+Retention strings essentially define the two levels of aggregation for our collected series.
+
+`sum-1m-avg` would become:
+* First order: `sum`
+* Second order: `1m-avg-none`
+
+##### First Order Aggregations
+
+First-order aggregation addresses how to aggregate any un-mentioned tags.
+
+This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
+
+It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
+
+##### Second Order Aggregations
+
+Second-order aggregation (`1m-avg` in our example) defines any windowing that should occur before returning the data
+
+It is recommended to match the stat collection interval so we again avoid transforming incoming data.
+
+We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggreagtion, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
+
+#### Windows
+
+There are two important windows we define in a retention string:
+1. the "chunk" range of each query
+2. The time range we will be querying on with that "chunk"
+
+From our example, our windows are `1h:30d`.
+
+##### Window "chunks"
+
+The window `1h` means that each individual query to OpenTSDB should only span 1 hour of time (e.g. `start=2h-ago&end=1h-ago`).
+
+It is important to ensure this window somewhat matches the row size in HBase to help improve query times.
+
+For example, if the query is hitting a rollup table with a 4 hour row size, we should set a chunk size of a multiple of 4 hours (e.g. `4h`, `8h`, etc.) to avoid requesting data across row boundaries. Landing on row boundaries allows for more consistent request times to HBase.
+
+The default table created in HBase for OpenTSDB has a 1 hour row size, so if you aren't sure on a correct row size to use, `1h` is a reasonable choice.
+
+##### Time range
+
+The time range `30d` simply means we are asking for the last 30 days of data. This time range can be written using `h`, `d`, `w`, or `y`. (We can't use `m` for month because it already means `minute` in time parsing).
+
+#### Results of retention string
+
+The resultant queries that will be created, based on our example retention string of `sum-1m-avg:1h:30d` look like this:
+
+```
+http://opentsdb:4242/api/query?start=1h-ago&end=now&m=sum:1m-avg-none:<series>
+http://opentsdb:4242/api/query?start=2h-ago&end=1h-ago&m=sum:1m-avg-none:<series>
+http://opentsdb:4242/api/query?start=3h-ago&end=2h-ago&m=sum:1m-avg-none:<series>
+...
+http://opentsdb:4242/api/query?start=721h-ago&end=720h-ago&m=sum:1m-avg-none:<series>
+```
+
+Chunking the data like this means each individual query returns faster, so we can start populating data into VictoriaMetrics quicker.
+
 ### Restarting OpenTSDB migrations
 
 One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timstamp we started collecting data from at thebeginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
