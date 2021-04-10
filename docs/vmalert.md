@@ -135,6 +135,11 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations
+to format data, iterate over it or execute expressions.
+Additionally, `vmalert` provides some extra templating functions
+listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go).
+
 #### Recording rules
 
 The syntax for recording rules is following:
