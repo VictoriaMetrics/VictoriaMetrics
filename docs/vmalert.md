@@ -205,19 +205,19 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 The shortlist of configuration flags is the following:
 ```
   -datasource.appendTypePrefix
-    	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to VMSelect URL.
+    	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the VMSelect URL.
   -datasource.basicAuth.password string
     	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
     	Optional basic auth username for -datasource.url
   -datasource.lookback duration
-    	Lookback defines how far to look into past when evaluating queries. For example, if datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
+    	Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
-    	Defines the number of idle (keep-alive connections) to configured datasource.Consider to set this value equal to the value: groups_total * group.concurrency. Too low value may result into high number of sockets in TIME_WAIT state. (default 100)
+    	Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.queryStep duration
     	queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.
   -datasource.tlsCAFile string
-    	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default system CA is used
+    	Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
     	Optional path to client-side TLS certificate file to use when connecting to -datasource.url
   -datasource.tlsInsecureSkipVerify
@@ -225,13 +225,13 @@ The shortlist of configuration flags is the following:
   -datasource.tlsKeyFile string
     	Optional path to client-side TLS certificate key to use when connecting to -datasource.url
   -datasource.tlsServerName string
-    	Optional TLS server name to use for connections to -datasource.url. By default the server name from -datasource.url is used
+    	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
     	Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
-    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP is used
+    	Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
     	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set
   -envflag.prefix string
@@ -243,23 +243,23 @@ The shortlist of configuration flags is the following:
     	eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/api/v1/:groupID/alertID/status' is used
   -external.label array
     	Optional label in the form 'name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
     	External URL is used as alert's source for sent alerts to the notifier
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
-    	Incoming http connections are closed after the configured timeout. This may help spreading incoming load among a cluster of services behind load balancer. Note that the real timeout may be bigger by up to 10% as a protection from Thundering herd problem (default 2m0s)
+    	Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-    	Disable compression of HTTP responses for saving CPU resources. By default compression is enabled to save network bandwidth
+    	Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
     	Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-    	The maximum duration for graceful shutdown of HTTP server. Highly loaded server may require increased value for graceful shutdown (default 7s)
+    	The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
     	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
-    	Optional delay before http server shutdown. During this dealy the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
+    	Optional delay before http server shutdown. During this dealay, the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
     	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
@@ -269,7 +269,7 @@ The shortlist of configuration flags is the following:
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
-    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
     	Format for logs. Possible values: default, json (default "default")
   -loggerLevel string
@@ -279,38 +279,38 @@ The shortlist of configuration flags is the following:
   -loggerTimezone string
     	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
-    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero value disables the rate limit
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -memory.allowedBytes size
-    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -memory.allowedPercent float
-    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
     	Auth key for /metrics. It overrides httpAuth settings
   -notifier.basicAuth.password array
     	Optional basic auth password for -notifier.url
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.basicAuth.username array
     	Optional basic auth username for -notifier.url
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsCAFile array
     	Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsCertFile array
     	Optional path to client-side TLS certificate file to use when connecting to -notifier.url
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsInsecureSkipVerify array
     	Whether to skip tls verification when connecting to -notifier.url
     	Supports array of values separated by comma or specified via multiple flags.
   -notifier.tlsKeyFile array
     	Optional path to client-side TLS certificate key to use when connecting to -notifier.url
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsServerName array
     	Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
     	Prometheus alertmanager URL. Required parameter. e.g. http://127.0.0.1:9093
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
     	Auth key for /debug/pprof. It overrides httpAuth settings
   -remoteRead.basicAuth.password string
@@ -363,7 +363,7 @@ The shortlist of configuration flags is the following:
     	 -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
     	absolute path to all .yaml files in root.
     	Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
-    	Supports array of values separated by comma or specified via multiple flags.
+    	Supports an array of values separated by comma or specified via multiple flags.
   -rule.validateExpressions
     	Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
@@ -371,7 +371,7 @@ The shortlist of configuration flags is the following:
   -tls
     	Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
-    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow
+    	Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower
   -tlsKeyFile string
     	Path to file with TLS key. Used only if -tls is set
   -version
