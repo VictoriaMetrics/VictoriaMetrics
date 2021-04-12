@@ -82,7 +82,16 @@ groups:
             Please verify if clients are sending correct requests."
 
       - alert: RPCErrors
-        expr: sum(increase({__name__=~"vm_rpc_.*_errors_total"}[5m])) by(job, instance) > 0
+        expr: |
+          (
+           sum(increase(vm_rpc_connection_errors_total[5m])) by(job, instance)
+           +
+           sum(increase(vm_rpc_dial_errors_total[5m])) by(job, instance)
+           +
+           sum(increase(vm_rpc_handshake_errors_total[5m])) by(job, instance)
+           +
+           sum(increase(vm_rpc_reroute_errors_total[5m])) by(job, instance)
+          ) > 0
         for: 15m
         labels:
           severity: warning
