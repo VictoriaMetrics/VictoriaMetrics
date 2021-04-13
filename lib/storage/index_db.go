@@ -1539,9 +1539,15 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 	}
 
 	is := db.getIndexSearch(accountID, projectID, noDeadline)
-	dst, err := is.searchMetricName(dst, metricID)
+	var err error
+	dst, err = is.searchMetricName(dst, metricID)
 	db.putIndexSearch(is)
-
+	if err == nil {
+		// There is no need in verifying whether the given metricID is deleted,
+		// since the filtering must be performed before calling this func.
+		db.putMetricNameToCache(metricID, dst)
+		return dst, nil
+	}
 	if err != io.EOF {
 		return dst, err
 	}
@@ -1551,6 +1557,11 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 		is := extDB.getIndexSearch(accountID, projectID, noDeadline)
 		dst, err = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
+		if err == nil {
+			// There is no need in verifying whether the given metricID is deleted,
+			// since the filtering must be performed before calling this func.
+			extDB.putMetricNameToCache(metricID, dst)
+		}
 	}) {
 		return dst, err
 	}
@@ -1794,7 +1805,15 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 	if len(metricName) > len(dst) {
 		return metricName, nil
 	}
-	return is.searchMetricName(dst, metricID)
+	var err error
+	dst, err = is.searchMetricName(dst, metricID)
+	if err == nil {
+		// There is no need in verifying whether the given metricID is deleted,
+		// since the filtering must be performed before calling this func.
+		is.db.putMetricNameToCache(metricID, dst)
+		return dst, nil
+	}
+	return dst, err
 }
 
 func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, error) {
@@ -1810,10 +1829,6 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, er
 	}
 	v := ts.Item[len(kb.B):]
 	dst = append(dst, v...)
-
-	// There is no need in verifying whether the given metricID is deleted,
-	// since the filtering must be performed before calling this func.
-	is.db.putMetricNameToCache(metricID, dst)
 	return dst, nil
 }
 
