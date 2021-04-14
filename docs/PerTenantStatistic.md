@@ -1,3 +1,7 @@
+---
+sort: 10
+---
+
 ## Victoria Metrics Cluster Per Tenant Statistic
 
 <img alt="cluster-per-tenant-stat" src="per-tenant-stats.jpg">
@@ -37,11 +41,11 @@ scrape_configs:
 Visualisation of statistic can be done in grafana using this dashboard [link](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster/dashboards/clusterbytenant.json)
 
 
-### Integration with vmgateway:
+### Integration with vmgateway
 
 Per Tenant Statistic is the source data for `vmgateway` rate limiter. More information can be found [here](https://victoriametrics.github.io/vmgateway.html)
 
-### Integration with vmalert:
+### Integration with vmalert
 
 You can generate alerts based on each tenant resource usage and notify the system/people about reaching the limits.
 
