@@ -707,7 +707,7 @@ const (
 
 type bucket16 struct {
 	bits         *[wordsPerBucket]uint64
-	smallPool    *[smallPoolSize]uint16
+	smallPool    [smallPoolSize]uint16
 	smallPoolLen int
 }
 
@@ -789,9 +789,6 @@ func (b *bucket16) sizeBytes() uint64 {
 	if b.bits != nil {
 		n += unsafe.Sizeof(*b.bits)
 	}
-	if b.smallPool != nil {
-		n += unsafe.Sizeof(*b.smallPool)
-	}
 	return uint64(n)
 }
 
@@ -802,19 +799,8 @@ func (b *bucket16) copyTo(dst *bucket16) {
 		bits := *b.bits
 		dst.bits = &bits
 	}
+	dst.smallPool = b.smallPool
 	dst.smallPoolLen = b.smallPoolLen
-	if b.smallPool != nil {
-		sp := dst.getOrCreateSmallPool()
-		*sp = *b.smallPool
-	}
-}
-
-func (b *bucket16) getOrCreateSmallPool() *[smallPoolSize]uint16 {
-	if b.smallPool == nil {
-		var sp [smallPoolSize]uint16
-		b.smallPool = &sp
-	}
-	return b.smallPool
 }
 
 func (b *bucket16) add(x uint16) bool {
@@ -861,7 +847,7 @@ func (b *bucket16) addToSmallPool(x uint16) bool {
 	if b.hasInSmallPool(x) {
 		return false
 	}
-	sp := b.getOrCreateSmallPool()
+	sp := b.smallPool[:]
 	if b.smallPoolLen < len(sp) {
 		sp[b.smallPoolLen] = x
 		b.smallPoolLen++
@@ -886,11 +872,7 @@ func (b *bucket16) has(x uint16) bool {
 }
 
 func (b *bucket16) hasInSmallPool(x uint16) bool {
-	sp := b.smallPool
-	if sp == nil {
-		return false
-	}
-	for _, v := range sp[:b.smallPoolLen] {
+	for _, v := range b.smallPool[:b.smallPoolLen] {
 		if v == x {
 			return true
 		}
@@ -910,10 +892,7 @@ func (b *bucket16) del(x uint16) bool {
 }
 
 func (b *bucket16) delFromSmallPool(x uint16) bool {
-	sp := b.smallPool
-	if sp == nil {
-		return false
-	}
+	sp := b.smallPool[:]
 	for i, v := range sp[:b.smallPoolLen] {
 		if v == x {
 			copy(sp[i:], sp[i+1:])
@@ -927,15 +906,11 @@ func (b *bucket16) delFromSmallPool(x uint16) bool {
 func (b *bucket16) appendTo(dst []uint64, hi uint32, hi16 uint16) []uint64 {
 	hi64 := uint64(hi)<<32 | uint64(hi16)<<16
 	if b.bits == nil {
-		sp := b.smallPool
-		if sp == nil {
-			return dst
-		}
 		// Use smallPoolSorter instead of sort.Slice here in order to reduce memory allocations.
 		sps := smallPoolSorterPool.Get().(*smallPoolSorter)
-		// Sort a copy of sp, since b must be readonly in order to prevent from data races
+		// Sort a copy of b.smallPool, since b must be readonly in order to prevent from data races
 		// when b.appendTo is called from concurrent goroutines.
-		sps.smallPool = *sp
+		sps.smallPool = b.smallPool
 		sps.a = sps.smallPool[:b.smallPoolLen]
 		if len(sps.a) > 1 && !sort.IsSorted(sps) {
 			sort.Sort(sps)
