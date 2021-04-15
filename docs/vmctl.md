@@ -278,7 +278,7 @@ Migration is based on reading Prometheus snapshot, which is basically a hard-lin
 
 See `./vmctl prometheus --help` for details and full list of flags.
 
-To use migration tool please specify the path to Prometheus snapshot `--prom-snapshot` and VictoriaMetrics address `--vm-addr`.
+To use migration tool please specify the file path to Prometheus snapshot `--prom-snapshot` (see how to make a snapshot [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data)) and VictoriaMetrics address `--vm-addr`.
 Please note, that `vmctl` *do not make a snapshot from Prometheus*, it uses an already prepared snapshot. More about Prometheus snapshots may be found [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data) and [here](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043).
 Flag `--vm-addr` for single-node VM is usually equal to `--httpListenAddr`, and for cluster version
 is equal to `--httpListenAddr` flag of VMInsert component. Please note, that vmctl performs initial readiness check for the given address 
