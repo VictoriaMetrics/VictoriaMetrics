@@ -276,7 +276,7 @@ You may find useful a 3rd party solution for this - https://github.com/jonppe/in
 `vmctl` supports the `prometheus` mode for migrating data from Prometheus to VictoriaMetrics time-series database.
 Migration is based on reading Prometheus snapshot, which is basically a hard-link to Prometheus data files. 
 
-See `./vmctl prometheus --help` for details and full list of flags.
+See `./vmctl prometheus --help` for details and full list of flags. Also see Prometheus related articles [here](#articles).
 
 To use migration tool please specify the file path to Prometheus snapshot `--prom-snapshot` (see how to make a snapshot [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data)) and VictoriaMetrics address `--vm-addr`.
 Please note, that `vmctl` *do not make a snapshot from Prometheus*, it uses an already prepared snapshot. More about Prometheus snapshots may be found [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data) and [here](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043).
