@@ -38,7 +38,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	}, "/../../aaa", "https://sss:3894/x/y/aaa")
 	f(&UserInfo{
 		URLPrefix: "https://sss:3894/x/y",
-	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s/../d")
+	}, "/./asd/../../aaa?a=d&s=s/../d", "https://sss:3894/x/y/aaa?a=d&s=s%2F..%2Fd")
 
 	// Complex routing with `url_map`
 	ui := &UserInfo{
@@ -77,6 +77,13 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 	f(ui, "/api/v1/label/foo/values", "http://vmselect/0/prometheus/api/v1/label/foo/values")
 	f(ui, "/api/v1/write", "http://vminsert/0/prometheus/api/v1/write")
 	f(ui, "/api/v1/foo/bar", "http://default-server/api/v1/foo/bar")
+	f(&UserInfo{
+		URLPrefix: "http://foo.bar?extra_label=team=dev",
+	}, "/api/v1/query", "http://foo.bar/api/v1/query?extra_label=team=dev")
+	f(&UserInfo{
+		URLPrefix: "http://foo.bar?extra_label=team=mobile",
+	}, "/api/v1/query?extra_label=team=dev", "http://foo.bar/api/v1/query?extra_label=team%3Dmobile")
+
 }
 
 func TestCreateTargetURLFailure(t *testing.T) {
