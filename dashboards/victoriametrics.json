@@ -3399,6 +3399,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": "$ds",
+          "description": "Shows avg GC duration",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -3440,10 +3441,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(rate(go_gc_duration_seconds_sum{job=\"$job\", instance=\"$instance\"}[2m]))",
+              "expr": "sum(rate(go_gc_duration_seconds_sum{job=\"$job\", instance=\"$instance\"}[5m]))\n/\nsum(rate(go_gc_duration_seconds_count{job=\"$job\", instance=\"$instance\"}[5m]))",
               "format": "time_series",
               "intervalFactor": 2,
-              "legendFormat": "gc duration",
+              "legendFormat": "avg gc duration",
               "refId": "A"
             }
           ],
