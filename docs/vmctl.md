@@ -4,7 +4,7 @@ sort: 7
 
 # vmctl
 
-Victoria metrics command-line tool
+VictoriaMetrics command-line tool
 
 Features:
 - [x] Prometheus: migrate data from Prometheus to VictoriaMetrics using snapshot API
@@ -179,7 +179,7 @@ See `./vmctl influx --help` for details and full list of flags.
 
 To use migration tool please specify the InfluxDB address `--influx-addr`, the database `--influx-database` and VictoriaMetrics address `--vm-addr`.
 Flag `--vm-addr` for single-node VM is usually equal to `--httpListenAddr`, and for cluster version
-is equal to `--httpListenAddr` flag of VMInsert component. Please note, that vmctl performs initial readiness check for the given address 
+is equal to `--httpListenAddr` flag of vminsert component. Please note, that vmctl performs initial readiness check for the given address 
 by checking `/health` endpoint. For cluster version it is additionally required to specify the `--vm-account-id` flag. 
 See more details for cluster version [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 
@@ -281,7 +281,7 @@ See `./vmctl prometheus --help` for details and full list of flags. Also see Pro
 To use migration tool please specify the file path to Prometheus snapshot `--prom-snapshot` (see how to make a snapshot [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data)) and VictoriaMetrics address `--vm-addr`.
 Please note, that `vmctl` *do not make a snapshot from Prometheus*, it uses an already prepared snapshot. More about Prometheus snapshots may be found [here](https://www.robustperception.io/taking-snapshots-of-prometheus-data) and [here](https://medium.com/@romanhavronenko/victoriametrics-how-to-migrate-data-from-prometheus-d44a6728f043).
 Flag `--vm-addr` for single-node VM is usually equal to `--httpListenAddr`, and for cluster version
-is equal to `--httpListenAddr` flag of VMInsert component. Please note, that vmctl performs initial readiness check for the given address 
+is equal to `--httpListenAddr` flag of vminsert component. Please note, that vmctl performs initial readiness check for the given address 
 by checking `/health` endpoint. For cluster version it is additionally required to specify the `--vm-account-id` flag. 
 See more details for cluster version [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 

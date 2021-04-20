@@ -21,7 +21,7 @@ import (
 type Config struct {
 	// VictoriaMetrics address to perform import requests
 	//   --httpListenAddr value for single node version
-	//   --httpListenAddr value of VMSelect  component for cluster version
+	//   --httpListenAddr value of vmselect  component for cluster version
 	Addr string
 	// Concurrency defines number of worker
 	// performing the import requests concurrently

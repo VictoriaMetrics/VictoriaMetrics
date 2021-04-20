@@ -12,7 +12,7 @@ sort: 1
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
-<img src="logo.png" width="300" alt="Victoria Metrics logo">
+<img src="logo.png" width="300" alt="VictoriaMetrics logo">
 
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 
@@ -170,7 +170,7 @@ Alphabetically sorted links to case studies:
 * [Contacts](#contacts)
 * [Community and contributions](#community-and-contributions)
 * [Reporting bugs](#reporting-bugs)
-* [Victoria Metrics Logo](#victoria-metrics-logo)
+* [VictoriaMetrics Logo](#victoria-metrics-logo)
   * [Logo Usage Guidelines](#logo-usage-guidelines)
     * [Font used](#font-used)
     * [Color Palette](#color-palette)
@@ -1532,7 +1532,7 @@ Adhering `KISS` principle simplifies the resulting code and architecture, so it 
 Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 
-## Victoria Metrics Logo
+## VictoriaMetrics Logo
 
 [Zip](VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
 

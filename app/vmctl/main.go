@@ -21,7 +21,7 @@ func main() {
 	start := time.Now()
 	app := &cli.App{
 		Name:    "vmctl",
-		Usage:   "Victoria metrics command-line tool",
+		Usage:   "VictoriaMetrics command-line tool",
 		Version: buildinfo.Version,
 		Commands: []*cli.Command{
 			{

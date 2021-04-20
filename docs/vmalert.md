@@ -168,11 +168,11 @@ For recording rules to work `-remoteWrite.url` must specified.
 
 `vmalert` has no local storage, so alerts state is stored in the process memory. Hence, after reloading of `vmalert`
 the process alerts state will be lost. To avoid this situation, `vmalert` should be configured via the following flags:
-* `-remoteWrite.url` - URL to VictoriaMetrics (Single) or VMInsert (Cluster). `vmalert` will persist alerts state
+* `-remoteWrite.url` - URL to VictoriaMetrics (Single) or vminsert (Cluster). `vmalert` will persist alerts state
 into the configured address in the form of time series named `ALERTS` and `ALERTS_FOR_STATE` via remote-write protocol.
 These are regular time series and may be queried from VM just as any other time series.
 The state stored to the configured address on every rule evaluation.
-* `-remoteRead.url` - URL to VictoriaMetrics (Single) or VMSelect (Cluster). `vmalert` will try to restore alerts state
+* `-remoteRead.url` - URL to VictoriaMetrics (Single) or vmselect (Cluster). `vmalert` will try to restore alerts state
 from configured address by querying time series with name `ALERTS_FOR_STATE`.
 
 Both flags are required for the proper state restoring. Restore process may fail if time series are missing
@@ -205,7 +205,7 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 The shortlist of configuration flags is the following:
 ```
   -datasource.appendTypePrefix
-    	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the VMSelect URL.
+    	Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
     	Optional basic auth password for -datasource.url
   -datasource.basicAuth.username string
@@ -227,7 +227,7 @@ The shortlist of configuration flags is the following:
   -datasource.tlsServerName string
     	Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-    	Victoria Metrics or VMSelect url. Required parameter. E.g. http://127.0.0.1:8428
+    	VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428
   -dryRun -rule
     	Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
@@ -330,7 +330,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.tlsServerName string
     	Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
   -remoteRead.url vmalert
-    	Optional URL to Victoria Metrics or VMSelect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
+    	Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428
   -remoteWrite.basicAuth.password string
     	Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.username string
@@ -354,7 +354,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.tlsServerName string
     	Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
-    	Optional URL to Victoria Metrics or VMInsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
+    	Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428
   -rule array
     	Path to the file with alert rules.
     	Supports patterns. Flag can be specified multiple times.

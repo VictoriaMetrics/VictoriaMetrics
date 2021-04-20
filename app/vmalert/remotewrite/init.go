@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	addr = flag.String("remoteWrite.url", "", "Optional URL to Victoria Metrics or VMInsert where to persist alerts state"+
-		" and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
+	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
+		"and recording rules results in form of timeseries. E.g. http://127.0.0.1:8428")
 	basicAuthUsername = flag.String("remoteWrite.basicAuth.username", "", "Optional basic auth username for -remoteWrite.url")
 	basicAuthPassword = flag.String("remoteWrite.basicAuth.password", "", "Optional basic auth password for -remoteWrite.url")
 
