@@ -13,7 +13,7 @@ users:
 
   # The user for querying local single-node VictoriaMetrics with extra_label team=dev.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://localhost:8428 .
+  # will be routed to http://localhost:8428 with extra_label=team=dev query arg.
   # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query
 - username: "local-single-node"
   password: "***"
@@ -36,4 +36,3 @@ users:
 - username: "cluster-insert-account-42"
   password: "***"
   url_prefix: "http://vminsert:8480/insert/42/prometheus"
-
