@@ -218,7 +218,7 @@ func usage() {
 	const s = `
 vmalert processes alerts and recording rules.
 
-See the docs at https://victoriametrics.github.io/vmalert.html .
+See the docs at https://docs.victoriametrics.com/vmalert.html .
 `
 	flagutil.Usage(s)
 }

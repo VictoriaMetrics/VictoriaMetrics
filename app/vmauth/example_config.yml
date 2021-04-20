@@ -24,7 +24,7 @@ users:
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
   # The user for querying account 123 in VictoriaMetrics cluster
-  # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
+  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be proxied to http://vmselect:8481/select/123/prometheus .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect:8481/select/123/prometheus/api/v1/select
@@ -33,7 +33,7 @@ users:
   url_prefix: "http://vmselect:8481/select/123/prometheus"
 
   # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
-  # See https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#url-format
+  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # will be proxied to http://vminsert:8480/insert/42/prometheus .
   # For example, http://vmauth:8427/api/v1/write is proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write

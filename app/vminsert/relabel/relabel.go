@@ -15,7 +15,7 @@ import (
 )
 
 var relabelConfig = flag.String("relabelConfig", "", "Optional path to a file with relabeling rules, which are applied to all the ingested metrics. "+
-	"See https://victoriametrics.github.io/#relabeling for details")
+	"See https://docs.victoriametrics.com/#relabeling for details")
 
 // Init must be called after flag.Parse and before using the relabel package.
 func Init() {

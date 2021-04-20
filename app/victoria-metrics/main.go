@@ -90,7 +90,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 		fmt.Fprintf(w, "<h2>Single-node VictoriaMetrics.</h2></br>")
-		fmt.Fprintf(w, "See docs at <a href='https://victoriametrics.github.io/'>https://victoriametrics.github.io/</a></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/'>https://docs.victoriametrics.com/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints: </br>")
 		writeAPIHelp(w, [][]string{
 			{"/targets", "discovered targets list"},
@@ -125,7 +125,7 @@ func usage() {
 	const s = `
 victoria-metrics is a time series database and monitoring solution.
 
-See the docs at https://victoriametrics.github.io/
+See the docs at https://docs.victoriametrics.com/
 `
 	flagutil.Usage(s)
 }

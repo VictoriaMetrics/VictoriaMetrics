@@ -34,28 +34,28 @@ See [features available for enterprise customers](https://victoriametrics.com/en
 
 Alphabetically sorted links to case studies:
 
-* [adidas](https://victoriametrics.github.io/CaseStudies.html#adidas)
-* [Adsterra](https://victoriametrics.github.io/CaseStudies.html#adsterra)
-* [ARNES](https://victoriametrics.github.io/CaseStudies.html#arnes)
-* [Brandwatch](https://victoriametrics.github.io/CaseStudies.html#brandwatch)
-* [CERN](https://victoriametrics.github.io/CaseStudies.html#cern)
-* [COLOPL](https://victoriametrics.github.io/CaseStudies.html#colopl)
-* [Dreamteam](https://victoriametrics.github.io/CaseStudies.html#dreamteam)
-* [Idealo.de](https://victoriametrics.github.io/CaseStudies.html#idealode)
-* [MHI Vestas Offshore Wind](https://victoriametrics.github.io/CaseStudies.html#mhi-vestas-offshore-wind)
-* [Synthesio](https://victoriametrics.github.io/CaseStudies.html#synthesio)
-* [Wedos.com](https://victoriametrics.github.io/CaseStudies.html#wedoscom)
-* [Wix.com](https://victoriametrics.github.io/CaseStudies.html#wixcom)
-* [Zerodha](https://victoriametrics.github.io/CaseStudies.html#zerodha)
-* [zhihu](https://victoriametrics.github.io/CaseStudies.html#zhihu)
+* [adidas](https://docs.victoriametrics.com/CaseStudies.html#adidas)
+* [Adsterra](https://docs.victoriametrics.com/CaseStudies.html#adsterra)
+* [ARNES](https://docs.victoriametrics.com/CaseStudies.html#arnes)
+* [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
+* [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
+* [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
+* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
+* [Idealo.de](https://docs.victoriametrics.com/CaseStudies.html#idealode)
+* [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
+* [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
+* [Wedos.com](https://docs.victoriametrics.com/CaseStudies.html#wedoscom)
+* [Wix.com](https://docs.victoriametrics.com/CaseStudies.html#wixcom)
+* [Zerodha](https://docs.victoriametrics.com/CaseStudies.html#zerodha)
+* [zhihu](https://docs.victoriametrics.com/CaseStudies.html#zhihu)
 
 
 ## Prominent features
 
-* VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://victoriametrics.github.io/vmagent.html).
+* VictoriaMetrics can be used as long-term storage for Prometheus or for [vmagent](https://docs.victoriametrics.com/vmagent.html).
   See [these docs](#prometheus-setup) for details.
 * VictoriaMetrics supports [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/), so it can be used as Prometheus drop-in replacement in Grafana.
-* VictoriaMetrics implements [MetricsQL](https://victoriametrics.github.io/MetricsQL.html) query language backwards compatible with PromQL.
+* VictoriaMetrics implements [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) query language backwards compatible with PromQL.
 * VictoriaMetrics provides global query view. Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics.
   Later this data may be queried via a single query.
 * High performance and good scalability for both [inserts](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
@@ -80,7 +80,7 @@ Alphabetically sorted links to case studies:
   * All the configuration is done via explicit command-line flags with reasonable defaults.
   * All the data is stored in a single directory pointed by `-storageDataPath` command-line flag.
   * Easy and fast backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-  to S3 or GCS with [vmbackup](https://victoriametrics.github.io/vmbackup.html) / [vmrestore](https://victoriametrics.github.io/vmrestore.html).
+  to S3 or GCS with [vmbackup](https://docs.victoriametrics.com/vmbackup.html) / [vmrestore](https://docs.victoriametrics.com/vmrestore.html).
   See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 * Storage is protected from corruption on unclean shutdown (i.e. OOM, hardware reset or `kill -9`) thanks to [the storage architecture](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * Supports metrics' scraping, ingestion and [backfilling](#backfilling) via the following protocols:
@@ -99,7 +99,7 @@ Alphabetically sorted links to case studies:
 * Supports metrics' relabeling. See [these docs](#relabeling) for details.
 * Ideally works with big amounts of time series data from Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various Enterprise workloads.
 * Has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
-* See also technical [Articles about VictoriaMetrics](https://victoriametrics.github.io/Articles.html).
+* See also technical [Articles about VictoriaMetrics](https://docs.victoriametrics.com/Articles.html).
 
 
 ## Operation
@@ -278,8 +278,8 @@ Read more about tuning remote write for Prometheus [here](https://prometheus.io/
 
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases) or newer, since previous versions may have issues with `remote_write`.
 
-Take a look also at [vmagent](https://victoriametrics.github.io/vmagent.html)
-and [vmalert](https://victoriametrics.github.io/vmalert.html),
+Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html)
+and [vmalert](https://docs.victoriametrics.com/vmalert.html),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
 
@@ -294,7 +294,7 @@ http://<victoriametrics-addr>:8428
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
 Then build graphs with the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://victoriametrics.github.io/MetricsQL.html). VictoriaMetrics supports [Prometheus querying API](#prometheus-querying-api-usage),
+or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html). VictoriaMetrics supports [Prometheus querying API](#prometheus-querying-api-usage),
 which is used by Grafana.
 
 
@@ -352,7 +352,7 @@ The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders, 
 
 VictoriaMetrics also supports [importing data in Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
 
-See also [vmagent](https://victoriametrics.github.io/vmagent.html), which can be used as drop-in replacement for Prometheus.
+See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be used as drop-in replacement for Prometheus.
 
 
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
@@ -461,8 +461,8 @@ Data sent to VictoriaMetrics via `Graphite plaintext protocol` may be read via t
 
 * [Graphite API](#graphite-api-usage)
 * [Prometheus querying API](#prometheus-querying-api-usage). Graphite metric names may special chars such as `-`, which may clash
-  with [MetricsQL operations](https://victoriametrics.github.io/MetricsQL.html). Such metrics can be queries via `{__name__="foo-bar.baz"}`.
-  VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+  with [MetricsQL operations](https://docs.victoriametrics.com/MetricsQL.html). Such metrics can be queries via `{__name__="foo-bar.baz"}`.
+  VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
   For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
   and it is easier to use when migrating from Graphite to VictoriaMetrics.
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml)
@@ -614,7 +614,7 @@ VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query 
 visible to the given tenant. It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics.
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
-VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://victoriametrics.github.io/MetricsQL.html).
+VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but it works faster
 and it is easier to use when migrating from Graphite to VictoriaMetrics.
 
@@ -714,7 +714,7 @@ ROOT_IMAGE=scratch make package-victoria-metrics
 ## Start with docker-compose
 
 [Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
-helps to spin up VictoriaMetrics, [vmagent](https://victoriametrics.github.io/vmagent.html) and Grafana with one command.
+helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent.html) and Grafana with one command.
 More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 
@@ -737,7 +737,7 @@ The page will return the following JSON response:
 
 Snapshots are created under `<-storageDataPath>/snapshots` directory, where `<-storageDataPath>`
 is the command-line flag value. Snapshots can be archived to backup storage at any time
-with [vmbackup](https://victoriametrics.github.io/vmbackup.html).
+with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
 
 The `http://<victoriametrics-addr>:8428/snapshot/list` page contains the list of available snapshots.
 
@@ -749,7 +749,7 @@ Navigate to `http://<victoriametrics-addr>:8428/snapshot/delete_all` in order to
 Steps for restoring from a snapshot:
 
 1. Stop VictoriaMetrics with `kill -INT`.
-2. Restore snapshot contents from backup with [vmrestore](https://victoriametrics.github.io/vmrestore.html)
+2. Restore snapshot contents from backup with [vmrestore](https://docs.victoriametrics.com/vmrestore.html)
    to the directory pointed by `-storageDataPath`.
 3. Start VictoriaMetrics.
 
@@ -1076,7 +1076,7 @@ VictoriaMetrics provides the following extra actions for relabeling rules:
 * `keep_if_equal`: keeps the entry if all label values from `source_labels` are equal.
 * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal.
 
-See also [relabeling in vmagent](https://victoriametrics.github.io/vmagent.html#relabeling).
+See also [relabeling in vmagent](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
 
 ## Federation
@@ -1134,7 +1134,7 @@ The required resources for query path:
 ## High availability
 
 * Install multiple VictoriaMetrics instances in distinct datacenters (availability zones).
-* Pass addresses of these instances to [vmagent](https://victoriametrics.github.io/vmagent.html) via `-remoteWrite.url` command-line flag:
+* Pass addresses of these instances to [vmagent](https://docs.victoriametrics.com/vmagent.html) via `-remoteWrite.url` command-line flag:
 
 ```bash
 /path/to/vmagent -remoteWrite.url=http://<victoriametrics-addr-1>:8428/api/v1/write -remoteWrite.url=http://<victoriametrics-addr-2>:8428/api/v1/write
@@ -1159,7 +1159,7 @@ remote_write:
 kill -HUP `pidof prometheus`
 ```
 
-It is recommended to use [vmagent](https://victoriametrics.github.io/vmagent.html) instead of Prometheus for highly loaded setups.
+It is recommended to use [vmagent](https://docs.victoriametrics.com/vmagent.html) instead of Prometheus for highly loaded setups.
 
 * Now Prometheus should write data into all the configured `remote_write` urls in parallel.
 * Set up [Promxy](https://github.com/jacksontj/promxy) in front of all the VictoriaMetrics replicas.
@@ -1180,7 +1180,7 @@ on the same time series if they fall within the same discrete 60s bucket.  The e
 
 The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs.
 
-The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://victoriametrics.github.io/vmagent.html) or Prometheus instances in HA pair
+The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
 write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
 `external_labels` section in their configs, so they write data to the same time series.
 
@@ -1208,9 +1208,9 @@ Just start multiple VictoriaMetrics instances with distinct values for the follo
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
 * `-httpListenAddr`, so clients may reach VictoriaMetrics instance with proper retention
 
-Then set up [vmauth](https://victoriametrics.github.io/vmauth.html) in front of VictoriaMetrics instances,
+Then set up [vmauth](https://docs.victoriametrics.com/vmauth.html) in front of VictoriaMetrics instances,
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
-The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html).
+The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
 
 ## Downsampling
@@ -1248,7 +1248,7 @@ horizontally scalable long-term remote storage for really large Prometheus deplo
 
 ## Alerting
 
-It is recommended using [vmalert](https://victoriametrics.github.io/vmalert.html) for alerting.
+It is recommended using [vmalert](https://docs.victoriametrics.com/vmalert.html) for alerting.
 
 Additionally, alerting can be set up with the following tools:
 
@@ -1273,7 +1273,7 @@ Consider setting the following command-line flags:
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`.
 
-Prefer authorizing all the incoming requests from untrusted networks with [vmauth](https://victoriametrics.github.io/vmauth.html)
+Prefer authorizing all the incoming requests from untrusted networks with [vmauth](https://docs.victoriametrics.com/vmauth.html)
 or similar auth proxy.
 
 
@@ -1296,7 +1296,7 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ## Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus format at `/metrics` page.
-These metrics may be collected by [vmagent](https://victoriametrics.github.io/vmagent.html)
+These metrics may be collected by [vmagent](https://docs.victoriametrics.com/vmagent.html)
 or Prometheus by adding the corresponding scrape config to it.
 Alternatively they can be self-scraped by setting `-selfScrapeInterval` command-line flag to duration greater than 0.
 For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page with 10 seconds interval.
@@ -1304,7 +1304,7 @@ For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` 
 There are officials Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229) and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176).
 There is also an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831).
 
-It is recommended setting up alerts in [vmalert](https://victoriametrics.github.io/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
+It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml).
 
 The most interesting metrics are:
 
@@ -1401,13 +1401,13 @@ See the example of alerting rules for VM components [here](https://github.com/Vi
 
 ## Data migration
 
-Use [vmctl](https://victoriametrics.github.io/vmctl.html) for data migration. It supports the following data migration types:
+Use [vmctl](https://docs.victoriametrics.com/vmctl.html) for data migration. It supports the following data migration types:
 
 * From Prometheus to VictoriaMetrics
 * From InfluxDB to VictoriaMetrics
 * From VictoriaMetrics to VictoriaMetrics
 
-See [vmctl docs](https://victoriametrics.github.io/vmctl.html) for more details.
+See [vmctl docs](https://docs.victoriametrics.com/vmctl.html) for more details.
 
 
 ## Backfilling
@@ -1438,7 +1438,7 @@ should be used only for one-off updates. It shouldn't be used for frequent updat
 ## Replication
 
 Single-node VictoriaMetrics doesn't support application-level replication. Use cluster version instead.
-See [these docs](https://victoriametrics.github.io/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
 
 Storage-level replication may be offloaded to durable persistent storage such as [Google Cloud disks](https://cloud.google.com/compute/docs/disks#pdspecs).
 
@@ -1447,8 +1447,8 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 ## Backups
 
-VictoriaMetrics supports backups via [vmbackup](https://victoriametrics.github.io/vmbackup.html)
-and [vmrestore](https://victoriametrics.github.io/vmrestore.html) tools.
+VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/vmbackup.html)
+and [vmrestore](https://docs.victoriametrics.com/vmrestore.html) tools.
 We also provide `vmbackupmanager` tool for paid enterprise subscribers - see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/466) for details.
 
 
@@ -1484,7 +1484,7 @@ The collected profiles may be analyzed with [go tool pprof](https://github.com/g
 * [Ansible role for installing single-node VictoriaMetrics](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
 * [Ansible role for installing cluster VictoriaMetrics](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
 * [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
-* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://victoriametrics.github.io/vmalert.html).
+* [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://docs.victoriametrics.com/vmalert.html).
 
 
 ## Third-party contributions
@@ -1686,9 +1686,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.cluster.membersCount int
     	The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
   -promscrape.cluster.replicationFactor int
-    	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://victoriametrics.github.io/#deduplication (default 1)
+    	The number of members in the cluster, which scrape the same targets. If the replication factor is greater than 2, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication (default 1)
   -promscrape.config string
-    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://victoriametrics.github.io/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
+    	Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details
   -promscrape.config.dryRun
     	Checks -promscrape.config file for errors and unsupported fields and then exits. Returns non-zero exit code on parsing errors and emits these errors to stderr. See also -promscrape.config.strictParse command-line flag. Pass -loggerLevel=ERROR if you don't need to see info messages in the output.
   -promscrape.config.strictParse
@@ -1735,11 +1735,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.streamParse
     	Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.suppressDuplicateScrapeTargetErrors
-    	Whether to suppress 'duplicate scrape target' errors; see https://victoriametrics.github.io/vmagent.html#troubleshooting for details
+    	Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
     	Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed
   -relabelConfig string
-    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://victoriametrics.github.io/#relabeling for details
+    	Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://docs.victoriametrics.com/#relabeling for details
   -retentionPeriod value
     	Data with timestamps outside the retentionPeriod is automatically deleted
     	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
